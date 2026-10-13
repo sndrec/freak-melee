@@ -1,5 +1,9 @@
 # Samus slack and wall-constraint checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Samus remains unregistered. This extends the
 [controlled-flight checkpoint](native_source_samus_flight_checkpoint.md) with
 slack, wall extension and hanging on actual retail HSD graphs, plus continued

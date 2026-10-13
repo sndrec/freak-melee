@@ -1,5 +1,9 @@
 # Owned item resource integration
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Source packages now carry an optional canonical `resources.fmr` bundle. Its
 entries contain exact logical names and owned PNG/blob bytes. Project opening,
 package parsing, source checking, building and runtime preparation all use the

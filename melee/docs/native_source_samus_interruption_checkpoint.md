@@ -1,5 +1,9 @@
 # Samus shared interruption checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The 2026-10-10 batch supplies generic
 [`damage.interrupt_cleanup()`](scripting/fighter_observations.md#damageinterrupt_cleanup)
 for an owned Fighter. It directly executes the shared engine interruption

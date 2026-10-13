@@ -1,5 +1,9 @@
 # Interpreted fighter interaction checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. All 32 selected interactions across Marth, Roy and Mewtwo have
 passing stock/source evidence. The initial batch passes 31; one repeated-move
 coverage check required correction, and its fresh-package rerun passes. Final

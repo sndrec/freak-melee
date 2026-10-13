@@ -1,5 +1,9 @@
 # Samus grapple homing checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 `targets.nearest_available_fighter()` is a generic Fighter target-ID query.
 It calls the unchanged common `ftCo_800A4A40` policy: self exclusion, caller
 CPU blast margins, common availability/death filters, 2D distance and first

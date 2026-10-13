@@ -1,5 +1,7 @@
 # Native platform integration audit
 
+> Historical platform bring-up audit. Its initial unresolved-symbol counts and task list describe the recorded build, not current port status. Start with [current build instructions](native_build.md).
+
 ## Current boundary
 
 The full game/HSD source tree compiles into Windows x86-64 objects. This is

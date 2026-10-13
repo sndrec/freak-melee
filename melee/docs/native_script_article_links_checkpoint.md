@@ -1,5 +1,9 @@
 # Interpreter article links — 2026-10-10
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Pikachu/Pichu preparation now visits all **209 bodies per fighter** with
 **9 failing bodies each**, down from 21. This batch implements reusable
 relationships and Article-to-Article signals; neither package is accepted yet.

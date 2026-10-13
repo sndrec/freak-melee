@@ -1,5 +1,9 @@
 # Interpreted fighter presentation, movement and attack scheduling
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Twenty additional root hooks now connect the authored program to the actual
 native delivery sites. The directly indexed contract table has 73 entries; names
 resolve during preparation, and callbacks use fixed actor/storage pools.

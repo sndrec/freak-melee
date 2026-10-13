@@ -1,5 +1,9 @@
 # Samus composed-source gameplay checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Fresh Workshop clones now use the independent `samus_full.fms`
 template. The shipped source loads through the normal package path and passes
 28 stock/interpreter grapple/lifecycle gameplay comparisons. All 282 bodies

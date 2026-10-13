@@ -1,5 +1,9 @@
 # Interpreted CPU planner fields checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10. Five existing generic CPU fields now have ordinary interpreter
 catalog entries and execution paths:
 

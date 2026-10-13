@@ -27,3 +27,26 @@
 .env
 .env.*
 !.env.example
+
+# Preserved local donor/reference material omitted from the native source snapshot.
+/aurora/.github/
+/aurora/assets/
+/melee/.cargo/
+/melee/.dockerignore
+/melee/.flake8
+/melee/.github/
+/melee/.nix/
+/melee/.pre-commit-config.yaml
+/melee/.rustfmt.toml
+/melee/.vscode/
+/melee/Cargo.lock
+/melee/Cargo.toml
+/melee/Doxyfile
+/melee/configure.py
+/melee/default.nix
+/melee/docs/evidence/
+/melee/docs/img/
+/melee/flake.lock
+/melee/flake.nix
+/melee/orig/
+/melee/reqs/

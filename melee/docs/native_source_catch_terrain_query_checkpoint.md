@@ -1,5 +1,9 @@
 # Interpreter catch hooks, Item terrain and follower queries
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The interpreter now enters common catch/capture paths at their original native
 decision points, runs Item ground-following and landing responses with authored
 stage hooks, and exposes the target/terrain observations needed by follower

@@ -1,5 +1,9 @@
 # Interpreted held-item category checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 `items.hold_kind` is now an ordinary read-only `int` property. It calls the
 native `itGetHoldKind` getter on the selected held Item. This is the engine's
 three-bit hold category, distinct from `items.held_kind` (Item identity) and

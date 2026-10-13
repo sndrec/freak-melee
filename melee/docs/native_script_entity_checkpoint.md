@@ -1,5 +1,9 @@
 # Connected interpreted entity runtime
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The direct interpreter now prepares immutable Article/Item programs and runs
 their authored callbacks through the actual native Item scheduler. Ordinary
 Workshop/project/package activation still uses the previous backend. This is a

@@ -1,5 +1,7 @@
 # Match state and simulation-only rollback
 
+> Arena migration and copy-cost evidence. Production cutover is complete for the admitted paths and uses the confirmed-checkpoint policy. Current architecture/limits are in [current rollback](native_rollback_current.md); further optimization is deferred.
+
 The production target is a compact, contiguous mutable match arena and rollback
 ticks that do not render. The current 39-component serializer is an ownership
 inventory and diagnostic implementation, not the desired permanent hot path.

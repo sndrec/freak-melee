@@ -1,5 +1,9 @@
 # Interpreted colors and held-item observations
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The ordinary interpreter now reads the current costume index and the common
 base model scale independently from per-instance scale. It packs RGBA using
 integer bytes and writes Fighter/Article presentation fields directly. Native

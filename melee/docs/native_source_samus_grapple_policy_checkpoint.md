@@ -1,5 +1,9 @@
 # Samus grapple policy checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The composed authoring candidate now owns the Up/Down/Up/A code sequence.
 It samples exactly one branch on each normal update in held/flight modes,
 using the existing physical D-pad and attack-edge properties. The completed

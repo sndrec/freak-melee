@@ -1,5 +1,9 @@
 # Interpreter guard, collision history and companion fields
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Four generic operations are connected: `controls.try_guard()`,
 `collision.copy_from(id)`, read-only `motion.allows_controller_sync`, and
 read/write `spawn.horizontal_offset`. Fighter-specific choices remain scripts;

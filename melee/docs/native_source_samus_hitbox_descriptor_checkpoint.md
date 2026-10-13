@@ -1,5 +1,9 @@
 # Samus grapple descriptor portability checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Before implementing generic script-owned fighter hitbox creation, inspection
 found a concrete native-port mismatch in `it_802B7160`. Its descriptor is a host
 C bitfield structure. The original GameCube halfword read at byte offset 2

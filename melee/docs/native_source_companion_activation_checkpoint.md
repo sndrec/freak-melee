@@ -1,5 +1,9 @@
 # Interpreted companion package activation
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Simultaneous companion packages now pass the existing family preparation and
 publication transaction. The two explicit mode rejections were removed only
 after the [constructor ownership checkpoint](native_source_constructor_ownership_checkpoint.md).

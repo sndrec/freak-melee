@@ -1,5 +1,9 @@
 # Source-owned Workshop member and pose preview
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The Workshop no longer uses `nativeFighterRuntime_Definition` as a runtime
 package discriminator. Ordinary interpreted packages intentionally have no
 C-backed definition. Those obsolete checks rejected member one, blocked

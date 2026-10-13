@@ -1,5 +1,9 @@
 # Owned Peach articles through the interpreter
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-09. Peach now runs as an installed source package with its five copied
 primary Article descriptors and direct FMS callbacks. This adds constructor,
 state/animation and cleanup evidence to preparation. Historical generated-C

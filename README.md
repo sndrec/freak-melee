@@ -10,13 +10,15 @@ and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
   fighter templates and optional signaling/release service source.
 - `aurora/`: the exact modified framework required by this client; its CMake
   configuration obtains pinned third-party dependencies.
-- `PROJECT_PLAN.md`: product contract and progress evidence.
+- `PROJECT_PLAN.md`: current product contract and remaining work.
+- `melee/docs/README.md`: current guides and dated evidence index.
 - `TOOLING.md`: local tooling and build notes.
 
 This repository is a source snapshot, not a copy of the development machine.
 It excludes the ISO, extracted game assets, SDK/tool binaries, build products,
 screenshots, profiling archives and reference-only repositories. The initial
-commit preserves the project documents before their cleanup.
+commit preserves the project documents before their cleanup; current guides
+separate implemented features from remaining work and historical evidence.
 
 ## Build
 
@@ -50,3 +52,8 @@ Aurora derives from [encounter/aurora](https://github.com/encounter/aurora);
 its MIT license is retained at `aurora/LICENSE`. Third-party code retains its
 own notices, including cgltf. See `SOURCE_PROVENANCE.json` for the exact local
 base commits. No blanket license is asserted for the whole combined tree.
+
+Current priorities: Model workspace completion, collaborative Workshop review,
+source-only content/release acceptance and presentation polish. Optimization,
+Kirby cloning and whole-move transfer are deferred. See the
+[project plan](PROJECT_PLAN.md) and [documentation index](melee/docs/README.md).

@@ -1,5 +1,9 @@
 # Direct positional Article factories and signals
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This slice extends the ordinary bytecode interpreter, not its test-only generated
 C oracle. No game, installed character package, or public draft was changed.
 

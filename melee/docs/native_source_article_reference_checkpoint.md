@@ -1,5 +1,9 @@
 # Direct interpreted Article references
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The ordinary interpreter supports read-only `articles.ref(handle,DeclaredArticle)`
 from Fighter and Article callbacks. This is not a generated callback, native
 Definition adapter, or lookup by arbitrary ItemKind. A literal source declaration

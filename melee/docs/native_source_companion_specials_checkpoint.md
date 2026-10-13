@@ -1,5 +1,9 @@
 # Actual interpreted companion specials
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The complete Popo/Nana source family now completes all four grounded special
 entries in real, rendered native games without script faults. Stock and source
 runs use identical controller samples. Both actors' action transitions and every

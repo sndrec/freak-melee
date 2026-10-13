@@ -1,5 +1,9 @@
 # Interpreted family gameplay checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Fresh independent Zelda/Sheik and Popo/Nana packages exercise normal
 CPU gameplay and explicit transform/special sequences. All three CPU cases and
 both transform sequences pass, with unchanged input pins and no reported VM faults.

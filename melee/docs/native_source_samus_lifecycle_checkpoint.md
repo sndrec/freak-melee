@@ -1,5 +1,9 @@
 # Samus owned lifecycle and scaling checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10. This advances the unregistered Samus source; it does not activate
 an independent fighter or claim gameplay acceptance.
 

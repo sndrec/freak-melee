@@ -1,5 +1,9 @@
 # Interpreted resource joint animations
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 All five methods are now available on `item.resource(index).joint("path")`:
 `add_animation(Name)`, `request_animation(frame)`, `advance_animation()`,
 `remove_animation()` and `set_animation_rate(rate)`. The shared retained-resource

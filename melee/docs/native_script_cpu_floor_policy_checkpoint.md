@@ -1,5 +1,9 @@
 # Composed CPU floor policy checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10. Yoshi, Bowser and shared CPU fixtures express native floor-only
 blocking through existing `stage.read_floor` and `stage.cpu_floor_excluded`
 operations, with the second query short-circuited when no floor is found.

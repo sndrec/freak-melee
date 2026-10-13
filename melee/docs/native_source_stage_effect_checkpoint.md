@@ -1,5 +1,9 @@
 # Interpreted stage queries and shared effect contracts
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch connects generic engine operations needed by the existing fighter
 translations. Packages still execute interpreted bytecode. It adds no stock
 fighter delegates, fighter-specific methods or compatibility aliases.

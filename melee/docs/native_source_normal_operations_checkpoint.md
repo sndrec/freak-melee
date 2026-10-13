@@ -1,5 +1,9 @@
 # Generic normal operations and owned immutable policies
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Five general operations now execute through the direct interpreter:
 `attack.enter_jab`, `attack.enter_rapid_jab`, `attack.update_rapid_jab`,
 `items.try_ground_pickup` and `collision.air_aerial_landing_callback`.

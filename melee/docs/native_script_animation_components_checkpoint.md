@@ -1,5 +1,9 @@
 # Interpreted model animation component checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Ness's stock Yo-yo installs a material animation with NULL joint and shape
 arguments in `itnessyoyo.c`. Its `Spin material 88` declaration cannot be read
 as a consecutive three-pointer bundle. The direct interpreter now uses the

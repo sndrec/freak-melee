@@ -1,5 +1,9 @@
 # Owned attachment rendering checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The ordinary interpreter's costume attachments now participate in the shared
 fighter render and visibility paths. The earlier attachment checkpoint connected
 loading, cloth and cleanup, but `nativeFighterAttachment_Draw` and

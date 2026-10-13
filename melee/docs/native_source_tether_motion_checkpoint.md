@@ -1,5 +1,9 @@
 # Interpreter tether movement and Article motion checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch continues the complete retained Link/Young Link and Popo/Nana source
 integration after `1e9849431`. Generic engine operations remain native; authored
 fighter decisions remain in the interpreter.

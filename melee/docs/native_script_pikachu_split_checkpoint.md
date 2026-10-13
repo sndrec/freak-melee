@@ -1,5 +1,9 @@
 # Pikachu/Pichu interpreter source preparation — 2026-10-10
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Pikachu and Pichu now have separate complete source templates. Each template
 keeps its own three owned articles; neither needs the other fighter's assets.
 The first separated-source audit visited all **209 bodies per fighter** and

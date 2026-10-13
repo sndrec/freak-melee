@@ -1,5 +1,9 @@
 # Interpreted single-fighter roster CPU checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. This checkpoint compares normal independent Workshop packages with
 stock gameplay, beyond source preparation. The final sealed batch passes all
 22 cases: 39,600 inputs per runtime, with complete replay consumption, no reported

@@ -1,5 +1,9 @@
 # Independent Article model cloning — 2026-10-10
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 All 256 Fox and 253 Falco bodies now compile in the interpreter audit.
 Neither fighter package is admitted yet: the first remaining package diagnostic
 is the unmigrated `wait_input` scheduler contract. This checkpoint does not

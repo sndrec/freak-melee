@@ -1,5 +1,7 @@
 # Native rollback snapshots
 
+> Historical page-based rollback implementation, retained as a diagnostic reference. Production uses admitted mutable arenas and confirmed checkpoints; see [current rollback](native_rollback_current.md). The page mechanism below is not the production path.
+
 Approved direction, 2026-10-07: replace broad page capture as the production
 mechanism with explicit snapshots of audited mutable match state. Retain the
 page system as a development correctness reference while proving the new

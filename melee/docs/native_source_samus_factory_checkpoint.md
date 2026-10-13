@@ -1,5 +1,9 @@
 # Samus connected factory and attachment checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. The source candidate remains unregistered. This extends the
 [retail constructor checkpoint](native_source_samus_resource_constructor_checkpoint.md)
 through the actual Item factory and interpreted fighter create/remove helpers.

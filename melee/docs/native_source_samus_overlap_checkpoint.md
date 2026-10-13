@@ -1,5 +1,9 @@
 # Generic hitbox-overlap checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Article scripts can call
 [`targets.overlaps_hitbox(fighter_id, hitbox_slot)`](scripting/targets.md#targetsoverlaps_hitbox).
 It uses the existing native hit/hurt capsule kernel, preserving swept endpoints,

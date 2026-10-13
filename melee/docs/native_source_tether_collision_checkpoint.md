@@ -1,5 +1,9 @@
 # Interpreter tether collision checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch finishes the remaining interpreter admission gaps in the retained
 Link and Young Link sources after `3faa5864c`. The complete authored source
 bodies remain intact; there is no stock-special delegation.

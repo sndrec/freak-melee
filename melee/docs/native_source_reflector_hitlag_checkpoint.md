@@ -1,5 +1,9 @@
 # Interpreter reflector, hitlag observations and stage-line admission
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch continues the retained Link and Young Link source migration after
 `67954b7b5`. It adds reusable observations without moving authored decisions
 back into fighter-specific C.

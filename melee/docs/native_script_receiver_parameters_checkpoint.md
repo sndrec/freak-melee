@@ -1,5 +1,9 @@
 # Owner parameter reads and receiver fixture refresh
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The stale receiver integration fixture now builds and runs against the current
 compiler, binding catalog, Execution/VM, receiver registry, and native GObj pool.
 Its production catalog change only names argument descriptor fields: 242

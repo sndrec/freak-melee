@@ -1,5 +1,9 @@
 # Typed source CPU scheduling and Item command admission
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Preparation and actor dispatch now share one immutable, directly indexed hook
 contract table. The original 28 hooks retain their ABI; 25 added CPU hooks make
 53 static contracts, including all 27 declared CPU events. Arguments and returns

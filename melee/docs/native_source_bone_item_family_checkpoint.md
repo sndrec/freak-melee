@@ -1,5 +1,9 @@
 # Interpreter bone, item-state and family checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch strengthens existing bone and article-state operations and adds
 generic family queries. It does not activate simultaneous companions or claim
 complete fighter acceptance. The existing decompilation remains the native

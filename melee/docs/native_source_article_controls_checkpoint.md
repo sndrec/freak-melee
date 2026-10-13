@@ -1,5 +1,9 @@
 # Interpreted Article models, capsules and child creation
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Primary-model joint selectors now retain their literal model/path recipe at
 package preparation. Model index zero and bounded child-ordinal paths address
 the actual Item root graph; secondary models are not aliases to that graph.

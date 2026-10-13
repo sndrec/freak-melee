@@ -1,5 +1,7 @@
 # Prepared Windows releases
 
+> Current release-readiness gap (2026-10-13): Workshop source checking requires native_content_tool.exe beside the client, but prepare_native_release.py currently omits it. Older preview/update checks below are dated evidence, not acceptance of the current interpreted Workshop release or a verified latest hosted version.
+
 Build `melee_native` in release mode first, then prepare a release from that
 build folder using the commands below.
 

@@ -13,7 +13,8 @@ replay the predicted suffix without intermediate saves. Admission and ownership
 checks run during construction; ordinary copies use sealed mutable spans and
 do not track page faults. The sixteen-slot history/page session remains a
 diagnostic reference. Sudden death renews history leases while retaining the
-live objects and transport. Rendering still runs during reconstruction.
+live objects and transport. Required CPU display/pose/effect work still runs during reconstruction; GPU
+geometry/output is omitted. See [current rollback](native_rollback_current.md).
 
 Each PC owns an arbitrary non-overlapping mask of the four controller ports.
 This represents one player per PC, multiple local players sharing a PC, or any

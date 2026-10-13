@@ -1,5 +1,9 @@
 # Samus controlled-contact flight checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Samus remains an unregistered authoring candidate. This expands the
 [retraction and hitlag comparisons](native_source_samus_retraction_hitlag_checkpoint.md)
 to extension and falling flight on real retail graphs. The runtime still

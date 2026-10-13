@@ -1,5 +1,9 @@
 # Typed recipient-helper argument checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Recipient calls now pass up to 30 Bool, Int, UInt or Float arguments to an
 exported root helper. The prepared instruction captures the complete call
 arity. The recipient validates its own declaration and applies ordinary

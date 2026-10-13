@@ -1,5 +1,9 @@
 # Samus article feedback checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10, following `88aabc8a4`. The batch source audit now reports **five**
 failing bodies instead of fourteen, with all 172 bodies and their metadata
 covered. Samus remains rejected and incomplete; this is not gameplay parity or

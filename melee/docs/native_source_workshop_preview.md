@@ -1,5 +1,7 @@
 # Workshop source validation and preview path
 
+> Dated migration evidence. Later [source member/pose preview](native_source_workshop_preview_checkpoint.md) and family checkpoints supersede the initial Single-only restrictions below. Current capabilities and unresolved presentation are in [Workshop status](native_character_workshop_progress.md).
+
 Workshop keeps its existing layout and routes Validate through the existing
 controller's actual draft save: edited DAT/animation/model, owned asset facts,
 parameters and separate FMS files are saved before checking the composed source.

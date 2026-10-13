@@ -1,5 +1,9 @@
 # Interpreted point-to-floor-island queries
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 `stage.compare_floor_islands` now runs in the ordinary typed interpreter for
 Fighter and Article sources. It uses `mpIsland_8005AC14` for the first vertical
 world-position probe and, only when requested and the first island exists, the

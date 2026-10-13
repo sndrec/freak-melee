@@ -1,5 +1,9 @@
 # Interpreter held creation, item grounding and recipient bone checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This slice connects three generic operations without stock special-handler
 delegation: prepared held-Article creation, native Item ground/air markers and
 recipient raw-bone sampling. Link and Young Link now name their exact declared

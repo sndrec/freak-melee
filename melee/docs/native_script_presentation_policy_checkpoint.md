@@ -1,5 +1,9 @@
 # Presentation and engine-policy integration batch
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The multi-body roster audit grouped Jigglypuff and Mewtwo's missing capabilities
 before implementation. This cohort adds four ordinary interpreted operations:
 

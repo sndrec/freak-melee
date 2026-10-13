@@ -1,5 +1,9 @@
 # Direct interpreter: Article state and shared queries
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The remaining four API gaps found in Game & Watch's Article bodies now execute
 through the direct interpreter. The APIs expose shared operations; scripts still
 own motion selection, attachment policy, animation timing and wind decisions.

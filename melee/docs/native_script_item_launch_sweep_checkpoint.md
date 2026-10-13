@@ -1,5 +1,9 @@
 # Generic item launch and sweep checkpoint — 2026-10-10
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Fox and Falco now prepare their existing launch-data, reflected-facing,
 previous-position stage sweep and pending-hitlag-clearing script calls through
 generic owned-Item APIs. This is an interpreter preparation checkpoint, not full

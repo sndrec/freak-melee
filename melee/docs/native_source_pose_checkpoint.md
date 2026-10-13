@@ -1,5 +1,9 @@
 # Direct interpreted pose operations
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Implemented 2026-10-08. Named owned graph metadata, closed selector values and
 all eight pose operations now work through ordinary source compilation and the
 typed VM. They call the existing shared Melee pose functions directly; no

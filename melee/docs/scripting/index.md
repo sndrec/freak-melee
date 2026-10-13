@@ -20,9 +20,10 @@ not every move interaction or lifetime branch. See the
 The [results checkpoint](../native_source_roster_results_checkpoint.md) records
 match-end/model admission, the shared demo-query fix and the passing rerun.
 Additional custom operations still require checked generic bindings; an unknown
-operation is rejected rather than falling back to a stock handler. Complete
-compact match snapshots and exhaustive Workshop/gameplay acceptance remain
-separate work.
+operation is rejected rather than falling back to a stock handler. Admitted mutable match snapshots and GPU-free reconstruction are now the
+production baseline; broader Workshop/gameplay/restore acceptance remains. See
+[current rollback](../native_rollback_current.md) and the
+[current work list](../../../PROJECT_PLAN.md).
 See [controller feedback and camera quakes](world_feedback.md) for shared
 presentation requests and their native eligibility and lifetime rules.
 See [bone queries](bone_queries.md), [article state transitions](article_state_transitions.md)

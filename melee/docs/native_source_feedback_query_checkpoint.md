@@ -1,5 +1,9 @@
 # Source feedback payloads and callback identity
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Implemented 2026-10-08. Fighter position effects, Article root effects and Article
 effect cleanup now use the direct interpreter. A generic pure callback identity
 query replaces the old per-slot pointer comparisons. No borrowed behavior handler,

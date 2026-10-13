@@ -1,5 +1,9 @@
 # Owned static secondary-model construction checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-09. This closes checked material compilation and actual static Arrow
 graph construction evidence. It does not enable source secondary-model metadata,
 Item slot publication, rendering or whole-match rollback.

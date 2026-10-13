@@ -1,5 +1,9 @@
 # Interpreted roster: match-end and results checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. All 100 selected results outcomes pass across the initial full run
 and a fresh 24-case post-fix rerun. The initial run had 84 passes and 16 failures;
 all 25 bases (26 scoped forms, excluding Kirby) passed ordinary source-package

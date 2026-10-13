@@ -1,5 +1,9 @@
 # Samus owned authoring and locomotion checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10. Samus now creates a real owned stock-asset draft. The canonical
 interpreter source remains rejected: the full 172-body audit reports 14 failing
 bodies, down from 28 at the beginning of this batch. This does not establish

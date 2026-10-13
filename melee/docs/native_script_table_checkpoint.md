@@ -1,5 +1,9 @@
 # Ordinary interpreter constant-table checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The ordinary source compiler and VM now support generic typed constant tables.
 Fox/Falco's blaster presentation scripts already used these declarations, but
 the interpreter treated them as unsupported entity metadata. The implementation

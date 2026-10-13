@@ -1,5 +1,9 @@
 # Interpreted capture frame and throw setup checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10. Ordinary fighter programs now prepare and execute two existing
 generic event contracts without generated C: `catch_pull_frame` (Float, no
 arguments) and `throw_victim_setup` (Void, no arguments).

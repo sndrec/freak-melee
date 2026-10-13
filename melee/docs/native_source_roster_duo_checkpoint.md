@@ -1,5 +1,9 @@
 # Two interpreted fighters: interaction checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. All 18 selected controller interactions pass stock/source comparison
 across the initial batch and one corrected fixture rerun. Both participants use
 fresh independent source packages. This extends the

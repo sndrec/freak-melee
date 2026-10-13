@@ -1,5 +1,9 @@
 # Interpreted Pikachu/Pichu gameplay checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Both fighters now prepare all **210 functions**, own three articles each, and
 publish independent interpreted source packages with **zero native imports**.
 The corrected focused matrix passes **46/46 exact replay pairs**, including

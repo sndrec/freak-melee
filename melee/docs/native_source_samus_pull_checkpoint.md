@@ -1,5 +1,9 @@
 # Samus pull constraints and retail direction-vector correction
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Samus remains unregistered. This extends the
 [slack/wall checkpoint](native_source_samus_constraints_checkpoint.md) into
 nonterminal mode-7 pull with real retail graphs and resolves the suspicious

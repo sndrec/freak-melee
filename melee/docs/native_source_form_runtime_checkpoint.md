@@ -1,5 +1,9 @@
 # Direct alternate source runtime checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Alternate families now prepare two independent source packages and require each
 member's zero-argument `form_activated` event. Both immutable banks, imported
 tables and leases are checked before either member publishes; both then enter

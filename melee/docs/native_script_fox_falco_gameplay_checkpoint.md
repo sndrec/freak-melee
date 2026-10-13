@@ -1,5 +1,9 @@
 # Fox/Falco connected interpreter gameplay — 2026-10-10
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The complete Fox and Falco source packages now pass twenty connected gameplay
 comparisons against their stock native counterparts: ten recordings per
 fighter. These runs use the ordinary interpreter and independently installed

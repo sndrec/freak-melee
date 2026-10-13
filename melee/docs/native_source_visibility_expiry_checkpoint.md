@@ -1,5 +1,9 @@
 # Interpreter visibility, expiry and positional feedback checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch adds generic engine operations required by complete authored fighter
 scripts. It does not call stock special handlers or introduce per-fighter API
 extensions. The ordinary client executes interpreter bytecode.

@@ -1,5 +1,9 @@
 # Interpreted Fighter observations, landing input and body rebound
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-09. This batch connects the next shared Peach contracts and corrects
 Super Scope's native motion storage. It is not complete Peach, article-asset,
 whole-match or rollback acceptance. No game or Dolphin was launched.

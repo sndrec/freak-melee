@@ -1,5 +1,9 @@
 # Direct interpreter: guard volumes and owned reactions
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch adds a generic Fighter guard-volume family. Scripts own reaction
 decisions and bind an explicit root helper; no stock counter handler is called.
 The [guard reference](scripting/guard.md) documents the author-facing interface.

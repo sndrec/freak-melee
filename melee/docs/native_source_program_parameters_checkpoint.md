@@ -1,5 +1,9 @@
 # Interpreted package-owned root parameters
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 `program.attrs.NAME` explicitly reads the executing package's immutable root
 parameter from a fighter, article, item or model-effect scope. Local `attrs`
 and `item.params` keep their exact owner scope. Mutable root state remains

@@ -1,5 +1,9 @@
 # Single source fighter integration checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Ordinary fighter projects and packages now feed the typed interpreter directly.
 They carry owned asset facts, DATs, FMS, parameters and CPU data, with no character
 DLL or generated-C payload. Workshop source checking is read-only; successful

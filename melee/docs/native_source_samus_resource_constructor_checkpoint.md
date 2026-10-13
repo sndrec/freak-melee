@@ -1,5 +1,9 @@
 # Retail Samus resource constructor checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-11. Samus remains an unregistered source authoring candidate. This closes
 the real-graph constructor and bounded palette-animation prerequisite, rather
 than declaring the whole fighter independently cloneable.

@@ -1,5 +1,9 @@
 # Interpreter ground specials, action observations and global audio
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Seven generic operations are now connected: four ground-special input checks,
 the current action category and incapacitated flag, and global audio playback.
 Fighter decisions remain authored scripts. No stock-specific special handler

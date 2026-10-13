@@ -1,5 +1,9 @@
 # Common throw presentation and native timer checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The generic interpreted `on throw_presentation` event now runs at the original
 accessory slot in `ftCo_800DD398`: holder motion and initial animation, capture
 mask, complete victim thrown setup, presentation, then common invincibility.

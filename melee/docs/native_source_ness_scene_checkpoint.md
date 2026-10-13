@@ -1,5 +1,9 @@
 # Actual interpreted Ness scene and grounded moves
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The October 10 batch brings the prepared Ness source packet into a real rendered
 match. The eight-scenario stock/source comparison passes idle, all four grounded
 specials and all three smashes, using normal controller input rather than forced

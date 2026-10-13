@@ -1,5 +1,7 @@
 # Direct source package loading audit
 
+> Historical pre-migration callback inventory. Ordinary Workshop/package loading now uses owned source candidates and interpreted programs, including paired members. See [interpreter status](native_interpreter_transition.md), [Workshop status](native_character_workshop_progress.md) and current source before reusing the old migration tasks below.
+
 Initial source audit, 2026-10-07. The tables below record the pre-migration
 architecture and explain the migration boundaries; they are not the current
 package protocol. The ordinary format now carries owned asset facts and FMS,

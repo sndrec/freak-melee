@@ -1,5 +1,9 @@
 # Ness interpreted vector and collision batch
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The complete Ness audit now reports 10 first-errors-per-body across 418 indexed
 functions, down from 14 in the preceding common-state batch. Metadata and body
 coverage remain complete, but the package still rejects. This count is not an

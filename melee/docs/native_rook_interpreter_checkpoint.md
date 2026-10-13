@@ -1,5 +1,9 @@
 # Rook interpreter gameplay checkpoint (2026-10-07)
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 Rook's canonical source now owns her air-jump entry and state 341's animation,
 input, physics and collision phases. Generic engine primitives provide the
 native jump bookkeeping, full aerial-jump input sequence, root rotation,

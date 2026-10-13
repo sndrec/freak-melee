@@ -1,5 +1,9 @@
 # Samus action and ground-motion checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-10, following `2b9109f20`. The all-body audit covers 172 functions and
 now reports **three** failing bodies, down from five. Samus remains a partial
 authoring base: the package is rejected, `behavior independent` is not enabled,

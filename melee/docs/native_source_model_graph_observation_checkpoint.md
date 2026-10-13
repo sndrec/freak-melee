@@ -1,5 +1,9 @@
 # Interpreter model installation and held-item/shield observations
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This batch continues retained Link and Young Link source integration after
 `8cec730d6`. It connects existing generic engine operations directly to the
 interpreter without adding fighter-specific load or shield handlers.

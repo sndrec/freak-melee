@@ -1,5 +1,9 @@
 # Interpreter Item contact and resource-collection boundary
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 This is the earlier contact-batch checkpoint. Its collection boundary is
 superseded by [the source-owned resource checkpoint](native_source_resource_checkpoint.md).
 The contact evidence below remains specific to its recorded input snapshots.

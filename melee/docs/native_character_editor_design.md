@@ -1,5 +1,7 @@
 # Character authoring: design review
 
+> Approved authoring design with historical implementation context. Use [current Workshop status](native_character_workshop_progress.md) and [current handoff](native_character_editor_handoff.md) for what exists and what remains; the early backend proof order is not a new task list.
+
 Status: approved design, reviewed against the current source on 2026-09-23.
 UI direction finalized 2026-09-24 in `native_character_workshop_ui.md`, including
 three full work modes, shared animation graphs and first-pass pose copying.

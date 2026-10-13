@@ -1,5 +1,7 @@
 # Native costume packages (foundation)
 
+> Current cache/install semantics below remain relevant; dated compiled-module checkpoints are historical. Ordinary authored fighters now carry source/assets and run interpreted bytecode. Current source-only gifting/recipient-editing acceptance is still open; see [project plan](../../PROJECT_PLAN.md).
+
 The local content store is per installation, under
 `%LOCALAPPDATA%\Freak Melee\content`. Its content-addressed `cache` directory
 holds complete packages, while `installed` contains separate collection

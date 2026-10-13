@@ -1,5 +1,9 @@
 # Interpreted multi-jump and collision-box checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 The ordinary interpreter now supports these generic engine operations:
 
 - `jumps.configure_multi(...)`: thirteen typed tuning values publish the

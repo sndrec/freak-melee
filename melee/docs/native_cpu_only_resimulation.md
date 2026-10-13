@@ -1,5 +1,7 @@
 # CPU-only GX reconstruction
 
+> Recorded CPU/GPU separation and optimization evidence. GPU-free reconstruction is the production baseline; further optimization is deferred as of 2026-10-13. Do not execute historical next-target instructions without a new request. See [current rollback](native_rollback_current.md).
+
 The confirmed-checkpoint path already avoids intermediate production saves.
 Netplay now reconstructs ticks without GPU output by default. Ordinary frames
 still render normally. `FREAK_MELEE_NO_GPU_RESIM=0` explicitly restores the

@@ -1,5 +1,9 @@
 # Owned secondary descriptor and scene storage checkpoint
 
+> Dated evidence, not the current backlog. Results and limitations below apply
+> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> [evidence index](checkpoint_index.md) before treating an old pending item as new work.
+
 2026-10-09. This extends the checked-material/static-graph checkpoint with
 immutable named imports and a real scene storage owner. Source `model_root`
 metadata and static secondary operations now connect to the direct interpreter.
