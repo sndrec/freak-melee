@@ -299,7 +299,7 @@
   margin-left: auto; border: 1dp #343743;
   background-color: #252832; }
 #workshop-add-event-menu { display: none; position: absolute;
-  right: 10dp; top: 39dp; z-index: 7; width: 185dp;
+  right: 10dp; bottom: 35dp; z-index: 30; pointer-events: auto; width: 185dp;
   max-height: 230dp; overflow-y: auto; padding: 6dp;
   background-color: #242630; border: 1dp #5c5053; }
 #workshop-add-event-menu button { display: block; width: 100%;
@@ -526,7 +526,7 @@
   margin: 0; padding: 4dp 7dp; font-size: 10dp; }
 #workshop-graph-toolbar .room-button.selected { color: #f59e82;
   background-color: #46332f; border-color: #a46657; }
-#workshop-graph-normalize { margin-left: auto; }
+
 #workshop-graph-content { display: none; width: 100%; height: 65%;
   min-height: 110dp; }
 #workshop-graph-channels { width: 190dp; flex-shrink: 0;
@@ -667,3 +667,20 @@ button:focus { border-color: #f59e82; }
 .workshop-parameter-row input, .workshop-parameter-row select,
 .workshop-parameter-row button { display: inline-block; vertical-align: middle; }
 #workshop-doc-menu button { display: block; }
+
+.workshop-timeline-event { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.workshop-pose-channel { display:flex; align-items:center; margin:5dp 0; }
+.workshop-pose-channel label { width:78dp; flex-shrink:0; }
+.workshop-pose-channel input { flex:1; width:0; height:28dp; padding:3dp 5dp; background:#23242e; border:1dp #4a4051; }
+.workshop-pose-channel button { width:32dp; margin-left:5dp; padding:5dp 2dp; }
+.workshop-graph-toggle { display:flex; align-items:center; margin-right:12dp; }
+.workshop-graph-toggle select { width:100dp; margin-left:6dp; }
+.workshop-graph-toggle input { margin-right:6dp; }
+
+#workshop-timeline-grid { position:absolute; left:0; right:0; top:28dp; bottom:0; pointer-events:none; }
+#workshop-timeline-grid div { position:absolute; top:0; bottom:0; width:1dp; background-color:#343943; pointer-events:none; }
+
+.workshop-graph-toggle span { display:inline-block; white-space:nowrap; flex-shrink:0; }
+.workshop-graph-toggle input { width:15dp; height:15dp; background-color:#211d2a; border:1dp #8d7480; }
+.workshop-graph-toggle input:checked { background-color:#b25b4d; border-color:#f4b093; }

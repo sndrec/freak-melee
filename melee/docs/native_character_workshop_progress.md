@@ -129,6 +129,34 @@ Local build and check artifacts are under
 content tool and control tool build successfully. Tests were hidden and muted;
 test projects and screenshots are outside the repository.
 
+## Second recording feedback: ready for review
+
+The [round-two checklist](native_workshop_feedback_2026_10_13.md) records the
+feedback and focused verification. Add Event inserts at the playhead, including
+actions with no existing script. Meaningful commands have names, descriptions
+and editable fields. Timeline markers clip their labels and show full names
+on hover; the inspector follows the current selection.
+
+Animation pose values update the preview as they change. Each channel has a
+Key button, and I over a numeric property inserts that channel's key. Enter
+applies clip length. Graph G/R/S transforms preview continuously and support
+confirmation, cancellation and axis constraints. The graph grid follows its
+frame/value coordinates. Undo and redo restore data and the preview, including
+temporary poses. Gizmos use solid arrows, rotation rings and scale handles,
+with world/local controls.
+
+Model Edit/Pose modes show every mesh allowed by the editor eye controls,
+including normally hidden accessories. Animation playback and Test Character
+use authored visibility. Materials expose lighting colors, render flags,
+blending/depth settings and attached texture layers, including texture
+transforms, filtering and custom color/alpha operations. Common attributes
+have readable labels, units and descriptions. The CSS heading uses the supplied
+FolkPro face at a smaller size.
+
+This pass is ready for the user's next usability review. Authoring IK remains
+planned separately. Focused tests used an isolated Ganondorf draft and hidden,
+muted clients; user projects were preserved.
+
 ## Evidence entry points
 
 - [Source-owned member preview](native_source_workshop_preview_checkpoint.md).

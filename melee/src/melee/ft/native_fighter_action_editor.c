@@ -160,11 +160,16 @@ static bool collect_action(const NativeFighterProject* project,
         (event_count != NULL && events == NULL) ||
         (command_count == NULL && commands != NULL) ||
         !action_table(project, &dat, &table) ||
-        !action_source(project, &dat, table, action, &entry)) {
+        action >= project->action_count) {
         return false;
     }
     if (event_count != NULL) *event_count = 0;
     if (command_count != NULL) *command_count = 0;
+    if (!action_source(project, &dat, table, action, &entry)) {
+        const char* external;
+        return HSD_DatResolve(&dat, table + action * 24 + 12, &entry,
+                              &external) == HSD_DAT_REF_NULL;
+    }
     size_t words = table / 4;
     u8* visited = calloc(words, 1);
     u32* pending = malloc(words * sizeof(*pending));
@@ -219,19 +224,15 @@ static bool collect_action(const NativeFighterProject* project,
                 }
                 ++*command_count;
             }
-            if (event_count != NULL &&
-                (opcode == 1 || opcode == 2 ||
-                (opcode >= 10 && opcode <= 17) ||
-                opcode == 19 || opcode == 34 || opcode == 25 ||
-                (opcode == 20 && (raw & 0x3FFFFFF) <= 1) ||
-                opcode == 26 || opcode == 27 || opcode == 28 ||
-                opcode == 23 || opcode == 24)) {
+            if (event_count != NULL && (opcode == 1 || opcode == 2 || opcode >= 9) &&
+                !(opcode == 20 && (raw & 0x3FFFFFF) > 1)) {
                 if (*event_count == event_capacity) {
                     ok = false;
                     break;
                 }
                 NativeFighterActionEvent* event = &events[(*event_count)++];
                 event->source_offset = at;
+                event->opcode = (uint8_t) opcode;
                 event->target_id = opcode == 10 ? (raw >> 18) & 0xFF
                                    : opcode >= 11 && opcode <= 13
                                        ? (raw >> 23) & 7
@@ -278,7 +279,8 @@ static bool collect_action(const NativeFighterProject* project,
                                 : NativeFighterActionEvent_ReverseFacing)
                             : opcode == 25 ? NativeFighterActionEvent_SetAirborneState
                             : opcode == 23 ? NativeFighterActionEvent_AllowInterrupt
-                                           : NativeFighterActionEvent_NeutralCue;
+                            : opcode == 24 ? NativeFighterActionEvent_NeutralCue
+                                           : NativeFighterActionEvent_Command;
             }
             if (opcode == 5 || opcode == 7) {
                 u32 target;
@@ -440,8 +442,12 @@ static bool rewrite_action_command(NativeFighterProject* project,
                                    ActionRewriteKind rewrite,
                                    unsigned template_action,
                                    u32 template_offset,
-                                   uint32_t* inserted_offset)
+                                   uint32_t* inserted_offset,
+                                   const u8* payload, u32 payload_size,
+                                   u32 event_in_payload, u32 payload_commands,
+                                   u32 split_wait)
 {
+    const bool before_command = payload != NULL;
     const bool removing = rewrite == ActionRewrite_Delete;
     const bool inserting = rewrite == ActionRewrite_Insert;
     HSD_Dat dat;
@@ -470,11 +476,11 @@ static bool rewrite_action_command(NativeFighterProject* project,
             return false;
         if (command->source_offset == command_offset &&
             (rewrite == ActionRewrite_Localize ||
-             (command->opcode != 0 && command->opcode != 5 &&
-              command->opcode != 6 && command->opcode != 7))) {
+             (before_command || command->opcode != 0) && command->opcode != 5 &&
+              command->opcode != 6 && command->opcode != 7)) {
             selected_width = command->words;
             edit_at = removing ? command_offset :
-                inserting ? command_offset + selected_width * 4 :
+                inserting ? command_offset + (before_command ? 0 : selected_width * 4) :
                             command_offset;
         }
         if (command->opcode == 5 || command->opcode == 7) {
@@ -502,28 +508,33 @@ static bool rewrite_action_command(NativeFighterProject* project,
             if (template_commands[i].source_offset != template_offset) continue;
             template_opcode = template_commands[i].opcode;
             if (template_opcode != 0 &&
-                (template_opcode < 3 || template_opcode > 9))
+                (template_opcode < 3 || template_opcode >= 9))
                 template_width = template_commands[i].words;
             break;
         }
         if (template_width == 0) return false;
     }
-    unsigned free_hitbox_id = 8;
+    unsigned free_hitbox_id = 4;
     if (inserting && template_opcode == 11) {
         NativeFighterActionEvent listed[256];
         size_t listed_count;
-        bool occupied[8] = { false };
+        bool occupied[4] = { false };
         if (!nativeFighterAction_Events(project, action, listed, 256,
                                         &listed_count)) return false;
         for (size_t i = 0; i < listed_count; ++i)
             if (listed[i].kind == NativeFighterActionEvent_CreateHitbox &&
-                listed[i].target_id < 8)
+                listed[i].target_id < 4)
                 occupied[listed[i].target_id] = true;
-        for (unsigned id = 0; id < 8; ++id)
+        for (unsigned id = 0; id < 4; ++id)
             if (!occupied[id]) { free_hitbox_id = id; break; }
-        if (free_hitbox_id == 8) return false;
+        if (free_hitbox_id == 4) {
+            u32 original;
+            if (!HSD_DatReadU32(&dat,template_offset,&original)) return false;
+            free_hitbox_id = (original >> 23) & 7;
+            if (free_hitbox_id >= 4) return false;
+        }
     }
-    const u32 inserted = template_width * 4;
+    const u32 inserted = before_command ? payload_size : template_width * 4;
     const u32 removed = removing ? selected_width * 4 : 0;
     for (u32 i = 0; i < dat.relocation_count; ++i) {
         u32 slot;
@@ -534,7 +545,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
             ++copied_relocation_count;
         }
         if (inserted != 0 && slot >= template_offset &&
-            slot < template_offset + inserted) return false;
+            slot < template_offset + template_width * 4) return false;
     }
     const u32 new_length = range_end - range_begin + inserted - removed;
     if (new_length > UINT32_MAX - dat.data_size ||
@@ -560,7 +571,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
            edit_at - range_begin);
     if (inserted != 0)
         memcpy(bytes + 32 + table + edit_at - range_begin,
-               source + 32 + template_offset, inserted);
+               before_command ? payload : source + 32 + template_offset, inserted);
     memcpy(bytes + 32 + table + edit_at - range_begin + inserted,
            source + 32 + edit_at + removed,
            range_end - edit_at - removed);
@@ -606,7 +617,9 @@ static bool rewrite_action_command(NativeFighterProject* project,
         }
         const u32 slot = copied_offset(source_slot,
             range_begin, table, edit_at, inserted, removed);
-        const u32 mapped_target = target >= range_begin && target < range_end
+        const u32 mapped_target = before_command && target == edit_at
+            ? table + edit_at - range_begin
+            : target >= range_begin && target < range_end
             ? copied_offset(target, range_begin, table, edit_at,
                             inserted, removed)
             : target >= table ? target + new_length : target;
@@ -637,7 +650,11 @@ static bool rewrite_action_command(NativeFighterProject* project,
                    i * 8, root);
     }
     const u32 new_table = table + new_length;
-    const u32 new_command = table + edit_at - range_begin;
+    const u32 new_command = table + edit_at - range_begin + event_in_payload;
+    if (before_command && split_wait != UINT32_MAX) {
+        const u32 timer = copied_offset(command_offset, range_begin, table, edit_at, inserted, removed);
+        write_be32(bytes + 32 + timer, (1u << 26) | split_wait);
+    }
     if (template_opcode == 11) {
         u32 raw = ((u32) bytes[32 + new_command] << 24) |
                   ((u32) bytes[32 + new_command + 1] << 16) |
@@ -647,8 +664,8 @@ static bool rewrite_action_command(NativeFighterProject* project,
         write_be32(bytes + 32 + new_command, raw);
     }
     write_be32(bytes + 32 + new_table + action * 24 + 12,
-               copied_offset(entry, range_begin, table, edit_at,
-                             inserted, removed));
+               before_command && entry == edit_at ? table + edit_at - range_begin :
+               copied_offset(entry, range_begin, table, edit_at, inserted, removed));
     NativeFighterProject candidate = *project;
     candidate.fighter_dat = bytes;
     candidate.fighter_size = new_size;
@@ -657,7 +674,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
     const bool valid = HSD_DatOpen(&check, bytes, new_size) == HSD_DAT_OK &&
         nativeFighterAction_Commands(&candidate, action, NULL, 0, &count) &&
         count == (removing ? old_command_count - 1 :
-                  inserting ? old_command_count + 1 : old_command_count);
+                  inserting ? old_command_count + (before_command ? payload_commands : 1) : old_command_count);
     if (!valid) {
         free(bytes);
         return false;
@@ -678,7 +695,112 @@ bool nativeFighterAction_InsertCommand(NativeFighterProject* project,
     return rewrite_action_command(project, action, after_offset,
                                   ActionRewrite_Insert,
                                   template_action, template_offset,
-                                  inserted_offset);
+                                  inserted_offset, NULL, 0, 0, 0, UINT32_MAX);
+}
+
+static bool create_action_script(NativeFighterProject* project, const HSD_Dat* dat,
+                                  u32 table, unsigned action, unsigned frame,
+                                  u32 source, u32 width, uint32_t* inserted)
+{
+    const u32 prefix = frame ? 4 : 0;
+    const u32 added = prefix + width * 4 + 4;
+    if (project->fighter_size > UINT32_MAX - added - 4) return false;
+    // Null script entries have no relocation. Keep every existing symbol and
+    // pointer stable relative to the shifted action table and following data.
+    const u32 slot = table + action * 24 + 12;
+    u32 existing; const char* external;
+    if (HSD_DatResolve(dat, slot, &existing, &external) != HSD_DAT_REF_NULL) return false;
+    const size_t new_size = project->fighter_size + added + 4;
+    u8* bytes = malloc(new_size);
+    u32* relocations = malloc((dat->relocation_count + 1) * sizeof(u32));
+    if (!bytes || !relocations) { free(bytes); free(relocations); return false; }
+    memcpy(bytes, project->fighter_dat, 32 + table);
+    if (prefix) write_be32(bytes + 32 + table, (1u << 26) | frame);
+    memcpy(bytes + 32 + table + prefix, project->fighter_dat + 32 + source, width * 4);
+    write_be32(bytes + 32 + table + prefix + width * 4, 0);
+    memcpy(bytes + 32 + table + added, project->fighter_dat + 32 + table, dat->data_size - table);
+    const u32 tail = 32 + dat->data_size + dat->relocation_count * 4;
+    const u32 new_tail = tail + added + 4;
+    memcpy(bytes + new_tail, project->fighter_dat + tail, project->fighter_size - tail);
+    write_be32(bytes, (u32) new_size); write_be32(bytes + 4, dat->data_size + added);
+    write_be32(bytes + 8, dat->relocation_count + 1);
+    for (u32 i = 0; i < dat->relocation_count; ++i) {
+        u32 at, target;
+        if (!HSD_DatRelocation(dat, i, &at) || !HSD_DatReadU32(dat, at, &target)) {
+            free(bytes); free(relocations); return false;
+        }
+        relocations[i] = at >= table ? at + added : at;
+        write_be32(bytes + 32 + relocations[i], target >= table ? target + added : target);
+    }
+    relocations[dat->relocation_count] = slot + added;
+    qsort(relocations, dat->relocation_count + 1, sizeof(u32), compare_u32);
+    for (u32 i = 0; i <= dat->relocation_count; ++i)
+        write_be32(bytes + 32 + dat->data_size + added + i * 4, relocations[i]);
+    free(relocations);
+    for (u32 i = 0; i < dat->root_count; ++i) {
+        u32 root; const char* name;
+        if (!HSD_DatSymbol(dat, false, i, &root, &name)) { free(bytes); return false; }
+        write_be32(bytes + new_tail + i * 8, root >= table ? root + added : root);
+    }
+    write_be32(bytes + 32 + slot + added, table);
+    NativeFighterProject candidate = *project;
+    candidate.fighter_dat = bytes; candidate.fighter_size = new_size;
+    HSD_Dat check; size_t count;
+    if (HSD_DatOpen(&check, bytes, new_size) != HSD_DAT_OK ||
+        !nativeFighterAction_Commands(&candidate, action, NULL, 0, &count) || count != (prefix ? 3u : 2u)) {
+        free(bytes); return false;
+    }
+    free(project->fighter_dat); project->fighter_dat = bytes; project->fighter_size = new_size;
+    if (inserted) *inserted = (uint32_t) (table + prefix);
+    return true;
+}
+
+bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
+                                      unsigned action, unsigned frame,
+                                      unsigned template_action, uint32_t template_offset,
+                                      uint32_t* inserted_offset)
+{
+    HSD_Dat dat;
+    u32 table, raw;
+    if (frame > 1000 || !action_table(project, &dat, &table) ||
+        !HSD_DatReadU32(&dat, template_offset, &raw)) return false;
+    const u32 width = ftActionData_SourceCommandWidth(raw);
+    if (!width || width > 7 || template_offset + width * 4 > table) return false;
+    if (action >= project->action_count || (raw >> 26) == 0 || ((raw >> 26) >= 3 && (raw >> 26) <= 8)) return false;
+    NativeFighterActionCommand templates[512]; size_t template_count; bool found = false;
+    if (!nativeFighterAction_Commands(project, template_action, templates, 512, &template_count)) return false;
+    for (size_t i = 0; i < template_count; ++i) found |= templates[i].source_offset == template_offset;
+    if (!found) return false;
+    u32 source;
+    if (!action_source(project, &dat, table, action, &source))
+        return create_action_script(project, &dat, table, action, frame, template_offset, width, inserted_offset);
+    NativeFighterActionOccurrence occurrences[4096];
+    size_t count; bool complete;
+    if (!nativeFighterAction_Timeline(project, action, occurrences, 4096, &count, &complete)) return false;
+    u32 anchor = UINT32_MAX, previous_frame = 0, split_wait = UINT32_MAX;
+    for (size_t i = 0; i < count; ++i) {
+        const NativeFighterActionOccurrence* at = &occurrences[i];
+        if (at->frame < frame && at->opcode != 0) { previous_frame = at->frame; continue; }
+        // Split a relative wait, keeping every existing event's time intact.
+        // An absolute wait already retains the original following frame.
+        if (at->frame > frame && (at->opcode == 1 || at->opcode == 2)) {
+            anchor = at->source_offset;
+            if (at->opcode == 1) split_wait = at->frame - frame;
+            break;
+        }
+        if (at->frame == frame && (at->opcode == 1 || at->opcode == 2)) {
+            previous_frame = frame; continue;
+        }
+        if (at->frame == frame || at->opcode == 0) { anchor = at->source_offset; break; }
+    }
+    if (anchor == UINT32_MAX || previous_frame > frame) return false;
+    u8 payload[32]; u32 offset = 0;
+    if (frame > previous_frame) { write_be32(payload, (1u << 26) | (frame - previous_frame)); offset = 4; }
+    memcpy(payload + offset, project->fighter_dat + 32 + template_offset, width * 4);
+    return rewrite_action_command(project, action, anchor, ActionRewrite_Insert,
+                                  template_action, template_offset, inserted_offset,
+                                  payload, width * 4 + offset, offset,
+                                  offset ? 2 : 1, split_wait);
 }
 
 bool nativeFighterAction_DeleteCommand(NativeFighterProject* project,
@@ -686,7 +808,7 @@ bool nativeFighterAction_DeleteCommand(NativeFighterProject* project,
 {
     return rewrite_action_command(project, action, source_offset,
                                   ActionRewrite_Delete,
-                                  0, 0, NULL);
+                                  0, 0, NULL, NULL, 0, 0, 0, UINT32_MAX);
 }
 
 bool nativeFighterAction_LocalizeCommand(NativeFighterProject* project,
@@ -696,7 +818,7 @@ bool nativeFighterAction_LocalizeCommand(NativeFighterProject* project,
 {
     return rewrite_action_command(project, action, source_offset,
                                   ActionRewrite_Localize, 0, 0,
-                                  local_offset);
+                                  local_offset, NULL, 0, 0, 0, UINT32_MAX);
 }
 
 bool nativeFighterAction_SetValue(NativeFighterProject* project,
@@ -857,7 +979,7 @@ bool nativeFighterAction_GetHitbox(const NativeFighterProject* project,
 
 static bool valid_hitbox(const NativeFighterHitbox* h)
 {
-    return h->id <= 7 && h->hit_group <= 7 &&
+    return h->id < 4 && h->hit_group <= 7 &&
            (h->use_common_bone_ids ? h->bone < FT_COMMON_PART_COUNT
                                    : h->bone < NATIVE_FIGHTER_MARIO_JOINT_COUNT) &&
            h->only_hit_grabbed <= 1 && h->use_common_bone_ids <= 1 &&
@@ -1075,6 +1197,53 @@ bool nativeFighterAction_SetSpawnEffect(NativeFighterProject* project,
         bytes[i * 4 + 2] = (u8) (word >> 8);
         bytes[i * 4 + 3] = (u8) word;
     }
+    return true;
+}
+
+bool nativeFighterAction_Fields(const NativeFighterProject* project, unsigned action,
+                                uint32_t source, NativeFighterActionField* fields,
+                                size_t capacity, size_t* count)
+{
+    NativeFighterActionCommand commands[512];
+    size_t n;
+    if (!count || !nativeFighterAction_Commands(project, action, commands, 512, &n)) return false;
+    const NativeFighterActionCommand* command = NULL;
+    for (size_t i = 0; i < n; ++i) if (commands[i].source_offset == source) command = commands + i;
+    if (!command || command->opcode < 9) return false;
+    HSD_Dat dat;
+    if (HSD_DatOpen(&dat, project->fighter_dat, project->fighter_size) != HSD_DAT_OK) return false;
+    *count = 0;
+    for (unsigned word = 0; word < command->words; ++word) {
+        u8 widths[8];
+        unsigned nw = ftActionData_SourceFieldWidths(command->opcode, word, widths);
+        if (!nw) { nw = 1; widths[0] = 32; }
+        u32 raw;
+        if (!HSD_DatReadU32(&dat, source + word * 4, &raw)) return false;
+        unsigned shift = 32;
+        for (unsigned field = 0; field < nw; ++field) {
+            shift -= widths[field];
+            if (word == 0 && field == 0) continue;
+            if (*count >= capacity) return false;
+            const u32 mask = widths[field] == 32 ? UINT32_MAX : (1u << widths[field]) - 1;
+            fields[(*count)++] = (NativeFighterActionField) {
+                (uint32_t) ((raw >> shift) & mask), (uint8_t) word, (uint8_t) shift, widths[field]
+            };
+        }
+    }
+    return true;
+}
+bool nativeFighterAction_SetField(NativeFighterProject* project, unsigned action,
+                                  uint32_t source, unsigned field_index, uint32_t value)
+{
+    NativeFighterActionField fields[48]; size_t count; unsigned users;
+    if (!nativeFighterAction_Fields(project, action, source, fields, 48, &count) ||
+        field_index >= count || !nativeFighterAction_Users(project, source, &users) || users != 1) return false;
+    const NativeFighterActionField* field = fields + field_index;
+    const u32 mask = field->width == 32 ? UINT32_MAX : (1u << field->width) - 1;
+    if (value > mask) return false;
+    u8* p = project->fighter_dat + 32 + source + field->word * 4;
+    const u32 raw = ((u32) p[0] << 24) | ((u32) p[1] << 16) | ((u32) p[2] << 8) | p[3];
+    write_be32(p, (raw & ~(mask << field->shift)) | ((u32) value << field->shift));
     return true;
 }
 

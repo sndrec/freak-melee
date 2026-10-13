@@ -1,5 +1,6 @@
 #include "native_shell_workshop_editor_internal.h"
 #include "native_shell_workshop_docs.h"
+#include <melee/ft/native_fighter_model_editor.h>
 
 #ifdef MELEE_NATIVE
 
@@ -96,6 +97,35 @@ void record_structural_edit(bool animation, const uint8_t* before, size_t size,
     update_history_buttons();
 }
 
+void record_pose_edit(const NativeWorkshopTransformChange* changes, unsigned count)
+{
+    if (!count || !session->project) return;
+    bool different = false;
+    for (unsigned i = 0; i < count; ++i)
+        different |= std::memcmp(&changes[i].before, &changes[i].after,
+                                 sizeof(changes[i].before)) != 0;
+    if (!different) return;
+    EditHistoryEntry edit = {};
+    edit.poses.assign(changes, changes + count);
+    edit.pose_clip = session->animation_clip;
+    edit.pose_frame = session->animation_frame;
+    session->edit_history.erase(session->edit_history.begin() + session->edit_cursor,
+                                session->edit_history.end());
+    if (session->edit_history.size() == 32) session->edit_history.erase(session->edit_history.begin());
+    session->edit_history.push_back(std::move(edit));
+    session->edit_cursor = session->edit_history.size();
+    update_history_buttons();
+}
+
+std::string bone_name(unsigned joint)
+{
+    if (joint < 512 && !session->bone_names[joint].empty() &&
+        session->bone_names[joint].compare(0, 6, "Joint ") != 0) return session->bone_names[joint];
+    const char* role = nativeHome_WorkshopBoneRole(joint);
+    if (role) return role;
+    return "Joint " + std::to_string(joint);
+}
+
 std::string number(unsigned value)
 {
     return std::to_string(value);
@@ -110,8 +140,8 @@ std::string float_text(float value)
 
 std::string graph_tick_text(float value, float step)
 {
-    const int precision = step < 0.01f ? 3 : step < 0.1f ? 2 :
-                          step < 1.0f ? 1 : 0;
+    const int precision = std::clamp(int(std::ceil(-std::log10(std::max(step,1e-9f)))),0,9);
+    if (std::fabs(value) < step * 1e-4f) value = 0;
     char result[32];
     std::snprintf(result, sizeof(result), "%.*f", precision, value);
     return result;
@@ -194,7 +224,7 @@ void set_graph_focus(bool focused)
     document->GetElementById("workshop-graph-focus")
         ->SetClass("selected", focused);
     set_text("workshop-graph-focus", focused
-        ? "Restore layout" : "Focus graph");
+        ? "Restore layout" : "Expand graph");
     if (session->mode == WorkshopMode::Animation) {
         for (const char* id : { "workshop-editor-browser",
                                 "workshop-editor-inspector",
@@ -370,6 +400,8 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     nativeWorkshopDocs_Init(shell);
     nativeWorkshopTransform_Init(shell);
     nativeWorkshopPose_Init(shell);
+    nativeWorkshopPose_SetHistory(record_pose_edit);
+    init_editor_input();
     nativeShellWorkshopBones_Init(shell);
     nativeShellWorkshopHitboxes_Init(shell);
     nativeShellWorkshopModel_Init(shell);
@@ -424,6 +456,11 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     selected_member = member;
     session = &sessions[member];
     session->project = fighter;
+    auto* model = (NativeFighterModelEditor*) std::malloc(sizeof(NativeFighterModelEditor));
+    if (model && nativeFighterModel_Open(model, fighter))
+        for (unsigned joint = 0; joint < model->joint_count; ++joint)
+            session->bone_names[joint] = model->joints[joint].name;
+    std::free(model);
     session->action_move_armed = false;
     session->edit_history.clear();
     session->edit_cursor = 0;
@@ -444,7 +481,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
         ->SetClass("focused", false);
     document->GetElementById("workshop-graph-focus")
         ->SetClass("selected", false);
-    set_text("workshop-graph-focus", "Focus graph");
+    set_text("workshop-graph-focus", "Expand graph");
     session->graph_drag_active = false;
     graph_navigation_events.Reset();
     session->graph_box_active = false;
@@ -1064,6 +1101,13 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         apply_event_frame();
         return true;
     }
+    if (parse_row(id, "workshop-add-command-", &index) && index < 59) {
+        session->add_event_menu_open = false;
+        document->GetElementById("workshop-add-event-menu")->SetProperty("display", "none");
+        if (session->command_templates[index].found)
+            insert_selected_event(session->command_templates[index].action, session->command_templates[index].offset);
+        return true;
+    }
     if (std::strcmp(id, "workshop-add-copy") == 0 ||
         parse_row(id, "workshop-add-kind-", &index)) {
         session->add_event_menu_open = false;
@@ -1098,8 +1142,8 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         paste_copied_pose(id + std::strlen("workshop-pose-paste-"));
         return true;
     }
-    if (std::strcmp(id, "workshop-bone-apply") == 0) {
-        apply_bone_transform();
+    if (parse_row(id, "workshop-bone-key-", &index) && index < 9) {
+        nativeWorkshopPose_InsertChannel((unsigned) session->selected_outliner_joint, index);
         return true;
     }
     if (std::strcmp(id, "workshop-bone-key") == 0) {
@@ -1108,10 +1152,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-action-loop-apply") == 0) {
         apply_action_playback();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-clip-end-apply") == 0) {
-        apply_clip_frames();
         return true;
     }
     if (std::strcmp(id, "workshop-animation-autokey") == 0) {
@@ -1128,25 +1168,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         nativeShellWorkshopParameters_Save(document, session->project, session->project_path);
         return true;
     }
-    if (std::strcmp(id, "workshop-graph-pivot") == 0) {
-        session->graph_cursor_pivot = !session->graph_cursor_pivot;
-        set_text("workshop-graph-pivot", session->graph_cursor_pivot
-            ? "Pivot: cursor" : "Pivot: selection");
-        return true;
-    }
-    if (std::strcmp(id, "workshop-graph-normalize") == 0) {
-        session->normalize_values = !session->normalize_values;
-        set_text("workshop-graph-normalize", session->normalize_values
-            ? "Normalize values: on" : "Normalize values: off");
-        show_animation_graph();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-graph-animated-only") == 0) {
-        session->graph_animated_only = !session->graph_animated_only;
-        document->GetElementById(id)->SetClass("selected", session->graph_animated_only);
-        show_animation_graph();
-        return true;
-    }
     if (std::strcmp(id, "workshop-graph-focus") == 0) {
         if (!session->show_animation_curves) {
             session->show_animation_curves = true;
@@ -1157,81 +1178,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             show_animation_dopesheet();
         }
         set_graph_focus(!session->graph_focused);
-        return true;
-    }
-    if (std::strcmp(id, "workshop-graph-select-all") == 0) {
-        session->graph_selection.clear();
-        for (unsigned track = 0; track < session->track_count; ++track) {
-            if (!session->graph_visible[track]) continue;
-            NativeFighterAnimationKey listed[1024];
-            size_t count;
-            if (!nativeFighterAnimation_Keys(session->project, session->animation_clip, track, listed, 1024,
-                    &count)) continue;
-            for (unsigned key = 0; key < count &&
-                 session->graph_selection.size() < 2048; ++key)
-                if (listed[key].frame >= session->graph_view_start &&
-                    listed[key].frame <= session->graph_view_end)
-                    session->graph_selection.push_back({ track, key });
-        }
-        show_animation_graph();
-        set_text("workshop-editor-status", number(
-            (unsigned) session->graph_selection.size()) + " visible keys selected.");
-        return true;
-    }
-    if (std::strcmp(id, "workshop-graph-clear-selection") == 0) {
-        session->graph_selection.clear();
-        show_animation_graph();
-        set_text("workshop-editor-status", "Graph key selection cleared.");
-        return true;
-    }
-    if (std::strcmp(id, "workshop-graph-frame-all") == 0 ||
-        std::strcmp(id, "workshop-graph-zoom-in") == 0 ||
-        std::strcmp(id, "workshop-graph-zoom-out") == 0 ||
-        std::strcmp(id, "workshop-graph-pan-left") == 0 ||
-        std::strcmp(id, "workshop-graph-pan-right") == 0) {
-        if (session->clip_frames <= 0) return true;
-        if (std::strcmp(id, "workshop-graph-frame-all") == 0) {
-            session->graph_view_start = 0;
-            session->graph_view_end = session->clip_frames;
-        } else {
-            const float span = session->graph_view_end - session->graph_view_start;
-            if (std::strcmp(id, "workshop-graph-pan-left") == 0 ||
-                std::strcmp(id, "workshop-graph-pan-right") == 0) {
-                const float delta = span *
-                    (std::strcmp(id, "workshop-graph-pan-left") == 0
-                         ? -0.25f : 0.25f);
-                session->graph_view_start = std::clamp(session->graph_view_start + delta,
-                                              0.0f, session->clip_frames - span);
-                session->graph_view_end = session->graph_view_start + span;
-            } else {
-                const float factor = std::strcmp(id,
-                    "workshop-graph-zoom-in") == 0 ? 0.5f : 2.0f;
-                const float next_span = std::clamp(span * factor,
-                    std::min(2.0f, session->clip_frames), session->clip_frames);
-                const float center = std::clamp(float(session->animation_frame),
-                    session->graph_view_start, session->graph_view_end);
-                session->graph_view_start = std::clamp(center - next_span * 0.5f,
-                                              0.0f, session->clip_frames - next_span);
-                session->graph_view_end = session->graph_view_start + next_span;
-            }
-        }
-        show_animation_graph();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-hitbox-apply") == 0) {
-        apply_hitbox();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-value-apply") == 0) {
-        apply_event_value();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-sound-apply") == 0) {
-        apply_sound();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-effect-apply") == 0) {
-        apply_effect();
         return true;
     }
     return false;
@@ -1262,6 +1208,25 @@ bool nativeShellWorkshopEditor_Shortcut(int key_identifier)
     }
     if (session->mode != WorkshopMode::Animation ||
         !session->show_animation_curves) return false;
+    if (key_identifier == Rml::Input::KI_A) {
+        if (!session->graph_selection.empty()) session->graph_selection.clear();
+        else {
+        for (unsigned track = 0; track < session->track_count; ++track) {
+            if (!session->graph_visible[track]) continue;
+            NativeFighterAnimationKey listed[1024];
+            size_t count;
+            if (!nativeFighterAnimation_Keys(session->project, session->animation_clip, track, listed, 1024,
+                    &count)) continue;
+            for (unsigned key = 0; key < count &&
+                 session->graph_selection.size() < 2048; ++key)
+                if (listed[key].frame >= session->graph_view_start &&
+                    listed[key].frame <= session->graph_view_end)
+                    session->graph_selection.push_back({ track, key });
+        }
+        }
+        show_animation_graph();
+        return true;
+    }
     switch (key_identifier) {
     case Rml::Input::KI_B: set_graph_tool(GraphTool::Box); return true;
     case Rml::Input::KI_G: set_graph_tool(GraphTool::Move); return true;

@@ -1,4 +1,5 @@
 #include "jobj.h"
+#include "native_model_view.h"
 
 #include <math.h>
 #include <string.h>
@@ -568,8 +569,9 @@ void HSD_JObjDispAll(HSD_JObj* jobj, Mtx vmtx, u32 flags, u32 rendermode)
 {
     MtxPtr new_var = vmtx;
     if (jobj != NULL) {
-        if (jobj->flags & JOBJ_INSTANCE) {
-            if (!(jobj->flags & JOBJ_HIDDEN)) {
+        const u32 draw_flags = nativeModelView_JointFlags(jobj);
+        if (draw_flags & JOBJ_INSTANCE) {
+            if (!(draw_flags & JOBJ_HIDDEN)) {
                 Mtx mtx;
 
                 u8 _[8];
@@ -585,10 +587,10 @@ void HSD_JObjDispAll(HSD_JObj* jobj, Mtx vmtx, u32 flags, u32 rendermode)
                 HSD_JObjDispAll(jobj->child, mtx, flags, rendermode);
             }
         } else {
-            if (jobj->flags & (flags << 0x12)) {
+            if (draw_flags & (flags << 0x12)) {
                 HSD_JObjDisp(jobj, new_var, flags, rendermode);
             }
-            if (jobj->flags & (flags << 0x1C)) {
+            if (draw_flags & (flags << 0x1C)) {
                 HSD_JObj* child = jobj->child;
                 while (child != NULL) {
                     HSD_JObjDispAll(child, new_var, flags, rendermode);

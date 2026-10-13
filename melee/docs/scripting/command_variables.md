@@ -7,6 +7,25 @@ Command variables connect animation events to move behavior. An animation can
 set one at a particular frame, and the move's script reads it to decide what to
 do. Each move assigns its own meaning to the four indices and their values.
 
+## Editing timed cues
+
+Choose **Set command variable** in the Action Editor. **Variable index** selects
+variable 0, 1, 2, or 3. **Value** is assigned when the event runs. A repeated
+event in a loop assigns the value on every marked occurrence.
+
+## Aerial landing
+
+Common aerial attacks use variable 0 to choose their landing behavior:
+
+| Value | Landing behavior |
+| --- | --- |
+| 0 | Autocancel: use the normal landing state. |
+| Nonzero | Use the aerial attack's landing animation and landing lag. |
+
+Set variable 0 to a nonzero value when the landing-lag window begins. Set it
+back to 0 when the move should autocancel again. The five aerial landing-lag
+attributes set the recovery duration for each attack direction.
+
 ## Example
 
 ```text

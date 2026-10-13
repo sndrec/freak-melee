@@ -943,6 +943,10 @@ extern "C" void nativeShell_InspectElement(const char* id)
              id, element->GetTagName().c_str(), element->IsVisible(true),
              origin.x, origin.y, size.x, size.y, element->GetScrollLeft(), element->GetScrollTop(),
              colour.red, colour.green, colour.blue, colour.alpha);
+    auto* control = dynamic_cast<Rml::ElementFormControl*>(element);
+    std::fprintf(stderr,"[ui-inspect-value] %s: disabled=%d checked=%d value=%s text=%s\n", id,
+                 element->HasAttribute("disabled"),element->HasAttribute("checked"),
+                 control ? control->GetValue().c_str() : "", element->GetInnerRML().substr(0,240).c_str());
 }
 
 extern "C" void nativeShell_ClickAt(int x, int y, int button)

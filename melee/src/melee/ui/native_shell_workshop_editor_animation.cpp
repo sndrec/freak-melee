@@ -39,7 +39,7 @@ void show_bone_transform()
         return;
     }
     section->SetProperty("display", "block");
-    set_text("workshop-bone-name", "Joint " + number((unsigned) joint));
+    set_text("workshop-bone-name", bone_name((unsigned) joint));
     unsigned parent = UINT_MAX;
     set_text("workshop-bone-parent",
              nativeHome_WorkshopBoneParent((unsigned) joint, &parent) &&
@@ -57,7 +57,8 @@ void show_bone_transform()
         float value = i < 3   ? pose.position[i]
                       : i < 6 ? pose.rotation[i - 3]
                               : pose.scale[i - 6];
-        field(ids[i])->SetValue(float_text(value));
+        if (document->GetContext()->GetFocusElement() != field(ids[i]))
+            field(ids[i])->SetValue(float_text(value));
         field(ids[i])->RemoveAttribute("disabled");
     }
 }
@@ -83,7 +84,7 @@ void apply_bone_transform()
         }
     }
     nativeWorkshopPose_Stage((unsigned) session->selected_outliner_joint, pose);
-    show_bone_transform();
+    session->bone_pose_refresh = true;
 }
 
 void key_bone_channels()
@@ -209,32 +210,40 @@ void show_animation_graph()
         "#f2d27e", "#ec8497", "#a7c9fa", "#dfbba4"
     };
     std::string markup;
-    for (unsigned tick = 0; tick <= 10; ++tick) {
-        const int x = int(8.0f + tick * (width - 18.0f) / 10.0f);
-        const float frame = session->graph_view_start + tick *
-            (session->graph_view_end - session->graph_view_start) / 10.0f;
-        markup += "<div class='workshop-graph-gridline' style='left:" +
-                  number((unsigned) x) + "px;top:0;height:" +
-                  number((unsigned) session->graph_height) + "px;width:1px'></div>";
-        if (tick % 2 == 0)
-            markup += "<div class='workshop-graph-gridlabel' style='left:" +
-                      number((unsigned) (x + 2)) + "px;bottom:1px'>" +
-                      graph_tick_text(frame,
-                          (session->graph_view_end - session->graph_view_start) / 5.0f) +
-                      "</div>";
+    if (!session->graph_value_range_valid) {
+        session->graph_value_low = count ? global_low : -1;
+        session->graph_value_high = count ? global_high : 1;
+        const float range = session->graph_value_high - session->graph_value_low;
+        const float margin = range < 1e-6f ? .5f : range * .12f;
+        session->graph_value_low -= margin;
+        session->graph_value_high += margin;
+        session->graph_value_range_valid = true;
     }
-    for (unsigned tick = 0; tick <= 4; ++tick) {
-        const int y = int(7.0f + tick * plot_height / 4.0f);
-        markup += "<div class='workshop-graph-gridline' style='left:0;top:" +
-                  number((unsigned) y) + "px;width:100%;height:1px'></div>";
-        if (count != 0) {
-            const float value = session->normalize_values ? 1.0f - tick * 0.25f :
-                global_high - tick * (global_high - global_low) * 0.25f;
-            markup += "<div class='workshop-graph-gridlabel' style='left:3px;top:" +
-                      number((unsigned) (y + 2)) + "px'>" +
-                      graph_tick_text(value,
-                          (global_high - global_low) * 0.25f) + "</div>";
-        }
+    global_low = session->graph_value_low;
+    global_high = session->graph_value_high;
+    auto grid_step = [](float span, float pixels) {
+        const float desired = span * 80.0f / std::max(pixels, 1.0f);
+        const float base = std::pow(10.0f, std::floor(std::log10(std::max(desired, 1e-9f))));
+        const float unit = desired / base;
+        return base * (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10);
+    };
+    const float time_span = session->graph_view_end - session->graph_view_start;
+    const float time_step = std::max(1.0f, grid_step(time_span, float(width - 18)));
+    for (float frame = std::ceil(session->graph_view_start / time_step) * time_step;
+         frame <= session->graph_view_end; frame += time_step) {
+        const float x = 8 + (frame - session->graph_view_start) * (width - 18) / time_span;
+        markup += "<div class='workshop-graph-gridline' style='left:" + float_text(x) +
+                  "px;top:0;height:100%;width:1px'></div><div class='workshop-graph-gridlabel' style='left:" +
+                  float_text(x + 2) + "px;bottom:1px'>" + graph_tick_text(frame, time_step) + "</div>";
+    }
+    const float low = session->normalize_values ? 0 : global_low;
+    const float high = session->normalize_values ? 1 : global_high;
+    const float value_step = grid_step(high - low, plot_height);
+    for (float value = std::ceil(low / value_step) * value_step; value <= high; value += value_step) {
+        const float y = 7 + (high - value) * plot_height / (high - low);
+        markup += "<div class='workshop-graph-gridline' style='left:0;top:" + float_text(y) +
+                  "px;width:100%;height:1px'></div><div class='workshop-graph-gridlabel' style='left:3px;top:" +
+                  float_text(y + 2) + "px'>" + graph_tick_text(value, value_step) + "</div>";
     }
     const int cursor_x = session->clip_frames > 0.0f
         ? int(8.0f + std::clamp((float(session->animation_frame) - session->graph_view_start) /
@@ -249,6 +258,10 @@ void show_animation_graph()
         float low = session->normalize_values ? curve.low : global_low;
         float high = session->normalize_values ? curve.high : global_high;
         if (high - low < 1e-6f) { low -= 0.5f; high += 0.5f; }
+        if (session->graph_drag_active) {
+            high = session->graph_high_value[curve.track];
+            low = high - session->graph_units_per_pixel[curve.track] * plot_height;
+        }
         session->graph_visible[curve.track] = true;
         session->graph_units_per_pixel[curve.track] = (high - low) / plot_height;
         session->graph_high_value[curve.track] = high;
@@ -367,8 +380,8 @@ void show_animation_graph()
             (session->graph_animated_only && session->tracks[track].keys <= 1)) continue;
         if ((int) joint != previous_joint) {
             previous_joint = (int) joint;
-            channel_rows += "<div class='workshop-action-group'>Joint " +
-                            number(joint) + "</div>";
+            channel_rows += "<div class='workshop-action-group'>" +
+                            Rml::StringUtilities::EncodeRml(bone_name(joint)) + "</div>";
         }
         unsigned color = track % 8;
         for (unsigned curve = 0; curve < count; ++curve)
@@ -396,7 +409,7 @@ void show_animation_graph()
               (session->graph_selection.size() == 1 ? " key selected" : " keys selected"));
     set_text("workshop-graph-active-channel",
         session->selected_track >= 0 && (size_t) session->selected_track < session->track_count
-            ? "Joint " + number(session->tracks[session->selected_track].joint) + " · " +
+            ? bone_name(session->tracks[session->selected_track].joint) + " · " +
               WorkshopLabels::channel(session->tracks[session->selected_track].channel)
             : "");
     unsigned selected_count = 0;
@@ -417,8 +430,7 @@ void show_animation_graph()
                 "workshop-graph-key-" + number(curves[c].track) + "-" +
                 number((unsigned) key));
             if (element != nullptr) {
-                element->AddEventListener("dragstart", &graph_key_events);
-                element->AddEventListener("dragend", &graph_key_events);
+                element->AddEventListener("mousedown", &graph_key_events);
             }
             for (unsigned side = 0; side < 2; ++side) {
                 Rml::Element* handle = document->GetElementById(
@@ -426,8 +438,7 @@ void show_animation_graph()
                     number(curves[c].track) + "-" +
                     number((unsigned) key) + "-" + number(side));
                 if (handle == nullptr) continue;
-                handle->AddEventListener("dragstart", &graph_tangent_events);
-                handle->AddEventListener("dragend", &graph_tangent_events);
+                handle->AddEventListener("mousedown", &graph_tangent_events);
             }
         }
     }
@@ -516,18 +527,19 @@ void show_animation_dopesheet()
         ->SetAttribute("style", style);
 }
 
-void select_key(unsigned key)
+void select_key(unsigned key, bool seek)
 {
     if (key >= session->key_count) return;
     stop_action_preview();
     session->selected_key = (int) key;
     const NativeFighterAnimationKey& item = session->keys[key];
-    session->animation_frame = item.frame;
-    field("workshop-animation-current-frame")->SetValue(number((unsigned) session->animation_frame));
+    if (seek) {
+        session->animation_frame = item.frame;
+        field("workshop-animation-current-frame")->SetValue(number((unsigned) session->animation_frame));
+    }
     document->GetElementById("workshop-animation-fields")
         ->SetProperty("display", "block");
-    set_text("workshop-key-description", "Joint " +
-             number(session->tracks[session->selected_track].joint) + " · " +
+    set_text("workshop-key-description", bone_name(session->tracks[session->selected_track].joint) + " · " +
              WorkshopLabels::channel(session->tracks[session->selected_track].channel) + " · frame " +
              std::to_string(item.frame) +
              (item.editable ? "" : " · original encoding is read-only"));
@@ -537,252 +549,6 @@ void select_key(unsigned key)
     show_animation_keys();
     show_bone_transform();
     show_animation_dopesheet();
-}
-
-void GraphKeyEvents::ProcessEvent(Rml::Event& event)
-{
-    if (session->graph_tool == GraphTool::Box || session->project == nullptr ||
-        session->mode != WorkshopMode::Animation ||
-        session->animation_clip.index == UINT_MAX) return;
-    const Rml::String& id = event.GetCurrentElement()->GetId();
-    unsigned track, key;
-    char tail;
-    if (id.compare(0, 19, "workshop-graph-key-") != 0 ||
-        std::sscanf(id.c_str() + 19, "%u-%u%c", &track, &key, &tail) != 2 ||
-        track >= session->track_count) return;
-    if (event.GetType() == "dragstart") {
-        NativeFighterAnimationKey track_keys[1024];
-        size_t count = 0;
-        if (!session->graph_visible[track] ||
-            !nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                track, track_keys, 1024, &count) || key >= count) return;
-        const bool selected = std::any_of(session->graph_selection.begin(),
-            session->graph_selection.end(), [=](const GraphKeyRef& ref) {
-                return ref.track == track && ref.key == key;
-            });
-        if (!selected) {
-            session->graph_selection.clear();
-            session->graph_selection.push_back({ track, key });
-        }
-        session->graph_drag_baselines.clear();
-        for (const GraphKeyRef& ref : session->graph_selection) {
-            NativeFighterAnimationKey source_keys[1024];
-            size_t source_count;
-            if (ref.track >= session->track_count || !session->graph_visible[ref.track] ||
-                !nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                    ref.track, source_keys, 1024, &source_count) ||
-                ref.key >= source_count) continue;
-            const float screen_x = 8.0f +
-                (source_keys[ref.key].frame - session->graph_view_start) /
-                (session->graph_view_end - session->graph_view_start) * (session->graph_width - 18.0f);
-            float displayed_value = source_keys[ref.key].value;
-            nativeFighterAnimation_Sample(session->project, session->animation_clip, ref.track,
-                float(source_keys[ref.key].frame), &displayed_value);
-            const float screen_y = 7.0f +
-                (session->graph_high_value[ref.track] - displayed_value) /
-                session->graph_units_per_pixel[ref.track];
-            session->graph_drag_baselines.push_back({ ref,
-                source_keys[ref.key].frame, source_keys[ref.key].value,
-                session->graph_units_per_pixel[ref.track], screen_x, screen_y });
-        }
-        if (session->graph_drag_baselines.empty()) return;
-        session->drag_track = track;
-        session->drag_key = key;
-        session->drag_start_x = event.GetParameter<int>("mouse_x", 0);
-        session->drag_start_y = event.GetParameter<int>("mouse_y", 0);
-        session->graph_drag_active = true;
-        return;
-    }
-    if (event.GetType() != "dragend") return;
-    if (!session->graph_drag_active || track != session->drag_track || key != session->drag_key ||
-        session->graph_width <= 18 || session->clip_frames <= 0) return;
-    session->graph_drag_active = false;
-    const int dx = event.GetParameter<int>("mouse_x", session->drag_start_x) -
-                   session->drag_start_x;
-    const int dy = event.GetParameter<int>("mouse_y", session->drag_start_y) -
-                   session->drag_start_y;
-    if (dx == 0 && dy == 0) return;
-    float pivot_x = 0.0f, pivot_y = 0.0f;
-    if (session->graph_cursor_pivot) {
-        pivot_x = 8.0f + (session->animation_frame - session->graph_view_start) /
-            (session->graph_view_end - session->graph_view_start) * (session->graph_width - 18.0f);
-        pivot_y = session->graph_height * 0.5f;
-    } else {
-        for (const GraphKeyBaseline& baseline : session->graph_drag_baselines) {
-            pivot_x += baseline.screen_x;
-            pivot_y += baseline.screen_y;
-        }
-        pivot_x /= session->graph_drag_baselines.size();
-        pivot_y /= session->graph_drag_baselines.size();
-    }
-    struct KeyTarget {
-        GraphKeyBaseline baseline;
-        int frame;
-        float value;
-    };
-    std::vector<KeyTarget> targets;
-    targets.reserve(session->graph_drag_baselines.size());
-    for (const GraphKeyBaseline& baseline : session->graph_drag_baselines) {
-        float x = baseline.screen_x, y = baseline.screen_y;
-        if (session->graph_tool == GraphTool::Move) {
-            x += dx;
-            y += dy;
-        } else if (session->graph_tool == GraphTool::Scale) {
-            const float factor = std::clamp(
-                std::exp((dx - dy) * 0.007f), 0.125f, 8.0f);
-            x = pivot_x + (x - pivot_x) * factor;
-            y = pivot_y + (y - pivot_y) * factor;
-        } else {
-            const float angle = dx * 0.01f;
-            const float c = std::cos(angle), s = std::sin(angle);
-            const float rx = x - pivot_x, ry = y - pivot_y;
-            x = pivot_x + c * rx - s * ry;
-            y = pivot_y + s * rx + c * ry;
-        }
-        const float time = session->graph_view_start + (x - 8.0f) *
-            (session->graph_view_end - session->graph_view_start) / (session->graph_width - 18.0f);
-        const float raw_value = session->graph_high_value[baseline.ref.track] -
-            (y - 7.0f) * baseline.units_per_pixel;
-        if (!std::isfinite(time) || !std::isfinite(raw_value) ||
-            time < 0 || time > session->clip_frames) {
-            set_text("workshop-editor-status", "Transform would place a key "
-                     "outside the clip. No keys were changed.");
-            return;
-        }
-        float snapped;
-        if (!nativeFighterAnimation_SnapValue(session->project, session->animation_clip, baseline.ref.track,
-                raw_value, &snapped)) {
-            set_text("workshop-editor-status", "Transform exceeds a "
-                     "track's value precision. No keys were changed.");
-            return;
-        }
-        targets.push_back({ baseline, (int) std::lround(time), snapped });
-    }
-    bool changed = false;
-    for (const KeyTarget& target : targets)
-        changed |= target.frame != target.baseline.frame ||
-                   target.value != target.baseline.value;
-    if (!changed) return;
-    uint8_t* previous = (uint8_t*) std::malloc(session->project->animation_size);
-    if (previous == nullptr) {
-        set_text("workshop-editor-status", "Could not reserve edit memory.");
-        return;
-    }
-    std::memcpy(previous, session->project->animation_dat, session->project->animation_size);
-    std::sort(targets.begin(), targets.end(),
-        [](const KeyTarget& a, const KeyTarget& b) {
-            if (a.baseline.ref.track != b.baseline.ref.track)
-                return a.baseline.ref.track < b.baseline.ref.track;
-            const int da = a.frame - a.baseline.frame;
-            const int db = b.frame - b.baseline.frame;
-            if ((da < 0) != (db < 0)) return da < 0;
-            return da > 0 ? a.baseline.ref.key > b.baseline.ref.key :
-                            a.baseline.ref.key < b.baseline.ref.key;
-        });
-    bool valid = true;
-    for (const KeyTarget& target : targets) {
-        if (target.frame != target.baseline.frame &&
-            !nativeFighterAnimation_MoveKey(session->project, session->animation_clip, target.baseline.ref.track,
-                target.baseline.ref.key, target.frame)) {
-            valid = false;
-            break;
-        }
-    }
-    for (const KeyTarget& target : targets) {
-        if (!valid) break;
-        if (target.value == target.baseline.value) continue;
-        valid = nativeFighterAnimation_SetKey(session->project, session->animation_clip, target.baseline.ref.track,
-            target.baseline.ref.key, target.value);
-    }
-    if (!valid) {
-        std::memcpy(session->project->animation_dat, previous, session->project->animation_size);
-        set_text("workshop-editor-status", "Selected keys cannot move there "
-                 "in the source encoding. Key order and track precision "
-                 "must remain valid; no keys were changed.");
-        std::free(previous);
-        return;
-    }
-    record_edit(true, previous);
-    std::free(previous);
-    session->animation_dirty = true;
-    session->selected_track = (int) track;
-    if (nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                                   track, session->keys, 1024, &session->key_count))
-        select_key(key);
-    set_text("workshop-editor-status", number((unsigned) targets.size()) +
-             " animation keys transformed as one edit. Save the draft.");
-    session->graph_refresh = true;
-}
-
-void GraphTangentEvents::ProcessEvent(Rml::Event& event)
-{
-    if (session->project == nullptr || session->mode != WorkshopMode::Animation ||
-        session->animation_clip.index == UINT_MAX || session->graph_width <= 18) return;
-    const Rml::String& id = event.GetCurrentElement()->GetId();
-    constexpr const char* PREFIX = "workshop-graph-tangent-";
-    unsigned parsed_track, parsed_key, parsed_side;
-    char tail;
-    if (id.compare(0, std::strlen(PREFIX), PREFIX) != 0 ||
-        std::sscanf(id.c_str() + std::strlen(PREFIX), "%u-%u-%u%c",
-                    &parsed_track, &parsed_key, &parsed_side, &tail) != 3 ||
-        parsed_track >= session->track_count || parsed_side > 1) return;
-    if (event.GetType() == "dragstart") {
-        NativeFighterAnimationKey listed[1024];
-        size_t count;
-        if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                parsed_track, listed, 1024, &count) ||
-            parsed_key >= count || !listed[parsed_key].tangent_editable ||
-            !session->graph_visible[parsed_track]) return;
-        track = parsed_track;
-        key = parsed_key;
-        side = parsed_side == 0 ? -1 : 1;
-        mouse_x = event.GetParameter<int>("mouse_x", 0);
-        mouse_y = event.GetParameter<int>("mouse_y", 0);
-        const float frames_per_pixel =
-            (session->graph_view_end - session->graph_view_start) / (session->graph_width - 18.0f);
-        const float pixels_per_pixel = listed[key].tangent *
-            frames_per_pixel / session->graph_units_per_pixel[track];
-        const float reach = std::clamp(28.0f /
-            std::max(1.0f, std::fabs(pixels_per_pixel)), 4.0f, 23.0f);
-        handle_x = side * reach;
-        handle_y = -handle_x * pixels_per_pixel;
-        return;
-    }
-    if (event.GetType() != "dragend" || track != parsed_track ||
-        key != parsed_key || side != (parsed_side == 0 ? -1 : 1)) return;
-    const float x = handle_x +
-        event.GetParameter<int>("mouse_x", mouse_x) - mouse_x;
-    const float y = handle_y +
-        event.GetParameter<int>("mouse_y", mouse_y) - mouse_y;
-    track = key = UINT_MAX;
-    if (x * side < 3.0f) {
-        set_text("workshop-editor-status", "Keep the tangent handle on "
-                 "its side of the key.");
-        return;
-    }
-    const float frames_per_pixel =
-        (session->graph_view_end - session->graph_view_start) / (session->graph_width - 18.0f);
-    const float tangent = -y * session->graph_units_per_pixel[parsed_track] /
-                          (x * frames_per_pixel);
-    if (!std::isfinite(tangent)) return;
-    uint8_t* previous = (uint8_t*) std::malloc(session->project->animation_size);
-    if (previous == nullptr) return;
-    std::memcpy(previous, session->project->animation_dat, session->project->animation_size);
-    if (!nativeFighterAnimation_SetTangent(session->project, session->animation_clip, parsed_track, parsed_key, tangent)) {
-        std::free(previous);
-        set_text("workshop-editor-status", "That slope cannot be represented "
-                 "by this source key's tangent encoding.");
-        return;
-    }
-    record_edit(true, previous);
-    std::free(previous);
-    session->animation_dirty = true;
-    session->selected_track = (int) parsed_track;
-    if (nativeFighterAnimation_Keys(session->project, session->animation_clip,
-            parsed_track, session->keys, 1024, &session->key_count)) select_key(parsed_key);
-    show_animation_graph();
-    set_text("workshop-editor-status", "Curve tangent changed. The source "
-             "stores slope, so handle length is only a graph control.");
 }
 
 void GraphBoxEvents::ProcessEvent(Rml::Event& event)
@@ -861,6 +627,22 @@ void GraphBoxEvents::ProcessEvent(Rml::Event& event)
              " graph keys selected.");
 }
 
+static void seek_graph(Rml::Event& event, Rml::Element* graph)
+{
+    const float x = float(event.GetParameter<int>("mouse_x", 0)) - graph->GetAbsoluteOffset().x;
+    const float y = float(event.GetParameter<int>("mouse_y", 0)) - graph->GetAbsoluteOffset().y;
+    const float ratio = std::clamp((x - 8) / std::max(1, session->graph_width - 18),0.0f,1.0f);
+    session->graph_cursor_frame = session->graph_view_start + ratio * (session->graph_view_end - session->graph_view_start);
+    session->graph_cursor_value = session->graph_value_high - (y - 7) *
+        (session->graph_value_high - session->graph_value_low) / std::max(1,session->graph_height - 22);
+    session->graph_cursor_x = x; session->graph_cursor_y = y;
+    stop_action_preview();
+    session->animation_frame = std::clamp((int) std::lround(session->graph_cursor_frame),0,(int) std::ceil(session->clip_frames));
+    field("workshop-animation-current-frame")->SetValue(number(session->animation_frame));
+    session->bone_pose_refresh = true;
+    session->graph_refresh = true;
+}
+
 void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
 {
     if (session->mode != WorkshopMode::Animation || !session->show_animation_curves ||
@@ -870,10 +652,12 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
     if (width <= 18) return;
     const auto type = event.GetType();
     if (type == "mouseup") {
+        if (event.GetParameter<int>("button", -1) == 0) seeking = false;
         if (event.GetParameter<int>("button", -1) == 2) dragging = false;
         return;
     }
     if (type == "mousemove") {
+        if (seeking) { seek_graph(event,graph); event.StopPropagation(); return; }
         if (!dragging) return;
         const int x = event.GetParameter<int>("mouse_x", last_x);
         const int y = event.GetParameter<int>("mouse_y", last_y);
@@ -887,17 +671,31 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
             session->graph_view_start = std::clamp(center - next_span * 0.5f,
                 0.0f, session->clip_frames - next_span);
             session->graph_view_end = session->graph_view_start + next_span;
+            const float value_center = (session->graph_value_low + session->graph_value_high) * .5f;
+            const float half_range = (session->graph_value_high - session->graph_value_low) * .5f *
+                                     std::exp(float(y - last_y) * .012f);
+            session->graph_value_low = value_center - half_range;
+            session->graph_value_high = value_center + half_range;
         } else {
             session->graph_view_start = std::clamp(session->graph_view_start -
                 float(x - last_x) * span / (width - 18.0f),
                 0.0f, session->clip_frames - span);
             session->graph_view_end = session->graph_view_start + span;
         }
+        if (!zooming && !session->normalize_values) {
+            const float delta = float(y - last_y) * (session->graph_value_high - session->graph_value_low) /
+                                std::max(1, session->graph_height - 22);
+            session->graph_value_low += delta; session->graph_value_high += delta;
+        }
         last_x = x;
         last_y = y;
         session->graph_refresh = true;
         event.StopPropagation();
         return;
+    }
+    if (type == "mousedown" && event.GetParameter<int>("button", -1) == 0 &&
+        event.GetTargetElement() == graph && session->graph_tool != GraphTool::Box) {
+        seeking = true; seek_graph(event,graph); event.StopPropagation(); return;
     }
     if (type == "mousedown" &&
         event.GetParameter<int>("button", -1) == 2) {
@@ -906,22 +704,6 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
         last_x = event.GetParameter<int>("mouse_x", 0);
         last_y = event.GetParameter<int>("mouse_y", 0);
         event.StopPropagation();
-        return;
-    }
-    if (type == "click") {
-        if (event.GetTargetElement() != graph) return;
-        const float x = float(event.GetParameter<int>("mouse_x", 0)) -
-                        graph->GetAbsoluteOffset().x;
-        const float ratio = std::clamp((x - 8.0f) / (width - 18.0f),
-                                       0.0f, 1.0f);
-        stop_action_preview();
-        session->animation_frame = std::clamp(int(std::lround(session->graph_view_start +
-                                      ratio * (session->graph_view_end - session->graph_view_start))),
-                                      0, int(std::ceil(session->clip_frames)));
-        field("workshop-animation-current-frame")->SetValue(
-            number((unsigned) session->animation_frame));
-        show_bone_transform();
-        session->graph_refresh = true;
         return;
     }
     const float vertical = event.GetParameter<float>("wheel_delta_y", 0.0f);
@@ -973,7 +755,7 @@ void show_track_browser()
                 "' title='Shift-click to select multiple bones'" +
                 " style='padding-left:" + number(7 + depth * 12) +
                 "px'>" + (depth ? "&nbsp;&nbsp;" : "") +
-                "Joint " + number(joint) + "</button>";
+                Rml::StringUtilities::EncodeRml(bone_name(joint)) + "</button>";
     }
     document->GetElementById("workshop-animation-tracks")->SetInnerRML(rows);
 }
@@ -1113,6 +895,7 @@ void show_animation()
     field("workshop-clip-end")->SetValue(float_text(clip.frames));
     session->graph_view_start = 0.0f;
     session->graph_view_end = clip.frames;
+    session->graph_value_range_valid = false;
     session->graph_selection.clear();
     session->animation_frame = std::clamp(session->animation_frame, 0,
                                  (int) std::ceil(session->clip_frames));

@@ -1,4 +1,5 @@
 #include "native_home.h"
+#include <sysdolphin/baselib/native_workshop_gizmo.h>
 
 #include <melee/gr/forward.h>
 #include <melee/pl/forward.h>
@@ -464,6 +465,7 @@ static bool workshop_pose_tree_valid(Fighter_GObj* object,
 
 void nativeHome_WorkshopPoseRelease(void)
 {
+    nativeWorkshopGizmo_Clear();
     nativeModelView_Clear();
     if (home.workshop_camera_owned && nativeHome_IsPractice() &&
         Camera_80030178()) Camera_800300F0();
@@ -974,7 +976,7 @@ bool nativeHome_WorkshopSetBoneLocal(unsigned joint,
 
 void nativeHome_WorkshopMeshView(const NativeHomeWorkshopMesh* meshes,
                                  unsigned count, int highlight,
-                                 int weight_mesh, unsigned weight_joint)
+                                 int weight_mesh, unsigned weight_joint, bool override_visibility)
 {
     nativeModelView_Clear();
     const unsigned bone_count = nativeHome_WorkshopBoneCount();
@@ -990,7 +992,7 @@ void nativeHome_WorkshopMeshView(const NativeHomeWorkshopMesh* meshes,
     HSD_JObj* weight_bone = weight_joint < bone_count
                                 ? fighter->parts[weight_joint].joint
                                 : NULL;
-    nativeModelView_Begin(count);
+    nativeModelView_Begin(count, override_visibility);
     for (unsigned index = 0; index < count; ++index) {
         const unsigned part = meshes[index].joint;
         HSD_JObj* owner = part < bone_count
@@ -1009,6 +1011,13 @@ void nativeHome_WorkshopMeshView(const NativeHomeWorkshopMesh* meshes,
                              (int) index == highlight,
                              (int) index == weight_mesh ? weight_bone : NULL);
     }
+}
+
+void nativeHome_WorkshopGizmo(const float center[3], const float axes[3][3], float size, unsigned operation, unsigned selected)
+{
+    Fighter_GObj* actor = workshop_preview_actor(false);
+    if (!nativeHome_WorkshopCameraActive() || !actor) { nativeWorkshopGizmo_Clear(); return; }
+    nativeWorkshopGizmo_Set(GET_JOBJ(actor), center, axes, size, operation, selected);
 }
 
 bool nativeHome_WorkshopBoneMatrix(unsigned joint, float result[3][4])

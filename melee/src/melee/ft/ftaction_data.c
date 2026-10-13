@@ -121,6 +121,14 @@ static const FieldLayout* word_layout(u32 opcode, u32 word)
     }
 }
 
+unsigned ftActionData_SourceFieldWidths(unsigned opcode, unsigned word, u8 widths[8])
+{
+    const FieldLayout* layout = word_layout(opcode, word);
+    if (!layout) return 0;
+    memcpy(widths, layout->widths, layout->count);
+    return layout->count;
+}
+
 static u32 transcode_word(u32 source, const FieldLayout* layout)
 {
     if (layout == NULL) return source;

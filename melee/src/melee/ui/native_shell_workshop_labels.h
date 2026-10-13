@@ -6,6 +6,7 @@
 namespace WorkshopLabels {
 const char* event(unsigned kind);
 std::string command(unsigned opcode);
+const char* command_description(unsigned opcode);
 const char* channel(unsigned channel);
 const char* action(const char* source);
 unsigned group(const char* source);

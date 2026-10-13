@@ -17,6 +17,7 @@ namespace {
     Rml::ElementDocument* document;
     NativeFighterProject* project;
     NativeWorkshopPoseRecord record;
+    NativeWorkshopPoseHistory pose_history;
     NativeFighterAnimationClip clip;
     unsigned selected[MaxBones], count;
     int frame;
@@ -29,7 +30,7 @@ namespace {
     }
 
     bool key_poses(const NativeWorkshopTransformChange* changes,
-                   unsigned change_count, bool changed_only)
+                   unsigned change_count, bool changed_only, unsigned channel_mask = 0x1ff)
     {
         if (!project || !record) {
             return false;
@@ -91,6 +92,7 @@ namespace {
         for (unsigned i = 0; i < change_count && valid; ++i) {
             const auto& change = changes[i];
             for (unsigned channel = 0; channel < 9; ++channel) {
+                if (!(channel_mask & (1u << channel))) continue;
                 const float* old = channel < 3   ? change.before.position
                                    : channel < 6 ? change.before.rotation
                                                  : change.before.scale;
@@ -130,7 +132,13 @@ namespace {
         if (edited) {
             record(before.data(), before.size(), before_fighter.data(), before_fighter.size());
             for (unsigned i = 0; i < change_count; ++i) {
-                staged[changes[i].joint] = false;
+                const unsigned joint = changes[i].joint;
+                if (channel_mask == 0x1ff) staged[joint] = false;
+                else for (unsigned c = 0; c < 9; ++c) if (channel_mask & (1u << c)) {
+                    float* value = c < 3 ? base[joint].position + c : c < 6 ? base[joint].rotation + c - 3 : base[joint].scale + c - 6;
+                    const float* next = c < 3 ? changes[i].after.position + c : c < 6 ? changes[i].after.rotation + c - 3 : changes[i].after.scale + c - 6;
+                    *value = *next;
+                }
             }
             nativeHome_WorkshopPoseInvalidate();
             status("Pose keyed at the current frame. Save the draft to keep "
@@ -159,6 +167,7 @@ namespace {
             }
             key_poses(combined, n, true);
         } else {
+            if (pose_history) pose_history(edits, n);
             status("Temporary pose. Insert Key to keep it; changing frames "
                    "discards unkeyed poses.");
         }
@@ -268,4 +277,31 @@ bool nativeWorkshopPose_InsertKeys()
         ++n;
     }
     return key_poses(changes, n, false);
+}
+
+void nativeWorkshopPose_SetHistory(NativeWorkshopPoseHistory recorder)
+{
+    pose_history = recorder;
+}
+void nativeWorkshopPose_Restore(const NativeWorkshopTransformChange* changes,
+                                unsigned n, bool after)
+{
+    for (unsigned i = 0; i < n; ++i) {
+        const unsigned joint = changes[i].joint;
+        if (joint >= MaxBones) continue;
+        if (!staged[joint]) base[joint] = changes[i].before;
+        poses[joint] = after ? changes[i].after : changes[i].before;
+        staged[joint] = true;
+        nativeHome_WorkshopSetBoneLocal(joint, &poses[joint]);
+    }
+    changed = true;
+}
+bool nativeWorkshopPose_InsertChannel(unsigned joint, unsigned channel)
+{
+    if (!project || joint >= MaxBones || channel >= 9) return false;
+    NativeWorkshopTransformChange change = {};
+    change.joint = joint;
+    if (!nativeWorkshopPose_Local(joint, &change.after)) return false;
+    change.before = staged[joint] ? base[joint] : change.after;
+    return key_poses(&change, 1, false, 1u << channel);
 }

@@ -587,3 +587,5 @@ move Dash:
 Declare `on accessory` normally, then install it at the intended point with
 [`callbacks.track_accessory(Side)`](fighter.md#callbackstrack_accessoryslot).
 Install or reset only the callbacks and flags that the move requires.
+
+See [Action command variables](command_variables.md) for timed move cues and aerial landing windows.

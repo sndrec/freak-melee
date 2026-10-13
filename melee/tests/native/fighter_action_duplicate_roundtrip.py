@@ -111,10 +111,16 @@ def main():
 
     second = inserted_offset(run(tool, "project-insert-command",
                                  project, 46, hex(first), 46, hex(first)))
-    assert f"0x{second:X} hitbox 3 id=4" in run(
+    # Four live hitbox slots exist. When all IDs are occupied, copying a
+    # command reuses its source ID instead of writing outside the fighter.
+    assert f"0x{second:X} hitbox 3 id=3" in run(
         tool, "project-actions", project, 46)
     run(tool, "project-hitbox", project, 46, hex(second), "damage", 14)
-    assert "id=4" in run(tool, "project-hitbox", project, 46, hex(second))
+    assert "id=3" in run(tool, "project-hitbox", project, 46, hex(second))
+    valid_hitbox = dat.read_bytes()
+    run(tool, "project-hitbox", project, 46, hex(second), "id", 4,
+        succeeds=False)
+    assert dat.read_bytes() == valid_hitbox
     assert "damage=14" in run(tool, "project-hitbox", project, 46,
                               hex(second))
     assert run(tool, "project-actions", project, 47) == other_jab

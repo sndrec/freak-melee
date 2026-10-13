@@ -48,6 +48,7 @@ typedef enum NativeFighterActionEventKind {
     NativeFighterActionEvent_ReleaseThrow,
     NativeFighterActionEvent_ReverseFacing,
     NativeFighterActionEvent_SetAirborneState,
+    NativeFighterActionEvent_Command,
 } NativeFighterActionEventKind;
 
 typedef struct NativeFighterActionEvent {
@@ -55,6 +56,7 @@ typedef struct NativeFighterActionEvent {
     uint32_t value;
     uint32_t target_id;
     uint8_t kind;
+    uint8_t opcode;
 } NativeFighterActionEvent;
 
 typedef struct NativeFighterActionCommand {
@@ -68,6 +70,16 @@ typedef struct NativeFighterActionOccurrence {
     uint16_t frame;
     uint8_t opcode;
 } NativeFighterActionOccurrence;
+
+typedef struct NativeFighterActionField {
+    uint32_t value;
+    uint8_t word, shift, width;
+} NativeFighterActionField;
+bool nativeFighterAction_Fields(const NativeFighterProject*, unsigned action,
+                                uint32_t source, NativeFighterActionField*,
+                                size_t capacity, size_t* count);
+bool nativeFighterAction_SetField(NativeFighterProject*, unsigned action,
+                                  uint32_t source, unsigned field, uint32_t value);
 
 // Original five-word CreateHitbox command. Radius and offsets use the game's
 // 1/256-unit encoding; no floating-point round trip is involved. Offset names
@@ -164,6 +176,12 @@ bool nativeFighterAction_InsertCommand(NativeFighterProject* project,
                                        unsigned template_action,
                                        uint32_t template_offset,
                                        uint32_t* inserted_offset);
+// Insert at the playhead, splitting an existing relative timer when needed.
+// Existing commands retain their times; branch/loop graphs remain source-owned.
+bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
+                                      unsigned action, unsigned frame,
+                                      unsigned template_action, uint32_t template_offset,
+                                      uint32_t* inserted_offset);
 // Delete one reachable non-control command from an action-local copy of its
 // source graph. References into that command reject the edit.
 bool nativeFighterAction_DeleteCommand(NativeFighterProject* project,
