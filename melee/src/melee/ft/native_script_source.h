@@ -39,9 +39,17 @@ typedef struct NativeScriptSourceTree {
     uint32_t count, capacity;
 } NativeScriptSourceTree;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool nativeScriptSource_Parse(NativeScriptSourceTree*, NativeScriptDiagnostic*);
 bool nativeScriptSource_SpanEquals(const NativeScriptSourceTree*,
                                    NativeScriptSourceSpan, const char*);
 const char* nativeScriptSource_KindName(NativeScriptSourceKind);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -10,6 +10,15 @@ extern "C" {
 
 enum { NATIVE_FIGHTER_FAMILY_PROJECT_PATH_BYTES = 512 };
 
+typedef struct NativeFighterDraft {
+    char path[NATIVE_FIGHTER_FAMILY_PROJECT_PATH_BYTES];
+    char title[64];
+} NativeFighterDraft;
+
+bool nativeFighterFamilyProject_LocalRoot(char* path, size_t capacity);
+bool nativeFighterFamilyProject_ListLocal(NativeFighterDraft* drafts,
+                                         size_t capacity, size_t* count);
+
 typedef struct NativeFighterFamilyProject {
     NativeFighterFamilyMode mode;
     unsigned member_count;

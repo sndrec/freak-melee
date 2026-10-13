@@ -87,7 +87,7 @@ bool nativeHome_WorkshopHitboxScreen(unsigned hitbox, unsigned angle,
 void nativeHome_WorkshopPoseRelease(void);
 void nativeHome_SetAuthoring(bool active);
 bool nativeHome_PracticeTransitioning(void);
-bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter);
+bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool live_test);
 bool nativeHome_RequestPreview(const NativeContentId* id, bool live_test);
 bool nativeHome_ReturnToWorkshopPreview(void);
 bool nativeHome_CanStartMatch(void);

@@ -17,12 +17,6 @@
 #left-rail.css-editing #css-original-sidebar-normal { position: absolute; top: 20dp; left: 8dp; right: 8dp; opacity: 0; pointer-events: none; }
 #left-rail.css-editing #css-original-editor-header { display: block; }
 #css-original-overlay { display: none; position: absolute; top: 0; overflow: hidden; pointer-events: none; z-index: 4; }
-#css-original-portraits { display: none; position: absolute; top: 0; overflow: hidden; pointer-events: none; z-index: 3; }
-.css-original-portrait { position: absolute; pointer-events: none; }
-.css-original-portrait.selected-p1 { border: 3dp #ff5a5a; }
-.css-original-portrait.selected-p2 { border: 3dp #5aa4ff; }
-.css-original-portrait.selected-p3 { border: 3dp #ffd35a; }
-.css-original-portrait.selected-p4 { border: 3dp #69d27c; }
 #css-original-handles { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .css-original-handle { position: absolute; background-color: transparent; border: 2dp #f7d899; pointer-events: auto; drag: drag; }
 .css-original-handle:hover, .css-original-handle.selected { border-color: #fff; }

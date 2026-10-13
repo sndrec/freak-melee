@@ -133,6 +133,16 @@ Do not promise animation retargeting merely from inverse-bind compensation.
 
 ### 2. Collaborative Workshop acceptance
 
+The first recording review is implemented for the next user pass: automatic
+uninstalled draft preview and live Test Character, full-window draft navigation,
+Collection draft rows, labelled resources and input/dropdown styling, the full
+97-field common-attribute schema, typed collapsible parameter values with source
+defaults/overrides, syntax coloring and bundled symbol reference. The new labels
+and custom portraits inside original menus now use scene GX rendering and
+context-specific glyph atlases. These changes still need the user's usability
+and typography assessment; the broader acceptance tasks below remain open.
+
+
 - [ ] Complete clone -> edit -> preview/test -> save/reopen -> install with the
   user, preserving the source fighter and keeping preview/cache/install distinct.
 - [ ] Review the real Action Editor timeline, loop unrolling, simultaneous
@@ -233,6 +243,9 @@ Script extensions must be reusable engine primitives, never a fighter/move-
 specific shortcut or a call to a stock special handler. Special decisions remain
 authored even when their general physics/collision primitives are native C.
 Keep documentation linked and author-facing in the style of the scripting guide.
+Follow [documentation guidelines](melee/docs/documentation_guidelines.md): explain
+what a feature does, its inputs and results, and when to use it in plain language.
+Keep implementation history and test evidence in developer notes.
 
 ## Working rules and upstream
 

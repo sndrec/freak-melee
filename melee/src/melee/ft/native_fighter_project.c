@@ -482,25 +482,6 @@ bool nativeFighterProject_Open(const char* path, NativeFighterProject* project)
     return ok;
 }
 
-typedef struct FloatPropertyDescriptor {
-    size_t offset;
-    float minimum;
-    float maximum;
-} FloatPropertyDescriptor;
-
-static const FloatPropertyDescriptor float_properties[NativeFighterFloat_Count] = {
-    [NativeFighterFloat_WalkSpeed] = {
-        offsetof(ftCo_DatAttrs, walk_max_vel), 0.01f, 20.0f },
-    [NativeFighterFloat_Gravity] = {
-        offsetof(ftCo_DatAttrs, gravity), 0.001f, 5.0f },
-    [NativeFighterFloat_TerminalVelocity] = {
-        offsetof(ftCo_DatAttrs, terminal_velocity), 0.01f, 50.0f },
-    [NativeFighterFloat_Weight] = {
-        offsetof(ftCo_DatAttrs, weight), 1.0f, 500.0f },
-    [NativeFighterFloat_ModelScale] = {
-        offsetof(ftCo_DatAttrs, model_scaling), 0.1f, 5.0f },
-};
-
 static bool common_attribute_record(const NativeFighterProject* project,
                                     HSD_Dat* dat, u32* attributes)
 {
@@ -515,54 +496,62 @@ static bool common_attribute_record(const NativeFighterProject* project,
            HSD_DatBytes(dat, *attributes, 0x181) != NULL;
 }
 
-bool nativeFighterProject_GetFloat(const NativeFighterProject* project,
-                                   NativeFighterFloatProperty property,
-                                   float* value)
+bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
+                                       size_t property, double* value)
 {
     HSD_Dat dat;
     u32 attributes;
-    return value != NULL && property >= 0 &&
-           property < NativeFighterFloat_Count &&
-           common_attribute_record(project, &dat, &attributes) &&
-           HSD_DatReadF32(&dat,
-                          attributes + float_properties[property].offset,
-                          value) &&
-           isfinite(*value);
+    if (value == NULL || property >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT ||
+        !common_attribute_record(project, &dat, &attributes)) return false;
+    const NativeFighterAttribute* field = &nativeFighterCommonAttributes[property];
+    if (field->type == NativeAttribute_Mask) {
+        const u8* byte = HSD_DatBytes(&dat, attributes + field->offset, 1);
+        if (byte == NULL) return false;
+        *value = *byte;
+    } else if (field->type == NativeAttribute_Int) {
+        u32 bits;
+        if (!HSD_DatReadU32(&dat, attributes + field->offset, &bits)) return false;
+        *value = (s32)bits;
+    } else {
+        float number;
+        if (!HSD_DatReadF32(&dat, attributes + field->offset, &number) || !isfinite(number)) return false;
+        *value = number;
+    }
+    return true;
 }
 
-bool nativeFighterProject_SetFloat(NativeFighterProject* project,
-                                   NativeFighterFloatProperty property,
-                                   float value)
+bool nativeFighterProject_SetAttribute(NativeFighterProject* project,
+                                       size_t property, double value)
 {
-    if (property < 0 || property >= NativeFighterFloat_Count ||
-        !isfinite(value) || value < float_properties[property].minimum ||
-        value > float_properties[property].maximum) {
-        return false;
-    }
+    if (property >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT || !isfinite(value)) return false;
+    const NativeFighterAttribute* field = &nativeFighterCommonAttributes[property];
+    const bool integral = field->type != NativeAttribute_Float;
+    if (integral && (floor(value) != value ||
+        value < (field->type == NativeAttribute_Mask ? 0.0 : -2147483648.0) ||
+        value > (field->type == NativeAttribute_Mask ? 255.0 : 2147483647.0))) return false;
+    if (field->type == NativeAttribute_Float && !isfinite((float)value)) return false;
+    if ((field->offset == 0x88 || field->offset == 0x8c) && value <= 0.0) return false;
+    if (field->offset == 0x58 && value < 1.0) return false;
     HSD_Dat dat;
     u32 attributes;
-    if (!common_attribute_record(project, &dat, &attributes)) {
-        return false;
-    }
-    const u8* original = HSD_DatBytes(
-        &dat, attributes + float_properties[property].offset, 4);
-    if (original == NULL) {
-        return false;
-    }
-    u8* bytes = project->fighter_dat +
-                (original - (const u8*) project->fighter_dat);
+    if (!common_attribute_record(project, &dat, &attributes)) return false;
+    const size_t size = field->type == NativeAttribute_Mask ? 1 : 4;
+    const u8* original = HSD_DatBytes(&dat, attributes + field->offset, size);
+    if (original == NULL) return false;
+    u8* bytes = project->fighter_dat + (original - (const u8*)project->fighter_dat);
     u8 previous[4];
-    memcpy(previous, bytes, sizeof(previous));
-    u32 bits;
-    memcpy(&bits, &value, sizeof(bits));
-    bytes[0] = (u8) (bits >> 24);
-    bytes[1] = (u8) (bits >> 16);
-    bytes[2] = (u8) (bits >> 8);
-    bytes[3] = (u8) bits;
+    memcpy(previous, bytes, size);
+    if (field->type == NativeAttribute_Mask) bytes[0] = (u8)value;
+    else {
+        u32 bits;
+        if (integral) bits = (u32)(s32)value;
+        else { float number = (float)value; memcpy(&bits, &number, sizeof(bits)); }
+        bytes[0] = (u8)(bits >> 24); bytes[1] = (u8)(bits >> 16);
+        bytes[2] = (u8)(bits >> 8); bytes[3] = (u8)bits;
+    }
     ftCo_DatAttrs decoded;
     if (ftData_DecodeCommonAttrs(&dat, attributes, &decoded) != HSD_DAT_OK) {
-        memcpy(bytes, previous, sizeof(previous));
-        return false;
+        memcpy(bytes, previous, size); return false;
     }
     return true;
 }

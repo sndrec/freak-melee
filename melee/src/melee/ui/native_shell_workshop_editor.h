@@ -3,6 +3,8 @@
 
 #ifdef MELEE_NATIVE
 
+#include <string>
+
 namespace Rml { class ElementDocument; }
 struct NativeFighterProject;
 
@@ -25,6 +27,8 @@ bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member);
 void nativeShellWorkshopEditor_MarkFighterSaved();
 bool nativeShellWorkshopEditor_BuildScript(const char* path);
 bool nativeShellWorkshopEditor_ScriptChanged(unsigned member);
+bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* source,
+                                             std::string* parameters);
 bool nativeShellWorkshopEditor_IsScriptMode();
 bool nativeShellWorkshopEditor_IsAnimationMode();
 bool nativeShellWorkshopEditor_IsModelMode();

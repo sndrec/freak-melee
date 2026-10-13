@@ -10,6 +10,11 @@ struct NativeFighterProject;
 
 void nativeShellWorkshopParameters_Open(Rml::ElementDocument* document,
                                        NativeFighterProject* project);
+void nativeShellWorkshopParameters_SetText(Rml::ElementDocument* document,
+                                          const std::string& text);
+const std::string& nativeShellWorkshopParameters_Text();
+void nativeShellWorkshopParameters_Refresh(Rml::ElementDocument* document,
+                                           const std::string& source);
 bool nativeShellWorkshopParameters_Save(Rml::ElementDocument* document,
                                        NativeFighterProject* project,
                                        const char* project_path);

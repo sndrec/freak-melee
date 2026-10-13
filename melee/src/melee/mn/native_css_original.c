@@ -1,4 +1,5 @@
 #include "native_css_original.h"
+#include "native_menu_visuals.h"
 
 #ifdef MELEE_NATIVE
 
@@ -22,6 +23,7 @@
 
 enum { STOCK_ICONS = 25 };
 
+static NativeMenuVisuals* menu_visuals;
 static CSSIcon* scene_icons;
 static HSD_JObj* icon_roots[STOCK_ICONS];
 static Vec3 root_translate[STOCK_ICONS];
@@ -164,6 +166,12 @@ static void apply_layout(void)
     if (scene_icons == NULL) {
         return;
     }
+    for (unsigned i=0;i<layout.count;++i) {
+        const NativeCssTile* t=&layout.tiles[i];
+        nativeMenuVisuals_Rect(menu_visuals,i,world_x(t->x),world_y(t->y),
+            (world_right-world_left)*t->width/1000.0f,
+            (world_top-world_bottom)*t->height/1000.0f);
+    }
     for (unsigned icon = 0; icon < STOCK_ICONS; ++icon) {
         const NativeCssTile* tile = tile_for(icon);
         HSD_JObj* root = icon_roots[icon];
@@ -186,6 +194,7 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera)
 {
     scene_icons = icons;
+    nativeMenuVisuals_Begin(&menu_visuals, menu, 1);
     Vec3 eye;
     HSD_CObjGetEyePosition(camera, &eye);
     const float half_height = (eye.z * tanf(HSD_CObjGetFov(camera) *
@@ -207,6 +216,9 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
         root_translate[i] = joint->translate;
         root_scale[i] = joint->scale;
     }
+    nativeMenuVisuals_Text(menu_visuals, menu, world_x(300), world_y(95), 0,
+                           (world_right-world_left)*0.50f,
+                           (world_top-world_bottom)*0.048f, NativeMenuFont_Heading, "CHOOSE A FIGHTER");
     make_defaults();
     bool missing = false;
     editable = nativeCssLayout_DefaultPath(layout_path, sizeof(layout_path));
@@ -238,8 +250,25 @@ void nativeCssOriginal_Tick(void)
 
 void nativeCssOriginal_Exit(void)
 {
+    nativeMenuVisuals_End(&menu_visuals);
     scene_icons = NULL;
     memset(icon_roots, 0, sizeof(icon_roots));
+}
+
+void nativeCssOriginal_ClearPortraits(void)
+{
+    nativeMenuVisuals_ClearSprites(menu_visuals);
+}
+
+void nativeCssOriginal_SetPortrait(unsigned index, const u8* png, unsigned bytes, const char* title)
+{
+    if (index >= layout.count || !scene_icons) return;
+    if (nativeMenuVisuals_Sprite(menu_visuals, index, png, bytes, title, NativeMenuFont_Tile)) {
+        const NativeCssTile* tile = &layout.tiles[index];
+        nativeMenuVisuals_Rect(menu_visuals, index, world_x(tile->x), world_y(tile->y),
+            (world_right-world_left)*tile->width/1000.0f,
+            (world_top-world_bottom)*tile->height/1000.0f);
+    }
 }
 
 const NativeCssLayout* nativeCssOriginal_Layout(void)

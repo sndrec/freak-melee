@@ -85,8 +85,7 @@ void capture_session_widgets()
     if (session->project == nullptr || document == nullptr) return;
     combined_script();
     capture_script_view();
-    session->parameter_source = static_cast<Rml::ElementFormControlTextArea*>(
-        document->GetElementById("workshop-parameters-source"))->GetValue();
+    session->parameter_source = nativeShellWorkshopParameters_Text();
     session->widgets.clear();
     for (const char* id : control_roots)
         capture_controls(document->GetElementById(id));
@@ -194,9 +193,7 @@ bool nativeShellWorkshopEditor_Select(unsigned member)
     for (const auto& saved : session->widgets)
         if (saved.id == "workshop-action-search" || saved.id == "workshop-animation-search")
             field(saved.id.c_str())->SetValue(saved.value);
-    auto* parameters = static_cast<Rml::ElementFormControlTextArea*>(
-        document->GetElementById("workshop-parameters-source"));
-    parameters->SetValue(session->parameter_source);
+    nativeShellWorkshopParameters_SetText(document, session->parameter_source);
     static_cast<Rml::ElementFormControlTextArea*>(
         document->GetElementById("workshop-script-source"))->SetValue(
             WorkshopScriptFiles::source(session->script_files, session->script_file_index));
@@ -245,8 +242,7 @@ bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member)
     auto& target = sessions[member];
     if (member == selected_member) {
         combined_script();
-        target.parameter_source = static_cast<Rml::ElementFormControlTextArea*>(
-            document->GetElementById("workshop-parameters-source"))->GetValue();
+        target.parameter_source = nativeShellWorkshopParameters_Text();
     }
     const auto* fighter = target.project;
     const bool parameter_dirty = target.parameter_source.size() != fighter->parameter_size ||

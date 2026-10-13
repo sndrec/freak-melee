@@ -15,9 +15,11 @@ rig boundary, import flow and explicit mockup limitations.
 
 ## Workspace and modes
 
-Collection owns fighter selection, cloning and opening projects. The workshop
-edits one fighter project; its header identifies that fighter, returns to
-Collection and provides mode switching and save/apply operations. Do not keep
+The main sidebar opens a full-window Workshop draft browser, with cloning and
+saved local projects. Collection also lists editable drafts separately from
+installed packages and can open a draft directly. Once opened, the workshop
+edits one fighter project; its header identifies that fighter, returns to the
+entry point and provides mode switching and save/apply operations. Do not keep
 the fighter collection or clone button in the working editor.
 
 Use three full work modes, each with space allocated for its own task:

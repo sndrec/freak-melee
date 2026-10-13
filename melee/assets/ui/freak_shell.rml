@@ -22,10 +22,11 @@
       <nav class="navigation">
         <div class="eyebrow nav-heading">MENU</div>
         <button id="room-tab" class="nav-item active"><span class="nav-index">01</span><span>Room</span></button>
-        <button id="collection-tab" class="nav-item"><span class="nav-index">02</span><span>Collection</span></button>
-        <button id="profiles-tab" class="nav-item"><span class="nav-index">03</span><span>Options</span></button>
-        <button id="rules-tab" class="nav-item"><span class="nav-index">04</span><span>Match rules</span></button>
-        <button id="css-original-edit" class="nav-item"><span class="nav-index">05</span><span>Edit CSS</span></button>
+        <button id="workshop-tab" class="nav-item"><span class="nav-index">02</span><span>Workshop</span></button>
+        <button id="collection-tab" class="nav-item"><span class="nav-index">03</span><span>Collection</span></button>
+        <button id="profiles-tab" class="nav-item"><span class="nav-index">04</span><span>Options</span></button>
+        <button id="rules-tab" class="nav-item"><span class="nav-index">05</span><span>Match rules</span></button>
+        <button id="css-original-edit" class="nav-item"><span class="nav-index">06</span><span>Edit CSS</span></button>
       </nav>
       <section id="local-section" class="local-section">
         <div class="section-heading"><span class="eyebrow">ON THIS PC</span><span id="controller-count" class="small-count">0 / 4</span></div>
@@ -96,16 +97,7 @@
         <div class="chat-footer"><span id="chat-delivery"></span><button id="chat-send">Send</button></div>
       </section>
     </aside>
-    <div id="css-original-portraits"></div>
     <div id="css-original-overlay"><div id="css-original-handles"></div></div>
-    <div id="custom-results">
-      <div id="custom-result-winner"></div>
-      <div id="custom-result-name-0" class="custom-result-name"></div>
-      <div id="custom-result-name-1" class="custom-result-name"></div>
-      <div id="custom-result-name-2" class="custom-result-name"></div>
-      <div id="custom-result-name-3" class="custom-result-name"></div>
-    </div>
-    <div id="home-caption">CHOOSE A FIGHTER</div>
     <section id="collection-panel">
       <header class="settings-header">
         <button id="collection-close">‹ BACK</button>
@@ -117,6 +109,8 @@
           <button id="workshop-open" class="room-button workshop-entry">Open character workshop</button>
           <div class="collection-heading"><div class="eyebrow">INSTALLED PACKAGES</div><span id="collection-count">0 installed</span></div>
           <div id="collection-items"></div>
+          <div class="collection-heading"><div class="eyebrow">LOCAL DRAFTS</div></div>
+          <div id="collection-drafts"></div>
         </div>
         <aside class="collection-sharing">
           <div class="eyebrow">SHARE WITH A FRIEND</div>
@@ -142,9 +136,9 @@
           <button id="workshop-mode-animation">ANIMATION</button>
           <button id="workshop-mode-model">MODEL</button>
         </nav>
-        <button id="workshop-undo" class="workshop-header-tool" disabled="disabled" title="Undo workshop edit">↶</button>
-        <button id="workshop-redo" class="workshop-header-tool" disabled="disabled" title="Redo workshop edit">↷</button>
-        <button id="workshop-package-toggle" class="workshop-header-tool">Fighter</button>
+        <button id="workshop-undo" class="workshop-header-tool" disabled="disabled" title="Undo workshop edit">Undo</button>
+        <button id="workshop-redo" class="workshop-header-tool" disabled="disabled" title="Redo workshop edit">Redo</button>
+        <button id="workshop-package-toggle" class="workshop-header-tool" title="Edit common fighter attributes and package settings">Attributes</button>
         <button id="workshop-save-top" class="room-button">Save</button>
         <button id="workshop-test-character" class="room-button primary">Test Character</button>
       </header>
@@ -157,15 +151,16 @@
       <aside id="workshop-library" class="workshop-rail">
         <button id="workshop-close" class="workshop-back">‹ BACK TO COLLECTION</button>
         <div class="eyebrow">CHARACTER WORKSHOP</div>
+        <div class="workshop-library-create">
         <div class="workshop-heading">Fighter drafts</div>
         <label for="workshop-new-base" class="field-label">Clone fighter</label>
         <select id="workshop-new-base" class="room-input"></select>
         <input id="workshop-new-name" class="room-input" type="text" maxlength="63" placeholder="Fighter name" />
         <button id="workshop-create" class="room-button primary">Create clone</button>
-        <div class="workshop-divider"></div>
+        </div><section class="workshop-library-drafts"><div class="workshop-divider"></div>
         <div class="eyebrow">ON THIS PC</div>
         <div id="workshop-drafts"></div>
-        <p id="workshop-library-status" class="workshop-status"></p>
+        <p id="workshop-library-status" class="workshop-status"></p></section>
       </aside>
       <aside id="workshop-editor-browser" class="workshop-rail">
         <div id="workshop-action-browser"><div class="eyebrow">ACTIONS</div>
@@ -174,8 +169,8 @@
           <div id="workshop-linked-resources">
             <div class="workshop-divider"></div>
             <div class="eyebrow">ACTION RESOURCES</div>
-            <button id="workshop-jump-animation" class="workshop-resource-link" title="Open this action's animation in the Animation workspace">Animation <span>↗</span></button>
-            <button id="workshop-jump-script" class="workshop-resource-link" title="Open the fighter's special-move script in the Scripting workspace">Behavior script <span>↗</span></button>
+            <button id="workshop-jump-animation" class="workshop-resource-link" title="Open this action's animation in the Animation workspace"><span>Animation</span><span>Open</span></button>
+            <button id="workshop-jump-script" class="workshop-resource-link" title="Open the fighter's special-move script in the Scripting workspace"><span>Behavior script</span><span>Open</span></button>
           </div>
         </div>
         <div id="workshop-animation-browser"><div class="eyebrow">CLIPS</div>
@@ -426,7 +421,7 @@
           <div class="workshop-divider"></div>
           <div class="eyebrow">PARAMETERS</div>
           <p class="workshop-muted">Editable move values shared by this fighter. Scripts read them as attrs.Name.</p>
-          <textarea id="workshop-parameters-source" rows="8" cols="24" spellcheck="false" placeholder="float launch_speed = 1.25"></textarea>
+          <div id="workshop-parameters-list"></div>
           <button id="workshop-parameters-save" class="room-button">Save parameters</button>
           <p id="workshop-parameters-status" class="workshop-muted"></p>
           <div class="workshop-divider"></div>
@@ -440,6 +435,7 @@
             <pre id="workshop-script-lines">1</pre>
             <div id="workshop-script-code-layer">
               <textarea id="workshop-script-source" rows="28" cols="88" spellcheck="false"></textarea>
+              <script-colours id="workshop-script-colours"></script-colours>
             </div>
           </div>
           <div id="workshop-script-footer">
@@ -458,8 +454,10 @@
         <div class="workshop-script-preview-title">Practice <span id="workshop-script-preview-frame">Live preview</span></div>
         <div id="workshop-script-preview-space"></div>
         <div class="workshop-inspector-section"><div class="eyebrow">WATCH</div><div id="workshop-script-watch">Open practice to watch live fighter values.</div></div>
-        <div class="workshop-inspector-section"><div class="eyebrow">FIGHTER API</div><div id="workshop-script-api"></div></div>
+        <div class="workshop-inspector-section"><div class="eyebrow">SCRIPT REFERENCE</div><button id="workshop-doc-open" class="room-button">Open reference</button><p class="workshop-muted">Right-click a symbol in the script to look it up.</p></div>
       </aside>
+      <div id="workshop-doc-menu"></div>
+      <section id="workshop-doc-panel"><header><span id="workshop-doc-title">Script reference</span><button id="workshop-doc-close">Close</button></header><aside><input id="workshop-doc-search" type="text" class="room-input" placeholder="Search symbols or topics"/><div id="workshop-doc-results"></div></aside><article id="workshop-doc-content"></article></section>
       <section id="workshop-animation-pane">
         <div id="workshop-animation-splitter" class="workshop-pane-splitter" title="Drag to resize the preview and timeline"></div>
         <div id="workshop-animation-timeline-toolbar">
@@ -505,16 +503,7 @@
         <div id="workshop-empty" class="workshop-muted">Clone a fighter or choose a saved draft.</div>
         <div id="workshop-attributes">
           <div class="eyebrow">COMMON ATTRIBUTES</div>
-          <label for="workshop-walk-speed" class="field-label">Walk speed</label>
-          <input id="workshop-walk-speed" class="room-input" type="text" maxlength="16" />
-          <label for="workshop-gravity" class="field-label">Gravity</label>
-          <input id="workshop-gravity" class="room-input" type="text" maxlength="16" />
-          <label for="workshop-terminal-velocity" class="field-label">Terminal velocity</label>
-          <input id="workshop-terminal-velocity" class="room-input" type="text" maxlength="16" />
-          <label for="workshop-weight" class="field-label">Weight</label>
-          <input id="workshop-weight" class="room-input" type="text" maxlength="16" />
-          <label for="workshop-model-scale" class="field-label">Model scale</label>
-          <input id="workshop-model-scale" class="room-input" type="text" maxlength="16" />
+          <div id="workshop-common-attributes"></div>
           <button id="workshop-save" class="room-button primary">Save draft</button>
           <p id="workshop-save-status" class="workshop-status"></p>
           <div class="workshop-divider"></div>

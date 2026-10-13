@@ -1,8 +1,8 @@
 # Shared fighter movement and presentation
 
-These interpreter operations work with the active fighter's native common data.
-Move decisions and timing remain in your script; none selects a stock special
-handler. See [movement](movement.md), [parameters](language.md#fighter-attributes)
+These functions read and update the active fighter's movement, model and
+collision data. Your script controls move timing and decides when to call them.
+See [movement](movement.md), [parameters](language.md#fighter-attributes)
 and [callback slots](callback_slots.md).
 
 ## Movement methods
@@ -14,15 +14,16 @@ and [callback slots](callback_slots.md).
 | `physics.switch_to_ground()` | Transfer movement into ground space without selecting or restarting a motion. |
 | `collision.skip_soft_floor() -> bool` | Run the actual stick/platform test and update its collision state when the native rule permits dropping through. |
 
-Calls require a live source fighter with its owned program/storage. Reached
-native callbacks can retire or fault it; execution stops before publishing a
-result or continuing the script. The binding layer does not allocate or parse
-during ticks. Setting `airborne` directly still changes classification alone and does
-not perform these movement transitions.
+Call these functions from a fighter callback. They update movement and
+collision state immediately. If a call removes the fighter or causes a script
+error, the current callback ends.
 
-`facing.sign` is the native facing convention: -1 when direction is negative,
-+1 otherwise. Zero, negative zero and NaN follow the shared helper's comparison.
-It is an Int observation, not a truncating numeric cast. For example:
+Use `physics.switch_to_ground()` or `physics.force_air_and_use_jumps()` when
+changing between grounded and airborne movement. These functions update the
+movement data along with the grounded/airborne classification.
+
+`facing.sign` returns `-1` when facing left and `+1` when facing right. It is an
+integer suitable for direction arguments, such as a ledge check:
 
 ```text
 if collision.check_ground_ledge(facing.sign):

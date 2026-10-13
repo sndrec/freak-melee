@@ -23,6 +23,8 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Prepare a friend build | [Release guide](native_release.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |
 
+Reference authors should follow the [documentation guidelines](documentation_guidelines.md).
+
 ## Reading implementation evidence
 
 Checkpoint files establish exactly their recorded paths, sources, binaries and

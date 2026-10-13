@@ -17,6 +17,8 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera);
 void nativeCssOriginal_Tick(void);
 void nativeCssOriginal_Exit(void);
+void nativeCssOriginal_ClearPortraits(void);
+void nativeCssOriginal_SetPortrait(unsigned index, const u8* png, unsigned bytes, const char* title);
 const NativeCssLayout* nativeCssOriginal_Layout(void);
 bool nativeCssOriginal_CanEdit(void);
 bool nativeCssOriginal_UpdateTile(unsigned index, const NativeCssTile* tile);

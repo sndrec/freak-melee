@@ -1,15 +1,69 @@
 #include "native_fighter_family_project.h"
 
 #ifdef MELEE_NATIVE
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <melee/ft/native_fighter_parameters.h>
-#include <melee/ft/native_fighter_cpu.h>
-#include <melee/ft/native_source_package.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <melee/ft/native_fighter_parameters.h>
+#include <melee/ft/native_fighter_cpu.h>
+#include <melee/ft/native_source_package.h>
 
+bool nativeFighterFamilyProject_LocalRoot(char* path, size_t capacity)
+{
+    char app_data[512], parent[512];
+    DWORD length = GetEnvironmentVariableA("LOCALAPPDATA", app_data, sizeof(app_data));
+    if (path == NULL || capacity == 0 || length == 0 || length >= sizeof(app_data))
+        return false;
+    int n = snprintf(parent, sizeof(parent), "%s\\Freak Melee", app_data);
+    if (n <= 0 || n >= sizeof(parent)) return false;
+    n = snprintf(path, capacity, "%s\\projects", parent);
+    if (n <= 0 || (size_t)n >= capacity) return false;
+    if (!CreateDirectoryA(parent, NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
+        return false;
+    return CreateDirectoryA(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
+}
+
+static int compare_drafts(const void* a, const void* b)
+{
+    const NativeFighterDraft* left = a;
+    const NativeFighterDraft* right = b;
+    int order = _stricmp(left->title, right->title);
+    return order != 0 ? order : strcmp(left->path, right->path);
+}
+
+bool nativeFighterFamilyProject_ListLocal(NativeFighterDraft* drafts,
+                                         size_t capacity, size_t* count)
+{
+    char root[512], pattern[520];
+    if (drafts == NULL || count == NULL || capacity == 0 ||
+        !nativeFighterFamilyProject_LocalRoot(root, sizeof(root))) return false;
+    *count = 0;
+    int n = snprintf(pattern, sizeof(pattern), "%s\\*", root);
+    if (n <= 0 || n >= sizeof(pattern)) return false;
+    WIN32_FIND_DATAA found;
+    HANDLE search = FindFirstFileA(pattern, &found);
+    if (search == INVALID_HANDLE_VALUE) return GetLastError() == ERROR_FILE_NOT_FOUND;
+    do {
+        if (!(found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+            (found.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) ||
+            found.cFileName[0] == '.' || *count == capacity) continue;
+        NativeFighterDraft draft;
+        n = snprintf(draft.path, sizeof(draft.path), "%s\\%s", root, found.cFileName);
+        NativeFighterFamilyProjectInfo info;
+        if (n <= 0 || n >= sizeof(draft.path) ||
+            !nativeFighterFamilyProject_ReadInfo(draft.path, &info)) continue;
+        memcpy(draft.title, info.members[0].title, sizeof(draft.title));
+        drafts[(*count)++] = draft;
+    } while (FindNextFileA(search, &found));
+    DWORD error = GetLastError();
+    FindClose(search);
+    if (error != ERROR_NO_MORE_FILES) return false;
+    qsort(drafts, *count, sizeof(*drafts), compare_drafts);
+    return true;
+}
 enum { PATH_BYTES = NATIVE_FIGHTER_FAMILY_PROJECT_PATH_BYTES };
 
 static bool join_path(char* output, const char* path, const char* name)
