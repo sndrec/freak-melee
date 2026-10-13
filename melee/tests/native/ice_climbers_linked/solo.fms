@@ -1,0 +1,134 @@
+# Unregistered SDK66 scalar slice. No special entry override or paired claim.
+base ftDataPopo 341 26
+parameter float squall_input_threshold = 1
+parameter float squall_ground_input_accel = 1
+parameter float squall_air_input_accel = 1
+parameter float squall_air_max = 1
+parameter float squall_solo_gravity = 1
+parameter float squall_pair_gravity = 1
+parameter float squall_solo_terminal = 1
+parameter float squall_pair_terminal = 1
+parameter float squall_gravity_duration = 1
+parameter float squall_solo_pump_speed = 1
+parameter float squall_pair_pump_speed = 1
+parameter int squall_pump_interval = 1
+parameter float belay_mobility = 1
+parameter float belay_landing_lag = 1
+parameter float belay_solo_launch_speed = 1
+parameter float belay_solo_gravity = 1
+parameter float belay_solo_terminal = 1
+state float squall_input_accel
+state int squall_pending_pumps
+state int squall_pump_timer
+state int squall_elapsed
+
+func squall_input(float multiplier):
+    if abs(input.x) >= attrs.squall_input_threshold:
+        state.squall_input_accel = input.x * multiplier
+    else:
+        state.squall_input_accel = 0
+
+# This is the source AccelToVel rule, not the generic stick-based drift helper.
+func squall_accel(float accel, float target):
+    if target == 0:
+        accel = -velocity.x
+    elif not(velocity.x * accel < 0):
+        if accel > 0:
+            if velocity.x + accel > target:
+                accel = target - velocity.x
+        elif velocity.x + accel < target:
+            accel = target - velocity.x
+    acceleration.x = accel
+
+func squall_air_physics(float pump, float gravity, float terminal):
+    state.squall_pump_timer = state.squall_pump_timer + 1
+    if command(2) != 0 and input.special_pressed:
+        state.squall_pending_pumps = state.squall_pending_pumps + 1
+    if state.squall_pending_pumps != 0 and state.squall_pump_timer > attrs.squall_pump_interval:
+        velocity.y = velocity.y + pump
+        state.squall_pending_pumps = 0
+        state.squall_pump_timer = 0
+    state.squall_elapsed = state.squall_elapsed + 1
+    if state.squall_elapsed < attrs.squall_gravity_duration:
+        physics.fall(gravity, terminal)
+    else:
+        physics.fall_basic()
+    if command(0) == 0 and state.squall_input_accel != 0:
+        let float target = -attrs.squall_air_max
+        if state.squall_input_accel > 0:
+            target = attrs.squall_air_max
+        squall_accel(state.squall_input_accel, target)
+    else:
+        physics.air_decel_normal()
+
+func belay_solo_air_physics():
+    physics.fall(attrs.belay_solo_gravity, attrs.belay_solo_terminal)
+    if velocity.y < 0:
+        physics.air_decel_normal()
+
+func belay_solo_leave_ground(int motion):
+    physics.force_air_and_use_jumps()
+    state.enter_at_speed(motion, 0x0C4C508A, frame, 1)
+
+move LinkedScalarSlice:
+    on state_343_interrupt:
+        squall_input(attrs.squall_ground_input_accel)
+    on state_344_interrupt:
+        squall_input(attrs.squall_ground_input_accel)
+    on state_345_interrupt:
+        squall_input(attrs.squall_air_input_accel)
+    on state_346_interrupt:
+        squall_input(attrs.squall_air_input_accel)
+    on state_345_physics:
+        squall_air_physics(attrs.squall_solo_pump_speed, attrs.squall_solo_gravity, attrs.squall_solo_terminal)
+    on state_346_physics:
+        squall_air_physics(attrs.squall_pair_pump_speed, attrs.squall_pair_gravity, attrs.squall_pair_terminal)
+    on state_350_animation:
+        if animation.finished:
+            state.enter_at_speed(351, 0, 0, 1)
+    on state_350_interrupt:
+        return
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        if collision.special_ground_lost:
+            belay_solo_leave_ground(355)
+    on state_351_animation:
+        if animation.finished:
+            state.wait()
+    on state_351_interrupt:
+        return
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        if collision.special_ground_lost:
+            belay_solo_leave_ground(356)
+    on state_355_animation:
+        if command(2) != 0:
+            command(2) = 0
+            velocity.y = attrs.belay_solo_launch_speed
+        if animation.finished:
+            state.enter_at_speed(356, 0, 0, 1)
+    on state_355_interrupt:
+        return
+    on state_355_physics:
+        belay_solo_air_physics()
+    on state_355_collision:
+        if collision.check_ground_ledge(int(facing.direction)):
+            state.switch_to_ground(350, 0x0C4C508A)
+            return
+        if collision.cliff_catch():
+            return
+    on state_356_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+    on state_356_interrupt:
+        return
+    on state_356_physics:
+        belay_solo_air_physics()
+    on state_356_collision:
+        if collision.check_ground_ledge(int(facing.direction)):
+            state.landing_special(false, attrs.belay_landing_lag)
+            return
+        if collision.cliff_catch():
+            return

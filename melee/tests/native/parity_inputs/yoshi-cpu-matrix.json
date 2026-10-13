@@ -1,0 +1,114 @@
+[
+  {
+    "name": "cpu-level9-ground",
+    "p1_type": "cpu",
+    "samples": 2600,
+    "airborne": [
+      "1,120,-30,3",
+      "2,120,30,3"
+    ],
+    "damage_ports": [
+      2
+    ],
+    "motions": [
+      357,
+      358,
+      364
+    ]
+  },
+  {
+    "name": "cpu-level9-shield",
+    "p1_type": "cpu",
+    "samples": 2600,
+    "airborne": [
+      "1,120,-30,3",
+      "2,120,30,3"
+    ],
+    "inputs": [
+      [
+        2,
+        130,
+        2600,
+        64,
+        0,
+        0
+      ]
+    ],
+    "motions": [
+      357,
+      358,
+      359
+    ]
+  },
+  {
+    "name": "cpu-level4-ground",
+    "p1_type": "cpu",
+    "cpu_level": 4,
+    "samples": 2200,
+    "airborne": [
+      "1,120,-30,3",
+      "2,120,30,3"
+    ],
+    "damage_ports": [
+      2
+    ],
+    "motions": [
+      357,
+      358,
+      359
+    ]
+  },
+  {
+    "name": "cpu-level9-battlefield",
+    "p1_type": "cpu",
+    "stage": "battlefield",
+    "samples": 2600,
+    "airborne": [
+      "1,120,-30,3",
+      "2,120,30,3"
+    ],
+    "motions": [
+      357,
+      358,
+      359
+    ]
+  },
+  {
+    "name": "cpu-offstage-recovery",
+    "p1_type": "cpu",
+    "samples": 900,
+    "airborne": [
+      "1,140,95,-15",
+      "2,120,0,3"
+    ],
+    "cpu_recovery_ports": [
+      1
+    ]
+  },
+  {
+    "name": "cpu-threat-pound",
+    "p2": "cpu:zelda:9",
+    "samples": 700,
+    "airborne": [
+      "1,140,0,80",
+      "2,130,5,3"
+    ],
+    "motions": [
+      368,
+      367
+    ],
+    "inputs": [
+      [
+        1,
+        150,
+        151,
+        512,
+        0,
+        -100
+      ]
+    ],
+    "item_kinds": [
+      88
+    ]
+  }
+]

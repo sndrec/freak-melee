@@ -1,0 +1,207 @@
+# Unregistered Ice Shot / Blizzard source composition; paired fighter setup,
+# Squall and Belay are deliberately outside this component.
+base ftDataPopo 341 26
+parameter float ice_air_boost = 1
+parameter float ice_landing_lag = 1
+parameter float ice_spawn_x = 0
+parameter float ice_spawn_y = 0
+parameter float ice_repeat_air_offset = -10
+parameter float blizzard_interval = 1
+parameter float blizzard_spawn_x = 0
+parameter float blizzard_spawn_y = 0
+parameter int ice_launch_voice = 130141
+parameter int blizzard_voice = 130114
+parameter int blizzard_loop = 130027
+state int ice_handle
+state bool ice_air_boost_used
+state float ice_spawn_height
+state bool blizzard_effect_active
+state int blizzard_countdown
+state bool blizzard_emitting
+
+func forget_ice(int removed_id):
+    if state.ice_handle == removed_id:
+        state.ice_handle = -1
+        callbacks.death2(None)
+        callbacks.damage(None)
+
+func cleanup_ice():
+    if state.ice_handle != -1:
+        let int previous = state.ice_handle
+        articles.signal(previous, It_Kind_IceClimber_Ice, "remove", 0)
+        forget_ice(previous)
+
+func cleanup_blizzard():
+    if state.blizzard_effect_active:
+        effects.destroy_all()
+        state.blizzard_effect_active = false
+        callbacks.death2(None)
+        callbacks.damage(None)
+        bones.root.rotate_x(0, 0)
+
+# This component owns Ice/Blizzard cleanup only. Full stock Init_8011F060 also
+# cleans Squall and Belay. No independent or installed callback claim is made.
+func cleanup_standalone():
+    cleanup_ice()
+    cleanup_blizzard()
+
+func blizzard_callbacks():
+    callbacks.death2(cleanup_standalone)
+    callbacks.damage(cleanup_standalone)
+
+func ice_cue():
+    if command(0) == 1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(0, x, y, z)
+        x = attrs.ice_spawn_x * facing.direction + x
+        y = y + (attrs.ice_spawn_y + state.ice_spawn_height)
+        state.ice_handle = articles.create_at_position(It_Kind_IceClimber_Ice, x, y, 0, facing.direction, true, 0, 0)
+        sound.play(130021, 127, 64)
+        if state.ice_handle != -1:
+            blizzard_callbacks()
+        command(0) = 0
+    elif command(0) == 2:
+        if state.ice_handle != -1:
+            let int previous = state.ice_handle
+            articles.signal(previous, It_Kind_IceClimber_Ice, "launch", 0)
+            command(0) = 0
+            sound.channel(2, attrs.ice_launch_voice, 127, 64)
+            sound.play(130024, 127, 64)
+            forget_ice(previous)
+
+func blizzard_tilt():
+    if command(3) != 0:
+        bones.root.rotate_x(0, facing.direction * atan2_float(floor.normal.x, floor.normal.y))
+    else:
+        bones.root.rotate_x(0, 0)
+
+func blizzard_land():
+    state.switch_to_ground(357, 0x0C4C5282)
+    blizzard_callbacks()
+    blizzard_tilt()
+    callbacks.accessory(blizzard_cue)
+
+func blizzard_cue():
+    # Stock emits/decrements before processing the start/stop cue this tick.
+    if state.blizzard_emitting:
+        if state.blizzard_countdown == 0:
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            bones.world_position(26, x, y, z)
+            x = x + attrs.blizzard_spawn_x * facing.direction
+            y = y + attrs.blizzard_spawn_y
+            articles.create_at_position(It_Kind_IceClimber_Blizzard, x, y, 0, facing.direction, true, 0, 0)
+            state.blizzard_countdown = int(attrs.blizzard_interval)
+        state.blizzard_countdown = state.blizzard_countdown - 1
+    if command(0) == 1:
+        effects.spawn_on_part(0x4EC, 29)
+        state.blizzard_emitting = true
+        state.blizzard_effect_active = true
+        blizzard_callbacks()
+        command(0) = 0
+        sound.channel(2, attrs.blizzard_voice, 127, 64)
+        sound.loop(attrs.blizzard_loop, 127, 64)
+    elif command(0) == 2:
+        state.blizzard_emitting = false
+        command(0) = 0
+
+move Climbers:
+    on special_n:
+        cue.throw.reset()
+        command(0) = 0
+        state.ice_handle = -1
+        state.enter_at_speed(341, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ice_cue)
+    on special_air_n:
+        cue.throw.reset()
+        command(0) = 0
+        state.ice_handle = -1
+        if not state.ice_air_boost_used:
+            velocity.y = attrs.ice_air_boost
+            state.ice_air_boost_used = true
+            state.ice_spawn_height = 0
+        else:
+            state.ice_spawn_height = attrs.ice_repeat_air_offset
+        state.enter_at_speed(342, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ice_cue)
+    on state_341_animation:
+        if animation.finished: state.wait()
+    on state_342_animation:
+        if animation.finished: state.fall()
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+    on state_342_physics:
+        physics.air_gravity_and_friction()
+    on state_341_collision:
+        if collision.left_ground:
+            cleanup_ice()
+            state.fall()
+    on state_342_collision:
+        if collision.landed:
+            cleanup_ice()
+            state.ice_air_boost_used = false
+            state.ice_spawn_height = 0
+            state.landing_special(false, attrs.ice_landing_lag)
+    on special_lw:
+        cue.throw.reset()
+        command(0) = 0
+        command(3) = 0
+        state.blizzard_countdown = 0
+        state.blizzard_emitting = false
+        state.enter_at_speed(357, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(blizzard_cue)
+    on special_air_lw:
+        cue.throw.reset()
+        command(0) = 0
+        command(3) = 0
+        state.blizzard_countdown = 0
+        state.blizzard_emitting = false
+        state.enter_at_speed(358, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(blizzard_cue)
+    on state_357_animation:
+        if animation.finished:
+            cleanup_blizzard()
+            state.wait()
+    on state_358_animation:
+        if animation.finished:
+            cleanup_blizzard()
+            state.fall()
+    on state_357_interrupt:
+        return
+    on state_358_interrupt:
+        return
+    on state_357_physics:
+        physics.ground_friction()
+    on state_358_physics:
+        physics.air_gravity_and_friction()
+    on state_357_collision:
+        if collision.left_ground:
+            bones.root.rotate_x(0, 0)
+            state.switch_to_air(358, 0x0C4C5282)
+            blizzard_callbacks()
+            callbacks.accessory(blizzard_cue)
+            physics.clamp_air_drift()
+        else:
+            blizzard_tilt()
+    on state_358_collision:
+        collision.air_aerial_landing_callback(blizzard_land)
+    on landing_action:
+        state.ice_air_boost_used = false
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.ice_handle = -1
+        state.blizzard_effect_active = false
+        state.ice_air_boost_used = false
+        state.ice_spawn_height = 0

@@ -1,0 +1,418 @@
+# Unregistered seven-state fighter component. Generic43 complete entry hooks
+# and Float-local bone outputs are required by the source comparison.
+# Article-qualified attrs are owned immutable values after normal import.
+parameter int resource_attachment_joint = 42
+parameter int yoyo_hit_joint = 61
+parameter int yoyo_slope_root_joint = 2
+parameter int bat_smash_motion = 341
+parameter int yoyo_first_motion = 342
+parameter int yoyo_last_motion = 347
+parameter int yoyo_up_start_motion = 342
+parameter int yoyo_up_charge_motion = 343
+parameter int yoyo_up_release_motion = 344
+parameter int yoyo_down_start_motion = 345
+parameter int yoyo_down_charge_motion = 346
+parameter int yoyo_down_release_motion = 347
+parameter int smash_skip_item_visibility = 262144
+parameter int yoyo_spawn_frame = 2
+parameter int yoyo_up_despawn_frame = 49
+parameter int yoyo_down_despawn_frame = 60
+parameter int yoyo_obstruction_frame = 13
+parameter int yoyo_release_counter = 14
+parameter float yoyo_charge_animation_frame = 12
+parameter float yoyo_release_animation_frame = 13
+parameter float yoyo_shared_charge_limit = 60
+parameter int yoyo_charge_color = 119
+parameter int smash_color_skip = 123
+parameter int yoyo_rumble = 36
+parameter int sound_volume = 127
+parameter int sound_pan = 64
+parameter int bat_reflect_sound = 224
+parameter int yoyo_charge_sound = 210087
+parameter int yoyo_release_sound = 210090
+parameter int yoyo_down_rotate_sound = 210093
+parameter int yoyo_material_stop_sound = 210096
+parameter int yoyo_up_rotate_sound = 210099
+parameter float yoyo_damage_fraction = 0.0039059999398887157
+parameter float yoyo_up_blend_step = 0.10000000149011612
+parameter float yoyo_down_blend_step = 0.20000000298023224
+parameter int yoyo_up_blend_end = 24
+parameter int yoyo_down_blend_end = 19
+parameter float yoyo_ecb_half_height = 0.5
+parameter float yoyo_obstruction_radius = 0.5
+parameter float yoyo_floor_check_radius = 1.5
+parameter int yoyo_ecb_category = 5
+attribute float yoyo_charge_duration 172
+attribute float yoyo_damage_multiplier 176
+attribute float yoyo_rehit_rate 180
+attribute int bat_reflect_joint 184
+attribute int bat_reflect_max_damage 188
+attribute float bat_reflect_x 192
+attribute float bat_reflect_y 196
+attribute float bat_reflect_z 200
+attribute float bat_reflect_radius 204
+attribute float bat_reflect_damage_multiplier 208
+attribute float bat_reflect_speed_multiplier 212
+attribute byte bat_reflect_behavior 216
+state int bat_handle
+state int yoyo_handle
+state int yoyo_frame
+state int yoyo_rehit_timer
+state bool yoyo_charge_disabled
+state bool yoyo_slope_correct
+state float yoyo_hitbox_x
+state float yoyo_hitbox_y
+state float yoyo_hitbox_z
+state float yoyo_spin_rate
+
+export func bat_forget():
+    state.bat_handle = -1
+func BatRemove():
+    if state.bat_handle != -1:
+        articles.signal(state.bat_handle, It_Kind_Ness_Bat, "remove", 0)
+        state.bat_handle = -1
+func YoyoPause():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "pause", 0)
+func YoyoResume():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "resume", 0)
+export func yoyo_forget():
+    YoyoResume()
+    state.yoyo_handle = -1
+func YoyoRemove():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+        YoyoResume()
+        state.yoyo_handle = -1
+func SmashResourceDamage():
+    # This isolated namespace contains only these two resources. Complete Ness
+    # composition must insert Flash/Thunder between YoYo and Bat, unchanged.
+    YoyoRemove()
+    BatRemove()
+func BatCreate():
+    state.bat_handle = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, 0, false)
+    if state.bat_handle != -1:
+        callbacks.death2(SmashResourceDamage)
+        callbacks.damage(SmashResourceDamage)
+func YoyoCreate():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.resource_attachment_joint, x, y, z)
+    state.yoyo_handle = articles.create_at_position(It_Kind_Ness_Yoyo, x, y, z, facing.direction, true, 0, motion.id)
+    if state.yoyo_handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool published = articles.bind_auxiliary(state.yoyo_handle)
+        if callbacks.death2_is(None): callbacks.death2(SmashResourceDamage)
+        if callbacks.damage_is(None): callbacks.damage(SmashResourceDamage)
+    callbacks.track_hitlag()
+func YoyoInitialize():
+    command(1) = 0
+    command(0) = 0
+    state.yoyo_frame = 1
+    state.yoyo_rehit_timer = 0
+    state.yoyo_slope_correct = true
+    state.yoyo_hitbox_z = 0
+    state.yoyo_hitbox_y = 0
+    state.yoyo_hitbox_x = 0
+    state.yoyo_spin_rate = 0
+func YoyoBindCallbacks():
+    damage.song_immune = true
+    callbacks.track_deal_damage()
+    callbacks.accessory(YoyoUpdateHitPos)
+func YoyoStartTimedRehit():
+    state.yoyo_rehit_timer = int(attrs.yoyo_rehit_rate)
+func YoyoCheckTimedRehit():
+    if command(0) == 0 and state.yoyo_rehit_timer > 0:
+        state.yoyo_rehit_timer = state.yoyo_rehit_timer - 1
+        if state.yoyo_rehit_timer == 0:
+            # Stock clears victims, then enables the delayed YoYo hitbox without
+            # marking fighter hitbox cleanup. A later smash exit can therefore
+            # leave it active, causing stray hits and the lingering YoYo jacket.
+            # Generic enabling also maintains the normal motion-cleanup flag.
+            hitbox.clear_victims(0)
+            hitbox.set_enabled(0, true)
+func YoyoUpdateHitPos():
+    if hitbox.state(0) != Hitbox.disabled:
+        if state.yoyo_hitbox_x != 0 or state.yoyo_hitbox_y != 0:
+            hitbox.set_world_position(0, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z)
+func YoyoSetHitPos(float fraction, bool blend):
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.yoyo_hit_joint, x, y, z)
+    if state.yoyo_slope_correct:
+        let float root_x = 0
+        let float root_y = 0
+        let float root_z = 0
+        bones.world_position(attrs.yoyo_slope_root_joint, root_x, root_y, root_z)
+        let float dx = x - root_x
+        let float dy = y - root_y
+        let float dz = z - root_z
+        let float rx = 0
+        let float ry = 0
+        let float rz = 0
+        vectors.rotate(dx, dy, dz, 4, -atan2_float(floor.normal.x, floor.normal.y), rx, ry, rz)
+        x = rx + root_x
+        y = ry + root_y
+        z = rz + root_z
+    if not blend:
+        state.yoyo_hitbox_x = x
+        state.yoyo_hitbox_y = y
+        state.yoyo_hitbox_z = z
+    else:
+        let float retained = 1 - fraction
+        state.yoyo_hitbox_x = x * fraction + state.yoyo_hitbox_x * retained
+        state.yoyo_hitbox_y = y * fraction + state.yoyo_hitbox_y * retained
+        state.yoyo_hitbox_z = z * fraction + state.yoyo_hitbox_z * retained
+func YoyoCheckEnv(float ax, float ay, float az, float bx, float by, float bz, float radius) -> int:
+    let float size = radius * model.instance_scale_y
+    let int flags = stage.sweep_box(ax, ay, az, bx, by, bz, size, -size, -size, 0, size, 0, attrs.yoyo_ecb_category)
+    let int result = 0
+    if flags & Collision.floor_mask: result = result | 32768
+    if flags & Collision.left_wall_mask: result = result | 1
+    if flags & Collision.right_wall_mask: result = result | 64
+    if flags & Collision.ceiling_mask: result = result | 8192
+    return result
+func YoyoCheckNoObstruct() -> bool:
+    let float x = position.x
+    let float y = attrs.yoyo_ecb_half_height * (ecb.top.y + ecb.bottom.y)
+    y = y + position.y
+    let float z = position.z
+    let int first = YoyoCheckEnv(x, y, z, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z, attrs.yoyo_obstruction_radius)
+    if first == 0:
+        let float upper = state.yoyo_hitbox_y + model.instance_scale_y
+        let float lower = state.yoyo_hitbox_y + -1 * model.instance_scale_y
+        let int second = YoyoCheckEnv(state.yoyo_hitbox_x, upper, state.yoyo_hitbox_z, state.yoyo_hitbox_x, lower, state.yoyo_hitbox_z, attrs.yoyo_floor_check_radius)
+        return (second & 32768) != 0
+    return false
+func YoyoApplyDamage():
+    if smash.charge_frames != 0 and hitbox.state(0) == Hitbox.enabled:
+        let float duration = smash.charge_frames / attrs.yoyo_charge_duration
+        let float multiplier = attrs.yoyo_damage_multiplier * attrs.yoyo_damage_fraction - 1
+        let float damage = hitbox.damage(0) * (multiplier * duration + 1)
+        hitbox.set_damage(0, damage)
+func YoyoApplySmash():
+    state.yoyo_frame = 0
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "charge_release", facing.direction)
+    smash.charge_mode = Smash.manual_charge
+    smash.saved_animation_rate = animation.rate
+    smash.charge_frames = 0
+    smash.charge_limit = attrs.yoyo_shared_charge_limit
+    smash.shake_index = 0
+    smash.shake_period = smash.shake_table_count
+    smash.charge_color = attrs.yoyo_charge_color
+    if smash.charge_color != attrs.smash_color_skip: color.start(smash.charge_color, false)
+    controller.rumble(attrs.yoyo_rumble, 0)
+    sound.loop(attrs.yoyo_charge_sound, attrs.sound_volume, attrs.sound_pan)
+func YoyoSetChargeDamage():
+    state.yoyo_frame = attrs.yoyo_release_counter
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+        state.yoyo_spin_rate = attrs.It_Kind_Ness_Yoyo.released_spin_rate
+    sound.loop(attrs.yoyo_release_sound, attrs.sound_volume, attrs.sound_pan)
+    YoyoApplyDamage()
+func YoyoSetChargeSpin():
+    if state.yoyo_handle != -1:
+        let float initial = attrs.It_Kind_Ness_Yoyo.initial_charge_spin_rate
+        let float difference = initial - attrs.It_Kind_Ness_Yoyo.charged_spin_rate
+        difference = difference * (float(state.yoyo_frame) / attrs.yoyo_charge_duration)
+        state.yoyo_spin_rate = initial - difference
+func YoyoThink() -> bool:
+    if command(0) != 0: state.yoyo_slope_correct = false
+    let bool up = motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion
+    let int despawn = attrs.yoyo_down_despawn_frame
+    if up: despawn = attrs.yoyo_up_despawn_frame
+    if state.yoyo_frame > attrs.yoyo_spawn_frame and state.yoyo_frame <= despawn:
+        if command(1) == 1:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 1)
+            state.yoyo_spin_rate = attrs.It_Kind_Ness_Yoyo.released_spin_rate
+        if command(1) == 2:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 0)
+            state.yoyo_spin_rate = 0
+            sound.loop(attrs.yoyo_material_stop_sound, attrs.sound_volume, attrs.sound_pan)
+        let int rotate_frame = attrs.It_Kind_Ness_Yoyo.down_smash_rotate_frame
+        let int retract_frame = attrs.It_Kind_Ness_Yoyo.down_smash_retract_frame
+        if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+            rotate_frame = attrs.It_Kind_Ness_Yoyo.up_smash_rotate_frame
+            retract_frame = attrs.It_Kind_Ness_Yoyo.up_smash_retract_frame
+        if state.yoyo_frame == rotate_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+            if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+                sound.loop(attrs.yoyo_up_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+            else:
+                sound.loop(attrs.yoyo_down_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+        elif state.yoyo_frame == retract_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "retract", 0)
+        if state.yoyo_frame == despawn: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+    elif state.yoyo_frame == attrs.yoyo_spawn_frame:
+        YoyoCreate()
+        if state.yoyo_handle == -1:
+            state.wait()
+            return true
+    return false
+func BatEnter():
+    controls.interrupt_allowed = false
+    command(0) = 0
+    state.enter_at_speed(attrs.bat_smash_motion, 0, 0, 1)
+    animation.start()
+    BatCreate()
+func BatReflect():
+    sound.play(attrs.bat_reflect_sound, attrs.sound_volume, attrs.sound_pan)
+func BatAnimation():
+    if not reflector.active:
+        if command(0) != 0:
+            reflector.create(attrs.bat_reflect_joint, attrs.bat_reflect_max_damage, attrs.bat_reflect_x, attrs.bat_reflect_y, attrs.bat_reflect_z, attrs.bat_reflect_radius, attrs.bat_reflect_damage_multiplier, attrs.bat_reflect_speed_multiplier, attrs.bat_reflect_behavior)
+            callbacks.track_reflect_hit()
+    elif command(0) == 0:
+        reflector.disable()
+    if animation.finished:
+        BatRemove()
+        state.wait()
+func BatInterrupt():
+    if controls.interrupt_allowed != 0:
+        BatRemove()
+        controls.ground_actions()
+func BatPhysics():
+    physics.ground_motion()
+    reflector.update()
+func YoyoEnter(bool up):
+    controls.interrupt_allowed = false
+    state.yoyo_charge_disabled = false
+    YoyoInitialize()
+    let int target = attrs.yoyo_down_start_motion
+    if up: target = attrs.yoyo_up_start_motion
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    YoyoBindCallbacks()
+func YoyoChargeEnter(bool up):
+    let int target = attrs.yoyo_down_charge_motion
+    if up: target = attrs.yoyo_up_charge_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_charge_animation_frame, 1)
+    animation.start()
+    animation.set_rate(0)
+    YoyoApplySmash()
+    YoyoBindCallbacks()
+func YoyoReleaseEnter(bool up):
+    let int target = attrs.yoyo_down_release_motion
+    if up: target = attrs.yoyo_up_release_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_release_animation_frame, 1)
+    animation.start()
+    YoyoSetChargeDamage()
+    YoyoBindCallbacks()
+func YoyoAnimation(bool up, bool release):
+    state.yoyo_frame = state.yoyo_frame + 1
+    if not YoyoThink():
+        YoyoCheckTimedRehit()
+        if not release:
+            if state.yoyo_frame == attrs.yoyo_obstruction_frame and not state.yoyo_charge_disabled:
+                if YoyoCheckNoObstruct(): YoyoChargeEnter(up)
+        if animation.finished: state.wait()
+func YoyoInterrupt(bool release):
+    if not release and not input.attack_held: state.yoyo_charge_disabled = true
+    if controls.interrupt_allowed != 0: controls.ground_actions()
+func YoyoChargeAnimation(bool up):
+    state.yoyo_frame = state.yoyo_frame + 1
+    YoyoSetChargeSpin()
+    YoyoCheckTimedRehit()
+    if float(state.yoyo_frame) >= attrs.yoyo_charge_duration: YoyoReleaseEnter(up)
+func YoyoChargeInterrupt(bool up):
+    if not input.attack_held: YoyoReleaseEnter(up)
+func YoyoPhysics(bool release, bool up):
+    physics.ground_friction()
+    let float fraction = 1
+    let bool blend = false
+    if release:
+        let int end = attrs.yoyo_down_blend_end
+        let float step = attrs.yoyo_down_blend_step
+        if up:
+            end = attrs.yoyo_up_blend_end
+            step = attrs.yoyo_up_blend_step
+        if state.yoyo_frame < end:
+            blend = true
+            fraction = step * (float(state.yoyo_frame) - float(attrs.yoyo_release_counter))
+            if fraction >= 1: fraction = 1
+            elif fraction <= 0: fraction = 0
+    YoyoSetHitPos(fraction, blend)
+func YoyoCollision():
+    collision.ground_standard()
+    if airborne: YoyoRemove()
+
+move Smashes:
+    on load:
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+    on pre_hitlag:
+        YoyoPause()
+    on post_hitlag:
+        YoyoResume()
+    on deal_damage:
+        YoyoStartTimedRehit()
+    on reflect_hit:
+        BatReflect()
+    on forward_smash_enter:
+        BatEnter()
+    on up_smash_enter:
+        YoyoEnter(true)
+    on down_smash_enter:
+        YoyoEnter(false)
+
+    on state_341_animation:
+        BatAnimation()
+    on state_341_interrupt:
+        BatInterrupt()
+    on state_341_physics:
+        BatPhysics()
+    on state_341_collision:
+        collision.ground_standard()
+    on state_342_animation:
+        YoyoAnimation(true, false)
+    on state_342_interrupt:
+        YoyoInterrupt(false)
+    on state_342_physics:
+        YoyoPhysics(false, true)
+    on state_342_collision:
+        YoyoCollision()
+    on state_343_animation:
+        YoyoChargeAnimation(true)
+    on state_343_interrupt:
+        YoyoChargeInterrupt(true)
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        YoyoCollision()
+    on state_344_animation:
+        YoyoAnimation(true, true)
+    on state_344_interrupt:
+        YoyoInterrupt(true)
+    on state_344_physics:
+        YoyoPhysics(true, true)
+    on state_344_collision:
+        YoyoCollision()
+    on state_345_animation:
+        YoyoAnimation(false, false)
+    on state_345_interrupt:
+        YoyoInterrupt(false)
+    on state_345_physics:
+        YoyoPhysics(false, false)
+    on state_345_collision:
+        YoyoCollision()
+    on state_346_animation:
+        YoyoChargeAnimation(false)
+    on state_346_interrupt:
+        YoyoChargeInterrupt(false)
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        YoyoCollision()
+    on state_347_animation:
+        YoyoAnimation(false, true)
+    on state_347_interrupt:
+        YoyoInterrupt(true)
+    on state_347_physics:
+        YoyoPhysics(true, false)
+    on state_347_collision:
+        YoyoCollision()

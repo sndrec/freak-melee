@@ -1,0 +1,34 @@
+# Compose accepted Ice/Blizzard cleanup unchanged. Rope signals await the
+# substantive resource article port; this file is source preparation only.
+state int linked_rope_handle
+state float linked_rope_endpoint_x
+state float linked_rope_endpoint_y
+state float linked_rope_endpoint_z
+parameter int linked_rope_endpoint_part = 29
+
+export func linked_forget_rope():
+    state.linked_rope_handle = -1
+    callbacks.death3(None)
+    callbacks.damage(None)
+
+func linked_cleanup_rope():
+    if state.linked_rope_handle != -1:
+        articles.signal(state.linked_rope_handle, It_Kind_IceClimber_GumStrings, "remove", 0)
+        linked_forget_rope()
+
+func linked_full_cleanup():
+    cleanup_ice()
+    cleanup_blizzard()
+    linked_cleanup_rope()
+    linked_cleanup_hitlag()
+
+export func linked_push_rope_endpoint():
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        if targets.read_bone_position(companion, attrs.linked_rope_endpoint_part, x, y, z):
+            state.linked_rope_endpoint_x = x
+            state.linked_rope_endpoint_y = y
+            state.linked_rope_endpoint_z = z

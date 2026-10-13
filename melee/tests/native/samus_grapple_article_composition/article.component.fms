@@ -1,0 +1,664 @@
+# Unregistered healthy-mode Samus grapple article source fixture.
+# Constructor, animation bundles and fighter control signals live in separate
+# authoring components; compose.py joins them for interpreter preparation.
+# The composed fighter component owns the modified input code sequence.
+# Modified ground attack owns its mode transition and immutable endpoint hitbox.
+# Full graph-constructor/solver/gameplay acceptance remains open.
+# Native unsuffixed double0.9/0.12 constants use ordinary Float expressions;
+# differences are measured rather than introducing parity-only numeric hacks.
+article It_Kind_Samus_GBeam states 9:
+    resources capacity 90 reserve_part 139
+    model_root ChainA 100
+    model_root ChainB 104
+    model_root ChainC 108
+    model_root Endpoint 112
+    attribute float bounce 0
+    attribute float count_blend 8
+    attribute int source_count 12
+    attribute float source_length 16
+    attribute float source_min_length 20
+    attribute float source_launch_speed 24
+    attribute float source_gravity 28
+    attribute float source_retract_speed 36
+    attribute float source_pull_speed 44
+    attribute float source_friction 48
+    attribute float ground_coefficient 92
+    attribute float air_coefficient 96
+    state int count
+    state int endpoint
+    state int solver
+    state int cursor
+    state int result
+    state int collision_result
+    state bool completed
+    state bool deployed[90]
+    state bool on_floor[90]
+    state float length
+    state float min_length
+    state float launch_speed
+    state float gravity
+    state float retract_speed
+    state float pull_speed
+    state float friction
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float dx
+    state float dy
+    state float dz
+    state float norm_length
+    state float random_gravity
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state float speed_x
+    state float speed_y
+    state float speed_z
+    state float matrix[12]
+
+    func Dispose():
+        item.state.solver = -1
+        # Creator cleanup is guarded by the expected handle; damage ownership
+        # can change independently of the control owner. Free resources even
+        # after that owner expires (retail can leak them in this case).
+        if creator.exists:
+            creator.helpers.Tether_Unbind(int(item.creation_id))
+        item.resources.release()
+        item.remove()
+
+    func Normalize(float x, float y, float z):
+        item.state.dx = x
+        item.state.dy = y
+        item.state.dz = z
+        item.state.norm_length = sqrt(x * x + y * y + z * z)
+        let float inverse = 0
+        if item.state.norm_length != 0:
+            inverse = 1 / item.state.norm_length
+        item.state.dx = item.state.dx * inverse
+        item.state.dy = item.state.dy * inverse
+        item.state.dz = item.state.dz * inverse
+
+    func CopyCollisionPosition(int i, bool reset):
+        if reset:
+            item.resource(i).collision.previous.x = item.resource(i).position.x
+        else:
+            item.resource(i).collision.previous.x = item.resource(i).collision.position.x
+        item.resource(i).collision.position.x = item.resource(i).position.x
+        if reset:
+            item.resource(i).collision.previous.y = item.resource(i).position.y
+        else:
+            item.resource(i).collision.previous.y = item.resource(i).collision.position.y
+        item.resource(i).collision.position.y = item.resource(i).position.y
+        if reset:
+            item.resource(i).collision.previous.z = item.resource(i).position.z
+        else:
+            item.resource(i).collision.previous.z = item.resource(i).collision.position.z
+        item.resource(i).collision.position.z = item.resource(i).position.z
+
+    func MarkDeployed(int i, bool value):
+        item.state.deployed[i] = value
+        item.resource(i).set_draw(i == item.state.endpoint or value)
+
+    func Integrate(int i):
+        item.resource(i).position.x = item.resource(i).position.x + item.resource(i).velocity.x
+        item.resource(i).position.y = item.resource(i).position.y + item.resource(i).velocity.y
+        item.resource(i).position.z = item.resource(i).position.z + item.resource(i).velocity.z
+
+    func ClampToAnchor(int i, float radius):
+        Normalize(item.resource(i).position.x - item.state.anchor_x, item.resource(i).position.y - item.state.anchor_y, item.resource(i).position.z - item.state.anchor_z)
+        item.resource(i).position.x = item.state.dx * radius + item.state.anchor_x
+        item.resource(i).position.y = item.state.dy * radius + item.state.anchor_y
+        item.resource(i).position.z = item.state.dz * radius + item.state.anchor_z
+
+    func MoveWall():
+        let int tip = item.state.endpoint
+        if stage.line_exists(item.resource(tip).surface_line):
+            item.resource(tip).read_line_speed(item.resource(tip).surface_line, item.state.speed_x, item.state.speed_y, item.state.speed_z)
+            item.resource(tip).position.x = item.resource(tip).position.x + item.state.speed_x
+            item.resource(tip).position.y = item.resource(tip).position.y + item.state.speed_y
+            item.resource(tip).position.z = item.resource(tip).position.z + item.state.speed_z
+
+    func OrientModel(int i, float dx, float dy, float dz):
+        Normalize(dx, dy, dz)
+        let float z0 = item.state.dx
+        let float z1 = item.state.dy
+        let float z2 = item.state.dz
+        let float rx = 0
+        let float ry = 1
+        if z1 > 0.9999:
+            rx = -1
+            ry = 0
+        else:
+            if z1 < -0.9999:
+                rx = 1
+                ry = 0
+        let float rawx0 = ry * z2
+        let float rawx1 = -rx * z2
+        let float rawx2 = rx * z1 - ry * z0
+        let float rawy0 = z1 * rawx2 - z2 * rawx1
+        let float rawy1 = z2 * rawx0 - z0 * rawx2
+        let float rawy2 = z0 * rawx1 - z1 * rawx0
+        Normalize(rawx0, rawx1, rawx2)
+        # Reuse raw locals after both cross products to stay within16locals.
+        rawx0 = item.state.dx
+        rawx1 = item.state.dy
+        rawx2 = item.state.dz
+        Normalize(rawy0, rawy1, rawy2)
+        let float scale = attachment_owner.model.instance_scale_y
+        item.state.matrix[0] = rawx0 * scale
+        item.state.matrix[1] = item.state.dx * scale
+        item.state.matrix[2] = z0 * scale
+        item.state.matrix[3] = item.resource(i).position.x
+        item.state.matrix[4] = rawx1 * scale
+        item.state.matrix[5] = item.state.dy * scale
+        item.state.matrix[6] = z1 * scale
+        item.state.matrix[7] = item.resource(i).position.y
+        item.state.matrix[8] = rawx2 * scale
+        item.state.matrix[9] = item.state.dz * scale
+        item.state.matrix[10] = z2 * scale
+        item.state.matrix[11] = item.resource(i).position.z
+        item.resource(i).joint("").translation.x = item.resource(i).position.x
+        item.resource(i).joint("").translation.y = item.resource(i).position.y
+        item.resource(i).joint("").translation.z = item.resource(i).position.z
+        item.resource(i).set_world_matrix(item.state.matrix)
+
+    func UpdateModels():
+        let int i = int(0)
+        while i < item.state.count and not item.state.deployed[i]:
+            i = i + 1
+        while i < item.state.count:
+            let int next = i - 1
+            let int previous = i + 1
+            let float ax = item.state.anchor_x
+            let float ay = item.state.anchor_y
+            let float az = item.state.anchor_z
+            if next >= 0 and item.state.deployed[next]:
+                ax = item.resource(next).position.x
+                ay = item.resource(next).position.y
+                az = item.resource(next).position.z
+            let float bx = item.resource(i).position.x
+            let float by = item.resource(i).position.y
+            let float bz = item.resource(i).position.z
+            if previous < item.state.count:
+                bx = item.resource(previous).position.x
+                by = item.resource(previous).position.y
+                bz = item.resource(previous).position.z
+            OrientModel(i, bx - ax, by - ay, bz - az)
+            i = i + 1
+
+    func Animate():
+        item.advance_model_animation()
+        let int i = int(0)
+        while i < item.state.count:
+            item.resource(i).joint("").advance_animation()
+            i = i + 1
+
+    func CopyEndpointMatrix():
+        item.resource(item.state.endpoint).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.endpoint).set_world_matrix(item.state.matrix)
+
+    func CopyHeldMatrix():
+        CopyEndpointMatrix()
+        Animate()
+
+    func ClampNode(int i, int previous, bool minimum):
+        Normalize(item.resource(i).position.x - item.resource(previous).position.x, item.resource(i).position.y - item.resource(previous).position.y, item.resource(i).position.z - item.resource(previous).position.z)
+        let float distance = item.state.norm_length
+        if distance > item.state.length or (minimum and distance < item.state.min_length):
+            let float radius = item.state.length
+            if distance < item.state.min_length:
+                radius = item.state.min_length
+            item.resource(i).position.x = item.state.dx * radius + item.resource(previous).position.x
+            item.resource(i).position.y = item.state.dy * radius + item.resource(previous).position.y
+            item.resource(i).position.z = item.state.dz * radius + item.resource(previous).position.z
+
+    func RandomGravity(int i, float coefficient):
+        item.state.random_gravity = 0
+        if random.float() > 0.9:
+            let float y = item.resource(i).velocity.y
+            if y < 0:
+                item.state.random_gravity = -(coefficient * random.float() - y)
+            else:
+                item.state.random_gravity = coefficient * random.float() + y
+        item.resource(i).velocity.y = item.resource(i).velocity.y - item.state.random_gravity
+
+    func Forward(int first, float radius, bool deterministic):
+        ClampToAnchor(first, radius)
+        let int i = first + 1
+        while i < item.state.count:
+            if deterministic:
+                item.resource(i).velocity.y = item.resource(i).velocity.y - item.state.gravity
+            else:
+                RandomGravity(i, 0.6)
+            Integrate(i)
+            CopyCollisionPosition(i, false)
+            ClampNode(i, i - 1, true)
+            i = i + 1
+
+    func Retract(float speed, bool deterministic):
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        let int current = item.state.cursor
+        Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        while current + 1 < item.state.count and speed > item.state.norm_length:
+            MarkDeployed(current, false)
+            current = current + 1
+            Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        let float radius = item.state.norm_length - speed
+        if radius > item.state.length:
+            radius = item.state.length
+        Forward(current, radius, deterministic)
+        item.state.result = int(0)
+        if current == item.state.endpoint:
+            item.state.result = int(1)
+
+    func RetractDamping():
+        let int i = int(0)
+        while i < item.state.count:
+            let float dx = item.resource(i).collision.position.x - item.resource(i).collision.previous.x
+            let float dz = item.resource(i).collision.position.z - item.resource(i).collision.previous.z
+            let float remaining = dz - item.resource(i).velocity.z
+            item.resource(i).velocity.x = item.resource(i).velocity.x + 0.12 * (dx - item.resource(i).velocity.x)
+            item.resource(i).velocity.z = item.resource(i).velocity.z + 0.12 * remaining
+            i = i + 1
+
+    func Friction(int i):
+        let float x = item.resource(i).velocity.x
+        if x > item.state.friction:
+            x = x - item.state.friction
+        else:
+            if x < -item.state.friction:
+                x = x + item.state.friction
+            else:
+                x = 0
+        item.resource(i).velocity.x = x
+
+    func Flight(bool falling):
+        let int tip = item.state.endpoint
+        if not falling and attachment_owner.state.tether_launch_now:
+            item.resource(tip).position.x = item.state.anchor_x
+            item.resource(tip).position.y = item.state.anchor_y
+            item.resource(tip).position.z = item.state.anchor_z
+            CopyCollisionPosition(tip, true)
+            MarkDeployed(tip, true)
+        # Stock updates the modified capsule/mode before its homing check.
+        if attachment_owner.helpers.Tether_UpdateModifiedGroundAttack(item.state.modified_mode):
+            item.state.modified_mode = 2
+        if falling:
+            RandomGravity(tip, 0.6)
+            Friction(tip)
+        elif item.state.modified_mode == 1 and attachment_owner.input.l_held:
+            if attachment_owner.helpers.Tether_ReadHomingTarget():
+                # Selection uses 2D fighter distance; steering uses the native
+                # normalized 3D vector from the endpoint to the selected fighter.
+                Normalize(attachment_owner.state.tether_target_x - item.resource(tip).position.x, attachment_owner.state.tether_target_y - item.resource(tip).position.y, attachment_owner.state.tether_target_z - item.resource(tip).position.z)
+                item.resource(tip).velocity.x = item.state.dx * item.state.launch_speed
+                item.resource(tip).velocity.y = item.state.dy * item.state.launch_speed
+                item.resource(tip).velocity.z = item.state.dz * item.state.launch_speed
+        Integrate(tip)
+        CopyCollisionPosition(tip, false)
+        item.state.on_floor[tip] = item.resource(tip).sweep_stage()
+        item.resource(tip).position.x = item.resource(tip).collision.position.x
+        item.resource(tip).position.y = item.resource(tip).collision.position.y
+        item.resource(tip).position.z = item.resource(tip).collision.position.z
+        item.state.result = int(0)
+        item.state.collision_result = item.resource(tip).collision.environment & (Collision.floor_mask | Collision.wall_mask)
+        if item.state.collision_result != 0:
+            if (item.state.collision_result & Collision.wall_mask) != 0:
+                item.state.result = int(1)
+                if not falling:
+                    if (item.state.collision_result & Collision.left_wall_mask) != 0:
+                        item.resource(tip).surface_line = item.resource(tip).collision.left_wall_line
+                    else:
+                        item.resource(tip).surface_line = item.resource(tip).collision.right_wall_line
+            else:
+                item.state.result = int(2)
+        let int current = tip
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                if falling:
+                    RandomGravity(next, 0.6)
+                    Integrate(next)
+                else:
+                    RandomGravity(next, 1)
+                    item.resource(next).position.y = item.resource(next).position.y + item.resource(next).velocity.y
+                ClampNode(next, current, true)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    return
+            current = next
+            next = next - 1
+        Forward(current, item.state.length, false)
+        item.state.result = int(3)
+
+    func Slack():
+        if attachment_owner.helpers.Tether_UpdateModifiedGroundAttack(item.state.modified_mode):
+            item.state.modified_mode = 2
+        let int current = int(0)
+        while current < item.state.endpoint and not item.state.deployed[current]:
+            current = current + 1
+        RandomGravity(current, 0.6)
+        Integrate(current)
+        Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        if item.state.norm_length > item.state.length:
+            ClampToAnchor(current, item.state.length)
+        let int i = current + 1
+        while i < item.state.count:
+            RandomGravity(i, 0.6)
+            Integrate(i)
+            ClampNode(i, current, true)
+            current = i
+            i = i + 1
+        Friction(current)
+
+    func WallExtend():
+        MoveWall()
+        item.state.result = int(1)
+        let int current = item.state.endpoint
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                RandomGravity(next, 0.6)
+                Integrate(next)
+                ClampNode(next, current, false)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    item.state.result = int(0)
+                    return
+            current = next
+            next = next - 1
+
+    func TailConstraint(bool stop_when_slack):
+        let int current = item.state.endpoint
+        let int next = current - 1
+        let bool slack = false
+        item.state.result = int(0)
+        while next >= 0 and item.state.deployed[next]:
+            item.state.result = item.state.result + 1
+            if not slack:
+                Normalize(item.resource(next).position.x - item.resource(current).position.x, item.resource(next).position.y - item.resource(current).position.y, item.resource(next).position.z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    ClampNode(next, current, false)
+                else:
+                    slack = stop_when_slack
+            current = next
+            next = next - 1
+        Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+        if item.state.norm_length > item.state.length:
+            item.state.anchor_x = item.state.dx * item.state.length + item.resource(current).position.x
+            item.state.anchor_y = item.state.dy * item.state.length + item.resource(current).position.y
+            item.state.anchor_z = item.state.dz * item.state.length + item.resource(current).position.z
+
+    func PullConstraint():
+        MoveWall()
+        item.state.saved_x = item.resource(item.state.endpoint).position.x
+        item.state.saved_y = item.resource(item.state.endpoint).position.y
+        item.state.saved_z = item.resource(item.state.endpoint).position.z
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        Forward(item.state.cursor, item.state.length, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        Retract(item.state.retract_speed, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        TailConstraint(false)
+        if item.state.result != 0:
+            item.state.result = int(0)
+        else:
+            item.state.result = int(1)
+
+    func HangConstraint():
+        MoveWall()
+        item.state.saved_x = item.resource(item.state.endpoint).position.x
+        item.state.saved_y = item.resource(item.state.endpoint).position.y
+        item.state.saved_z = item.resource(item.state.endpoint).position.z
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        Forward(item.state.cursor, item.state.length, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        TailConstraint(true)
+
+    func ChangeMode(int next, bool clear_attack):
+        item.change_state_flags(next, int(2))
+        if clear_attack:
+            attachment_owner.helpers.Tether_ClearAttack()
+        item.scale_by_attribute(attachment_owner.model.instance_scale_y)
+        if next == 8:
+            attachment_owner.helpers.Tether_StartHangTimer()
+
+    func WallStates(int mode):
+        if mode == 6 or mode == 8:
+            if stage.segment_blocked(item.state.anchor_x, item.state.anchor_y, item.resource(item.state.endpoint).position.x, item.resource(item.state.endpoint).position.y) or stage.segment_blocked(attachment_owner.position.x, attachment_owner.position.y, item.resource(item.state.endpoint).position.x, item.resource(item.state.endpoint).position.y):
+                attachment_owner.helpers.Tether_DamageFall()
+                Dispose()
+                return
+        if mode == 6:
+            WallExtend()
+            if item.state.result != 0:
+                ChangeMode(int(8), false)
+                return
+        else:
+            attachment_owner.helpers.Tether_ReadPosition()
+            let float offset_x = attachment_owner.state.tether_position_x - item.state.anchor_x
+            let float offset_y = attachment_owner.state.tether_position_y - item.state.anchor_y
+            if mode == 7:
+                PullConstraint()
+            else:
+                HangConstraint()
+            attachment_owner.state.tether_target_x = item.state.anchor_x + offset_x
+            attachment_owner.state.tether_target_y = item.state.anchor_y + offset_y
+            attachment_owner.helpers.Tether_ApplyPosition()
+            if mode == 7 and item.state.result != 0:
+                attachment_owner.helpers.Tether_PullComplete()
+                Dispose()
+                return
+            if mode == 8:
+                attachment_owner.helpers.Tether_AddDisplacement()
+        UpdateModels()
+        Animate()
+        if mode == 8:
+            attachment_owner.helpers.Tether_HoldHangTimer(item.state.modified_mode)
+        if attachment_owner.state.tether_grounded:
+            ChangeMode(int(4), false)
+            return
+        if mode != 7 and attachment_owner.state.tether_attack_pressed:
+            ChangeMode(int(7), false)
+            return
+        if mode == 8:
+            attachment_owner.helpers.Tether_HangCountdown()
+            if attachment_owner.state.tether_hang_expired:
+                attachment_owner.helpers.Tether_DamageFall()
+                Dispose()
+
+    func FlightUpdate(int mode):
+        if mode == 1 and not attachment_owner.state.tether_allowed_motion and not item.state.deployed[item.state.endpoint - 1]:
+            Dispose()
+            return
+        Flight(mode == 2)
+        if item.state.result == 1:
+            if mode == 1 and attachment_owner.motion.id == 357:
+                # Air wall contact enters AirCatchHit and wall-extension mode.
+                # Effect 0x41C ignores stock's extra ItemLink argument; both
+                # effects are position generators owned by the endpoint GObj.
+                attachment_owner.helpers.Tether_EnterHit()
+                ChangeMode(int(6), false)
+                let float x = item.resource(item.state.endpoint).position.x
+                let float y = item.resource(item.state.endpoint).position.y
+                let float z = item.resource(item.state.endpoint).position.z
+                item.resource(item.state.endpoint).spawn_effect_at_position(1052, x, y, z)
+                item.resource(item.state.endpoint).spawn_effect_facing_at_position(1009, x, y, z, attachment_owner.facing)
+                return
+            item.resource(item.state.endpoint).velocity.x = -item.resource(item.state.endpoint).velocity.x * item.attr.bounce
+            if mode == 1:
+                ChangeMode(int(2), true)
+                attachment_owner.helpers.Tether_ClearCaptureMask()
+        else:
+            if item.state.result == 2:
+                Normalize(item.resource(item.state.endpoint).collision.floor_normal.x, item.resource(item.state.endpoint).collision.floor_normal.y, item.resource(item.state.endpoint).collision.floor_normal.z)
+                let float dot = item.resource(item.state.endpoint).velocity.x * item.state.dx + item.resource(item.state.endpoint).velocity.y * item.state.dy + 0
+                item.resource(item.state.endpoint).velocity.x = item.resource(item.state.endpoint).velocity.x - 2 * dot * item.state.dx
+                item.resource(item.state.endpoint).velocity.y = (item.resource(item.state.endpoint).velocity.y - 2 * dot * item.state.dy) * item.attr.bounce
+                item.resource(item.state.endpoint).velocity.z = item.resource(item.state.endpoint).velocity.z - 2 * dot * item.state.dz
+                if mode == 1:
+                    ChangeMode(int(2), true)
+                    attachment_owner.helpers.Tether_ClearCaptureMask()
+            else:
+                if item.state.result == 3:
+                    ChangeMode(int(3), true)
+                    if mode == 1:
+                        attachment_owner.helpers.Tether_ClearCaptureMask()
+        UpdateModels()
+        Animate()
+        return
+
+    func RetractUpdate(int mode):
+        if mode == 5 and item.state.completed:
+            Dispose()
+            return
+        let float speed = item.state.retract_speed
+        if mode == 4 and not attachment_owner.state.tether_grounded:
+            speed = 2 * speed
+        if mode == 5:
+            speed = item.state.pull_speed
+        Retract(speed, false)
+        if mode == 4:
+            RetractDamping()
+        if item.state.result != 0:
+            if mode == 5:
+                item.state.completed = true
+                return
+            if not attachment_owner.state.tether_allowed_motion:
+                Dispose()
+                return
+            ChangeMode(int(0), false)
+        UpdateModels()
+        Animate()
+        return
+
+    func DispatchNormal():
+        let int mode = item.state.solver
+        if mode == 0 or mode == 1:
+            attachment_owner.helpers.Tether_AdvanceCodeSequence()
+        if mode == 0:
+            CopyHeldMatrix()
+            if not attachment_owner.state.tether_allowed_motion:
+                Dispose()
+            return
+        item.resource(item.state.endpoint).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if mode == 1 or mode == 2:
+            FlightUpdate(mode)
+            return
+        if mode == 3:
+            Slack()
+            UpdateModels()
+            Animate()
+            if not attachment_owner.state.tether_allowed_motion:
+                ChangeMode(int(4), false)
+            return
+        if mode == 4 or mode == 5:
+            RetractUpdate(mode)
+            return
+        WallStates(mode)
+
+    func HitlagConstraints():
+        let int current = item.state.endpoint
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                ClampNode(next, current, false)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    return
+            current = next
+            next = next - 1
+        Forward(current, item.state.length, false)
+
+    on signal hitlag_update:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            if attachment_owner.state.tether_before_launch:
+                CopyEndpointMatrix()
+            else:
+                HitlagConstraints()
+                UpdateModels()
+    on destroyed:
+            item.state.solver = -1
+            if creator.exists:
+                creator.helpers.Tether_Unbind(int(item.creation_id))
+            item.resources.release()
+    on interaction:
+            item.interact(other)
+            if item.attachment_owner_is(other):
+                item.clear_attachment_owner()
+    on signal normal_update:
+            if item.state.solver < 0:
+                return
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            attachment_owner.helpers.Tether_ReadInputs()
+            DispatchNormal()
+    on signal remove:
+            Dispose()
+    state 0 anim -1:
+        on physics:
+            item.state.solver = 0
+    state 1 anim -1:
+        on physics:
+            item.state.solver = 1
+    state 2 anim -1:
+        on physics:
+            item.state.solver = 2
+    state 3 anim -1:
+        on physics:
+            item.state.solver = 3
+    state 4 anim -1:
+        on physics:
+            item.state.solver = 4
+    state 5 anim -1:
+        on physics:
+            item.state.solver = 5
+    state 6 anim -1:
+        on physics:
+            item.state.solver = 6
+    state 7 anim -1:
+        on physics:
+            item.state.solver = 7
+    state 8 anim -1:
+        on physics:
+            item.state.solver = 8

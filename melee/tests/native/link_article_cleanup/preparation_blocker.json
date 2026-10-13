@@ -1,0 +1,84 @@
+{
+  "snapshot": "C:\\gayms\\freak-melee\\melee\\.local\\baseline39",
+  "snapshot_manifest_sha256": "3b3a1b11d932b95ef63bbf356c115b8328332fca56732deda91861e4235833ba",
+  "tool_sha256": "121d66e7dd65b5670be4167afe9ada1c2ac9405a40bf3a0ff44567e30e0c29cb",
+  "accepted_source_inputs": {
+    "tests\\native\\link_bow_arrow\\link\\behavior.fms": "3dd3f9863858428eed385f2e1a3faf42038933393c44f3807e5a77dec3f89d42",
+    "tests\\native\\link_boomerang_fixture.fms": "32af670b3601c7df5365c43e62bee810bfde3a75258c4499ce1b66d765f5d70c",
+    "tests\\native\\link_tether_remaining\\link.fixture.fms": "9e30a506981ba91f66387cde92a5acacae684756da8bd0145aeae077ff76594c",
+    "tests\\native\\link_milk_fixture.fms": "e3432f2f8f9c4c9c43b7b2434fdbd0fa7797a12ea253a90fd9f5b96b01cc458d"
+  },
+  "namespace_sha256": {
+    "tests\\native\\link_article_cleanup\\boomerang.component.fms": "3f93a75aabb44cd4f1b7bf1292828cfce6cdcdd2fd94579aa801cb9eae4409f2",
+    "tests\\native\\link_article_cleanup\\bow.component.fms": "5029aa56b1253f75a57dd6ac5095a31028a602b5f28ba52c245a797ffae1fbb5",
+    "tests\\native\\link_article_cleanup\\cleanup.component.fms": "305e6819275a88e3e366d58569bdf510131358dfd35ef250786ab903ccf5bcc8",
+    "tests\\native\\link_article_cleanup\\milk.component.fms": "6d287cd62815d1d5f0188d539c85b191138928d556284d9aa6e9689c5e1abe87",
+    "tests\\native\\link_article_cleanup\\prepare.py": "26e9f34dfae30ed69f33da136ffcb7978af70e449ded1392743008d5ae97f484",
+    "tests\\native\\link_article_cleanup\\README.md": "9dda2a4662ce77fa66da9d49f9be441a3a5e545f0ce5aec3b8c5831be7170fb4",
+    "tests\\native\\link_article_cleanup\\source_inputs.json": "bbd35b06ae1b23c1786ef16badb9fd8995b5ce192100573648af6a526d7a3776",
+    "tests\\native\\link_article_cleanup\\tether.component.fms": "13bd3e85c4f3378a17672adbe9aca3a8c94c8a91afdbe8517799454a4c922f75"
+  },
+  "authoritative_stock_and_import_sources_sha256": {
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\sdk\\src\\melee\\ft\\native_fighter_article_bindings.c": "bb14f620c178d77b60f9f34abfaef40357d4305370b6a1491dce2a1306b88b3d",
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\sdk\\src\\melee\\ft\\native_fighter_parameter_import.c": "423c8a3c5f749531c83490cf8f8e175490536397e3ecc52963574c9d0df5826c",
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\sdk\\src\\melee\\ft\\kinds\\ftLink\\ftlink.c": "a57ad7e0aa07c5914fecd215ee328456f1ed70a68e099b065752bed70c9e0311",
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\sdk\\src\\melee\\ft\\kinds\\ftCLink\\ftclink.c": "b484c9626461ad643bcafa63c23b5b772b7410a079caaf709303f0320570eb19"
+  },
+  "failed_commands": [
+    {
+      "stage": "link_clone",
+      "command": [
+        "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\bin\\native_content_tool.exe",
+        "clone-stock",
+        "C:\\gayms\\freak-melee\\Super Smash Bros. Melee (USA) (v1.02).iso",
+        "Link",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup39-prep\\link",
+        "Link cleanup composition source fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "stage": "link_import",
+      "command": [
+        "C:\\gayms\\freak-melee\\melee\\.local\\baseline39\\bin\\native_content_tool.exe",
+        "import-parameters",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup39-prep\\link",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup39-prep\\link.candidate.fms",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup39-prep\\link\\behavior.fms"
+      ],
+      "exit": 1
+    }
+  ],
+  "failed_input_sha256": "37c2b5cfffaaffb930aee554da5df2c8ba14cfef86b9722cec8db19235e47200",
+  "failure_log_sha256": "1500dd06d00fadbd5b09fd38174b329353bcaeb219b0051f5ccd204ba1168803",
+  "source_line": 1291,
+  "failure": "unknown Boomerang article tuning source; normal import metadata missing",
+  "required_stock_article_records": [
+    [
+      "Ft_Kind_Link",
+      "It_Kind_Link_Boomerang",
+      1,
+      44
+    ],
+    [
+      "Ft_Kind_CLink",
+      "It_Kind_CLink_Boomerang",
+      1,
+      44
+    ],
+    [
+      "Ft_Kind_CLink",
+      "It_Kind_CLink_Milk",
+      5,
+      -1
+    ]
+  ],
+  "coverage_accepted": false,
+  "generation_completed": false,
+  "callback_comparison_ran": false,
+  "next_step": "parent-owned freeze40 fresh normal import/generation; assembler omits unreachable Link Milk body/ref branch",
+  "shared_changes": false,
+  "games": false,
+  "global_build": false,
+  "metadata_status": "parent records added and build/import/package checks passed; baseline40 frozen; no new preparation run yet"
+}

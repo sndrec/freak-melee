@@ -1,0 +1,64 @@
+# Prop callbacks use authored state/history, with PaperArticles presentation
+# deliberately excluded. Rescue's original post-remove userdata reread is not
+# reproduced; synchronous removal is terminal and generation-guarded.
+article It_Kind_GameWatch_Judge states 1:
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if owner.motion >= 0:
+                item.change_state_flags(0, 2)
+    on destroyed:
+            owner.call(JudgeClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion >= 0:
+                if owner.facing == 1:
+                    item.joint("0/0").rotation.y = 3.141592653589793
+                else:
+                    item.joint("0/0").rotation.y = 0
+            if owner.motion < attrs.judge_ground or owner.motion > attrs.judge_air + 8:
+                owner.call(JudgeClear)
+                return true
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Panic states 2:
+    # PickedUp requires live current-owner ground/air query, kept in pending.fms.
+    on destroyed:
+            owner.call(PanicClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion < attrs.panic_shoot_ground or owner.motion > attrs.panic_shoot_air:
+                owner.call(PanicClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Rescue states 2:
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if not creator.exists or (creator.motion != attrs.rescue_ground and creator.motion != attrs.rescue_air):
+                owner.call(RescueClear)
+                item.detach_owner()
+                item.remove()
+            return false
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim 0 use 0:
+    on interaction:
+            item.interact(other)

@@ -1,0 +1,17 @@
+{
+  "name": "@freak-melee/releases",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "npm run types && npm run typecheck && npm run deploy:dry",
+    "dev": "wrangler dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "types": "wrangler types --env-interface CloudflareBindings src/worker-configuration.d.ts",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.136.1"
+  }
+}

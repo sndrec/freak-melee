@@ -1,0 +1,7 @@
+move Tornado:
+    on special_lw:
+        stock.enter()
+        motion.add_facing_speed(0.5)
+    on special_air_lw:
+        stock.enter()
+        motion.add_facing_speed(-0.25)

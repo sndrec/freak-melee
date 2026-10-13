@@ -1,0 +1,21 @@
+{
+  "source_sha256": {
+    "extern/dolphin/src/dolphin/mtx/mtx.c": "594e946b2686708a44f50683acb142c7f7e138eac520905e11f089e333414caa",
+    "extern/dolphin/src/dolphin/mtx/mtxvec.c": "41335e9824650e3ac56f620774028bba01d539ed8384b2c89d9e5bb3ed597184",
+    "extern/dolphin/src/dolphin/mtx/vec.c": "6dd4bc76acd98fc8cc5ed000f0555928325ed86060b03ba2fdccff265d405e80"
+  },
+  "functions": {
+    "extern/dolphin/src/dolphin/mtx/mtx.c": [
+      "C_MTXIdentity",
+      "C_MTXCopy",
+      "C_MTXConcat"
+    ],
+    "extern/dolphin/src/dolphin/mtx/mtxvec.c": [
+      "C_MTXMultVec"
+    ],
+    "extern/dolphin/src/dolphin/mtx/vec.c": [
+      "C_VECCrossProduct"
+    ]
+  },
+  "fragment_sha256": "102aa5a11fd517042a6415f535e247c4bd09f26c8e2b737d33820d71b1cffaaa"
+}

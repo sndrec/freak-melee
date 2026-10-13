@@ -1,0 +1,26 @@
+move DownSpecial:
+    on special_lw:
+        if state.crimes <= 0: return
+        state.crimes = state.crimes - 1
+        state.down_random_x = random.float() * 6 - 3
+        state.down_random_y = random.float() * 6 - 3
+        state.enter(349)
+    on special_air_lw:
+        if state.crimes <= 0: return
+        state.crimes = state.crimes - 1
+        state.down_random_x = random.float() * 6 - 3
+        state.down_random_y = random.float() * 6 - 3
+        state.enter(349)
+    on state_349_physics:
+        if command(0) == 1:
+            velocity.x = state.down_random_x
+            velocity.y = state.down_random_y
+        elif command(0) == 2:
+            velocity.x = velocity.x * 0.6
+            velocity.y = velocity.y * 0.6
+        elif command(0) == 3:
+            state.fall()
+    on state_349_collision:
+        if collision.check_ground_ledge(1) and command(0) != 1:
+            state.landing_special(false, 15)
+        collision.cliff_catch()

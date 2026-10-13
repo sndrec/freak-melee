@@ -1,0 +1,1015 @@
+# Jigglypuff versus specials. Rollout/Pound/Sing/Rest decisions are scripted.
+# Costume accessories and fighter lifecycle decisions also belong to this script.
+# Independent versus behavior; accepted jump/turn, Bunny Hood and blue-hat Rollout paths are documented.
+fighter:
+    behavior independent
+
+attribute float pound_stick_deadzone 220
+attribute float pound_stick_limit 224
+attribute float pound_angle_range 228
+attribute float pound_launch_speed 240
+attribute float pound_velocity_multiplier 244
+state int pound_count
+
+# Rollout's owned values are imported once from stock when making a project.
+attribute int roll_duration 52
+attribute int roll_hit_duration_cost 56
+attribute float roll_gravity 60
+attribute float roll_terminal_speed 64
+attribute float roll_ground_deceleration 68
+attribute float roll_ground_speed_cap 76
+attribute float roll_ground_speed_limit 80
+attribute float roll_air_deceleration 84
+attribute float roll_air_drag 88
+attribute float roll_air_min_speed 92
+attribute float roll_turn_stick_threshold 104
+attribute float roll_turn_rotation 108
+attribute int roll_trail_interval 112
+attribute float roll_edge_speed_threshold 116
+attribute float roll_landing_bounce 120
+attribute float roll_landing_speed_threshold 124
+attribute float roll_damage_speed_offset 128
+attribute float roll_damage_multiplier 132
+attribute float roll_hit_horizontal_multiplier 136
+attribute float roll_hit_vertical_speed 140
+attribute float roll_end_horizontal_multiplier 144
+attribute float roll_end_vertical_multiplier 148
+attribute float roll_release_rotation 152
+attribute int roll_hit_group_interval 156
+attribute float roll_initial_charge 160
+attribute float roll_max_charge 164
+attribute float roll_charge_gain 168
+attribute float roll_charge_rotation 172
+attribute float roll_charge_decay 180
+attribute float roll_min_charge 184
+attribute float roll_air_rotation_multiplier 188
+attribute float roll_charge_speed_multiplier 192
+attribute float roll_turn_traction 196
+attribute float roll_slope_influence 200
+attribute float roll_hit_min_speed 204
+attribute float roll_turn_speed_multiplier 208
+attribute float roll_wall_rebound_multiplier 212
+attribute float roll_landing_lag 216
+state int roll_ticks
+state int roll_squash
+state int roll_hit_cycle
+state int roll_trail_tick
+state int roll_charge
+state bool roll_fully_charged
+state float roll_direction
+state float roll_angle
+state float roll_previous_angle
+state float roll_pending_facing
+state float roll_turn_start_speed
+state float roll_speed
+state float roll_deceleration
+state float roll_scale_x
+state float roll_scale_y
+state float roll_scale_z
+
+attribute int multi_turn_frames 0
+attribute float multi_reverse_threshold 4
+attribute float multi_horizontal_impulse 8
+attribute float multi_acceleration_multiplier 12
+attribute float multi_speed_multiplier 16
+attribute float multi_vertical_1 20
+attribute float multi_vertical_2 24
+attribute float multi_vertical_3 28
+attribute float multi_vertical_4 32
+attribute float multi_vertical_5 36
+attribute int multi_count 40
+attribute int multi_first_motion 44
+attribute int multi_helmet_first_motion 48
+state int multi_turn_remaining
+
+func sing_effect():
+    if not effects.active:
+        effects.spawn_on_part(1238, 5)
+        effects.active = true
+    effects.pause_during_hitlag()
+    articles.stop_cue()
+
+func restore_sing_accessory():
+    callbacks.accessory(sing_effect)
+
+func roll_cleanup():
+    bones.root.set_scale(state.roll_scale_x, state.roll_scale_y, state.roll_scale_z)
+    bones.root.rotate_y(pi_half * facing.direction)
+    if state.roll_pending_facing != 0: facing.direction = state.roll_pending_facing
+    state.roll_pending_facing = 0
+
+func roll_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+    callbacks.track_deal_damage()
+    callbacks.track_reflect()
+
+func roll_normalize():
+    while state.roll_angle < 0: state.roll_angle = state.roll_angle + pi * 2
+    while state.roll_angle > pi * 2: state.roll_angle = state.roll_angle - pi * 2
+    bones.root.rotate_x(3, state.roll_angle)
+
+func roll_initialize():
+    state.roll_scale_x = bones.root.scale_x
+    state.roll_scale_y = bones.root.scale_y
+    state.roll_scale_z = bones.root.scale_z
+    ground.velocity = 0
+    state.roll_ticks = attrs.roll_duration
+    state.roll_squash = -1
+    state.roll_hit_cycle = 0
+    state.roll_angle = 0
+    state.roll_previous_angle = 0
+    state.roll_pending_facing = 0
+    state.roll_trail_tick = 0
+    # Stock Rollout stores charge in an integer; every Float assignment truncates.
+    state.roll_charge = int(attrs.roll_initial_charge)
+    state.roll_fully_charged = false
+    callbacks.track_deal_damage()
+    callbacks.track_reflect()
+
+func roll_sound():
+    if airborne: sound.loop(250067, 127, 64)
+    else: sound.loop(250064, 127, 64)
+
+func roll_wrap(bool turning):
+    while state.roll_angle < 0: state.roll_angle = state.roll_angle + pi * 2
+    while state.roll_angle > pi * 2: state.roll_angle = state.roll_angle - pi * 2
+    let direction = 1
+    if turning: direction = -1
+    if state.roll_previous_angle == 0: roll_sound()
+    elif state.roll_direction == direction:
+        if state.roll_angle < state.roll_previous_angle: roll_sound()
+    elif state.roll_angle > state.roll_previous_angle: roll_sound()
+    state.roll_previous_angle = state.roll_angle
+
+func roll_scale():
+    let float y = 1
+    let float z = 1
+    if state.roll_squash >= 0 and state.roll_squash < 4:
+        if state.roll_squash == 0:
+            y = 0.65
+            z = 1.1
+        elif state.roll_squash == 1:
+            y = 0.7
+            z = 1.35
+        elif state.roll_squash == 2:
+            y = 0.8
+            z = 1.3
+        else:
+            y = 1
+            z = 1.2
+        state.roll_squash = state.roll_squash + 1
+    bones.root.set_scale(state.roll_scale_x, state.roll_scale_y * y, state.roll_scale_z * z)
+
+func roll_hitbox():
+    state.roll_hit_cycle = state.roll_hit_cycle + 1
+    if state.roll_hit_cycle >= attrs.roll_hit_group_interval and hitbox.state(0) != Hitbox.disabled:
+        hitbox.set_group(0, (hitbox.group(0) + 1) % 2)
+        state.roll_hit_cycle = 0
+    let speed = abs(ground.velocity)
+    if airborne: speed = abs(velocity.x)
+    if speed < attrs.roll_hit_min_speed:
+        hitbox.set_enabled(0, false)
+        color.clear_attack()
+    elif hitbox.state(0) == Hitbox.disabled: hitbox.set_enabled(0, true)
+    if hitbox.state(0) != Hitbox.disabled:
+        let damage = int(attrs.roll_damage_multiplier * (attrs.roll_damage_speed_offset + speed))
+        if damage < 1: damage = 1
+        hitbox.set_damage(0, damage)
+
+func roll_end(bool air, int flags, float start):
+    facing.direction = state.roll_direction
+    hitbox.clear_all()
+    if air:
+        if facing.direction == 1: state.enter_at_speed(360, flags, start, 1)
+        else: state.enter_at_speed(361, flags, start, 1)
+        velocity.x = velocity.x * attrs.roll_end_horizontal_multiplier
+        velocity.y = velocity.y * attrs.roll_end_vertical_multiplier
+        ground.acceleration = 0
+        ground.velocity = 0
+    else:
+        if facing.direction == 1: state.enter_at_speed(352, flags, start, 1)
+        else: state.enter_at_speed(353, flags, start, 1)
+        ground.velocity = ground.velocity * attrs.roll_end_horizontal_multiplier
+        acceleration.y = 0
+        velocity.y = 0
+    roll_callbacks()
+    roll_cleanup()
+    state.roll_pending_facing = 0
+    bones.root.rotate_y(pi_half * facing.direction)
+
+func roll_start_anim(bool air):
+    state.roll_pending_facing = 0
+    if animation.finished:
+        if air: state.enter_at_speed(356, 0x40012, 0, 0)
+        else: state.enter_at_speed(348, 0x40012, 0, 0)
+        roll_callbacks()
+        animation.set_timer(0)
+        animation.set_rate(0)
+        velocity.x = facing.direction * float(0.0001)
+        acceleration.x = 0
+        if not air:
+            ground.velocity = velocity.x
+            ground.acceleration = 0
+        bones.root.rotate_y(pi_half)
+
+func roll_charge_anim(bool air, bool full):
+    roll_wrap(false)
+    state.roll_pending_facing = 0
+    state.roll_charge = int(state.roll_charge + attrs.roll_charge_gain)
+    if state.roll_charge >= attrs.roll_max_charge:
+        state.roll_charge = int(attrs.roll_max_charge)
+        if not full:
+            if not state.roll_fully_charged: color.start(5, false)
+            state.roll_fully_charged = true
+            if air: state.enter_at_speed(357, 0xc4c0292, frame, 0)
+            else: state.enter_at_speed(349, 0xc4c0292, frame, 0)
+        else: state.roll_fully_charged = true
+    state.roll_angle = state.roll_angle + state.roll_direction * (state.roll_charge * radians(attrs.roll_charge_rotation))
+    roll_normalize()
+    bones.root.rotate_y(pi_half)
+
+func roll_release_anim(bool air):
+    roll_wrap(false)
+    state.roll_pending_facing = 0
+    roll_scale()
+    roll_hitbox()
+    let old = state.roll_angle
+    let rate = float(0.2 * attrs.roll_release_rotation * state.roll_direction)
+    let delta = radians(state.roll_charge) * rate
+    if air: delta = rate * (float(0.017453292) * state.roll_charge * attrs.roll_air_rotation_multiplier)
+    state.roll_angle = state.roll_angle + delta
+    roll_normalize()
+    state.roll_ticks = state.roll_ticks - 1
+    if state.roll_ticks <= 0 and pi_half < state.roll_angle and state.roll_angle < pi_half * 3:
+        if (delta > 0 and state.roll_angle > pi and old < pi) or (delta <= 0 and state.roll_angle < pi and old > pi):
+            state.roll_ticks = 0
+            roll_end(air, 0x40012, 0)
+            return
+    bones.root.rotate_y(pi_half)
+
+func roll_turn_anim(bool air):
+    roll_wrap(true)
+    roll_scale()
+    if air: state.roll_angle = state.roll_angle + attrs.roll_air_rotation_multiplier * float(0.2 * attrs.roll_turn_rotation * -state.roll_direction)
+    else: state.roll_angle = state.roll_angle + 0.2 * attrs.roll_turn_rotation * -state.roll_direction
+    roll_normalize()
+    state.roll_ticks = state.roll_ticks - 1
+    if state.roll_ticks <= 0:
+        state.roll_ticks = 0
+        state.roll_direction = -state.roll_direction
+        # Stock also chooses its ground ending state from the aerial turn.
+        roll_end(false, 0x40012, 0)
+        return
+    if not air:
+        if state.roll_trail_tick % attrs.roll_trail_interval == 0:
+            effects.spawn_with_two_scalars_at_position(0x3FF, position.x, position.y, position.z, facing.direction, atan2_float(-floor.normal.x, floor.normal.y))
+    state.roll_trail_tick = state.roll_trail_tick + 1
+    bones.root.rotate_y(pi_half)
+
+func roll_end_anim(bool air):
+    state.roll_pending_facing = 0
+    roll_scale()
+    if animation.finished:
+        roll_cleanup()
+        if not air: state.wait()
+        elif attrs.roll_landing_lag == 0: state.fall()
+        else: state.freefall(1, 0, true, 1, attrs.roll_landing_lag)
+
+func roll_release_input(bool air):
+    if not input.special_held:
+        if air: state.enter_at_speed(358, 0x41092, frame, 0)
+        else: state.enter_at_speed(350, 0x41092, frame, 0)
+        roll_callbacks()
+        animation.start()
+        let speed = state.roll_direction * (attrs.roll_charge_speed_multiplier * (state.roll_charge - attrs.roll_initial_charge))
+        if air: velocity.x = speed
+        else: ground.velocity = speed
+        bones.root.rotate_y(pi_half)
+        roll_normalize()
+        sound.play(250073, 127, 64)
+
+func roll_ground_still():
+    ground.acceleration = 0
+    ground.velocity = 0
+    velocity.x = facing.direction * float(0.0001)
+    velocity.y = 0
+    acceleration.y = 0
+    acceleration.x = 0
+
+func roll_ground_release():
+    let base = state.roll_direction * (attrs.roll_charge_speed_multiplier * (state.roll_charge - attrs.roll_min_charge))
+    let influence = attrs.roll_slope_influence * (base * abs(floor.normal.x))
+    if floor.normal.x > 0: ground.velocity = base + influence
+    else: ground.velocity = base - influence
+    physics.clamp_ground_speed(attrs.roll_ground_speed_cap)
+    physics.clamp_ground_speed(attrs.roll_ground_speed_limit)
+    state.roll_speed = abs(ground.velocity)
+    acceleration.y = 0
+    velocity.y = 0
+    physics.ground_to_self()
+    state.roll_charge = int(state.roll_charge - attrs.roll_charge_decay)
+    if state.roll_charge < attrs.roll_min_charge: roll_end(false, 0x40012, 0)
+
+func roll_ground_turn():
+    let scale = attrs.roll_turn_traction * floor.friction
+    let influence = attrs.roll_slope_influence * (state.roll_deceleration * abs(floor.normal.x))
+    if floor.normal.x > 0: ground.velocity = ground.velocity + scale * (state.roll_deceleration + influence)
+    else: ground.velocity = ground.velocity + scale * (state.roll_deceleration - influence)
+    acceleration.y = 0
+    velocity.y = 0
+    physics.ground_to_self()
+    if (state.roll_turn_start_speed > 0 and ground.velocity < 0) or (state.roll_turn_start_speed <= 0 and ground.velocity > 0):
+        if abs(ground.velocity) >= abs(state.roll_turn_start_speed * attrs.roll_turn_speed_multiplier):
+            callbacks.track_state_change()
+            if state.roll_turn_start_speed > 0: state.enter_at_speed(350, 0x2040010, frame, 0)
+            else: state.enter_at_speed(350, 0x2040012, frame, 0)
+            roll_callbacks()
+            if state.roll_pending_facing != 0:
+                state.roll_direction = state.roll_pending_facing
+                facing.direction = state.roll_pending_facing
+            state.roll_pending_facing = 0
+            state.roll_hit_cycle = 0
+    bones.root.rotate_y(pi_half)
+    roll_normalize()
+
+func roll_air_drag():
+    if velocity.x > 0: velocity.x = velocity.x - attrs.roll_air_drag
+    else: velocity.x = velocity.x + attrs.roll_air_drag
+    if abs(velocity.x) < attrs.roll_air_min_speed:
+        if velocity.x < 0: velocity.x = -attrs.roll_air_min_speed
+        else: velocity.x = attrs.roll_air_min_speed
+    physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+
+func roll_air_release():
+    velocity.x = state.roll_direction * (attrs.roll_charge_speed_multiplier * (state.roll_charge - attrs.roll_min_charge))
+    # Store the pre-gravity speed, as in the original callback.
+    if velocity.x > 0: velocity.x = velocity.x - attrs.roll_air_drag
+    else: velocity.x = velocity.x + attrs.roll_air_drag
+    if abs(velocity.x) < attrs.roll_air_min_speed:
+        if velocity.x < 0: velocity.x = -attrs.roll_air_min_speed
+        else: velocity.x = attrs.roll_air_min_speed
+    state.roll_speed = abs(velocity.x)
+    physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    state.roll_charge = int(state.roll_charge - attrs.roll_charge_decay)
+    if state.roll_charge < attrs.roll_min_charge: roll_end(true, 0x40012, 0)
+
+func roll_start_collision(bool air):
+    if air:
+        if collision.landed:
+            physics.switch_to_ground()
+            if state.roll_direction == 1: state.enter_at_speed(346, 0xc4c5092, frame, 1)
+            else: state.enter_at_speed(347, 0xc4c5092, frame, 1)
+            roll_callbacks()
+    elif collision.left_ground:
+        physics.ground_to_air()
+        if state.roll_direction == 1: state.enter_at_speed(354, 0xc4c5092, frame, 1)
+        else: state.enter_at_speed(355, 0xc4c5092, frame, 1)
+        roll_callbacks()
+
+func roll_charge_collision(bool air, bool full):
+    if air:
+        if not collision.landed: return
+        physics.switch_to_ground()
+        if full: state.enter_at_speed(349, 0x41092, frame, 0)
+        else: state.enter_at_speed(348, 0x41092, frame, 0)
+    else:
+        if not collision.left_ground: return
+        physics.ground_to_air()
+        if full: state.enter_at_speed(357, 0x41092, frame, 0)
+        else: state.enter_at_speed(356, 0x41092, frame, 0)
+    roll_callbacks()
+    bones.root.rotate_y(pi_half)
+    roll_normalize()
+
+func roll_wall_effect():
+    let x = position.x
+    if state.roll_direction > 0: x = x + abs(ecb.right.x)
+    else: x = x - abs(ecb.left.x)
+    let y = position.y + float(0.5) * abs(ecb.top.y + ecb.bottom.y)
+    let angle = atan2_float(-wall.left.normal.x * state.roll_direction, wall.left.normal.y)
+    effects.spawn_with_scalar_at_position(0x406, x, y, position.z, angle)
+    camera.quake(3, x, y, position.z)
+    controller.rumble(12, 10)
+    sound.play(250070, 127, 64)
+
+func roll_wall_bounce(bool air):
+    if (state.roll_direction == 1 and collision.left_wall) or (state.roll_direction != 1 and collision.right_wall):
+        roll_wall_effect()
+        state.roll_charge = int(state.roll_charge * attrs.roll_wall_rebound_multiplier)
+        if state.roll_charge < 0: state.roll_charge = 0
+        state.roll_speed = state.roll_speed * attrs.roll_wall_rebound_multiplier
+        velocity.x = -velocity.x * attrs.roll_wall_rebound_multiplier
+        if air: state.roll_direction = -state.roll_direction
+        else:
+            ground.velocity = -ground.velocity * attrs.roll_wall_rebound_multiplier
+            if ground.velocity < 0: state.roll_direction = -1
+            else: state.roll_direction = 1
+            bones.root.rotate_y(pi_half)
+
+func roll_release_collision(bool air):
+    let landed = false
+    if air: landed = collision.air_box_ledge(int(state.roll_direction), 8, 0, -4, 4, 4, 4)
+    else: landed = collision.ground_box(8, 0, -4, 4, 4, 4)
+    roll_wall_bounce(air)
+    if not air:
+        if not landed:
+            physics.ground_to_air()
+            state.enter_at_speed(358, 0xc4c509a, frame, 0)
+            roll_callbacks()
+            roll_normalize()
+            bones.root.rotate_y(pi_half)
+            state.roll_deceleration = attrs.roll_air_deceleration
+        return
+    if landed:
+        velocity.y = abs(velocity.y * attrs.roll_landing_bounce)
+        if velocity.y < attrs.roll_landing_speed_threshold:
+            physics.switch_to_ground()
+            state.enter_at_speed(350, 0xc4c509a, frame, 0)
+            roll_callbacks()
+            ground.velocity = state.roll_speed * state.roll_direction
+            velocity.x = ground.velocity
+            velocity.z = 0
+            velocity.y = 0
+            roll_normalize()
+            bones.root.rotate_y(pi_half)
+            effects.spawn_with_two_scalars_at_position(0x3FF, position.x, position.y, position.z, facing.direction, atan2_float(-floor.normal.x, floor.normal.y))
+            state.roll_deceleration = attrs.roll_ground_deceleration
+        else:
+            if abs(input.x) > attrs.roll_turn_stick_threshold:
+                if input.x < 0: state.roll_direction = -1
+                else: state.roll_direction = 1
+                velocity.x = state.roll_speed * state.roll_direction
+                ground.velocity = velocity.x
+                bones.root.rotate_y(pi_half)
+            roll_normalize()
+        state.roll_squash = 0
+    elif collision.cliff_catch():
+        roll_cleanup()
+        state.catch_ledge()
+
+func roll_turn_collision(bool air):
+    let landed = false
+    if air: landed = collision.air_box(8, 0, -4, 4, 4, 4)
+    elif abs(ground.velocity) > attrs.roll_edge_speed_threshold: landed = collision.ground_box(8, 0, -4, 4, 4, 4)
+    else: landed = collision.ground_box_edges(8, 0, -4, 4, 4, 4)
+    if air:
+        if landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(351, 0xc4c5092, frame, 0)
+            roll_callbacks()
+            ground.velocity = velocity.x
+            velocity.z = 0
+            velocity.y = 0
+    elif not landed:
+        physics.ground_to_air()
+        state.enter_at_speed(359, 0xc4c5092, frame, 0)
+        roll_callbacks()
+
+func roll_end_collision(bool air):
+    if air:
+        if collision.landed:
+            physics.switch_to_ground()
+            roll_end(false, 0xc4c5092, frame)
+    elif collision.left_ground:
+        physics.ground_to_air()
+        roll_end(true, 0xc4c5092, frame)
+
+func ConfigureMultiJump():
+    jumps.configure_multi(attrs.multi_turn_frames, attrs.multi_reverse_threshold, attrs.multi_horizontal_impulse, attrs.multi_acceleration_multiplier, attrs.multi_speed_multiplier, attrs.multi_vertical_1, attrs.multi_vertical_2, attrs.multi_vertical_3, attrs.multi_vertical_4, attrs.multi_vertical_5, attrs.multi_count, attrs.multi_first_motion, attrs.multi_helmet_first_motion)
+
+func MultiTurnTick():
+    if state.multi_turn_remaining != 0:
+        state.multi_turn_remaining = state.multi_turn_remaining - 1
+        bones.root.add_rotation_y(-radians(180.0 / attrs.multi_turn_frames))
+        if state.multi_turn_remaining == attrs.multi_turn_frames / 2:
+            facing.direction = -facing.direction
+
+func MultiAnimation():
+    MultiTurnTick()
+    if animation.finished:
+        if jumps.used >= jumps.max: state.fall_aerial()
+        else: state.fall()
+
+func MultiInterrupt():
+    controls.aerial_jump_actions()
+
+func MultiPhysics():
+    physics.air_drift_with_limits(air.drift_threshold, air.drift_stick_mul * attrs.multi_acceleration_multiplier, air.drift_max * attrs.multi_speed_multiplier)
+
+func MultiCollision():
+    if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+        if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+        else: state.basic_landing()
+        return
+    if collision.try_wall_jump(): return
+    if collision.cliff_catch(): return
+
+move Rollout:
+    on special_n:
+        state.roll_direction = facing.direction
+        if state.roll_direction == 1: state.enter_flags(346, 0)
+        else: state.enter_flags(347, 0)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        animation.start()
+        roll_initialize()
+        acceleration.y = 0
+        velocity.y = 0
+        state.roll_deceleration = attrs.roll_ground_deceleration
+    on special_air_n:
+        state.roll_direction = facing.direction
+        if state.roll_direction == 1: state.enter_flags(354, 0)
+        else: state.enter_flags(355, 0)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        animation.start()
+        roll_initialize()
+        acceleration.y = attrs.roll_gravity
+        state.roll_deceleration = attrs.roll_air_deceleration
+    on ground_animation:
+        roll_start_anim(false)
+    on air_animation:
+        roll_start_anim(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        roll_ground_still()
+    on air_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on ground_collision:
+        roll_start_collision(false)
+    on air_collision:
+        roll_start_collision(true)
+
+move Pound:
+    on special_s:
+        state.enter(SideSpecial)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+    on special_air_s:
+        state.enter(SideSpecial)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_motion()
+    on air_physics:
+        if command(0):
+            command(0) = 0
+            state.pound_count = state.pound_count + 1
+            let stick = abs(input.y)
+            if stick > attrs.pound_stick_limit: stick = attrs.pound_stick_limit
+            stick = stick - attrs.pound_stick_deadzone
+            if stick < 0: stick = 0
+            if input.y < 0: stick = -stick
+            let angle = radians(1) * (stick * attrs.pound_angle_range / (attrs.pound_stick_limit - attrs.pound_stick_deadzone))
+            velocity.y = attrs.pound_launch_speed * sin(angle)
+            velocity.x = attrs.pound_launch_speed * (facing.direction * cos(angle))
+        if command(1) == 0: physics.air_gravity_and_friction()
+        elif command(1) == 1: motion.scale_planar_velocity(attrs.pound_velocity_multiplier)
+        elif command(1) == 2: physics.air_drift()
+    on ground_collision:
+        if collision.special_ground_lost: state.to_air()
+    on air_collision:
+        if collision.landed:
+            state.to_ground()
+            physics.clamp_air_drift()
+
+move Sing:
+    on special_hi:
+        if facing.direction == -1: state.enter_flags(365, 0)
+        else: state.enter_flags(367, 0)
+        animation.start()
+        command(0) = 0
+    on special_air_hi:
+        if facing.direction == -1: state.enter_flags(366, 0)
+        else: state.enter_flags(368, 0)
+        animation.start()
+        command(0) = 0
+    on accessory:
+        sing_effect()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            if facing.direction == -1: state.enter_at_speed(366, 0x0C4C508A, frame, 1)
+            else: state.enter_at_speed(368, 0x0C4C508A, frame, 1)
+            restore_sing_accessory()
+    on air_collision:
+        if collision.check_ground_ledge(0):
+            physics.switch_to_ground()
+            if facing.direction == -1: state.enter_at_speed(365, 0x0C4C508A, frame, 1)
+            else: state.enter_at_speed(367, 0x0C4C508A, frame, 1)
+            restore_sing_accessory()
+        else: collision.cliff_catch()
+
+move Rest:
+    on special_lw:
+        if facing.direction == -1: state.enter_flags(369, 0)
+        else: state.enter_flags(371, 0)
+        animation.start()
+        command(0) = 0
+    on special_air_lw:
+        if facing.direction == -1: state.enter_flags(370, 0)
+        else: state.enter_flags(372, 0)
+        animation.start()
+        command(0) = 0
+    on accessory:
+        articles.stop_cue()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            if facing.direction == -1: state.enter_at_speed(370, 0x0C4C508E, frame, 1)
+            else: state.enter_at_speed(372, 0x0C4C508E, frame, 1)
+    on air_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            if facing.direction == -1: state.enter_at_speed(369, 0x0C4C508E, frame, 1)
+            else: state.enter_at_speed(371, 0x0C4C508E, frame, 1)
+
+
+action MultiJumpEntry:
+    on aerial_jump:
+        command(0) = 0
+        let int jump_index = jumps.used - 1
+        let int next_motion = attrs.multi_first_motion + jump_index
+        let float next_y = jumps.multi_vertical_speed(jump_index)
+        jump.begin(next_motion, input.x * attrs.multi_horizontal_impulse, next_y, 0, false, false, true)
+        if input.x * facing.direction < -attrs.multi_reverse_threshold:
+            state.multi_turn_remaining = attrs.multi_turn_frames
+        else:
+            state.multi_turn_remaining = 0
+        MultiTurnTick()
+
+action MultiJumpPhases:
+    on state_341_animation:
+        MultiAnimation()
+    on state_341_interrupt:
+        MultiInterrupt()
+    on state_341_physics:
+        MultiPhysics()
+    on state_341_collision:
+        MultiCollision()
+    on state_342_animation:
+        MultiAnimation()
+    on state_342_interrupt:
+        MultiInterrupt()
+    on state_342_physics:
+        MultiPhysics()
+    on state_342_collision:
+        MultiCollision()
+    on state_343_animation:
+        MultiAnimation()
+    on state_343_interrupt:
+        MultiInterrupt()
+    on state_343_physics:
+        MultiPhysics()
+    on state_343_collision:
+        MultiCollision()
+    on state_344_animation:
+        MultiAnimation()
+    on state_344_interrupt:
+        MultiInterrupt()
+    on state_344_physics:
+        MultiPhysics()
+    on state_344_collision:
+        MultiCollision()
+    on state_345_animation:
+        MultiAnimation()
+    on state_345_interrupt:
+        MultiInterrupt()
+    on state_345_physics:
+        MultiPhysics()
+    on state_345_collision:
+        MultiCollision()
+
+action RolloutStates:
+    on state_347_animation:
+        roll_start_anim(false)
+    on state_347_interrupt:
+        pass
+    on state_347_physics:
+        roll_ground_still()
+    on state_347_collision:
+        roll_start_collision(false)
+    on state_355_animation:
+        roll_start_anim(true)
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_355_collision:
+        roll_start_collision(true)
+    on state_348_animation:
+        roll_charge_anim(false, false)
+    on state_348_interrupt:
+        roll_release_input(false)
+    on state_348_physics:
+        roll_ground_still()
+    on state_348_collision:
+        roll_charge_collision(false, false)
+    on state_349_animation:
+        roll_charge_anim(false, true)
+    on state_349_interrupt:
+        roll_release_input(false)
+    on state_349_physics:
+        roll_ground_still()
+    on state_349_collision:
+        roll_charge_collision(false, true)
+    on state_356_animation:
+        roll_charge_anim(true, false)
+    on state_356_interrupt:
+        roll_release_input(true)
+    on state_356_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_356_collision:
+        roll_charge_collision(true, false)
+    on state_357_animation:
+        roll_charge_anim(true, true)
+    on state_357_interrupt:
+        roll_release_input(true)
+    on state_357_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_357_collision:
+        roll_charge_collision(true, true)
+    on state_350_animation:
+        roll_release_anim(false)
+    on state_350_interrupt:
+        if abs(input.x) > attrs.roll_turn_stick_threshold:
+            let direction = 1
+            if input.x < 0: direction = -1
+            if state.roll_direction != direction:
+                hitbox.clear_all()
+                state.roll_pending_facing = direction
+                state.roll_direction = -direction
+                state.enter_at_speed(351, 0xc4c0292, frame, 0)
+                roll_callbacks()
+                state.roll_turn_start_speed = ground.velocity
+                state.roll_deceleration = -float(0.05) * ground.velocity
+                state.roll_trail_tick = 0
+                roll_normalize()
+                sound.play(250073, 127, 64)
+    on state_350_physics:
+        roll_ground_release()
+    on state_350_collision:
+        roll_release_collision(false)
+    on state_358_animation:
+        roll_release_anim(true)
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        roll_air_release()
+    on state_358_collision:
+        roll_release_collision(true)
+    on state_351_animation:
+        roll_turn_anim(false)
+    on state_351_interrupt:
+        pass
+    on state_351_physics:
+        roll_ground_turn()
+    on state_351_collision:
+        roll_turn_collision(false)
+    on state_359_animation:
+        roll_turn_anim(true)
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        roll_air_drag()
+        bones.root.rotate_y(pi_half)
+        roll_normalize()
+    on state_359_collision:
+        roll_turn_collision(true)
+    on state_352_animation:
+        roll_end_anim(false)
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.ground_decelerate(ground.friction)
+        physics.ground_to_self()
+    on state_352_collision:
+        roll_end_collision(false)
+    on state_353_animation:
+        roll_end_anim(false)
+    on state_353_interrupt:
+        pass
+    on state_353_physics:
+        physics.ground_decelerate(ground.friction)
+        physics.ground_to_self()
+    on state_353_collision:
+        roll_end_collision(false)
+    on state_360_animation:
+        roll_end_anim(true)
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_360_collision:
+        roll_end_collision(true)
+    on state_361_animation:
+        roll_end_anim(true)
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_361_collision:
+        roll_end_collision(true)
+    on state_362_animation:
+        roll_scale()
+        state.roll_angle = state.roll_angle + attrs.roll_air_rotation_multiplier * float(0.2 * attrs.roll_turn_rotation * -state.roll_direction)
+        roll_normalize()
+        bones.root.rotate_y(pi_half)
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        if velocity.y <= -attrs.roll_terminal_speed: physics.air_drift()
+        physics.fall(attrs.roll_gravity, attrs.roll_terminal_speed)
+    on state_362_collision:
+        if collision.air_box(8, 0, -4, 4, 4, 4):
+            roll_cleanup()
+            physics.switch_to_ground()
+            if attrs.roll_landing_lag == 0: state.wait()
+            else: state.landing_special(false, attrs.roll_landing_lag)
+    on damage:
+        roll_cleanup()
+    on death2:
+        roll_cleanup()
+    on state_change:
+        stats.refresh_attack()
+        stats.record_attack()
+    on reflect:
+        bones.root.rotate_y(pi_half * facing.direction)
+        velocity.x = -velocity.x
+        ground.velocity = -ground.velocity
+        ground.acceleration = -ground.acceleration
+        state.roll_turn_start_speed = -state.roll_turn_start_speed
+        state.roll_angle = -state.roll_angle
+        state.roll_speed = -state.roll_speed
+        state.roll_deceleration = -state.roll_deceleration
+        state.roll_pending_facing = -state.roll_pending_facing
+        state.roll_direction = -state.roll_direction
+        state.roll_previous_angle = -state.roll_previous_angle
+    on deal_damage:
+        state.roll_hit_cycle = 0
+        if motion.id == 350 or motion.id == 351 or motion.id == 358 or motion.id == 359:
+            state.roll_ticks = state.roll_ticks - attrs.roll_hit_duration_cost
+            facing.direction = state.roll_direction
+            hitbox.clear_all()
+            state.enter_at_speed(362, 0xc4c0292, frame, 0)
+            callbacks.track_death2()
+            callbacks.track_damage()
+            callbacks.deal_damage(None)
+            if grounded:
+                velocity.x = ground.velocity * attrs.roll_hit_horizontal_multiplier
+                physics.ground_to_air()
+            else: velocity.x = velocity.x * attrs.roll_hit_horizontal_multiplier
+            velocity.y = attrs.roll_hit_vertical_speed
+            acceleration.x = 0
+            acceleration.y = 0
+            ground.acceleration = 0
+            ground.velocity = 0
+            state.roll_pending_facing = 0
+            bones.root.rotate_y(pi_half)
+            sound.play(250070, 127, 64)
+
+action RestRight:
+    on state_371_animation:
+        if animation.finished: state.wait()
+    on state_372_animation:
+        if animation.finished: state.fall()
+    on state_371_interrupt:
+        pass
+    on state_372_interrupt:
+        pass
+    on state_371_physics:
+        physics.ground_friction()
+    on state_372_physics:
+        physics.air_gravity_and_friction()
+    on state_371_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            if facing.direction == -1: state.enter_at_speed(370, 0x0C4C508E, frame, 1)
+            else: state.enter_at_speed(372, 0x0C4C508E, frame, 1)
+    on state_372_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            if facing.direction == -1: state.enter_at_speed(369, 0x0C4C508E, frame, 1)
+            else: state.enter_at_speed(371, 0x0C4C508E, frame, 1)
+
+action SingRight:
+    on state_367_animation:
+        if animation.finished: state.wait()
+    on state_368_animation:
+        if animation.finished: state.fall()
+    on state_367_interrupt:
+        pass
+    on state_368_interrupt:
+        pass
+    on state_367_physics:
+        physics.ground_friction()
+    on state_368_physics:
+        physics.air_gravity_and_friction()
+    on state_367_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            if facing.direction == -1: state.enter_at_speed(366, 0x0C4C508A, frame, 1)
+            else: state.enter_at_speed(368, 0x0C4C508A, frame, 1)
+            restore_sing_accessory()
+    on state_368_collision:
+        if collision.check_ground_ledge(0):
+            physics.switch_to_ground()
+            if facing.direction == -1: state.enter_at_speed(365, 0x0C4C508A, frame, 1)
+            else: state.enter_at_speed(367, 0x0C4C508A, frame, 1)
+            restore_sing_accessory()
+        else: collision.cliff_catch()
+
+# Costume-root names are asset references, not fighter-specific engine APIs.
+# Bind the hat to the actual stock part index 6; the shared mapping's name for
+# that index is misleading on Purin. Each copied costume keeps its own graph.
+action FighterEvents:
+    on load:
+        fighter.copy_ext_attributes()
+        fighter.enable_multi_jump()
+        ConfigureMultiJump()
+        if attachments.has_root("PlyPurinReHat_TopN_joint"):
+            attachments.load(0, "PlyPurinReHat_TopN_joint", 6, 1, 1)
+        elif attachments.has_root("PlyPurinBuHat_TopN_joint"):
+            attachments.load(0, "PlyPurinBuHat_TopN_joint", 6, 1, 2)
+            attachments.add_dynamics(0, 1, 2)
+        elif attachments.has_root("PlyPurinGrHat_TopN_joint"):
+            attachments.load(0, "PlyPurinGrHat_TopN_joint", 6, 1, 3)
+            attachments.add_dynamics(0, 3, 2)
+        elif attachments.has_root("PlyPurinYeHat_TopN_joint"):
+            attachments.load(0, "PlyPurinYeHat_TopN_joint", 6, 1, 4)
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        ConfigureMultiJump()
+    on death:
+        # Restore the native default selection, not the -1 hidden selection.
+        visuals.set_group(0, 0)
+    on user_data_remove:
+        attachments.clear_all()
+    on item_pickup:
+        if not items.heavy:
+            if items.hold_kind == 3: visuals.set_part_animation(0, 0)
+            elif items.hold_kind == 4: visuals.set_part_animation(0, 1)
+            if event.flag: visuals.show_part_animation(0)
+    on item_pickup_ext:
+        if not items.heavy:
+            if items.hold_kind == 3: visuals.set_part_animation(0, 0)
+            elif items.hold_kind == 4: visuals.set_part_animation(0, 1)
+            if event.flag: visuals.show_part_animation(0)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 0, 0)
+    on shield_break:
+        damage.force_top_blast_ko = true
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_visible:
+        if items.held and not items.heavy: visuals.show_part_animation(0)
+    on item_invisible:
+        if items.held and not items.heavy: visuals.hide_part_animation(0)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)

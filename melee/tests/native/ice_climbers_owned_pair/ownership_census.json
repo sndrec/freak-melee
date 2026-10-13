@@ -1,0 +1,2261 @@
+{
+  "status": "Unregistered full motion composition; pending owned pair/load/common/CPU foundation",
+  "forms": {
+    "popo": {
+      "parameters": 113,
+      "fighter_state_fields": 18,
+      "fighter_state_bytes": 76,
+      "functions": 79,
+      "exports": 26,
+      "article_count": 3,
+      "nonnull_stock_motion_phases": 96,
+      "phases": [
+        {
+          "motion": 341,
+          "phase": "animation",
+          "stock": "ftPp_SpecialN_Anim",
+          "script": "state_341_animation"
+        },
+        {
+          "motion": 341,
+          "phase": "input",
+          "stock": "ftPp_SpecialN_IASA",
+          "script": "state_341_interrupt"
+        },
+        {
+          "motion": 341,
+          "phase": "physics",
+          "stock": "ftPp_SpecialN_Phys",
+          "script": "state_341_physics"
+        },
+        {
+          "motion": 341,
+          "phase": "collision",
+          "stock": "ftPp_SpecialN_Coll",
+          "script": "state_341_collision"
+        },
+        {
+          "motion": 342,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirN_Anim",
+          "script": "state_342_animation"
+        },
+        {
+          "motion": 342,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirN_IASA",
+          "script": "state_342_interrupt"
+        },
+        {
+          "motion": 342,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirN_Phys",
+          "script": "state_342_physics"
+        },
+        {
+          "motion": 342,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirN_Coll",
+          "script": "state_342_collision"
+        },
+        {
+          "motion": 343,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS1_Anim",
+          "script": "state_343_animation"
+        },
+        {
+          "motion": 343,
+          "phase": "input",
+          "stock": "ftPp_SpecialS1_IASA",
+          "script": "state_343_interrupt"
+        },
+        {
+          "motion": 343,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS1_Phys",
+          "script": "state_343_physics"
+        },
+        {
+          "motion": 343,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS1_Coll",
+          "script": "state_343_collision"
+        },
+        {
+          "motion": 344,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS2_Anim",
+          "script": "state_344_animation"
+        },
+        {
+          "motion": 344,
+          "phase": "input",
+          "stock": "ftPp_SpecialS2_IASA",
+          "script": "state_344_interrupt"
+        },
+        {
+          "motion": 344,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS2_Phys",
+          "script": "state_344_physics"
+        },
+        {
+          "motion": 344,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS2_Coll",
+          "script": "state_344_collision"
+        },
+        {
+          "motion": 345,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirS1_Anim",
+          "script": "state_345_animation"
+        },
+        {
+          "motion": 345,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirS1_IASA",
+          "script": "state_345_interrupt"
+        },
+        {
+          "motion": 345,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirS1_Phys",
+          "script": "state_345_physics"
+        },
+        {
+          "motion": 345,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirS1_Coll",
+          "script": "state_345_collision"
+        },
+        {
+          "motion": 346,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirS2_Anim",
+          "script": "state_346_animation"
+        },
+        {
+          "motion": 346,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirS2_IASA",
+          "script": "state_346_interrupt"
+        },
+        {
+          "motion": 346,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirS2_Phys",
+          "script": "state_346_physics"
+        },
+        {
+          "motion": 346,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirS2_Coll",
+          "script": "state_346_collision"
+        },
+        {
+          "motion": 347,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiStart_0_Anim",
+          "script": "state_347_animation"
+        },
+        {
+          "motion": 347,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiStart_0_IASA",
+          "script": "state_347_interrupt"
+        },
+        {
+          "motion": 347,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiStart_0_Phys",
+          "script": "state_347_physics"
+        },
+        {
+          "motion": 347,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiStart_0_Coll",
+          "script": "state_347_collision"
+        },
+        {
+          "motion": 348,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow_0_Anim",
+          "script": "state_348_animation"
+        },
+        {
+          "motion": 348,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow_0_IASA",
+          "script": "state_348_interrupt"
+        },
+        {
+          "motion": 348,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow_0_Phys",
+          "script": "state_348_physics"
+        },
+        {
+          "motion": 348,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow_0_Coll",
+          "script": "state_348_collision"
+        },
+        {
+          "motion": 349,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow2_Anim",
+          "script": "state_349_animation"
+        },
+        {
+          "motion": 349,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow2_IASA",
+          "script": "state_349_interrupt"
+        },
+        {
+          "motion": 349,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow2_Phys",
+          "script": "state_349_physics"
+        },
+        {
+          "motion": 349,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow2_Coll",
+          "script": "state_349_collision"
+        },
+        {
+          "motion": 350,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiStart_1_Anim",
+          "script": "state_350_animation"
+        },
+        {
+          "motion": 350,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiStart_1_IASA",
+          "script": "state_350_interrupt"
+        },
+        {
+          "motion": 350,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiStart_1_Phys",
+          "script": "state_350_physics"
+        },
+        {
+          "motion": 350,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiStart_1_Coll",
+          "script": "state_350_collision"
+        },
+        {
+          "motion": 351,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow_1_Anim",
+          "script": "state_351_animation"
+        },
+        {
+          "motion": 351,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow_1_IASA",
+          "script": "state_351_interrupt"
+        },
+        {
+          "motion": 351,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow_1_Phys",
+          "script": "state_351_physics"
+        },
+        {
+          "motion": 351,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow_1_Coll",
+          "script": "state_351_collision"
+        },
+        {
+          "motion": 352,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiStart_0_Anim",
+          "script": "state_352_animation"
+        },
+        {
+          "motion": 352,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiStart_0_IASA",
+          "script": "state_352_interrupt"
+        },
+        {
+          "motion": 352,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiStart_0_Phys",
+          "script": "state_352_physics"
+        },
+        {
+          "motion": 352,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiStart_0_Coll",
+          "script": "state_352_collision"
+        },
+        {
+          "motion": 353,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow_0_Anim",
+          "script": "state_353_animation"
+        },
+        {
+          "motion": 353,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow_0_IASA",
+          "script": "state_353_interrupt"
+        },
+        {
+          "motion": 353,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow_0_Phys",
+          "script": "state_353_physics"
+        },
+        {
+          "motion": 353,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow_0_Coll",
+          "script": "state_353_collision"
+        },
+        {
+          "motion": 354,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow2_Anim",
+          "script": "state_354_animation"
+        },
+        {
+          "motion": 354,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow2_IASA",
+          "script": "state_354_interrupt"
+        },
+        {
+          "motion": 354,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow2_Phys",
+          "script": "state_354_physics"
+        },
+        {
+          "motion": 354,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow2_Coll",
+          "script": "state_354_collision"
+        },
+        {
+          "motion": 355,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiStart_1_Anim",
+          "script": "state_355_animation"
+        },
+        {
+          "motion": 355,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiStart_1_IASA",
+          "script": "state_355_interrupt"
+        },
+        {
+          "motion": 355,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiStart_1_Phys",
+          "script": "state_355_physics"
+        },
+        {
+          "motion": 355,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiStart_1_Coll",
+          "script": "state_355_collision"
+        },
+        {
+          "motion": 356,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow_1_Anim",
+          "script": "state_356_animation"
+        },
+        {
+          "motion": 356,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow_1_IASA",
+          "script": "state_356_interrupt"
+        },
+        {
+          "motion": 356,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow_1_Phys",
+          "script": "state_356_physics"
+        },
+        {
+          "motion": 356,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow_1_Coll",
+          "script": "state_356_collision"
+        },
+        {
+          "motion": 357,
+          "phase": "animation",
+          "stock": "ftPp_SpecialLw_Anim",
+          "script": "state_357_animation"
+        },
+        {
+          "motion": 357,
+          "phase": "input",
+          "stock": "ftPp_SpecialLw_IASA",
+          "script": "state_357_interrupt"
+        },
+        {
+          "motion": 357,
+          "phase": "physics",
+          "stock": "ftPp_SpecialLw_Phys",
+          "script": "state_357_physics"
+        },
+        {
+          "motion": 357,
+          "phase": "collision",
+          "stock": "ftPp_SpecialLw_Coll",
+          "script": "state_357_collision"
+        },
+        {
+          "motion": 358,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirLw_Anim",
+          "script": "state_358_animation"
+        },
+        {
+          "motion": 358,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirLw_IASA",
+          "script": "state_358_interrupt"
+        },
+        {
+          "motion": 358,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirLw_Phys",
+          "script": "state_358_physics"
+        },
+        {
+          "motion": 358,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirLw_Coll",
+          "script": "state_358_collision"
+        },
+        {
+          "motion": 359,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS_0_Anim",
+          "script": "state_359_animation"
+        },
+        {
+          "motion": 359,
+          "phase": "input",
+          "stock": "ftPp_SpecialS_0_IASA",
+          "script": "state_359_interrupt"
+        },
+        {
+          "motion": 359,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS_0_Phys",
+          "script": "state_359_physics"
+        },
+        {
+          "motion": 359,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS_0_Coll",
+          "script": "state_359_collision"
+        },
+        {
+          "motion": 360,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS_1_Anim",
+          "script": "state_360_animation"
+        },
+        {
+          "motion": 360,
+          "phase": "input",
+          "stock": "ftPp_SpecialS_1_IASA",
+          "script": "state_360_interrupt"
+        },
+        {
+          "motion": 360,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS_1_Phys",
+          "script": "state_360_physics"
+        },
+        {
+          "motion": 360,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS_1_Coll",
+          "script": "state_360_collision"
+        },
+        {
+          "motion": 361,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_0_Anim",
+          "script": "state_361_animation"
+        },
+        {
+          "motion": 361,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_0_IASA",
+          "script": "state_361_interrupt"
+        },
+        {
+          "motion": 361,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_0_Phys",
+          "script": "state_361_physics"
+        },
+        {
+          "motion": 361,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_0_Coll",
+          "script": "state_361_collision"
+        },
+        {
+          "motion": 362,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_1_Anim",
+          "script": "state_362_animation"
+        },
+        {
+          "motion": 362,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_1_IASA",
+          "script": "state_362_interrupt"
+        },
+        {
+          "motion": 362,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_1_Phys",
+          "script": "state_362_physics"
+        },
+        {
+          "motion": 362,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_1_Coll",
+          "script": "state_362_collision"
+        },
+        {
+          "motion": 363,
+          "phase": "animation",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "input",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "physics",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "collision",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 364,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_3_Anim",
+          "script": "state_364_animation"
+        },
+        {
+          "motion": 364,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_3_IASA",
+          "script": "state_364_interrupt"
+        },
+        {
+          "motion": 364,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_3_Phys",
+          "script": "state_364_physics"
+        },
+        {
+          "motion": 364,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_3_Coll",
+          "script": "state_364_collision"
+        },
+        {
+          "motion": 365,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_4_Anim",
+          "script": "state_365_animation"
+        },
+        {
+          "motion": 365,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_4_IASA",
+          "script": "state_365_interrupt"
+        },
+        {
+          "motion": 365,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_4_Phys",
+          "script": "state_365_physics"
+        },
+        {
+          "motion": 365,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_4_Coll",
+          "script": "state_365_collision"
+        },
+        {
+          "motion": 366,
+          "phase": "animation",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "input",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "physics",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "collision",
+          "stock": "NULL",
+          "script": null
+        }
+      ],
+      "hooks": [
+        "special_n",
+        "special_air_n",
+        "state_341_animation",
+        "state_342_animation",
+        "state_341_interrupt",
+        "state_342_interrupt",
+        "state_341_physics",
+        "state_342_physics",
+        "state_341_collision",
+        "state_342_collision",
+        "special_lw",
+        "special_air_lw",
+        "state_357_animation",
+        "state_358_animation",
+        "state_357_interrupt",
+        "state_358_interrupt",
+        "state_357_physics",
+        "state_358_physics",
+        "state_357_collision",
+        "state_358_collision",
+        "landing_action",
+        "state_343_interrupt",
+        "state_344_interrupt",
+        "state_345_interrupt",
+        "state_346_interrupt",
+        "state_345_physics",
+        "state_346_physics",
+        "state_350_animation",
+        "state_350_interrupt",
+        "state_350_physics",
+        "state_350_collision",
+        "state_351_animation",
+        "state_351_interrupt",
+        "state_351_physics",
+        "state_351_collision",
+        "state_355_animation",
+        "state_355_interrupt",
+        "state_355_physics",
+        "state_355_collision",
+        "state_356_animation",
+        "state_356_interrupt",
+        "state_356_physics",
+        "state_356_collision",
+        "special_s",
+        "special_air_s",
+        "state_343_animation",
+        "state_345_animation",
+        "state_344_animation",
+        "state_346_animation",
+        "state_343_physics",
+        "state_344_physics",
+        "special_hi",
+        "special_air_hi",
+        "state_347_animation",
+        "state_352_animation",
+        "state_347_interrupt",
+        "state_352_interrupt",
+        "state_347_physics",
+        "state_352_physics",
+        "state_347_collision",
+        "state_352_collision",
+        "state_348_animation",
+        "state_353_animation",
+        "state_348_interrupt",
+        "state_353_interrupt",
+        "state_348_physics",
+        "state_353_physics",
+        "state_348_collision",
+        "state_353_collision",
+        "state_349_animation",
+        "state_354_animation",
+        "state_349_interrupt",
+        "state_354_interrupt",
+        "state_349_physics",
+        "state_354_physics",
+        "state_349_collision",
+        "state_354_collision",
+        "state_343_collision",
+        "state_344_collision",
+        "state_345_collision",
+        "state_346_collision",
+        "state_359_animation",
+        "state_360_animation",
+        "state_359_interrupt",
+        "state_360_interrupt",
+        "state_359_physics",
+        "state_360_physics",
+        "state_359_collision",
+        "state_360_collision",
+        "state_361_animation",
+        "state_361_interrupt",
+        "state_361_physics",
+        "state_361_collision",
+        "state_362_animation",
+        "state_362_interrupt",
+        "state_362_physics",
+        "state_362_collision",
+        "state_364_animation",
+        "state_364_interrupt",
+        "state_364_physics",
+        "state_364_collision",
+        "state_365_animation",
+        "state_365_interrupt",
+        "state_365_physics",
+        "state_365_collision",
+        "load",
+        "load_special_attrs",
+        "death",
+        "item_pickup",
+        "item_drop",
+        "item_pickup_ext",
+        "item_drop_ext",
+        "item_visible",
+        "item_invisible",
+        "knockback_enter",
+        "knockback_exit"
+      ],
+      "stock_callbacks": {
+        "CostumeListsForeachCharacter": "{ ftPp_CostumeList, ARRAY_SIZE(ftPp_CostumeList) }",
+        "ftData_Table_Unk0": "{ 0, 321 }",
+        "ftData_Table_Unk1": "NULL",
+        "ftData_OnLoad": "ftPp_Init_OnLoad",
+        "ftData_OnDeath": "ftPp_Init_OnDeath",
+        "ftData_OnUserDataRemove": "NULL",
+        "ftData_CharacterStateTables": "ftPp_Init_MotionStateTable",
+        "ftData_UnkMotionStates0": "NULL",
+        "ftData_SpecialS": "ftPp_SpecialS_Enter",
+        "ftData_SpecialAirHi": "ftPp_SpecialAirHi_Enter",
+        "ftData_SpecialAirLw": "ftPp_SpecialAirLw_Enter",
+        "ftData_SpecialAirS": "ftPp_SpecialAirS_Enter",
+        "ftData_SpecialAirN": "ftPp_SpecialAirN_Enter",
+        "ftData_SpecialN": "ftPp_SpecialN_Enter",
+        "ftData_SpecialLw": "ftPp_SpecialLw_Enter",
+        "ftData_SpecialHi": "ftPp_SpecialHi_Enter",
+        "ftData_OnAbsorb": "NULL",
+        "ftData_OnItemPickupExt": "ftPp_Init_OnItemPickup",
+        "ftData_OnItemInvisible": "ftPp_Init_OnItemInvisible",
+        "ftData_OnItemVisible": "ftPp_Init_OnItemVisible",
+        "ftData_OnItemDropExt": "ftPp_Init_OnItemDrop",
+        "ftData_OnItemPickup": "ftPp_Init_OnItemPickup",
+        "ftData_OnItemDrop": "ftPp_Init_OnItemDrop",
+        "ftData_UnkMotionStates1": "NULL",
+        "ftData_UnkMotionStates2": "NULL",
+        "ftData_OnKnockbackEnter": "ftPp_Init_OnKnockbackEnter",
+        "ftData_OnKnockbackExit": "ftPp_Init_OnKnockbackExit",
+        "ftData_UnkMotionStates3": "NULL",
+        "ftData_UnkMotionStates4": "NULL",
+        "ftKindCalcIndiviParamTable": "ftPp_Init_LoadSpecialAttrs",
+        "ftData_803C1F40": "{ ftPp_Init_DatFilename, ftPp_Init_DataName }",
+        "ftData_UnkMotionStates5": "NULL",
+        "ftData_UnkMtxFunc0": "NULL",
+        "ftData_803C2360": "ftPp_Init_CostumeStrings",
+        "ftData_803C23E4": "ftPp_Init_AnimDatFilename",
+        "ftData_803C2468": "&ftPp_Init_DemoMotionFilenames",
+        "ftData_803C24EC": "NULL",
+        "ftData_UnkDemoCallbacks0": "NULL",
+        "ftData_UnkIntPairs": "{ 0, 14 }",
+        "ftData_UnkBytePerCharacter": "14"
+      },
+      "DAT_sha256": "5dd044b2ac5003f18dfca6e3a5197724f383419b4fc31bd4cb0a6205052507c0",
+      "generated_sha256": "2409073dd739748ef52b8a716f38c2570bc768d31c98627a706a586075bbeba7",
+      "owned_sha256": "230d9a4fcf55ffdf3c0541cf74aff1b86135e8dfc322104bd4fcfeaa532482cc"
+    },
+    "nana": {
+      "parameters": 113,
+      "fighter_state_fields": 18,
+      "fighter_state_bytes": 76,
+      "functions": 79,
+      "exports": 26,
+      "article_count": 3,
+      "nonnull_stock_motion_phases": 96,
+      "phases": [
+        {
+          "motion": 341,
+          "phase": "animation",
+          "stock": "ftPp_SpecialN_Anim",
+          "script": "state_341_animation"
+        },
+        {
+          "motion": 341,
+          "phase": "input",
+          "stock": "ftPp_SpecialN_IASA",
+          "script": "state_341_interrupt"
+        },
+        {
+          "motion": 341,
+          "phase": "physics",
+          "stock": "ftPp_SpecialN_Phys",
+          "script": "state_341_physics"
+        },
+        {
+          "motion": 341,
+          "phase": "collision",
+          "stock": "ftPp_SpecialN_Coll",
+          "script": "state_341_collision"
+        },
+        {
+          "motion": 342,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirN_Anim",
+          "script": "state_342_animation"
+        },
+        {
+          "motion": 342,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirN_IASA",
+          "script": "state_342_interrupt"
+        },
+        {
+          "motion": 342,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirN_Phys",
+          "script": "state_342_physics"
+        },
+        {
+          "motion": 342,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirN_Coll",
+          "script": "state_342_collision"
+        },
+        {
+          "motion": 343,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS1_Anim",
+          "script": "state_343_animation"
+        },
+        {
+          "motion": 343,
+          "phase": "input",
+          "stock": "ftPp_SpecialS1_IASA",
+          "script": "state_343_interrupt"
+        },
+        {
+          "motion": 343,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS1_Phys",
+          "script": "state_343_physics"
+        },
+        {
+          "motion": 343,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS1_Coll",
+          "script": "state_343_collision"
+        },
+        {
+          "motion": 344,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS2_Anim",
+          "script": "state_344_animation"
+        },
+        {
+          "motion": 344,
+          "phase": "input",
+          "stock": "ftPp_SpecialS2_IASA",
+          "script": "state_344_interrupt"
+        },
+        {
+          "motion": 344,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS2_Phys",
+          "script": "state_344_physics"
+        },
+        {
+          "motion": 344,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS2_Coll",
+          "script": "state_344_collision"
+        },
+        {
+          "motion": 345,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirS1_Anim",
+          "script": "state_345_animation"
+        },
+        {
+          "motion": 345,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirS1_IASA",
+          "script": "state_345_interrupt"
+        },
+        {
+          "motion": 345,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirS1_Phys",
+          "script": "state_345_physics"
+        },
+        {
+          "motion": 345,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirS1_Coll",
+          "script": "state_345_collision"
+        },
+        {
+          "motion": 346,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirS2_Anim",
+          "script": "state_346_animation"
+        },
+        {
+          "motion": 346,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirS2_IASA",
+          "script": "state_346_interrupt"
+        },
+        {
+          "motion": 346,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirS2_Phys",
+          "script": "state_346_physics"
+        },
+        {
+          "motion": 346,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirS2_Coll",
+          "script": "state_346_collision"
+        },
+        {
+          "motion": 347,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiStart_0_Anim",
+          "script": "state_347_animation"
+        },
+        {
+          "motion": 347,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiStart_0_IASA",
+          "script": "state_347_interrupt"
+        },
+        {
+          "motion": 347,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiStart_0_Phys",
+          "script": "state_347_physics"
+        },
+        {
+          "motion": 347,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiStart_0_Coll",
+          "script": "state_347_collision"
+        },
+        {
+          "motion": 348,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow_0_Anim",
+          "script": "state_348_animation"
+        },
+        {
+          "motion": 348,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow_0_IASA",
+          "script": "state_348_interrupt"
+        },
+        {
+          "motion": 348,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow_0_Phys",
+          "script": "state_348_physics"
+        },
+        {
+          "motion": 348,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow_0_Coll",
+          "script": "state_348_collision"
+        },
+        {
+          "motion": 349,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow2_Anim",
+          "script": "state_349_animation"
+        },
+        {
+          "motion": 349,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow2_IASA",
+          "script": "state_349_interrupt"
+        },
+        {
+          "motion": 349,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow2_Phys",
+          "script": "state_349_physics"
+        },
+        {
+          "motion": 349,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow2_Coll",
+          "script": "state_349_collision"
+        },
+        {
+          "motion": 350,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiStart_1_Anim",
+          "script": "state_350_animation"
+        },
+        {
+          "motion": 350,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiStart_1_IASA",
+          "script": "state_350_interrupt"
+        },
+        {
+          "motion": 350,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiStart_1_Phys",
+          "script": "state_350_physics"
+        },
+        {
+          "motion": 350,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiStart_1_Coll",
+          "script": "state_350_collision"
+        },
+        {
+          "motion": 351,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHiThrow_1_Anim",
+          "script": "state_351_animation"
+        },
+        {
+          "motion": 351,
+          "phase": "input",
+          "stock": "ftPp_SpecialHiThrow_1_IASA",
+          "script": "state_351_interrupt"
+        },
+        {
+          "motion": 351,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHiThrow_1_Phys",
+          "script": "state_351_physics"
+        },
+        {
+          "motion": 351,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHiThrow_1_Coll",
+          "script": "state_351_collision"
+        },
+        {
+          "motion": 352,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiStart_0_Anim",
+          "script": "state_352_animation"
+        },
+        {
+          "motion": 352,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiStart_0_IASA",
+          "script": "state_352_interrupt"
+        },
+        {
+          "motion": 352,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiStart_0_Phys",
+          "script": "state_352_physics"
+        },
+        {
+          "motion": 352,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiStart_0_Coll",
+          "script": "state_352_collision"
+        },
+        {
+          "motion": 353,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow_0_Anim",
+          "script": "state_353_animation"
+        },
+        {
+          "motion": 353,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow_0_IASA",
+          "script": "state_353_interrupt"
+        },
+        {
+          "motion": 353,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow_0_Phys",
+          "script": "state_353_physics"
+        },
+        {
+          "motion": 353,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow_0_Coll",
+          "script": "state_353_collision"
+        },
+        {
+          "motion": 354,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow2_Anim",
+          "script": "state_354_animation"
+        },
+        {
+          "motion": 354,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow2_IASA",
+          "script": "state_354_interrupt"
+        },
+        {
+          "motion": 354,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow2_Phys",
+          "script": "state_354_physics"
+        },
+        {
+          "motion": 354,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow2_Coll",
+          "script": "state_354_collision"
+        },
+        {
+          "motion": 355,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiStart_1_Anim",
+          "script": "state_355_animation"
+        },
+        {
+          "motion": 355,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiStart_1_IASA",
+          "script": "state_355_interrupt"
+        },
+        {
+          "motion": 355,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiStart_1_Phys",
+          "script": "state_355_physics"
+        },
+        {
+          "motion": 355,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiStart_1_Coll",
+          "script": "state_355_collision"
+        },
+        {
+          "motion": 356,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirHiThrow_1_Anim",
+          "script": "state_356_animation"
+        },
+        {
+          "motion": 356,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirHiThrow_1_IASA",
+          "script": "state_356_interrupt"
+        },
+        {
+          "motion": 356,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirHiThrow_1_Phys",
+          "script": "state_356_physics"
+        },
+        {
+          "motion": 356,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirHiThrow_1_Coll",
+          "script": "state_356_collision"
+        },
+        {
+          "motion": 357,
+          "phase": "animation",
+          "stock": "ftPp_SpecialLw_Anim",
+          "script": "state_357_animation"
+        },
+        {
+          "motion": 357,
+          "phase": "input",
+          "stock": "ftPp_SpecialLw_IASA",
+          "script": "state_357_interrupt"
+        },
+        {
+          "motion": 357,
+          "phase": "physics",
+          "stock": "ftPp_SpecialLw_Phys",
+          "script": "state_357_physics"
+        },
+        {
+          "motion": 357,
+          "phase": "collision",
+          "stock": "ftPp_SpecialLw_Coll",
+          "script": "state_357_collision"
+        },
+        {
+          "motion": 358,
+          "phase": "animation",
+          "stock": "ftPp_SpecialAirLw_Anim",
+          "script": "state_358_animation"
+        },
+        {
+          "motion": 358,
+          "phase": "input",
+          "stock": "ftPp_SpecialAirLw_IASA",
+          "script": "state_358_interrupt"
+        },
+        {
+          "motion": 358,
+          "phase": "physics",
+          "stock": "ftPp_SpecialAirLw_Phys",
+          "script": "state_358_physics"
+        },
+        {
+          "motion": 358,
+          "phase": "collision",
+          "stock": "ftPp_SpecialAirLw_Coll",
+          "script": "state_358_collision"
+        },
+        {
+          "motion": 359,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS_0_Anim",
+          "script": "state_359_animation"
+        },
+        {
+          "motion": 359,
+          "phase": "input",
+          "stock": "ftPp_SpecialS_0_IASA",
+          "script": "state_359_interrupt"
+        },
+        {
+          "motion": 359,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS_0_Phys",
+          "script": "state_359_physics"
+        },
+        {
+          "motion": 359,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS_0_Coll",
+          "script": "state_359_collision"
+        },
+        {
+          "motion": 360,
+          "phase": "animation",
+          "stock": "ftPp_SpecialS_1_Anim",
+          "script": "state_360_animation"
+        },
+        {
+          "motion": 360,
+          "phase": "input",
+          "stock": "ftPp_SpecialS_1_IASA",
+          "script": "state_360_interrupt"
+        },
+        {
+          "motion": 360,
+          "phase": "physics",
+          "stock": "ftPp_SpecialS_1_Phys",
+          "script": "state_360_physics"
+        },
+        {
+          "motion": 360,
+          "phase": "collision",
+          "stock": "ftPp_SpecialS_1_Coll",
+          "script": "state_360_collision"
+        },
+        {
+          "motion": 361,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_0_Anim",
+          "script": "state_361_animation"
+        },
+        {
+          "motion": 361,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_0_IASA",
+          "script": "state_361_interrupt"
+        },
+        {
+          "motion": 361,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_0_Phys",
+          "script": "state_361_physics"
+        },
+        {
+          "motion": 361,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_0_Coll",
+          "script": "state_361_collision"
+        },
+        {
+          "motion": 362,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_1_Anim",
+          "script": "state_362_animation"
+        },
+        {
+          "motion": 362,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_1_IASA",
+          "script": "state_362_interrupt"
+        },
+        {
+          "motion": 362,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_1_Phys",
+          "script": "state_362_physics"
+        },
+        {
+          "motion": 362,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_1_Coll",
+          "script": "state_362_collision"
+        },
+        {
+          "motion": 363,
+          "phase": "animation",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "input",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "physics",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 363,
+          "phase": "collision",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 364,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_3_Anim",
+          "script": "state_364_animation"
+        },
+        {
+          "motion": 364,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_3_IASA",
+          "script": "state_364_interrupt"
+        },
+        {
+          "motion": 364,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_3_Phys",
+          "script": "state_364_physics"
+        },
+        {
+          "motion": 364,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_3_Coll",
+          "script": "state_364_collision"
+        },
+        {
+          "motion": 365,
+          "phase": "animation",
+          "stock": "ftPp_SpecialHi_4_Anim",
+          "script": "state_365_animation"
+        },
+        {
+          "motion": 365,
+          "phase": "input",
+          "stock": "ftPp_SpecialHi_4_IASA",
+          "script": "state_365_interrupt"
+        },
+        {
+          "motion": 365,
+          "phase": "physics",
+          "stock": "ftPp_SpecialHi_4_Phys",
+          "script": "state_365_physics"
+        },
+        {
+          "motion": 365,
+          "phase": "collision",
+          "stock": "ftPp_SpecialHi_4_Coll",
+          "script": "state_365_collision"
+        },
+        {
+          "motion": 366,
+          "phase": "animation",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "input",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "physics",
+          "stock": "NULL",
+          "script": null
+        },
+        {
+          "motion": 366,
+          "phase": "collision",
+          "stock": "NULL",
+          "script": null
+        }
+      ],
+      "hooks": [
+        "special_n",
+        "special_air_n",
+        "state_341_animation",
+        "state_342_animation",
+        "state_341_interrupt",
+        "state_342_interrupt",
+        "state_341_physics",
+        "state_342_physics",
+        "state_341_collision",
+        "state_342_collision",
+        "special_lw",
+        "special_air_lw",
+        "state_357_animation",
+        "state_358_animation",
+        "state_357_interrupt",
+        "state_358_interrupt",
+        "state_357_physics",
+        "state_358_physics",
+        "state_357_collision",
+        "state_358_collision",
+        "landing_action",
+        "state_343_interrupt",
+        "state_344_interrupt",
+        "state_345_interrupt",
+        "state_346_interrupt",
+        "state_345_physics",
+        "state_346_physics",
+        "state_350_animation",
+        "state_350_interrupt",
+        "state_350_physics",
+        "state_350_collision",
+        "state_351_animation",
+        "state_351_interrupt",
+        "state_351_physics",
+        "state_351_collision",
+        "state_355_animation",
+        "state_355_interrupt",
+        "state_355_physics",
+        "state_355_collision",
+        "state_356_animation",
+        "state_356_interrupt",
+        "state_356_physics",
+        "state_356_collision",
+        "state_343_animation",
+        "state_345_animation",
+        "state_344_animation",
+        "state_346_animation",
+        "state_343_physics",
+        "state_344_physics",
+        "state_347_animation",
+        "state_352_animation",
+        "state_347_interrupt",
+        "state_352_interrupt",
+        "state_347_physics",
+        "state_352_physics",
+        "state_347_collision",
+        "state_352_collision",
+        "state_348_animation",
+        "state_353_animation",
+        "state_348_interrupt",
+        "state_353_interrupt",
+        "state_348_physics",
+        "state_353_physics",
+        "state_348_collision",
+        "state_353_collision",
+        "state_349_animation",
+        "state_354_animation",
+        "state_349_interrupt",
+        "state_354_interrupt",
+        "state_349_physics",
+        "state_354_physics",
+        "state_349_collision",
+        "state_354_collision",
+        "state_343_collision",
+        "state_344_collision",
+        "state_345_collision",
+        "state_346_collision",
+        "state_359_animation",
+        "state_360_animation",
+        "state_359_interrupt",
+        "state_360_interrupt",
+        "state_359_physics",
+        "state_360_physics",
+        "state_359_collision",
+        "state_360_collision",
+        "state_361_animation",
+        "state_361_interrupt",
+        "state_361_physics",
+        "state_361_collision",
+        "state_362_animation",
+        "state_362_interrupt",
+        "state_362_physics",
+        "state_362_collision",
+        "state_364_animation",
+        "state_364_interrupt",
+        "state_364_physics",
+        "state_364_collision",
+        "state_365_animation",
+        "state_365_interrupt",
+        "state_365_physics",
+        "state_365_collision",
+        "load",
+        "load_special_attrs",
+        "item_pickup",
+        "item_drop",
+        "item_pickup_ext",
+        "item_drop_ext",
+        "item_visible",
+        "item_invisible",
+        "knockback_enter",
+        "knockback_exit",
+        "death"
+      ],
+      "stock_callbacks": {
+        "CostumeListsForeachCharacter": "{ ftNn_CostumeList, FTNANA_COSTUME_COUNT }",
+        "ftData_Table_Unk0": "{ 0, 321 }",
+        "ftData_Table_Unk1": "NULL",
+        "ftData_OnLoad": "ftNn_Init_OnLoad",
+        "ftData_OnDeath": "ftNn_Init_OnDeath",
+        "ftData_OnUserDataRemove": "NULL",
+        "ftData_CharacterStateTables": "ftNn_Init_MotionStateTable",
+        "ftData_UnkMotionStates0": "NULL",
+        "ftData_SpecialS": "NULL",
+        "ftData_SpecialAirHi": "NULL",
+        "ftData_SpecialAirLw": "ftPp_SpecialAirLw_Enter",
+        "ftData_SpecialAirS": "NULL",
+        "ftData_SpecialAirN": "ftPp_SpecialAirN_Enter",
+        "ftData_SpecialN": "ftPp_SpecialN_Enter",
+        "ftData_SpecialLw": "ftPp_SpecialLw_Enter",
+        "ftData_SpecialHi": "NULL",
+        "ftData_OnAbsorb": "NULL",
+        "ftData_OnItemPickupExt": "ftPp_Init_OnItemPickup",
+        "ftData_OnItemInvisible": "ftPp_Init_OnItemInvisible",
+        "ftData_OnItemVisible": "ftPp_Init_OnItemVisible",
+        "ftData_OnItemDropExt": "ftPp_Init_OnItemDrop",
+        "ftData_OnItemPickup": "ftPp_Init_OnItemPickup",
+        "ftData_OnItemDrop": "ftPp_Init_OnItemDrop",
+        "ftData_UnkMotionStates1": "NULL",
+        "ftData_UnkMotionStates2": "NULL",
+        "ftData_OnKnockbackEnter": "ftPp_Init_OnKnockbackEnter",
+        "ftData_OnKnockbackExit": "ftPp_Init_OnKnockbackExit",
+        "ftData_UnkMotionStates3": "NULL",
+        "ftData_UnkMotionStates4": "NULL",
+        "ftKindCalcIndiviParamTable": "ftNn_Init_LoadSpecialAttrs",
+        "ftData_803C1F40": "{ ftNn_Init_DatFilename, ftNn_Init_DataName }",
+        "ftData_UnkMotionStates5": "NULL",
+        "ftData_UnkMtxFunc0": "NULL",
+        "ftData_803C2360": "ftNn_Init_CostumeStrings",
+        "ftData_803C23E4": "ftNn_Init_AnimDatFilename",
+        "ftData_803C2468": "&ftNn_Init_DemoMotionFilenames",
+        "ftData_803C24EC": "NULL",
+        "ftData_UnkDemoCallbacks0": "NULL",
+        "ftData_UnkIntPairs": "{ 0, 14 }",
+        "ftData_UnkBytePerCharacter": "14"
+      },
+      "DAT_sha256": "83bc4d19539a9f9bc3f4e85d38e190899e9330eb424565dcb1605401582b0cc2",
+      "generated_sha256": "94675323fc1a13b7b467635f8d145fe0ca9870d765ce33192f773a4c6a169d1a",
+      "owned_sha256": "2e5190567526f464cdcdedee13482c268879c725320d89cda61ac89c3b9baade"
+    }
+  },
+  "borrowed_source_hashes": {
+    "tests/native/ice_climbers_composition/article_cases.inc": "056e4d97a367618e359bce0875df5989f2ab4a2a3a3824d0634590dc71aa1607",
+    "tests/native/ice_climbers_composition/blizzard.fms": "4c8cd3382f9e9a3cfb67e9c0c9d747c3927abe24ca352a57311db01a1075c90a",
+    "tests/native/ice_climbers_composition/fighter.fms": "3cbe90b5e9beaabcbf8e9333360d5bf1a4e65dbdea746190fb5d004bb2c06679",
+    "tests/native/ice_climbers_composition/fighter_cases.inc": "a1a6076ee55a908419bd93573864a4248cf0fe21fa17853b33611f7995a233de",
+    "tests/native/ice_climbers_composition/fixture.py": "6df2545e463d72eecc0a2ab864fa9bf88388bc4751be81588f542e2d7ed2f44d",
+    "tests/native/ice_climbers_composition/ice.fms": "970333cd853ee0bcaa5bef868c33376a6f08e51039bb72e064ecfd33cbc7ac67",
+    "tests/native/ice_climbers_composition/README.md": "e0faaa88cf340df151c0f63798ecc4aecae8c5465e82ae9120f0159e17bdc59b",
+    "tests/native/ice_climbers_composition/run.py": "b2fa9e8e08ac1171b2a7752898bec13fea25f8ee0739f4dd1dd5fa6bdd189986",
+    "tests/native/ice_climbers_composition/test.c": "37205f239be53f363ee1e6c3cec691c13f37d21a39803b9e8dfc5d98313a6ecd",
+    "tests/native/ice_climbers_linked/contracts.md": "8f3aa326b9fbfbc90be7a75af79bf5659bf82b48cb58f4c4a7acca387a137dd9",
+    "tests/native/ice_climbers_linked/fixture.py": "083def5df000584943a4d2c2f5116c46b02bd01607cdf1a5550bc26dc48c23f5",
+    "tests/native/ice_climbers_linked/paired_cases.inc": "90d750d11811df2ff4dceb8cc7bb2d1ea9d93328572ef24e0da67445225ed8d1",
+    "tests/native/ice_climbers_linked/paired_exports.fms": "ec0434a44f1603f4ef253051aa333d1a06a69a9cd3e192ef1158355035cb1c0a",
+    "tests/native/ice_climbers_linked/paired_fixture.py": "8dac81d9d23479b7d3eb1b341f0200f61b10ed657a1833a2af0e0ec5376cc181",
+    "tests/native/ice_climbers_linked/paired_hitlag.fms": "8057cc09d8323ec112fe62963035232ae550d12af6bae3aa242eee8c4ab471c2",
+    "tests/native/ice_climbers_linked/paired_README.md": "dbf0393996765ffe03f0c95d5ca16c54a7992e02f09ac67b2d9ca40834aab088",
+    "tests/native/ice_climbers_linked/paired_requirements.md": "bbf91b944e379175cc07ea3e72b6dd5eb9eb1e602a79d53dc62fc052f4c4313e",
+    "tests/native/ice_climbers_linked/paired_run.py": "0fbb213f2a7e7c3fbcc7a086aa118dc9f6fa69f0dc635d93114ab4fcad087a83",
+    "tests/native/ice_climbers_linked/paired_test.c": "b950b09a3919cd1a95b3fc5e6a1a6f7055fce36ec8c939b9fd6cdabb18907f30",
+    "tests/native/ice_climbers_linked/primary_cleanup.fms": "7ee207138d8038c04466f70a3d854fa3a47349f34dc655f1cf5bf470d3385b5d",
+    "tests/native/ice_climbers_linked/primary_squall.fms": "53afd78aff39cd83c0637ab8633ee32ec29b74e32237d3bc4ecfcc671ce3d25f",
+    "tests/native/ice_climbers_linked/README.md": "9cb0031a3bb98f2f71a9fd81e64ed33589d0825c00e34144289d05e91b4a661f",
+    "tests/native/ice_climbers_linked/run.py": "b40af22604a20db51e03425f9bc10ca2417c1661b98f6b6a9399de964b18ef8a",
+    "tests/native/ice_climbers_linked/secondary_belay.fms": "f4d1e17f0123fbac9db69bfb52676fffeb3a45dca200907bf611c403dea56f33",
+    "tests/native/ice_climbers_linked/secondary_squall.fms": "161fd2a4a49134b9c1ec9343d64fe7bc0b4e4bcf0c6e6de99017bccdb942eeeb",
+    "tests/native/ice_climbers_linked/solo.fms": "8e028015dcd0457a570dedc934e8d588f318f055f7f15cbacd32cb17cf6d516a",
+    "tests/native/ice_climbers_linked/test.c": "3fc44eee08cc7179d898b5e57c1a27008863a3de3c23a79a9c1f8c776f23b05b",
+    "tests/native/ice_climbers_rope/constructor_cases.inc": "93d0a9ed96ca681ce4d07d7f8004d4df81f547eca3116e7220a1da3cd417f5fd",
+    "tests/native/ice_climbers_rope/constructor_dependencies.inc": "c4ccfe5d177a9a30436bea296371026d932a80dc1e3a0f0290d4732cf3a6766e",
+    "tests/native/ice_climbers_rope/constructor_fixture.py": "7911530244c60c358f8701120878d030246c89f61b90c50fe19d85ed49e40fc8",
+    "tests/native/ice_climbers_rope/constructor_run.py": "7de8e1baed573f2427e76a0f06f24550bd047ba5a8a6934ed40b8af4171b1bc0",
+    "tests/native/ice_climbers_rope/constructor_test.c": "89543b17e2b3f054eee877d1b8b14d24fef5c3a564ee8fc1409e18bfd8dbc1a8",
+    "tests/native/ice_climbers_rope/prepare.py": "e38a27cc20c1e8383f74fa8120c5a2c44c1273eeb19258a47a886ac8c145edfe",
+    "tests/native/ice_climbers_rope/primary.fms": "5940482c9e09167472671385e20760bd9ab296b5bb34faa0f9db6a7c673398e6",
+    "tests/native/ice_climbers_rope/primary_cases.inc": "e0f174bdfb0e1a92614f109fbac67064bb814ae6ef675533c5884780751f694a",
+    "tests/native/ice_climbers_rope/primary_fixture.py": "de9831a23ea9708d8405b723bfe966e8aa049e220e38ee579e6a7458aef0de72",
+    "tests/native/ice_climbers_rope/primary_run.py": "e33408056e6bde23e3de2576434dfa57bb9e9dcb447e76c78a82c2c38b54d7e3",
+    "tests/native/ice_climbers_rope/primary_test.c": "e687e3b172d73e3d3262f2ec6c06cba428e0cba035c2a472c0ba9dc50513ed56",
+    "tests/native/ice_climbers_rope/README-primary.md": "f825fdbc90ba0fe199f41f162787adf912411cbc5844986fcab0b7aaa9026172",
+    "tests/native/ice_climbers_rope/README.md": "76bcb9ac3116137626fb92ce306fb38839cb110e0fb9fbb7db8b95b95c66e806",
+    "tests/native/ice_climbers_rope/render_test.c": "8d665c900200fbdabef196372ab7f77f042e71ea9a8152722b7043f968059bfd",
+    "tests/native/ice_climbers_rope/rope.fms": "9cccbfc13c0859acaa204f223700cd1612631b4e5d0ca98bc9648a2eb60ce0c2",
+    "tests/native/ice_climbers_rope/run_render.py": "4c15423bed0f31900c7dcbf6b85996a8f5b3bdd0cbd96183d504061574717905",
+    "tests/native/ice_climbers_rope/run_solver.py": "e86a72ec692aacafe2f4a4c289c665cf33f1fa02d3c34655ec6521c38813c3ac",
+    "tests/native/ice_climbers_rope/solver_test.c": "213a50dfdc811b3218d6c97a9114d2302284d3662c70b6bd452e237ba4e7a4a4"
+  },
+  "stock_source_hashes": {
+    "src/melee/ft/kinds/ftNana/ftnana.c": "41636d300ef9e9f53f081a40df30e03a367499a72718ff0ed48e581ba200a4e2",
+    "src/melee/ft/kinds/ftNana/ftnana.h": "03448da8a294296ba5064cdb2eab4055e9f82c5af8b59c3bad605f8de85bb85c",
+    "src/melee/ft/kinds/ftNana/ftnanaspecialhi.c": "32a2e2247b3b58a78c07113bc9afe85131d11b7b5ba32908de7f35c82b165b6a",
+    "src/melee/ft/kinds/ftNana/ftnanaspecialhi.h": "bcefbb4193bca5272c5e07764914bf0c9c42bf327ed43fa9de320bd37677ddec",
+    "src/melee/ft/kinds/ftNana/ftnanaspecials.c": "70ae08e21d72ae1b0afb986a4aad7119960adab92953ca46022a68782c38881c",
+    "src/melee/ft/kinds/ftPopo/forward.h": "ffce60ae50c5cdbc9e5a2bfb75e423e4519d36d2c7553a6fd17d634717e937fa",
+    "src/melee/ft/kinds/ftPopo/ftpopo.c": "d10c129b12e950811146fe555cd5d03c79f162c49c43b4e1c7e5eee67c3619ac",
+    "src/melee/ft/kinds/ftPopo/ftpopo.h": "2302696d1f0c818e4cd99eb1e5c0301f9c59204b1f750d3c27ada8f0fd720230",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialhi.c": "24d99fbb1dd75b5fa7f347556d619d933f2fa877a1d7bcb5bea52358ef2499be",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialhi.h": "4fc6ec5a957b27569418ae4abc51bd8b96e2923cf8aff408a4fc45cfaece6426",
+    "src/melee/ft/kinds/ftPopo/ftpopospeciallw.c": "ea6c9376e107c804c2b6d1f1af6c4575dd92f4b8331c6ef45bfb253205c8c23e",
+    "src/melee/ft/kinds/ftPopo/ftpopospeciallw.h": "8fa8548aa829fbf79e306ff72be2633e567eae558f807ac28bed146a5b45112e",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialn.c": "136a472eaacd0660a583227526243dfc3b44731ae1dec8de82a6d64e9b83953f",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialn.h": "416e8311e03111c9c18b64ef8c8159620f43687ea6acaf083e1558294f2cfbdb",
+    "src/melee/ft/kinds/ftPopo/ftpopospecials.c": "4df29baf2155a7425b970e6918347b620f6fc66d9de976a6a2d8504f1755cc33",
+    "src/melee/ft/kinds/ftPopo/ftpopospecials.h": "e2e4244f165a5a037539c2a4115964810ecb378907b3d4a0d30f5d3f782d1b02",
+    "src/melee/ft/kinds/ftPopo/types.h": "1508a2e5f70f1e64cf9a2428a0e669b44b4d85410bdf15f9bac21ed233c9566d",
+    "src/melee/it/kinds/itclimbersblizzard.c": "4c3240e63c2ca8371f5e57a765bdd464c2ce98900852e65c5ec67e4a6bbeafa5",
+    "src/melee/it/kinds/itclimbersblizzard.h": "8a4fd6e386f49c7b38dc96b831091a41acefe231efedb69454f9b83c05c68005",
+    "src/melee/it/kinds/itclimbersice.c": "495bf27baafa8376fcdbcd856b5e9f280a9db5477e368a630628f84991ccfc5c",
+    "src/melee/it/kinds/itclimbersice.h": "591e79f79e4b9e4b09430d62ba9398fd903c5cb3975f8b6f3d7ae26eb5500976",
+    "src/melee/it/kinds/itclimbersstring.c": "85137b0fb220eeb98f92a2fe1d0195b257e37c5a9a77bb9db2df6d377bff7193",
+    "src/melee/it/kinds/itclimbersstring.h": "7f30a5386ef98ccc20c9e40eed114eb8c393250311650db014c77fc18a7da37f",
+    "src/melee/pl/player.c": "e244aadcc02a8fcf32abc11ea75a29204f8173f5addf38b9e09797e90af6254b",
+    "src/melee/ft/types.h": "e4b82311e49f27faea353234eaf4099cfb31b46b4db80f60f41c37b13be43c0c",
+    "src/melee/ft/ftdata.c": "39e51d211818e7a545c7a285d92a07b2cc1efeb6c7c1bc58364ad5222ff2dcba",
+    "src/melee/ft/ftmovement.c": "3a0069a67f20241d8ef83c81a8a38463c424a6b4dc077b775079ff74143e22d6",
+    "src/melee/ft/ftcommon.c": "7e15fdd9a7fa03dce37954e4cc8c70c47316f3c862026d3603f386056fa20cc3",
+    "src/melee/ft/ft_0877.c": "a1fd51a4e62f7494cdcd51a755633d89104d9759736d76c05578d99383ff31b9",
+    "src/melee/ft/ftcpuattack.c": "c270df90c23c49b8ad7d40f8f217e44d458d221b19fd2741fc62300fe6d64396",
+    "src/melee/ft/fighter.c": "60e5774c7fb1e34f2d2ba619d768777d8ea6930352f5791a6eb5506f143d7f41",
+    "src/melee/ft/ftcolanim.c": "246e9ebf0c5e38b1ef7fe460890ccd1fc3b7e611f4d0efbe7f1652fcb9f08fa8",
+    "src/melee/ft/kinds/ftCommon/ftCo_0A01.c": "024038279003559d8ca89e8136443347b1f943efe0a009c50e4a0d4a44d2c9f0",
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": "38fd7553ba953a1fc833557fd57a36383fcae32c721051a6a6d31a94666444b5",
+    "src/melee/ft/kinds/ftCommon/ftpickupitem.c": "fc06ee00c6ab2b1727094cfdb8dc26d46eabc4a68f0d430ca8a543ac0ec42fba",
+    "src/melee/ft/ftcharacter_assets.c": "d55fcb17e98765ca553d4ed0f058c2ecf110b37e4221c0282cb16c9a41a69862",
+    "src/melee/ft/ftcharacter_asset_layout.h": "80181953376b3b645de6b9c9ddb967c5a0c0aa8431bf8f0d6de77dd318aaa344",
+    "src/melee/ft/native_fighter_runtime.c": "a0c29e01d83a40b9895d8c296d5ddea58525bf29b553ef01388430c9405c878d",
+    "src/melee/ft/native_fighter_runtime.h": "0ea875b0a3bddd563fc727ed35401dcb6d6b8e4266e11f6acf0abb01f6cee8fd",
+    "src/melee/ft/native_fighter_article_bindings.c": "446d961ea3e0ca1abc51cd9ca67a96cf1b2f8b0c97b8219d65131e48ff3eaa74",
+    "src/melee/it/itCharItems.h": "069229d510766a4f160209715647990931693f85e2c59f243728b8d2e6cd0d91",
+    "src/melee/it/it_3F2F.c": "d7e9af9e7239db1b142becc6032ec13ecc64e95636afa97644c4edfdd2c80f0a",
+    "src/melee/ft/native_fighter_target.h": "6976ef3796af2628972c3f33dbc1aae58637c8abb33d7bb311289daca3d4049d",
+    "src/melee/ft/ftanim.c": "696bb6e3d93b2c6547f44e9f8113dbc31bc1fa52bc8482085c8037652420be28",
+    "src/melee/ef/efsync.c": "dba92dece66d3a4fade6dd9880001e648c8de17edf576466aabc7f4a4b4cfea6",
+    "src/melee/ef/eflib.c": "560c4bb5bb6c275514d08d262345525d8553f52e560a498f40fb9087f5167ba8",
+    "tools/native_fighter_script_cpu.c": "f16fc50664066be0e785a08b22044b8c6c1677e672543f4494f1aaf659231bc5",
+    "tools/native_fighter_script_primitives.c": "38214528121414d9558374c5828de03754c632d544d88fb5e8a624d41e4235b2",
+    "tools/extract_native_animation.py": "d23c015f8f40ec5f9ec99b6ca76a4916d062908a5010ba3918eadb95d9e7bb3d",
+    "tools/prepare_native_assets.py": "92bea6648e645fa98220ee92f696284af0280717608a190033b69c4076e4edff",
+    "src/melee/ft/forward.h": "74b5cec4c93eda01cb37da118ed18620e76b6d659ef6d3bed2c4659b390a87c0"
+  },
+  "owned_metadata_proposal": {
+    "Popo": {
+      "stock_internal_kind": 10,
+      "fighter_root": "ftDataPopo",
+      "data_file": "PlPp.dat",
+      "animation_file": "PlPpAJ.dat",
+      "motion_first": 341,
+      "motion_count": 26,
+      "animation_count": 321,
+      "demo_count": 14,
+      "effect_bank": 14,
+      "sound_mute_channels": 68,
+      "asset_layout": {
+        "article_mask": 7,
+        "joint_graph_mask": 0,
+        "item_format": "FtCharacterItems_ClimberString",
+        "raw_byte_spans": []
+      },
+      "article_assets": [
+        {
+          "item": "It_Kind_IceClimber_Ice",
+          "slot": 0,
+          "kind_offset": -1
+        },
+        {
+          "item": "It_Kind_IceClimber_Blizzard",
+          "slot": 1,
+          "kind_offset": -1
+        },
+        {
+          "item": "It_Kind_IceClimber_GumStrings",
+          "slot": 2,
+          "kind_offset": -1
+        }
+      ],
+      "runtime_parts": 49,
+      "bones": [
+        {
+          "part": 0,
+          "role": "FtPart_TopN",
+          "joint": 0
+        },
+        {
+          "part": 1,
+          "role": "FtPart_TransN",
+          "joint": 1
+        },
+        {
+          "part": 2,
+          "role": "FtPart_XRotN",
+          "joint": 2
+        },
+        {
+          "part": 3,
+          "role": "FtPart_YRotN",
+          "joint": 3
+        },
+        {
+          "part": 4,
+          "role": "FtPart_HipN",
+          "joint": 4
+        },
+        {
+          "part": 5,
+          "role": "FtPart_WaistN",
+          "joint": 5
+        },
+        {
+          "part": 6,
+          "role": "FtPart_LLegJA",
+          "joint": 35
+        },
+        {
+          "part": 7,
+          "role": "FtPart_LLegJ",
+          "joint": 36
+        },
+        {
+          "part": 8,
+          "role": "FtPart_LKneeJ",
+          "joint": 37
+        },
+        {
+          "part": 9,
+          "role": "FtPart_LFootJA",
+          "joint": 38
+        },
+        {
+          "part": 10,
+          "role": "FtPart_LFootJ",
+          "joint": 39
+        },
+        {
+          "part": 11,
+          "role": "FtPart_RLegJA",
+          "joint": 41
+        },
+        {
+          "part": 12,
+          "role": "FtPart_RLegJ",
+          "joint": 42
+        },
+        {
+          "part": 13,
+          "role": "FtPart_RKneeJ",
+          "joint": 43
+        },
+        {
+          "part": 14,
+          "role": "FtPart_RFootJA",
+          "joint": 44
+        },
+        {
+          "part": 15,
+          "role": "FtPart_RFootJ",
+          "joint": 45
+        },
+        {
+          "part": 18,
+          "role": "FtPart_LShoulderJA",
+          "joint": 7
+        },
+        {
+          "part": 19,
+          "role": "FtPart_LShoulderJ",
+          "joint": 8
+        },
+        {
+          "part": 20,
+          "role": "FtPart_LArmJ",
+          "joint": 9
+        },
+        {
+          "part": 21,
+          "role": "FtPart_LHandN",
+          "joint": 10
+        },
+        {
+          "part": 22,
+          "role": "FtPart_L1stNa",
+          "joint": 11
+        },
+        {
+          "part": 27,
+          "role": "FtPart_L3rdNb",
+          "joint": 12
+        },
+        {
+          "part": 28,
+          "role": "FtPart_L4thNa",
+          "joint": 13
+        },
+        {
+          "part": 31,
+          "role": "FtPart_LThumbNb",
+          "joint": 14
+        },
+        {
+          "part": 32,
+          "role": "FtPart_LHandNb",
+          "joint": 16
+        },
+        {
+          "part": 33,
+          "role": "FtPart_NeckN",
+          "joint": 17
+        },
+        {
+          "part": 34,
+          "role": "FtPart_HeadN",
+          "joint": 18
+        },
+        {
+          "part": 35,
+          "role": "FtPart_RShoulderN",
+          "joint": 19
+        },
+        {
+          "part": 36,
+          "role": "FtPart_RShoulderJA",
+          "joint": 22
+        },
+        {
+          "part": 37,
+          "role": "FtPart_RShoulderJ",
+          "joint": 23
+        },
+        {
+          "part": 38,
+          "role": "FtPart_RArmJ",
+          "joint": 24
+        },
+        {
+          "part": 39,
+          "role": "FtPart_RHandN",
+          "joint": 25
+        },
+        {
+          "part": 40,
+          "role": "FtPart_R1stNa",
+          "joint": 26
+        },
+        {
+          "part": 45,
+          "role": "FtPart_R3rdNb",
+          "joint": 27
+        },
+        {
+          "part": 46,
+          "role": "FtPart_R4thNa",
+          "joint": 28
+        },
+        {
+          "part": 49,
+          "role": "FtPart_RThumbNb",
+          "joint": 29
+        },
+        {
+          "part": 50,
+          "role": "FtPart_RHandNb",
+          "joint": 30
+        },
+        {
+          "part": 51,
+          "role": "FtPart_ThrowN",
+          "joint": 31
+        },
+        {
+          "part": 52,
+          "role": "FtPart_TransN2",
+          "joint": 47
+        },
+        {
+          "part": 53,
+          "role": "53",
+          "joint": 48
+        }
+      ],
+      "omissions": [],
+      "costumes": [
+        {
+          "archive": "PlPpNr.dat",
+          "root": "PlyPopo5K_Share_joint",
+          "physical_joints": 49,
+          "sha256": "59b82867ced89124e83025fbbd423cec0ad9ce65ebe177e6351ebfeba7c73cdc"
+        },
+        {
+          "archive": "PlPpGr.dat",
+          "root": "PlyPopo5KGr_Share_joint",
+          "physical_joints": 49,
+          "sha256": "2ae621a65da95281721db39b30a0a7803e40fa53589547db568c1d491157b438"
+        },
+        {
+          "archive": "PlPpOr.dat",
+          "root": "PlyPopo5KOr_Share_joint",
+          "physical_joints": 49,
+          "sha256": "2869b0188575eda120edd445035c8f2780786f6b0db101f195517a46f5fce446"
+        },
+        {
+          "archive": "PlPpRe.dat",
+          "root": "PlyPopo5KRe_Share_joint",
+          "physical_joints": 49,
+          "sha256": "0014407dad2cec89457f7d921815895e89c580ab3d6733b41b072fbec240934c"
+        }
+      ],
+      "data_sha256": "5dd044b2ac5003f18dfca6e3a5197724f383419b4fc31bd4cb0a6205052507c0",
+      "article_offsets": [
+        36704,
+        36760,
+        36808
+      ],
+      "rope_model_roots": [
+        59624,
+        59624
+      ],
+      "demo_names": [
+        "ftDemoResultMotionFilePopo",
+        "ftDemoIntroMotionFilePopo",
+        "ftDemoEndingMotionFilePopo",
+        "ftDemoViWaitMotionFilePopo"
+      ]
+    },
+    "Nana": {
+      "stock_internal_kind": 11,
+      "fighter_root": "ftDataNana",
+      "data_file": "PlNn.dat",
+      "animation_file": "PlNnAJ.dat",
+      "motion_first": 341,
+      "motion_count": 26,
+      "animation_count": 321,
+      "demo_count": 14,
+      "effect_bank": 14,
+      "sound_mute_channels": 68,
+      "asset_layout": {
+        "article_mask": 7,
+        "joint_graph_mask": 0,
+        "item_format": "FtCharacterItems_ClimberString",
+        "raw_byte_spans": []
+      },
+      "article_assets": [
+        {
+          "item": "It_Kind_IceClimber_Ice",
+          "slot": 0,
+          "kind_offset": -1
+        },
+        {
+          "item": "It_Kind_IceClimber_Blizzard",
+          "slot": 1,
+          "kind_offset": -1
+        },
+        {
+          "item": "It_Kind_IceClimber_GumStrings",
+          "slot": 2,
+          "kind_offset": -1
+        }
+      ],
+      "runtime_parts": 49,
+      "bones": [
+        {
+          "part": 0,
+          "role": "FtPart_TopN",
+          "joint": 0
+        },
+        {
+          "part": 1,
+          "role": "FtPart_TransN",
+          "joint": 1
+        },
+        {
+          "part": 2,
+          "role": "FtPart_XRotN",
+          "joint": 2
+        },
+        {
+          "part": 3,
+          "role": "FtPart_YRotN",
+          "joint": 3
+        },
+        {
+          "part": 4,
+          "role": "FtPart_HipN",
+          "joint": 4
+        },
+        {
+          "part": 5,
+          "role": "FtPart_WaistN",
+          "joint": 5
+        },
+        {
+          "part": 6,
+          "role": "FtPart_LLegJA",
+          "joint": 35
+        },
+        {
+          "part": 7,
+          "role": "FtPart_LLegJ",
+          "joint": 36
+        },
+        {
+          "part": 8,
+          "role": "FtPart_LKneeJ",
+          "joint": 37
+        },
+        {
+          "part": 9,
+          "role": "FtPart_LFootJA",
+          "joint": 38
+        },
+        {
+          "part": 10,
+          "role": "FtPart_LFootJ",
+          "joint": 39
+        },
+        {
+          "part": 11,
+          "role": "FtPart_RLegJA",
+          "joint": 41
+        },
+        {
+          "part": 12,
+          "role": "FtPart_RLegJ",
+          "joint": 42
+        },
+        {
+          "part": 13,
+          "role": "FtPart_RKneeJ",
+          "joint": 43
+        },
+        {
+          "part": 14,
+          "role": "FtPart_RFootJA",
+          "joint": 44
+        },
+        {
+          "part": 15,
+          "role": "FtPart_RFootJ",
+          "joint": 45
+        },
+        {
+          "part": 18,
+          "role": "FtPart_LShoulderJA",
+          "joint": 7
+        },
+        {
+          "part": 19,
+          "role": "FtPart_LShoulderJ",
+          "joint": 8
+        },
+        {
+          "part": 20,
+          "role": "FtPart_LArmJ",
+          "joint": 9
+        },
+        {
+          "part": 21,
+          "role": "FtPart_LHandN",
+          "joint": 10
+        },
+        {
+          "part": 22,
+          "role": "FtPart_L1stNa",
+          "joint": 11
+        },
+        {
+          "part": 27,
+          "role": "FtPart_L3rdNb",
+          "joint": 12
+        },
+        {
+          "part": 28,
+          "role": "FtPart_L4thNa",
+          "joint": 13
+        },
+        {
+          "part": 31,
+          "role": "FtPart_LThumbNb",
+          "joint": 14
+        },
+        {
+          "part": 32,
+          "role": "FtPart_LHandNb",
+          "joint": 16
+        },
+        {
+          "part": 33,
+          "role": "FtPart_NeckN",
+          "joint": 17
+        },
+        {
+          "part": 34,
+          "role": "FtPart_HeadN",
+          "joint": 18
+        },
+        {
+          "part": 35,
+          "role": "FtPart_RShoulderN",
+          "joint": 19
+        },
+        {
+          "part": 36,
+          "role": "FtPart_RShoulderJA",
+          "joint": 22
+        },
+        {
+          "part": 37,
+          "role": "FtPart_RShoulderJ",
+          "joint": 23
+        },
+        {
+          "part": 38,
+          "role": "FtPart_RArmJ",
+          "joint": 24
+        },
+        {
+          "part": 39,
+          "role": "FtPart_RHandN",
+          "joint": 25
+        },
+        {
+          "part": 40,
+          "role": "FtPart_R1stNa",
+          "joint": 26
+        },
+        {
+          "part": 45,
+          "role": "FtPart_R3rdNb",
+          "joint": 27
+        },
+        {
+          "part": 46,
+          "role": "FtPart_R4thNa",
+          "joint": 28
+        },
+        {
+          "part": 49,
+          "role": "FtPart_RThumbNb",
+          "joint": 29
+        },
+        {
+          "part": 50,
+          "role": "FtPart_RHandNb",
+          "joint": 30
+        },
+        {
+          "part": 51,
+          "role": "FtPart_ThrowN",
+          "joint": 31
+        },
+        {
+          "part": 52,
+          "role": "FtPart_TransN2",
+          "joint": 47
+        },
+        {
+          "part": 53,
+          "role": "53",
+          "joint": 48
+        }
+      ],
+      "omissions": [],
+      "costumes": [
+        {
+          "archive": "PlNnNr.dat",
+          "root": "PlyNana5K_Share_joint",
+          "physical_joints": 49,
+          "sha256": "b49241ac2c1f8743ebfc5ae0c35250459e328d121d1a670d5d5a37794347fdd2"
+        },
+        {
+          "archive": "PlNnYe.dat",
+          "root": "PlyNana5KYe_Share_joint",
+          "physical_joints": 49,
+          "sha256": "55f9a305b84f6209bdc279ca945e5f51154e9863d6303a6d3639326642b2bddf"
+        },
+        {
+          "archive": "PlNnAq.dat",
+          "root": "PlyNana5KAq_Share_joint",
+          "physical_joints": 49,
+          "sha256": "a86967401aa0d4fb95b34f6874eae93282a21ed940008ebbb93315d366b69109"
+        },
+        {
+          "archive": "PlNnWh.dat",
+          "root": "PlyNana5KWh_Share_joint",
+          "physical_joints": 49,
+          "sha256": "e5c65fafbe3eca8e160a4618433dd7974b12d48d38a7ec1442bc64fcce5aa8d4"
+        }
+      ],
+      "data_sha256": "83bc4d19539a9f9bc3f4e85d38e190899e9330eb424565dcb1605401582b0cc2",
+      "article_offsets": [
+        27896,
+        27952,
+        28000
+      ],
+      "rope_model_roots": [
+        7084,
+        27976
+      ],
+      "demo_names": [
+        "ftDemoResultMotionFileNana",
+        "ftDemoIntroMotionFileNana",
+        "ftDemoEndingMotionFileNana",
+        "ftDemoViWaitMotionFilePopo"
+      ]
+    }
+  }
+}

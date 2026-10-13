@@ -1,0 +1,987 @@
+# Zelda owned source template, promoted from accepted composed source.
+# Fighter and article decisions are authored here; no borrowed stock handlers.
+# Declarative attributes require normal import; paired play requires its owned family package.
+# Component comments below retain their original source-comparison provenance.
+
+# Independent source member; complete direct-runtime preflight remains pending.
+fighter:
+    behavior independent
+
+# Zelda decisions retain their native ordering; the package owns its numeric layout.
+# Full article initializer decisions are authored; allocator/model loading remain engine boundaries.
+attribute int neutral_gravity_delay 4
+attribute float neutral_horizontal_divisor 8
+attribute float neutral_gravity 12
+attribute int reflect_bone 132
+attribute int reflect_damage_limit 136
+attribute float reflect_x 140
+attribute float reflect_y 144
+attribute float reflect_z 148
+attribute float reflect_radius 152
+attribute float reflect_damage_multiplier 156
+attribute float reflect_speed_multiplier 160
+attribute bool reflect_preserve_owner 164
+state int neutral_gravity_timer
+state int din_handle
+
+attribute int din_start_timer 16
+attribute int din_hold_timer 20
+attribute int din_gravity_delay 24
+attribute int din_release_delay 28
+attribute float din_spawn_offset_x 32
+attribute float din_spawn_offset_y 36
+attribute float din_air_gravity 44
+attribute float din_landing_lag 52
+attribute float teleport_start_x_divisor 56
+attribute float teleport_start_y_divisor 60
+attribute float teleport_start_gravity 64
+attribute float teleport_start_terminal 68
+attribute int teleport_travel_frames 72
+attribute float teleport_platform_grace 76
+attribute float teleport_stick_minimum 80
+attribute float teleport_speed_multiplier 84
+attribute float teleport_speed_addition 88
+attribute float teleport_end_drift_multiplier 92
+attribute int teleport_surface_angle 96
+attribute float teleport_end_momentum 100
+attribute float teleport_freefall_mobility 104
+attribute float teleport_landing_lag 108
+parameter int din_spawn_joint = 89
+parameter int din_cue_joint = 76
+parameter int teleport_wind_frames = 120
+parameter float teleport_wind_strength = 1.5
+parameter float teleport_wind_decay = 0.02
+parameter float teleport_wind_frequency = 1.0471975803375244
+state int din_start_remaining
+state int din_hold_remaining
+state int din_gravity_remaining
+state int din_release_remaining
+state int teleport_remaining
+state int teleport_collision_age
+state float teleport_stick_x
+state float teleport_stick_y
+state float teleport_saved_x
+state float teleport_saved_y
+state float teleport_saved_ground
+
+
+attribute float transform_horizontal_divisor 112
+attribute float transform_vertical_divisor 116
+attribute float transform_gravity 120
+attribute float transform_terminal 124
+attribute float transform_finish_frame 128
+parameter int transform_origin_joint = 0
+parameter int transform_start_joint = 104
+parameter int transform_finish_joint = 4
+parameter int transform_start_effect = 1276
+parameter int transform_finish_effect = 1277
+parameter int transform_wind_frames = 120
+parameter float transform_wind_strength = 0.4
+parameter float transform_wind_decay = 0.003
+parameter float transform_wind_frequency = 1.0471975511965976
+
+
+parameter int cpu_pending_script = 38
+
+
+parameter float cpu_recovery_diagonal_distance = 30
+parameter int cpu_recovery_stick_strength = 127
+parameter int cpu_recovery_press_frames = 40
+parameter int cpu_recovery_wait_frames = 1
+
+parameter int cpu_din_motion_first = 344
+parameter int cpu_din_motion_last = 348
+parameter float cpu_din_release_radius = 15
+parameter float cpu_din_target_height = 15
+parameter int cpu_din_wait_frames = 1
+parameter int cpu_din_stick_up = 127
+parameter int cpu_din_stick_down = -127
+
+
+func neutral_reflector():
+    reflector.create(attrs.reflect_bone, attrs.reflect_damage_limit, attrs.reflect_x, attrs.reflect_y, attrs.reflect_z, attrs.reflect_radius, attrs.reflect_damage_multiplier, attrs.reflect_speed_multiplier, attrs.reflect_preserve_owner)
+    callbacks.track_reflect_hit()
+
+func neutral_ground_effect():
+    if not effects.active:
+        effects.spawn(1268, TransN)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func neutral_air_effect():
+    if not effects.active:
+        effects.spawn(1269, TransN)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func neutral_tick(bool air_started):
+    if command(0) == 1:
+        command(0) = 2
+        neutral_reflector()
+    if command(0) == 0:
+        reflector.disable()
+    if animation.finished:
+        if air_started: state.fall()
+        else: state.wait()
+
+export func din_can_steer() -> bool:
+    return (motion.id == 344 or motion.id == 347) and state.din_handle != -1
+
+export func din_release_requested() -> bool:
+    if state.din_handle != -1 and (motion.id == 345 or motion.id == 348) and command(1) == 1:
+        command(1) = 0
+        return true
+    return false
+
+export func forget_din():
+    state.din_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+export func cleanup_din():
+    if state.din_handle != -1:
+        articles.signal(state.din_handle, It_Kind_Zelda_DinFire, "detach_control", 0)
+        state.din_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func din_reset():
+    state.din_start_remaining = attrs.din_start_timer
+    state.din_hold_remaining = attrs.din_hold_timer
+    state.din_gravity_remaining = attrs.din_gravity_delay
+    state.din_handle = -1
+    state.din_release_remaining = attrs.din_release_delay
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func din_create_requested():
+    if command(0) == 1 and state.din_handle == -1:
+        command(0) = 0
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.din_spawn_joint, x, y, z)
+        z = 0
+        x = attrs.din_spawn_offset_x * facing.direction + x
+        y = y + attrs.din_spawn_offset_y
+        state.din_handle = articles.create_at_position(It_Kind_Zelda_DinFire, x, y, z, facing.direction, true)
+        if state.din_handle != -1:
+            callbacks.death2(cleanup_din)
+            callbacks.damage(cleanup_din)
+        # The hand cue is retained even when allocation fails.
+        effects.spawn_on_part(1275, attrs.din_cue_joint)
+
+func din_start_tick(bool air_started):
+    din_create_requested()
+    if animation.finished:
+        if air_started: state.enter_at(347, 0, 0)
+        else: state.enter_at(344, 0, 0)
+        jumps.used = jumps.max
+
+func din_loop_tick(bool air_started):
+    din_create_requested()
+    if state.din_start_remaining != 0:
+        state.din_start_remaining = state.din_start_remaining - 1
+    if state.din_hold_remaining != 0:
+        state.din_hold_remaining = state.din_hold_remaining - 1
+    if state.din_handle == -1:
+        if state.din_start_remaining <= 0 and state.din_hold_remaining <= 0:
+            if air_started: state.enter_at(348, 0, 0)
+            else: state.enter_at(345, 0, 0)
+    else:
+        # Clearing a changed owner deliberately does not take the absent-item
+        # end branch during this same callback.
+        if articles.ref(state.din_handle, It_Kind_Zelda_DinFire).current_owner != fighter.creation_id:
+            state.din_handle = -1
+
+func din_end_tick(bool air_started):
+    bones.root.rotate_x_joint(0, 0)
+    if animation.finished:
+        din_reset()
+        if not air_started: state.wait()
+        elif attrs.din_landing_lag == 0: state.fall()
+        else: state.freefall(1, 0, true, 1, attrs.din_landing_lag)
+
+func din_release_tick(bool air_started):
+    state.din_release_remaining = state.din_release_remaining - 1
+    if state.din_release_remaining <= 0:
+        state.din_release_remaining = 0
+        if not input.special_held:
+            if air_started: state.enter_at(348, 0, 0)
+            else: state.enter_at(345, 0, 0)
+
+func din_air_physics():
+    if state.din_gravity_remaining != 0:
+        state.din_gravity_remaining = state.din_gravity_remaining - 1
+    else:
+        physics.fall(attrs.din_air_gravity, air.terminal_velocity)
+    physics.air_decel(air.friction)
+
+func teleport_start_effect():
+    if not effects.active:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        # Stock reads raw part4 here; this value is unused by its joint spawn.
+        bones.world_position(4, x, y, z)
+        if grounded: effects.spawn_on_part(1270, 0)
+        else: effects.spawn_on_part(1271, 0)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func teleport_end_effect():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(4, x, y, z)
+    if not effects.active:
+        effects.spawn_at_position(1285, x, y, z)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func teleport_start_setup():
+    command(0) = 0
+    state.teleport_collision_age = 0
+    effects.wind(Hip, 0, attrs.teleport_wind_frames, attrs.teleport_wind_strength, attrs.teleport_wind_decay, attrs.teleport_wind_frequency)
+    callbacks.accessory(teleport_start_effect)
+
+func teleport_travel_setup():
+    state.teleport_remaining = attrs.teleport_travel_frames
+    jumps.used = jumps.max
+    items.block_ground_pickup = true
+    hurtboxes.set_body_status(Hurt.intangible)
+    visuals.set_visible(false)
+
+func teleport_air_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    if strength > attrs.teleport_stick_minimum:
+        if abs(input.x) > 0.001: facing.from_input()
+        let float angle = atan2_float(input.y, input.x * facing.direction)
+        state.teleport_stick_x = input.x
+        state.teleport_stick_y = input.y
+        velocity.x = facing.direction * ((attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * cos(angle))
+        velocity.y = (attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * sin(angle)
+    else:
+        facing.from_input_threshold()
+        state.teleport_stick_x = 0
+        strength = 1
+        state.teleport_stick_y = 1
+        let float angle = float(pi / 2)
+        velocity.x = facing.direction * ((attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * cos(angle))
+        velocity.y = (attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * sin(angle)
+    state.enter_at(353, 0, 35)
+    animation.start()
+    animation.set_rate(0)
+    teleport_travel_setup()
+
+func teleport_ground_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    # Ground retains equality; air requires strict greater-than.
+    if not (strength < attrs.teleport_stick_minimum):
+        let float floor_angle = vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y)
+        if not (floor_angle < float(pi / 2)):
+            if not collision.skip_soft_floor():
+                facing.from_input()
+                let float angle = atan2_float(input.y, input.x * facing.direction)
+                state.teleport_stick_x = input.x
+                state.teleport_stick_y = input.y
+                ground.velocity = facing.direction * ((attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * cos(angle))
+                state.enter_at(350, 0, 35)
+                animation.start()
+                animation.set_rate(0)
+                teleport_travel_setup()
+                return
+    physics.force_air_and_use_jumps()
+    teleport_air_launch()
+
+func teleport_end(bool air_started):
+    if air_started: state.enter_at(354, 0, 0)
+    else: state.enter_at(351, 0, 0)
+    animation.start()
+    state.teleport_saved_x = velocity.x
+    state.teleport_saved_y = velocity.y
+    state.teleport_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    visuals.set_visible(true)
+    callbacks.accessory(teleport_end_effect)
+    if air_started:
+        velocity.x = state.teleport_saved_x * attrs.teleport_end_momentum
+        velocity.y = state.teleport_saved_y * attrs.teleport_end_momentum
+    else:
+        ground.velocity = state.teleport_saved_ground * attrs.teleport_end_momentum
+
+func teleport_air_travel_collision():
+    state.teleport_collision_age = state.teleport_collision_age + 1
+    if collision.check_ground_ledge(facing.sign):
+        let bool land = true
+        if state.teleport_collision_age < attrs.teleport_platform_grace:
+            land = not collision.skip_soft_floor()
+        if land:
+            physics.switch_to_ground()
+            state.enter_at_speed(350, 0x0c4c508e, frame, 0)
+            visuals.set_visible(false)
+            return
+    if collision.cliff_catch(): return
+    let float limit = radians(90.0 + attrs.teleport_surface_angle)
+    # Independent probes preserve changed velocity after an earlier end.
+    if collision.ceiling_contact and vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y) > limit:
+        teleport_end(true)
+    if collision.left_wall and vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y) > limit:
+        teleport_end(true)
+    if collision.right_wall and vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y) > limit:
+        teleport_end(true)
+
+
+func transform_start_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_start_effect, attrs.transform_start_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_finish_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_finish_effect, attrs.transform_finish_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_transfer():
+    callbacks.accessory(None)
+    # The destination invokes its own form_activated policy. Do not write the
+    # source after activation: it normally survives, but is now dormant.
+    forms.activate_partner()
+    return
+
+func transform_start():
+    command(0) = 0
+    velocity.x = velocity.x / attrs.transform_horizontal_divisor
+    velocity.y = velocity.y / attrs.transform_vertical_divisor
+    ground.velocity = ground.velocity / attrs.transform_horizontal_divisor
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.transform_origin_joint, x, y, z)
+    effects.wind_at_position(x, y, z, attrs.transform_wind_frames, attrs.transform_wind_strength, attrs.transform_wind_decay, attrs.transform_wind_frequency)
+    callbacks.accessory(transform_start_effect)
+
+
+
+
+func cpu_din_finish_without_target():
+    cpu.clear_target()
+    cpu.behavior = cpu.previous_behavior
+    cpu.queue(Cpu.done)
+
+func cpu_din_release():
+    cpu.queue(Cpu.release_b)
+    cpu.queue(Cpu.stick_x, 0)
+    cpu.queue(Cpu.stick_y, 0)
+    cpu.queue(Cpu.wait, attrs.cpu_din_wait_frames)
+
+func cpu_din_control():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not articles.read_primary_translation(state.din_handle, It_Kind_Zelda_DinFire, x, y, z):
+        cpu.queue(Cpu.done)
+        return
+    let int enemy = cpu.nearest_enemy_at(x, y, z)
+    if enemy == 0:
+        cpu_din_finish_without_target()
+        return
+    let float enemy_x = 0
+    let float enemy_y = 0
+    let float enemy_z = 0
+    if not targets.read_position(enemy, enemy_x, enemy_y, enemy_z):
+        cpu_din_finish_without_target()
+        return
+    let float enemy_distance = abs(enemy_x - position.x)
+    let float projectile_distance = abs(x - position.x)
+    if projectile_distance > enemy_distance:
+        cpu_din_release()
+    elif abs(x - enemy_x) < attrs.cpu_din_release_radius and abs(attrs.cpu_din_target_height + enemy_y - y) < attrs.cpu_din_release_radius:
+        cpu_din_release()
+    elif attrs.cpu_din_target_height + enemy_y > y:
+        cpu.queue(Cpu.stick_y, attrs.cpu_din_stick_up)
+    else:
+        cpu.queue(Cpu.stick_y, attrs.cpu_din_stick_down)
+    cpu.queue(Cpu.done)
+
+
+move PendingAction:
+    on cpu_pending_action:
+        if cpu.pending_action:
+            cpu.run_script(attrs.cpu_pending_script)
+            cpu.pending_action = false
+            return true
+        return false
+
+move ZeldaRecovery:
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.wait, attrs.cpu_recovery_wait_frames)
+        cpu.queue(Cpu.stick_y, attrs.cpu_recovery_stick_strength)
+        if abs(cpu.destination.x - position.x) > attrs.cpu_recovery_diagonal_distance:
+            cpu.queue(Cpu.x_toward_destination, attrs.cpu_recovery_stick_strength)
+            cpu.queue(Cpu.press_b_for, attrs.cpu_recovery_press_frames)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.stick_x, 0)
+        else:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.press_b_for, attrs.cpu_recovery_press_frames)
+            cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.wait, attrs.cpu_recovery_wait_frames)
+        cpu.queue(Cpu.done)
+
+move Zelda:
+    on special_n:
+        state.enter_at(341, 0, 0)
+        animation.start()
+        command(0) = 0
+        state.neutral_gravity_timer = attrs.neutral_gravity_delay
+        callbacks.accessory(neutral_ground_effect)
+    on special_air_n:
+        velocity.y = 0
+        velocity.x = velocity.x / attrs.neutral_horizontal_divisor
+        state.enter_at(342, 0, 0)
+        animation.start()
+        command(0) = 0
+        state.neutral_gravity_timer = attrs.neutral_gravity_delay
+        callbacks.accessory(neutral_air_effect)
+    on state_341_animation:
+        neutral_tick(false)
+    on state_342_animation:
+        neutral_tick(true)
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+        reflector.update()
+    on state_342_physics:
+        if state.neutral_gravity_timer != 0:
+            state.neutral_gravity_timer = state.neutral_gravity_timer - 1
+        else:
+            physics.fall(attrs.neutral_gravity, air.terminal_velocity)
+        physics.quick_air_decel()
+        reflector.update()
+    on state_341_collision:
+        if collision.left_ground:
+            state.switch_to_air(342, 0x0c4c508e)
+            if command(0) == 2: neutral_reflector()
+            callbacks.accessory(neutral_air_effect)
+    on state_342_collision:
+        if collision.landed:
+            state.switch_to_ground(341, 0x0c4c508e)
+            if command(0) == 2: neutral_reflector()
+            callbacks.accessory(neutral_ground_effect)
+    on reflect_hit:
+        return
+    on load:
+        fighter.copy_ext_attributes()
+        state.din_handle = -1
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.din_handle = -1
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+move DinTravel:
+    on special_s:
+        state.enter_at(343, 0, 0)
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        din_reset()
+        animation.start()
+    on special_air_s:
+        state.enter_at(346, 0, 0)
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        velocity.y = 0
+        din_reset()
+        animation.start()
+    on state_343_animation:
+        din_start_tick(false)
+    on state_344_animation:
+        din_loop_tick(false)
+    on state_345_animation:
+        din_end_tick(false)
+    on state_346_animation:
+        din_start_tick(true)
+    on state_347_animation:
+        din_loop_tick(true)
+    on state_348_animation:
+        din_end_tick(true)
+    on state_343_interrupt:
+        return
+    on state_344_interrupt:
+        din_release_tick(false)
+    on state_345_interrupt:
+        return
+    on state_346_interrupt:
+        return
+    on state_347_interrupt:
+        din_release_tick(true)
+    on state_348_interrupt:
+        return
+    on state_343_physics:
+        if state.din_gravity_remaining != 0:
+            state.din_gravity_remaining = state.din_gravity_remaining - 1
+        physics.ground_friction()
+    on state_344_physics:
+        physics.ground_friction()
+    on state_345_physics:
+        physics.ground_friction()
+    on state_346_physics:
+        din_air_physics()
+    on state_347_physics:
+        din_air_physics()
+    on state_348_physics:
+        din_air_physics()
+    on state_343_collision:
+        if collision.left_ground: state.switch_to_air(346, 0x0c4c5082)
+    on state_344_collision:
+        if collision.left_ground: state.switch_to_air(347, 0x0c4c5080)
+    on state_345_collision:
+        if collision.left_ground: state.switch_to_air(348, 0x0c4c5080)
+    on state_346_collision:
+        if collision.landed: state.switch_to_ground(343, 0x0c4c5082)
+    on state_347_collision:
+        if collision.landed: state.switch_to_ground(344, 0x0c4c5080)
+    on state_348_collision:
+        if collision.landed: state.switch_to_ground(345, 0x0c4c5080)
+
+move FaroresWind:
+    on special_hi:
+        ground.velocity = 0
+        velocity.y = 0
+        velocity.x = 0
+        state.enter_at(349, 0, 0)
+        animation.start()
+        teleport_start_setup()
+    on special_air_hi:
+        velocity.x = velocity.x / attrs.teleport_start_x_divisor
+        velocity.y = velocity.y / attrs.teleport_start_y_divisor
+        state.enter_at(352, 0, 0)
+        animation.start()
+        teleport_start_setup()
+    on state_349_animation:
+        if animation.finished: teleport_ground_launch()
+    on state_352_animation:
+        if animation.finished: teleport_air_launch()
+    on state_350_animation:
+        state.teleport_remaining = state.teleport_remaining - 1
+        if state.teleport_remaining <= 0: teleport_end(false)
+    on state_353_animation:
+        state.teleport_remaining = state.teleport_remaining - 1
+        if state.teleport_remaining <= 0: teleport_end(true)
+    on state_351_animation:
+        if animation.finished: state.wait()
+    on state_354_animation:
+        if animation.finished: state.freefall(1, 0, true, attrs.teleport_freefall_mobility, attrs.teleport_landing_lag)
+    on state_349_interrupt:
+        return
+    on state_350_interrupt:
+        return
+    on state_351_interrupt:
+        return
+    on state_352_interrupt:
+        return
+    on state_353_interrupt:
+        return
+    on state_354_interrupt:
+        return
+    on state_349_physics:
+        physics.ground_friction()
+    on state_352_physics:
+        physics.fall(attrs.teleport_start_gravity, attrs.teleport_start_terminal)
+        physics.air_decel_normal()
+    on state_350_physics:
+        physics.ground_to_self()
+    on state_353_physics:
+        return
+    on state_351_physics:
+        physics.ground_friction()
+    on state_354_physics:
+        if command(0) != 0:
+            physics.fall_basic()
+            let float maximum = attrs.teleport_end_drift_multiplier * air.drift_max
+            if velocity.x < -maximum: velocity.x = -maximum
+            elif velocity.x > maximum: velocity.x = maximum
+            return
+        velocity.y = velocity.y - velocity.y / 10
+        physics.air_decel_normal()
+    on state_349_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at(352, 0x0c4c508e, frame)
+            callbacks.accessory(teleport_start_effect)
+    on state_352_collision:
+        if collision.check_ground_ledge(facing.sign):
+            state.switch_to_ground(349, 0x0c4c508e)
+            callbacks.accessory(teleport_start_effect)
+        else:
+            collision.cliff_catch()
+    on state_350_collision:
+        if collision.left_ground:
+            if collision.left_wall or collision.right_wall:
+                physics.force_air_and_use_jumps()
+                teleport_end(true)
+                return
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(353, 0x0c4c508e, frame, 0)
+            items.block_ground_pickup = true
+            visuals.set_visible(false)
+        elif collision.left_wall or collision.right_wall:
+            teleport_end(false)
+    on state_353_collision:
+        teleport_air_travel_collision()
+    on state_351_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at(354, 0x0c4c508a, frame)
+    on state_354_collision:
+        if collision.check_ground_ledge(facing.sign):
+            state.landing_special(false, attrs.teleport_landing_lag)
+            return
+        collision.cliff_catch()
+
+move Down:
+    on special_lw:
+        state.enter_at(355, 0, 0)
+        animation.start()
+        transform_start()
+    on special_air_lw:
+        state.enter_at(357, 0, 0)
+        animation.start()
+        transform_start()
+    on form_activated:
+        if airborne: state.enter_at(358, 0, attrs.transform_finish_frame)
+        else: state.enter_at(356, 0, attrs.transform_finish_frame)
+        # Stock finish does not restart/reset the animation after this entry.
+        callbacks.accessory(transform_finish_effect)
+    on state_355_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_356_animation:
+        if animation.finished:
+            state.wait()
+    on state_357_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_358_animation:
+        if animation.finished:
+            state.fall()
+    on state_355_interrupt:
+        pass
+    on state_356_interrupt:
+        pass
+    on state_357_interrupt:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_355_physics:
+        physics.ground_friction()
+    on state_356_physics:
+        physics.ground_friction()
+    on state_357_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_358_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_355_collision:
+        if collision.left_ground:
+            state.switch_to_air(357, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_356_collision:
+        if collision.left_ground:
+            state.switch_to_air(358, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)
+    on state_357_collision:
+        if collision.landed:
+            state.switch_to_ground(355, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_358_collision:
+        if collision.landed:
+            state.switch_to_ground(356, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)
+
+move DinCpu:
+    on cpu_attack_decision:
+        if motion.id >= attrs.cpu_din_motion_first and motion.id <= attrs.cpu_din_motion_last:
+            cpu_din_control()
+            return true
+        return false
+    on cpu_travel_decision:
+        if motion.id >= attrs.cpu_din_motion_first and motion.id <= attrs.cpu_din_motion_last:
+            cpu_din_control()
+            # Original Zelda returns here without incrementing travel_frames.
+            # Ness and Yoshi deliberately make a different owned decision.
+            return true
+        return false
+
+article It_Kind_Zelda_DinFire states 2:
+    attribute float lifetime 0
+    attribute float charge_limit 4
+    attribute float scale_min 8
+    attribute float scale_max 12
+    attribute float initial_angle 16
+    attribute float initial_speed 20
+    attribute float acceleration 24
+    attribute float speed_limit 28
+    attribute float steering_threshold 32
+    attribute float steering_angle_step 36
+    attribute float steering_angle_limit 40
+    attribute float burst_delay 44
+    state float charge
+    state bool reflected
+    state float angle
+    state float base_angle
+    state float speed
+    state bool effect_active
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            item.state.angle = item.attr.initial_angle * facing
+            if facing == 1:
+                item.state.base_angle = 0
+            else:
+                item.state.base_angle = float(pi)
+            item.state.speed = item.attr.initial_speed
+            item.spawn_root_effect(1272)
+            item.state.effect_active = true
+            velocity.x = item.state.speed * cos(item.state.base_angle + item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.base_angle + item.state.angle)
+            velocity.z = 0
+            item.inherit_owner_debug_display()
+    on signal detach_control:
+            item.clear_current_owner()
+            item.clear_attachment_owner()
+            item.owner_bound = false
+    on signal burst:
+            if item.state.effect_active:
+                item.destroy_effects()
+                item.state.effect_active = false
+            item.change_state_flags(1, 2)
+            item.spawn_root_effect(1273)
+            item.state.effect_active = true
+            # Direct assignment deliberately retains the existing half-life.
+            item.life = item.attr.burst_delay
+    on destroyed:
+            hitboxes.disable_all()
+            if attachment_owner.exists:
+                if item.attachment_active:
+                    attachment_owner.helpers.forget_din()
+                item.clear_attachment_owner()
+            if item.state.effect_active:
+                item.destroy_effects()
+                item.state.effect_active = false
+            item.owner_bound = false
+    on reflected:
+            item.state.reflected = true
+            facing = -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            velocity.x = -velocity.x
+            velocity.y = -velocity.y
+            velocity.z = 0
+            return false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if not item.state.reflected:
+                item.state.charge = item.state.charge + 1
+                if item.state.charge >= item.attr.charge_limit:
+                    item.state.charge = item.attr.charge_limit
+                if attachment_owner.exists and item.attachment_active:
+                    if attachment_owner.helpers.din_release_requested():
+                        item.signal("burst", 0)
+            let float scale = item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit) + item.attr.scale_min
+            item.set_scale(scale)
+            # Expiry runs after the requested burst, even when that duplicates it.
+            if item.expire_tick():
+                item.signal("burst", 0)
+            return false
+        on physics:
+            if not item.state.reflected and attachment_owner.exists and item.attachment_active:
+                if attachment_owner.helpers.din_can_steer():
+                    if abs(attachment_owner.input.y) > item.attr.steering_threshold:
+                        item.state.angle = facing * (item.attr.steering_angle_step * attachment_owner.input.y) + item.state.angle
+                        if abs(item.state.angle) > item.attr.steering_angle_limit:
+                            if item.state.angle > 0:
+                                item.state.angle = item.attr.steering_angle_limit
+                            else:
+                                item.state.angle = -item.attr.steering_angle_limit
+                    item.state.speed = item.state.speed + item.attr.acceleration
+                    if item.state.speed > item.attr.speed_limit:
+                        item.state.speed = item.attr.speed_limit
+                    velocity.x = item.state.speed * cos(item.state.base_angle + item.state.angle)
+                    velocity.y = item.state.speed * sin(item.state.base_angle + item.state.angle)
+                    velocity.z = 0
+        on collision:
+            item.stage_collision(false)
+            let bool contact = false
+            if velocity.y > 0:
+                if collision.ceiling_contact:
+                    contact = true
+            elif collision.floor_contact:
+                contact = true
+            if velocity.x > 0:
+                if collision.left_wall:
+                    contact = true
+            elif collision.right_wall:
+                contact = true
+            if contact:
+                item.signal("burst", 0)
+            return false
+    state 1 anim 1:
+        on animation:
+            let float scale = item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit) + item.attr.scale_min
+            item.set_scale(scale)
+            if item.expire_tick():
+                if item.state.effect_active:
+                    item.destroy_effects()
+                    item.state.effect_active = false
+                if attachment_owner.exists and item.attachment_active:
+                    let int created_explosion = item.create_child(It_Kind_Zelda_DinFire_Explode, position.x, position.y, 0, facing, item.current_owner, 0, item.state.charge, 0)
+                    if attachment_owner.exists:
+                        attachment_owner.helpers.forget_din()
+                return true
+            return false
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+
+article It_Kind_Zelda_DinFire_Explode states 1:
+    attribute float charge_limit 0
+    attribute float scale_min 4
+    attribute float scale_max 8
+    attribute float damage_base 12
+    attribute float damage_charge_step 16
+    state float charge
+    state float base_hitbox_radius
+    state bool effect_active
+    # Called after the initial animation update, retaining feedback order.
+    on signal initialization_feedback:
+            let float ratio = item.state.charge / item.attr.charge_limit
+            if ratio < 0.4375:
+                item.rumble(11, 10)
+            elif ratio < 0.625:
+                item.rumble(12, 10)
+            elif ratio < 0.8125:
+                item.rumble(13, 15)
+                camera.quake(2, position.x, position.y, position.z)
+            else:
+                item.rumble(14, 20)
+                camera.quake(3, position.x, position.y, position.z)
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.state.charge = item.creation_value
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(60)
+            item.state.base_hitbox_radius = 0
+            item.spawn_root_effect(1274)
+            item.state.effect_active = true
+            item.advance_animation()
+            let float scale_step = (item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit
+            let float scale = item.state.charge * scale_step + item.attr.scale_min
+            item.set_scale(scale)
+            if hitbox.enabled(0):
+                hitbox.set_damage(0, item.state.charge * item.attr.damage_charge_step + item.attr.damage_base)
+                if item.state.base_hitbox_radius == 0:
+                    item.state.base_hitbox_radius = hitbox.radius(0)
+                hitbox.set_radius(0, item.state.base_hitbox_radius * scale)
+            let bool initial_expired = item.expire_tick()
+            item.signal("initialization_feedback", 0)
+            item.inherit_owner_debug_display()
+    on destroyed:
+            hitboxes.disable_all()
+            item.clear_current_owner()
+            item.destroy_effects()
+            item.state.effect_active = false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            let float scale_step = (item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit
+            let float scale = item.state.charge * scale_step + item.attr.scale_min
+            item.set_scale(scale)
+            if hitbox.enabled(0):
+                hitbox.set_damage(0, item.state.charge * item.attr.damage_charge_step + item.attr.damage_base)
+                if item.state.base_hitbox_radius == 0:
+                    item.state.base_hitbox_radius = hitbox.radius(0)
+                hitbox.set_radius(0, item.state.base_hitbox_radius * scale)
+            return item.expire_tick()
+        on physics:
+            # Retail preserves X and clears only Y/Z, including its doubled Z.
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false

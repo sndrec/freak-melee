@@ -1,0 +1,660 @@
+# Needle source composition; unregistered and not installed.
+# Generic floor-motion flag and bounded hitbox disable use frozen SDK61.
+# Combined damage cleanup must add Chain cleanup after this component.
+base ftDataSeak 341 24
+attribute float needle_ground_x 0
+attribute float needle_ground_y 4
+attribute float needle_air_x 8
+attribute float needle_air_y 12
+attribute float needle_landing_lag 16
+parameter int needle_limit = 6
+parameter int needle_charge_sound = 270134
+parameter int needle_fire_sound = 270140
+parameter int needle_charge_color = 86
+parameter int needle_charge_saturated_tick = 100
+parameter int needle_held_part = 23
+state int needle_count
+state int needle_held
+state int needle_shot_tick
+state bool needle_shot_pending
+state int needle_charge_tick
+
+func needle_clear_callbacks():
+    callbacks.damage(None)
+    callbacks.death2(None)
+
+func needle_bind_callbacks():
+    callbacks.damage(needle_cleanup)
+    callbacks.death2(needle_cleanup)
+
+export func needle_count_query() -> int:
+    return state.needle_count
+
+export func needle_held_missing() -> bool:
+    return state.needle_held == -1
+
+func needle_cleanup():
+    if state.needle_held != -1:
+        # Clear reference before constructors/callbacks, as in original source.
+        state.needle_held = -1
+        while state.needle_count != 0:
+            let float y_scale = attrs.needle_ground_y
+            if airborne:
+                y_scale = attrs.needle_air_y
+            let int dropped = articles.create_at_position(It_Kind_Seak_NeedleThrow, position.x, position.y + model.instance_scale_y * y_scale, 0, facing.direction, true)
+            if dropped != -1:
+                articles.signal(dropped, It_Kind_Seak_NeedleThrow, "initialize_drop", 0)
+            state.needle_count = state.needle_count - 1
+        if callbacks.death2_is(needle_cleanup) or callbacks.damage_is(needle_cleanup):
+            needle_clear_callbacks()
+    state.needle_count = 0
+
+func needle_start_tick(bool air_started):
+    if animation.finished:
+        state.needle_held = articles.create_at_position(It_Kind_Seak_NeedleHeld, position.x, position.y, 0, facing.direction, false)
+        if air_started:
+            state.enter_at_speed(346, 0, 0, 1)
+        else:
+            state.enter_at_speed(342, 0, 0, 1)
+        needle_bind_callbacks()
+
+func needle_charge():
+    if state.needle_charge_tick == 0:
+        sound.play(attrs.needle_charge_sound, 127, 64)
+    state.needle_charge_tick = state.needle_charge_tick + 1
+    if frame == 0:
+        state.needle_count = state.needle_count + 1
+        state.needle_charge_tick = 0
+        if state.needle_count > attrs.needle_limit:
+            state.needle_count = attrs.needle_limit
+            state.needle_charge_tick = attrs.needle_charge_saturated_tick
+            color.start(attrs.needle_charge_color, false)
+
+func needle_finish_air():
+    if attrs.needle_landing_lag == 0:
+        state.fall()
+    else:
+        state.freefall(1, 0, true, 1, attrs.needle_landing_lag)
+
+func needle_end_tick(bool air_started):
+    if state.needle_shot_tick == 2 or state.needle_shot_tick == 5 or state.needle_shot_tick == 8 or state.needle_shot_tick == 11 or state.needle_shot_tick == 14 or state.needle_shot_tick == 17:
+        state.needle_shot_pending = true
+        state.needle_held = -1
+    state.needle_shot_tick = state.needle_shot_tick + 1
+    if animation.finished:
+        if air_started:
+            needle_finish_air()
+        else:
+            state.wait()
+
+func needle_interrupt(bool air_started):
+    if not input.special_held:
+        state.needle_shot_tick = 0
+        if air_started:
+            state.enter_at_speed(348, 0, 0, 1)
+        else:
+            state.enter_at_speed(344, 0, 0, 1)
+        needle_bind_callbacks()
+        callbacks.accessory(needle_fire)
+    elif input.shield_pressed:
+        if air_started:
+            state.enter_at_speed(347, 0, 0, 1)
+        else:
+            state.enter_at_speed(343, 0, 0, 1)
+        needle_bind_callbacks()
+
+func needle_fire():
+    if state.needle_shot_pending:
+        state.needle_shot_pending = false
+        if state.needle_count > 0:
+            let float x = position.x
+            let float y = position.y
+            if grounded:
+                x = x + model.instance_scale_y * (attrs.needle_ground_x * facing.direction)
+                let int sample = random.int(9)
+                y = y + model.instance_scale_y * (attrs.needle_ground_y + (sample - 4) * 0.25)
+            else:
+                x = x + model.instance_scale_y * (attrs.needle_air_x * facing.direction)
+                let int sample = random.int(9)
+                y = y + model.instance_scale_y * (2 * ((sample - 4) * 0.25) + attrs.needle_air_y)
+            let int shot = articles.create_at_position(It_Kind_Seak_NeedleThrow, x, y, 0, facing.direction, true)
+            if shot != -1:
+                articles.signal(shot, It_Kind_Seak_NeedleThrow, "initialize_shot", 0)
+            state.needle_count = state.needle_count - 1
+            # Cue and sound occur even if allocation fails.
+            effects.spawn_at_position(1283, x, y, 0)
+            sound.play(attrs.needle_fire_sound, 127, 64)
+
+move Needles:
+    on special_n:
+        state.enter_at_speed(341, 0, 0, 1)
+        let bool consumed = cue.consume(0)
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.needle_shot_tick = 0
+        if state.needle_count == 0:
+            state.needle_count = 1
+        state.needle_shot_pending = false
+        state.needle_charge_tick = 0
+        needle_bind_callbacks()
+        animation.start()
+    on special_air_n:
+        state.enter_at_speed(345, 0, 0, 1)
+        let bool consumed = cue.consume(0)
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.needle_shot_tick = 0
+        if state.needle_count == 0:
+            state.needle_count = 1
+        state.needle_shot_pending = false
+        state.needle_charge_tick = 0
+        needle_bind_callbacks()
+        animation.start()
+    on state_341_animation:
+        needle_start_tick(false)
+    on state_342_animation:
+        needle_charge()
+    on state_343_animation:
+        state.needle_held = -1
+        if animation.finished:
+            state.wait()
+    on state_344_animation:
+        needle_end_tick(false)
+    on state_345_animation:
+        needle_start_tick(true)
+    on state_346_animation:
+        needle_charge()
+    on state_347_animation:
+        state.needle_held = -1
+        if animation.finished:
+            needle_finish_air()
+    on state_348_animation:
+        needle_end_tick(true)
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        needle_interrupt(false)
+    on state_343_interrupt:
+        return
+    on state_344_interrupt:
+        return
+    on state_345_interrupt:
+        return
+    on state_346_interrupt:
+        needle_interrupt(true)
+    on state_347_interrupt:
+        return
+    on state_348_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_343_physics:
+        physics.ground_friction()
+    on state_344_physics:
+        physics.ground_friction()
+    on state_345_physics:
+        physics.air_drift()
+    on state_346_physics:
+        physics.air_drift()
+    on state_347_physics:
+        physics.air_drift()
+    on state_348_physics:
+        physics.air_drift()
+    on state_341_collision:
+        if collision.left_ground:
+            state.switch_to_air(345, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_342_collision:
+        if collision.left_ground:
+            state.switch_to_air(346, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_343_collision:
+        if collision.left_ground:
+            needle_clear_callbacks()
+            needle_finish_air()
+    on state_344_collision:
+        if collision.left_ground:
+            needle_clear_callbacks()
+            state.needle_count = 0
+            state.needle_shot_pending = false
+            needle_finish_air()
+    on state_345_collision:
+        if collision.landed:
+            state.switch_to_ground(341, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_346_collision:
+        if collision.landed:
+            state.switch_to_ground(342, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_347_collision:
+        if collision.landed:
+            state.land()
+            needle_clear_callbacks()
+    on state_348_collision:
+        if collision.landed:
+            needle_clear_callbacks()
+            state.needle_count = 0
+            state.needle_shot_pending = false
+            state.land()
+
+article It_Kind_Seak_NeedleHeld states 1:
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+            item.attach_to_owner(attrs.needle_held_part, false)
+    on picked_up:
+            item.change_state_flags(0, 2)
+    on interaction:
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            if not creator.exists:
+                return true
+            if not item.attachment_active:
+                return false
+            if targets.call_bool(item.current_owner, "needle_held_missing"):
+                return true
+            let int count = targets.call_int(item.current_owner, "needle_count_query")
+            item.joint(0, "0/0").visible = count > 0
+            item.joint(0, "0/1").visible = count > 1
+            item.joint(0, "0/2").visible = count > 2
+            item.joint(0, "0/3").visible = count > 3
+            item.joint(0, "0/4").visible = count > 4
+            item.joint(0, "0/5").visible = count > 5
+            let float scale = creator.model_scale
+            item.joint(0, "0").scale.x = scale
+            item.joint(0, "0").scale.y = scale
+            item.joint(0, "0").scale.z = scale
+            return false
+        on physics:
+            return
+        on collision:
+            return false
+
+article It_Kind_Seak_NeedleThrow states 5:
+    attribute float active_lifetime 0
+    attribute float resting_lifetime 4
+    attribute float initial_speed 8
+    state float terminal_table[8]
+    state float gravity_table[8]
+    state float drop_spin_table[8]
+    state float bounce_x_table[8]
+    state float bounce_spin_table[8]
+    state float spin
+    state float horizontal
+    state float terminal
+    state float gravity
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float direction
+    state int surface_line
+    state float current_surface_angle
+    state float previous_surface_angle
+    state float normal_x
+    state float normal_y
+    state float normal_z
+    state int sweep_flags
+    state bool sweep_hit
+
+    func BounceSetup():
+        let float sign = 1
+        if random.int(2) != 0:
+            sign = -1
+        let int sample = random.int(8)
+        item.state.spin = item.state.bounce_spin_table[sample] * sign
+        sign = 1
+        if random.int(2) != 0:
+            sign = -1
+        sample = random.int(8)
+        item.state.horizontal = item.state.bounce_x_table[sample] * sign
+        sample = random.int(8)
+        item.state.terminal = item.state.terminal_table[sample]
+        sample = random.int(8)
+        item.state.gravity = item.state.gravity_table[sample]
+
+    func FallingPhysics():
+        velocity.x = item.state.horizontal
+        velocity.y = velocity.y + item.state.gravity
+        if velocity.y < item.state.terminal:
+            velocity.y = item.state.terminal
+
+    func SavePosition():
+        item.state.previous_x = position.x
+        item.state.previous_y = position.y
+        item.state.previous_z = position.z
+
+    on created:
+            # Owned source tables retain exact stock f32 literals, not a formula
+            # that would round intermediate samples differently.
+            item.state.terminal_table[0] = -2
+            item.state.terminal_table[1] = -2.1
+            item.state.terminal_table[2] = -2.2
+            item.state.terminal_table[3] = -2.3
+            item.state.terminal_table[4] = -2.4
+            item.state.terminal_table[5] = -2.5
+            item.state.terminal_table[6] = -2.6
+            item.state.terminal_table[7] = -2.7
+            item.state.gravity_table[0] = -0.1
+            item.state.gravity_table[1] = -0.12
+            item.state.gravity_table[2] = -0.14
+            item.state.gravity_table[3] = -0.18
+            item.state.gravity_table[4] = -0.2
+            item.state.gravity_table[5] = -0.22
+            item.state.gravity_table[6] = -0.24
+            item.state.gravity_table[7] = -0.26
+            item.state.drop_spin_table[0] = 0.20943952
+            item.state.drop_spin_table[1] = 0.2443461
+            item.state.drop_spin_table[2] = 0.27925268
+            item.state.drop_spin_table[3] = 0.31415927
+            item.state.drop_spin_table[4] = 0.34906584
+            item.state.drop_spin_table[5] = 0.38397244
+            item.state.drop_spin_table[6] = 0.41887903
+            item.state.drop_spin_table[7] = 0.4537856
+            item.state.bounce_x_table[0] = 0
+            item.state.bounce_x_table[1] = 0.2
+            item.state.bounce_x_table[2] = 0.4
+            item.state.bounce_x_table[3] = 0.6
+            item.state.bounce_x_table[4] = 0.8
+            item.state.bounce_x_table[5] = 1
+            item.state.bounce_x_table[6] = 1.2
+            item.state.bounce_x_table[7] = 1.4
+            item.state.bounce_spin_table[0] = 0.5235988
+            item.state.bounce_spin_table[1] = 0.61086524
+            item.state.bounce_spin_table[2] = 0.6981317
+            item.state.bounce_spin_table[3] = 0.7853982
+            item.state.bounce_spin_table[4] = 0.87266463
+            item.state.bounce_spin_table[5] = 0.9599311
+            item.state.bounce_spin_table[6] = 1.0471976
+            item.state.bounce_spin_table[7] = 1.134464
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.set_lifetime(item.attr.active_lifetime)
+            item.state.surface_line = -1
+            item.state.previous_surface_angle = 0
+            item.state.current_surface_angle = 0
+            SavePosition()
+            item.custom_floor_motion = true
+    on signal initialize_shot:
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.custom_floor_motion = true
+            item.set_lifetime(item.attr.active_lifetime)
+            let float factor = 1.5707964
+            if targets.airborne(item.current_owner):
+                factor = 2.3561945
+            item.state.direction = facing * factor + 1.5707964
+            velocity.x = -item.attr.initial_speed * cos(item.state.direction)
+            velocity.y = item.attr.initial_speed * sin(item.state.direction)
+            velocity.z = 0
+            item.state.previous_x = position.x - 3 * velocity.x
+            item.state.previous_y = position.y - 3 * velocity.y
+            item.state.previous_z = 0
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float angle = atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = -facing * angle
+            item.inherit_owner_debug_display()
+    on signal initialize_drop:
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(1, 2)
+            item.custom_floor_motion = true
+            item.set_lifetime(item.attr.active_lifetime)
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            # Explicit order matches the native compiler's current operand order;
+            # original C does not sequence the two multiplication operands.
+            let int sample = random.int(8)
+            let float spin = item.state.drop_spin_table[sample]
+            let float sign = 1
+            if random.int(2) != 0:
+                sign = -1
+            item.state.spin = spin * sign
+            item.state.horizontal = 0
+            sample = random.int(8)
+            item.state.terminal = item.state.terminal_table[sample]
+            sample = random.int(8)
+            item.state.gravity = item.state.gravity_table[sample]
+            item.inherit_owner_debug_display()
+    on destroyed:
+            item.clear_current_owner()
+    on damage_dealt:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on damage_received:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on clanked:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on hit_shield:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on reflected:
+            facing = -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            let float dx = position.x - item.state.previous_x
+            let float dy = position.y - item.state.previous_y
+            item.state.previous_x = position.x + dx
+            item.state.previous_y = position.y + dy
+            item.state.previous_z = 0
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float angle = atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = -facing * angle
+            angle = atan2(angle_y, angle_x)
+            velocity.x = item.attr.initial_speed * cos(angle)
+            velocity.y = item.attr.initial_speed * sin(angle)
+            item.life = item.half_life
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            let float angle = atan2(velocity.y, velocity.x)
+            while angle < 0:
+                angle = angle + pi * 2
+            while angle > pi * 2:
+                angle = angle - pi * 2
+            if velocity.x >= 0:
+                facing = 1
+            else:
+                facing = -1
+            item.joint(0, "0").rotation.x = angle * -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            SavePosition()
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float rotation = -facing * atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = rotation
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                let int choice = random.int(5)
+                if choice < 3:
+                    item.grounded = false
+                    velocity.x = 0
+                    velocity.y = 0
+                    velocity.z = 0
+                    item.set_lifetime(item.attr.resting_lifetime)
+                    item.state.direction = rotation
+                    item.change_state_flags(2, 2)
+                    item.play_sound(0x41F39, 127, 64)
+                else:
+                    item.set_lifetime(item.attr.resting_lifetime)
+                    let int sample = random.int(8)
+                    # Stock ABS samples once for its sign test and again on the negative branch.
+                    let float launch = item.state.terminal_table[sample]
+                    if launch < 0:
+                        sample = random.int(8)
+                        launch = -item.state.terminal_table[sample]
+                    velocity.y = launch
+                    item.grounded = false
+                    BounceSetup()
+                    item.change_state_flags(4, 2)
+            return false
+    state 1 anim 1:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.joint(0, "0").rotation.x + item.state.spin
+            return item.expire_tick()
+        on physics:
+            FallingPhysics()
+        on collision:
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.y = abs(velocity.y)
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                item.play_sound(0x41F39, 127, 64)
+            return false
+    state 2 anim 2:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.state.direction
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            item.grounded = false
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.state.previous_surface_angle = item.state.current_surface_angle
+            if item.state.surface_line != -1:
+                if stage.line_exists(item.state.surface_line):
+                    item.bind_stage_line(item.state.surface_line)
+                    item.read_stage_line_speed(item.state.surface_line)
+                    stage.line_normal(item.state.surface_line, item.state.normal_x, item.state.normal_y, item.state.normal_z)
+                    item.state.current_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+            else:
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+            if item.state.current_surface_angle != item.state.previous_surface_angle:
+                item.state.direction = item.state.direction + (item.state.current_surface_angle - item.state.previous_surface_angle)
+                item.joint(0, "0").rotation.x = item.state.direction
+            return false
+    state 3 anim 3:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    state 4 anim 4:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.joint(0, "0").rotation.x + item.state.spin
+            return false
+        on physics:
+            FallingPhysics()
+        on collision:
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                item.set_lifetime(item.attr.resting_lifetime)
+                item.state.direction = item.joint(0, "0").rotation.x
+                item.change_state_flags(2, 2)
+                item.grounded = false
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+            return false

@@ -1,0 +1,82 @@
+# Owned attack/travel/recovery decisions; common46.fms supplies SDK46 queries.
+parameter int cpu_flash_first_motion = 348
+parameter int cpu_flash_last_motion = 351
+parameter int cpu_thunder_first_motion = 358
+parameter int cpu_thunder_last_motion = 366
+parameter float cpu_flash_release_height = 25
+parameter int cpu_stick_strength = 127
+parameter float cpu_recovery_height_margin = 10
+parameter int cpu_recovery_minimum_level = 9
+parameter float cpu_recovery_pi = 3.14159265358979323846
+parameter float cpu_recovery_half_pi = 1.57079632679489661923
+parameter int cpu_recovery_first_frames = 20
+parameter int cpu_recovery_bottom_frames = 35
+parameter int cpu_recovery_second_frames = 20
+parameter int cpu_recovery_top_frames = 20
+
+func CpuActiveSpecial() -> bool:
+    let int target = int(cpu.target_id)
+    let float target_x = 0
+    let float target_y = 0
+    let float target_z = 0
+    let bool has_target = targets.read_position(target, target_x, target_y, target_z)
+    if motion.id >= attrs.cpu_flash_first_motion and motion.id <= attrs.cpu_flash_last_motion:
+        if not has_target:
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        elif abs(target_y - position.y) < attrs.cpu_flash_release_height:
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        else:
+            cpu.queue(Cpu.toward_target, attrs.cpu_stick_strength)
+            cpu.queue(Cpu.done)
+        return true
+    if motion.id >= attrs.cpu_thunder_first_motion and motion.id <= attrs.cpu_thunder_last_motion:
+        if not has_target:
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        else:
+            cpu.queue(Cpu.toward_target, attrs.cpu_stick_strength)
+            cpu.queue(Cpu.done)
+        return true
+    return false
+func CpuAimThunder(float angle, int frames):
+    cpu.queue(Cpu.stick_x, float(attrs.cpu_stick_strength) * cos(angle))
+    cpu.queue(Cpu.stick_y, float(attrs.cpu_stick_strength) * sin(angle))
+    cpu.queue(Cpu.wait, frames)
+
+action CpuPolicy:
+    on cpu_attack_decision:
+        return CpuActiveSpecial()
+    on cpu_travel_decision:
+        if CpuActiveSpecial():
+            # Original Ness travel caller increments after the special policy.
+            cpu.travel_frames = cpu.travel_frames + 1
+            return true
+        return false
+    on cpu_recovery:
+        if position.y > cpu.destination.y - attrs.cpu_recovery_height_margin:
+            cpu.queue(Cpu.done)
+            return
+        if cpu.level < attrs.cpu_recovery_minimum_level:
+            cpu.queue(Cpu.done)
+            return
+        cpu.queue(Cpu.stick_y, attrs.cpu_stick_strength)
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.press_b_for, 1)
+        cpu.queue(Cpu.release_b)
+        let float first = 0
+        let float second = attrs.cpu_recovery_pi
+        if cpu.destination.x - position.x > 0:
+            first = attrs.cpu_recovery_pi
+            second = 0
+        CpuAimThunder(first, attrs.cpu_recovery_first_frames)
+        CpuAimThunder(-attrs.cpu_recovery_half_pi, attrs.cpu_recovery_bottom_frames)
+        CpuAimThunder(second, attrs.cpu_recovery_second_frames)
+        CpuAimThunder(attrs.cpu_recovery_half_pi, attrs.cpu_recovery_top_frames)
+        cpu.queue(Cpu.done)

@@ -1,0 +1,7 @@
+# Owned Item ground-state assignment
+
+The grouped direct-source console uses actual compiler, Item program preparation/publication, Item actor/VM/property dispatch, fixed physical GObj pool and native ground-state kernels. Synthetic Article common/model descriptors and native Item userdata are selected ownership inputs; constructor/import/rendering and whole Sheik gameplay are not claimed.
+
+Native comparisons use actual unchanged it_802762B0/BC bodies from pre-batch d25ac9faa, including the airborne helper's x1F clear. Full Item byte comparisons ensure no extra velocity, position, motion, hitbox or unrelated flag writes. Actual Article picked-up/dropped and live Destroyed callbacks execute; genuine Workshop holdable recipe/actor assignment rejects because its read projection uses motion. No fictitious callback mutation instrumentation is installed in these pure kernels.
+
+The final grouped scope is 378 checks across 62 cases, with 29 complete native Item comparisons and seven actual actor VM calls. Strict compiler negatives cover non-Bool values and Fighter-context assignments. Runtime negatives cover stale physical identity, selected Article/author/owner mismatch, invalid storage layout/parameters/generation, faulted actors and unchanged unpublished results. Asset descriptors and native userdata construction are controlled; program preparation, publication, actor status and property dispatch are substantive production paths.

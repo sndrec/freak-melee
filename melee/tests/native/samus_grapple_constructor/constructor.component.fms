@@ -1,0 +1,115 @@
+# Constructor additions composed with the healthy solver article.
+# All array components reflect retail external-to-NULL binding.
+    model_animation ChainAAnimation joint 116[0] material 120[0] shape None
+    model_animation ChainBAnimation joint 128[0] material 132[0] shape None
+    model_animation ChainCAnimation joint 140[0] material 144[0] shape None
+    model_animation EndpointAnimation joint 152[0] material None shape None
+    model_animation PrimaryAnimation joint 164[0] material None shape None
+    attribute float source_launch_auxiliary 32
+    attribute float source_retract_auxiliary 40
+    state int modified_mode
+    state float launch_auxiliary
+    state float retract_auxiliary
+
+    func InitializeGeometry() -> bool:
+        let float scale = creator.model.instance_scale_y
+        let float coefficient = item.attr.ground_coefficient
+        if creator.motion == 357:
+            coefficient = item.attr.air_coefficient
+        item.state.length = item.attr.source_length * scale
+        item.state.min_length = item.attr.source_min_length * scale
+        item.state.launch_speed = coefficient * (item.attr.source_launch_speed * scale)
+        item.state.gravity = item.attr.source_gravity * scale
+        item.state.launch_auxiliary = coefficient * (item.attr.source_launch_auxiliary * scale)
+        item.state.retract_speed = coefficient * (item.attr.source_retract_speed * scale)
+        item.state.retract_auxiliary = coefficient * (item.attr.source_retract_auxiliary * scale)
+        item.state.pull_speed = coefficient * (item.attr.source_pull_speed * scale)
+        item.state.friction = item.attr.source_friction * scale
+        let float count_value = item.attr.source_count * item.state.length
+        if scale > 1:
+            count_value = item.attr.count_blend * (item.attr.source_count * item.state.length) + (1 - item.attr.count_blend) * (item.attr.source_count * item.attr.source_length)
+        # Stock stores the quotient in s32 before doubling modified ground mode.
+        # Explicit finite/range policy rejects malformed geometry before int().
+        if item.state.length == 0:
+            return false
+        let float quotient = (count_value * coefficient) / item.state.length
+        if not(quotient >= 2 and quotient < 91):
+            return false
+        item.state.count = int(quotient)
+        if item.state.modified_mode == 1:
+            item.state.count = item.state.count * 2
+        if item.state.count < 2 or item.state.count > 90:
+            return false
+        item.state.endpoint = item.state.count - 1
+        return true
+
+    func InitializeLinks() -> bool:
+        if not item.resources.begin(item.state.count):
+            return false
+        let int index = 0
+        while index < item.state.count:
+            let float radius = 1
+            if index == item.state.endpoint:
+                radius = 1.5
+            if not item.resource(index).create(creator.state.tether_attachment_part, radius, 0):
+                return false
+            let bool loaded = false
+            let bool animated = false
+            if index == item.state.endpoint:
+                loaded = item.resource(index).load_model(Endpoint)
+                if loaded:
+                    animated = item.resource(index).joint("0").add_animation(EndpointAnimation)
+            else:
+                let int type = index % 3
+                if type == 0:
+                    loaded = item.resource(index).load_model(ChainA)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainAAnimation)
+                if type == 1:
+                    loaded = item.resource(index).load_model(ChainB)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainBAnimation)
+                if type == 2:
+                    loaded = item.resource(index).load_model(ChainC)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainCAnimation)
+            if not loaded or not animated:
+                return false
+            if not item.resource(index).joint("0").request_animation(0):
+                return false
+            index = index + 1
+        return true
+
+    on created:
+            item.state.solver = -1
+            if not creator.exists:
+                Dispose()
+                return
+            item.state.modified_mode = 0
+            if creator.state.tether_code_sequence >= 4:
+                if creator.state.tether_grounded:
+                    item.state.modified_mode = 1
+                else:
+                    item.state.modified_mode = 2
+            else:
+                creator.state.tether_code_sequence = 0
+            if not InitializeGeometry():
+                Dispose()
+                return
+            if not InitializeLinks():
+                Dispose()
+                return
+            if not item.add_model_animation(0, "0", PrimaryAnimation):
+                Dispose()
+                return
+            item.request_model_animation(0, "0", 0)
+            if not item.resource(item.state.endpoint).bind_part(139):
+                Dispose()
+                return
+
+    on picked_up:
+            ChangeMode(int(0), false)
+
+    on signal scale_after_attach:
+            # Tethers attach to a bone without occupying the held-item slot.
+            item.scale_by_attribute(attachment_owner.model.instance_scale_y)

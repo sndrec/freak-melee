@@ -1,0 +1,2082 @@
+# Sheik owned source template, promoted from accepted composed source.
+# Fighter and article decisions are authored here; no borrowed stock handlers.
+# Declarative attributes require normal import; paired play requires its owned family package.
+# Component comments below retain their original source-comparison provenance.
+
+# Independent source member; complete direct-runtime preflight remains pending.
+fighter:
+    behavior independent
+
+# Needle source composition; unregistered and not installed.
+# Generic floor-motion flag and bounded hitbox disable use frozen SDK61.
+# Combined damage cleanup must add Chain cleanup after this component.
+attribute float needle_ground_x 0
+attribute float needle_ground_y 4
+attribute float needle_air_x 8
+attribute float needle_air_y 12
+attribute float needle_landing_lag 16
+parameter int needle_limit = 6
+parameter int needle_charge_sound = 270134
+parameter int needle_fire_sound = 270140
+parameter int needle_charge_color = 86
+parameter int needle_charge_saturated_tick = 100
+parameter int needle_held_part = 23
+state int needle_count
+state int needle_held
+state int needle_shot_tick
+state bool needle_shot_pending
+state int needle_charge_tick
+
+# UNREGISTERED CHAIN SOURCE CANDIDATE. Generic operations available in SDK64.
+# compose.py borrows the accepted Needles component; cleanup order is Needles,
+# then Chain, exactly ftSk_Init_80110198. No Transform/whole-fighter claim.
+attribute float chain_minimum_loop_ticks 20
+attribute float chain_rehit_ticks 24
+attribute float chain_spawn_tick 28
+attribute float chain_startup_ticks 32
+attribute float chain_retract_tick 36
+attribute float chain_destroy_tick 40
+parameter int chain_ground_pose_clip = 305
+parameter int chain_air_pose_clip = 308
+parameter int chain_raw_pose_start = 1
+parameter int chain_attachment_part = 26
+parameter float chain_angle_frame_scale = 0.0556
+parameter float chain_angle_frame_bias = 4
+parameter float chain_maximum_angle = 359
+parameter float chain_full_turn = 360
+parameter float chain_radians_to_degrees = 57.29577951
+parameter float chain_radians_full_turn = 6.283185307179586
+parameter float chain_half_turn = 180
+parameter float chain_forward_sound_delta = 0.3
+parameter float chain_up_sound_delta = 0.5
+parameter int chain_forward_sound_delay = 6
+parameter int chain_up_sound_delay = 12
+parameter int chain_backward_sound_delay = 6
+parameter int chain_forward_sound = 270152
+parameter int chain_backward_sound = 270155
+parameter float chain_neutral_delta_scale = 0.5
+parameter int chain_resume_grace = 2
+parameter float chain_start_sweep_radius = 0.5
+pose_graph ChainGroundRest slot 4 path "0"
+pose_graph ChainAirRest slot 5 path "0"
+state int chain_handle
+state int chain_tick
+state bool chain_release_requested
+state int chain_forward_sound_timer
+state int chain_backward_sound_timer
+state float chain_magnitude
+state float chain_angle
+state int chain_rehit_timer
+state int chain_resume_timer
+state float chain_hit_x[4]
+state float chain_hit_y[4]
+state float chain_hit_z[4]
+state float chain_old_x[4]
+state float chain_old_y[4]
+state float chain_old_z[4]
+state float chain_delta_x
+state float chain_delta_y
+state float chain_delta_z
+
+
+# Complete standalone Vanish355..360 and Vanish article. Transform excluded.
+attribute float vanish_initial_y 44
+attribute float vanish_start_gravity 48
+attribute float vanish_start_terminal 52
+attribute int vanish_travel_frames 56
+attribute float vanish_platform_grace 60
+attribute float vanish_stick_minimum 64
+attribute float vanish_speed_multiplier 68
+attribute float vanish_speed_addition 72
+attribute float vanish_end_drift_multiplier 76
+attribute int vanish_surface_angle 80
+attribute float vanish_end_momentum 84
+attribute float vanish_freefall_mobility 88
+attribute float vanish_landing_lag 92
+state int vanish_remaining
+state int vanish_collision_age
+state float vanish_stick_x
+state float vanish_stick_y
+state float vanish_saved_x
+state float vanish_saved_y
+state float vanish_saved_ground
+
+attribute float transform_horizontal_divisor 96
+attribute float transform_vertical_divisor 100
+attribute float transform_gravity 104
+attribute float transform_terminal 108
+attribute float transform_finish_frame 112
+parameter int transform_origin_joint = 0
+parameter int transform_start_joint = 43
+parameter int transform_finish_joint = 4
+parameter int transform_start_effect = 1276
+parameter int transform_finish_effect = 1277
+parameter int transform_wind_frames = 120
+parameter float transform_wind_strength = 0.4
+parameter float transform_wind_decay = 0.003
+parameter float transform_wind_frequency = 1.0471975511965976
+
+
+parameter int cpu_pending_script = 38
+
+
+func needle_clear_callbacks():
+    callbacks.damage(None)
+    callbacks.death2(None)
+
+func needle_bind_callbacks():
+    callbacks.damage(sheik_resource_cleanup)
+    callbacks.death2(sheik_resource_cleanup)
+
+export func needle_count_query() -> int:
+    return state.needle_count
+
+export func needle_held_missing() -> bool:
+    return state.needle_held == -1
+
+func needle_cleanup():
+    if state.needle_held != -1:
+        # Clear reference before constructors/callbacks, as in original source.
+        state.needle_held = -1
+        while state.needle_count != 0:
+            let float y_scale = attrs.needle_ground_y
+            if airborne:
+                y_scale = attrs.needle_air_y
+            let int dropped = articles.create_at_position(It_Kind_Seak_NeedleThrow, position.x, position.y + model.instance_scale_y * y_scale, 0, facing.direction, true)
+            if dropped != -1:
+                articles.signal(dropped, It_Kind_Seak_NeedleThrow, "initialize_drop", 0)
+            state.needle_count = state.needle_count - 1
+        if callbacks.matches(Callback.death2, sheik_resource_cleanup) or callbacks.matches(Callback.damage, sheik_resource_cleanup):
+            needle_clear_callbacks()
+    state.needle_count = 0
+
+func needle_start_tick(bool air_started):
+    if animation.finished:
+        state.needle_held = articles.create_at_position(It_Kind_Seak_NeedleHeld, position.x, position.y, 0, facing.direction, false)
+        if air_started:
+            state.enter_at(346, 0, 0)
+        else:
+            state.enter_at(342, 0, 0)
+        needle_bind_callbacks()
+
+func needle_charge():
+    if state.needle_charge_tick == 0:
+        sound.play(attrs.needle_charge_sound, 127, 64)
+    state.needle_charge_tick = state.needle_charge_tick + 1
+    if frame == 0:
+        state.needle_count = state.needle_count + 1
+        state.needle_charge_tick = 0
+        if state.needle_count > attrs.needle_limit:
+            state.needle_count = attrs.needle_limit
+            state.needle_charge_tick = attrs.needle_charge_saturated_tick
+            color.start(attrs.needle_charge_color, false)
+
+func needle_finish_air():
+    if attrs.needle_landing_lag == 0:
+        state.fall()
+    else:
+        state.freefall(1, 0, true, 1, attrs.needle_landing_lag)
+
+func needle_end_tick(bool air_started):
+    if state.needle_shot_tick == 2 or state.needle_shot_tick == 5 or state.needle_shot_tick == 8 or state.needle_shot_tick == 11 or state.needle_shot_tick == 14 or state.needle_shot_tick == 17:
+        state.needle_shot_pending = true
+        state.needle_held = -1
+    state.needle_shot_tick = state.needle_shot_tick + 1
+    if animation.finished:
+        if air_started:
+            needle_finish_air()
+        else:
+            state.wait()
+
+func needle_interrupt(bool air_started):
+    if not input.special_held:
+        state.needle_shot_tick = 0
+        if air_started:
+            state.enter_at(348, 0, 0)
+        else:
+            state.enter_at(344, 0, 0)
+        needle_bind_callbacks()
+        callbacks.accessory(needle_fire)
+    elif input.shield_pressed:
+        if air_started:
+            state.enter_at(347, 0, 0)
+        else:
+            state.enter_at(343, 0, 0)
+        needle_bind_callbacks()
+
+func needle_fire():
+    if state.needle_shot_pending:
+        state.needle_shot_pending = false
+        if state.needle_count > 0:
+            let float x = position.x
+            let float y = position.y
+            if grounded:
+                x = x + model.instance_scale_y * (attrs.needle_ground_x * facing.direction)
+                let int sample = random.int(9)
+                y = y + model.instance_scale_y * (attrs.needle_ground_y + (sample - 4) * 0.25)
+            else:
+                x = x + model.instance_scale_y * (attrs.needle_air_x * facing.direction)
+                let int sample = random.int(9)
+                y = y + model.instance_scale_y * (2 * ((sample - 4) * 0.25) + attrs.needle_air_y)
+            let int shot = articles.create_at_position(It_Kind_Seak_NeedleThrow, x, y, 0, facing.direction, true)
+            if shot != -1:
+                articles.signal(shot, It_Kind_Seak_NeedleThrow, "initialize_shot", 0)
+            state.needle_count = state.needle_count - 1
+            # Cue and sound occur even if allocation fails.
+            effects.spawn_at_position(1283, x, y, 0)
+            sound.play(attrs.needle_fire_sound, 127, 64)
+
+func chain_accessory():
+    pass
+
+func chain_resume():
+    if state.chain_handle != -1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "resume", 0)
+        state.chain_resume_timer = attrs.chain_resume_grace
+
+func chain_pause():
+    if state.chain_handle != -1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "pause", 0)
+
+export func chain_lost():
+    chain_resume()
+    state.chain_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func chain_destroy():
+    if state.chain_handle == -1:
+        return
+    articles.signal(state.chain_handle, It_Kind_Seak_Chain, "destroy", 0)
+    chain_resume()
+    state.chain_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func sheik_resource_cleanup():
+    needle_cleanup()
+    chain_destroy()
+
+func chain_bind(bool immune):
+    if state.chain_handle != -1:
+        callbacks.death2(sheik_resource_cleanup)
+        callbacks.damage(sheik_resource_cleanup)
+    if immune:
+        damage.song_immune = true
+    callbacks.accessory(chain_accessory)
+    callbacks.pre_hitlag(chain_pause)
+    callbacks.post_hitlag(chain_resume)
+
+func chain_zero_capsules():
+    let int hit = 0
+    while hit < 4:
+        hitbox.previous(hit).x = 0
+        hitbox.previous(hit).y = 0
+        hitbox.previous(hit).z = 0
+        hitbox.current(hit).x = 0
+        hitbox.current(hit).y = 0
+        hitbox.current(hit).z = 0
+        hit = hit + 1
+
+func chain_activate():
+    let int hit = 0
+    while hit < 4:
+        # Unlike Ness's original delayed rehit, Chain already sets cleanup bit.
+        hitbox.set_enabled(hit, true)
+        hit = hit + 1
+    chain_zero_capsules()
+
+func chain_disable():
+    let int hit = 0
+    while hit < 4:
+        hitbox.clear_victims(hit)
+        hitbox.set_enabled(hit, false)
+        hit = hit + 1
+    chain_zero_capsules()
+
+func chain_endpoint(int hit, float x, float y, float z):
+    if command(0) == 0:
+        return
+    state.chain_hit_x[hit] = x
+    state.chain_hit_y[hit] = y
+    state.chain_hit_z[hit] = z
+    if x != 0 or y != 0:
+        hitbox.set_world_position(hit, x, y, z)
+        hitbox.current(hit).x = x
+        hitbox.current(hit).y = y
+        hitbox.current(hit).z = z
+        if hitbox.previous(hit).x == 0 and hitbox.previous(hit).y == 0 and hitbox.previous(hit).z == 0:
+            hitbox.previous(hit).x = x
+            hitbox.previous(hit).y = y
+            hitbox.previous(hit).z = z
+
+func chain_clear_hitboxes():
+    hitbox.clear_all()
+
+func chain_center_y() -> float:
+    return position.y + 0.5 * (ecb.top.y + ecb.bottom.y)
+
+func chain_rehit():
+    if state.chain_handle == -1:
+        return
+    let float threshold = articles.ref(state.chain_handle, It_Kind_Seak_Chain).state.movement_threshold
+    let float threshold_squared = threshold * threshold
+    let bool moved = false
+    let int hit = 0
+    while hit < 4:
+        let float dx = state.chain_hit_x[hit] - state.chain_old_x[hit]
+        let float dy = state.chain_hit_y[hit] - state.chain_old_y[hit]
+        let float squared = dx * dx + dy * dy
+        if squared > threshold_squared:
+            moved = true
+        state.chain_old_x[hit] = state.chain_hit_x[hit]
+        state.chain_old_y[hit] = state.chain_hit_y[hit]
+        hit = hit + 1
+    if state.chain_rehit_timer > 0:
+        state.chain_rehit_timer = state.chain_rehit_timer - 1
+        if state.chain_rehit_timer == 0:
+            chain_disable()
+    if moved:
+        if state.chain_rehit_timer <= 0:
+            state.chain_rehit_timer = int(attrs.chain_rehit_ticks)
+            chain_activate()
+    elif state.chain_resume_timer > 0:
+        state.chain_resume_timer = state.chain_resume_timer - 1
+    else:
+        state.chain_rehit_timer = 0
+        chain_disable()
+
+func chain_smooth():
+    let float angle = atan2_float(input.y, input.x * facing.direction)
+    if angle < 0:
+        angle = angle + attrs.chain_radians_full_turn
+    # Original MTXRadToDeg multiplier (57.29577951f), not division by pi.
+    angle = angle * attrs.chain_radians_to_degrees
+    if angle < 0:
+        angle = 0
+    if angle > attrs.chain_maximum_angle:
+        angle = attrs.chain_maximum_angle
+    let float delta = angle - state.chain_angle
+    if delta > attrs.chain_half_turn:
+        delta = delta - attrs.chain_full_turn
+    elif delta < -attrs.chain_half_turn:
+        delta = delta + attrs.chain_full_turn
+    # Pending RO generic common field x44C, also used by shared shield smoothing.
+    let float smoothing = controls.stick_smoothing
+    angle = delta * smoothing + state.chain_angle
+    if angle > attrs.chain_full_turn:
+        angle = angle - attrs.chain_full_turn
+    elif angle < 0:
+        angle = angle + attrs.chain_full_turn
+    state.chain_angle = angle
+    let float magnitude = sqrt(input.x * input.x + input.y * input.y)
+    if magnitude > 1:
+        magnitude = 1
+    state.chain_magnitude = state.chain_magnitude + smoothing * (magnitude - state.chain_magnitude)
+
+func chain_pose(bool air_pose, float phase):
+    chain_smooth()
+    let float pose_frame = attrs.chain_angle_frame_scale * state.chain_angle + attrs.chain_angle_frame_bias
+    let int clip = attrs.chain_ground_pose_clip
+    if air_pose:
+        clip = attrs.chain_air_pose_clip
+    if state.chain_magnitude != 0:
+        pose.load_animation(Pose.blend, clip)
+        pose.request_frame(Pose.blend, pose_frame)
+        pose.copy_costume(Pose.blend, attrs.chain_raw_pose_start)
+        pose.evaluate(Pose.blend)
+        if state.chain_magnitude < 1:
+            if air_pose:
+                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainAirRest, 1 - state.chain_magnitude, state.chain_magnitude)
+            else:
+                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainGroundRest, 1 - state.chain_magnitude, state.chain_magnitude)
+        if phase < 1:
+            pose.blend_to_live(attrs.chain_raw_pose_start, phase, 1 - phase)
+        else:
+            pose.copy_to_live(attrs.chain_raw_pose_start)
+    elif phase < 1:
+        if air_pose:
+            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest, phase, 1 - phase)
+        else:
+            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest, phase, 1 - phase)
+    else:
+        if air_pose:
+            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest)
+        else:
+            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest)
+
+func chain_input():
+    state.chain_delta_x = input.x - input.previous_x
+    state.chain_delta_y = input.y - input.previous_y
+    let float horizontal_delta = state.chain_delta_x
+    let float forward_threshold = attrs.chain_forward_sound_delta
+    if state.chain_forward_sound_timer > 0:
+        state.chain_forward_sound_timer = state.chain_forward_sound_timer - 1
+    elif (facing.direction == 1 and horizontal_delta > forward_threshold) or (facing.direction == -1 and horizontal_delta < -forward_threshold):
+        sound.play(attrs.chain_forward_sound, 127, 64)
+        state.chain_forward_sound_timer = attrs.chain_forward_sound_delay
+    elif state.chain_delta_y > attrs.chain_up_sound_delta:
+        sound.play(attrs.chain_forward_sound, 127, 64)
+        state.chain_forward_sound_timer = attrs.chain_up_sound_delay
+    if state.chain_backward_sound_timer > 0:
+        state.chain_backward_sound_timer = state.chain_backward_sound_timer - 1
+    elif (facing.direction == 1 and horizontal_delta < -forward_threshold and input.x < 0) or (facing.direction == -1 and horizontal_delta > forward_threshold and input.x > 0):
+        sound.play(attrs.chain_backward_sound, 127, 64)
+        state.chain_backward_sound_timer = attrs.chain_backward_sound_delay
+    if state.chain_handle == -1:
+        return
+    let float deadzone = articles.ref(state.chain_handle, It_Kind_Seak_Chain).state.stick_deadzone
+    if abs(input.x) < deadzone and abs(input.y) < deadzone:
+        state.chain_delta_x = state.chain_delta_x * attrs.chain_neutral_delta_scale
+        state.chain_delta_y = state.chain_delta_y * attrs.chain_neutral_delta_scale
+
+func chain_initialize():
+    command(0) = 0
+    state.chain_tick = 0
+    state.chain_release_requested = false
+    state.chain_forward_sound_timer = 0
+    state.chain_backward_sound_timer = 0
+    state.chain_angle = attrs.chain_angle_frame_bias
+    state.chain_magnitude = 0
+    state.chain_rehit_timer = 0
+    state.chain_resume_timer = 0
+    state.chain_handle = -1
+    let int hit = 0
+    while hit < 4:
+        state.chain_hit_x[hit] = 0
+        state.chain_hit_y[hit] = 0
+        state.chain_hit_z[hit] = 0
+        state.chain_old_x[hit] = 0
+        state.chain_old_y[hit] = 0
+        state.chain_old_z[hit] = 0
+        hit = hit + 1
+    state.chain_delta_x = 0
+    state.chain_delta_y = 0
+    state.chain_delta_z = 0
+    damage.song_immune = true
+    callbacks.accessory(chain_accessory)
+
+func chain_spawn():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.chain_attachment_part, x, y, z)
+    state.chain_handle = articles.create_with_velocity(It_Kind_Seak_Chain, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    let bool bound = articles.bind_auxiliary(state.chain_handle)
+    if state.chain_handle != -1:
+        callbacks.death2(sheik_resource_cleanup)
+        callbacks.damage(sheik_resource_cleanup)
+    callbacks.pre_hitlag(chain_pause)
+    callbacks.post_hitlag(chain_resume)
+
+func chain_check_start() -> bool:
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick == attrs.chain_spawn_tick:
+        chain_spawn()
+        state.chain_rehit_timer = int(attrs.chain_rehit_ticks)
+        if state.chain_handle == -1:
+            if airborne:
+                state.fall()
+            else:
+                state.wait()
+    if state.chain_tick == attrs.chain_spawn_tick + 1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "launch", 0)
+    return state.chain_tick > attrs.chain_startup_ticks
+
+func chain_end(bool air_started):
+    let int motion = 351
+    if air_started:
+        motion = 354
+    state.enter_at(motion, 8, 0)
+    state.chain_tick = 0
+    if state.chain_rehit_timer != 0:
+        chain_activate()
+    chain_bind(true)
+
+func chain_loop(bool air_started):
+    let int motion = 350
+    if air_started:
+        motion = 353
+    state.enter_at(motion, 8, 0)
+    chain_pose(air_started, 0)
+    state.chain_tick = 0
+    chain_activate()
+    chain_bind(true)
+    if not air_started:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.chain_attachment_part, x, y, z)
+        let float mid_y = position.y + 0.5 * (ecb.top.y + ecb.bottom.y)
+        let float radius = attrs.chain_start_sweep_radius * model.instance_scale_y
+        let int blocked = stage.sweep_box(position.x, mid_y, position.z, x, y, z, radius, -radius, -radius, 0, radius, 0, 5)
+        if blocked != 0:
+            chain_end(false)
+
+func chain_loop_tick(bool air_started):
+    chain_rehit()
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick > attrs.chain_minimum_loop_ticks and state.chain_release_requested:
+        state.chain_release_requested = false
+        chain_end(air_started)
+        return
+    chain_pose(air_started, 1)
+
+func chain_end_tick(bool air_started):
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick < attrs.chain_destroy_tick:
+        if state.chain_tick == attrs.chain_retract_tick:
+            articles.signal(state.chain_handle, It_Kind_Seak_Chain, "retract", 0)
+        chain_rehit()
+    elif state.chain_tick == attrs.chain_destroy_tick:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "destroy", 0)
+    else:
+        chain_rehit()
+    if animation.finished:
+        if air_started:
+            state.fall()
+        else:
+            state.wait()
+
+
+func vanish_start_effect():
+    if not effects.active:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(4, x, y, z)
+        # Stock flattens the supplied point before Item_InitSpawn; current and
+        # previous positions agree. The constructor result is discarded.
+        let int blast = articles.create_at_position(It_Kind_Seak_Vanish, x, y, 0, facing.direction, false)
+        bones.world_position(4, x, y, z)
+        if not effects.active:
+            effects.spawn_at_position(1284, x, y, z)
+            effects.active = true
+        effects.pause_during_hitlag()
+        sound.play(115, 127, 64)
+    callbacks.accessory(None)
+
+func vanish_end_effect():
+    if not effects.active:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(4, x, y, z)
+        effects.spawn_at_position(1285, x, y, z)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func vanish_travel_setup():
+    state.vanish_remaining = attrs.vanish_travel_frames
+    jumps.used = jumps.max
+    items.block_ground_pickup = true
+    hurtboxes.set_body_status(Hurt.intangible)
+    visuals.set_visible(false)
+    callbacks.accessory(vanish_start_effect)
+
+func vanish_air_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    if strength > attrs.vanish_stick_minimum:
+        if abs(input.x) > 0.001: facing.from_input()
+        let float angle = atan2_float(input.y, input.x * facing.direction)
+        state.vanish_stick_x = input.x
+        state.vanish_stick_y = input.y
+        velocity.x = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+        velocity.y = (attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * sin(angle)
+    else:
+        facing.from_input_threshold()
+        state.vanish_stick_x = 0
+        strength = 1
+        state.vanish_stick_y = 1
+        let float angle = float(pi / 2)
+        velocity.x = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+        velocity.y = (attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * sin(angle)
+    state.enter_at(359, 0, 35)
+    animation.start()
+    animation.set_rate(0)
+    vanish_travel_setup()
+
+func vanish_ground_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    # Ground retains equality; air requires strict greater-than.
+    if not (strength < attrs.vanish_stick_minimum):
+        let float floor_angle = vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y)
+        if not (floor_angle < float(pi / 2)):
+            if not collision.skip_soft_floor():
+                facing.from_input()
+                let float angle = atan2_float(input.y, input.x * facing.direction)
+                state.vanish_stick_x = input.x
+                state.vanish_stick_y = input.y
+                ground.velocity = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+                state.enter_at(356, 0, 35)
+                animation.start()
+                animation.set_rate(0)
+                vanish_travel_setup()
+                return
+    physics.force_air_and_use_jumps()
+    vanish_air_launch()
+
+func vanish_end(bool air_started):
+    if air_started: state.enter_at(360, 0, 0)
+    else: state.enter_at(357, 0, 0)
+    animation.start()
+    state.vanish_saved_x = velocity.x
+    state.vanish_saved_y = velocity.y
+    state.vanish_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    visuals.set_visible(true)
+    callbacks.accessory(vanish_end_effect)
+    if air_started:
+        velocity.x = state.vanish_saved_x * attrs.vanish_end_momentum
+        velocity.y = state.vanish_saved_y * attrs.vanish_end_momentum
+    else:
+        ground.velocity = state.vanish_saved_ground * attrs.vanish_end_momentum
+
+func vanish_air_travel_collision():
+    state.vanish_collision_age = state.vanish_collision_age + 1
+    if collision.check_ground_ledge(facing.sign):
+        let bool land = true
+        if state.vanish_collision_age < attrs.vanish_platform_grace:
+            land = not collision.skip_soft_floor()
+        if land:
+            physics.switch_to_ground()
+            state.enter_at_speed(356, 0x0c4c508e, frame, 0)
+            visuals.set_visible(false)
+            return
+    if collision.cliff_catch(): return
+    let float limit = radians(90.0 + attrs.vanish_surface_angle)
+    # Independent probes preserve changed velocity after an earlier end.
+    if collision.ceiling_contact and vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+    if collision.left_wall and vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+    if collision.right_wall and vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+
+func transform_start_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_start_effect, attrs.transform_start_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_finish_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_finish_effect, attrs.transform_finish_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_transfer():
+    callbacks.accessory(None)
+    # The destination invokes its own form_activated policy. Do not write the
+    # source after activation: it normally survives, but is now dormant.
+    forms.activate_partner()
+    return
+
+func transform_start():
+    command(0) = 0
+    velocity.x = velocity.x / attrs.transform_horizontal_divisor
+    velocity.y = velocity.y / attrs.transform_vertical_divisor
+    ground.velocity = ground.velocity / attrs.transform_horizontal_divisor
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.transform_origin_joint, x, y, z)
+    effects.wind_at_position(x, y, z, attrs.transform_wind_frames, attrs.transform_wind_strength, attrs.transform_wind_decay, attrs.transform_wind_frequency)
+    callbacks.accessory(transform_start_effect)
+
+
+
+move PendingAction:
+    on cpu_pending_action:
+        if cpu.pending_action:
+            cpu.run_script(attrs.cpu_pending_script)
+            cpu.pending_action = false
+            return true
+        return false
+
+move Needles:
+    on special_n:
+        state.enter_at(341, 0, 0)
+        let bool consumed = cue.reverse.consume()
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.needle_shot_tick = 0
+        if state.needle_count == 0:
+            state.needle_count = 1
+        state.needle_shot_pending = false
+        state.needle_charge_tick = 0
+        needle_bind_callbacks()
+        animation.start()
+    on special_air_n:
+        state.enter_at(345, 0, 0)
+        let bool consumed = cue.reverse.consume()
+        command(3) = 0
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.needle_shot_tick = 0
+        if state.needle_count == 0:
+            state.needle_count = 1
+        state.needle_shot_pending = false
+        state.needle_charge_tick = 0
+        needle_bind_callbacks()
+        animation.start()
+    on state_341_animation:
+        needle_start_tick(false)
+    on state_342_animation:
+        needle_charge()
+    on state_343_animation:
+        state.needle_held = -1
+        if animation.finished:
+            state.wait()
+    on state_344_animation:
+        needle_end_tick(false)
+    on state_345_animation:
+        needle_start_tick(true)
+    on state_346_animation:
+        needle_charge()
+    on state_347_animation:
+        state.needle_held = -1
+        if animation.finished:
+            needle_finish_air()
+    on state_348_animation:
+        needle_end_tick(true)
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        needle_interrupt(false)
+    on state_343_interrupt:
+        return
+    on state_344_interrupt:
+        return
+    on state_345_interrupt:
+        return
+    on state_346_interrupt:
+        needle_interrupt(true)
+    on state_347_interrupt:
+        return
+    on state_348_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_343_physics:
+        physics.ground_friction()
+    on state_344_physics:
+        physics.ground_friction()
+    on state_345_physics:
+        physics.air_drift()
+    on state_346_physics:
+        physics.air_drift()
+    on state_347_physics:
+        physics.air_drift()
+    on state_348_physics:
+        physics.air_drift()
+    on state_341_collision:
+        if collision.left_ground:
+            state.switch_to_air(345, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_342_collision:
+        if collision.left_ground:
+            state.switch_to_air(346, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_343_collision:
+        if collision.left_ground:
+            needle_clear_callbacks()
+            needle_finish_air()
+    on state_344_collision:
+        if collision.left_ground:
+            needle_clear_callbacks()
+            state.needle_count = 0
+            state.needle_shot_pending = false
+            needle_finish_air()
+    on state_345_collision:
+        if collision.landed:
+            state.switch_to_ground(341, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_346_collision:
+        if collision.landed:
+            state.switch_to_ground(342, 0x0c4c5080)
+            needle_bind_callbacks()
+    on state_347_collision:
+        if collision.landed:
+            state.basic_landing()
+            needle_clear_callbacks()
+    on state_348_collision:
+        if collision.landed:
+            needle_clear_callbacks()
+            state.needle_count = 0
+            state.needle_shot_pending = false
+            state.basic_landing()
+
+move Vanish:
+    on special_hi:
+        command(0) = 0
+        state.vanish_collision_age = 0
+        state.enter_at(355, 0, 0)
+        animation.start()
+    on special_air_hi:
+        command(0) = 0
+        state.vanish_collision_age = 0
+        velocity.y = attrs.vanish_initial_y
+        state.enter_at(358, 0, 0)
+        animation.start()
+    on state_355_animation:
+        if animation.finished: vanish_ground_launch()
+    on state_358_animation:
+        if animation.finished: vanish_air_launch()
+    on state_356_animation:
+        state.vanish_remaining = state.vanish_remaining - 1
+        if state.vanish_remaining <= 0: vanish_end(false)
+    on state_359_animation:
+        state.vanish_remaining = state.vanish_remaining - 1
+        if state.vanish_remaining <= 0: vanish_end(true)
+    on state_357_animation:
+        if animation.finished: state.wait()
+    on state_360_animation:
+        if animation.finished: state.freefall(1, 0, true, attrs.vanish_freefall_mobility, attrs.vanish_landing_lag)
+    on state_355_interrupt:
+        return
+    on state_356_interrupt:
+        return
+    on state_357_interrupt:
+        return
+    on state_358_interrupt:
+        return
+    on state_359_interrupt:
+        return
+    on state_360_interrupt:
+        return
+    on state_355_physics:
+        physics.ground_friction()
+    on state_358_physics:
+        physics.fall(attrs.vanish_start_gravity, attrs.vanish_start_terminal)
+        physics.air_accel_normal()
+    on state_356_physics:
+        physics.ground_to_self()
+    on state_359_physics:
+        return
+    on state_357_physics:
+        physics.ground_friction()
+    on state_360_physics:
+        if command(0) != 0:
+            physics.fall_basic()
+            let float maximum = attrs.vanish_end_drift_multiplier * air.drift_max
+            if velocity.x < -maximum: velocity.x = -maximum
+            elif velocity.x > maximum: velocity.x = maximum
+            return
+        velocity.y = velocity.y - velocity.y / 10
+        physics.air_decel_normal()
+    on state_355_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at(358, 0x0c4c508e, frame)
+            callbacks.accessory(vanish_start_effect)
+    on state_358_collision:
+        if collision.check_ground_ledge(facing.sign):
+            state.switch_to_ground(355, 0x0c4c508e)
+            callbacks.accessory(vanish_start_effect)
+        else:
+            collision.cliff_catch()
+    on state_356_collision:
+        if collision.left_ground:
+            if collision.left_wall or collision.right_wall:
+                physics.force_air_and_use_jumps()
+                vanish_end(true)
+                return
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(359, 0x0c4c508e, frame, 0)
+            items.block_ground_pickup = true
+            visuals.set_visible(false)
+        elif collision.left_wall or collision.right_wall:
+            vanish_end(false)
+    on state_359_collision:
+        vanish_air_travel_collision()
+    on state_357_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at(360, 0x0c4c508a, frame)
+            callbacks.accessory(vanish_end_effect)
+    on state_360_collision:
+        if collision.check_ground_ledge(facing.sign):
+            state.landing_special(false, attrs.vanish_landing_lag)
+            return
+        collision.cliff_catch()
+
+# Unregistered lifecycle component. Pair switching never resets this state.
+move SheikLifecycle:
+    on load:
+        fighter.enable_walljump()
+        state.needle_count = 0
+        state.needle_held = -1
+        state.chain_handle = -1
+        fighter.copy_ext_attributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        state.needle_count = 0
+        state.needle_held = -1
+        state.chain_handle = -1
+        visuals.set_group(0, 0)
+        visuals.set_group(1, -1)
+    on color_animation_reset:
+        if state.needle_count == attrs.needle_limit:
+            color.start(attrs.needle_charge_color, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+move Down:
+    on special_lw:
+        state.enter_at(361, 0, 0)
+        animation.start()
+        transform_start()
+    on special_air_lw:
+        state.enter_at(363, 0, 0)
+        animation.start()
+        transform_start()
+    on form_activated:
+        if airborne: state.enter_at(364, 0, attrs.transform_finish_frame)
+        else: state.enter_at(362, 0, attrs.transform_finish_frame)
+        # Stock finish does not restart/reset the animation after this entry.
+        callbacks.accessory(transform_finish_effect)
+    on state_361_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_362_animation:
+        if animation.finished:
+            state.wait()
+    on state_363_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_364_animation:
+        if animation.finished:
+            state.fall()
+    on state_361_interrupt:
+        pass
+    on state_362_interrupt:
+        pass
+    on state_363_interrupt:
+        pass
+    on state_364_interrupt:
+        pass
+    on state_361_physics:
+        physics.ground_friction()
+    on state_362_physics:
+        physics.ground_friction()
+    on state_363_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_364_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_361_collision:
+        if collision.left_ground:
+            state.switch_to_air(363, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_362_collision:
+        if collision.left_ground:
+            state.switch_to_air(364, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)
+    on state_363_collision:
+        if collision.landed:
+            state.switch_to_ground(361, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_364_collision:
+        if collision.landed:
+            state.switch_to_ground(362, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)
+
+article It_Kind_Seak_NeedleHeld states 1:
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+            item.attach_to_owner(program.attrs.needle_held_part, false)
+    on picked_up:
+            item.change_state_flags(0, 2)
+    on interaction:
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            if not creator.exists:
+                return true
+            if not item.attachment_active:
+                return false
+            if targets.call_bool(item.current_owner, "needle_held_missing"):
+                return true
+            let int count = targets.call_int(item.current_owner, "needle_count_query")
+            item.joint(0, "0/0").visible = count > 0
+            item.joint(0, "0/1").visible = count > 1
+            item.joint(0, "0/2").visible = count > 2
+            item.joint(0, "0/3").visible = count > 3
+            item.joint(0, "0/4").visible = count > 4
+            item.joint(0, "0/5").visible = count > 5
+            let float scale = creator.model.scale
+            item.joint(0, "0").scale.x = scale
+            item.joint(0, "0").scale.y = scale
+            item.joint(0, "0").scale.z = scale
+            return false
+        on physics:
+            return
+        on collision:
+            return false
+
+article It_Kind_Seak_NeedleThrow states 5:
+    attribute float active_lifetime 0
+    attribute float resting_lifetime 4
+    attribute float initial_speed 8
+    state float terminal_table[8]
+    state float gravity_table[8]
+    state float drop_spin_table[8]
+    state float bounce_x_table[8]
+    state float bounce_spin_table[8]
+    state float spin
+    state float horizontal
+    state float terminal
+    state float gravity
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float direction
+    state int surface_line
+    state float current_surface_angle
+    state float previous_surface_angle
+    state float normal_x
+    state float normal_y
+    state float normal_z
+    state int sweep_flags
+    state bool sweep_hit
+
+    func BounceSetup():
+        let float sign = 1
+        if random.int(2) != 0:
+            sign = -1
+        let int sample = random.int(8)
+        item.state.spin = item.state.bounce_spin_table[sample] * sign
+        sign = 1
+        if random.int(2) != 0:
+            sign = -1
+        sample = random.int(8)
+        item.state.horizontal = item.state.bounce_x_table[sample] * sign
+        sample = random.int(8)
+        item.state.terminal = item.state.terminal_table[sample]
+        sample = random.int(8)
+        item.state.gravity = item.state.gravity_table[sample]
+
+    func FallingPhysics():
+        velocity.x = item.state.horizontal
+        velocity.y = velocity.y + item.state.gravity
+        if velocity.y < item.state.terminal:
+            velocity.y = item.state.terminal
+
+    func SavePosition():
+        item.state.previous_x = position.x
+        item.state.previous_y = position.y
+        item.state.previous_z = position.z
+
+    on created:
+            # Owned source tables retain exact stock f32 literals, not a formula
+            # that would round intermediate samples differently.
+            item.state.terminal_table[0] = -2
+            item.state.terminal_table[1] = -2.1
+            item.state.terminal_table[2] = -2.2
+            item.state.terminal_table[3] = -2.3
+            item.state.terminal_table[4] = -2.4
+            item.state.terminal_table[5] = -2.5
+            item.state.terminal_table[6] = -2.6
+            item.state.terminal_table[7] = -2.7
+            item.state.gravity_table[0] = -0.1
+            item.state.gravity_table[1] = -0.12
+            item.state.gravity_table[2] = -0.14
+            item.state.gravity_table[3] = -0.18
+            item.state.gravity_table[4] = -0.2
+            item.state.gravity_table[5] = -0.22
+            item.state.gravity_table[6] = -0.24
+            item.state.gravity_table[7] = -0.26
+            item.state.drop_spin_table[0] = 0.20943952
+            item.state.drop_spin_table[1] = 0.2443461
+            item.state.drop_spin_table[2] = 0.27925268
+            item.state.drop_spin_table[3] = 0.31415927
+            item.state.drop_spin_table[4] = 0.34906584
+            item.state.drop_spin_table[5] = 0.38397244
+            item.state.drop_spin_table[6] = 0.41887903
+            item.state.drop_spin_table[7] = 0.4537856
+            item.state.bounce_x_table[0] = 0
+            item.state.bounce_x_table[1] = 0.2
+            item.state.bounce_x_table[2] = 0.4
+            item.state.bounce_x_table[3] = 0.6
+            item.state.bounce_x_table[4] = 0.8
+            item.state.bounce_x_table[5] = 1
+            item.state.bounce_x_table[6] = 1.2
+            item.state.bounce_x_table[7] = 1.4
+            item.state.bounce_spin_table[0] = 0.5235988
+            item.state.bounce_spin_table[1] = 0.61086524
+            item.state.bounce_spin_table[2] = 0.6981317
+            item.state.bounce_spin_table[3] = 0.7853982
+            item.state.bounce_spin_table[4] = 0.87266463
+            item.state.bounce_spin_table[5] = 0.9599311
+            item.state.bounce_spin_table[6] = 1.0471976
+            item.state.bounce_spin_table[7] = 1.134464
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.set_lifetime(item.attr.active_lifetime)
+            item.state.surface_line = -1
+            item.state.previous_surface_angle = 0
+            item.state.current_surface_angle = 0
+            SavePosition()
+            item.custom_floor_motion = true
+    on signal initialize_shot:
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.custom_floor_motion = true
+            item.set_lifetime(item.attr.active_lifetime)
+            let float factor = 1.5707964
+            if targets.airborne(item.current_owner):
+                factor = 2.3561945
+            item.state.direction = facing * factor + 1.5707964
+            velocity.x = -item.attr.initial_speed * cos(item.state.direction)
+            velocity.y = item.attr.initial_speed * sin(item.state.direction)
+            velocity.z = 0
+            item.state.previous_x = position.x - 3 * velocity.x
+            item.state.previous_y = position.y - 3 * velocity.y
+            item.state.previous_z = 0
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float angle = atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = -facing * angle
+            item.inherit_owner_debug_display()
+    on signal initialize_drop:
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(1, 2)
+            item.custom_floor_motion = true
+            item.set_lifetime(item.attr.active_lifetime)
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            # Explicit order matches the native compiler's current operand order;
+            # original C does not sequence the two multiplication operands.
+            let int sample = random.int(8)
+            let float spin = item.state.drop_spin_table[sample]
+            let float sign = 1
+            if random.int(2) != 0:
+                sign = -1
+            item.state.spin = spin * sign
+            item.state.horizontal = 0
+            sample = random.int(8)
+            item.state.terminal = item.state.terminal_table[sample]
+            sample = random.int(8)
+            item.state.gravity = item.state.gravity_table[sample]
+            item.inherit_owner_debug_display()
+    on destroyed:
+            item.clear_current_owner()
+    on damage_dealt:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on damage_received:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on clanked:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on hit_shield:
+            if random.int(3) == 0:
+                item.disable_hitbox(0)
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.z = 0
+                velocity.x = 0
+                let int sample = random.int(8)
+                # Stock ABS samples once for its sign test and again on the negative branch.
+                let float launch = item.state.terminal_table[sample]
+                if launch < 0:
+                    sample = random.int(8)
+                    launch = -item.state.terminal_table[sample]
+                velocity.y = launch
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                return false
+            return true
+    on reflected:
+            facing = -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            let float dx = position.x - item.state.previous_x
+            let float dy = position.y - item.state.previous_y
+            item.state.previous_x = position.x + dx
+            item.state.previous_y = position.y + dy
+            item.state.previous_z = 0
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float angle = atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = -facing * angle
+            angle = atan2(angle_y, angle_x)
+            velocity.x = item.attr.initial_speed * cos(angle)
+            velocity.y = item.attr.initial_speed * sin(angle)
+            item.life = item.half_life
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            let float angle = atan2(velocity.y, velocity.x)
+            while angle < 0:
+                angle = angle + pi * 2
+            while angle > pi * 2:
+                angle = angle - pi * 2
+            if velocity.x >= 0:
+                facing = 1
+            else:
+                facing = -1
+            item.joint(0, "0").rotation.x = angle * -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            SavePosition()
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            let float angle_y = position.y - item.state.previous_y
+            let float angle_x = position.x - item.state.previous_x
+            let float rotation = -facing * atan2(angle_y, angle_x)
+            item.joint(0, "0").rotation.x = rotation
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                let int choice = random.int(5)
+                if choice < 3:
+                    item.grounded = false
+                    velocity.x = 0
+                    velocity.y = 0
+                    velocity.z = 0
+                    item.set_lifetime(item.attr.resting_lifetime)
+                    item.state.direction = rotation
+                    item.change_state_flags(2, 2)
+                    item.play_sound(0x41F39, 127, 64)
+                else:
+                    item.set_lifetime(item.attr.resting_lifetime)
+                    let int sample = random.int(8)
+                    # Stock ABS samples once for its sign test and again on the negative branch.
+                    let float launch = item.state.terminal_table[sample]
+                    if launch < 0:
+                        sample = random.int(8)
+                        launch = -item.state.terminal_table[sample]
+                    velocity.y = launch
+                    item.grounded = false
+                    BounceSetup()
+                    item.change_state_flags(4, 2)
+            return false
+    state 1 anim 1:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.joint(0, "0").rotation.x + item.state.spin
+            return item.expire_tick()
+        on physics:
+            FallingPhysics()
+        on collision:
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                item.set_lifetime(item.attr.resting_lifetime)
+                velocity.y = abs(velocity.y)
+                item.grounded = false
+                BounceSetup()
+                item.change_state_flags(4, 2)
+                item.play_sound(0x41F39, 127, 64)
+            return false
+    state 2 anim 2:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.state.direction
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            item.grounded = false
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.state.previous_surface_angle = item.state.current_surface_angle
+            if item.state.surface_line != -1:
+                if stage.line_exists(item.state.surface_line):
+                    item.bind_stage_line(item.state.surface_line)
+                    item.read_stage_line_speed(item.state.surface_line)
+                    stage.line_normal(item.state.surface_line, item.state.normal_x, item.state.normal_y, item.state.normal_z)
+                    item.state.current_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+            else:
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+            if item.state.current_surface_angle != item.state.previous_surface_angle:
+                item.state.direction = item.state.direction + (item.state.current_surface_angle - item.state.previous_surface_angle)
+                item.joint(0, "0").rotation.x = item.state.direction
+            return false
+    state 3 anim 3:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    state 4 anim 4:
+        on animation:
+            SavePosition()
+            item.joint(0, "0").rotation.x = item.joint(0, "0").rotation.x + item.state.spin
+            return false
+        on physics:
+            FallingPhysics()
+        on collision:
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.surface_line, item.state.sweep_flags, item.state.sweep_hit)
+            if item.state.sweep_hit and stage.line_exists(item.state.surface_line):
+                item.bind_stage_line(item.state.surface_line)
+                item.read_stage_line_speed(item.state.surface_line)
+                item.state.previous_surface_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.current_surface_angle = item.state.previous_surface_angle
+                item.set_lifetime(item.attr.resting_lifetime)
+                item.state.direction = item.joint(0, "0").rotation.x
+                item.change_state_flags(2, 2)
+                item.grounded = false
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+            return false
+
+move Chain:
+    on special_s:
+        state.enter_at(349, 0, 0)
+        animation.start()
+        chain_initialize()
+    on special_air_s:
+        velocity.y = 0
+        state.enter_at(352, 0, 0)
+        animation.start()
+        chain_initialize()
+    on state_349_animation:
+        if chain_check_start():
+            chain_loop(false)
+    on state_352_animation:
+        if chain_check_start():
+            chain_loop(true)
+    on state_350_animation:
+        chain_loop_tick(false)
+    on state_353_animation:
+        chain_loop_tick(true)
+    on state_351_animation:
+        chain_end_tick(false)
+    on state_354_animation:
+        chain_end_tick(true)
+    on state_349_interrupt:
+        pass
+    on state_352_interrupt:
+        pass
+    on state_350_interrupt:
+        if not input.special_held:
+            state.chain_release_requested = true
+        chain_input()
+    on state_353_interrupt:
+        if not input.special_held:
+            state.chain_release_requested = true
+        chain_input()
+    on state_351_interrupt:
+        pass
+    on state_354_interrupt:
+        pass
+    on state_349_physics:
+        physics.ground_friction()
+    on state_350_physics:
+        physics.ground_friction()
+    on state_351_physics:
+        physics.ground_friction()
+    on state_352_physics:
+        if command(0) != 0:
+            physics.fall(air.gravity, air.terminal_velocity)
+        physics.air_decel(air.friction)
+    on state_353_physics:
+        physics.air_gravity_and_friction()
+    on state_354_physics:
+        physics.air_gravity_and_friction()
+    on state_349_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(352, 0x0c4c5088)
+            chain_bind(false)
+    on state_352_collision:
+        if collision.landed:
+            state.switch_to_ground(349, 0x0c4c5088)
+            chain_bind(false)
+    on state_350_collision:
+        if collision.special_ground_lost:
+            chain_end(false)
+    on state_353_collision:
+        if collision.landed:
+            chain_end(true)
+    on state_351_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(354, 0x0c4c5088)
+            chain_bind(false)
+    on state_354_collision:
+        if collision.landed:
+            state.switch_to_ground(351, 0x0c4c5088)
+            chain_bind(false)
+
+# UNREGISTERED SOURCE CANDIDATE: Sweep uses SDK64 resource.sweep_point().
+# Resource0 is original x4 head; resource tip is original x0 tip.
+article It_Kind_Seak_Chain states 5:
+    attribute int link_count 0
+    attribute float link_length 4
+    attribute float horizontal_decay 16
+    attribute float floor_horizontal_decay 20
+    attribute float gravity 24
+    attribute float input_horizontal_scale 28
+    attribute float input_vertical_scale 32
+    attribute float maximum_horizontal_speed 36
+    attribute float vertical_deadzone 40
+    attribute float maximum_vertical_speed 44
+    attribute float wall_input_scale 48
+    attribute float propagation_scale 52
+    attribute float forward_delta_scale 56
+    attribute float backward_delta_scale 60
+    attribute float upward_delta_scale 64
+    attribute float downward_delta_scale 68
+    attribute float stick_deadzone 72
+    attribute float movement_threshold 76
+    attribute float launch_speed 80
+    attribute float retract_speed 84
+    attribute float initial_bounce_scale 88
+    attribute float wall_bounce_scale 92
+    attribute float wall_vertical_threshold 96
+    parameter float attachment_depth = 0.1
+    parameter float collision_radius = 1
+    parameter int collision_category = 5
+    parameter int contact_sound = 270149
+    parameter int neutral_collision_skip = 3
+    parameter int downward_collision_skip = 1
+    parameter int other_collision_skip = 2
+    parameter float downward_input_threshold = -0.5
+    parameter int contact_sound_stride = 5
+    parameter int endpoint_divisions = 3
+    parameter float vertical_basis_limit = 0.9999
+    resources capacity 30
+    model_root Link 100
+    model_root Tip 104
+    state int tip
+    state int previous_wall_flags
+    state int previous_rehit
+    state bool active[30]
+    state bool touching[30]
+    state bool sound_latched[30]
+    state float history_x[15]
+    state float history_y[15]
+    state float matrix[12]
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float vector_x
+    state float vector_y
+    state float vector_z
+    state float stick_deadzone
+    state float movement_threshold
+    state float launch_speed
+
+    func SetPosition(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func Advance(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    func PushHistory(int node):
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+
+    func SeedHistory(int node):
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+
+    func SetActive(int node, bool active):
+        item.state.active[node] = active
+        # Original tip draws unconditionally; other nodes gate x2C_b0.
+        let bool drawing = item.resource(node).set_draw(active or node == item.state.tip)
+
+    func Measure(float ax, float ay, float az, float bx, float by, float bz) -> float:
+        item.state.vector_x = ax - bx
+        item.state.vector_y = ay - by
+        item.state.vector_z = az - bz
+        let float length = sqrt(item.state.vector_x * item.state.vector_x + item.state.vector_y * item.state.vector_y + item.state.vector_z * item.state.vector_z)
+        let float inverse = 0
+        if length != 0:
+            inverse = 1 / length
+        item.state.vector_x = item.state.vector_x * inverse
+        item.state.vector_y = item.state.vector_y * inverse
+        item.state.vector_z = item.state.vector_z * inverse
+        return length
+
+    func PlaceMeasured(int node, float x, float y, float z, float length):
+        SetPosition(node, item.state.vector_x * length + x, item.state.vector_y * length + y, item.state.vector_z * length + z)
+
+    func Sweep(int node, bool sound) -> int:
+        if node > 0 and item.state.active[node - 1]:
+            item.resource(node).collision.previous.x = item.resource(node - 1).position.x
+            item.resource(node).collision.previous.y = item.resource(node - 1).position.y
+            item.resource(node).collision.previous.z = item.resource(node - 1).position.z
+        else:
+            item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+            item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+            item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        # Pending mpColl_80048844: any line contact, not a floor-touch result.
+        if item.resource(node).sweep_point():
+            if not item.state.touching[node] and sound and not item.state.sound_latched[node]:
+                let int voice = audio.play_global(item.params.contact_sound, 127, 64)
+                item.state.sound_latched[node] = true
+            item.state.touching[node] = true
+        else:
+            item.state.touching[node] = false
+            item.state.sound_latched[node] = false
+        let int environment = item.resource(node).collision.environment
+        if environment & 98304:
+            item.resource(node).collision.position.x = item.resource(node).position.x
+        elif environment & 4095:
+            if node > 0 and node < item.state.tip and item.state.active[node - 1]:
+                item.resource(node).collision.position.y = item.resource(node).collision.position.y + item.params.link_length
+        SetPosition(node, item.resource(node).collision.position.x, item.resource(node).collision.position.y, item.resource(node).collision.position.z)
+        return environment & 102399
+
+    func ReverseConstrain(int node, float distance):
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, distance)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            item.resource(previous).velocity.y = item.resource(previous).velocity.y - item.params.gravity
+            Advance(previous)
+            PushHistory(previous)
+            let int environment = Sweep(previous, false)
+            measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if measured > item.params.link_length:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+            node = previous
+            previous = previous + 1
+
+    func Extend(bool gravity) -> int:
+        let int node = item.state.tip
+        let int next = node - 1
+        if gravity:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity
+        Advance(node)
+        let int floor = Sweep(node, true) & 4095
+        let float weight = 1
+        while next >= 0:
+            let float measured = 0
+            if item.state.active[next]:
+                if gravity:
+                    item.resource(next).velocity.y = -((item.params.gravity * weight) - item.resource(next).velocity.y)
+                    weight = weight * item.params.propagation_scale
+                    Advance(next)
+                measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.link_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+                PushHistory(next)
+            else:
+                measured = Measure(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.link_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+                    SetActive(next, true)
+                    SeedHistory(next)
+                elif floor != 0:
+                    return 1
+                else:
+                    return 0
+            node = next
+            next = next - 1
+        ReverseConstrain(node, item.params.link_length)
+        return 2
+
+    func DecayHorizontal(int node, float decay):
+        let float speed = item.resource(node).velocity.x
+        if speed > decay:
+            item.resource(node).velocity.x = speed - decay
+        elif speed < -decay:
+            item.resource(node).velocity.x = speed + decay
+        else:
+            item.resource(node).velocity.x = 0
+
+    func LimitVelocity(int node, float weight):
+        DecayHorizontal(node, item.params.horizontal_decay * weight)
+        let float limit = item.params.maximum_horizontal_speed * weight
+        if abs(item.resource(node).velocity.x) > limit:
+            if item.resource(node).velocity.x > 0:
+                item.resource(node).velocity.x = limit
+            else:
+                item.resource(node).velocity.x = -limit
+        let float gravity = item.params.gravity * weight
+        if item.resource(node).velocity.y > gravity - item.params.vertical_deadzone:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - gravity
+        elif item.resource(node).velocity.y < -gravity - item.params.vertical_deadzone:
+            item.resource(node).velocity.y = item.resource(node).velocity.y + gravity
+        limit = item.params.maximum_vertical_speed * weight
+        if abs(item.resource(node).velocity.y) > limit:
+            if item.resource(node).velocity.y > 0:
+                item.resource(node).velocity.y = limit
+            else:
+                item.resource(node).velocity.y = -limit
+
+    func UpdateInputHistory():
+        let int history = int(0.5 * float(item.params.link_count) - 1)
+        while history > 0:
+            item.state.history_x[history] = item.state.history_x[history - 1]
+            item.state.history_y[history] = item.state.history_y[history - 1]
+            history = history - 1
+        let float dx = 0
+        let float dy = 0
+        if attachment_owner.exists:
+            dx = attachment_owner.state.chain_delta_x
+            dy = attachment_owner.state.chain_delta_y
+        item.state.history_x[0] = 0
+        if abs(dx) > item.params.stick_deadzone:
+            let int sign = 1
+            if dx < 0:
+                sign = -1
+            if facing == sign:
+                item.state.history_x[0] = dx * item.params.forward_delta_scale
+            else:
+                item.state.history_x[0] = dx * item.params.backward_delta_scale
+        item.state.history_y[0] = 0
+        if abs(dy) > item.params.stick_deadzone:
+            if dy > 0:
+                item.state.history_y[0] = dy * item.params.upward_delta_scale
+            else:
+                item.state.history_y[0] = dy * item.params.downward_delta_scale
+        # Actual raw alias is Sheik's Int rehit timer, not arbitrary common data.
+        item.state.previous_rehit = 0
+        if attachment_owner.exists:
+            item.state.previous_rehit = attachment_owner.state.chain_rehit_timer
+
+    func Propagate(int node, int previous, float weight, int previous_wall, int skip, bool sound) -> int:
+        let int counter = 0
+        # Original env_flags is undefined if no following node. Authored empty
+        # loop state is deterministic0; normal-loop comparisons stay separate.
+        let int environment = 0
+        while previous <= item.state.tip:
+            let int history = int(0.5 * float(counter + 1))
+            let float dx = weight * (item.state.history_x[history] * item.params.input_horizontal_scale)
+            let float dy = weight * (item.state.history_y[history] * item.params.input_vertical_scale)
+            if previous_wall != 0:
+                dx = dx * item.params.wall_input_scale
+            item.resource(previous).velocity.x = item.resource(previous).velocity.x + dx
+            item.resource(previous).velocity.y = item.resource(previous).velocity.y + dy
+            LimitVelocity(previous, weight)
+            counter = counter + 1
+            weight = weight * item.params.propagation_scale
+            Advance(previous)
+            environment = 0
+            if counter > skip:
+                environment = Sweep(previous, sound and counter % item.params.contact_sound_stride == 0)
+            environment = environment & 98304
+            if environment != 0:
+                if abs(item.resource(previous).velocity.y) > item.params.wall_vertical_threshold:
+                    item.resource(previous).velocity.y = item.resource(previous).velocity.y * -item.params.wall_bounce_scale
+                else:
+                    DecayHorizontal(previous, item.params.floor_horizontal_decay)
+                    item.resource(previous).velocity.y = 0
+            let float measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if measured > item.params.link_length:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+            node = previous
+            previous = previous + 1
+        return environment
+
+
+    func Control():
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.active[node]:
+            node = previous
+            previous = previous + 1
+        let bool sound = item.state.previous_rehit != 0
+        UpdateInputHistory()
+        item.resource(node).velocity.x = item.resource(node).velocity.x + item.state.history_x[0] * item.params.input_horizontal_scale
+        item.resource(node).velocity.y = item.resource(node).velocity.y + item.state.history_y[0] * item.params.input_vertical_scale
+        LimitVelocity(node, 1)
+        Advance(node)
+        let float weight = 1
+        weight = weight * item.params.propagation_scale
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if measured > item.params.link_length:
+            PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.params.link_length)
+        let int previous_wall = item.state.previous_wall_flags
+        let int skip = item.params.other_collision_skip
+        let float input_x = 0
+        let float input_y = 0
+        if attachment_owner.exists:
+            input_x = attachment_owner.input.x
+            input_y = attachment_owner.input.y
+        if abs(input_x) < item.params.stick_deadzone and abs(input_y) < item.params.stick_deadzone:
+            skip = item.params.neutral_collision_skip
+        elif input_y < item.params.downward_input_threshold:
+            skip = item.params.downward_collision_skip
+        item.state.previous_wall_flags = Propagate(node, previous, weight, previous_wall, skip, sound)
+
+    func Retract() -> bool:
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.active[node]:
+            node = previous
+            previous = previous + 1
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        while previous <= item.state.tip and item.params.retract_speed > measured:
+            SetActive(node, false)
+            measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            node = previous
+            previous = previous + 1
+        let float remaining = measured - item.params.retract_speed
+        if remaining > item.params.link_length:
+            remaining = item.params.link_length
+        ReverseConstrain(node, remaining)
+        return previous > item.state.tip
+
+    func ReadAnchor():
+        item.resource(0).read_attachment_point(0, 0, item.params.attachment_depth, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+
+    func TipAtHand():
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        item.state.matrix[3] = item.state.matrix[3] + item.state.matrix[2] * item.params.attachment_depth
+        item.state.matrix[7] = item.state.matrix[7] + item.state.matrix[6] * item.params.attachment_depth
+        item.state.matrix[11] = item.state.matrix[11] + item.state.matrix[10] * item.params.attachment_depth
+        item.resource(item.state.tip).set_world_matrix(item.state.matrix)
+
+    func Orient(int node, float x, float y, float z):
+        let float measured = Measure(x, y, z, 0, 0, 0)
+        let float forward_x = item.state.vector_x
+        let float forward_y = item.state.vector_y
+        let float forward_z = item.state.vector_z
+        # BCB88 normalizes once;6DC8 normalizes a second time before the crosses.
+        measured = Measure(forward_x, forward_y, forward_z, 0, 0, 0)
+        forward_x = item.state.vector_x
+        forward_y = item.state.vector_y
+        forward_z = item.state.vector_z
+        let float basis_x = 0
+        let float basis_y = 1
+        if forward_y > item.params.vertical_basis_limit:
+            basis_x = -1
+            basis_y = 0
+        elif forward_y < -item.params.vertical_basis_limit:
+            basis_x = 1
+            basis_y = 0
+        let float right_x = basis_y * forward_z
+        let float right_y = -basis_x * forward_z
+        let float right_z = basis_x * forward_y - basis_y * forward_x
+        let float up_x = forward_y * right_z - forward_z * right_y
+        let float up_y = forward_z * right_x - forward_x * right_z
+        let float up_z = forward_x * right_y - forward_y * right_x
+        measured = Measure(right_x, right_y, right_z, 0, 0, 0)
+        right_x = item.state.vector_x
+        right_y = item.state.vector_y
+        right_z = item.state.vector_z
+        measured = Measure(up_x, up_y, up_z, 0, 0, 0)
+        up_x = item.state.vector_x
+        up_y = item.state.vector_y
+        up_z = item.state.vector_z
+        item.state.matrix[0] = right_x * item.params.link_length
+        item.state.matrix[4] = right_y * item.params.link_length
+        item.state.matrix[8] = right_z * item.params.link_length
+        item.state.matrix[1] = up_x * item.params.link_length
+        item.state.matrix[5] = up_y * item.params.link_length
+        item.state.matrix[9] = up_z * item.params.link_length
+        item.state.matrix[2] = forward_x * item.params.link_length
+        item.state.matrix[6] = forward_y * item.params.link_length
+        item.state.matrix[10] = forward_z * item.params.link_length
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func Render():
+        let int node = 0
+        while node <= item.state.tip and not item.state.active[node]:
+            node = node + 1
+        let int count = 0
+        let int stride = item.params.link_count / item.params.endpoint_divisions
+        while node <= item.state.tip:
+            let float next_x = item.state.anchor_x
+            let float next_y = item.state.anchor_y
+            let float next_z = item.state.anchor_z
+            if node > 0 and item.state.active[node - 1]:
+                next_x = item.resource(node - 1).position.x
+                next_y = item.resource(node - 1).position.y
+                next_z = item.resource(node - 1).position.z
+            let float previous_x = item.resource(node).position.x
+            let float previous_y = item.resource(node).position.y
+            let float previous_z = item.resource(node).position.z
+            if node < item.state.tip:
+                previous_x = item.resource(node + 1).position.x
+                previous_y = item.resource(node + 1).position.y
+                previous_z = item.resource(node + 1).position.z
+            item.resource(node).joint("").translation.x = item.resource(node).position.x
+            item.resource(node).joint("").translation.y = item.resource(node).position.y
+            item.resource(node).joint("").translation.z = item.resource(node).position.z
+            if count % stride == 0:
+                let int hit = item.params.endpoint_divisions
+                while hit > count / stride:
+                    if attachment_owner.exists:
+                        attachment_owner.helpers.chain_endpoint(hit - 1, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    hit = hit - 1
+            if node == item.state.tip:
+                if attachment_owner.exists:
+                    attachment_owner.helpers.chain_endpoint(3, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            count = count + 1
+            Orient(node, previous_x - next_x, previous_y - next_y, previous_z - next_z)
+            node = node + 1
+
+    func Change(int motion):
+        # ITEM_ANIM_UPDATE is bit1 (2), distinct from ITEM_DROP_UPDATE bit2.
+        item.change_state_flags(motion, 2)
+        item.track_accessory()
+
+    func Cleanup():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "chain_lost")
+        item.detach_owner()
+        item.resources.release()
+
+    on created:
+            item.state.tip = item.params.link_count - 1
+            item.state.previous_wall_flags = 0
+            # Original x18 has no explicit constructor write; undefined boundary.
+            item.state.previous_rehit = 0
+            item.state.stick_deadzone = item.params.stick_deadzone
+            item.state.movement_threshold = item.params.movement_threshold
+            item.state.launch_speed = item.params.launch_speed
+            let int index = 0
+            while index < 15:
+                item.state.history_x[index] = 0
+                item.state.history_y[index] = 0
+                index = index + 1
+            item.joint("").visible = false
+            # Malformed edited counts do not reproduce stride0/history overflow.
+            # Retail source audit reports20; capacity30 fits15 history entries.
+            if item.params.link_count < 3 or item.params.link_count > 30 or item.params.endpoint_divisions != 3:
+                item.remove()
+            let bool allocated = item.resources.begin(item.params.link_count)
+            if not allocated:
+                item.remove()
+            index = 0
+            while index < item.params.link_count:
+                let bool created = item.resource(index).create(program.attrs.chain_attachment_part, item.params.collision_radius, item.params.collision_category, 0, 0, 0)
+                if not created:
+                    item.resources.release()
+                    item.remove()
+                item.resource(index).surface_line = 0
+                item.state.active[index] = false
+                item.state.touching[index] = false
+                item.state.sound_latched[index] = false
+                let bool loaded = false
+                if index == item.state.tip:
+                    loaded = item.resource(index).load_model(Tip)
+                else:
+                    loaded = item.resource(index).load_model(Link)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                let bool drawing = item.resource(index).set_draw(index == item.state.tip)
+                index = index + 1
+            item.attach_to_owner(program.attrs.chain_attachment_part)
+    on picked_up:
+            Change(0)
+    on accessory:
+            if item.motion_state == 0:
+                TipAtHand()
+            else:
+                ReadAnchor()
+                if item.motion_state == 1:
+                    let int outcome = Extend(false)
+                    if outcome == 1:
+                        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * -item.params.initial_bounce_scale
+                        if attachment_owner.exists:
+                            attachment_owner.helpers.chain_clear_hitboxes()
+                        Change(2)
+                    elif outcome == 2:
+                        if attachment_owner.exists:
+                            attachment_owner.helpers.chain_clear_hitboxes()
+                        Change(3)
+                elif item.motion_state == 2:
+                    let int outcome = Extend(true)
+                    if outcome == 1:
+                        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * -item.params.initial_bounce_scale
+                    elif outcome == 2:
+                        if attachment_owner.exists:
+                            attachment_owner.helpers.chain_clear_hitboxes()
+                        Change(3)
+                elif item.motion_state == 3:
+                    Control()
+                elif item.motion_state == 4:
+                    if Retract():
+                        Change(0)
+                Render()
+    on signal launch:
+            ReadAnchor()
+            SetPosition(item.state.tip, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            # History seeds actual ECB midpoint, distinct from hand/item position.
+            item.resource(item.state.tip).collision.position.x = 0
+            let float center_y = 0
+            if attachment_owner.exists:
+                item.resource(item.state.tip).collision.position.x = attachment_owner.position.x
+                center_y = attachment_owner.helpers.chain_center_y()
+            item.resource(item.state.tip).collision.position.y = center_y
+            item.resource(item.state.tip).collision.position.z = 0
+            if attachment_owner.exists:
+                item.resource(item.state.tip).collision.position.z = attachment_owner.position.z
+            item.resource(item.state.tip).collision.previous.x = item.resource(item.state.tip).collision.position.x
+            item.resource(item.state.tip).collision.previous.y = item.resource(item.state.tip).collision.position.y
+            item.resource(item.state.tip).collision.previous.z = item.resource(item.state.tip).collision.position.z
+            SetActive(item.state.tip, true)
+            item.resource(item.state.tip).velocity.x = item.params.launch_speed * facing
+            item.resource(item.state.tip).velocity.y = 0
+            item.resource(item.state.tip).velocity.z = 0
+            Change(1)
+    on signal retract:
+            Change(4)
+    on signal pause:
+            item.pause()
+    on signal resume:
+            item.resume()
+    on signal destroy:
+            Cleanup()
+            item.remove()
+    on destroyed:
+            Cleanup()
+    on interaction:
+            let bool creator_removed = item.attachment_owner_is(other)
+            item.interact(other)
+            if creator_removed:
+                # Original EvtUnk clears parent independently of mutable owner.
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            # The chain is an accessory owned by the fighter, not a held item.
+            if not current_owner.exists:
+                Cleanup()
+                return true
+            let int owner_motion = current_owner.motion
+            if owner_motion < 349 or owner_motion > 354:
+                Cleanup()
+                return true
+            return false
+    state 1 anim -1 use 0:
+    state 2 anim -1 use 0:
+    state 3 anim -1 use 0:
+    state 4 anim -1 use 0:
+article It_Kind_Seak_Vanish states 1:
+    on created:
+            # This first life assignment is overwritten by common expiry setup.
+            item.life = 60
+            item.command0 = 0
+            item.hide_model()
+            item.use_manual_lifetime()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+    on damage_dealt:
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            return item.expire_tick()

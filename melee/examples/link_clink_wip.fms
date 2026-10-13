@@ -1,0 +1,608 @@
+# Link and Young Link: accepted Spin Attack and Bomb Pull/article translation.
+# Shared specials for independent Link and Young Link copied assets.
+# Import each fighter's stock attributes into its owned fmp before building.
+# Stock parameter import selects the owned spin_effect_joint default:24 Link,
+# 26 Young Link. Explicitly customized template values stay customized.
+# Bow/arrow, boomerang, tether and remaining fighter lifecycle are still native.
+attribute float spin_landing_lag 48
+attribute float spin_air_horizontal_multiplier 52
+attribute float spin_air_drift_multiplier 56
+attribute float spin_air_speed_multiplier 60
+attribute float spin_air_vertical_speed 64
+attribute float spin_gravity_multiplier 68
+parameter int spin_effect_joint = 24
+
+
+# Bomb shares decisions across both fighters. Owned import selects holding
+# joint 64 for Link or 68 for Young Link when the default is unchanged.
+attribute int bomb_kind 72
+parameter int bomb_holding_joint = 64
+state float bomb_spawn_x
+state float bomb_spawn_y
+state float bomb_spawn_z
+state int bomb_handle
+
+
+func spin_effect():
+    if not effects.active:
+        if grounded: effects.spawn_between(1211, bones.index(TransN), attrs.spin_effect_joint)
+        else: effects.spawn_between(1212, bones.index(TransN), attrs.spin_effect_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func spin_air_physics():
+    physics.fall(air.gravity * attrs.spin_gravity_multiplier, air.terminal_velocity)
+    physics.air_accel_friction(0, air.drift_stick_mul * attrs.spin_air_drift_multiplier, air.drift_max * attrs.spin_air_speed_multiplier)
+
+
+func bomb_restore_parts():
+    visuals.set_group(2, 0)
+    visuals.set_current_group(2, 0)
+
+func bomb_create():
+    if cue.consume(0):
+        bones.world_position(bones.index(LeftThumb), state.bomb_spawn_x, state.bomb_spawn_y, state.bomb_spawn_z)
+        # Exact SpawnItem current position is ECB center;
+        # previous position is the supplied thumb; velocity is zero, damage0,
+        # parent/owner is this fighter and spawn.x44.b0=true. Initialize via on
+        # created BEFORE Item_8026AB54 invokes picked_up; then attach/register.
+        state.bomb_handle = articles.create_held_at_center(attrs.bomb_kind, state.bomb_spawn_x, state.bomb_spawn_y, state.bomb_spawn_z, attrs.bomb_holding_joint, facing.direction)
+        visuals.set_group(2, 1)
+        if articles.owned(state.bomb_handle): items.notify_pickup(true)
+
+func bomb_enter(int throw_motion, int pull_motion):
+    if items.held:
+        # Preserve unsigned stock range check; no pull if another item is held.
+        if items.held_kind == It_Kind_Link_Bomb or items.held_kind == It_Kind_CLink_Bomb: items.throw_held(throw_motion)
+        return
+    cue.throw.reset()
+    state.enter_at_speed(pull_motion, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(bomb_create)
+
+
+move SpinAttack:
+    entry explicit
+    on special_hi:
+        state.enter_at_speed(356, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(spin_effect)
+    on special_air_hi:
+        state.enter_at_speed(357, 0, 0, 1)
+        animation.start()
+        velocity.x = velocity.x * attrs.spin_air_horizontal_multiplier
+        velocity.y = attrs.spin_air_vertical_speed
+        jumps.used = jumps.max
+        callbacks.accessory(spin_effect)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.freefall(1, 1, false, attrs.spin_air_drift_multiplier, attrs.spin_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if grounded: physics.ground_friction()
+        else: spin_air_physics()
+    on air_physics:
+        spin_air_physics()
+    on ground_collision:
+        # Exact stock continuation flags; preserve the attack and current frame.
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(357, 0x0C4C508A, frame, 1)
+    on air_collision:
+        if collision.check_ground_ledge(0): state.landing_special(false, attrs.spin_landing_lag)
+        else: collision.cliff_catch()
+
+move BombPull:
+    entry explicit
+    on special_lw:
+        bomb_enter(108, 358)
+    on special_air_lw:
+        bomb_enter(112, 359)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.left_ground:
+            physics.ground_to_air()
+            state.enter_at_speed(359, 0x0C4C5080, frame, 1)
+            callbacks.accessory(bomb_create)
+    on air_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(358, 0x0C4C5080, frame, 1)
+            callbacks.accessory(bomb_create)
+
+
+article It_Kind_Link_Bomb states 7:
+    attribute int lifetime 0
+    attribute int fast_fuse_threshold 12
+    attribute int detonation_damage 16
+    attribute float damage_hop_x 20
+    attribute float damage_hop_y 24
+    attribute float contact_bounce_x 28
+    attribute float contact_bounce_y 32
+    attribute float detonation_speed_x 36
+    attribute float detonation_speed_y 40
+    attribute float roll_acceleration 44
+    attribute float roll_stop_speed 48
+    state bool fast_fuse
+    state bool rolling
+    state bool damage_hopped
+    state float fuse_translation_step
+    state float fuse_rotation_step
+    state float roll_direction
+    state int change_flags
+    state bool impact_detonated
+    state int stage_flags
+    state float collision_velocity_x
+    state float collision_velocity_y
+    state float preserved_fuse_y
+    state float preserved_fuse_x
+    on signal change_preserving_fuse:
+            # dynamic_joint uses the article's dynamic-bone table, not a
+            # preorder root-model joint index. These components survive every change.
+            item.state.preserved_fuse_y = item.dynamic_joint(3).translation.y
+            item.state.preserved_fuse_x = item.dynamic_joint(3).rotation.x
+            if item.state.fast_fuse:
+                item.state.change_flags = item.state.change_flags | 256
+            else:
+                item.state.change_flags = item.state.change_flags | 2
+            item.change_state_flags(int(signal.value), item.state.change_flags)
+            item.dynamic_joint(3).translation.y = item.state.preserved_fuse_y
+            item.dynamic_joint(3).rotation.x = item.state.preserved_fuse_x
+    on signal explode:
+            item.harm_owner = true
+            item.harm_teammates = true
+            item.harm_sibling_items = true
+            if item.owner_bound:
+                item.release_attachment(0, 0, 0)
+                item.collision_mode = 2
+                if item.attachment_active: owner.call(bomb_restore_parts)
+            item.use_manual_lifetime()
+            item.stop_motion()
+            item.hide_model()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.collision_mode = 2
+            item.spawn_effect_at_position(1038, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.contact_hitlag = false
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 5)
+            item.wind_at_position(120, 1, 0.02, 1.0471976)
+    on signal fuse_tick:
+            if item.life <= 0:
+                item.signal("explode", 0)
+                return
+            if item.life <= item.attr.fast_fuse_threshold and not item.state.fast_fuse:
+                # Select descriptor3, reload/advance model animation once without
+                # changing logical state, commands, lifetime, velocity or attachment.
+                item.set_animation_descriptor(3)
+                item.advance_model_animation()
+                item.state.fast_fuse = true
+            item.life = item.life - 1
+            if not item.state.fast_fuse:
+                item.dynamic_joint(3).translation.y = item.dynamic_joint(3).translation.y + item.state.fuse_translation_step
+                item.dynamic_joint(3).rotation.x = item.dynamic_joint(3).rotation.x + item.state.fuse_rotation_step
+    on signal enter_falling:
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 1)
+    on signal enter_held:
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 0)
+            item.subaction_sounds_muted = false
+    on signal enter_thrown:
+            item.harm_sibling_items = true
+            item.can_be_hit_by_sibling_items = true
+            item.state.change_flags = 4
+            if item.motion_state == 2: item.state.change_flags = 20
+            item.signal("change_preserving_fuse", 2)
+    on signal enter_dropped:
+            item.harm_sibling_items = true
+            item.can_be_hit_by_sibling_items = true
+            item.state.change_flags = 4
+            if item.motion_state == 3: item.state.change_flags = 20
+            item.signal("change_preserving_fuse", 3)
+    on signal enter_rolling:
+            item.state.roll_direction = 1
+            if velocity.x < 0: item.state.roll_direction = -1
+            item.set_collision_facing(int(item.state.roll_direction))
+            item.state.rolling = true
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 4)
+    on signal check_impact_speed:
+            item.state.impact_detonated = false
+            if abs(item.state.collision_velocity_x) > item.attr.detonation_speed_x or abs(item.state.collision_velocity_y) > item.attr.detonation_speed_y:
+                item.signal("explode", 0)
+                item.state.impact_detonated = true
+    on signal thrown_collision:
+            item.state.collision_velocity_x = velocity.x
+            item.state.collision_velocity_y = velocity.y
+            # DAA8 sweep records current position/collision flags/floor response.
+            item.state.stage_flags = item.sweep_stage_flags()
+            if item.state.stage_flags & 15:
+                item.signal("check_impact_speed", 0)
+                if not item.state.impact_detonated and item.state.stage_flags & 1:
+                    item.grounded = true
+                    item.reset_default_ecb()
+                    item.signal("enter_rolling", 0)
+    state 0 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_held", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            return
+    state 1 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_falling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity(false)
+        on collision:
+            # E15C flavor; existing no-argument E248 bounce_to_ground differs.
+            item.bounce_to_ground(1)
+            return false
+    state 2 anim 1:
+        on animation:
+            if item.animation_finished: item.signal("enter_thrown", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.signal("thrown_collision", 0)
+            return false
+    state 3 anim 1:
+        on animation:
+            if item.animation_finished: item.signal("enter_dropped", 0)
+            # Intentional second query after changing3, matching source.
+            if item.animation_finished: item.signal("enter_falling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.signal("thrown_collision", 0)
+            return false
+    state 4 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_rolling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            if item.state.rolling:
+                if velocity.x != 0: velocity.x = velocity.x + item.attr.roll_acceleration * item.state.roll_direction
+                if abs(velocity.x) < item.attr.roll_stop_speed: velocity.x = 0
+        on collision:
+            item.follow_ground()
+            return false
+    state 5 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            return false
+    state 6 anim 0:
+        on animation:
+            if item.animation_finished: item.change_state_flags(6, 2)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            return
+        on collision:
+            item.slide_on_ground()
+            return false
+    on created:
+            item.set_lifetime(item.attr.lifetime)
+            item.state.fast_fuse = false
+            item.state.damage_hopped = false
+            # Source subtracts unsigned attributes before conversion to float.
+            item.state.fuse_translation_step = -2.8000002 / float(uint(item.attr.lifetime) - uint(item.attr.fast_fuse_threshold)) * item.scale
+            item.state.fuse_rotation_step = -0.15707964 / float(uint(item.attr.lifetime) - uint(item.attr.fast_fuse_threshold)) * item.scale
+            item.subaction_sounds_muted = true
+    on picked_up:
+            item.signal("enter_held", 0)
+    on dropped:
+            item.signal("enter_dropped", 0)
+    on thrown:
+            item.signal("enter_thrown", 0)
+    on damage_dealt:
+            if item.motion_state != 5:
+                item.state.collision_velocity_x = velocity.x
+                item.state.collision_velocity_y = velocity.y
+                item.signal("check_impact_speed", 0)
+                if not item.state.impact_detonated:
+                    facing = -facing
+                    velocity.x = item.attr.contact_bounce_x * facing
+                    velocity.y = item.attr.contact_bounce_y
+            return false
+    on damage_received:
+            if item.motion_state != 5:
+                if item.damage_received >= item.attr.detonation_damage:
+                    item.signal("explode", 0)
+                elif not item.state.damage_hopped:
+                    # Signed x comparison and facing-scaled y are intentional.
+                    if velocity.x > item.attr.roll_stop_speed:
+                        facing = -item.damage_direction
+                        velocity.x = item.attr.damage_hop_x * facing
+                    else:
+                        velocity.x = item.attr.damage_hop_x * (2 * (random.float() - 0.5))
+                        item.align_facing_to_velocity()
+                    velocity.y = item.attr.damage_hop_y * facing
+                    item.state.damage_hopped = true
+            return false
+    on entered_air:
+            item.change_state_flags(6, 2)
+    on reflected:
+            return item.reflect()
+    on shield_bounced:
+            return item.shield_bounce()
+    on hit_shield:
+            item.bounce()
+            return false
+    on interaction:
+            if item.attachment_owner_is(other): item.clear_attachment_owner()
+            item.interact(other)
+    on stage_landed:
+            item.signal("enter_rolling", 0)
+    on stage_left:
+            item.signal("enter_falling", 0)
+    on out_of_bounds:
+            if not item.owner_bound and item.motion_state != 5: item.signal("explode", 0)
+
+article It_Kind_CLink_Bomb states 7:
+    attribute int lifetime 0
+    attribute int fast_fuse_threshold 12
+    attribute int detonation_damage 16
+    attribute float damage_hop_x 20
+    attribute float damage_hop_y 24
+    attribute float contact_bounce_x 28
+    attribute float contact_bounce_y 32
+    attribute float detonation_speed_x 36
+    attribute float detonation_speed_y 40
+    attribute float roll_acceleration 44
+    attribute float roll_stop_speed 48
+    state bool fast_fuse
+    state bool rolling
+    state bool damage_hopped
+    state float fuse_translation_step
+    state float fuse_rotation_step
+    state float roll_direction
+    state int change_flags
+    state bool impact_detonated
+    state int stage_flags
+    state float collision_velocity_x
+    state float collision_velocity_y
+    state float preserved_fuse_y
+    state float preserved_fuse_x
+    on signal change_preserving_fuse:
+            # dynamic_joint uses the article's dynamic-bone table, not a
+            # preorder root-model joint index. These components survive every change.
+            item.state.preserved_fuse_y = item.dynamic_joint(3).translation.y
+            item.state.preserved_fuse_x = item.dynamic_joint(3).rotation.x
+            if item.state.fast_fuse:
+                item.state.change_flags = item.state.change_flags | 256
+            else:
+                item.state.change_flags = item.state.change_flags | 2
+            item.change_state_flags(int(signal.value), item.state.change_flags)
+            item.dynamic_joint(3).translation.y = item.state.preserved_fuse_y
+            item.dynamic_joint(3).rotation.x = item.state.preserved_fuse_x
+    on signal explode:
+            item.harm_owner = true
+            item.harm_teammates = true
+            item.harm_sibling_items = true
+            if item.owner_bound:
+                item.release_attachment(0, 0, 0)
+                item.collision_mode = 2
+                if item.attachment_active: owner.call(bomb_restore_parts)
+            item.use_manual_lifetime()
+            item.stop_motion()
+            item.hide_model()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.collision_mode = 2
+            item.spawn_effect_at_position(1038, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.contact_hitlag = false
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 5)
+            item.wind_at_position(120, 1, 0.02, 1.0471976)
+    on signal fuse_tick:
+            if item.life <= 0:
+                item.signal("explode", 0)
+                return
+            if item.life <= item.attr.fast_fuse_threshold and not item.state.fast_fuse:
+                # Select descriptor3, reload/advance model animation once without
+                # changing logical state, commands, lifetime, velocity or attachment.
+                item.set_animation_descriptor(3)
+                item.advance_model_animation()
+                item.state.fast_fuse = true
+            item.life = item.life - 1
+            if not item.state.fast_fuse:
+                item.dynamic_joint(3).translation.y = item.dynamic_joint(3).translation.y + item.state.fuse_translation_step
+                item.dynamic_joint(3).rotation.x = item.dynamic_joint(3).rotation.x + item.state.fuse_rotation_step
+    on signal enter_falling:
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 1)
+    on signal enter_held:
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 0)
+            item.subaction_sounds_muted = false
+    on signal enter_thrown:
+            item.harm_sibling_items = true
+            item.can_be_hit_by_sibling_items = true
+            item.state.change_flags = 4
+            if item.motion_state == 2: item.state.change_flags = 20
+            item.signal("change_preserving_fuse", 2)
+    on signal enter_dropped:
+            item.harm_sibling_items = true
+            item.can_be_hit_by_sibling_items = true
+            item.state.change_flags = 4
+            if item.motion_state == 3: item.state.change_flags = 20
+            item.signal("change_preserving_fuse", 3)
+    on signal enter_rolling:
+            item.state.roll_direction = 1
+            if velocity.x < 0: item.state.roll_direction = -1
+            item.set_collision_facing(int(item.state.roll_direction))
+            item.state.rolling = true
+            item.state.change_flags = 0
+            item.signal("change_preserving_fuse", 4)
+    on signal check_impact_speed:
+            item.state.impact_detonated = false
+            if abs(item.state.collision_velocity_x) > item.attr.detonation_speed_x or abs(item.state.collision_velocity_y) > item.attr.detonation_speed_y:
+                item.signal("explode", 0)
+                item.state.impact_detonated = true
+    on signal thrown_collision:
+            item.state.collision_velocity_x = velocity.x
+            item.state.collision_velocity_y = velocity.y
+            # DAA8 sweep records current position/collision flags/floor response.
+            item.state.stage_flags = item.sweep_stage_flags()
+            if item.state.stage_flags & 15:
+                item.signal("check_impact_speed", 0)
+                if not item.state.impact_detonated and item.state.stage_flags & 1:
+                    item.grounded = true
+                    item.reset_default_ecb()
+                    item.signal("enter_rolling", 0)
+    state 0 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_held", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            return
+    state 1 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_falling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity(false)
+        on collision:
+            # E15C flavor; existing no-argument E248 bounce_to_ground differs.
+            item.bounce_to_ground(1)
+            return false
+    state 2 anim 1:
+        on animation:
+            if item.animation_finished: item.signal("enter_thrown", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.signal("thrown_collision", 0)
+            return false
+    state 3 anim 1:
+        on animation:
+            if item.animation_finished: item.signal("enter_dropped", 0)
+            # Intentional second query after changing3, matching source.
+            if item.animation_finished: item.signal("enter_falling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.signal("thrown_collision", 0)
+            return false
+    state 4 anim 0:
+        on animation:
+            if item.animation_finished: item.signal("enter_rolling", 0)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            if item.state.rolling:
+                if velocity.x != 0: velocity.x = velocity.x + item.attr.roll_acceleration * item.state.roll_direction
+                if abs(velocity.x) < item.attr.roll_stop_speed: velocity.x = 0
+        on collision:
+            item.follow_ground()
+            return false
+    state 5 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            return
+        on collision:
+            return false
+    state 6 anim 0:
+        on animation:
+            if item.animation_finished: item.change_state_flags(6, 2)
+            item.signal("fuse_tick", 0)
+            return false
+        on physics:
+            return
+        on collision:
+            item.slide_on_ground()
+            return false
+    on created:
+            item.set_lifetime(item.attr.lifetime)
+            item.state.fast_fuse = false
+            item.state.damage_hopped = false
+            # Source subtracts unsigned attributes before conversion to float.
+            item.state.fuse_translation_step = -2.8000002 / float(uint(item.attr.lifetime) - uint(item.attr.fast_fuse_threshold)) * item.scale
+            item.state.fuse_rotation_step = -0.15707964 / float(uint(item.attr.lifetime) - uint(item.attr.fast_fuse_threshold)) * item.scale
+            item.subaction_sounds_muted = true
+    on picked_up:
+            item.signal("enter_held", 0)
+    on dropped:
+            item.signal("enter_dropped", 0)
+    on thrown:
+            item.signal("enter_thrown", 0)
+    on damage_dealt:
+            if item.motion_state != 5:
+                item.state.collision_velocity_x = velocity.x
+                item.state.collision_velocity_y = velocity.y
+                item.signal("check_impact_speed", 0)
+                if not item.state.impact_detonated:
+                    facing = -facing
+                    velocity.x = item.attr.contact_bounce_x * facing
+                    velocity.y = item.attr.contact_bounce_y
+            return false
+    on damage_received:
+            if item.motion_state != 5:
+                if item.damage_received >= item.attr.detonation_damage:
+                    item.signal("explode", 0)
+                elif not item.state.damage_hopped:
+                    # Signed x comparison and facing-scaled y are intentional.
+                    if velocity.x > item.attr.roll_stop_speed:
+                        facing = -item.damage_direction
+                        velocity.x = item.attr.damage_hop_x * facing
+                    else:
+                        velocity.x = item.attr.damage_hop_x * (2 * (random.float() - 0.5))
+                        item.align_facing_to_velocity()
+                    velocity.y = item.attr.damage_hop_y * facing
+                    item.state.damage_hopped = true
+            return false
+    on entered_air:
+            item.change_state_flags(6, 2)
+    on reflected:
+            return item.reflect()
+    on shield_bounced:
+            return item.shield_bounce()
+    on hit_shield:
+            item.bounce()
+            return false
+    on interaction:
+            if item.attachment_owner_is(other): item.clear_attachment_owner()
+            item.interact(other)
+    on stage_landed:
+            item.signal("enter_rolling", 0)
+    on stage_left:
+            item.signal("enter_falling", 0)
+    on out_of_bounds:
+            if not item.owner_bound and item.motion_state != 5: item.signal("explode", 0)

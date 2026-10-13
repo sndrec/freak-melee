@@ -1,0 +1,21 @@
+{
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchattack11.c": "0b5fdff0b95efece202e0df1549a3a01aff591292d6971a0d948fcf45f420281",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchattack100.c": "89ce240e84b1c1e152d3c16600fdca05ff16844a861adfcd6deb3a2030f21453",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchattacklw3.c": "11a18bfd6b5fa25ba36f330de6f2fd19ba941d98ba586688fcf57fde29c677fd",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchattacks4.c": "40dc3a86d72166e20f9267c6522001ebcb11adc0565b073ff566a5e15f1e1689",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchattackair.c": "f3af69c4d750412d0967ea1abc664bb55feb92851b0b4bb993c85092eadd26cb",
+  "src/melee/it/kinds/itgamewatchgreenhouse.c": "3b3a37611ca1f345a751a5b684397931f9f22896170258ba8fe61e63e03054a4",
+  "src/melee/it/kinds/itgamewatchmanhole.c": "905daebebd603bcf4fc31eb4e093314d31c7c831e578aed05b08abe983fec84e",
+  "src/melee/it/kinds/itgamewatchfire.c": "00e0d2a244dfa6ef722e7533beba8e741fa7c92cb7b4fd0cb4cacbd3dae98d0b",
+  "src/melee/it/kinds/itgamewatchparachute.c": "aa29a0e287044add7a84b245eaef8df4af0df6674e5456c27d4acc8a53316f21",
+  "src/melee/it/kinds/itgamewatchturtle.c": "034c46bf98f462b0b4cb58d5d0d1e969cc8405695e3f62b699f172e015776734",
+  "src/melee/it/kinds/itgamewatchbreath.c": "3500740fa4a381b0099008356cc6e58f455f9be1be2d668a082bccf1ae75eed0",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c": "836626fe34ba1bf245b8e60c35c423e540e47b41a054978cbd5f26660f8a6cf5",
+  "src/melee/it/it_26B1.c": "e52996c8fcb6727366dc6f5ac5965a09a4f644fe0088ff3e1c3a30d3a1a6276e",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspecials.c": "f635af265aba069ae1d56edfd106cca5371c22e0a386ce610a148eb2f937484e",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspeciallw.c": "f96fae2fe9653ae430f9ebb676606069842e4540c6b115ecc92027ad5db34b9e",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspecialhi.c": "abfab6f2a8de6772ba24448b17e41884b850fcf5612f230f20e9c56f82d6344c",
+  "src/melee/it/kinds/itgamewatchjudge.c": "6807a36a9a1c6489f709bb026c1af5b8303dcab7e676d0470eb5d2021fded464",
+  "src/melee/it/kinds/itgamewatchpanic.c": "37c5e68e3384b6f7def4c0e8e37ec8d6c1c5d61243d9712dd7cf7e7398696574",
+  "src/melee/it/kinds/itgamewatchrescue.c": "de0207cc9ad5aeeb901781e9edde33a0791a78124352b9fa75d1f848842769e2"
+}

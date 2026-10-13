@@ -1,0 +1,43 @@
+article It_Kind_Peach_Parasol states 3:
+    state int observed_id
+    state int observed_kind
+    state int observed_motion
+    state float observed_frame
+    state int continued
+    state 0 anim -1:
+    state 1 anim 0:
+    state 2 anim 1:
+    on held_status:
+            let int motion = item.motion_state
+            if motion == 1:
+                return 4
+            if motion == 0 or motion == 2:
+                return 6
+            return -1
+    on held_request:
+            let bool has_action = event.action
+            if not has_action:
+                return false
+            if event.action != 4:
+                return false
+            let float rate = event.frame_rate
+            if event.duration != 0:
+                rate = event.frame_rate * (15.0 / event.duration)
+            item.animation_rate = rate
+            item.state.observed_id = holder.held_id
+            item.state.observed_kind = targets.held_kind(item.current_owner)
+            item.state.observed_motion = holder.held_motion
+            item.state.observed_frame = targets.held_frame(uint(0xFEDCBA98))
+            item.change_state_flags(1, 2)
+            item.state.continued = event.action
+            return true
+    on damage_dealt:
+            return 1
+article It_Kind_Peach_Turnip states 1:
+    state 0 anim -1:
+    on held_status:
+            pass
+    on held_request:
+            pass
+article It_Kind_Peach_Explode states 1:
+    state 0 anim -1:

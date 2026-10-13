@@ -1,0 +1,44 @@
+{
+  "status": "Normal source fixture frozen:174336pairs/15567726checks PASS; package ownership waits coherent SDK65",
+  "snapshot": ".local/baseline64",
+  "freeze_sha256": "7301e8b4b16357d886bb305689a75e8ec1fe01f518e926c348db83cc714ab333",
+  "source_sha256": {
+    "tests/native/gamewatch_clone_activation/assemble.py": "7dcb43c29c38eb7656dea5fcf765a5c7c0f7a027d0902b40b947e5e28b6e4cf9",
+    "tests/native/gamewatch_clone_activation/audit.py": "fe4147fc5002b9770fd346f4ee8123fd4f20d4e388bbb39dbbece6c4581a6135",
+    "tests/native/gamewatch_clone_activation/checkpoint64.json": "c2ae53e48d975e92e75432d1027c17405be1a73a84573c554ed8ed1871736a84",
+    "tests/native/gamewatch_clone_activation/normal_boundaries.h": "ab091b667dadf8a4144f3c08f3bd2b3f34ed8722492b360b81ae987017a75c02",
+    "tests/native/gamewatch_clone_activation/normal_compare.c": "eac1f3dda92622c873a01b3ea5aef0adcd4740f44e47320574ecced615510378",
+    "tests/native/gamewatch_clone_activation/normal_compare.py": "79915ae9413251a1c19d0741c24d3877b6759c52faef7c8d7c164cb2b1215325",
+    "tests/native/gamewatch_clone_activation/normal_matrix.h": "2a3ea74d920917684c11281d2b378937d1a4a89b39c44cb6b3404c4e54da0a1e",
+    "tests/native/gamewatch_clone_activation/ownership.c": "d6f19cc666f9f7805edd5fc2cb2b52c8027311ba3801d9ea68e3e1926005fa1f",
+    "tests/native/gamewatch_clone_activation/prepare.py": "ff5f3faf77565bda2a6986b37b5ed87992572826d66224abebd4f39e2f9e7cc3",
+    "tests/native/gamewatch_clone_activation/README.md": "1361156f4444f238be6fb81b7e9446dc0a1f804c717ea7690ade9b155c40261f",
+    "tests/native/gamewatch_clone_activation/template_corrections.patch": "967fe3aea02daf3dcb96398fbfbc291cd4a3c7b5797e33e7d738871140baabd7"
+  },
+  "receipts": {
+    "A:\\FreakMelee-test-archives\\gamewatch-normal-phases64-final\\receipt.json": "7fc2fd32cf6642eee1ab586ba64967c2edbbeba5b5faa5a4f658844e89bfa4e3",
+    "A:\\FreakMelee-test-archives\\gamewatch-activation64-final-corrected-assembly\\assembly.json": "963f6c0ba244f0ca578ff558f17b8ef86d4aa60fdcb6f132b82c6a96c8229b51"
+  },
+  "normal_scope": {
+    "motion_pairs": 147456,
+    "entry_pairs": 2304,
+    "landing_pairs": 24576,
+    "total_pairs": 174336,
+    "checks": 15567726,
+    "failures": 0
+  },
+  "historical_gate": {
+    "retail_fields": 80,
+    "DLL_checks": 993,
+    "motion_slots": 160,
+    "Definition_callbacks": 24,
+    "article_callbacks": 95,
+    "bundle": "FAIL NULL costume_matanim in immutable64",
+    "install": "not reached"
+  },
+  "blockers": [
+    "Coherent new registry SDK with empty-string costume_matanim and generic sound mute-channel metadata",
+    "Real package/store gate on new snapshot",
+    "Hidden/muted drawn full fighter gameplay/render acceptance"
+  ]
+}

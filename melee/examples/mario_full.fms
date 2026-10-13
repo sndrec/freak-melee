@@ -1,0 +1,454 @@
+# Script-owned Mario specials, articles, and fighter events.
+# Original C remains the parity reference; see docs/mario_script_translation.md.
+fighter:
+    behavior independent
+
+parameter int cpu_capture_first_attempt = 0
+parameter int cpu_capture_level_limit = 5
+parameter float cpu_capture_chance_per_level = 0.05
+parameter int cpu_capture_script = 53
+parameter float cpu_fireball_range = 22
+parameter int cpu_fireball_candidate = 31
+
+state bool tornado_charge
+state bool cape_boost_used
+state float tornado_ground_vel
+state bool tornado_collision
+state bool cape_reflecting
+state int cape_article
+
+# Shared authored callback: Tornado installs this code ID in damage/death2.
+# This preserves the native root reset without a generated callback shortcut.
+func ResetRootX():
+    bones.root.rotate_x(0)
+
+# Own the Tornado model update; "1" is the second child of the effect root.
+# Grounded swirl visibility and slope follow this fighter's authored move state.
+model_effect TornadoSwirl 0x47c:
+    on update:
+        effect.joint("1").visible = creator.motion == 349
+        if creator.command3 and creator.state.tornado_collision:
+            effect.joint("").rotation.z = -atan2_float(creator.floor.normal.x, creator.floor.normal.y)
+        else:
+            effect.joint("").rotation.z = 0
+
+# Stock defaults are copied into owned parameters when this template opens.
+attribute float cape_horizontal_decay 0
+attribute float cape_boost_horizontal 4
+attribute float cape_boost_vertical 8
+attribute float cape_gravity 12
+attribute float cape_terminal_speed 16
+attribute float jump_freefall_mobility 24
+attribute float jump_landing_lag 28
+attribute float jump_reverse_stick_range 32
+attribute float jump_momentum_stick_range 36
+attribute float jump_angle_diff 40
+attribute float jump_air_horizontal_scale 44
+attribute float jump_gravity 48
+attribute float jump_velocity_scale 52
+attribute float tornado_initial_vertical_speed 56
+attribute float tornado_ground_speed 60
+attribute float tornado_air_speed 64
+attribute float tornado_ground_accel 68
+attribute float tornado_air_accel 72
+attribute float tornado_end_friction 76
+attribute float tornado_tap_speed 84
+attribute float tornado_tap_gravity 88
+attribute int tornado_landing_lag 92
+
+attribute int cape_bone 96
+attribute int cape_max_damage 100
+attribute float cape_offset_x 104
+attribute float cape_offset_y 108
+attribute float cape_offset_z 112
+attribute float cape_radius 116
+attribute float cape_damage_mul 120
+attribute float cape_speed_mul 124
+attribute bool cape_keep_owner 128
+
+move Fireball:
+    on special_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on special_air_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        if command(0): controls.ground_actions()
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+    on neutral_special_cue:
+        articles.spawn_authored_projectile(It_Kind_Mario_Fire, LeftHand, 0)
+        effects.spawn_with_scalar(1146, LeftHand, facing.direction)
+
+move SuperJumpPunch:
+    on special_hi:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(UpSpecial)
+    on special_air_hi:
+        command(0) = 0
+        cue.throw.reset()
+        motion.set_vertical_speed(0)
+        motion.scale_horizontal_speed(attrs.jump_air_horizontal_scale)
+        state.enter(UpSpecial)
+    on ground_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on air_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on ground_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on air_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on ground_physics:
+        if grounded: physics.ground_motion()
+        if airborne: physics.air_motion()
+    on air_physics:
+        if command(0): physics.air_motion()
+        if command(0): motion.scale_velocity(attrs.jump_velocity_scale)
+        if not command(0): physics.fall(attrs.jump_gravity)
+        if not command(0): physics.quick_air_decel()
+    on ground_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+    on air_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+
+move Tornado:
+    on special_lw:
+        command(2) = 0
+        state.enter(AirDownSpecial)
+        motion.set_vertical_speed(attrs.tornado_initial_vertical_speed - attrs.tornado_tap_speed)
+        physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.tornado_ground_vel = 0
+        state.tornado_collision = false
+        callbacks.damage(ResetRootX)
+        callbacks.death2(ResetRootX)
+        effects.spawn_root(TornadoSwirl)
+        effects.pause_during_hitlag()
+    on special_air_lw:
+        command(2) = 0
+        state.enter(DownSpecial)
+        if state.tornado_charge: motion.set_vertical_speed(attrs.tornado_initial_vertical_speed)
+        else: motion.set_vertical_speed(attrs.tornado_initial_vertical_speed - attrs.tornado_tap_speed)
+        physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.tornado_ground_vel = 0
+        state.tornado_collision = false
+        callbacks.damage(ResetRootX)
+        callbacks.death2(ResetRootX)
+        effects.spawn_root(TornadoSwirl)
+        effects.pause_during_hitlag()
+    on ground_animation:
+        if animation.finished:
+            callbacks.clear_damage_death()
+            state.wait()
+    on air_animation:
+        if command(1):
+            command(1) = 0
+            state.tornado_charge = true
+        if animation.finished:
+            callbacks.clear_damage_death()
+            if attrs.tornado_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.tornado_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        let speed = attrs.tornado_ground_speed
+        if command(0):
+            state.tornado_ground_vel = state.tornado_ground_vel - attrs.tornado_end_friction
+            speed = speed + state.tornado_ground_vel
+            if speed < 0: speed = 0
+        physics.ground_accel(attrs.tornado_ground_accel, speed)
+        physics.ground_to_self()
+        if command(2) and input.special_pressed:
+            motion.add_vertical_speed(attrs.tornado_tap_speed)
+            command(2) = 0
+            state.to_air()
+            physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+            physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+            effects.pause_during_hitlag()
+    on air_physics:
+        if not state.tornado_charge and command(2) and input.special_pressed: physics.ascend(attrs.tornado_tap_speed, attrs.tornado_tap_gravity)
+        physics.fall_basic()
+        let speed = attrs.tornado_air_speed
+        if command(0):
+            state.tornado_ground_vel = state.tornado_ground_vel - attrs.tornado_end_friction
+            speed = speed + state.tornado_ground_vel
+            if speed < 0: speed = 0
+        physics.air_accel(attrs.tornado_air_accel, speed)
+    on ground_collision:
+        if grounded:
+            if collision.ground_box(12, 0, -6, 6, 6, 6): state.tornado_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+                effects.pause_during_hitlag()
+                state.tornado_collision = false
+        else:
+            if collision.air_box(12, 0, -6, 6, 6, 6): state.tornado_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+                effects.pause_during_hitlag()
+                state.tornado_collision = false
+        if command(3) and state.tornado_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+    on air_collision:
+        if collision.air_box(12, 0, -6, 6, 6, 6):
+            command(2) = 0
+            motion.set_vertical_speed(0)
+            state.tornado_charge = false
+            state.to_ground()
+            physics.clamp_ground_speed(attrs.tornado_ground_speed)
+            effects.pause_during_hitlag()
+            state.tornado_collision = true
+        else: state.tornado_collision = false
+        if command(3) and state.tornado_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+
+move Cape:
+    on special_s:
+        motion.set_vertical_speed(0)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.cape_reflecting = false
+    on special_air_s:
+        motion.divide_horizontal_speed(attrs.cape_horizontal_decay)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.cape_reflecting = false
+    on accessory:
+        if not command(2):
+            command(2) = 1
+            state.cape_article = articles.spawn_bone_attached(It_Kind_Mario_Cape, RightThumb)
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+            articles.stop_cue()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if command(0) == 1:
+            command(0) = 2
+            effects.wind(Hip, 3, 120, 0.9, 0.02, 1.0471976)
+        physics.ground_friction()
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on air_physics:
+        if command(0) >= 1:
+            if command(0) == 1:
+                command(0) = 2
+                if not state.cape_boost_used:
+                    state.cape_boost_used = true
+                    motion.set_vertical_speed(attrs.cape_boost_vertical)
+                else: motion.set_vertical_speed(0)
+                effects.wind(Hip, 3, 120, 3, 0.1, 1.0471976)
+            physics.fall(attrs.cape_gravity, attrs.cape_terminal_speed)
+        else: physics.fall_basic()
+        physics.air_decel(attrs.cape_boost_horizontal)
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.to_air()
+            if command(0) == 1: command(0) = 2
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+    on air_collision:
+        if collision.landed:
+            state.cape_boost_used = false
+            state.to_ground()
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+
+action FighterEvents:
+    on cpu_capture_decision:
+        if cpu.grab_attempts == attrs.cpu_capture_first_attempt and cpu.level < attrs.cpu_capture_level_limit:
+            if random.float() < attrs.cpu_capture_chance_per_level * cpu.level:
+                cpu.run_script(attrs.cpu_capture_script)
+                return true
+        return false
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(attrs.cpu_fireball_range): cpu.add_candidate(attrs.cpu_fireball_candidate)
+    on load:
+        fighter.enable_walljump()
+        fighter.copy_ext_attributes()
+        state.cape_article = -1
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.hide_group(0)
+        state.tornado_charge = false
+        state.cape_boost_used = false
+        state.cape_article = -1
+        state.cape_reflecting = false
+    on landing_action:
+        state.tornado_charge = false
+        state.cape_boost_used = false
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on pre_hitlag:
+        articles.pause_owned(state.cape_article)
+    on post_hitlag:
+        articles.resume_owned(state.cape_article)
+    on damage:
+        articles.resume_owned(state.cape_article)
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+    on death2:
+        articles.resume_owned(state.cape_article)
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+
+article It_Kind_Mario_Cape states 2:
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if owner.motion != 345 and owner.motion != 346: return true
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if owner.motion != 345 and owner.motion != 346: return true
+            return false
+    on destroyed:
+            owner.state.cape_article = -1
+            owner.clear_damage_death()
+    on picked_up:
+            item.command0 = 0
+            item.command1 = 0
+            item.change_state(0)
+            item.activate_attached()
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Mario_Fire states 1:
+    state bool bounced
+    attribute float launch_speed 0
+    attribute float launch_angle 4
+    attribute float lifetime 8
+    attribute float minimum_bounce_speed 16
+    projectile appearance -1 state 0 speed launch_speed angle launch_angle lifetime lifetime auto_lifetime on
+    state 0 anim 0:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.stage_collision()
+            item.state.bounced = item.bounce_stage()
+            if item.state.bounced and sqrt(velocity.x * velocity.x + velocity.y * velocity.y) < item.attr.minimum_bounce_speed: return true
+            if item.state.bounced: item.play_sound(180025, 127, 64)
+            if item.state.bounced: item.spawn_effect_on_bone(1147, 0, 1)
+            return false
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return item.shield_bounce()
+    on interaction:
+            item.interact(other)

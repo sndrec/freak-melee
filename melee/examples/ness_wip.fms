@@ -1,0 +1,3023 @@
+# Full authored Ness behavior and eleven articles; no stock gameplay delegation.
+# Whole-fighter drawn acceptance is recorded separately in the translation ledger.
+fighter:
+    behavior independent
+
+attribute float fire_air_angle 32
+attribute float fire_air_speed 36
+attribute float fire_ground_angle 40
+attribute float fire_ground_speed 44
+attribute float fire_spawn_x 48
+attribute float fire_spawn_y 52
+attribute float fire_landing_lag 56
+parameter int fire_spawn_joint = 42
+state float fire_x
+state float fire_y
+state float fire_z
+attribute float magnet_release_lag 116
+attribute float magnet_turn_duration 120
+attribute float magnet_rehit_frame 124
+attribute int magnet_gravity_delay 132
+attribute float magnet_momentum_divisor 136
+attribute float magnet_fall_acceleration 140
+attribute float magnet_heal_multiplier 148
+attribute int magnet_absorb_joint 152
+attribute float magnet_absorb_x 156
+attribute float magnet_absorb_y 160
+attribute float magnet_absorb_z 164
+attribute float magnet_absorb_radius 168
+parameter int magnet_effect = 1264
+parameter int magnet_effect_joint = 23
+parameter int magnet_hold_sound = 210081
+parameter int magnet_sound_interval = 40
+parameter int magnet_collision_flags = 0x0c4c5082
+parameter int magnet_end_collision_flags = 0x0c4c5080
+state int magnet_release_lag
+state bool magnet_release
+state int magnet_gravity_delay
+state int magnet_turn_frames
+state int magnet_sound_timer
+attribute int flash_ground_loop_delay 0
+attribute int flash_air_loop_delay 4
+attribute int flash_gravity_delay 8
+attribute int flash_release_delay 12
+attribute float flash_fall_acceleration 20
+attribute float flash_landing_lag 28
+parameter int flash_spawn_joint = 24
+parameter float flash_spawn_height = 3
+parameter int flash_collision_flags = 0x0c4c5080
+state int flash_handle
+state int flash_ground_loop_delay
+state int flash_air_loop_delay
+state int flash_gravity_delay
+state int flash_release_delay
+state float flash_x
+state float flash_y
+state float flash_z
+parameter int thunder_ground_start = 358
+parameter int thunder_ground_hold = 359
+parameter int thunder_ground_end = 360
+parameter int thunder_ground_launch = 361
+parameter int thunder_air_start = 362
+parameter int thunder_air_hold = 363
+parameter int thunder_air_end = 364
+parameter int thunder_air_launch = 365
+parameter int thunder_air_rebound = 366
+parameter int thunder_camera_exception_stage = 0x54
+parameter int thunder_history_count = 16
+parameter int thunder_trail_count = 6
+parameter int thunder_near_trail_count = 3
+parameter int thunder_trail_spawn_stride = 2
+parameter int thunder_last_trail_spawn_frame = 10
+parameter int thunder_history_stride = 2
+parameter int thunder_ball_state_flags = 2
+parameter int thunder_trail_state_flags = 2
+parameter float thunder_radians_per_degree = 0.01745329252
+parameter float thunder_large_turn_degrees = 45.0
+parameter float thunder_pi = 3.14159265358979323846
+parameter float thunder_tau = 6.28318530717958647692
+parameter float thunder_radius_multiplier = 2.0
+parameter float thunder_radius_divisor = 4.0
+state int thunder_ball_handle
+state bool thunder_effects_active
+state float thunder_requested_x
+state float thunder_requested_y
+state float thunder_requested_z
+attribute int thunder_loop1 64
+attribute int thunder_loop2 68
+attribute int thunder_gravity_delay 72
+attribute float thunder_fall_acceleration 80
+attribute float thunder_launch_speed 84
+attribute float thunder_launch_deceleration 92
+attribute float thunder_knockdown_degrees 96
+attribute float thunder_wallhug_degrees 100
+attribute float thunder_freefall_blend 108
+attribute float thunder_landing_lag 112
+parameter int thunder_spawn_joint = 24
+parameter int thunder_effect_joint = 4
+parameter int thunder_hold_effect = 1262
+parameter int thunder_launch_effect = 1263
+parameter int thunder_rebound_effect = 1030
+parameter int thunder_collision_flags = 0x0c4c5080
+parameter int thunder_launch_collision_flags = 0x0c4c508a
+parameter float thunder_collision_height = 5.0
+parameter float thunder_contact_width = 8.333333015441895
+parameter float thunder_contact_height = 12.333333015441895
+parameter float thunder_velocity_epsilon = 0.0001
+parameter float thunder_rebound_damping = 0.5
+state int thunder_loop1
+state int thunder_loop2
+state int thunder_gravity_delay
+state int thunder_collision_mode
+state int thunder_launch_effect_frame
+state bool thunder_self_contact
+state float thunder_collision_x
+state float thunder_collision_y
+state float thunder_aerial_angle
+state float thunder_fall_acceleration
+state float thunder_previous_x
+state float thunder_previous_y
+state float thunder_previous_z
+parameter int resource_attachment_joint = 42
+parameter int yoyo_hit_joint = 61
+parameter int yoyo_slope_root_joint = 2
+parameter int bat_smash_motion = 341
+parameter int yoyo_first_motion = 342
+parameter int yoyo_last_motion = 347
+parameter int yoyo_up_start_motion = 342
+parameter int yoyo_up_charge_motion = 343
+parameter int yoyo_up_release_motion = 344
+parameter int yoyo_down_start_motion = 345
+parameter int yoyo_down_charge_motion = 346
+parameter int yoyo_down_release_motion = 347
+parameter int smash_skip_item_visibility = 262144
+parameter int yoyo_spawn_frame = 2
+parameter int yoyo_up_despawn_frame = 49
+parameter int yoyo_down_despawn_frame = 60
+parameter int yoyo_obstruction_frame = 13
+parameter int yoyo_release_counter = 14
+parameter float yoyo_charge_animation_frame = 12
+parameter float yoyo_release_animation_frame = 13
+parameter float yoyo_shared_charge_limit = 60
+parameter int yoyo_charge_color = 119
+parameter int smash_color_skip = 123
+parameter int yoyo_rumble = 36
+parameter int sound_volume = 127
+parameter int sound_pan = 64
+parameter int bat_reflect_sound = 224
+parameter int yoyo_charge_sound = 210087
+parameter int yoyo_release_sound = 210090
+parameter int yoyo_down_rotate_sound = 210093
+parameter int yoyo_material_stop_sound = 210096
+parameter int yoyo_up_rotate_sound = 210099
+parameter float yoyo_damage_fraction = 0.0039059999398887157
+parameter float yoyo_up_blend_step = 0.10000000149011612
+parameter float yoyo_down_blend_step = 0.20000000298023224
+parameter int yoyo_up_blend_end = 24
+parameter int yoyo_down_blend_end = 19
+parameter float yoyo_ecb_half_height = 0.5
+parameter float yoyo_obstruction_radius = 0.5
+parameter float yoyo_floor_check_radius = 1.5
+parameter int yoyo_ecb_category = 5
+parameter int yoyo_reverse_motion = 345
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+parameter float yoyo_pin_release_distance = 0.1
+parameter float yoyo_floor_separation = 0.001
+parameter float yoyo_sweep_height = 1.5
+parameter int yoyo_up_initial_motion = 342
+parameter float yoyo_horizontal_damping = 0.9
+parameter float yoyo_idle_depth = 1.8
+parameter float yoyo_vertical_basis_threshold = 0.9999
+parameter float yoyo_retract_fraction = 0.1
+parameter float bat_lifetime = 1200
+attribute float yoyo_charge_duration 172
+attribute float yoyo_damage_multiplier 176
+attribute float yoyo_rehit_rate 180
+attribute int bat_reflect_joint 184
+attribute int bat_reflect_max_damage 188
+attribute float bat_reflect_x 192
+attribute float bat_reflect_y 196
+attribute float bat_reflect_z 200
+attribute float bat_reflect_radius 204
+attribute float bat_reflect_damage_multiplier 208
+attribute float bat_reflect_speed_multiplier 212
+attribute byte bat_reflect_behavior 216
+state int bat_handle
+state int yoyo_handle
+state int yoyo_frame
+state int yoyo_rehit_timer
+state bool yoyo_charge_disabled
+state bool yoyo_slope_correct
+state float yoyo_hitbox_x
+state float yoyo_hitbox_y
+state float yoyo_hitbox_z
+state float yoyo_spin_rate
+parameter int cpu_flash_first_motion = 348
+parameter int cpu_flash_last_motion = 351
+parameter int cpu_thunder_first_motion = 358
+parameter int cpu_thunder_last_motion = 366
+parameter float cpu_flash_release_height = 25
+parameter int cpu_stick_strength = 127
+parameter float cpu_recovery_height_margin = 10
+parameter int cpu_recovery_minimum_level = 9
+parameter float cpu_recovery_pi = 3.14159265358979323846
+parameter float cpu_recovery_half_pi = 1.57079632679489661923
+parameter int cpu_recovery_first_frames = 20
+parameter int cpu_recovery_bottom_frames = 35
+parameter int cpu_recovery_second_frames = 20
+parameter int cpu_recovery_top_frames = 20
+parameter int jump_forward_motion = 27
+parameter int jump_backward_motion = 28
+parameter int presentation_star_ice_motion = 5
+parameter int presentation_camera_ice_motion = 10
+parameter int presentation_sleep_motion = 11
+parameter int presentation_bat_mode = 1
+parameter float presentation_star_scale = 0.8
+parameter float cpu_target_facing_epsilon = 1
+parameter float cpu_fire_angle_low = -0.8726646192371845
+parameter float cpu_fire_angle_high = -0.6981316953897476
+parameter float cpu_ground_angle_low = -0.08726646192371845
+parameter float cpu_ground_angle_high = 0.08726646192371845
+parameter float cpu_fire_distance = 53
+parameter float cpu_flash_high_angle = 1.0471975430846214
+parameter float cpu_flash_probability = 0.1
+parameter int cpu_fire_command = 27
+parameter int cpu_flash_high_command = 20
+parameter int cpu_flash_low_command = 31
+parameter int cpu_absorb_minimum_level = 4
+parameter int cpu_unblockable_prediction_start = 21
+parameter int cpu_projectile_normal_category = 2
+parameter int cpu_projectile_unblockable_category = 3
+state float jump_horizontal_accumulator
+
+func magnet_create_absorber():
+    absorber.create(attrs.magnet_absorb_joint, attrs.magnet_absorb_x, attrs.magnet_absorb_y, attrs.magnet_absorb_z, attrs.magnet_absorb_radius)
+
+func magnet_enter(bool air_started):
+    state.magnet_release_lag = int(attrs.magnet_release_lag)
+    state.magnet_release = false
+    state.magnet_gravity_delay = attrs.magnet_gravity_delay
+    state.magnet_sound_timer = 0
+    if air_started:
+        velocity.y = 0
+        velocity.x = velocity.x / attrs.magnet_momentum_divisor
+        state.enter_at_speed(372, 0, 0, 1)
+    else:
+        state.enter_at_speed(367, 0, 0, 1)
+    animation.start()
+
+func magnet_effect():
+    if not effects.active:
+        effects.spawn_async_attached(attrs.magnet_effect, attrs.magnet_effect_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+
+func magnet_hold():
+    let target = 368
+    if airborne: target = 373
+    state.enter_at_speed(target, 2, 0, 1)
+    magnet_create_absorber()
+
+func magnet_end():
+    let target = 370
+    if airborne: target = 375
+    state.enter_at_speed(target, 0, 0, 1)
+
+func magnet_start_animation():
+    if not input.special_held: state.magnet_release = true
+    if animation.finished:
+        magnet_effect()
+        state.magnet_sound_timer = 0
+        magnet_hold()
+
+func magnet_release_tick():
+    if not input.special_held: state.magnet_release = true
+    if state.magnet_release_lag > 0: state.magnet_release_lag = state.magnet_release_lag - 1
+
+func magnet_sound_tick():
+    state.magnet_sound_timer = state.magnet_sound_timer - 1
+    if state.magnet_sound_timer <= 0:
+        sound.play(attrs.magnet_hold_sound, 127, 64)
+        state.magnet_sound_timer = attrs.magnet_sound_interval
+
+func magnet_hold_animation():
+    magnet_release_tick()
+    if state.magnet_release_lag <= 0 and state.magnet_release:
+        magnet_end()
+    magnet_sound_tick()
+
+func magnet_hit_animation():
+    magnet_release_tick()
+    if animation.finished:
+        if state.magnet_release_lag <= 0 and state.magnet_release:
+            magnet_end()
+        else:
+            magnet_hold()
+            effects.destroy_all()
+            magnet_effect()
+    magnet_sound_tick()
+
+func magnet_turn_animation():
+    magnet_release_tick()
+    state.magnet_turn_frames = state.magnet_turn_frames - 1
+    if not command(0) and float(state.magnet_turn_frames) <= attrs.magnet_turn_duration:
+        command(0) = 1
+        facing.direction = -facing.direction
+    bones.root.rotate_y(-(radians(180 / attrs.magnet_turn_duration) - bones.root.rotation_y))
+    if state.magnet_turn_frames <= 0:
+        if state.magnet_release_lag <= 0 and state.magnet_release:
+            magnet_end()
+        else:
+            magnet_hold()
+
+func magnet_end_animation():
+    if animation.finished:
+        effects.destroy_all()
+        if airborne: state.fall()
+        else: state.wait()
+
+func magnet_air_physics(bool update_absorber):
+    if state.magnet_gravity_delay != 0:
+        state.magnet_gravity_delay = state.magnet_gravity_delay - 1
+    else:
+        physics.fall(attrs.magnet_fall_acceleration, air.terminal_velocity)
+    physics.quick_air_decel()
+    if update_absorber: absorber.skip_position_update = false
+
+func magnet_ground_collision(int target, int flags, bool recreate_absorber):
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.enter_at_speed(target, flags, frame, 1)
+        if recreate_absorber: magnet_create_absorber()
+
+func magnet_air_collision(int target, int flags, bool recreate_absorber):
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(target, flags, frame, 1)
+        physics.clamp_air_drift()
+        if recreate_absorber: magnet_create_absorber()
+
+# Stock ftNs_SpecialS_ItemPKFireSpawn consumes throw_flags_b0 itself.
+# Bind the ordinary accessory phase: accessory_cue would consume it twice.
+func fire_spawn_when_cued():
+    if cue.article.consume():
+        bones.world_position(attrs.fire_spawn_joint, state.fire_x, state.fire_y, state.fire_z)
+        state.fire_x = state.fire_x + attrs.fire_spawn_x * facing.direction
+        state.fire_y = state.fire_y + attrs.fire_spawn_y
+        state.fire_z = 0
+        let angle = attrs.fire_ground_angle
+        let speed = attrs.fire_ground_speed
+        if airborne:
+            angle = attrs.fire_air_angle
+            speed = attrs.fire_air_speed
+        let vx = speed * cos(angle) * facing.direction
+        let vy = speed * sin(angle)
+        let created = articles.create_with_velocity(It_Kind_Ness_PKFire, state.fire_x, state.fire_y, 0, vx, vy, 0, facing.direction, true, 0, angle * facing.direction, true)
+
+func fire_enter(bool air_started):
+    cue.throw.reset()
+    command(0) = 0
+    if air_started: state.enter_at_speed(357, 0, 0, 1)
+    else: state.enter_at_speed(356, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(fire_spawn_when_cued)
+
+# PK Flash imports become project-owned named values; no runtime DAT reads.
+
+func flash_clear():
+    state.flash_handle = -1
+    callbacks.clear_damage_death()
+
+func flash_reset():
+    state.flash_ground_loop_delay = attrs.flash_ground_loop_delay
+    state.flash_air_loop_delay = attrs.flash_air_loop_delay
+    state.flash_gravity_delay = attrs.flash_gravity_delay
+    state.flash_release_delay = attrs.flash_release_delay
+    flash_clear()
+
+func flash_detach():
+    if state.flash_handle != -1:
+        articles.signal(state.flash_handle, It_Kind_Ness_PKFlush, "detach", 0)
+    flash_clear()
+
+func flash_enter(bool air_started):
+    if air_started:
+        state.enter_at_speed(352, 0, 0, 1)
+    else:
+        state.enter_at_speed(348, 0, 0, 1)
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    if air_started: velocity.y = 0
+    flash_reset()
+    animation.start()
+
+func flash_start_animation(bool air_started):
+    if animation.finished:
+        if air_started: state.enter_at_speed(353, 0, 0, 1)
+        else: state.enter_at_speed(349, 0, 0, 1)
+        if state.flash_handle == -1:
+            bones.world_position(attrs.flash_spawn_joint, state.flash_x, state.flash_y, state.flash_z)
+            state.flash_z = 0
+            state.flash_y = state.flash_y + attrs.flash_spawn_height * model.instance_scale_y
+            state.flash_handle = articles.create_at_position(It_Kind_Ness_PKFlush, state.flash_x, state.flash_y, state.flash_z, facing.direction, true, 0, 0)
+            if state.flash_handle != -1:
+                callbacks.track_death2()
+                callbacks.track_damage()
+        jumps.used = jumps.max
+
+func flash_hold_animation(bool air_started):
+    if state.flash_ground_loop_delay != 0: state.flash_ground_loop_delay = state.flash_ground_loop_delay - 1
+    if state.flash_handle == -1 and state.flash_air_loop_delay != 0: state.flash_air_loop_delay = state.flash_air_loop_delay - 1
+    let int release_motion = 350
+    let int end_motion = 351
+    if air_started:
+        release_motion = 354
+        end_motion = 355
+    if state.flash_handle == -1:
+        if state.flash_ground_loop_delay <= 0 and state.flash_air_loop_delay <= 0:
+            state.enter_at_speed(end_motion, 0, 0, 1)
+        else:
+            if motion.id != release_motion: state.enter_at_speed(release_motion, 0, frame, 1)
+    else:
+        if not articles.owned(state.flash_handle):
+            state.flash_handle = -1
+        else:
+            if articles.ref(state.flash_handle, It_Kind_Ness_PKFlush).state.stage_stopped and motion.id != release_motion:
+                state.enter_at_speed(release_motion, 0, frame, 1)
+
+func flash_hold_interrupt():
+    state.flash_release_delay = state.flash_release_delay - 1
+    if state.flash_release_delay <= 0:
+        state.flash_release_delay = 0
+        if not input.special_held: flash_clear()
+
+func flash_end_animation(bool air_started):
+    flash_reset()
+    bones.root.rotate_x(0)
+    if animation.finished:
+        if air_started:
+            if attrs.flash_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.flash_landing_lag)
+        else:
+            state.wait()
+
+func flash_ground_start_physics():
+    if state.flash_gravity_delay != 0: state.flash_gravity_delay = state.flash_gravity_delay - 1
+    physics.ground_friction()
+
+func flash_air_physics():
+    if state.flash_gravity_delay != 0:
+        state.flash_gravity_delay = state.flash_gravity_delay - 1
+    else:
+        physics.fall(attrs.flash_fall_acceleration, air.terminal_velocity)
+    physics.air_decel(air.friction)
+
+func flash_ground_collision(int target):
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.enter_at_speed(target, attrs.flash_collision_flags, frame, 1)
+
+func flash_air_collision(int target):
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(target, attrs.flash_collision_flags, frame, 1)
+
+
+# PK Thunder ball/trail article lifecycle; fighter phases and shared resource cleanup are authored below.
+
+# Constructor communication is only the requested history origin. The engine
+# still owns current/previous spawn position and actual collision group.
+
+func thunder_create_ball(float x, float y, float z, float direction):
+    state.thunder_requested_x = x
+    state.thunder_requested_y = y
+    state.thunder_requested_z = z
+    # Flatten previous.z only; origin_at_owner supplies actual current position.
+    state.thunder_ball_handle = articles.create_at_position(It_Kind_Ness_PKThunder, x, y, 0, direction, true, articles.new_collision_group(), 0)
+
+# Article cleanup counterpart of ftNs_SpecialHi_ItemPKThunderRemove only.
+# ResourceDamage composes this operation in the original ordered cleanup chain.
+
+func thunder_ball_removed():
+    state.thunder_ball_handle = -1
+    if motion.id >= attrs.thunder_ground_start and motion.id <= attrs.thunder_air_rebound:
+        effects.destroy_all()
+        state.thunder_effects_active = false
+    callbacks.clear_damage_death()
+    bones.root.rotate_x(0)
+
+
+# Offline query coverage only; never installed in the default Ness template.
+# Nine authored Thunder phases share the complete ResourceDamage lifecycle.
+
+func thunder_stop_effects():
+    if motion.id >= attrs.thunder_ground_start and motion.id <= attrs.thunder_air_rebound:
+        effects.destroy_all()
+        state.thunder_effects_active = false
+
+func thunder_damage():
+    if state.thunder_ball_handle != -1:
+        articles.signal(state.thunder_ball_handle, It_Kind_Ness_PKThunder, "detach_damage_owner", 0)
+        state.thunder_ball_handle = -1
+    thunder_stop_effects()
+    callbacks.clear_damage_death()
+    bones.root.rotate_x(0)
+
+func thunder_reset_movement():
+    state.thunder_loop1 = attrs.thunder_loop1
+    state.thunder_loop2 = attrs.thunder_loop2
+    state.thunder_gravity_delay = attrs.thunder_gravity_delay
+    state.thunder_fall_acceleration = 0
+    state.thunder_previous_z = 0
+    state.thunder_previous_y = 0
+    state.thunder_previous_x = 0
+    callbacks.clear_damage_death()
+    bones.root.rotate_x(0)
+
+func thunder_enter(bool air_started):
+    let int target = attrs.thunder_ground_start
+    if air_started: target = attrs.thunder_air_start
+    state.enter_at_speed(target, 0, 0, 1)
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    thunder_reset_movement()
+    state.thunder_collision_mode = 1
+    state.thunder_gravity_delay = attrs.thunder_gravity_delay
+    state.thunder_launch_effect_frame = 0
+    # Original repeats collPos1.x three times; Y is filled before its first read.
+    state.thunder_collision_x = 0
+    state.thunder_aerial_angle = 0
+    if facing.direction != 1: state.thunder_aerial_angle = attrs.thunder_pi
+    if air_started: velocity.y = 0
+    animation.start()
+
+func thunder_start_animation(bool air_started):
+    if animation.finished:
+        let int target = attrs.thunder_ground_hold
+        if air_started: target = attrs.thunder_air_hold
+        state.enter_at_speed(target, 0, 0, 1)
+        if state.thunder_ball_handle == -1:
+            bones.world_position(attrs.thunder_spawn_joint, state.thunder_requested_x, state.thunder_requested_y, state.thunder_requested_z)
+            state.thunder_requested_z = 0
+            thunder_create_ball(state.thunder_requested_x, state.thunder_requested_y, state.thunder_requested_z, facing.direction)
+            if state.thunder_ball_handle != -1:
+                callbacks.track_death2()
+                callbacks.track_damage()
+        jumps.used = jumps.max
+        thunder_stop_effects()
+        effects.spawn_on_part(attrs.thunder_hold_effect, attrs.thunder_effect_joint)
+        state.thunder_effects_active = true
+
+func thunder_check_self_contact():
+    state.thunder_self_contact = false
+    if state.thunder_ball_handle != -1:
+        let x = articles.ref(state.thunder_ball_handle, It_Kind_Ness_PKThunder).state.history_x[0]
+        let y = articles.ref(state.thunder_ball_handle, It_Kind_Ness_PKThunder).state.history_y[0]
+        let center_y = position.y + attrs.thunder_collision_height * model.instance_scale_y
+        let bool inside = abs(position.x - x) < attrs.thunder_contact_width and abs(center_y - y) < attrs.thunder_contact_height
+        if state.thunder_collision_mode == 0:
+            if inside:
+                state.thunder_collision_mode = 2
+                state.thunder_collision_x = x
+                state.thunder_collision_y = y
+                state.thunder_self_contact = true
+        else:
+            if state.thunder_collision_mode == 1 and not inside: state.thunder_collision_mode = 0
+
+func thunder_air_launch():
+    let x = position.x - state.thunder_collision_x
+    let y = attrs.thunder_collision_height * model.instance_scale_y + position.y - state.thunder_collision_y
+    facing.direction = -1
+    if x >= 0: facing.direction = 1
+    state.thunder_aerial_angle = atan2_float(y, x)
+    velocity.x = attrs.thunder_launch_speed * cos(state.thunder_aerial_angle)
+    velocity.y = attrs.thunder_launch_speed * sin(state.thunder_aerial_angle)
+    state.enter_at_speed(attrs.thunder_air_launch, 0, 0, 1)
+    bones.root.rotate_x(facing.direction * atan2_float(velocity.x, velocity.y) - attrs.thunder_pi / 2)
+    callbacks.clear_damage_death()
+    jumps.used = jumps.max
+
+func thunder_ground_launch():
+    if not floor.is_platform:
+        let x = position.x - state.thunder_collision_x
+        let y = attrs.thunder_collision_height * model.instance_scale_y + position.y - state.thunder_collision_y
+        let angle = vectors.angle(floor.normal.x, floor.normal.y, floor.normal.z, x, y, 0)
+        if not (angle < attrs.thunder_pi / 2):
+            if not (angle > radians(90 + attrs.thunder_knockdown_degrees)):
+                facing.direction = -1
+                if x >= 0: facing.direction = 1
+                state.thunder_aerial_angle = atan2_float(y, x)
+                state.enter_at_speed(attrs.thunder_ground_launch, 0, 0, 1)
+                ground.velocity = attrs.thunder_launch_speed * facing.direction
+                bones.root.rotate_x(facing.direction * atan2_float(velocity.x, velocity.y) - attrs.thunder_pi / 2)
+                callbacks.clear_damage_death()
+                jumps.used = jumps.max
+                return
+            thunder_stop_effects()
+            bones.root.rotate_x(0)
+            state.down_bound()
+            return
+    jumps.used = jumps.max
+    physics.force_air_and_use_jumps()
+    thunder_air_launch()
+
+func thunder_hold_animation(bool air_started):
+    if state.thunder_loop1 > 0: state.thunder_loop1 = state.thunder_loop1 - 1
+    if state.thunder_ball_handle == -1 and state.thunder_loop2 > 0: state.thunder_loop2 = state.thunder_loop2 - 1
+    let int target = attrs.thunder_ground_end
+    if air_started: target = attrs.thunder_air_end
+    if state.thunder_ball_handle == -1:
+        if state.thunder_loop1 <= 0 and state.thunder_loop2 <= 0:
+            state.enter_at_speed(target, 0, 0, 1)
+            thunder_stop_effects()
+    else:
+        if articles.owned(state.thunder_ball_handle):
+            thunder_check_self_contact()
+            if state.thunder_self_contact:
+                if air_started: thunder_air_launch()
+                else: thunder_ground_launch()
+        else:
+            state.thunder_ball_handle = -1
+            state.enter_at_speed(target, 0, 0, 1)
+            thunder_stop_effects()
+
+func thunder_freefall():
+    physics.force_air_and_use_jumps()
+    if attrs.thunder_landing_lag == 0: state.fall()
+    else: state.freefall_blend(1, 0, 1, 1, attrs.thunder_landing_lag, attrs.thunder_freefall_blend)
+
+func thunder_launch_animation(bool air_started):
+    state.thunder_launch_effect_frame = state.thunder_launch_effect_frame + 1
+    if state.thunder_launch_effect_frame == 1:
+        thunder_stop_effects()
+        effects.spawn_on_part(attrs.thunder_launch_effect, attrs.thunder_effect_joint)
+        state.thunder_effects_active = true
+    if animation.finished:
+        if air_started:
+            velocity.y = -abs(state.thunder_fall_acceleration)
+            thunder_freefall()
+        else:
+            state.enter_at_speed(attrs.thunder_ground_end, 0, 0, 1)
+            thunder_stop_effects()
+
+func thunder_air_physics():
+    if state.thunder_gravity_delay != 0:
+        state.thunder_gravity_delay = state.thunder_gravity_delay - 1
+    else:
+        physics.fall(attrs.thunder_fall_acceleration, air.terminal_velocity)
+    physics.air_decel(air.friction)
+
+func thunder_ground_launch_physics():
+    let previous = ground.velocity
+    ground.velocity = -(attrs.thunder_launch_deceleration * facing.direction - previous)
+    if facing.direction == 1:
+        if ground.velocity <= attrs.thunder_velocity_epsilon: ground.velocity = previous
+    else:
+        if ground.velocity >= -attrs.thunder_velocity_epsilon: ground.velocity = previous
+    state.thunder_previous_x = velocity.x
+    state.thunder_previous_y = velocity.y
+    state.thunder_previous_z = velocity.z
+    physics.ground_to_self()
+    bones.root.rotate_x(facing.direction * atan2_float(velocity.x, velocity.y) - attrs.thunder_pi / 2)
+
+func thunder_air_launch_physics():
+    let speed = abs(sqrt(velocity.x * velocity.x + velocity.y * velocity.y))
+    let next = speed - attrs.thunder_launch_deceleration
+    if next <= attrs.thunder_velocity_epsilon: next = speed
+    velocity.x = next * cos(state.thunder_aerial_angle)
+    velocity.y = next * sin(state.thunder_aerial_angle)
+    bones.root.rotate_x(facing.direction * atan2_float(velocity.x, velocity.y) - attrs.thunder_pi / 2)
+    state.thunder_previous_x = velocity.x
+    state.thunder_previous_y = velocity.y
+    state.thunder_previous_z = velocity.z
+    if command(0) == 1:
+        state.thunder_fall_acceleration = state.thunder_fall_acceleration - attrs.thunder_fall_acceleration
+        if state.thunder_fall_acceleration < -attrs.thunder_launch_speed: state.thunder_fall_acceleration = -attrs.thunder_launch_speed
+        position.y = position.y + state.thunder_fall_acceleration
+
+func thunder_ground_collision(int target):
+    if collision.left_ground:
+        physics.force_air_and_use_jumps()
+        state.enter_at_speed(target, attrs.thunder_collision_flags, frame, 1)
+
+func thunder_air_collision(int target):
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(target, attrs.thunder_collision_flags, frame, 1)
+
+func thunder_ground_launch_collision():
+    if collision.left_ground:
+        physics.force_air_and_use_jumps()
+        if collision.wall_contact:
+            thunder_reset_movement()
+            state.enter_at_speed(attrs.thunder_air_end, attrs.thunder_collision_flags, frame, 1)
+        else:
+            state.enter_at_speed(attrs.thunder_air_launch, attrs.thunder_launch_collision_flags, frame, 1)
+        return
+    if collision.ceiling_contact or collision.wall_contact:
+        ground.velocity = 0
+        thunder_stop_effects()
+        bones.root.rotate_x(0)
+        state.down_bound()
+        return
+    let offset = attrs.thunder_pi / 2
+    if floor.normal.y > 0:
+        if facing.direction == 1: offset = -offset
+    else:
+        if facing.direction != 1: offset = -offset
+    state.thunder_aerial_angle = offset + atan2_float(floor.normal.y, floor.normal.x)
+
+func thunder_rebound(float nx, float ny, float nz):
+    physics.mirror_velocity(nx, ny, nz)
+    velocity.x = velocity.x * attrs.thunder_rebound_damping
+    velocity.y = velocity.y * attrs.thunder_rebound_damping
+    physics.clamp_horizontal_speed(air.drift_max)
+    facing.direction = -1
+    if velocity.x >= 0: facing.direction = 1
+    thunder_stop_effects()
+    state.enter_at_speed(attrs.thunder_air_rebound, 2, 0, 1)
+    animation.start()
+    effects.spawn_with_scalar_at_position(attrs.thunder_rebound_effect, position.x, position.y, position.z, atan2_float(-nx, ny))
+
+func thunder_slide_wall():
+    let direction = state.thunder_aerial_angle
+    while direction < 0: direction = direction + attrs.thunder_tau
+    while direction > attrs.thunder_tau: direction = direction - attrs.thunder_tau
+    let float normal = 0
+    let float opposite = 0
+    if collision.left_wall:
+        normal = atan2_float(wall.left.normal.y, wall.left.normal.x)
+        while normal < 0: normal = normal + attrs.thunder_tau
+        while normal > attrs.thunder_tau: normal = normal - attrs.thunder_tau
+        opposite = attrs.thunder_pi + direction
+        while opposite > attrs.thunder_tau: opposite = opposite - attrs.thunder_tau
+        if opposite - normal < 0: normal = normal + attrs.thunder_pi / 2
+        else: normal = normal - attrs.thunder_pi / 2
+    if collision.right_wall:
+        normal = atan2_float(wall.right.normal.y, wall.right.normal.x)
+        opposite = attrs.thunder_pi + normal
+        while opposite < 0: opposite = opposite + attrs.thunder_tau
+        while opposite > attrs.thunder_tau: opposite = opposite - attrs.thunder_tau
+        if direction - opposite < 0: normal = normal + attrs.thunder_pi / 2
+        else: normal = normal - attrs.thunder_pi / 2
+    physics.rotate_velocity_unit_axis(0, 0, 1, normal - direction)
+    state.thunder_aerial_angle = atan2_float(velocity.y, velocity.x)
+
+func thunder_air_launch_collision():
+    velocity.x = state.thunder_previous_x
+    velocity.y = state.thunder_previous_y
+    velocity.z = state.thunder_previous_z
+    let int ledge_direction = -1
+    if facing.direction == 1: ledge_direction = 1
+    let threshold = attrs.thunder_radians_per_degree * (90 + attrs.thunder_wallhug_degrees)
+    if collision.check_ground_ledge(ledge_direction):
+        if vectors.angle(floor.normal.x, floor.normal.y, floor.normal.z, velocity.x, velocity.y, velocity.z) > threshold:
+            velocity.z = 0
+            velocity.y = 0
+            velocity.x = 0
+            thunder_stop_effects()
+            bones.root.rotate_x(0)
+            state.down_bound()
+        else:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.thunder_ground_launch, attrs.thunder_launch_collision_flags, frame, 1)
+        return
+    if collision.cliff_catch():
+        state.catch_ledge()
+        return
+    if collision.ceiling_contact:
+        if vectors.angle(ceiling.normal.x, ceiling.normal.y, ceiling.normal.z, velocity.x, velocity.y, velocity.z) > threshold:
+            thunder_rebound(ceiling.normal.x, ceiling.normal.y, ceiling.normal.z)
+    else:
+        if collision.left_wall:
+            if vectors.angle(wall.left.normal.x, wall.left.normal.y, wall.left.normal.z, velocity.x, velocity.y, velocity.z) > threshold:
+                thunder_rebound(wall.left.normal.x, wall.left.normal.y, wall.left.normal.z)
+            else:
+                thunder_slide_wall()
+            return
+        if collision.right_wall:
+            if vectors.angle(wall.right.normal.x, wall.right.normal.y, wall.right.normal.z, velocity.x, velocity.y, velocity.z) > threshold:
+                thunder_rebound(wall.right.normal.x, wall.right.normal.y, wall.right.normal.z)
+            else:
+                thunder_slide_wall()
+
+func thunder_rebound_collision():
+    if collision.check_ground_ledge(0):
+        velocity.z = 0
+        velocity.y = 0
+        velocity.x = 0
+        thunder_stop_effects()
+        bones.root.rotate_x(0)
+        state.down_bound()
+        return
+    if collision.cliff_catch(): state.catch_ledge()
+
+export func bat_forget():
+    state.bat_handle = -1
+
+func BatRemove():
+    if state.bat_handle != -1:
+        articles.signal(state.bat_handle, It_Kind_Ness_Bat, "remove", 0)
+        state.bat_handle = -1
+
+func YoyoPause():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "pause", 0)
+
+func YoyoResume():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "resume", 0)
+
+export func yoyo_forget():
+    YoyoResume()
+    state.yoyo_handle = -1
+
+func YoyoRemove():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+        YoyoResume()
+        state.yoyo_handle = -1
+
+func BatCreate():
+    state.bat_handle = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, false, 0, 0, false)
+    if state.bat_handle != -1:
+        callbacks.death2(ResourceDamage)
+        callbacks.damage(ResourceDamage)
+
+func YoyoCreate():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.resource_attachment_joint, x, y, z)
+    state.yoyo_handle = articles.create_at_position(It_Kind_Ness_Yoyo, x, y, z, facing.direction, false, 0, motion.id)
+    if state.yoyo_handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool published = articles.bind_auxiliary(state.yoyo_handle)
+        if callbacks.matches(Callback.death2, None): callbacks.death2(ResourceDamage)
+        if callbacks.matches(Callback.damage, None): callbacks.damage(ResourceDamage)
+    callbacks.pre_hitlag(YoyoPause)
+    callbacks.post_hitlag(YoyoResume)
+
+func YoyoInitialize():
+    command(1) = 0
+    command(0) = 0
+    state.yoyo_frame = 1
+    state.yoyo_rehit_timer = 0
+    state.yoyo_slope_correct = true
+    state.yoyo_hitbox_z = 0
+    state.yoyo_hitbox_y = 0
+    state.yoyo_hitbox_x = 0
+    state.yoyo_spin_rate = 0
+
+func YoyoBindCallbacks():
+    damage.song_immune = true
+    callbacks.track_deal_damage()
+    callbacks.accessory(YoyoUpdateHitPos)
+
+func YoyoStartTimedRehit():
+    state.yoyo_rehit_timer = int(attrs.yoyo_rehit_rate)
+
+func YoyoCheckTimedRehit():
+    if command(0) == 0 and state.yoyo_rehit_timer > 0:
+        state.yoyo_rehit_timer = state.yoyo_rehit_timer - 1
+        if state.yoyo_rehit_timer == 0:
+            # Stock clears victims, then enables the delayed YoYo hitbox without
+            # marking fighter hitbox cleanup. A later smash exit can therefore
+            # leave it active, causing stray hits and the lingering YoYo jacket.
+            # Generic enabling also maintains the normal motion-cleanup flag.
+            hitbox.clear_victims(0)
+            hitbox.set_enabled(0, true)
+
+func YoyoUpdateHitPos():
+    if hitbox.state(0) != Hitbox.disabled:
+        if state.yoyo_hitbox_x != 0 or state.yoyo_hitbox_y != 0:
+            hitbox.set_world_position(0, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z)
+
+func YoyoSetHitPos(float fraction, bool blend):
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.yoyo_hit_joint, x, y, z)
+    if state.yoyo_slope_correct:
+        let float root_x = 0
+        let float root_y = 0
+        let float root_z = 0
+        bones.world_position(attrs.yoyo_slope_root_joint, root_x, root_y, root_z)
+        let float dx = x - root_x
+        let float dy = y - root_y
+        let float dz = z - root_z
+        let float rx = 0
+        let float ry = 0
+        let float rz = 0
+        vectors.rotate(dx, dy, dz, 4, -atan2_float(floor.normal.x, floor.normal.y), rx, ry, rz)
+        x = rx + root_x
+        y = ry + root_y
+        z = rz + root_z
+    if not blend:
+        state.yoyo_hitbox_x = x
+        state.yoyo_hitbox_y = y
+        state.yoyo_hitbox_z = z
+    else:
+        let float retained = 1 - fraction
+        state.yoyo_hitbox_x = x * fraction + state.yoyo_hitbox_x * retained
+        state.yoyo_hitbox_y = y * fraction + state.yoyo_hitbox_y * retained
+        state.yoyo_hitbox_z = z * fraction + state.yoyo_hitbox_z * retained
+
+func YoyoCheckEnv(float ax, float ay, float az, float bx, float by, float bz, float radius) -> int:
+    let float size = radius * model.instance_scale_y
+    let int flags = stage.sweep_box(ax, ay, az, bx, by, bz, size, -size, -size, 0, size, 0, attrs.yoyo_ecb_category)
+    let int result = 0
+    if flags & Collision.floor_mask: result = result | 32768
+    if flags & Collision.left_wall_mask: result = result | 1
+    if flags & Collision.right_wall_mask: result = result | 64
+    if flags & Collision.ceiling_mask: result = result | 8192
+    return result
+
+func YoyoCheckNoObstruct() -> bool:
+    let float x = position.x
+    let float y = attrs.yoyo_ecb_half_height * (ecb.top.y + ecb.bottom.y)
+    y = y + position.y
+    let float z = position.z
+    let int first = YoyoCheckEnv(x, y, z, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z, attrs.yoyo_obstruction_radius)
+    if first == 0:
+        let float upper = state.yoyo_hitbox_y + model.instance_scale_y
+        let float lower = state.yoyo_hitbox_y + -1 * model.instance_scale_y
+        let int second = YoyoCheckEnv(state.yoyo_hitbox_x, upper, state.yoyo_hitbox_z, state.yoyo_hitbox_x, lower, state.yoyo_hitbox_z, attrs.yoyo_floor_check_radius)
+        return (second & 32768) != 0
+    return false
+
+func YoyoApplyDamage():
+    if smash.charge_frames != 0 and hitbox.state(0) == Hitbox.enabled:
+        let float duration = smash.charge_frames / attrs.yoyo_charge_duration
+        let float multiplier = attrs.yoyo_damage_multiplier * attrs.yoyo_damage_fraction - 1
+        let float damage = hitbox.damage(0) * (multiplier * duration + 1)
+        hitbox.set_damage(0, damage)
+
+func YoyoApplySmash():
+    state.yoyo_frame = 0
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "charge_release", facing.direction)
+    smash.charge_mode = Smash.manual_charge
+    smash.saved_animation_rate = animation.rate
+    smash.charge_frames = 0
+    smash.charge_limit = attrs.yoyo_shared_charge_limit
+    smash.shake_index = 0
+    smash.shake_period = smash.shake_table_count
+    smash.charge_color = attrs.yoyo_charge_color
+    if smash.charge_color != attrs.smash_color_skip: color.start(smash.charge_color, false)
+    controller.rumble(attrs.yoyo_rumble, 0)
+    sound.loop(attrs.yoyo_charge_sound, attrs.sound_volume, attrs.sound_pan)
+
+func YoyoSetChargeDamage():
+    state.yoyo_frame = attrs.yoyo_release_counter
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+        state.yoyo_spin_rate = program.entity_params.It_Kind_Ness_Yoyo.released_spin_rate
+    sound.loop(attrs.yoyo_release_sound, attrs.sound_volume, attrs.sound_pan)
+    YoyoApplyDamage()
+
+func YoyoSetChargeSpin():
+    if state.yoyo_handle != -1:
+        let float initial = program.entity_params.It_Kind_Ness_Yoyo.initial_charge_spin_rate
+        let float difference = initial - program.entity_params.It_Kind_Ness_Yoyo.charged_spin_rate
+        difference = difference * (float(state.yoyo_frame) / attrs.yoyo_charge_duration)
+        state.yoyo_spin_rate = initial - difference
+
+func YoyoThink() -> bool:
+    if command(0) != 0: state.yoyo_slope_correct = false
+    let bool up = motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion
+    let int despawn = attrs.yoyo_down_despawn_frame
+    if up: despawn = attrs.yoyo_up_despawn_frame
+    if state.yoyo_frame > attrs.yoyo_spawn_frame and state.yoyo_frame <= despawn:
+        if command(1) == 1:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 1)
+            state.yoyo_spin_rate = program.entity_params.It_Kind_Ness_Yoyo.released_spin_rate
+        if command(1) == 2:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 0)
+            state.yoyo_spin_rate = 0
+            sound.loop(attrs.yoyo_material_stop_sound, attrs.sound_volume, attrs.sound_pan)
+        let int rotate_frame = program.entity_params.It_Kind_Ness_Yoyo.down_smash_rotate_frame
+        let int retract_frame = program.entity_params.It_Kind_Ness_Yoyo.down_smash_retract_frame
+        if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+            rotate_frame = program.entity_params.It_Kind_Ness_Yoyo.up_smash_rotate_frame
+            retract_frame = program.entity_params.It_Kind_Ness_Yoyo.up_smash_retract_frame
+        if state.yoyo_frame == rotate_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+            if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+                sound.loop(attrs.yoyo_up_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+            else:
+                sound.loop(attrs.yoyo_down_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+        elif state.yoyo_frame == retract_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "retract", 0)
+        if state.yoyo_frame == despawn: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+    elif state.yoyo_frame == attrs.yoyo_spawn_frame:
+        YoyoCreate()
+        if state.yoyo_handle == -1:
+            state.wait()
+            return true
+    return false
+
+func BatEnter():
+    controls.interrupt_allowed = false
+    command(0) = 0
+    state.enter_at_speed(attrs.bat_smash_motion, 0, 0, 1)
+    animation.start()
+    BatCreate()
+
+func BatReflect():
+    sound.play(attrs.bat_reflect_sound, attrs.sound_volume, attrs.sound_pan)
+
+func BatAnimation():
+    if not reflector.active:
+        if command(0) != 0:
+            reflector.create(attrs.bat_reflect_joint, attrs.bat_reflect_max_damage, attrs.bat_reflect_x, attrs.bat_reflect_y, attrs.bat_reflect_z, attrs.bat_reflect_radius, attrs.bat_reflect_damage_multiplier, attrs.bat_reflect_speed_multiplier, attrs.bat_reflect_behavior != 0)
+            callbacks.track_reflect_hit()
+    elif command(0) == 0:
+        reflector.disable()
+    if animation.finished:
+        BatRemove()
+        state.wait()
+
+func BatInterrupt():
+    if controls.interrupt_allowed != 0:
+        BatRemove()
+        controls.ground_actions()
+
+func BatPhysics():
+    physics.ground_motion()
+    reflector.update()
+
+func YoyoEnter(bool up):
+    controls.interrupt_allowed = false
+    state.yoyo_charge_disabled = false
+    YoyoInitialize()
+    let int target = attrs.yoyo_down_start_motion
+    if up: target = attrs.yoyo_up_start_motion
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    YoyoBindCallbacks()
+
+func YoyoChargeEnter(bool up):
+    let int target = attrs.yoyo_down_charge_motion
+    if up: target = attrs.yoyo_up_charge_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_charge_animation_frame, 1)
+    animation.start()
+    animation.set_rate(0)
+    YoyoApplySmash()
+    YoyoBindCallbacks()
+
+func YoyoReleaseEnter(bool up):
+    let int target = attrs.yoyo_down_release_motion
+    if up: target = attrs.yoyo_up_release_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_release_animation_frame, 1)
+    animation.start()
+    YoyoSetChargeDamage()
+    YoyoBindCallbacks()
+
+func YoyoAnimation(bool up, bool release):
+    state.yoyo_frame = state.yoyo_frame + 1
+    if not YoyoThink():
+        YoyoCheckTimedRehit()
+        if not release:
+            if state.yoyo_frame == attrs.yoyo_obstruction_frame and not state.yoyo_charge_disabled:
+                if YoyoCheckNoObstruct(): YoyoChargeEnter(up)
+        if animation.finished: state.wait()
+
+func YoyoInterrupt(bool release):
+    if not release and not input.attack_held: state.yoyo_charge_disabled = true
+    if controls.interrupt_allowed != 0: controls.ground_actions()
+
+func YoyoChargeAnimation(bool up):
+    state.yoyo_frame = state.yoyo_frame + 1
+    YoyoSetChargeSpin()
+    YoyoCheckTimedRehit()
+    if float(state.yoyo_frame) >= attrs.yoyo_charge_duration: YoyoReleaseEnter(up)
+
+func YoyoChargeInterrupt(bool up):
+    if not input.attack_held: YoyoReleaseEnter(up)
+
+func YoyoPhysics(bool release, bool up):
+    physics.ground_friction()
+    let float fraction = 1
+    let bool blend = false
+    if release:
+        let int end = attrs.yoyo_down_blend_end
+        let float step = attrs.yoyo_down_blend_step
+        if up:
+            end = attrs.yoyo_up_blend_end
+            step = attrs.yoyo_up_blend_step
+        if state.yoyo_frame < end:
+            blend = true
+            fraction = step * (float(state.yoyo_frame) - float(attrs.yoyo_release_counter))
+            if fraction >= 1: fraction = 1
+            elif fraction <= 0: fraction = 0
+    YoyoSetHitPos(fraction, blend)
+
+func YoyoCollision():
+    collision.ground_standard()
+    if airborne: YoyoRemove()
+
+func ResourceDamage():
+    YoyoRemove()
+    flash_detach()
+    thunder_damage()
+    BatRemove()
+
+func CpuActiveSpecial() -> bool:
+    let int target = int(cpu.target_id)
+    let float target_x = 0
+    let float target_y = 0
+    let float target_z = 0
+    let bool has_target = targets.read_position(target, target_x, target_y, target_z)
+    if motion.id >= attrs.cpu_flash_first_motion and motion.id <= attrs.cpu_flash_last_motion:
+        if not has_target:
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        elif abs(target_y - position.y) < attrs.cpu_flash_release_height:
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        else:
+            cpu.queue(Cpu.toward_target, attrs.cpu_stick_strength)
+            cpu.queue(Cpu.done)
+        return true
+    if motion.id >= attrs.cpu_thunder_first_motion and motion.id <= attrs.cpu_thunder_last_motion:
+        if not has_target:
+            cpu.clear_target()
+            cpu.behavior = cpu.previous_behavior
+            cpu.queue(Cpu.done)
+        else:
+            cpu.queue(Cpu.toward_target, attrs.cpu_stick_strength)
+            cpu.queue(Cpu.done)
+        return true
+    return false
+
+func CpuAimThunder(float angle, int frames):
+    cpu.queue(Cpu.stick_x, float(attrs.cpu_stick_strength) * cos(angle))
+    cpu.queue(Cpu.stick_y, float(attrs.cpu_stick_strength) * sin(angle))
+    cpu.queue(Cpu.wait, frames)
+
+func JumpPhysics():
+    physics.air_accel_from(state.jump_horizontal_accumulator)
+    state.jump_horizontal_accumulator = state.jump_horizontal_accumulator + acceleration.x
+    acceleration.x = 0
+    velocity.x = animation.delta.z * facing.direction + state.jump_horizontal_accumulator
+    physics.animation_vertical_velocity_adjusted()
+
+move PKFire:
+    entry explicit
+    on special_s:
+        fire_enter(false)
+    on special_air_s:
+        fire_enter(true)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.fall()
+    on air_collision:
+        if collision.landed:
+            state.landing_special(false, attrs.fire_landing_lag)
+
+move PSIMagnet:
+    entry explicit
+    on special_lw:
+        magnet_enter(false)
+    on special_air_lw:
+        magnet_enter(true)
+    on ground_animation:
+        magnet_start_animation()
+    on air_animation:
+        magnet_start_animation()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        magnet_air_physics(false)
+    on ground_collision:
+        magnet_ground_collision(372, attrs.magnet_collision_flags, false)
+    on air_collision:
+        magnet_air_collision(367, attrs.magnet_collision_flags, false)
+
+move PKFlash:
+    entry explicit
+    on special_n:
+        flash_enter(false)
+    on special_air_n:
+        flash_enter(true)
+    on ground_animation:
+        flash_start_animation(false)
+    on air_animation:
+        flash_start_animation(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        flash_ground_start_physics()
+    on air_physics:
+        flash_air_physics()
+    on ground_collision:
+        flash_ground_collision(352)
+    on air_collision:
+        flash_air_collision(348)
+
+move PKThunder:
+    entry explicit
+    on special_hi:
+        thunder_enter(false)
+    on special_air_hi:
+        thunder_enter(true)
+    on ground_animation:
+        thunder_start_animation(false)
+    on air_animation:
+        thunder_start_animation(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if state.thunder_gravity_delay != 0: state.thunder_gravity_delay = state.thunder_gravity_delay - 1
+        physics.ground_friction()
+    on air_physics:
+        thunder_air_physics()
+    on ground_collision:
+        thunder_ground_collision(attrs.thunder_air_start)
+    on air_collision:
+        thunder_air_collision(attrs.thunder_ground_start)
+
+action MagnetPhases:
+    on state_368_animation:
+        magnet_hold_animation()
+    on state_368_interrupt:
+        pass
+    on state_368_physics:
+        physics.ground_friction()
+        absorber.skip_position_update = false
+    on state_368_collision:
+        magnet_ground_collision(373, attrs.magnet_collision_flags, true)
+    on state_369_animation:
+        magnet_hit_animation()
+    on state_369_interrupt:
+        pass
+    on state_369_physics:
+        physics.ground_friction()
+        absorber.skip_position_update = false
+    on state_369_collision:
+        magnet_ground_collision(374, attrs.magnet_collision_flags, true)
+    on state_370_animation:
+        magnet_end_animation()
+    on state_370_interrupt:
+        pass
+    on state_370_physics:
+        physics.ground_friction()
+    on state_370_collision:
+        magnet_ground_collision(375, attrs.magnet_end_collision_flags, false)
+    on state_371_animation:
+        magnet_turn_animation()
+    on state_371_interrupt:
+        pass
+    on state_371_physics:
+        physics.ground_friction()
+        absorber.skip_position_update = false
+    on state_371_collision:
+        magnet_ground_collision(376, attrs.magnet_collision_flags, false)
+    on state_373_animation:
+        magnet_hold_animation()
+    on state_373_interrupt:
+        pass
+    on state_373_physics:
+        magnet_air_physics(true)
+    on state_373_collision:
+        magnet_air_collision(368, attrs.magnet_collision_flags, true)
+    on state_374_animation:
+        magnet_hit_animation()
+    on state_374_interrupt:
+        pass
+    on state_374_physics:
+        magnet_air_physics(true)
+    on state_374_collision:
+        magnet_air_collision(369, attrs.magnet_collision_flags, true)
+    on state_375_animation:
+        magnet_end_animation()
+    on state_375_interrupt:
+        pass
+    on state_375_physics:
+        magnet_air_physics(false)
+    on state_375_collision:
+        magnet_air_collision(370, attrs.magnet_end_collision_flags, false)
+    on state_376_animation:
+        magnet_turn_animation()
+    on state_376_interrupt:
+        pass
+    on state_376_physics:
+        magnet_air_physics(true)
+    on state_376_collision:
+        magnet_air_collision(371, attrs.magnet_collision_flags, false)
+
+action MagnetResponse:
+    on absorb:
+        damage.heal(float(int(absorber.damage * attrs.magnet_heal_multiplier)))
+        facing.direction = absorber.direction
+        if not ((motion.id == 369 or motion.id == 374) and frame <= attrs.magnet_rehit_frame):
+            let target = 369
+            if airborne: target = 374
+            state.enter_at_speed(target, 2, 0, 1)
+            magnet_create_absorber()
+
+action FlashPhases:
+    on state_349_animation:
+        flash_hold_animation(false)
+    on state_349_interrupt:
+        flash_hold_interrupt()
+    on state_349_physics:
+        physics.ground_friction()
+    on state_349_collision:
+        flash_ground_collision(353)
+    on state_350_animation:
+        flash_hold_animation(false)
+    on state_350_interrupt:
+        flash_hold_interrupt()
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        flash_ground_collision(353)
+    on state_351_animation:
+        flash_end_animation(false)
+    on state_351_interrupt:
+        pass
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        flash_ground_collision(355)
+    on state_353_animation:
+        flash_hold_animation(true)
+    on state_353_interrupt:
+        flash_hold_interrupt()
+    on state_353_physics:
+        flash_air_physics()
+    on state_353_collision:
+        flash_air_collision(349)
+    on state_354_animation:
+        flash_hold_animation(true)
+    on state_354_interrupt:
+        flash_hold_interrupt()
+    on state_354_physics:
+        flash_air_physics()
+    on state_354_collision:
+        flash_air_collision(349)
+    on state_355_animation:
+        flash_end_animation(true)
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        flash_air_physics()
+    on state_355_collision:
+        flash_air_collision(351)
+
+# These are installed only by the owned Flash constructor-success path.
+# Untranslated Yoyo/Thunder/bat dynamic callbacks keep their stock routines.
+
+action ThunderPhases:
+    on state_359_animation:
+        thunder_hold_animation(false)
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        physics.ground_friction()
+    on state_359_collision:
+        thunder_ground_collision(attrs.thunder_air_hold)
+    on state_360_animation:
+        if animation.finished: state.wait()
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        physics.ground_friction()
+    on state_360_collision:
+        thunder_ground_collision(attrs.thunder_air_end)
+    on state_361_animation:
+        thunder_launch_animation(false)
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        thunder_ground_launch_physics()
+    on state_361_collision:
+        thunder_ground_launch_collision()
+    on state_363_animation:
+        thunder_hold_animation(true)
+    on state_363_interrupt:
+        pass
+    on state_363_physics:
+        thunder_air_physics()
+    on state_363_collision:
+        thunder_air_collision(attrs.thunder_ground_hold)
+    on state_364_animation:
+        if animation.finished:
+            jumps.used = jumps.max
+            thunder_freefall()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        thunder_air_physics()
+    on state_364_collision:
+        thunder_air_collision(attrs.thunder_ground_end)
+    on state_365_animation:
+        thunder_launch_animation(true)
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        thunder_air_launch_physics()
+    on state_365_collision:
+        thunder_air_launch_collision()
+    on state_366_animation:
+        if animation.finished: thunder_freefall()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        physics.fall(air.gravity, air.terminal_velocity)
+        physics.air_decel(air.friction)
+    on state_366_collision:
+        thunder_rebound_collision()
+
+action Smashes:
+    on deal_damage:
+        YoyoStartTimedRehit()
+    on reflect_hit:
+        BatReflect()
+    on forward_smash_enter:
+        BatEnter()
+    on up_smash_enter:
+        YoyoEnter(true)
+    on down_smash_enter:
+        YoyoEnter(false)
+
+    on state_341_animation:
+        BatAnimation()
+    on state_341_interrupt:
+        BatInterrupt()
+    on state_341_physics:
+        BatPhysics()
+    on state_341_collision:
+        collision.ground_standard()
+    on state_342_animation:
+        YoyoAnimation(true, false)
+    on state_342_interrupt:
+        YoyoInterrupt(false)
+    on state_342_physics:
+        YoyoPhysics(false, true)
+    on state_342_collision:
+        YoyoCollision()
+    on state_343_animation:
+        YoyoChargeAnimation(true)
+    on state_343_interrupt:
+        YoyoChargeInterrupt(true)
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        YoyoCollision()
+    on state_344_animation:
+        YoyoAnimation(true, true)
+    on state_344_interrupt:
+        YoyoInterrupt(true)
+    on state_344_physics:
+        YoyoPhysics(true, true)
+    on state_344_collision:
+        YoyoCollision()
+    on state_345_animation:
+        YoyoAnimation(false, false)
+    on state_345_interrupt:
+        YoyoInterrupt(false)
+    on state_345_physics:
+        YoyoPhysics(false, false)
+    on state_345_collision:
+        YoyoCollision()
+    on state_346_animation:
+        YoyoChargeAnimation(false)
+    on state_346_interrupt:
+        YoyoChargeInterrupt(false)
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        YoyoCollision()
+    on state_347_animation:
+        YoyoAnimation(false, true)
+    on state_347_interrupt:
+        YoyoInterrupt(true)
+    on state_347_physics:
+        YoyoPhysics(true, false)
+    on state_347_collision:
+        YoyoCollision()
+
+action ResourceLifecycle:
+    on load:
+        fighter.copy_ext_attributes()
+        # Native authored handles use -1; zero-filled union pointers are not IDs.
+        state.flash_handle = -1
+        state.thunder_ball_handle = -1
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+        state.thunder_effects_active = false
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        # Original reset hides this group and forgets handles; damage owns removal.
+        visuals.hide_group(0)
+        state.flash_handle = -1
+        state.thunder_ball_handle = -1
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+        state.thunder_effects_active = false
+    on damage:
+        ResourceDamage()
+    on death2:
+        ResourceDamage()
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on worn_item_jump_sound:
+        return false
+
+action CpuPolicy:
+    on cpu_attack_decision:
+        return CpuActiveSpecial()
+    on cpu_travel_decision:
+        if CpuActiveSpecial():
+            # Original Ness travel caller increments after the special policy.
+            cpu.travel_frames = cpu.travel_frames + 1
+            return true
+        return false
+    on cpu_recovery:
+        if position.y > cpu.destination.y - attrs.cpu_recovery_height_margin:
+            cpu.queue(Cpu.done)
+            return
+        if cpu.level < attrs.cpu_recovery_minimum_level:
+            cpu.queue(Cpu.done)
+            return
+        cpu.queue(Cpu.stick_y, attrs.cpu_stick_strength)
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.press_b_for, 1)
+        cpu.queue(Cpu.release_b)
+        let float first = 0
+        let float second = attrs.cpu_recovery_pi
+        if cpu.destination.x - position.x > 0:
+            first = attrs.cpu_recovery_pi
+            second = 0
+        CpuAimThunder(first, attrs.cpu_recovery_first_frames)
+        CpuAimThunder(-attrs.cpu_recovery_half_pi, attrs.cpu_recovery_bottom_frames)
+        CpuAimThunder(second, attrs.cpu_recovery_second_frames)
+        CpuAimThunder(attrs.cpu_recovery_half_pi, attrs.cpu_recovery_top_frames)
+        cpu.queue(Cpu.done)
+
+action CommonPolicy:
+    on aerial_jump:
+        physics.ground_to_air()
+        command(0) = 1
+        let int target = attrs.jump_backward_motion
+        if input.x * facing.direction > -controls.aerial_jump_reverse_threshold:
+            target = attrs.jump_forward_motion
+        jump.begin(target, 0, 0, 0, true, false, false)
+        callbacks.physics(JumpPhysics)
+        state.jump_horizontal_accumulator = input.x * air.jump_horizontal_multiplier
+    on presentation_item:
+        if motion.id != attrs.presentation_star_ice_motion and motion.id != attrs.presentation_camera_ice_motion and motion.id != attrs.presentation_sleep_motion:
+            return
+        # Presentation Bat is published only as the held reference. It does not
+        # replace the smash Bat handle or install the resource damage callback.
+        let int bat = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, false, 0, float(attrs.presentation_bat_mode), false)
+        if bat == -1:
+            items.clear_held()
+        else:
+            let bool published = articles.bind_held(bat)
+            if motion.id == attrs.presentation_star_ice_motion:
+                articles.signal(bat, It_Kind_Ness_Bat, "presentation_scale", attrs.presentation_star_scale * (model.instance_scale_y * model.base_scale))
+    on cpu_special_candidate:
+        let int target = int(cpu.target_id)
+        let float target_x = 0
+        let float target_y = 0
+        let float target_z = 0
+        let bool has_target = targets.read_position(target, target_x, target_y, target_z)
+        let float separation = target_x - position.x
+        let bool facing_target = not has_target or abs(separation) < attrs.cpu_target_facing_epsilon or separation * facing.direction >= 0
+        if airborne:
+            if event.angle < attrs.cpu_fire_angle_high and event.angle > attrs.cpu_fire_angle_low and event.distance < attrs.cpu_fire_distance and facing_target:
+                cpu.selected_command = attrs.cpu_fire_command
+                return true
+            return false
+        if event.angle < attrs.cpu_ground_angle_high and event.angle > attrs.cpu_ground_angle_low and event.distance < attrs.cpu_fire_distance and facing_target:
+            cpu.selected_command = attrs.cpu_fire_command
+            return true
+        if position.y >= target_y: return false
+        if event.angle > attrs.cpu_flash_high_angle:
+            cpu.selected_command = attrs.cpu_flash_high_command
+        elif random.float() < attrs.cpu_flash_probability:
+            cpu.selected_command = attrs.cpu_flash_low_command
+        # Consume without assigning when the random branch fails. Preserve the
+        # existing selected command (including zero), exactly as original C.
+        return true
+    on cpu_projectile_hit:
+        if cpu.level >= attrs.cpu_absorb_minimum_level and event.prediction_frames >= attrs.cpu_unblockable_prediction_start and event.unblockable:
+            return attrs.cpu_projectile_unblockable_category
+        return attrs.cpu_projectile_normal_category
+
+article It_Kind_Ness_PKFire states 1:
+    attribute float lifetime 0
+    attribute float flame_offset_y 4
+    state int last_flame
+    on created:
+            item.inherit_owner_debug_display()
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+            item.joint("").rotation.z = item.creation_value
+    state 0 anim 0:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on collision:
+            return item.hits_stage()
+    on damage_dealt:
+            item.state.last_flame = item.create_at_position(It_Kind_Ness_PKFire_Flame, position.x, position.y + item.attr.flame_offset_y, position.z, facing)
+            return true
+    on clanked:
+            item.state.last_flame = item.create_at_position(It_Kind_Ness_PKFire_Flame, position.x, position.y + item.attr.flame_offset_y, position.z, facing)
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on reflected:
+            return item.reflect()
+    on shield_bounced:
+            item.joint("").rotation.z = -item.joint("").rotation.z
+            return item.shield_bounce()
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Ness_PKFire_Flame states 1:
+    attribute float lifetime 0
+    attribute float damage_life_multiplier 4
+    attribute float final_scale 8
+    on created:
+            item.inherit_owner_debug_display()
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+    state 0 anim 0:
+        on animation:
+            item.set_scale((item.attr.final_scale + (item.life * (1 - item.attr.final_scale)) / item.attr.lifetime) * item.base_scale)
+            # Preserve the stock pre-decrement expiry test.
+            if item.life <= 0: return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            # Stock assigns GA_Air unconditionally, without clearing flags.
+            item.airborne = true
+            item.gravity(false)
+        on collision:
+            item.airborne = true
+            item.land_on_stage()
+            return false
+    on stage_landed:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+    on damage_received:
+            item.life = -((item.accumulated_damage * item.attr.damage_life_multiplier) - item.life)
+            if item.life <= 0: item.life = 1
+            return false
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Ness_PKFlush states 3:
+    attribute float lifetime 0
+    attribute float max_charge 4
+    attribute float initial_scale 8
+    attribute float final_scale 12
+    attribute float launch_angle_degrees 16
+    attribute float launch_speed 20
+    attribute float control_acceleration 24
+    attribute float gravity 28
+    attribute float max_horizontal_speed 32
+    attribute float terminal_speed 36
+    attribute float explosion_delay 40
+    parameter float input_deadzone = 0.2
+    parameter float degrees_to_radians = 0.017453292
+    parameter float half_pi = 1.5707963267948966
+    parameter int stage_stop_sound = 134
+    state float charge
+    state bool reflected
+    state bool controller_enabled
+    state bool stage_stopped
+    state int explosion_handle
+    on signal scale:
+            item.set_scale(item.state.charge * ((item.attr.final_scale - item.attr.initial_scale) / item.attr.max_charge) + item.attr.initial_scale)
+    on signal detach:
+            item.clear_current_owner()
+            item.state.controller_enabled = false
+            item.clear_attachment_owner()
+            item.owner_bound = false
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            item.state.controller_enabled = true
+            item.state.stage_stopped = false
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            if item.joint(0, "0").exists: item.joint(0, "0").local_visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            let angle = (item.attr.degrees_to_radians * item.attr.launch_angle_degrees * facing) + item.attr.half_pi
+            velocity.x = -item.attr.launch_speed * cos(angle)
+            velocity.y = item.attr.launch_speed * sin(angle)
+            velocity.z = 0
+            item.inherit_owner_debug_display()
+    state 0 anim 0:
+        on animation:
+            if item.animation_finished: item.change_state_flags(0, 2)
+            if not item.state.reflected:
+                item.state.charge = item.state.charge + 1
+                if item.state.charge >= item.attr.max_charge: item.state.charge = item.attr.max_charge
+                if item.state.controller_enabled and item.attachment_active:
+                    if not (owner.state.flash_handle != -1 and (owner.motion == 349 or owner.motion == 353)):
+                        item.change_state_flags(1, 2)
+                        item.life = item.attr.explosion_delay
+                        item.command0 = 0
+            if item.expire_tick():
+                item.change_state_flags(1, 2)
+                item.life = item.attr.explosion_delay
+                item.command0 = 0
+            item.signal("scale", 0)
+            return false
+        on physics:
+            if not item.state.reflected and item.state.controller_enabled and item.attachment_active:
+                if owner.state.flash_handle != -1 and (owner.motion == 349 or owner.motion == 353):
+                    let float stick = 0
+                    if attachment_owner.exists:
+                        stick = attachment_owner.input.x
+                    if abs(stick) > item.attr.input_deadzone:
+                        velocity.x = velocity.x + stick * item.attr.control_acceleration
+                        if abs(velocity.x) > item.attr.max_horizontal_speed:
+                            if velocity.x > 0:
+                                velocity.x = item.attr.max_horizontal_speed
+                            else:
+                                velocity.x = -item.attr.max_horizontal_speed
+            velocity.y = velocity.y - item.attr.gravity
+            if velocity.y < -item.attr.terminal_speed: velocity.y = -item.attr.terminal_speed
+            velocity.z = 0
+        on collision:
+            item.stage_collision(false)
+            let bool stopped = false
+            if velocity.y > 0:
+                if collision.ceiling_contact:
+                    stopped = true
+            else:
+                if collision.floor_contact:
+                    stopped = true
+            if velocity.x > 0:
+                if collision.left_wall:
+                    stopped = true
+            else:
+                if collision.right_wall:
+                    stopped = true
+            if stopped:
+                item.change_state_flags(2, 2)
+                item.state.stage_stopped = true
+                item.life = item.attr.explosion_delay
+                item.stop_loop_sound()
+                item.play_sound(item.attr.stage_stop_sound, 127, 64)
+            item.signal("scale", 0)
+            return false
+    state 1 anim 1:
+        on animation:
+            item.command0 = item.command0 + 1
+            if not item.state.reflected and item.state.controller_enabled and item.attachment_active:
+                if item.command0 >= int(item.attr.explosion_delay) - 2:
+                    item.state.explosion_handle = item.create_child(It_Kind_Ness_PKFlush_Explode, position.x, position.y, 0, facing, item.current_owner, 0, item.state.charge, 0)
+                    return true
+            item.signal("scale", 0)
+            return item.expire_tick()
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    state 2 anim 2:
+        on animation:
+            item.signal("scale", 0)
+            return item.expire_tick()
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    on destroyed:
+            hitboxes.disable_all()
+            if item.state.controller_enabled and item.attachment_active: owner.helpers.flash_clear()
+            item.state.controller_enabled = false
+            item.clear_attachment_owner()
+            item.owner_bound = false
+    on reflected:
+            item.state.reflected = true
+            facing = -facing
+            item.joint("").rotation.y = item.attr.half_pi * facing
+            velocity.x = -velocity.x
+            velocity.y = -velocity.y
+            velocity.z = 0
+            return false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Ness_PKFlush_Explode states 1:
+    attribute float max_charge 0
+    attribute float initial_scale 4
+    attribute float final_scale 8
+    attribute float base_damage 12
+    attribute float charge_damage_multiplier 16
+    parameter float medium_threshold = 0.84999996
+    parameter float small_threshold = 0.65
+    parameter float rumble_threshold = 0.45
+    parameter int medium_quake = 3
+    parameter int small_quake = 2
+    parameter int medium_rumble = 14
+    parameter int medium_rumble_duration = 20
+    parameter int small_rumble = 13
+    parameter int small_rumble_duration = 15
+    parameter int light_rumble = 12
+    parameter int light_rumble_duration = 10
+    parameter int minimum_rumble = 11
+    parameter int minimum_rumble_duration = 5
+    parameter float lifetime = 1024
+    state float charge
+    state float initial_radius
+    on signal update:
+            let scale = item.state.charge * ((item.attr.final_scale - item.attr.initial_scale) / item.attr.max_charge) + item.attr.initial_scale
+            item.set_scale(scale)
+            if item.command2 == 0 and hitbox.enabled(0):
+                hitbox.set_damage(0, item.state.charge * item.attr.charge_damage_multiplier + item.attr.base_damage)
+                item.command2 = 1
+            if item.state.initial_radius == 0: item.state.initial_radius = hitbox.radius(0)
+            hitbox.set_radius(0, item.state.initial_radius * scale)
+    on signal detach:
+            hitboxes.disable_all()
+            item.clear_current_owner()
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.state.charge = item.creation_value
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            if item.joint(0, "0").exists: item.joint(0, "0").local_visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+            item.state.initial_radius = 0
+            item.advance_animation()
+            item.signal("update", 0)
+            let ratio = item.state.charge / item.attr.max_charge
+            if ratio > item.attr.medium_threshold:
+                camera.quake(item.attr.medium_quake, position.x, position.y, position.z)
+                item.rumble(item.attr.medium_rumble, item.attr.medium_rumble_duration)
+            else:
+                if ratio > item.attr.small_threshold:
+                    camera.quake(item.attr.small_quake, position.x, position.y, position.z)
+                    item.rumble(item.attr.small_rumble, item.attr.small_rumble_duration)
+                else:
+                    if ratio > item.attr.rumble_threshold:
+                        item.rumble(item.attr.light_rumble, item.attr.light_rumble_duration)
+                    else:
+                        item.rumble(item.attr.minimum_rumble, item.attr.minimum_rumble_duration)
+            item.inherit_owner_debug_display()
+    state 0 anim 0:
+        on animation:
+            item.signal("update", 0)
+            return item.animation_finished
+        on physics:
+            # Stock duplicates the Z assignment and intentionally leaves X.
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+
+# Source-only Thunder chain. Do not package for gameplay before fighter construction/cleanup ownership.
+article It_Kind_Ness_PKThunder states 1:
+    attribute float lifetime 0
+    attribute float speed 4
+    attribute float spawn_angle_degrees 8
+    attribute float stick_threshold 12
+    attribute float turn_radius_degrees 16
+    state int trail_handles[6]
+    state float history_x[16]
+    state float history_y[16]
+    state float history_z[16]
+    state float angles[16]
+    state float speed
+    state int age
+    state int next_trail
+    state bool reflected
+    state bool controller_enabled
+
+    on signal normalize_positive_angle:
+            while item.state.angles[0] < 0:
+                item.state.angles[0] = item.state.angles[0] + program.attrs.thunder_tau
+            while item.state.angles[0] > program.attrs.thunder_tau:
+                item.state.angles[0] = item.state.angles[0] - program.attrs.thunder_tau
+    on signal shift_angles:
+            let int index = program.attrs.thunder_history_count - 2
+            while index >= 0:
+                item.state.angles[index + 1] = item.state.angles[index]
+                index = index - 1
+    on signal shift_positions:
+            let int index = program.attrs.thunder_history_count - 2
+            while index >= 0:
+                item.state.history_x[index + 1] = item.state.history_x[index]
+                item.state.history_y[index + 1] = item.state.history_y[index]
+                item.state.history_z[index + 1] = item.state.history_z[index]
+                index = index - 1
+            item.state.history_x[0] = position.x
+            item.state.history_y[0] = position.y
+            item.state.history_z[0] = position.z
+    on signal detach_trails:
+            let int index = 0
+            while index < program.attrs.thunder_trail_count:
+                if item.state.trail_handles[index] != -1:
+                    if index == program.attrs.thunder_near_trail_count:
+                        articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder2, "detach", 0)
+                    elif index == program.attrs.thunder_near_trail_count + 1:
+                        articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder3, "detach", 0)
+                    elif index == program.attrs.thunder_near_trail_count + 2:
+                        articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder4, "detach", 0)
+                    else:
+                        articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder1, "detach", 0)
+                    item.state.trail_handles[index] = -1
+                index = index + 1
+    on signal cleanup:
+            hitboxes.disable_all()
+            if item.state.controller_enabled:
+                if not item.state.reflected and item.attachment_active:
+                    creator.helpers.thunder_ball_removed()
+                item.state.controller_enabled = false
+            item.signal("detach_trails", 0)
+            item.owner_bound = false
+    on signal detach_damage_owner:
+            # it_802AB9C0: reflected balls ignore this fighter damage notification.
+            if not item.state.reflected:
+                item.clear_current_owner()
+                item.owner_bound = false
+                let int index = 0
+                while index < program.attrs.thunder_trail_count:
+                    if item.state.trail_handles[index] != -1:
+                        if index == program.attrs.thunder_near_trail_count:
+                            articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder2, "detach_damage_owner", 0)
+                        elif index == program.attrs.thunder_near_trail_count + 1:
+                            articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder3, "detach_damage_owner", 0)
+                        elif index == program.attrs.thunder_near_trail_count + 2:
+                            articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder4, "detach_damage_owner", 0)
+                        else:
+                            articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder1, "detach_damage_owner", 0)
+                    index = index + 1
+    on signal initialize_motion:
+            # it_802ABA4C, preserving the second lifetime/angle initialization.
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint("0").visible = true
+            item.change_state_flags(0, program.attrs.thunder_ball_state_flags)
+            item.set_lifetime(item.attr.lifetime)
+            let int index = 0
+            while index < program.attrs.thunder_history_count:
+                item.state.angles[index] = item.attr.spawn_angle_degrees * program.attrs.thunder_radians_per_degree
+                index = index + 1
+            item.state.speed = item.attr.speed
+            velocity.y = item.attr.speed
+            velocity.z = 0
+            velocity.x = 0
+            item.inherit_owner_debug_display()
+    on created:
+            # it_802AB58C successful-constructor tail; unused pointers omitted.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.set_lifetime(item.attr.lifetime)
+            let int index = 0
+            while index < program.attrs.thunder_history_count:
+                item.state.history_x[index] = creator.state.thunder_requested_x
+                item.state.history_y[index] = creator.state.thunder_requested_y
+                item.state.history_z[index] = creator.state.thunder_requested_z
+                index = index + 1
+            index = 0
+            while index < program.attrs.thunder_history_count:
+                item.state.angles[index] = item.attr.spawn_angle_degrees * program.attrs.thunder_radians_per_degree
+                index = index + 1
+            index = 0
+            while index < program.attrs.thunder_trail_count:
+                item.state.trail_handles[index] = -1
+                index = index + 1
+            item.state.next_trail = 0
+            item.state.age = 0
+            item.state.reflected = false
+            item.state.controller_enabled = true
+            item.signal("initialize_motion", 0)
+            item.remove_at_bounds = false
+            if stage.internal_kind == program.attrs.thunder_camera_exception_stage:
+                item.release_camera()
+
+    state 0 anim 0:
+        on animation:
+            if item.state.age >= 0 and item.state.age <= program.attrs.thunder_last_trail_spawn_frame and item.state.age % program.attrs.thunder_trail_spawn_stride == 0:
+                if item.state.next_trail <= program.attrs.thunder_trail_count - 1:
+                    let int damage_owner = 0
+                    if item.state.controller_enabled and item.attachment_active:
+                        damage_owner = item.current_owner
+                    # Factories name authored declarations, not stock ItemKind numbers.
+                    if item.state.next_trail == program.attrs.thunder_near_trail_count:
+                        item.state.trail_handles[item.state.next_trail] = item.create_child(It_Kind_Ness_PKThunder2, position.x, position.y, 0, facing, damage_owner, item.collision_group, float(item.state.next_trail), 0)
+                    elif item.state.next_trail == program.attrs.thunder_near_trail_count + 1:
+                        item.state.trail_handles[item.state.next_trail] = item.create_child(It_Kind_Ness_PKThunder3, position.x, position.y, 0, facing, damage_owner, item.collision_group, float(item.state.next_trail), 0)
+                    elif item.state.next_trail == program.attrs.thunder_near_trail_count + 2:
+                        item.state.trail_handles[item.state.next_trail] = item.create_child(It_Kind_Ness_PKThunder4, position.x, position.y, 0, facing, damage_owner, item.collision_group, float(item.state.next_trail), 0)
+                    else:
+                        item.state.trail_handles[item.state.next_trail] = item.create_child(It_Kind_Ness_PKThunder1, position.x, position.y, 0, facing, damage_owner, item.collision_group, float(item.state.next_trail), 0)
+                    item.state.next_trail = item.state.next_trail + 1
+            item.state.age = item.state.age + 1
+            if not item.state.reflected and item.state.controller_enabled:
+                if item.attachment_active:
+                    if not (creator.motion == program.attrs.thunder_ground_hold or creator.motion == program.attrs.thunder_air_hold):
+                        return true
+                else:
+                    item.signal("cleanup", 0)
+                    return true
+            return item.expire_tick()
+        on physics:
+            # Shift all sixteen samples before steering, including inactive control.
+            item.signal("shift_angles", 0)
+            if not item.state.reflected and item.state.controller_enabled and item.attachment_active and (creator.motion == program.attrs.thunder_ground_hold or creator.motion == program.attrs.thunder_air_hold):
+                let float stick_x = creator.input.x
+                let float stick_y = creator.input.y
+                if abs(stick_x) > item.attr.stick_threshold or abs(stick_y) > item.attr.stick_threshold:
+                    let float angle = vectors.angle(velocity.x, velocity.y, velocity.z, stick_x, stick_y, 0)
+                    let float cross_z = vectors.cross_normalized_z(velocity.x, velocity.y, velocity.z, stick_x, stick_y, 0)
+                    if angle >= program.attrs.thunder_large_turn_degrees * program.attrs.thunder_radians_per_degree:
+                        if cross_z > 0:
+                            item.state.angles[0] = item.state.angles[0] + item.attr.turn_radius_degrees * program.attrs.thunder_radians_per_degree
+                        elif cross_z < 0:
+                            item.state.angles[0] = item.state.angles[0] - item.attr.turn_radius_degrees * program.attrs.thunder_radians_per_degree
+                    if angle < program.attrs.thunder_large_turn_degrees * program.attrs.thunder_radians_per_degree:
+                        if cross_z > 0:
+                            item.state.angles[0] = item.state.angles[0] + angle / (program.attrs.thunder_large_turn_degrees / item.attr.turn_radius_degrees)
+                        elif cross_z < 0:
+                            item.state.angles[0] = item.state.angles[0] - angle / (program.attrs.thunder_large_turn_degrees / item.attr.turn_radius_degrees)
+
+                    while item.state.angles[0] < -program.attrs.thunder_tau:
+                        item.state.angles[0] = item.state.angles[0] + program.attrs.thunder_tau
+                    while item.state.angles[0] > program.attrs.thunder_tau:
+                        item.state.angles[0] = item.state.angles[0] - program.attrs.thunder_tau
+                    velocity.x = item.state.speed * cos(item.state.angles[0])
+                    velocity.y = item.state.speed * sin(item.state.angles[0])
+                    velocity.z = 0
+            item.signal("shift_positions", 0)
+        on collision:
+            # Exact it_8026DA08; sweep_stage_flags would add two other probes.
+            item.stage_collision(false)
+            let bool hit = false
+            if velocity.y > 0:
+                hit = collision.ceiling_contact
+            else:
+                hit = collision.floor_contact
+            if velocity.x > 0:
+                if collision.left_wall:
+                    hit = true
+            else:
+                if collision.right_wall:
+                    hit = true
+            if hit:
+                hitboxes.disable_all()
+                return true
+            return false
+    on destroyed:
+            item.signal("cleanup", 0)
+    on damage_dealt:
+            item.signal("cleanup", 0)
+            return true
+    on clanked:
+            item.signal("cleanup", 0)
+            return true
+    on absorbed:
+            item.signal("cleanup", 0)
+            return true
+    on hit_shield:
+            item.signal("cleanup", 0)
+            return true
+    on reflected:
+            if item.state.controller_enabled:
+                if item.attachment_active:
+                    # Match the full ID directly; no identity travels in signal.value.
+                    if creator.state.thunder_ball_handle == item.creation_id:
+                        creator.state.thunder_ball_handle = -1
+                item.state.controller_enabled = false
+            item.state.reflected = true
+            item.state.angles[0] = item.state.angles[0] + program.attrs.thunder_pi
+            item.signal("normalize_positive_angle", 0)
+            item.signal("detach_trails", 0)
+            item.state.age = 0
+            item.state.next_trail = 0
+            let int index = 1
+            while index < program.attrs.thunder_history_count:
+                item.state.history_x[index] = item.state.history_x[0]
+                item.state.history_y[index] = item.state.history_y[0]
+                item.state.history_z[index] = item.state.history_z[0]
+                item.state.angles[index] = item.state.angles[0]
+                index = index + 1
+            velocity.x = item.state.speed * cos(item.state.angles[0])
+            velocity.y = item.state.speed * sin(item.state.angles[0])
+            velocity.z = 0
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            velocity.z = 0
+            item.state.angles[0] = atan2(velocity.y, velocity.x)
+            item.signal("normalize_positive_angle", 0)
+            return false
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Ness_PKThunder1 states 1:
+    state int sample_index
+    state int blink_frame
+    state bool parent_enabled
+    on signal detach:
+            hitboxes.disable_all()
+            item.state.parent_enabled = false
+            item.clear_current_owner()
+            item.owner_bound = false
+    on signal detach_damage_owner:
+            item.clear_current_owner()
+            item.owner_bound = false
+    on created:
+            # it_802AC43C successful tail; link 0/index preexist this callback.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.state.parent_enabled = true
+            item.state.sample_index = int(item.creation_value)
+            item.state.blink_frame = 0
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint("0").visible = true
+            velocity.z = 0
+            velocity.x = 0
+            velocity.y = 0
+            item.remove_at_bounds = false
+            if item.current_owner != 0:
+                item.inherit_owner_debug_display()
+            item.change_state_flags(0, program.attrs.thunder_trail_state_flags)
+    state 0 anim 0:
+        on animation:
+            if (item.state.blink_frame & 1) != 0:
+                item.joint("0").visible = false
+            else:
+                item.joint("0").visible = true
+            item.state.blink_frame = item.state.blink_frame + 1
+            return not item.state.parent_enabled
+        on physics:
+            if item.state.parent_enabled:
+                let int parent = item.link_id(0)
+                let int index = item.state.sample_index * program.attrs.thunder_history_stride
+                position.x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                position.y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                position.z = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_z[index]
+                let float radius = articles.ref(parent, It_Kind_Ness_PKThunder).state.speed
+                item.joint("").scale.z = program.attrs.thunder_radius_multiplier * radius / program.attrs.thunder_radius_divisor
+                index = (item.state.sample_index + 1) * program.attrs.thunder_history_stride
+                let float next_x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                let float next_y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                let float angle = 0
+                if facing == 1:
+                    angle = atan2(position.y - next_y, position.x - next_x)
+                else:
+                    angle = program.attrs.thunder_pi + atan2(position.y - next_y, position.x - next_x)
+                item.joint("").rotation.x = angle * -facing
+        on collision:
+            return false
+
+article It_Kind_Ness_PKThunder2 states 1:
+    state int sample_index
+    state int blink_frame
+    state bool parent_enabled
+    on signal detach:
+            hitboxes.disable_all()
+            item.state.parent_enabled = false
+            item.clear_current_owner()
+            item.owner_bound = false
+    on signal detach_damage_owner:
+            item.clear_current_owner()
+            item.owner_bound = false
+    on created:
+            # it_802AC43C successful tail; link 0/index preexist this callback.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.state.parent_enabled = true
+            item.state.sample_index = int(item.creation_value)
+            item.state.blink_frame = 0
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint("0").visible = true
+            velocity.z = 0
+            velocity.x = 0
+            velocity.y = 0
+            item.remove_at_bounds = false
+            if item.current_owner != 0:
+                item.inherit_owner_debug_display()
+            item.change_state_flags(0, program.attrs.thunder_trail_state_flags)
+    state 0 anim 0:
+        on animation:
+            if (item.state.blink_frame & 1) != 0:
+                item.joint("0").visible = false
+            else:
+                item.joint("0").visible = true
+            item.state.blink_frame = item.state.blink_frame + 1
+            return not item.state.parent_enabled
+        on physics:
+            if item.state.parent_enabled:
+                let int parent = item.link_id(0)
+                let int index = item.state.sample_index * program.attrs.thunder_history_stride
+                position.x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                position.y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                position.z = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_z[index]
+                let float radius = articles.ref(parent, It_Kind_Ness_PKThunder).state.speed
+                item.joint("").scale.z = program.attrs.thunder_radius_multiplier * radius / program.attrs.thunder_radius_divisor
+                index = (item.state.sample_index + 1) * program.attrs.thunder_history_stride
+                let float next_x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                let float next_y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                let float angle = 0
+                if facing == 1:
+                    angle = atan2(position.y - next_y, position.x - next_x)
+                else:
+                    angle = program.attrs.thunder_pi + atan2(position.y - next_y, position.x - next_x)
+                item.joint("").rotation.x = angle * -facing
+        on collision:
+            return false
+
+article It_Kind_Ness_PKThunder3 states 1:
+    state int sample_index
+    state int blink_frame
+    state bool parent_enabled
+    on signal detach:
+            hitboxes.disable_all()
+            item.state.parent_enabled = false
+            item.clear_current_owner()
+            item.owner_bound = false
+    on signal detach_damage_owner:
+            item.clear_current_owner()
+            item.owner_bound = false
+    on created:
+            # it_802AC43C successful tail; link 0/index preexist this callback.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.state.parent_enabled = true
+            item.state.sample_index = int(item.creation_value)
+            item.state.blink_frame = 0
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint("0").visible = true
+            velocity.z = 0
+            velocity.x = 0
+            velocity.y = 0
+            item.remove_at_bounds = false
+            if item.current_owner != 0:
+                item.inherit_owner_debug_display()
+            item.change_state_flags(0, program.attrs.thunder_trail_state_flags)
+    state 0 anim 0:
+        on animation:
+            if (item.state.blink_frame & 1) != 0:
+                item.joint("0").visible = false
+            else:
+                item.joint("0").visible = true
+            item.state.blink_frame = item.state.blink_frame + 1
+            return not item.state.parent_enabled
+        on physics:
+            if item.state.parent_enabled:
+                let int parent = item.link_id(0)
+                let int index = item.state.sample_index * program.attrs.thunder_history_stride
+                position.x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                position.y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                position.z = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_z[index]
+                let float radius = articles.ref(parent, It_Kind_Ness_PKThunder).state.speed
+                item.joint("").scale.z = program.attrs.thunder_radius_multiplier * radius / program.attrs.thunder_radius_divisor
+                index = (item.state.sample_index + 1) * program.attrs.thunder_history_stride
+                let float next_x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                let float next_y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                let float angle = 0
+                if facing == 1:
+                    angle = atan2(position.y - next_y, position.x - next_x)
+                else:
+                    angle = program.attrs.thunder_pi + atan2(position.y - next_y, position.x - next_x)
+                item.joint("").rotation.x = angle * -facing
+        on collision:
+            return false
+
+article It_Kind_Ness_PKThunder4 states 1:
+    state int sample_index
+    state int blink_frame
+    state bool parent_enabled
+    on signal detach:
+            hitboxes.disable_all()
+            item.state.parent_enabled = false
+            item.clear_current_owner()
+            item.owner_bound = false
+    on signal detach_damage_owner:
+            item.clear_current_owner()
+            item.owner_bound = false
+    on created:
+            # it_802AC43C successful tail; link 0/index preexist this callback.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.state.parent_enabled = true
+            item.state.sample_index = int(item.creation_value)
+            item.state.blink_frame = 0
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint("0").visible = true
+            velocity.z = 0
+            velocity.x = 0
+            velocity.y = 0
+            item.remove_at_bounds = false
+            if item.current_owner != 0:
+                item.inherit_owner_debug_display()
+            item.change_state_flags(0, program.attrs.thunder_trail_state_flags)
+    state 0 anim 0:
+        on animation:
+            if (item.state.blink_frame & 1) != 0:
+                item.joint("0").visible = false
+            else:
+                item.joint("0").visible = true
+            item.state.blink_frame = item.state.blink_frame + 1
+            return not item.state.parent_enabled
+        on physics:
+            if item.state.parent_enabled:
+                let int parent = item.link_id(0)
+                let int index = item.state.sample_index * program.attrs.thunder_history_stride
+                position.x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                position.y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                position.z = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_z[index]
+                let float radius = articles.ref(parent, It_Kind_Ness_PKThunder).state.speed
+                item.joint("").scale.z = program.attrs.thunder_radius_multiplier * radius / program.attrs.thunder_radius_divisor
+                index = (item.state.sample_index + 1) * program.attrs.thunder_history_stride
+                let float next_x = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_x[index]
+                let float next_y = articles.ref(parent, It_Kind_Ness_PKThunder).state.history_y[index]
+                let float angle = 0
+                if facing == 1:
+                    angle = atan2(position.y - next_y, position.x - next_x)
+                else:
+                    angle = program.attrs.thunder_pi + atan2(position.y - next_y, position.x - next_x)
+                item.joint("").rotation.x = angle * -facing
+        on collision:
+            return false
+
+article It_Kind_Ness_Yoyo states 4:
+    attribute int link_count 0
+    attribute int up_charge_count 4
+    attribute int down_charge_count 8
+    attribute float link_length 12
+    attribute float minimum_link_length 16
+    attribute float horizontal_acceleration 40
+    attribute float maximum_horizontal_speed 44
+    attribute float gravity 52
+    attribute float terminal_velocity 56
+    attribute float link_gravity 60
+    attribute float released_spin_rate 24
+    attribute float charged_spin_rate 28
+    attribute float initial_charge_spin_rate 32
+    attribute float release_velocity_x 36
+    attribute float release_velocity_y 48
+    attribute int up_smash_rotate_frame 64
+    attribute int up_smash_retract_frame 68
+    attribute int down_smash_rotate_frame 72
+    attribute int down_smash_retract_frame 76
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state float input_x
+    state float input_y
+    state float input_z
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state bool touching[90]
+    state bool contacted[90]
+    state float vector_x
+    state float vector_y
+    state float vector_z
+    state float length
+    state float basis_x
+    state float basis_y
+    state float basis_z
+    state float up_x
+    state float up_y
+    state float up_z
+    state float matrix[12]
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float retract_step
+    state bool retracted
+    state int sweep_flags
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == program.attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.params.link_count - 1
+            item.state.allocated = item.resources.begin(item.params.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.params.link_count:
+                let float radius = program.attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = program.attrs.yoyo_tip_radius * creator.model.instance_scale_y
+                let bool constructed = item.resource(node).create(program.attrs.resource_attachment_joint, radius, program.attrs.yoyo_ecb_category, position.x, position.y, position.z)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                # Original it_80275328 initializes the remembered surface to0.
+                item.resource(node).surface_line = 0
+                item.state.pinned[node] = node == item.state.tip
+                item.state.touching[node] = false
+                item.state.contacted[node] = false
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                # Original string draw checks x2C_b0(false); tip draws directly.
+                let bool drawing = item.resource(node).set_draw(node == item.state.tip)
+                node = node + 1
+            item.attach_to_owner(program.attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(program.attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(program.attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+
+    func SetPosition(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func SetVelocity(int node, float x, float y, float z):
+        item.resource(node).velocity.x = x
+        item.resource(node).velocity.y = y
+        item.resource(node).velocity.z = z
+
+    func SetPinned(int node, bool pinned):
+        item.state.pinned[node] = pinned
+        item.resource(node).set_draw(pinned)
+
+    func AdvancePosition(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    func PrepareSweep(int node):
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+
+    func ResetHistory(int node):
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+
+    func AcceptSweep(int node):
+        item.resource(node).position.x = item.resource(node).collision.position.x
+        item.resource(node).position.y = item.resource(node).collision.position.y
+        item.resource(node).position.z = item.resource(node).collision.position.z
+
+    func SweepFree(int node):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepFromHeight(int node, float height):
+        PrepareSweep(node)
+        item.resource(node).collision.previous.y = height
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepReleased(int node, float size):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        item.state.sweep_flags = item.resource(node).collision.environment & 102399
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.x = item.resource(node).position.x
+        elif item.state.sweep_flags & 4095:
+            if node > 0 and node < item.state.tip:
+                if item.state.pinned[node - 1]:
+                    item.resource(node).collision.position.y = item.resource(node).collision.position.y + size
+        AcceptSweep(node)
+
+    func Measure(float ax, float ay, float az, float bx, float by, float bz):
+        item.state.vector_x = ax - bx
+        item.state.vector_y = ay - by
+        item.state.vector_z = az - bz
+        item.state.length = sqrt(item.state.vector_x * item.state.vector_x + item.state.vector_y * item.state.vector_y + item.state.vector_z * item.state.vector_z)
+        let float inverse = 0
+        if item.state.length != 0:
+            inverse = 1 / item.state.length
+        item.state.vector_x = item.state.vector_x * inverse
+        item.state.vector_y = item.state.vector_y * inverse
+        item.state.vector_z = item.state.vector_z * inverse
+
+    func PlaceMeasured(int node, float x, float y, float z, float size):
+        SetPosition(node, item.state.vector_x * size + x, item.state.vector_y * size + y, item.state.vector_z * size + z)
+
+    func ConstrainPrevious(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            item.resource(previous).velocity.y = 0
+            AdvancePosition(previous)
+            PrepareSweep(previous)
+            SweepFree(previous)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func AdjustTail(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func HeldChain(float x, float y, float z):
+        let float minimum = item.params.minimum_link_length * current_owner.model.instance_scale_y
+        let float maximum = item.params.link_length * current_owner.model.instance_scale_y
+        let int node = item.state.tip
+        let int next = node - 1
+        SetPosition(node, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+        SetVelocity(node, 0, 0, 0)
+        while next >= 0:
+            if item.state.pinned[next]:
+                SetPosition(next, x, y, z)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                elif item.state.length < minimum:
+                    let float saved_x = item.state.vector_x
+                    let float saved_y = item.state.vector_y
+                    let float saved_z = item.state.vector_z
+                    Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, x, y, z)
+                    if item.state.length <= program.attrs.yoyo_pin_release_distance:
+                        SetPinned(next, false)
+                    else:
+                        item.state.vector_x = saved_x
+                        item.state.vector_y = saved_y
+                        item.state.vector_z = saved_z
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, minimum)
+            else:
+                Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                    SetPinned(next, true)
+                else:
+                    return
+            node = next
+            next = next - 1
+
+    func AccelerateTip(float size):
+        let int node = item.state.tip
+        if abs(item.resource(node).velocity.x) < item.params.maximum_horizontal_speed:
+            item.resource(node).velocity.x = item.resource(node).velocity.x + item.params.horizontal_acceleration * facing
+        else:
+            item.resource(node).velocity.x = item.params.maximum_horizontal_speed * facing
+        if abs(item.resource(node).velocity.y) < item.params.terminal_velocity:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity
+        else:
+            item.resource(node).velocity.y = -item.params.terminal_velocity
+        AdvancePosition(node)
+        SweepReleased(node, size)
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.y = item.resource(node).collision.position.y + program.attrs.yoyo_floor_separation
+            item.resource(node).position.y = item.resource(node).collision.position.y
+            if item.resource(node).velocity.y < 0:
+                item.resource(node).velocity.y = 0
+        item.state.sweep_flags = item.state.sweep_flags & 4095
+
+    func ReleasedChain(float x, float y, float z):
+        let float size = item.params.link_length * current_owner.model.instance_scale_y
+        AccelerateTip(size)
+        let int node = item.state.tip
+        let int next = node - 1
+        let int count = 0
+        while next >= 0:
+            count = count + 1
+            if item.state.pinned[next]:
+                item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.link_gravity
+                AdvancePosition(next)
+                # The original repeats the CURRENT node sweep here.
+                SweepReleased(node, size)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > size:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                PrepareSweep(next)
+                SweepFromHeight(next, program.attrs.yoyo_sweep_height + y)
+            else:
+                let int charge_count = item.params.down_charge_count
+                if item.state.source_motion == program.attrs.yoyo_up_initial_motion:
+                    charge_count = item.params.up_charge_count
+                if count > charge_count:
+                    SetPosition(next, x, y, z)
+                else:
+                    Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    if item.state.length > size:
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                        SetPinned(next, true)
+                        ResetHistory(next)
+                    else:
+                        # Both original return values skip adjustment and damping.
+                        return
+            node = next
+            next = next - 1
+        AdjustTail(node, x, y, z, size)
+        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * program.attrs.yoyo_horizontal_damping
+
+    func RetractChain(float x, float y, float z):
+        let float size = item.params.link_length * current_owner.model.instance_scale_y
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.pinned[node]:
+            node = previous
+            previous = previous + 1
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        while previous <= item.state.tip and item.state.retract_step > item.state.length:
+            SetPinned(node, false)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, x, y, z)
+            node = previous
+            previous = previous + 1
+        let float step = item.state.length - item.state.retract_step
+        if step > size:
+            step = size
+        ConstrainPrevious(node, x, y, z, step)
+        item.state.retracted = previous > item.state.tip
+
+    func IdlePose():
+        let float scale = current_owner.model.instance_scale_y
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        let float offset = program.attrs.yoyo_idle_depth * scale
+        item.state.matrix[3] = item.state.matrix[0] * 0 + item.state.matrix[1] * 0 + item.state.matrix[2] * offset + item.state.matrix[3]
+        item.state.matrix[7] = item.state.matrix[4] * 0 + item.state.matrix[5] * 0 + item.state.matrix[6] * offset + item.state.matrix[7]
+        item.state.matrix[11] = item.state.matrix[8] * 0 + item.state.matrix[9] * 0 + item.state.matrix[10] * offset + item.state.matrix[11]
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(item.state.tip).set_world_matrix(item.state.matrix)
+
+    func OrientBasis():
+        vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+        item.state.up_x = 0
+        item.state.up_y = 1
+        item.state.up_z = 0
+        if item.state.vector_y > program.attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = -1
+            item.state.up_y = 0
+        elif item.state.vector_y < -program.attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = 1
+            item.state.up_y = 0
+        item.state.basis_x = item.state.up_y * item.state.vector_z - item.state.up_z * item.state.vector_y
+        item.state.basis_y = item.state.up_z * item.state.vector_x - item.state.up_x * item.state.vector_z
+        item.state.basis_z = item.state.up_x * item.state.vector_y - item.state.up_y * item.state.vector_x
+        item.state.up_x = item.state.vector_y * item.state.basis_z - item.state.vector_z * item.state.basis_y
+        item.state.up_y = item.state.vector_z * item.state.basis_x - item.state.vector_x * item.state.basis_z
+        item.state.up_z = item.state.vector_x * item.state.basis_y - item.state.vector_y * item.state.basis_x
+        vectors.normalize(item.state.basis_x, item.state.basis_y, item.state.basis_z)
+        vectors.normalize(item.state.up_x, item.state.up_y, item.state.up_z)
+
+    func WritePose(int node):
+        item.resource(node).joint("").translation.x = item.resource(node).position.x
+        item.resource(node).joint("").translation.y = item.resource(node).position.y
+        item.resource(node).joint("").translation.z = item.resource(node).position.z
+        OrientBasis()
+        item.state.matrix[0] = item.state.basis_x
+        item.state.matrix[4] = item.state.basis_y
+        item.state.matrix[8] = item.state.basis_z
+        item.state.matrix[1] = item.state.up_x
+        item.state.matrix[5] = item.state.up_y
+        item.state.matrix[9] = item.state.up_z
+        item.state.matrix[2] = item.state.vector_x
+        item.state.matrix[6] = item.state.vector_y
+        item.state.matrix[10] = item.state.vector_z
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+        let float scale = item.params.link_length
+        if node == item.state.tip:
+            scale = 1
+        scale = scale * current_owner.model.instance_scale_y
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func ChainPose(float x, float y, float z):
+        let int node = 0
+        while node <= item.state.tip and not item.state.pinned[node]:
+            node = node + 1
+        # Original walks beyond the list if no node is pinned. Stop the
+        # authored pose on that invalid state instead of reading past storage.
+        if node > item.state.tip:
+            return
+        while node <= item.state.tip:
+            let float next_x = x
+            let float next_y = y
+            let float next_z = z
+            if node > 0:
+                if item.state.pinned[node - 1]:
+                    next_x = item.resource(node - 1).position.x
+                    next_y = item.resource(node - 1).position.y
+                    next_z = item.resource(node - 1).position.z
+            let int previous = node + 1
+            if previous > item.state.tip:
+                previous = node
+            item.state.vector_x = item.resource(previous).position.x - next_x
+            item.state.vector_y = item.resource(previous).position.y - next_y
+            item.state.vector_z = item.resource(previous).position.z - next_z
+            vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+            if node == item.state.tip:
+                item.state.vector_x = -1
+                if facing == 1:
+                    item.state.vector_x = 1
+                item.state.vector_y = 0
+                item.state.vector_z = 0
+                creator.state.yoyo_hitbox_x = item.resource(node).position.x
+                creator.state.yoyo_hitbox_y = item.resource(node).position.y
+                creator.state.yoyo_hitbox_z = item.resource(node).position.z
+            WritePose(node)
+            node = node + 1
+
+    func RestoreHeld():
+        item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        SetPosition(item.state.tip, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        ResetHistory(item.state.tip)
+        SetPinned(item.state.tip, true)
+        SetVelocity(item.state.tip, 0, 0, 0)
+        item.change_state_flags(1, 2)
+        SetPosition(item.state.tip, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+
+    func Held():
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.tip).position.x = item.state.matrix[3]
+        item.resource(item.state.tip).position.y = item.state.matrix[7]
+        item.resource(item.state.tip).position.z = item.state.matrix[11]
+        item.resource(item.state.tip).collision.position.x = item.resource(item.state.tip).position.x
+        item.resource(item.state.tip).collision.position.y = item.resource(item.state.tip).position.y
+        item.resource(item.state.tip).collision.position.z = item.resource(item.state.tip).position.z
+        item.resource(item.state.tip).collision.previous.x = item.resource(item.state.tip).collision.position.x
+        item.resource(item.state.tip).collision.previous.y = item.resource(item.state.tip).collision.position.y
+        item.resource(item.state.tip).collision.previous.z = item.resource(item.state.tip).collision.position.z
+        item.state.pinned[item.state.tip] = true
+        let bool drawing = item.resource(item.state.tip).set_draw(true)
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.change_state_flags(1, 2)
+    func Released():
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.resource(item.state.tip).velocity.x = facing * abs(item.resource(item.state.tip).velocity.x)
+        item.change_state_flags(2, 2)
+    func Retract():
+        item.resource(0).read_attachment_matrix(item.state.matrix)
+        let float dx = item.resource(item.state.tip).position.x - item.state.matrix[3]
+        let float dy = item.resource(item.state.tip).position.y - item.state.matrix[7]
+        item.state.retract_step = sqrt(dx * dx + dy * dy)
+        item.state.retract_step = item.state.retract_step * program.attrs.yoyo_retract_fraction
+        item.change_state_flags(3, 2)
+    func Material(float frame):
+        item.resource(item.state.tip).joint("").remove_animation()
+        item.resource(item.state.tip).joint("").add_animation(Spin)
+        item.resource(item.state.tip).joint("").set_animation_rate(program.attrs.yoyo_material_rate)
+        item.resource(item.state.tip).joint("").request_animation(frame)
+        item.resource(item.state.tip).joint("").advance_animation()
+    # The Yoyo is an accessory, not a held item. Native motion/scale
+    # queries use ip->owner; an absent owner retires the article.
+    func ReleaseOwner():
+        if current_owner.exists:
+            let bool forgotten = targets.call(item.current_owner, "yoyo_forget")
+        item.clear_current_owner()
+        item.resources.release()
+    func Animate():
+        if item.resource(item.state.tip).joint("0").exists:
+            item.resource(item.state.tip).joint("0").rotation.x = item.resource(item.state.tip).joint("0").rotation.x + creator.state.yoyo_spin_rate
+    on interaction:
+            item.interact(other)
+    on signal held:
+            item.state.input_x = 0
+            item.state.input_y = 0
+            item.state.input_z = 0
+            Held()
+    on signal released:
+            Released()
+    on signal retract:
+            Retract()
+    on signal material:
+            Material(signal.value)
+    on signal resume:
+            item.resume()
+    on signal charge_release:
+            item.state.input_x = item.params.release_velocity_x * signal.value
+            item.state.input_y = item.params.release_velocity_y
+            item.state.input_z = 0
+            Released()
+    on signal pause:
+            item.pause()
+    on signal remove:
+            ReleaseOwner()
+            item.remove()
+    on destroyed:
+            item.resources.release()
+
+    state 0 anim -1:
+        on animation:
+            Animate()
+            if not current_owner.exists:
+                ReleaseOwner()
+                return true
+            if current_owner.motion < program.attrs.yoyo_first_motion or current_owner.motion > program.attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            IdlePose()
+    state 1 anim -1:
+        on animation:
+            Animate()
+            if not current_owner.exists:
+                ReleaseOwner()
+                return true
+            if current_owner.motion < program.attrs.yoyo_first_motion or current_owner.motion > program.attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            HeldChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 2 anim -1:
+        on animation:
+            Animate()
+            if not current_owner.exists:
+                ReleaseOwner()
+                return true
+            if current_owner.motion < program.attrs.yoyo_first_motion or current_owner.motion > program.attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ReleasedChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 3 anim -1:
+        on animation:
+            Animate()
+            if not current_owner.exists:
+                ReleaseOwner()
+                return true
+            if current_owner.motion < program.attrs.yoyo_first_motion or current_owner.motion > program.attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(0).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            let float anchor_x = item.state.anchor_x
+            let float anchor_y = item.state.anchor_y
+            let float anchor_z = item.state.anchor_z
+            RetractChain(anchor_x, anchor_y, anchor_z)
+            if item.state.retracted:
+                RestoreHeld()
+            ChainPose(anchor_x, anchor_y, anchor_z)
+
+article It_Kind_Ness_Bat states 2:
+    on created:
+            let int mode = int(item.creation_value)
+            item.command3 = mode
+            item.command2 = mode
+            item.command1 = mode
+            item.command0 = mode
+            item.use_manual_lifetime()
+            if mode == 0: item.set_lifetime(program.attrs.bat_lifetime)
+            item.attach_to_owner(program.attrs.resource_attachment_joint)
+    on picked_up:
+            if item.command0 != 0 or item.command1 != 0 or item.command2 != 0 or item.command3 != 0:
+                item.change_state_flags(1, 2)
+            else:
+                item.change_state_flags(0, 2)
+            item.advance_animation()
+    on signal presentation_scale:
+            item.scale_by_attribute(signal.value)
+    on signal remove:
+            # Native direct remove clears private attachment AND owner before engine.
+            item.detach_owner()
+            item.remove()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.joint(0, "0").visible = item.command0 == 0
+            if attachment_owner.exists:
+                if attachment_owner.motion == program.attrs.bat_smash_motion and attachment_owner.state.bat_handle != -1:
+                    return false
+                if item.attachment_active: attachment_owner.helpers.bat_forget()
+            item.detach_owner()
+            return true
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim -1:
+        on animation:
+            # Existing creator.fighter.incapacitated is ftCo_800BF228, and root_scale_y
+            # is actual HSD root Y, not fighter model/instance scale.
+            if attachment_owner.exists and creator.exists and creator.fighter.incapacitated:
+                item.joint(0, "").scale.x = creator.model.root_scale_y
+                item.joint(0, "").scale.y = creator.model.root_scale_y
+                item.joint(0, "").scale.z = creator.model.root_scale_y
+            return false
+        on physics:
+            pass
+        on collision:
+            return false

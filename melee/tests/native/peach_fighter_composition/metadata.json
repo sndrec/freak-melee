@@ -1,0 +1,485 @@
+{
+  "status": "Exact owned metadata proposal; no registered staging base yet",
+  "source_kind": "Ft_Kind_Peach",
+  "animation_source_kind": "Ft_Kind_Peach",
+  "fighter_dat": "PlPe.dat",
+  "fighter_root": "ftDataPeach",
+  "animation_dat": "PlPeAJ.dat",
+  "motion_start": 341,
+  "motion_count": 30,
+  "action_count": 318,
+  "demo_count": 14,
+  "effect_bank": 15,
+  "sound_bank": 22,
+  "sound_bank_mask": 4194304,
+  "asset_layout": {
+    "article_slots": 31,
+    "joint_graph_slots": 0,
+    "item_format": "None",
+    "raw_byte_spans": []
+  },
+  "article_assets": [
+    {
+      "kind": 98,
+      "name": "It_Kind_Peach_Explode",
+      "slot": 0,
+      "kind_attribute_offset": -1
+    },
+    {
+      "kind": 99,
+      "name": "It_Kind_Peach_Turnip",
+      "slot": 1,
+      "kind_attribute_offset": -1
+    },
+    {
+      "kind": 103,
+      "name": "It_Kind_Peach_Parasol",
+      "slot": 2,
+      "kind_attribute_offset": -1
+    },
+    {
+      "kind": 104,
+      "name": "It_Kind_Peach_Toad",
+      "slot": 3,
+      "kind_attribute_offset": -1
+    },
+    {
+      "kind": 111,
+      "name": "It_Kind_Peach_ToadSpore",
+      "slot": 4,
+      "kind_attribute_offset": -1
+    }
+  ],
+  "bones": [
+    {
+      "role": "FtPart_TopN",
+      "semantic_index": 0,
+      "joint": 0
+    },
+    {
+      "role": "FtPart_TransN",
+      "semantic_index": 1,
+      "joint": 1
+    },
+    {
+      "role": "FtPart_XRotN",
+      "semantic_index": 2,
+      "joint": 2
+    },
+    {
+      "role": "FtPart_YRotN",
+      "semantic_index": 3,
+      "joint": 3
+    },
+    {
+      "role": "FtPart_HipN",
+      "semantic_index": 4,
+      "joint": 4
+    },
+    {
+      "role": "FtPart_LLegJA",
+      "semantic_index": 6,
+      "joint": 5
+    },
+    {
+      "role": "FtPart_LLegJ",
+      "semantic_index": 7,
+      "joint": 6
+    },
+    {
+      "role": "FtPart_LKneeJ",
+      "semantic_index": 8,
+      "joint": 7
+    },
+    {
+      "role": "FtPart_LFootJA",
+      "semantic_index": 9,
+      "joint": 8
+    },
+    {
+      "role": "FtPart_LFootJ",
+      "semantic_index": 10,
+      "joint": 9
+    },
+    {
+      "role": "FtPart_RLegJA",
+      "semantic_index": 11,
+      "joint": 11
+    },
+    {
+      "role": "FtPart_RLegJ",
+      "semantic_index": 12,
+      "joint": 12
+    },
+    {
+      "role": "FtPart_RKneeJ",
+      "semantic_index": 13,
+      "joint": 13
+    },
+    {
+      "role": "FtPart_RFootJA",
+      "semantic_index": 14,
+      "joint": 14
+    },
+    {
+      "role": "FtPart_RFootJ",
+      "semantic_index": 15,
+      "joint": 15
+    },
+    {
+      "role": "FtPart_BustN",
+      "semantic_index": 16,
+      "joint": 66
+    },
+    {
+      "role": "FtPart_LShoulderN",
+      "semantic_index": 17,
+      "joint": 67
+    },
+    {
+      "role": "FtPart_LShoulderJA",
+      "semantic_index": 18,
+      "joint": 69
+    },
+    {
+      "role": "FtPart_LShoulderJ",
+      "semantic_index": 19,
+      "joint": 70
+    },
+    {
+      "role": "FtPart_LArmJ",
+      "semantic_index": 20,
+      "joint": 71
+    },
+    {
+      "role": "FtPart_LHandN",
+      "semantic_index": 21,
+      "joint": 72
+    },
+    {
+      "role": "FtPart_L1stNa",
+      "semantic_index": 22,
+      "joint": 74
+    },
+    {
+      "role": "FtPart_L1stNb",
+      "semantic_index": 23,
+      "joint": 75
+    },
+    {
+      "role": "FtPart_L2ndNa",
+      "semantic_index": 24,
+      "joint": 76
+    },
+    {
+      "role": "FtPart_L2ndNb",
+      "semantic_index": 25,
+      "joint": 77
+    },
+    {
+      "role": "FtPart_L3rdNa",
+      "semantic_index": 26,
+      "joint": 78
+    },
+    {
+      "role": "FtPart_L3rdNb",
+      "semantic_index": 27,
+      "joint": 79
+    },
+    {
+      "role": "FtPart_L4thNa",
+      "semantic_index": 28,
+      "joint": 80
+    },
+    {
+      "role": "FtPart_L4thNb",
+      "semantic_index": 29,
+      "joint": 81
+    },
+    {
+      "role": "FtPart_LThumbNa",
+      "semantic_index": 30,
+      "joint": 82
+    },
+    {
+      "role": "FtPart_LThumbNb",
+      "semantic_index": 31,
+      "joint": 83
+    },
+    {
+      "role": "FtPart_LHandNb",
+      "semantic_index": 32,
+      "joint": 84
+    },
+    {
+      "role": "FtPart_NeckN",
+      "semantic_index": 33,
+      "joint": 85
+    },
+    {
+      "role": "FtPart_HeadN",
+      "semantic_index": 34,
+      "joint": 86
+    },
+    {
+      "role": "FtPart_RShoulderN",
+      "semantic_index": 35,
+      "joint": 87
+    },
+    {
+      "role": "FtPart_RShoulderJA",
+      "semantic_index": 36,
+      "joint": 95
+    },
+    {
+      "role": "FtPart_RShoulderJ",
+      "semantic_index": 37,
+      "joint": 96
+    },
+    {
+      "role": "FtPart_RArmJ",
+      "semantic_index": 38,
+      "joint": 97
+    },
+    {
+      "role": "FtPart_RHandN",
+      "semantic_index": 39,
+      "joint": 98
+    },
+    {
+      "role": "FtPart_R1stNa",
+      "semantic_index": 40,
+      "joint": 100
+    },
+    {
+      "role": "FtPart_R1stNb",
+      "semantic_index": 41,
+      "joint": 101
+    },
+    {
+      "role": "FtPart_R2ndNa",
+      "semantic_index": 42,
+      "joint": 102
+    },
+    {
+      "role": "FtPart_R2ndNb",
+      "semantic_index": 43,
+      "joint": 103
+    },
+    {
+      "role": "FtPart_R3rdNa",
+      "semantic_index": 44,
+      "joint": 104
+    },
+    {
+      "role": "FtPart_R3rdNb",
+      "semantic_index": 45,
+      "joint": 105
+    },
+    {
+      "role": "FtPart_R4thNa",
+      "semantic_index": 46,
+      "joint": 106
+    },
+    {
+      "role": "FtPart_R4thNb",
+      "semantic_index": 47,
+      "joint": 107
+    },
+    {
+      "role": "FtPart_RThumbNa",
+      "semantic_index": 48,
+      "joint": 108
+    },
+    {
+      "role": "FtPart_RThumbNb",
+      "semantic_index": 49,
+      "joint": 109
+    },
+    {
+      "role": "FtPart_RHandNb",
+      "semantic_index": 50,
+      "joint": 110
+    },
+    {
+      "role": "FtPart_ThrowN",
+      "semantic_index": 51,
+      "joint": 111
+    },
+    {
+      "role": "FtPart_TransN2",
+      "semantic_index": 52,
+      "joint": 112
+    },
+    {
+      "role": "FtPart_Unnamed53",
+      "semantic_index": 53,
+      "joint": 113
+    }
+  ],
+  "runtime_parts": 114,
+  "omissions": [],
+  "retail_PlCo_sha256": "63841336337eb5a7366b06ccc60ea4bd37c3604ab56e19939d78b9aa9cdd234c",
+  "costume_nr_sha256": "60e309f0a91dd9243b2a283caeabb6fcb0c734b681f6a85ff185e0b81c960c0d",
+  "limits": [
+    "No base or registry edits in this task.",
+    "All custom motion callbacks remain inherited; composition functions are not special entry overrides.",
+    "Two article tables intentionally incomplete and unsafe for activation."
+  ],
+  "costumes": {
+    "Nr": {
+      "joint_root": "PlyPeach5K_Share_joint",
+      "physical_joints": 114,
+      "sha256": "60e309f0a91dd9243b2a283caeabb6fcb0c734b681f6a85ff185e0b81c960c0d"
+    },
+    "Ye": {
+      "joint_root": "PlyPeach5KYe_Share_joint",
+      "physical_joints": 114,
+      "sha256": "c68fbfb3ba9383f9fbe4b7f037176d3a247fd95e5916bb2bc4a075aa256c0e93"
+    },
+    "Wh": {
+      "joint_root": "PlyPeach5KWh_Share_joint",
+      "physical_joints": 114,
+      "sha256": "ea1891013f6159421d7a16b6becb720629a3145b259c092a9862ca6e02fe7b06"
+    },
+    "Bu": {
+      "joint_root": "PlyPeach5KBu_Share_joint",
+      "physical_joints": 114,
+      "sha256": "92b3af87273464e3915471e5a8a558d31d096dc9590bb4195b4b3e14f2dd0f63"
+    },
+    "Gr": {
+      "joint_root": "PlyPeach5KGr_Share_joint",
+      "physical_joints": 114,
+      "sha256": "d8493ca5a9726c514c44bb76e0c76be9ee5cab2ccd636ef72d913aff0174971d"
+    }
+  },
+  "demo_names": [
+    "ftDemoResultMotionFilePeach",
+    "ftDemoIntroMotionFilePeach",
+    "ftDemoEndingMotionFilePeach",
+    "ftDemoViWaitMotionFilePeach"
+  ],
+  "item_table_offset": 45928,
+  "raw_item_slot_offsets": [
+    45616,
+    45704,
+    45776,
+    45848,
+    45904,
+    14452,
+    14876,
+    0,
+    34432,
+    31896,
+    42064,
+    32532
+  ],
+  "fighter_dat_sha256": "f1e42fd826e7af28683cbf587f32d9c3c249b492487d124f888f8a0073b07de8",
+  "stock_tables": {
+    "ftData_Table_Unk0": "{ 0, 318 }",
+    "ftData_Table_Unk1": "NULL",
+    "ftData_OnLoad": "ftPe_Init_OnLoad",
+    "ftData_OnDeath": "ftPe_Init_OnDeath",
+    "ftData_OnUserDataRemove": "NULL",
+    "ftData_CharacterStateTables": "ftPe_Init_MotionStateTable",
+    "ftData_UnkMotionStates0": "NULL",
+    "ftData_SpecialS": "ftPe_SpecialS_Enter",
+    "ftData_SpecialAirHi": "ftPe_SpecialAirHi_Enter",
+    "ftData_SpecialAirLw": "ftPe_SpecialAirLw_Enter",
+    "ftData_SpecialAirS": "ftPe_SpecialAirS_Enter",
+    "ftData_SpecialAirN": "ftPe_SpecialAirN_Enter",
+    "ftData_SpecialN": "ftPe_SpecialN_Enter",
+    "ftData_SpecialLw": "ftPe_SpecialLw_Enter",
+    "ftData_SpecialHi": "ftPe_SpecialHi_Enter",
+    "ftData_OnAbsorb": "NULL",
+    "ftData_OnItemPickupExt": "ftPe_Init_OnItemPickup",
+    "ftData_OnItemInvisible": "ftPe_Init_OnItemInvisible",
+    "ftData_OnItemVisible": "ftPe_Init_OnItemVisible",
+    "ftData_OnItemDropExt": "ftPe_Init_OnItemDrop",
+    "ftData_OnItemPickup": "ftPe_Init_OnItemPickup",
+    "ftData_OnItemDrop": "ftPe_Init_OnItemDrop",
+    "ftData_UnkMotionStates1": "NULL",
+    "ftData_UnkMotionStates2": "NULL",
+    "ftData_OnKnockbackEnter": "ftPe_Init_OnKnockbackEnter",
+    "ftData_OnKnockbackExit": "ftPe_Init_OnKnockbackExit",
+    "ftData_UnkMotionStates3": "NULL",
+    "ftData_UnkMotionStates4": "NULL",
+    "ftKindCalcIndiviParamTable": "ftPe_Init_LoadSpecialAttrs",
+    "ftData_803C1F40": "{ ftPe_Init_DatFilename, ftPe_Init_DataName }",
+    "ftData_UnkMotionStates5": "NULL",
+    "ftData_UnkMtxFunc0": "NULL",
+    "ftData_803C2360": "ftPe_Init_CostumeStrings",
+    "ftData_803C23E4": "ftPe_Init_AnimDatFilename",
+    "ftData_803C2468": "&ftPe_Init_DemoMotionFilenames",
+    "ftData_803C24EC": "NULL",
+    "ftData_UnkDemoCallbacks0": "NULL",
+    "ftData_UnkIntPairs": "{ 0, 14 }",
+    "ftData_UnkBytePerCharacter": "15"
+  },
+  "cpu_import_source_kind": 9,
+  "fighter_tuning_import_scope": {
+    "rare_count": 16,
+    "rare_roll_bound": 20,
+    "rare_weight_0": 24,
+    "rare_kind_0": 28,
+    "rare_weight_1": 32,
+    "rare_kind_1": 36,
+    "rare_weight_2": 40,
+    "rare_kind_2": 44
+  },
+  "turnip_article_tuning_import_scope": {
+    "lifetime": 0,
+    "face_count": 4,
+    "face_weight_0": 8,
+    "face_damage_0": 12,
+    "face_weight_1": 16,
+    "face_damage_1": 20,
+    "face_weight_2": 24,
+    "face_damage_2": 28,
+    "face_weight_3": 32,
+    "face_damage_3": 36,
+    "face_weight_4": 40,
+    "face_damage_4": 44,
+    "face_weight_5": 48,
+    "face_damage_5": 52,
+    "face_weight_6": 56,
+    "face_damage_6": 60,
+    "face_weight_7": 64,
+    "face_damage_7": 68
+  },
+  "Peach_article_import_bindings": [
+    {
+      "source_kind": 9,
+      "name": "It_Kind_Peach_Explode",
+      "slot": 0
+    },
+    {
+      "source_kind": 9,
+      "name": "It_Kind_Peach_Turnip",
+      "slot": 1
+    },
+    {
+      "source_kind": 9,
+      "name": "It_Kind_Peach_Parasol",
+      "slot": 2
+    },
+    {
+      "source_kind": 9,
+      "name": "It_Kind_Peach_Toad",
+      "slot": 3
+    },
+    {
+      "source_kind": 9,
+      "name": "It_Kind_Peach_ToadSpore",
+      "slot": 4
+    }
+  ],
+  "article_import_acceptance": {
+    "snapshot": "baseline44",
+    "source": "Actual nativeFighterParameters_Import + real nativeStockArticleSlots Peach0..4",
+    "provisional_literals": false,
+    "fighter_dat_attribute_count": 8,
+    "turnip_dat_attribute_count": 18,
+    "normal_clone_stock_pending": true
+  }
+}

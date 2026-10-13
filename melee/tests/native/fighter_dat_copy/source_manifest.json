@@ -1,0 +1,41 @@
+{
+  "scope": "Implemented generic pointer-field copying; frozen71 actual retail importer and synthetic serialized-data contract proof",
+  "sources": {
+    "src/sysdolphin/baselib/dat.c": "9451e3659c7f34cff915aaba6872db2d12ac0724f72d2b9c43ca2aee0e7e3e0e",
+    "src/sysdolphin/baselib/archive.c": "599de67184ef4af586fbcb72f9f6df85b772b5221174533f67ad190da0273715",
+    "src/melee/lb/lbarchive.c": "81cab4dc942fe764e9ec0bcdb9c9c64f0ad9811945aaa917c8de21128219335d",
+    "src/melee/ft/kinds/ftPopo/ftpopo.c": "d10c129b12e950811146fe555cd5d03c79f162c49c43b4e1c7e5eee67c3619ac",
+    "src/melee/ft/kinds/ftNana/ftnana.c": "41636d300ef9e9f53f081a40df30e03a367499a72718ff0ed48e581ba200a4e2",
+    "src/melee/it/it_26B1.c": "e52996c8fcb6727366dc6f5ac5965a09a4f644fe0088ff3e1c3a30d3a1a6276e",
+    "src/melee/it/item.c": "45686c42ebf222a235084a40277e5c13ec300a19e4188626437a1b571e0ae3b6",
+    "src/melee/it/native_item_behavior.c": "96c82f375c6bbb3cbbcf2da8e8014350cf489fc9fbfdaa05e28213968c962894",
+    "src/melee/it/kinds/itclimbersstring.c": "85137b0fb220eeb98f92a2fe1d0195b257e37c5a9a77bb9db2df6d377bff7193"
+  },
+  "retail_import_receipt": {
+    "path": "A:\\FreakMelee-test-archives\\ice-catalog71-corrected-retail\\result.json",
+    "sha256": "8e247289d890b3732154725118088742c130e0710138eb753ef35b0e57d7d91e"
+  },
+  "historical_proposal_files": {
+    "tests/native/fighter_dat_copy/README.md": "3e2950e5dee55b54042a2ac6a1ab0d2338d9e818e2ebb09669f11ddbe4dea593",
+    "tests/native/fighter_dat_copy/retail_symbols.json": "14f3d122121a8cdac7847623f1a16e23c78fb7dba4c1ca85fedc5788a5f27030"
+  },
+  "implementation_files": {
+    "src/melee/ft/native_fighter_dat_copy.c": "9f24a49f674363c9f24ebd588c53ea947e93707e1255edc40851678b5e2bbd8b",
+    "src/melee/ft/native_fighter_dat_copy.h": "af8a3ae67adaac379b6790ed55e9fbbfe3f4593f4c7b082ae00a11b8c32befae",
+    "docs/native_fighter_dat_copy.md": "dd0412b9ab43b9ab864acb98b243520d1cf6514b586c89204cf0b56426d38eb8",
+    "tests/native/fighter_dat_copy/test.c": "8fa6fbcf3c888a9e04f2a2b66c028c460c8b752442c041e903d75d82273b83b4",
+    "tests/native/fighter_dat_copy/run.py": "96ad0e5db2fb385ebcf58bcfbc2a42ea58e44ff41e3ea85c2ddb8b47295690b7",
+    "tests/native/fighter_dat_copy/README.md": "1b25849c4deb4157622e2c8a32da1566eb2439a6b3c0a6a8818fc38e60ab305c"
+  },
+  "extra_unresolved_visit": {
+    "group": 2,
+    "animation_array": "0x6CCC",
+    "unchanged_external_slot": "0x6CD8",
+    "symbol": "ItmIceclimberIceShot_TopN_joint",
+    "next_stop_slot": "0x6CDC",
+    "primary_visits": 1,
+    "original_nana_visits": 6,
+    "transplanted_nana_visits": 2,
+    "instrumentation_evidence": "A:/FreakMelee-test-archives/fighter-dat-copy71-instrument/run-char2.log"
+  }
+}

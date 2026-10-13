@@ -1,0 +1,75 @@
+func HelperTrueInt() -> bool:
+    return 1
+
+func HelperTrueFloat() -> bool:
+    return 0.5
+
+func HelperFalse() -> bool:
+    return 0
+
+move Phases:
+    on ground_animation:
+        pass
+    on air_collision:
+        return
+    on state_350_physics:
+        pass
+    on accessory:
+        pass
+
+action Policies:
+    on wait_input:
+        pass
+    on item_swing_motion:
+        pass
+    on held_motion:
+        if event.motion < 0: return 7
+    on air_resume_motion:
+        pass
+    on throw_victim_motion:
+        pass
+    on action_metadata:
+        if event.metadata == 1: return 9
+    on shield_scale:
+        pass
+    on shield_alpha:
+        return 0.5
+    on cpu_prepare:
+        return event.history_source
+    on cpu_projectile_defense:
+        if event.category == 3: return true
+    on grabbed:
+        return
+
+article It_Kind_Mario_Fire states 1:
+    on created:
+        pass
+    on interaction:
+        return
+    on held_status:
+        pass
+    on held_request:
+        pass
+    on signal adjust:
+        if signal.value > 1: return
+    state 0 anim -1:
+        on animation:
+            pass
+        on physics:
+            return
+        on collision:
+            return true
+
+item WorkshopItem damage 1 angle 45 lifetime 10:
+    on hit:
+        pass
+    on ground_collision:
+        pass
+    on thrown:
+        return
+    on tick:
+        pass
+
+model_effect Visual 1:
+    on update:
+        pass

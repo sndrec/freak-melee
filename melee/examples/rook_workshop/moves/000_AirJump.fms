@@ -1,0 +1,38 @@
+# The source DAT permits one air jump. Entry/turn decisions belong to this
+# script; shared engine primitives supply the ordinary jump bookkeeping.
+# Keep Rook's own physics choice: common air drift, not Purin's F1 physics.
+func MultiJumpTurnTick():
+    if state.multi_jump_turn_remaining != 0:
+        state.multi_jump_turn_remaining = state.multi_jump_turn_remaining - 1
+        let float turn_step = float(180) / float(attrs.multi_jump_turn_frames)
+        bones.root.add_rotation_y(-radians(turn_step))
+        if state.multi_jump_turn_remaining == attrs.multi_jump_turn_frames / 2:
+            facing.direction = -facing.direction
+
+action AirJump:
+    on aerial_jump:
+        command(0) = 0
+        let int jump_index = jumps.used - 1
+        let int next_motion = attrs.multi_jump_first_motion + jump_index
+        jump.begin(next_motion, input.x * attrs.multi_jump_horizontal_impulse, attrs.multi_jump_vertical_impulse, 0, false, false, true)
+        if input.x * facing.direction < -attrs.multi_jump_reverse_threshold:
+            state.multi_jump_turn_remaining = attrs.multi_jump_turn_frames
+        else:
+            state.multi_jump_turn_remaining = 0
+        MultiJumpTurnTick()
+    on state_341_animation:
+        MultiJumpTurnTick()
+        if animation.finished:
+            if jumps.used >= jumps.max: state.fall_aerial()
+            else: state.fall()
+    on state_341_interrupt:
+        controls.aerial_jump_actions()
+    on state_341_physics:
+        physics.air_drift()
+    on state_341_collision:
+        if collision.check_ground_ledge(int(facing.direction)):
+            if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+            else: state.basic_landing()
+            return
+        if collision.try_wall_jump(): return
+        if collision.cliff_catch(): return

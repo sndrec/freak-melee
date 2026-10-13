@@ -1,0 +1,1152 @@
+# Independent Samus assets; all four specials and their combat articles are authored.
+# Grapple and throw attachments are composed separately while Samus remains WIP.
+# Import these stock defaults once; the generated script uses owned parameters.
+attribute float spin_ground_speed 56
+attribute float spin_drift_acceleration 60
+attribute float spin_horizontal_limit 64
+attribute float spin_air_vertical_speed 68
+attribute float spin_freefall_drift 72
+attribute float spin_turn_threshold 76
+attribute float spin_landing_lag 80
+
+attribute float shot_max_charge 24
+attribute float shot_air_recoil 28
+attribute int shot_charge_interval 32
+attribute float shot_landing_lag 36
+# Saved own-rig joint indices, editable without adding a fighter-specific API.
+parameter int shot_hand_joint = 50
+parameter int shot_release_joint = 51
+state int shot_handle
+state int shot_charge
+state int shot_charge_timer
+state bool shot_air_started
+state float shot_x
+state float shot_y
+state float shot_z
+
+state bool spin_turned
+state bool spin_effect
+
+attribute float missile_smash_window 40
+attribute float missile_start_deceleration 44
+attribute float missile_air_deceleration 48
+attribute float missile_spawn_offset 52
+parameter int missile_joint = 56
+parameter float cpu_initial_spacing = 3.5
+parameter float cpu_spacing_range = 4
+parameter float cpu_bomb_angle = -0.7853981573134661
+parameter float cpu_spin_threat_distance = 30
+state int missile_serial
+state float missile_x
+state float missile_y
+state float missile_z
+
+attribute float morph_jump_frame 0
+attribute float morph_jump_angle 4
+attribute float morph_jump_speed 8
+attribute float morph_ground_mobility 12
+attribute float morph_air_mobility 16
+attribute float morph_crouch_threshold 20
+attribute float bomb_hop_speed 84
+attribute float bomb_air_start_speed 88
+attribute float bomb_ground_speed 92
+attribute float bomb_air_speed 96
+attribute float bomb_ground_accel 100
+attribute float bomb_air_accel 104
+attribute float bomb_ground_start_deceleration 108
+attribute float bomb_air_start_deceleration 112
+attribute float bomb_spawn_x 116
+attribute float bomb_spawn_y 120
+attribute float bomb_spawn_z 124
+attribute float bomb_crouch_threshold 128
+attribute float morph_ecb_top 132
+attribute float morph_ecb_bottom 136
+attribute float morph_ecb_left_x 140
+attribute float morph_ecb_left_y 144
+attribute float morph_ecb_right_x 148
+attribute float morph_ecb_right_y 152
+state bool morph_hurtbox
+state float bomb_x
+state float bomb_y
+state float bomb_z
+
+state float scaled_morph_jump_speed
+state float scaled_bomb_spawn_y
+state float scaled_bomb_hop_speed
+state float scaled_bomb_air_start_speed
+state float scaled_morph_ecb_top
+state float scaled_morph_ecb_bottom
+state float scaled_morph_ecb_left_x
+state float scaled_morph_ecb_left_y
+state float scaled_morph_ecb_right_x
+state float scaled_morph_ecb_right_y
+
+func Samus_ScaleOwnedAttributes():
+    state.scaled_morph_jump_speed = attrs.morph_jump_speed * model.instance_scale_y
+    state.scaled_bomb_spawn_y = attrs.bomb_spawn_y * model.instance_scale_y
+    state.scaled_bomb_hop_speed = attrs.bomb_hop_speed * model.instance_scale_y
+    state.scaled_bomb_air_start_speed = attrs.bomb_air_start_speed * model.instance_scale_y
+    state.scaled_morph_ecb_top = attrs.morph_ecb_top * model.instance_scale_y
+    state.scaled_morph_ecb_bottom = attrs.morph_ecb_bottom * model.instance_scale_y
+    state.scaled_morph_ecb_left_x = attrs.morph_ecb_left_x * model.instance_scale_y
+    state.scaled_morph_ecb_left_y = attrs.morph_ecb_left_y * model.instance_scale_y
+    state.scaled_morph_ecb_right_x = attrs.morph_ecb_right_x * model.instance_scale_y
+    state.scaled_morph_ecb_right_y = attrs.morph_ecb_right_y * model.instance_scale_y
+
+func spin_clear():
+    effects.destroy_all()
+    state.spin_effect = false
+
+func spin_track_cleanup():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+func spin_reset_commands():
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    state.spin_turned = false
+
+func spin_end():
+    if animation.finished:
+        spin_clear()
+        physics.force_air_and_use_jumps()
+        if attrs.spin_landing_lag == 0: state.fall()
+        else: state.freefall(1, 1, false, attrs.spin_freefall_drift, attrs.spin_landing_lag)
+
+func spin_turn():
+    if not command(1) and not state.spin_turned:
+        if abs(input.x) > attrs.spin_turn_threshold:
+            if facing.direction == 1 and input.x < 0 or facing.direction == -1 and input.x > 0:
+                command(1) = 1
+                state.spin_turned = true
+                facing.from_input()
+                bones.root.rotate_y(0, pi / 2 * facing.direction)
+
+func spin_collide():
+    if not grounded:
+        if velocity.y >= 0:
+            if collision.landed: return
+            return
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            spin_clear()
+            state.landing_special(false, attrs.spin_landing_lag)
+            return
+        if collision.cliff_catch():
+            spin_clear()
+            state.catch_ledge()
+    else: collision.ground_standard()
+
+move ScrewAttack:
+    entry explicit
+    on special_hi:
+        state.enter_at_speed(353, 0, 0, 1)
+        spin_track_cleanup()
+        effects.pause_during_hitlag()
+        physics.switch_to_ground()
+        spin_reset_commands()
+        animation.start()
+        effects.spawn_on_part(1154, 3)
+        state.spin_effect = true
+    on special_air_hi:
+        state.enter_at_speed(354, 0, 0, 1)
+        spin_track_cleanup()
+        effects.pause_during_hitlag()
+        physics.force_air_and_use_jumps()
+        spin_reset_commands()
+        velocity.y = attrs.spin_air_vertical_speed
+        physics.clamp_horizontal_speed(attrs.spin_horizontal_limit)
+        animation.start()
+        effects.spawn_on_part(1154, 3)
+        state.spin_effect = true
+    on ground_animation:
+        spin_end()
+    on air_animation:
+        spin_end()
+    on ground_interrupt:
+        spin_turn()
+    on air_interrupt:
+        spin_turn()
+    on ground_physics:
+        if command(0):
+            physics.force_air_and_use_jumps()
+            command(0) = 0
+            velocity.x = attrs.spin_ground_speed * facing.direction
+        if not grounded:
+            velocity.y = animation.delta.y
+            physics.air_accel_friction(0, attrs.spin_drift_acceleration, attrs.spin_horizontal_limit)
+            physics.air_accel_normal()
+            return
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+        physics.air_accel_friction(0, attrs.spin_drift_acceleration, attrs.spin_horizontal_limit)
+    on ground_collision:
+        spin_collide()
+    on air_collision:
+        spin_collide()
+
+func shot_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+export func shot_forget():
+    state.shot_handle = -1
+
+func shot_remove():
+    if articles.owned(state.shot_handle): articles.remove_owned(state.shot_handle)
+    shot_forget()
+
+func shot_create():
+    if command(0) == 1 and not articles.owned(state.shot_handle):
+        command(0) = 0
+        bones.world_position(attrs.shot_hand_joint, state.shot_x, state.shot_y, state.shot_z, 0, 0, 4)
+        state.shot_handle = articles.create_at_position(It_Kind_Samus_Charge, state.shot_x, state.shot_y, 0, facing.direction, true)
+        if articles.owned(state.shot_handle): shot_callbacks()
+
+func shot_enter(bool air_started):
+    let target = 343
+    if air_started: target = 347
+    state.enter_at_speed(target, 0, 0, 1)
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    if not air_started:
+        physics.switch_to_ground()
+        velocity.y = 0
+    shot_callbacks()
+    state.shot_air_started = air_started
+    state.shot_charge_timer = 0
+    animation.start()
+
+func shot_start_animation(bool air):
+    shot_create()
+    if air: state.shot_air_started = true
+    if animation.finished:
+        if air: state.enter_at_speed(348, 0, 0, 1)
+        elif state.shot_air_started or state.shot_charge == attrs.shot_max_charge: state.enter_at_speed(346, 0, 0, 1)
+        else: state.enter_at_speed(344, 0, 0, 1)
+        shot_callbacks()
+
+func shot_fire():
+    if command(1) == 1 and articles.owned(state.shot_handle):
+        command(1) = 2
+        bones.world_position(attrs.shot_release_joint, state.shot_x, state.shot_y, state.shot_z)
+        let angle = float(0)
+        if facing.direction != 1: angle = pi
+        articles.signal_owned(state.shot_handle, It_Kind_Samus_Charge, "release", angle)
+        if motion.id == 348 or airborne: velocity.x = facing.direction * (attrs.shot_air_recoil * state.shot_charge)
+        state.shot_charge = 0
+        shot_forget()
+        effects.spawn_with_scalar_at_position(1158, state.shot_x, state.shot_y, 0, facing.direction)
+
+func shot_hold_animation():
+    if command(2):
+        command(2) = 0
+        let fraction = float(0)
+        if state.shot_charge: fraction = float(state.shot_charge / attrs.shot_max_charge)
+        let index = int(5 * fraction)
+        let sound_id = 260006
+        if index == 1: sound_id = 260009
+        elif index == 2: sound_id = 260012
+        elif index == 3: sound_id = 260015
+        elif index == 4: sound_id = 260018
+        sound.loop(sound_id, 127, 64)
+    state.shot_charge_timer = state.shot_charge_timer + 1
+    if state.shot_charge_timer > attrs.shot_charge_interval:
+        state.shot_charge_timer = 0
+        state.shot_charge = state.shot_charge + 1
+        if state.shot_charge >= attrs.shot_max_charge:
+            color.start(53, false)
+            state.shot_charge = int(attrs.shot_max_charge)
+            state.enter_at_speed(345, 0, 0, 1)
+            shot_remove()
+            shot_callbacks()
+
+func shot_hold_interrupt():
+    if controls.try_roll(): shot_remove()
+    elif input.special_pressed:
+        state.enter_at_speed(346, 0, 0, 1)
+        shot_callbacks()
+    elif input.shield_pressed:
+        state.enter_at_speed(345, 0, 0, 1)
+        shot_remove()
+        shot_callbacks()
+
+func shot_ground_collision(int destination, bool force_release):
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.enter_at_speed(destination, 0x0c4c5080, frame, 1)
+        shot_callbacks()
+        if force_release:
+            sound.play(260021, 127, 64)
+            command(1) = 1
+
+func shot_air_collision(int destination):
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(destination, 0x0c4c5080, frame, 1)
+        shot_callbacks()
+
+move ChargeShot:
+    entry explicit
+    on special_n:
+        shot_enter(false)
+    on special_air_n:
+        shot_enter(true)
+    on ground_animation:
+        shot_start_animation(false)
+    on air_animation:
+        shot_start_animation(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        shot_ground_collision(347, false)
+    on air_collision:
+        shot_air_collision(343)
+
+func missile_begin(bool air_started):
+    let target = 349
+    if input.horizontal_smash_age < attrs.missile_smash_window: target = 350
+    if air_started:
+        velocity.x = velocity.x / attrs.missile_start_deceleration
+        target = target + 2
+    else:
+        ground.velocity = ground.velocity / attrs.missile_start_deceleration
+        velocity.y = 0
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    cue.throw.reset()
+
+func missile_accessory():
+    if cue.article.consume():
+        state.missile_serial = uint(state.missile_serial) + 1
+        bones.world_position(attrs.missile_joint, state.missile_x, state.missile_y, state.missile_z)
+        state.missile_x = state.missile_x + attrs.missile_spawn_offset * facing.direction
+        let smash = motion.id != 349 and motion.id != 351
+        articles.create_at_position(It_Kind_Samus_Missile, state.missile_x, state.missile_y, 0, facing.direction, true, 0, smash)
+        if not effects.active:
+            effects.spawn_at_position(1155, state.missile_x, state.missile_y, state.missile_z)
+            effects.active = true
+        effects.pause_during_hitlag()
+        articles.stop_cue()
+
+move Missiles:
+    entry explicit
+    on special_s:
+        missile_begin(false)
+        callbacks.accessory(missile_accessory)
+    on special_air_s:
+        missile_begin(true)
+        callbacks.accessory(missile_accessory)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on ground_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on ground_collision:
+        if collision.special_ground_lost: state.fall()
+    on air_animation:
+        if animation.finished: state.fall()
+    on air_interrupt:
+        pass
+    on air_physics:
+        physics.fall_basic()
+        physics.air_decel(attrs.missile_air_deceleration)
+    on air_collision:
+        if collision.landed:
+            if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+            else: state.basic_landing()
+
+func morph_shape():
+    if command(0) and not state.morph_hurtbox:
+        hurtboxes.set_all(Hurt.intangible)
+        hurtboxes.define(0, bones.index(XRotN), Hurt.height_mid, false, 0, 0, 0, 0, 0, 0, 3)
+        state.morph_hurtbox = true
+    if not command(0) and state.morph_hurtbox:
+        hurtboxes.set_all(Hurt.normal)
+        state.morph_hurtbox = false
+
+func bomb_transition(bool air_started, bool hop):
+    if hop: velocity.y = state.scaled_bomb_hop_speed
+    if air_started: physics.ground_to_air()
+    else: physics.switch_to_ground()
+    let target = 355
+    if air_started: target = 356
+    state.enter_at_speed(target, Transition.common_ground_air | Transition.keep_hurt_status | Transition.skip_hitboxes | Transition.skip_model, frame, 1)
+    if not hop:
+        command(1) = 2
+        state.morph_hurtbox = false
+
+export func bomb_jump(float center, float radius):
+    let ratio = (position.x - center) / radius
+    if ratio >= 1: ratio = 1
+    if ratio <= -1: ratio = -1
+    let angle = -attrs.morph_jump_angle * ratio + float(1.5707963705062866)
+    if hurtboxes.status == 0:
+        if action.category == 0 or action.category == 2 or action.category == 3 or action.category == 4:
+            # Current semantic metadata: move ID in the low byte, original
+            # motion flag x2071_b5 at canonical bit 18, independent of host packing.
+            if action.move_id(action.current_metadata) == 20 or (action.current_metadata & 262144) == 0:
+                let float start = 0
+                if animation.id == 2: start = attrs.morph_jump_frame
+                damage.interrupt_cleanup()
+                velocity.x = state.scaled_morph_jump_speed * cos(angle)
+                velocity.y = state.scaled_morph_jump_speed * sin(angle)
+                physics.clamp_horizontal_speed(air.drift_max * attrs.morph_air_mobility)
+                command(0) = 0
+                command(1) = 0
+                state.morph_hurtbox = false
+                if grounded: physics.ground_to_air()
+                state.enter_at_speed(342, 0, start, 1)
+                animation.start()
+
+func bomb_accessory():
+    if cue.article.consume():
+        bones.world_position(bones.index(Top), state.bomb_x, state.bomb_y, state.bomb_z)
+        state.bomb_x = state.bomb_x + attrs.bomb_spawn_x * facing.direction
+        state.bomb_y = state.bomb_y + state.scaled_bomb_spawn_y
+        state.bomb_z = state.bomb_z + attrs.bomb_spawn_z
+        articles.create_at_position(It_Kind_Samus_Bomb, state.bomb_x, state.bomb_y, 0, facing.direction, true)
+        articles.stop_cue()
+
+move Bombs:
+    entry explicit
+    on special_lw:
+        ground.velocity = ground.velocity * attrs.bomb_ground_start_deceleration
+        if motion.id == 40:
+            state.enter_at_speed(355, 0, 3, 1)
+            command(0) = 0
+            command(1) = 2
+            command(2) = 0
+            cue.throw.reset()
+            state.morph_hurtbox = false
+            bomb_transition(true, true)
+        else:
+            state.enter_at_speed(355, 0, 0, 1)
+            animation.start()
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            state.morph_hurtbox = false
+            if frame == 3: command(1) = 1
+        callbacks.accessory(bomb_accessory)
+    on special_air_lw:
+        velocity.x = velocity.x * attrs.bomb_air_start_deceleration
+        velocity.y = state.scaled_bomb_air_start_speed
+        state.enter_at_speed(356, 0, 0, 1)
+        animation.start()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        cue.throw.reset()
+        state.morph_hurtbox = false
+        if frame == 3: command(1) = 1
+        callbacks.accessory(bomb_accessory)
+    on ground_animation:
+        if command(1) == 1:
+            command(1) = 2
+            bomb_transition(true, true)
+            callbacks.accessory(bomb_accessory)
+            return
+        morph_shape()
+        if animation.finished: state.wait()
+    on ground_interrupt:
+        if command(2) and input.y < attrs.bomb_crouch_threshold:
+            command(2) = 0
+            state.crouch_wait()
+    on ground_physics:
+        if command(0):
+            physics.ground_accel(ground.walk_acceleration_multiplier * attrs.bomb_ground_accel, ground.walk_max_speed * attrs.bomb_ground_speed)
+            physics.ground_to_self()
+        else:
+            physics.ground_friction()
+    on ground_collision:
+        let touching = false
+        if command(0): touching = collision.ground_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.special_ground_lost == false
+        if not touching:
+            bomb_transition(true, false)
+            callbacks.accessory(bomb_accessory)
+    on air_animation:
+        morph_shape()
+        if animation.finished: state.fall()
+    on air_interrupt:
+        pass
+    on air_physics:
+        physics.fall_basic()
+        physics.air_accel(air.drift_stick_mul * attrs.bomb_air_accel, air.drift_max * attrs.bomb_air_speed)
+    on air_collision:
+        let touching = false
+        if command(0): touching = collision.air_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.landed
+        if touching:
+            bomb_transition(false, false)
+            callbacks.accessory(bomb_accessory)
+
+action ChargePhases:
+    on state_344_animation:
+        shot_hold_animation()
+    on state_344_interrupt:
+        shot_hold_interrupt()
+    on state_344_physics:
+        physics.ground_friction()
+    on state_344_collision:
+        shot_ground_collision(348, true)
+    on state_345_animation:
+        shot_remove()
+        if animation.finished: state.wait()
+    on state_345_interrupt:
+        pass
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        shot_ground_collision(348, false)
+    on state_346_animation:
+        shot_fire()
+        if animation.finished: state.wait()
+    on state_346_interrupt:
+        pass
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        shot_ground_collision(348, false)
+    on state_348_animation:
+        shot_fire()
+        if animation.finished:
+            if attrs.shot_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.shot_landing_lag)
+    on state_348_interrupt:
+        pass
+    on state_348_physics:
+        physics.air_gravity_and_friction()
+    on state_348_collision:
+        shot_air_collision(346)
+
+action MissilePhases:
+    on state_350_animation:
+        if animation.finished: state.wait()
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        if collision.left_ground: state.fall()
+    on state_352_animation:
+        if animation.finished: state.fall()
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.fall_basic()
+        physics.air_decel(attrs.missile_air_deceleration)
+    on state_352_collision:
+        if collision.landed:
+            if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+            else: state.basic_landing()
+
+action MorphPhases:
+    on state_341_animation:
+        morph_shape()
+        if animation.finished: state.wait()
+    on state_342_animation:
+        morph_shape()
+        if animation.finished: state.fall()
+    on state_341_interrupt:
+        if command(1) and input.y < attrs.morph_crouch_threshold:
+            command(1) = 0
+            state.crouch_wait()
+            return
+        if controls.try_side_special(): return
+        if controls.try_up_special(): return
+        if controls.try_neutral_special(): return
+        if controls.try_down_special(): return
+        if controls.try_catch(): return
+        if controls.try_side_smash(): return
+        if controls.try_up_smash(): return
+        if controls.try_down_smash(): return
+        if controls.try_side_tilt(): return
+        if controls.try_up_tilt(): return
+        if controls.try_down_tilt(): return
+        if controls.try_jab(): return
+        if controls.try_spotdodge(): return
+    on state_342_interrupt:
+        controls.air_actions()
+    on state_341_physics:
+        if command(0):
+            physics.ground_accel(ground.walk_acceleration_multiplier * attrs.morph_ground_mobility, ground.walk_max_speed * attrs.morph_ground_mobility)
+            physics.ground_to_self()
+        else:
+            physics.ground_friction()
+    on state_342_physics:
+        physics.fall_basic()
+        physics.air_accel_friction(0, air.ground_jump_momentum_multiplier * attrs.morph_air_mobility, air.jump_horizontal_max * attrs.morph_air_mobility)
+    on state_341_collision:
+        let touching = false
+        if command(0): touching = collision.ground_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.special_ground_lost == false
+        if not touching:
+            physics.ground_to_air()
+            state.enter_at_speed(342, Transition.skip_model, frame, animation.rate)
+    on state_342_collision:
+        let touching = false
+        if command(0): touching = collision.air_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.landed
+        if touching:
+            physics.switch_to_ground()
+            state.enter_at_speed(341, Transition.skip_model, frame, animation.rate)
+
+article It_Kind_Samus_Charge states 9:
+    attribute float lifetime 0
+    attribute float speed_min 8
+    attribute float speed_max 12
+    attribute float scale_min 24
+    attribute float scale_max 28
+    state bool fired
+    state float charge
+    state float maximum
+    state float angle
+    state float speed
+    state float size
+    state float release_charge
+    state int effect_step
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.attach_to_owner(program.attrs.shot_hand_joint)
+    on picked_up:
+            item.change_state(0)
+            item.spawn_joint_effect(1151, "0/0")
+    on destroyed:
+            item.destroy_effects()
+            if not item.state.fired and owner.exists:
+                let bool forgotten = targets.call(item.current_owner, "shot_forget")
+            item.detach_owner()
+            item.owner_bound = false
+    on signal release:
+            item.state.angle = signal.value
+            item.set_lifetime(item.attr.lifetime)
+            if not owner.exists: return
+            item.state.release_charge = max(0, min(float(owner.state.shot_charge), program.attrs.shot_max_charge))
+            item.state.charge = item.state.release_charge
+            item.state.maximum = program.attrs.shot_max_charge
+            item.destroy_effects()
+            # Stock clamps the stored charge for the animation and visual size,
+            # but keeps the original release charge for projectile speed.
+            if item.state.charge >= 8: item.state.charge = 7
+            item.change_state(int(item.state.charge) + 1)
+            item.track_accessory()
+            item.release_attachment(0, 0, 0, true)
+            item.throw_speed_damage = false
+            item.use_manual_lifetime()
+            item.state.speed = float(item.state.release_charge * ((item.attr.speed_max - item.attr.speed_min) / program.attrs.shot_max_charge) + item.attr.speed_min)
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            item.state.effect_step = 0
+            facing = owner.facing
+            position.x = owner.state.shot_x
+            position.y = owner.state.shot_y
+            position.z = 0
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            item.state.fired = true
+    on accessory:
+            if item.state.charge == item.state.maximum and item.state.effect_step == 0:
+                item.spawn_root_effect(1152)
+                item.spawn_root_effect(1153)
+            item.state.effect_step = (item.state.effect_step + 1) % 3
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on reflected:
+            facing = -facing
+            item.joint("").rotation.y = pi / 2 * facing
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            facing = -1
+            if velocity.x >= 0: facing = 1
+            item.joint("").rotation.y = pi / 2 * facing
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if owner.exists:
+                if owner.motion < 343 or owner.motion > 348 or owner.fighter.action_detaches_items: return true
+                # Creation ID zero is valid; -1 is the absent-handle sentinel.
+                # Stock checks a pointer here, not the numeric creation ID.
+                if owner.motion == 345 or owner.state.shot_handle < 0: return true
+                item.state.charge = float(owner.state.shot_charge)
+                item.state.maximum = float(int(program.attrs.shot_max_charge))
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            return false
+        on collision:
+            return false
+    state 1 anim 1:
+        on animation:
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            item.life = item.life - 1
+            return item.life <= 0
+        on physics:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+        on collision:
+            item.stage_collision(false)
+            if velocity.y > 0 and collision.ceiling_contact: return true
+            if velocity.y <= 0 and collision.floor_contact: return true
+            if velocity.x > 0 and collision.left_wall: return true
+            if velocity.x <= 0 and collision.right_wall: return true
+            return false
+    state 2 anim 2 use 1:
+    state 3 anim 3 use 1:
+    state 4 anim 4 use 1:
+    state 5 anim 5 use 1:
+    state 6 anim 6 use 1:
+    state 7 anim 7 use 1:
+    state 8 anim 8 use 1:
+
+article It_Kind_Samus_Missile states 4:
+    attribute float homing_lifetime 4
+    attribute float homing_duration 8
+    attribute float homing_speed 12
+    attribute float coast_deceleration 16
+    attribute float coast_min_speed 20
+    attribute float turn_step 24
+    attribute float turn_limit 28
+    attribute float turn_deadzone 32
+    attribute float super_lifetime 36
+    attribute float super_delay 40
+    attribute float super_start_speed 44
+    attribute float super_acceleration 48
+    attribute float super_max_speed 52
+    state bool smash
+    state int serial
+    state float turn
+    state float target_x
+    state float target_y
+    state float target_z
+    state bool target_found
+    state float direction_x
+    state float direction_y
+    state float direction_z
+    state float velocity_x
+    state float velocity_y
+    state float velocity_z
+    state float rotation_angle
+    state float angle
+    on created:
+            item.state.smash = item.creation_value != 0
+            item.state.serial = owner.state.missile_serial
+            velocity.y = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.use_manual_lifetime()
+            if item.state.smash:
+                velocity.x = item.params.super_start_speed * facing
+                item.command1 = 0
+                item.set_lifetime(item.params.super_lifetime)
+                item.change_state(1)
+                item.spawn_joint_effect(1156, "0/0")
+            else:
+                velocity.x = item.params.homing_speed * facing
+                item.command0 = 0
+                item.set_lifetime(item.params.homing_lifetime)
+                item.state.turn = 0
+                item.change_state(0)
+                item.spawn_joint_effect(1157, "0/0")
+            item.inherit_owner_debug_display()
+    on signal explode:
+            item.hide_model()
+            item.physics_disabled = true
+            item.begin_expiry()
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.destroy_effects()
+            if item.state.smash:
+                item.spawn_effect_at_position(1038, position.x, position.y, position.z)
+            else:
+                item.spawn_effect_at_position(1036, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.contact_hitlag = false
+            if item.state.smash:
+                item.change_state(3)
+            else:
+                item.change_state(2)
+    on stage_contact:
+            item.signal("explode", 0)
+    on damage_dealt:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on clanked:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on hit_shield:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on shield_bounced:
+            if item.state.smash:
+                item.shield_bounce()
+                item.state.angle = atan2(velocity.x, velocity.y)
+                if facing == 1:
+                    item.joint("0").rotation.x = item.state.angle - pi / 2
+                else:
+                    item.joint("0").rotation.x = pi * 1.5 - item.state.angle
+            return false
+    on reflected:
+            item.command3 = 1
+            item.reflect()
+            if item.state.smash:
+                velocity.x = item.params.super_start_speed * facing
+            if velocity.y < 0:
+                velocity.y = -velocity.y * item.reflection_multiplier
+            item.joint("").rotation.y = pi / 2 * facing
+            item.destroy_effects()
+            if item.state.smash:
+                item.spawn_joint_effect(1156, "0/0")
+            else:
+                item.spawn_joint_effect(1157, "0/0")
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.life > item.params.homing_lifetime - item.params.homing_duration:
+                item.command0 = 1
+            else:
+                item.command0 = 0
+            if item.life == item.params.homing_lifetime - item.params.homing_duration and not item.state.smash:
+                item.destroy_effects()
+            if item.life <= item.params.super_lifetime - item.params.super_delay:
+                item.command1 = 1
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+            if item.command3 == 0 and item.attachment_active:
+                if item.motion_state != 2 and item.motion_state != 3 and uint(owner.state.missile_serial) - uint(item.state.serial) >= 2:
+                    item.signal("explode", 0)
+            return false
+        on physics:
+            if item.command0:
+                item.state.target_found = targets.read_opponent_ahead(item.state.target_x, item.state.target_y, item.state.target_z)
+                if not item.state.target_found:
+                    item.state.target_found = targets.read_lockable_item_ahead(item.state.target_x, item.state.target_y, item.state.target_z)
+                if item.state.target_found and (item.state.target_x != 0 or item.state.target_y != 0):
+                    item.state.velocity_x = velocity.x
+                    item.state.velocity_y = velocity.y
+                    item.state.velocity_z = 0
+                    vectors.normalize_xy(item.state.velocity_x, item.state.velocity_y, item.state.velocity_z)
+                    item.state.direction_x = item.state.target_x - position.x
+                    item.state.direction_y = item.state.target_y - position.y
+                    item.state.direction_z = 0
+                    vectors.normalize_xy(item.state.direction_x, item.state.direction_y, item.state.direction_z)
+                    item.state.angle = vectors.angle_xy(item.state.velocity_x, item.state.velocity_y, item.state.direction_x, item.state.direction_y)
+                    if item.state.angle >= item.params.turn_deadzone:
+                        item.state.direction_y = item.state.direction_y - item.state.velocity_y
+                        if item.state.direction_y > 0.001:
+                            item.state.turn = item.state.turn - item.params.turn_step
+                        elif item.state.direction_y < 0.001:
+                            item.state.turn = item.state.turn + item.params.turn_step
+                        if abs(item.state.turn) > item.params.turn_limit:
+                            if item.state.turn > 0:
+                                item.state.turn = item.params.turn_limit
+                            else:
+                                item.state.turn = -item.params.turn_limit
+                item.state.velocity_x = item.params.homing_speed * facing
+                item.state.velocity_y = 0
+                item.state.velocity_z = 0
+                item.state.rotation_angle = item.state.turn * -facing
+                vectors.rotate(item.state.velocity_x, item.state.velocity_y, item.state.velocity_z, 4, item.state.rotation_angle, item.state.velocity_x, item.state.velocity_y, item.state.velocity_z)
+                velocity.x = item.state.velocity_x
+                velocity.y = item.state.velocity_y
+            else:
+                if velocity.x * velocity.x + velocity.y * velocity.y > item.params.coast_min_speed * item.params.coast_min_speed:
+                    velocity.x = velocity.x * item.params.coast_deceleration
+                    velocity.y = velocity.y * item.params.coast_deceleration
+            item.joint("0").rotation.x = item.state.turn
+        on collision:
+            item.respond_to_stage()
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.life > item.params.homing_lifetime - item.params.homing_duration:
+                item.command0 = 1
+            else:
+                item.command0 = 0
+            if item.life == item.params.homing_lifetime - item.params.homing_duration and not item.state.smash:
+                item.destroy_effects()
+            if item.life <= item.params.super_lifetime - item.params.super_delay:
+                item.command1 = 1
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+            if item.command3 == 0 and item.attachment_active:
+                if item.motion_state != 2 and item.motion_state != 3 and uint(owner.state.missile_serial) - uint(item.state.serial) >= 2:
+                    item.signal("explode", 0)
+            return false
+        on physics:
+            if item.command1:
+                velocity.x = item.params.super_acceleration * facing + velocity.x
+                if abs(velocity.x) > item.params.super_max_speed:
+                    if facing == 1:
+                        velocity.x = item.params.super_max_speed
+                    else:
+                        velocity.x = -item.params.super_max_speed
+        on collision:
+            item.respond_to_stage()
+            return false
+    state 2 anim 2:
+        on animation:
+            return item.expire_tick()
+    state 3 anim 3 use 2:
+
+article It_Kind_Samus_Bomb states 4:
+    attribute float fuse 0
+    attribute float fast_animation_threshold 4
+    attribute float fast_animation_rate 8
+    attribute float slide_speed 12
+    state bool jump_pending
+    state float slide_x
+    state float slide_y
+    state float slide_z
+    on created:
+            velocity.y = item.drop_speed
+            item.command2 = 0
+            item.set_lifetime(item.params.fuse)
+            item.use_manual_lifetime()
+            item.change_state(1)
+            item.inherit_owner_debug_display()
+    on signal explode:
+            item.change_state(3)
+            item.animation_rate = 1
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.hide_model()
+            item.spawn_effect_at_position(1036, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.use_manual_lifetime()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.track_accessory()
+            item.state.jump_pending = true
+    on signal tick:
+            if item.life <= item.params.fast_animation_threshold:
+                item.set_model_animation_rate(item.params.fast_animation_rate)
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+    on signal orientation:
+            if abs(velocity.x) >= 0.0001:
+                item.align_facing_to_velocity()
+                if facing == 1:
+                    item.joint("").rotation.y = 0
+                else:
+                    item.joint("").rotation.y = pi
+    on stage_landed:
+            item.change_state_flags(0, 17)
+    on stage_left:
+            item.change_state_flags(1, 17)
+    on entered_air:
+            item.change_state_flags(2, 17)
+    on damage_dealt:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on clanked:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on hit_shield:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on shield_bounced:
+            return item.shield_bounce()
+    on reflected:
+            item.reflect()
+            if velocity.y < 0: velocity.y = -velocity.y * item.reflection_multiplier
+            item.clear_attachment_owner()
+            return false
+    on interaction:
+            item.interact(other)
+            item.clear_attachment_owner()
+    on accessory:
+            if item.state.jump_pending:
+                item.state.jump_pending = false
+                if attachment_owner.exists:
+                    let control_owner = attachment_owner.fighter.creation_id
+                    if targets.overlaps_hitbox(control_owner, 0):
+                        targets.call(control_owner, "bomb_jump", position.x, hitbox.radius(0))
+    state 0 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            return false
+        on collision:
+            item.follow_ground()
+            return false
+    state 1 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            item.signal("orientation", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.bounce_to_ground()
+            return false
+    state 2 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            item.signal("orientation", 0)
+            return false
+        on physics:
+            if sqrt(item.slide_velocity.x * item.slide_velocity.x + item.slide_velocity.y * item.slide_velocity.y) > item.params.slide_speed:
+                item.state.slide_x = item.slide_velocity.x
+                item.state.slide_y = item.slide_velocity.y
+                item.state.slide_z = 0
+                vectors.normalize_xy(item.state.slide_x, item.state.slide_y, item.state.slide_z)
+                item.slide_velocity.x = item.state.slide_x * item.params.slide_speed
+                item.slide_velocity.y = item.state.slide_y * item.params.slide_speed
+        on collision:
+            item.slide_on_ground()
+            return false
+    state 3 anim 1:
+        on animation:
+            return item.expire_tick()
+
+action FighterEvents:
+    on throw_presentation:
+        Tether_CreateThrowAccessory(event.motion, event.rate)
+    on load:
+        fighter.enable_walljump()
+        fighter.copy_ext_attributes()
+        state.shot_handle = -1
+        Samus_ScaleOwnedAttributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        Samus_ScaleOwnedAttributes()
+    on death:
+        visuals.set_group(0, 0)
+        state.shot_handle = -1
+        state.shot_charge = 0
+        state.missile_serial = 0
+        state.spin_effect = false
+    on damage:
+        shot_remove()
+        state.shot_charge = 0
+        spin_clear()
+    on death2:
+        shot_remove()
+        state.shot_charge = 0
+        spin_clear()
+    on color_animation_reset:
+        if state.shot_charge == attrs.shot_max_charge: color.start(53, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 0, 0)
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_visible:
+        fighter.item_visible(0)
+    on item_invisible:
+        fighter.item_invisible(0)
+    on roll_enter:
+        command(0) = 0
+        state.morph_hurtbox = false
+        callbacks.animation(morph_roll_animation)
+        callbacks.collision(morph_roll_collision)
+
+func morph_roll_animation():
+    morph_shape()
+    if cue.reverse.consume(): facing.direction = -facing.direction
+    if animation.finished:
+        ground.velocity = 0
+        state.wait()
+
+func morph_roll_collision():
+    if command(0): collision.ground_standard_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+    else: collision.ground_standard()
+
+action CpuPolicy:
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_attack_motion:
+        return motion.id >= 341
+    on cpu_grab_motion:
+        return false
+    on cpu_attack_decision:
+        if motion.id == 344:
+            cpu_tap_shield()
+            cpu.queue(Cpu.wait, 5)
+        return false
+    on cpu_special_candidate:
+        # The stock double threshold lies just above its nearest float value;
+        # inclusive comparison with that owned float preserves the boundary.
+        if not grounded and event.angle <= attrs.cpu_bomb_angle:
+            cpu.selected_command = 38
+            return true
+        return false
+    on cpu_threat:
+        if motion.id != 353 or position.y >= other.position.y: return false
+        let dx = other.position.x - position.x
+        let dy = other.position.y - position.y
+        return sqrt(dx * dx + dy * dy) < attrs.cpu_spin_threat_distance
+    on cpu_charge_decision:
+        if motion.id != 344 and state.shot_charge == 0:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.press_b)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            return true
+        return false
+    on cpu_charge_cancel:
+        if motion.id == 344:
+            cpu_tap_shield()
+            cpu.queue(Cpu.wait, 1)
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_y, 88)
+        cpu.queue(Cpu.x_toward_destination, 88)
+        cpu.queue(Cpu.press_b_for, 1)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.x_toward_destination, 127)
+        cpu.queue(Cpu.done)
+
+func cpu_tap_shield():
+    cpu.queue(Cpu.press_r)
+    cpu.queue(Cpu.wait, 1)
+    cpu.queue(Cpu.release_r)

@@ -1,0 +1,11 @@
+# Nana's armor write precedes the same model/owned-handle reset.
+move SecondaryDeath:
+    on death:
+        damage.armor = attrs.secondary_death_armor
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.ice_handle = -1
+        state.ice_air_boost_used = false
+        state.ice_spawn_height = 0
+        state.blizzard_effect_active = false
+        state.linked_rope_handle = -1

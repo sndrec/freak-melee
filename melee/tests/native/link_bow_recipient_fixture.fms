@@ -1,0 +1,5 @@
+# Independent recipient module with a different authored state layout.
+state int unrelated
+state int bow_handle
+export func bow_unset():
+    state.bow_handle = -1

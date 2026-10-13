@@ -1,0 +1,62 @@
+# UNREGISTERED Milk article source fixture. Appeal/full Link damage cleanup remain gated.
+state int milk_handle
+
+func milk_unset():
+    state.milk_handle = -1
+
+article It_Kind_CLink_Milk states 2:
+    attachment origin owner plane on initial_collision off held off
+    render standard
+    state bool expired
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+    on signal remove:
+            item.detach_owner()
+            item.remove()
+    on signal update:
+            item.state.expired = false
+            # Stock's variables named child/grandchild both refer to the first child.
+            item.joint(0, "0").self_visible = item.command0 == 1
+            if creator.exists:
+                if (creator.motion != 342 and creator.motion != 343) or creator.state.milk_handle == -1:
+                    owner.call(milk_unset)
+                    item.detach_owner()
+                    item.state.expired = true
+                else:
+                    # ftCl_Init_801492F4 returns bool, not the raw integer command.
+                    item.command0 = creator.command1 != 0
+                    item.joint(0, "0").scale.x = creator.model_scale
+                    item.joint(0, "0").scale.y = creator.model_scale
+                    item.joint(0, "0").scale.z = creator.model_scale
+            else:
+                owner.call(milk_unset)
+                item.detach_owner()
+                item.state.expired = true
+    on picked_up:
+            if facing == 1:
+                item.change_state_flags(0, 2)
+            else:
+                item.change_state_flags(1, 2)
+            item.advance_animation()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.signal("update", 0)
+            return item.state.expired
+        on physics:
+            return
+        on collision:
+            return false
+    state 1 anim 1:
+        on animation:
+            item.signal("update", 0)
+            return item.state.expired
+        on physics:
+            return
+        on collision:
+            return false

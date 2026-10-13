@@ -1,0 +1,50 @@
+article It_Kind_Ness_Bat states 2:
+    on created:
+            let int mode = int(item.creation_value)
+            item.command3 = mode
+            item.command2 = mode
+            item.command1 = mode
+            item.command0 = mode
+            item.use_manual_lifetime()
+            if mode == 0: item.set_lifetime(attrs.bat_lifetime)
+            item.attach_to_owner(attrs.resource_attachment_joint)
+    on picked_up:
+            if item.command0 != 0 or item.command1 != 0 or item.command2 != 0 or item.command3 != 0:
+                item.change_state_flags(1, 2)
+            else:
+                item.change_state_flags(0, 2)
+            item.advance_animation()
+    on signal remove:
+            # Native direct remove clears private attachment AND owner before engine.
+            item.detach_owner()
+            item.remove()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.joint(0, "0").visible = item.command0 == 0
+            if creator.exists:
+                if creator.motion == attrs.bat_smash_motion and creator.state.bat_handle != -1:
+                    return false
+                if item.attachment_active: creator.call(bat_forget)
+            item.detach_owner()
+            return true
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim -1:
+        on animation:
+            # Existing creator.incapacitated is ftCo_800BF228, and root_scale_y
+            # is actual HSD root Y, not fighter model/instance scale.
+            if creator.exists and creator.incapacitated:
+                item.joint(0, "").scale.x = creator.root_scale_y
+                item.joint(0, "").scale.y = creator.root_scale_y
+                item.joint(0, "").scale.z = creator.root_scale_y
+            return false
+        on physics:
+            pass
+        on collision:
+            return false
+
+

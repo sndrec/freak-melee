@@ -1,0 +1,33 @@
+{
+  "status": "Candidate corrected; SDK64 remains immutable and still has NULL costume_matanim; coordinated new snapshot required for package acceptance",
+  "candidate": "A:\\FreakMelee-test-archives\\gamewatch-activation64-final-corrected-assembly\\gamewatch_full.fms",
+  "candidate_sha256": "a7a602d874623b8073fbf9c9c44a522b0a681652dac9902ef38a54f271ecdda9",
+  "template_patch_sha256": "967fe3aea02daf3dcb96398fbfbc291cd4a3c7b5797e33e7d738871140baabd7",
+  "changes": [
+    "Base-prefixed explicit-state route uses move groups rather than action headers",
+    "Remove entry explicit shorthand",
+    "Chef phases bound explicitly to motions353/354",
+    "Consume aerial cue3 then assign facing.direction=-facing.direction",
+    "load_special_attrs executes fighter.reload_ext_attributes()"
+  ],
+  "production_base_change": "costume_matanim=\"\"; no material-animation root, valid loader absence representation",
+  "preserved_failures": [
+    "gamewatch-activation64-first",
+    "gamewatch-activation64-second",
+    "gamewatch-activation64-third",
+    "gamewatch-activation64-fourth"
+  ],
+  "fourth_result": {
+    "retail_field_comparisons": 80,
+    "DLL_ownership_checks": 993,
+    "motion_slots": 160,
+    "definition_callbacks": 24,
+    "article_callbacks": 95,
+    "bundle": "FAIL before isolated store created; NULL costume_matanim"
+  },
+  "pending": [
+    "Coordinated new copied-base/template/sound-policy SDK",
+    "New original/generated normal entry/phase source matrix",
+    "Hidden/muted drawn gameplay/render acceptance"
+  ]
+}

@@ -1,0 +1,44 @@
+fighter:
+    behavior independent
+state float total
+state float samples [4]
+parameter float gain = 2
+
+func Add(float amount) -> float:
+    state.total = state.total + amount
+    return state.total + attrs.gain
+
+func Effect() -> float:
+    state.begin(343)
+    return 12
+
+func Index() -> int:
+    state.begin(343)
+    return 0
+
+article It_Kind_Mario_Cape states 1:
+    state float local
+    func Assign() -> float:
+        current_owner.position.x = creator.helpers.Effect()
+        return creator.position.x
+    func Owned() -> float:
+        owner.state.total = creator.helpers.Add(3)
+        return creator.state.total
+    func Indexed() -> float:
+        owner.state.samples[creator.helpers.Index()] = creator.helpers.Effect()
+        return creator.state.samples[0]
+    func Inputs() -> float:
+        return creator.motion + creator.command3 + creator.floor.normal.x + creator.attrs.gain
+    func CreatorParameter() -> float:
+        return creator.params.gain
+    func AttachedParameter() -> float:
+        return owner.params.gain
+    func DamageOwnerParameter() -> float:
+        return current_owner.params.gain
+    func ProgramParameter() -> float:
+        return program.attrs.gain
+    func Missing() -> bool:
+        return holder.exists
+    state 0 anim 0:
+        on animation:
+            return creator.exists

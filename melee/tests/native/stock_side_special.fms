@@ -1,0 +1,7 @@
+move Cape:
+    on special_s:
+        stock.enter()
+        motion.add_facing_speed(0.5)
+    on special_air_s:
+        stock.enter()
+        motion.add_facing_speed(-0.25)

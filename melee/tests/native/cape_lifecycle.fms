@@ -1,0 +1,154 @@
+# Isolated article/charge lifecycle fixture; not a complete fighter template.
+state bool cape_reflecting
+
+state bool cape_boost_used
+state int cape_article
+
+attribute float cape_horizontal_decay 0
+attribute float cape_horizontal_decel 4
+attribute float cape_boost_vertical 8
+attribute float cape_gravity 12
+attribute float cape_terminal_speed 16
+
+attribute int cape_bone 96
+attribute int cape_max_damage 100
+attribute float cape_offset_x 104
+attribute float cape_offset_y 108
+attribute float cape_offset_z 112
+attribute float cape_radius 116
+attribute float cape_damage_mul 120
+attribute float cape_speed_mul 124
+attribute bool cape_keep_owner 128
+
+move Cape:
+    on special_s:
+        motion.set_vertical_speed(0)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        state.cape_reflecting = false
+    on special_air_s:
+        motion.divide_horizontal_speed(attrs.cape_horizontal_decay)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        state.cape_reflecting = false
+    on accessory:
+        if not command(2):
+            command(2) = 1
+            state.cape_article = articles.spawn_bone_attached(It_Kind_Mario_Cape, RightThumb)
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+            articles.stop_cue()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if command(0) == 1:
+            command(0) = 2
+            let int duration = 120
+            let float offset = 3
+            let float strength = 0.9
+            effects.wind(Hip, offset, duration, strength, 0.02, 1.0471976)
+        physics.ground_friction()
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on air_physics:
+        if command(0) >= 1:
+            if command(0) == 1:
+                command(0) = 2
+                if not state.cape_boost_used:
+                    state.cape_boost_used = true
+                    motion.set_vertical_speed(attrs.cape_boost_vertical)
+                else: motion.set_vertical_speed(0)
+                effects.wind(Hip, 1 + 2, 60 * 2, 3, 0.1, 1.0471976)
+            physics.fall(attrs.cape_gravity, attrs.cape_terminal_speed)
+        else: physics.fall_basic()
+        physics.air_decel(attrs.cape_horizontal_decel)
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.to_air()
+            if command(0) == 1: command(0) = 2
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+    on air_collision:
+        if collision.landed:
+            state.cape_boost_used = false
+            state.to_ground()
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+
+action ResourceLifecycle:
+    on cpu_capture_decision:
+        return capture.has_victim and capture.victim_damage < 100
+    on landing_action:
+        state.cape_boost_used = false
+    on death:
+        state.cape_boost_used = false
+
+    on pre_hitlag:
+        articles.pause_owned(state.cape_article)
+    on post_hitlag:
+        articles.resume_owned(state.cape_article)
+    on damage:
+        articles.resume_owned(state.cape_article)
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+    on death2:
+        articles.resume_owned(state.cape_article)
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+
+article It_Kind_Mario_Cape states 2:
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if owner.motion != 345 and owner.motion != 346: return true
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if owner.motion != 345 and owner.motion != 346: return true
+            return false
+    on destroyed:
+            owner.state.cape_article = -1
+            owner.clear_damage_death()
+    on picked_up:
+            item.command0 = 0
+            item.command1 = 0
+            item.change_state(0)
+            item.activate_attached()
+    on interaction:
+            item.interact(other)

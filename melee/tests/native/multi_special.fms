@@ -1,0 +1,194 @@
+state bool steering_seen
+state float saved_angle
+
+state bool tornado_charge
+
+attribute float jump_freefall_mobility 24
+attribute float jump_landing_lag 28
+attribute float jump_reverse_stick 32
+attribute float jump_momentum_stick 36
+attribute float jump_angle_diff 40
+attribute float jump_horizontal_scale 44
+attribute float jump_gravity 48
+attribute float jump_velocity_scale 52
+attribute float tornado_vertical_speed 56
+attribute float tornado_ground_speed 60
+attribute float tornado_air_speed 64
+attribute float tornado_ground_accel 68
+attribute float tornado_air_accel 72
+attribute float tornado_tap_speed 84
+attribute float tornado_tap_gravity 88
+
+attribute int cape_bone 96
+attribute int cape_max_damage 100
+attribute float cape_offset_x 104
+attribute float cape_offset_y 108
+attribute float cape_offset_z 112
+attribute float cape_radius 116
+attribute float cape_damage_mul 120
+attribute float cape_speed_mul 124
+attribute bool cape_keep_owner 128
+
+move SimpleFireball:
+    on special_n:
+        state.enter(NeutralSpecial)
+    on special_air_n:
+        state.enter(NeutralSpecial)
+    on neutral_special_cue:
+        state.once()
+        stock.neutral_article()
+
+move SideDash:
+    on special_s:
+        state.enter(SideSpecial)
+        motion.add_facing_speed(0.5)
+    on special_air_s:
+        state.enter(SideSpecial)
+        motion.set_facing_speed(-0.25)
+        motion.set_vertical_speed(1.5)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        if command(0): controls.ground_actions()
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+
+move UpProbe:
+    on special_hi:
+        state.enter(UpSpecial)
+    on special_air_hi:
+        motion.set_vertical_speed(0)
+        motion.scale_horizontal_speed(attrs.jump_horizontal_scale)
+        state.enter(UpSpecial)
+    on ground_animation:
+        if animation.finished:
+            let ended_angle = abs(state.saved_angle)
+            state.saved_angle = ended_angle
+            if command(1) and input.special_pressed:
+                state.steering_seen = true
+                command(1) = 0
+            state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+        elif command(2): state.steering_seen = true
+        else: state.steering_seen = false
+    on air_animation:
+        if animation.finished:
+            state.steering_seen = false
+            state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on ground_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+        state.steering_seen = stick > threshold
+        state.saved_angle = motion.launch_angle
+    on air_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+        if state.steering_seen and command(0): state.steering_seen = false
+        let prior_angle = state.saved_angle
+        state.saved_angle = prior_angle
+    on ground_physics:
+        if command(3):
+            physics.ground_accel(attrs.tornado_ground_accel, attrs.tornado_ground_speed)
+            physics.ground_to_self()
+            physics.clamp_ground_speed(attrs.tornado_ground_speed)
+            command(3) = 0
+        if grounded: physics.ground_motion()
+        if airborne: physics.air_motion()
+    on air_physics:
+        if command(0): physics.air_motion()
+        if command(0): motion.scale_velocity(attrs.jump_velocity_scale)
+        if not command(0):
+            let gravity = attrs.jump_gravity
+            physics.fall(gravity)
+        if not command(0): physics.quick_air_decel()
+        if state.saved_angle < 0: state.saved_angle = abs(state.saved_angle)
+        if command(3):
+            physics.ascend(attrs.tornado_tap_speed, attrs.tornado_tap_gravity)
+            physics.fall_basic()
+            physics.air_accel(attrs.tornado_air_accel, attrs.tornado_air_speed)
+            physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+            physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+            command(3) = 0
+    on ground_collision:
+        if command(2) and collision.ground_box(12, 0, -6, 6, 6, 6): state.to_air()
+        elif airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+        if command(3): bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+    on air_collision:
+        if command(2) and collision.air_box(12, 0, -6, 6, 6, 6): state.to_ground()
+        elif airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+
+move DownEntryProbe:
+    on special_lw:
+        command(1) = 0
+        state.enter(AirDownSpecial)
+        effects.spawn_root(0x47c)
+        effects.pause_during_hitlag()
+        callbacks.reset_root_x_on_damage()
+        if grounded:
+            command(2) = 1
+            motion.set_vertical_speed(attrs.tornado_vertical_speed - attrs.tornado_tap_speed)
+    on special_air_lw:
+        state.enter(DownSpecial)
+        if state.tornado_charge: motion.set_vertical_speed(attrs.tornado_vertical_speed)
+        else: motion.set_vertical_speed(attrs.tornado_vertical_speed - attrs.tornado_tap_speed)
+    on ground_animation:
+        if animation.finished:
+            callbacks.clear_damage_death()
+            state.wait()
+    on air_animation:
+        if command(1): state.tornado_charge = true
+        if animation.finished:
+            callbacks.clear_damage_death()
+            state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+        if command(1): reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        else: reflector.disable()
+        reflector.update()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+
+action ResourceLifecycle:
+    on landing_action:
+        state.tornado_charge = false
+    on death:
+        state.tornado_charge = false

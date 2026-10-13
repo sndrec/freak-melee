@@ -1,0 +1,7 @@
+# Immutable owned presentation and ground policy; the generic engine retains
+# dispatch/stops, canonical bank decoding, KO timing and ground projection.
+sound_mute_channels 0x44
+surface_friction ignore
+sound_remap 0xFFFFFFFC 13 0x1FBFD 0x1FC62 0x66
+sound_remap 0x3 13 0x1FC63 0x1FCC8 -0x66
+sound_ko_cue 0xFFFFFFFC 0x1FBD1

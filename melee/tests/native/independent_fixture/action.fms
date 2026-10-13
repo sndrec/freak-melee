@@ -1,0 +1,22 @@
+fighter:
+    behavior independent
+move Neutral:
+    entry explicit
+    on special_n:
+        state.enter(NeutralSpecial)
+    on ground_animation:
+        pass
+    on ground_interrupt:
+        pass
+    on ground_physics:
+        pass
+    on ground_collision:
+        pass
+action OtherMotion:
+    on state_342_animation:
+        pass
+action Lifecycle:
+    on load:
+        pass
+    on load_special_attrs:
+        pass

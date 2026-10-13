@@ -1,0 +1,1120 @@
+# UNREGISTERED Boomerang fighter phases. Damage cleanup remains lifecycle-gated.
+attribute float boomerang_stick_deadzone 20
+attribute float boomerang_angle_factor 24
+attribute float boomerang_angle_scale 28
+attribute float boomerang_smash_launch_speed 32
+attribute float boomerang_launch_speed 36
+attribute float boomerang_vertical_offset 40
+attribute int boomerang_kind 44
+state bool boomerang_initialized
+state bool boomerang_used
+state bool boomerang_smash
+state bool boomerang_held
+state int boomerang_handle
+state int boomerang_joint
+state float boomerang_vertical_offset
+state float boomerang_angle
+state float boomerang_angle_limit
+state float boomerang_offset_x
+state float boomerang_offset_y
+
+func boomerang_unset():
+    state.boomerang_used = false
+    state.boomerang_handle = -1
+
+func boomerang_remove():
+    if articles.owned(state.boomerang_handle):
+        articles.signal_owned(state.boomerang_handle, "remove", 0)
+        boomerang_unset()
+
+func boomerang_damage():
+    boomerang_remove()
+    # GATE: add authored Hookshot, Arrow, Bow and milk cleanup in source order.
+    # No unported native handler or raw union-reference fallback is allowed.
+
+func boomerang_smash_input():
+    if abs(input.x) >= controls.horizontal_smash_threshold and input.horizontal_smash_age < controls.horizontal_smash_window + controls.horizontal_smash_extension:
+        stats.count_as_thrown_item()
+        state.boomerang_smash = true
+    else:
+        state.boomerang_smash = false
+
+func boomerang_angle(float speed):
+    state.boomerang_angle = 0
+    state.boomerang_angle_limit = attrs.boomerang_angle_factor * attrs.boomerang_angle_scale
+    if abs(input.y) > attrs.boomerang_stick_deadzone:
+        # atan2f is required here; ordinary atan2 retains double semantics.
+        state.boomerang_angle = atan2_float(input.y, abs(input.x))
+        if state.boomerang_angle > state.boomerang_angle_limit:
+            state.boomerang_angle = state.boomerang_angle_limit
+        elif state.boomerang_angle < -state.boomerang_angle_limit:
+            state.boomerang_angle = -state.boomerang_angle_limit
+    state.boomerang_offset_x = facing.direction * (speed * cos(state.boomerang_angle))
+    state.boomerang_offset_y = facing.direction * (speed * sin(state.boomerang_angle))
+    if facing.direction == -1:
+        if state.boomerang_angle < 0:
+            state.boomerang_angle = -pi - state.boomerang_angle
+        else:
+            state.boomerang_angle = pi - state.boomerang_angle
+    if state.boomerang_angle < 0:
+        state.boomerang_angle = state.boomerang_angle + (2 * pi)
+
+func boomerang_accessory():
+    if cue.article.consume():
+        # The creation callback sees the original absent reference.
+        state.boomerang_handle = articles.spawn_bone_attached(attrs.boomerang_kind, LeftThumb)
+        if articles.owned(state.boomerang_handle):
+            state.boomerang_used = true
+            callbacks.death3(boomerang_remove)
+            callbacks.damage(boomerang_damage)
+    if command(0) != 0 and articles.owned(state.boomerang_handle) and state.boomerang_held:
+        if state.boomerang_smash:
+            boomerang_angle(attrs.boomerang_smash_launch_speed)
+        else:
+            boomerang_angle(attrs.boomerang_launch_speed)
+        articles.signal_owned(state.boomerang_handle, "launch", state.boomerang_angle)
+        command(0) = 0
+        command(1) = 0
+
+func boomerang_enter(bool air_started):
+    if not state.boomerang_initialized:
+        state.boomerang_initialized = true
+        state.boomerang_handle = -1
+        state.boomerang_used = false
+    state.boomerang_joint = bones.index(LeftThumb)
+    state.boomerang_vertical_offset = attrs.boomerang_vertical_offset
+    cue.throw.reset()
+    command(0) = 0
+    callbacks.state_changed(boomerang_smash_input)
+    if air_started:
+        if state.boomerang_used:
+            state.change(355, 0, 0, 1)
+        else:
+            state.change(353, 0, 0, 1)
+    else:
+        if state.boomerang_used:
+            state.change(352, 0, 0, 1)
+        else:
+            state.change(350, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(boomerang_accessory)
+
+func boomerang_catch():
+    if grounded:
+        state.change(351, 0, 0, 1)
+    else:
+        state.change(354, 0, 0, 1)
+    callbacks.damage(boomerang_damage)
+    animation.start()
+
+func boomerang_finish(bool air_started):
+    if animation.finished:
+        if air_started:
+            state.fall()
+        else:
+            state.wait()
+
+func boomerang_catch_animation(bool air_started):
+    if command(1) != 0:
+        boomerang_remove()
+        command(1) = 0
+    boomerang_finish(air_started)
+
+func boomerang_ground_interrupt():
+    # Stock short-circuit order, with identical individual common checks.
+    if controls.try_side_special():
+        boomerang_remove()
+        return
+    if controls.try_up_special():
+        boomerang_remove()
+        return
+    if controls.try_neutral_special():
+        boomerang_remove()
+        return
+    if controls.try_down_special():
+        boomerang_remove()
+        return
+    if controls.try_guard():
+        boomerang_remove()
+        return
+    if controls.try_ground_jump():
+        boomerang_remove()
+        return
+    if controls.try_dash():
+        boomerang_remove()
+
+func boomerang_air_interrupt():
+    if controls.try_air_special():
+        boomerang_remove()
+        return
+    if controls.try_air_jump():
+        boomerang_remove()
+
+func boomerang_ground_collision(int air_motion, bool accessory):
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.change(air_motion, 0x0C4C5080, frame, 1)
+        if accessory:
+            callbacks.accessory(boomerang_accessory)
+
+func boomerang_air_collision(int ground_motion, bool accessory):
+    if collision.landed:
+        physics.air_to_ground()
+        state.change(ground_motion, 0x0C4C5080, frame, 1)
+        if accessory:
+            callbacks.accessory(boomerang_accessory)
+
+move Boomerang:
+    entry explicit
+    on special_s:
+        boomerang_enter(false)
+    on special_air_s:
+        boomerang_enter(true)
+    on ground_animation:
+        boomerang_finish(false)
+    on air_animation:
+        boomerang_finish(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        boomerang_ground_collision(353, true)
+    on air_collision:
+        boomerang_air_collision(350, true)
+
+action BoomerangPhases:
+    on state_351_animation:
+        boomerang_catch_animation(false)
+    on state_351_interrupt:
+        boomerang_ground_interrupt()
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        if collision.left_ground:
+            boomerang_remove()
+            state.fall()
+    on state_352_animation:
+        boomerang_finish(false)
+    on state_352_physics:
+        physics.ground_friction()
+    on state_352_collision:
+        boomerang_ground_collision(355, false)
+    on state_354_animation:
+        boomerang_catch_animation(true)
+    on state_354_interrupt:
+        boomerang_air_interrupt()
+    on state_354_physics:
+        physics.air_gravity_and_friction()
+    on state_354_collision:
+        if collision.landed:
+            boomerang_remove()
+            state.basic_landing()
+    on state_355_animation:
+        boomerang_finish(true)
+    on state_355_physics:
+        physics.air_gravity_and_friction()
+    on state_355_collision:
+        boomerang_air_collision(352, false)
+
+# UNREGISTERED Boomerang source fixture; full fighter cleanup remains gated.
+# The launch quaternion fourth lane is undefined in stock; activation is gated.
+article It_Kind_Link_Boomerang states 4:
+    attachment origin center previous bone plane off initial_collision on held on
+    render standard
+    attribute int lifetime 0
+    attribute int smash_lifetime 4
+    attribute int turn_frames 8
+    attribute float acceleration 12
+    attribute float launch_speed 16
+    attribute float maximum_speed 20
+    attribute float minimum_speed 24
+    attribute float bounce_angle_degrees 28
+    attribute float slow_turn_degrees 32
+    attribute float fast_turn_degrees 36
+    attribute float turn_duration 40
+    attribute float catch_distance 44
+    attribute float launch_animation_rate 48
+    attribute float unused_attribute 52
+    attribute float sound_interval 56
+    attribute float first_trail_delay 60
+    attribute float second_trail_delay 64
+    model_root trail_first 68
+    model_root trail_second 72
+    model_animation trail_first_animation 76
+    model_animation trail_second_animation 88
+    state float history_x[16]
+    state float history_y[16]
+    state float history_z[16]
+    state float history_rx[16]
+    state float history_ry[16]
+    state float history_rz[16]
+    state int history_write
+    state int trail_read[2]
+    state int mode
+    state int turn_frames
+    state float angle
+    state float render_angle
+    state float bounce_cosine
+    state float turn_timer
+    state float maximum_turn
+    state float spin_step
+    state float sound_timer
+    state float trail_timer
+    state float saved_qx
+    state float saved_qy
+    state float saved_qz
+    state float saved_qw
+    state float temporary_x
+    state float temporary_y
+    state float temporary_z
+    state float dx
+    state float dy
+    state float speed
+    state float cosine
+    state float distance
+    state int index
+    state int target
+    state bool expired
+    on signal remove_reference:
+            if item.current_owner_is_creator and item.state.mode != 1:
+                creator.call(boomerang_unset)
+    on signal remove:
+            item.signal("remove_reference", 0)
+            item.remove()
+    on signal destroy_trails:
+            item.destroy_model(1)
+            item.destroy_model(2)
+    on signal stage_animation:
+            item.state.saved_qx = item.joint("0").quaternion.x
+            item.state.saved_qy = item.joint("0").quaternion.y
+            item.state.saved_qz = item.joint("0").quaternion.z
+            item.state.saved_qw = item.joint("0").quaternion.w
+            item.change_state_flags(2, 2)
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(1, "", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(2, "", item.attr.launch_animation_rate)
+    on signal begin_return:
+            item.state.saved_qx = item.joint("0").quaternion.x
+            item.state.saved_qy = item.joint("0").quaternion.y
+            item.state.saved_qz = item.joint("0").quaternion.z
+            item.state.saved_qw = item.joint("0").quaternion.w
+            item.state.spin_step = -(2 * item.state.saved_qz) / float(uint(item.attr.turn_frames))
+            item.state.turn_frames = item.attr.turn_frames
+            if item.motion_state == 1:
+                item.change_state_flags(3, 0x12)
+            else:
+                item.change_state_flags(3, 0x110)
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", 1)
+            item.set_model_animation_rate(1, "", 1)
+            item.set_model_animation_rate(2, "", 1)
+    on signal turn_return:
+            if item.state.angle <= 0:
+                item.state.angle = item.state.angle + pi
+            else:
+                item.state.angle = item.state.angle - pi
+            if signal.value != 0:
+                item.state.maximum_turn = 0.01745329238474369 * item.attr.fast_turn_degrees
+            else:
+                item.state.maximum_turn = 0.01745329238474369 * item.attr.slow_turn_degrees
+            item.state.turn_timer = item.attr.turn_duration
+            item.signal("begin_return", 0)
+    on signal animate_trails:
+            if item.joint(1, "").exists and item.command1 == 2:
+                item.advance_model_animation(1)
+                item.state.index = item.state.trail_read[0]
+                item.joint(1, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(1, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(1, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(1, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(1, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(1, "").rotation.z = item.state.history_rz[item.state.index]
+                item.state.trail_read[0] = item.state.trail_read[0] + 1
+                if item.state.trail_read[0] >= 16:
+                    item.state.trail_read[0] = 0
+            if item.joint(2, "").exists and item.command2 == 2:
+                item.advance_model_animation(2)
+                item.state.index = item.state.trail_read[1]
+                item.joint(2, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(2, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(2, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(2, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(2, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(2, "").rotation.z = item.state.history_rz[item.state.index]
+                item.state.trail_read[1] = item.state.trail_read[1] + 1
+                if item.state.trail_read[1] >= 16:
+                    item.state.trail_read[1] = 0
+    on signal show_trail_0:
+            if item.joint(1, "").exists:
+                item.joint(1, "").visible = true
+                item.state.index = item.state.trail_read[0]
+                item.joint(1, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(1, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(1, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(1, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(1, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(1, "").rotation.z = item.state.history_rz[item.state.index]
+    on signal show_trail_1:
+            if item.joint(2, "").exists:
+                item.joint(2, "").visible = true
+                item.state.index = item.state.trail_read[1]
+                item.joint(2, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(2, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(2, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(2, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(2, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(2, "").rotation.z = item.state.history_rz[item.state.index]
+    on signal common_animation:
+            item.state.expired = false
+            if item.state.sound_timer <= 0:
+                item.loop_sound(160091, 127, 64)
+                item.state.sound_timer = item.attr.sound_interval
+            item.state.sound_timer = item.state.sound_timer - 1
+            if item.command0 == 1:
+                item.signal("stage_animation", 0)
+                item.command0 = 2
+            if item.command1 == 0:
+                item.state.trail_timer = item.state.trail_timer - 1
+                if item.state.trail_timer <= 0:
+                    item.signal("show_trail_0", 0)
+                    item.command1 = 2
+                    item.state.trail_timer = item.attr.second_trail_delay
+            elif item.command2 == 0:
+                item.state.trail_timer = item.state.trail_timer - 1
+                if item.state.trail_timer <= 0:
+                    item.signal("show_trail_1", 0)
+                    item.command2 = 2
+            if item.life <= 0:
+                item.state.expired = true
+                return
+            item.life = item.life - 1
+            if item.command0 == 2 or item.motion_state == 3:
+                item.state.index = item.state.history_write
+                item.state.history_x[item.state.index] = position.x
+                item.state.history_y[item.state.index] = position.y
+                item.state.history_z[item.state.index] = position.z
+                item.read_joint_matrix_rotation(0, "0", item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                item.state.history_rx[item.state.index] = item.state.temporary_x
+                item.state.history_ry[item.state.index] = item.state.temporary_y
+                item.state.history_rz[item.state.index] = item.state.temporary_z
+                item.state.history_write = item.state.history_write + 1
+                if item.state.history_write >= 16:
+                    item.state.history_write = 0
+            item.signal("animate_trails", 0)
+    on signal outbound_physics:
+            if item.state.mode != 1:
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y) - item.attr.acceleration
+                if item.state.speed < item.attr.minimum_speed:
+                    item.state.speed = item.attr.minimum_speed
+                    item.signal("turn_return", 0)
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+    on signal collision_normal:
+            # lbVector_CosAngle uses XY only, including its zero-vector behavior.
+            item.state.cosine = (velocity.x * item.state.temporary_x + velocity.y * item.state.temporary_y) / (sqrt(velocity.x * velocity.x + velocity.y * velocity.y) * sqrt(item.state.temporary_x * item.state.temporary_x + item.state.temporary_y * item.state.temporary_y))
+            if item.state.cosine < 0:
+                if item.state.cosine > item.state.bounce_cosine:
+                    item.mirror_velocity(item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                    item.state.angle = atan2(velocity.y, velocity.x)
+                    if item.state.angle > tau:
+                        item.state.angle = item.state.angle - tau
+                    elif item.state.angle < -tau:
+                        item.state.angle = item.state.angle + tau
+                    if facing == 1:
+                        item.state.render_angle = item.state.angle
+                    else:
+                        item.state.render_angle = item.state.angle - pi
+                    item.grounded = false
+                else:
+                    item.signal("turn_return", 0)
+    on signal outbound_collision:
+            if item.state.mode != 1:
+                item.state.saved_qx = item.joint("0").quaternion.x
+                item.state.saved_qy = item.joint("0").quaternion.y
+                item.state.saved_qz = item.joint("0").quaternion.z
+                item.state.saved_qw = item.joint("0").quaternion.w
+                item.sweep_floor()
+                item.joint("").rotation.z = item.state.render_angle
+                item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+                if facing == -1 and collision.right_wall:
+                    item.state.temporary_x = wall.right.normal.x
+                    item.state.temporary_y = wall.right.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif facing != -1 and collision.left_wall:
+                    item.state.temporary_x = wall.left.normal.x
+                    item.state.temporary_y = wall.left.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif collision.ceiling_contact:
+                    item.state.temporary_x = ceiling.normal.x
+                    item.state.temporary_y = ceiling.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif collision.floor_contact:
+                    item.state.temporary_x = floor.normal.x
+                    item.state.temporary_y = floor.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+    on signal homing:
+            item.state.distance = 0
+            if creator.exists:
+                item.state.dx = creator.position.x - position.x
+                item.state.dy = creator.position.y + creator.state.boomerang_vertical_offset - position.y
+                item.state.distance = sqrt(item.state.dx * item.state.dx + item.state.dy * item.state.dy)
+                if item.state.turn_timer > 0:
+                    item.state.turn_timer = item.state.turn_timer - 1
+                elif item.state.turn_timer <= 0:
+                    return
+                item.state.temporary_z = atan2(item.state.dy, item.state.dx)
+                if item.state.temporary_z < -pi:
+                    item.state.temporary_z = item.state.temporary_z + tau
+                elif item.state.temporary_z > pi:
+                    item.state.temporary_z = item.state.temporary_z - tau
+                item.state.temporary_z = item.state.temporary_z - item.state.angle
+                if item.state.temporary_z < -pi:
+                    item.state.temporary_z = item.state.temporary_z + tau
+                elif item.state.temporary_z > pi:
+                    item.state.temporary_z = item.state.temporary_z - tau
+                if item.state.temporary_z > item.state.maximum_turn:
+                    item.state.temporary_z = item.state.maximum_turn
+                elif item.state.temporary_z < -item.state.maximum_turn:
+                    item.state.temporary_z = -item.state.maximum_turn
+                item.state.angle = item.state.angle + item.state.temporary_z
+                if item.state.angle > tau:
+                    item.state.angle = item.state.angle - tau
+                elif item.state.angle < -tau:
+                    item.state.angle = item.state.angle + tau
+                if facing == 1:
+                    item.state.render_angle = item.state.angle
+                else:
+                    item.state.render_angle = item.state.angle - pi
+    on signal launch:
+            if creator.state.boomerang_smash:
+                item.set_lifetime(float(uint(item.attr.smash_lifetime)))
+            else:
+                item.set_lifetime(float(uint(item.attr.lifetime)))
+            item.state.angle = signal.value
+            if facing == 1:
+                item.state.render_angle = item.state.angle
+            else:
+                item.state.render_angle = item.state.angle - pi
+            creator.state.boomerang_held = false
+            item.change_state_flags(1, 2)
+            item.read_attachment_matrix_rotation(item.state.saved_qx, item.state.saved_qy, item.state.saved_qz)
+            # Stock writes only XYZ into an uninitialized Quaternion; initialize W=0.
+            # Euler joints ignore W; source comparisons exclude that undefined lane.
+            item.state.saved_qw = 0
+            item.release_attachment(creator.state.boomerang_offset_x, creator.state.boomerang_offset_y, 0, true)
+            item.use_manual_lifetime()
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(1, "", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(2, "", item.attr.launch_animation_rate)
+    on created:
+            item.set_lifetime(float(uint(item.attr.lifetime)))
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.state.bounce_cosine = -sin(0.01745329238474369 * item.attr.bounce_angle_degrees)
+            item.state.mode = 0
+            item.state.sound_timer = 0
+            item.state.trail_timer = item.attr.first_trail_delay
+            item.state.index = 0
+            while item.state.index < 16:
+                item.state.history_x[item.state.index] = 0
+                item.state.history_y[item.state.index] = 0
+                item.state.history_z[item.state.index] = 0
+                item.state.history_rx[item.state.index] = 0
+                item.state.history_ry[item.state.index] = 0
+                item.state.history_rz[item.state.index] = 0
+                item.state.index = item.state.index + 1
+            item.state.trail_read[0] = 0
+            item.state.trail_read[1] = 0
+            item.load_model(1, trail_first)
+            item.add_model_animation(1, trail_first_animation)
+            item.request_model_animation(1, 0)
+            item.load_model(2, trail_second)
+            item.add_model_animation(2, trail_second_animation)
+            item.request_model_animation(2, 0)
+            item.state.history_write = 0
+            item.joint(1, "").visible = false
+            item.joint(1, "").translation.x = position.x
+            item.joint(1, "").translation.y = position.y
+            item.joint(1, "").translation.z = position.z
+            item.joint(2, "").visible = false
+            item.joint(2, "").translation.x = position.x
+            item.joint(2, "").translation.y = position.y
+            item.joint(2, "").translation.z = position.z
+    on picked_up:
+            creator.state.boomerang_held = true
+            item.add_animation_descriptor(0)
+            item.request_model_animation(0, 0)
+            item.advance_model_animation(0)
+            item.remove_model_animation(0)
+            item.clear_animation_commands()
+            item.change_state_flags(0, 2)
+    on dropped:
+            return
+    on thrown:
+            creator.state.boomerang_held = false
+            item.change_state_flags(1, 2)
+    on destroyed:
+            item.signal("remove_reference", 0)
+            item.signal("destroy_trails", 0)
+            item.clear_current_owner()
+            item.owner_bound = false
+    on damage_dealt:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on clanked:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on absorbed:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on hit_shield:
+            if item.state.mode != 1 and item.motion_state != 3:
+                item.signal("turn_return", 1)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = atan2(velocity.y, velocity.x)
+            if item.state.angle > tau:
+                item.state.angle = item.state.angle - tau
+            elif item.state.angle < -tau:
+                item.state.angle = item.state.angle + tau
+            if facing == 1:
+                item.state.render_angle = item.state.angle
+            else:
+                item.state.render_angle = item.state.angle - pi
+            return false
+    on reflected:
+            if item.state.mode != 1:
+                if not item.reflection_owner_transfer_disabled:
+                    item.state.target = item.current_owner
+                else:
+                    item.state.target = item.reflector
+                item.state.mode = 1
+                item.life = item.half_life
+                targets.read_camera_target_position(item.state.target, item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                item.state.dy = position.x - item.state.temporary_x
+                item.state.dx = position.y - item.state.temporary_y
+                item.state.angle = atan2(item.state.dx, item.state.dy)
+                if item.state.angle > tau:
+                    item.state.angle = item.state.angle - tau
+                elif item.state.angle < -tau:
+                    item.state.angle = item.state.angle + tau
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
+                velocity.x = item.reflection_multiplier * (item.state.speed * cos(item.state.angle))
+                velocity.y = item.reflection_multiplier * (item.state.speed * sin(item.state.angle))
+                creator.call(boomerang_unset)
+                if facing == 1:
+                    item.state.render_angle = item.state.angle
+                else:
+                    item.state.render_angle = item.state.angle - pi
+            return false
+    on interaction:
+            item.interact(other)
+            if item.creator_is(other):
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            if creator.exists and creator.action.category >= 5 and creator.action.category <= 13:
+                item.signal("remove", 0)
+            return false
+    state 1 anim 0:
+        on animation:
+            item.signal("common_animation", 0)
+            return item.state.expired
+        on physics:
+            item.signal("outbound_physics", 0)
+        on collision:
+            item.signal("outbound_collision", 0)
+            return false
+    state 2 anim 1 use 1:
+    state 3 anim 2:
+        on animation:
+            if item.state.turn_frames != 0:
+                item.joint("0").rotation.z = item.joint("0").rotation.z + item.state.spin_step
+                item.state.turn_frames = item.state.turn_frames - 1
+            item.signal("common_animation", 0)
+            return item.state.expired
+        on physics:
+            if item.state.mode != 1:
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y) + item.attr.acceleration
+                if item.state.speed > item.attr.maximum_speed:
+                    item.state.speed = item.attr.maximum_speed
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+                item.signal("homing", 0)
+                if item.motion_state == 3 and item.state.distance < item.attr.catch_distance:
+                    if creator.exists:
+                        if (creator.action.category < 1 or creator.action.category > 13) and not creator.hitlag:
+                            creator.call(boomerang_catch)
+                            item.attach_to_owner(creator.state.boomerang_joint)
+                        else:
+                            item.signal("remove_reference", 0)
+                            item.remove()
+                    item.signal("destroy_trails", 0)
+
+# UNREGISTERED Boomerang source fixture; full fighter cleanup remains gated.
+# The launch quaternion fourth lane is undefined in stock; activation is gated.
+article It_Kind_CLink_Boomerang states 4:
+    attachment origin center previous bone plane off initial_collision on held on
+    render standard
+    attribute int lifetime 0
+    attribute int smash_lifetime 4
+    attribute int turn_frames 8
+    attribute float acceleration 12
+    attribute float launch_speed 16
+    attribute float maximum_speed 20
+    attribute float minimum_speed 24
+    attribute float bounce_angle_degrees 28
+    attribute float slow_turn_degrees 32
+    attribute float fast_turn_degrees 36
+    attribute float turn_duration 40
+    attribute float catch_distance 44
+    attribute float launch_animation_rate 48
+    attribute float unused_attribute 52
+    attribute float sound_interval 56
+    attribute float first_trail_delay 60
+    attribute float second_trail_delay 64
+    model_root trail_first 68
+    model_root trail_second 72
+    model_animation trail_first_animation 76
+    model_animation trail_second_animation 88
+    state float history_x[16]
+    state float history_y[16]
+    state float history_z[16]
+    state float history_rx[16]
+    state float history_ry[16]
+    state float history_rz[16]
+    state int history_write
+    state int trail_read[2]
+    state int mode
+    state int turn_frames
+    state float angle
+    state float render_angle
+    state float bounce_cosine
+    state float turn_timer
+    state float maximum_turn
+    state float spin_step
+    state float sound_timer
+    state float trail_timer
+    state float saved_qx
+    state float saved_qy
+    state float saved_qz
+    state float saved_qw
+    state float temporary_x
+    state float temporary_y
+    state float temporary_z
+    state float dx
+    state float dy
+    state float speed
+    state float cosine
+    state float distance
+    state int index
+    state int target
+    state bool expired
+    on signal remove_reference:
+            if item.current_owner_is_creator and item.state.mode != 1:
+                creator.call(boomerang_unset)
+    on signal remove:
+            item.signal("remove_reference", 0)
+            item.remove()
+    on signal destroy_trails:
+            item.destroy_model(1)
+            item.destroy_model(2)
+    on signal stage_animation:
+            item.state.saved_qx = item.joint("0").quaternion.x
+            item.state.saved_qy = item.joint("0").quaternion.y
+            item.state.saved_qz = item.joint("0").quaternion.z
+            item.state.saved_qw = item.joint("0").quaternion.w
+            item.change_state_flags(2, 2)
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(1, "", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(2, "", item.attr.launch_animation_rate)
+    on signal begin_return:
+            item.state.saved_qx = item.joint("0").quaternion.x
+            item.state.saved_qy = item.joint("0").quaternion.y
+            item.state.saved_qz = item.joint("0").quaternion.z
+            item.state.saved_qw = item.joint("0").quaternion.w
+            item.state.spin_step = -(2 * item.state.saved_qz) / float(uint(item.attr.turn_frames))
+            item.state.turn_frames = item.attr.turn_frames
+            if item.motion_state == 1:
+                item.change_state_flags(3, 0x12)
+            else:
+                item.change_state_flags(3, 0x110)
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", 1)
+            item.set_model_animation_rate(1, "", 1)
+            item.set_model_animation_rate(2, "", 1)
+    on signal turn_return:
+            if item.state.angle <= 0:
+                item.state.angle = item.state.angle + pi
+            else:
+                item.state.angle = item.state.angle - pi
+            if signal.value != 0:
+                item.state.maximum_turn = 0.01745329238474369 * item.attr.fast_turn_degrees
+            else:
+                item.state.maximum_turn = 0.01745329238474369 * item.attr.slow_turn_degrees
+            item.state.turn_timer = item.attr.turn_duration
+            item.signal("begin_return", 0)
+    on signal animate_trails:
+            if item.joint(1, "").exists and item.command1 == 2:
+                item.advance_model_animation(1)
+                item.state.index = item.state.trail_read[0]
+                item.joint(1, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(1, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(1, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(1, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(1, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(1, "").rotation.z = item.state.history_rz[item.state.index]
+                item.state.trail_read[0] = item.state.trail_read[0] + 1
+                if item.state.trail_read[0] >= 16:
+                    item.state.trail_read[0] = 0
+            if item.joint(2, "").exists and item.command2 == 2:
+                item.advance_model_animation(2)
+                item.state.index = item.state.trail_read[1]
+                item.joint(2, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(2, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(2, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(2, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(2, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(2, "").rotation.z = item.state.history_rz[item.state.index]
+                item.state.trail_read[1] = item.state.trail_read[1] + 1
+                if item.state.trail_read[1] >= 16:
+                    item.state.trail_read[1] = 0
+    on signal show_trail_0:
+            if item.joint(1, "").exists:
+                item.joint(1, "").visible = true
+                item.state.index = item.state.trail_read[0]
+                item.joint(1, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(1, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(1, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(1, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(1, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(1, "").rotation.z = item.state.history_rz[item.state.index]
+    on signal show_trail_1:
+            if item.joint(2, "").exists:
+                item.joint(2, "").visible = true
+                item.state.index = item.state.trail_read[1]
+                item.joint(2, "").translation.x = item.state.history_x[item.state.index]
+                item.joint(2, "").translation.y = item.state.history_y[item.state.index]
+                item.joint(2, "").translation.z = item.state.history_z[item.state.index]
+                item.joint(2, "").rotation.x = item.state.history_rx[item.state.index]
+                item.joint(2, "").rotation.y = item.state.history_ry[item.state.index]
+                item.joint(2, "").rotation.z = item.state.history_rz[item.state.index]
+    on signal common_animation:
+            item.state.expired = false
+            if item.state.sound_timer <= 0:
+                item.loop_sound(70091, 127, 64)
+                item.state.sound_timer = item.attr.sound_interval
+            item.state.sound_timer = item.state.sound_timer - 1
+            if item.command0 == 1:
+                item.signal("stage_animation", 0)
+                item.command0 = 2
+            if item.command1 == 0:
+                item.state.trail_timer = item.state.trail_timer - 1
+                if item.state.trail_timer <= 0:
+                    item.signal("show_trail_0", 0)
+                    item.command1 = 2
+                    item.state.trail_timer = item.attr.second_trail_delay
+            elif item.command2 == 0:
+                item.state.trail_timer = item.state.trail_timer - 1
+                if item.state.trail_timer <= 0:
+                    item.signal("show_trail_1", 0)
+                    item.command2 = 2
+            if item.life <= 0:
+                item.state.expired = true
+                return
+            item.life = item.life - 1
+            if item.command0 == 2 or item.motion_state == 3:
+                item.state.index = item.state.history_write
+                item.state.history_x[item.state.index] = position.x
+                item.state.history_y[item.state.index] = position.y
+                item.state.history_z[item.state.index] = position.z
+                item.read_joint_matrix_rotation(0, "0", item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                item.state.history_rx[item.state.index] = item.state.temporary_x
+                item.state.history_ry[item.state.index] = item.state.temporary_y
+                item.state.history_rz[item.state.index] = item.state.temporary_z
+                item.state.history_write = item.state.history_write + 1
+                if item.state.history_write >= 16:
+                    item.state.history_write = 0
+            item.signal("animate_trails", 0)
+    on signal outbound_physics:
+            if item.state.mode != 1:
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y) - item.attr.acceleration
+                if item.state.speed < item.attr.minimum_speed:
+                    item.state.speed = item.attr.minimum_speed
+                    item.signal("turn_return", 0)
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+    on signal collision_normal:
+            # lbVector_CosAngle uses XY only, including its zero-vector behavior.
+            item.state.cosine = (velocity.x * item.state.temporary_x + velocity.y * item.state.temporary_y) / (sqrt(velocity.x * velocity.x + velocity.y * velocity.y) * sqrt(item.state.temporary_x * item.state.temporary_x + item.state.temporary_y * item.state.temporary_y))
+            if item.state.cosine < 0:
+                if item.state.cosine > item.state.bounce_cosine:
+                    item.mirror_velocity(item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                    item.state.angle = atan2(velocity.y, velocity.x)
+                    if item.state.angle > tau:
+                        item.state.angle = item.state.angle - tau
+                    elif item.state.angle < -tau:
+                        item.state.angle = item.state.angle + tau
+                    if facing == 1:
+                        item.state.render_angle = item.state.angle
+                    else:
+                        item.state.render_angle = item.state.angle - pi
+                    item.grounded = false
+                else:
+                    item.signal("turn_return", 0)
+    on signal outbound_collision:
+            if item.state.mode != 1:
+                item.state.saved_qx = item.joint("0").quaternion.x
+                item.state.saved_qy = item.joint("0").quaternion.y
+                item.state.saved_qz = item.joint("0").quaternion.z
+                item.state.saved_qw = item.joint("0").quaternion.w
+                item.sweep_floor()
+                item.joint("").rotation.z = item.state.render_angle
+                item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+                if facing == -1 and collision.right_wall:
+                    item.state.temporary_x = wall.right.normal.x
+                    item.state.temporary_y = wall.right.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif facing != -1 and collision.left_wall:
+                    item.state.temporary_x = wall.left.normal.x
+                    item.state.temporary_y = wall.left.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif collision.ceiling_contact:
+                    item.state.temporary_x = ceiling.normal.x
+                    item.state.temporary_y = ceiling.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+                elif collision.floor_contact:
+                    item.state.temporary_x = floor.normal.x
+                    item.state.temporary_y = floor.normal.y
+                    item.state.temporary_z = 0
+                    item.signal("collision_normal", 0)
+    on signal homing:
+            item.state.distance = 0
+            if creator.exists:
+                item.state.dx = creator.position.x - position.x
+                item.state.dy = creator.position.y + creator.state.boomerang_vertical_offset - position.y
+                item.state.distance = sqrt(item.state.dx * item.state.dx + item.state.dy * item.state.dy)
+                if item.state.turn_timer > 0:
+                    item.state.turn_timer = item.state.turn_timer - 1
+                elif item.state.turn_timer <= 0:
+                    return
+                item.state.temporary_z = atan2(item.state.dy, item.state.dx)
+                if item.state.temporary_z < -pi:
+                    item.state.temporary_z = item.state.temporary_z + tau
+                elif item.state.temporary_z > pi:
+                    item.state.temporary_z = item.state.temporary_z - tau
+                item.state.temporary_z = item.state.temporary_z - item.state.angle
+                if item.state.temporary_z < -pi:
+                    item.state.temporary_z = item.state.temporary_z + tau
+                elif item.state.temporary_z > pi:
+                    item.state.temporary_z = item.state.temporary_z - tau
+                if item.state.temporary_z > item.state.maximum_turn:
+                    item.state.temporary_z = item.state.maximum_turn
+                elif item.state.temporary_z < -item.state.maximum_turn:
+                    item.state.temporary_z = -item.state.maximum_turn
+                item.state.angle = item.state.angle + item.state.temporary_z
+                if item.state.angle > tau:
+                    item.state.angle = item.state.angle - tau
+                elif item.state.angle < -tau:
+                    item.state.angle = item.state.angle + tau
+                if facing == 1:
+                    item.state.render_angle = item.state.angle
+                else:
+                    item.state.render_angle = item.state.angle - pi
+    on signal launch:
+            if creator.state.boomerang_smash:
+                item.set_lifetime(float(uint(item.attr.smash_lifetime)))
+            else:
+                item.set_lifetime(float(uint(item.attr.lifetime)))
+            item.state.angle = signal.value
+            if facing == 1:
+                item.state.render_angle = item.state.angle
+            else:
+                item.state.render_angle = item.state.angle - pi
+            creator.state.boomerang_held = false
+            item.change_state_flags(1, 2)
+            item.read_attachment_matrix_rotation(item.state.saved_qx, item.state.saved_qy, item.state.saved_qz)
+            # Stock writes only XYZ into an uninitialized Quaternion; initialize W=0.
+            # Euler joints ignore W; source comparisons exclude that undefined lane.
+            item.state.saved_qw = 0
+            item.release_attachment(creator.state.boomerang_offset_x, creator.state.boomerang_offset_y, 0, true)
+            item.use_manual_lifetime()
+            item.joint("").rotation.z = item.state.render_angle
+            item.set_joint_transform(0, "0", item.joint("0").translation.x, item.joint("0").translation.y, item.joint("0").translation.z, item.state.saved_qx, item.state.saved_qy, item.state.saved_qz, item.state.saved_qw, item.joint("0").scale.x, item.joint("0").scale.y, item.joint("0").scale.z, false)
+            item.set_model_animation_rate(0, "0", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(1, "", item.attr.launch_animation_rate)
+            item.set_model_animation_rate(2, "", item.attr.launch_animation_rate)
+    on created:
+            item.set_lifetime(float(uint(item.attr.lifetime)))
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.state.bounce_cosine = -sin(0.01745329238474369 * item.attr.bounce_angle_degrees)
+            item.state.mode = 0
+            item.state.sound_timer = 0
+            item.state.trail_timer = item.attr.first_trail_delay
+            item.state.index = 0
+            while item.state.index < 16:
+                item.state.history_x[item.state.index] = 0
+                item.state.history_y[item.state.index] = 0
+                item.state.history_z[item.state.index] = 0
+                item.state.history_rx[item.state.index] = 0
+                item.state.history_ry[item.state.index] = 0
+                item.state.history_rz[item.state.index] = 0
+                item.state.index = item.state.index + 1
+            item.state.trail_read[0] = 0
+            item.state.trail_read[1] = 0
+            item.load_model(1, trail_first)
+            item.add_model_animation(1, trail_first_animation)
+            item.request_model_animation(1, 0)
+            item.load_model(2, trail_second)
+            item.add_model_animation(2, trail_second_animation)
+            item.request_model_animation(2, 0)
+            item.state.history_write = 0
+            item.joint(1, "").visible = false
+            item.joint(1, "").translation.x = position.x
+            item.joint(1, "").translation.y = position.y
+            item.joint(1, "").translation.z = position.z
+            item.joint(2, "").visible = false
+            item.joint(2, "").translation.x = position.x
+            item.joint(2, "").translation.y = position.y
+            item.joint(2, "").translation.z = position.z
+    on picked_up:
+            creator.state.boomerang_held = true
+            item.add_animation_descriptor(0)
+            item.request_model_animation(0, 0)
+            item.advance_model_animation(0)
+            item.remove_model_animation(0)
+            item.clear_animation_commands()
+            item.change_state_flags(0, 2)
+    on dropped:
+            return
+    on thrown:
+            creator.state.boomerang_held = false
+            item.change_state_flags(1, 2)
+    on destroyed:
+            item.signal("remove_reference", 0)
+            item.signal("destroy_trails", 0)
+            item.clear_current_owner()
+            item.owner_bound = false
+    on damage_dealt:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on clanked:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on absorbed:
+            if item.state.mode != 1 and (item.motion_state == 1 or item.motion_state == 2):
+                item.signal("turn_return", 1)
+            return false
+    on hit_shield:
+            if item.state.mode != 1 and item.motion_state != 3:
+                item.signal("turn_return", 1)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = atan2(velocity.y, velocity.x)
+            if item.state.angle > tau:
+                item.state.angle = item.state.angle - tau
+            elif item.state.angle < -tau:
+                item.state.angle = item.state.angle + tau
+            if facing == 1:
+                item.state.render_angle = item.state.angle
+            else:
+                item.state.render_angle = item.state.angle - pi
+            return false
+    on reflected:
+            if item.state.mode != 1:
+                if not item.reflection_owner_transfer_disabled:
+                    item.state.target = item.current_owner
+                else:
+                    item.state.target = item.reflector
+                item.state.mode = 1
+                item.life = item.half_life
+                targets.read_camera_target_position(item.state.target, item.state.temporary_x, item.state.temporary_y, item.state.temporary_z)
+                item.state.dy = position.x - item.state.temporary_x
+                item.state.dx = position.y - item.state.temporary_y
+                item.state.angle = atan2(item.state.dx, item.state.dy)
+                if item.state.angle > tau:
+                    item.state.angle = item.state.angle - tau
+                elif item.state.angle < -tau:
+                    item.state.angle = item.state.angle + tau
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
+                velocity.x = item.reflection_multiplier * (item.state.speed * cos(item.state.angle))
+                velocity.y = item.reflection_multiplier * (item.state.speed * sin(item.state.angle))
+                creator.call(boomerang_unset)
+                if facing == 1:
+                    item.state.render_angle = item.state.angle
+                else:
+                    item.state.render_angle = item.state.angle - pi
+            return false
+    on interaction:
+            item.interact(other)
+            if item.creator_is(other):
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            if creator.exists and creator.action.category >= 5 and creator.action.category <= 13:
+                item.signal("remove", 0)
+            return false
+    state 1 anim 0:
+        on animation:
+            item.signal("common_animation", 0)
+            return item.state.expired
+        on physics:
+            item.signal("outbound_physics", 0)
+        on collision:
+            item.signal("outbound_collision", 0)
+            return false
+    state 2 anim 1 use 1:
+    state 3 anim 2:
+        on animation:
+            if item.state.turn_frames != 0:
+                item.joint("0").rotation.z = item.joint("0").rotation.z + item.state.spin_step
+                item.state.turn_frames = item.state.turn_frames - 1
+            item.signal("common_animation", 0)
+            return item.state.expired
+        on physics:
+            if item.state.mode != 1:
+                item.state.speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y) + item.attr.acceleration
+                if item.state.speed > item.attr.maximum_speed:
+                    item.state.speed = item.attr.maximum_speed
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+                item.signal("homing", 0)
+                if item.motion_state == 3 and item.state.distance < item.attr.catch_distance:
+                    if creator.exists:
+                        if (creator.action.category < 1 or creator.action.category > 13) and not creator.hitlag:
+                            creator.call(boomerang_catch)
+                            item.attach_to_owner(creator.state.boomerang_joint)
+                        else:
+                            item.signal("remove_reference", 0)
+                            item.remove()
+                    item.signal("destroy_trails", 0)

@@ -1,0 +1,34 @@
+{
+  "scope": "CPU-inclusive independent source assembly; normal import/generated package/runtime acceptance pending",
+  "source_hashes": {
+    "src/melee/ft/kinds/ftPopo/ftpopo.c": "d10c129b12e950811146fe555cd5d03c79f162c49c43b4e1c7e5eee67c3619ac",
+    "src/melee/ft/kinds/ftNana/ftnana.c": "41636d300ef9e9f53f081a40df30e03a367499a72718ff0ed48e581ba200a4e2",
+    "src/melee/ft/fighter.c": "60e5774c7fb1e34f2d2ba619d768777d8ea6930352f5791a6eb5506f143d7f41",
+    "src/melee/ft/ftcolanim.c": "246e9ebf0c5e38b1ef7fe460890ccd1fc3b7e611f4d0efbe7f1652fcb9f08fa8",
+    "src/melee/ft/ftmovement.c": "36e1cdc0c9f448606d1274c249bd1c0645b1e66870f4fb04bc404ff0e7a460e8",
+    "src/melee/ft/ftcommon.c": "7e15fdd9a7fa03dce37954e4cc8c70c47316f3c862026d3603f386056fa20cc3",
+    "src/melee/ft/kinds/ftCommon/ftpickupitem.c": "fc06ee00c6ab2b1727094cfdb8dc26d46eabc4a68f0d430ca8a543ac0ec42fba",
+    "src/melee/it/it_26B1.c": "e52996c8fcb6727366dc6f5ac5965a09a4f644fe0088ff3e1c3a30d3a1a6276e",
+    "src/melee/ft/ft_0877.c": "d12f0ed40fb7be8125132a33d7f74ddd6b776897821f0df0df0d5003bbff2893",
+    "src/melee/ft/ftlib.c": "66d5c5bd7c6228ac853699f1c1a17fdad8f645c65db277ac5065a673e7b8bfc1",
+    "src/melee/ft/native_fighter_sound_policy.c": "90959d0bf2881aabc86d727bf50ebeea722c11929a334c3cfa6400f479cfee42",
+    "tools/native_fighter_script_primitives.c": "eb15772cdcc32e71ca6ea54f98d474dc0d17c86ebd0f01afef3562f1aa24f968",
+    "tools/native_fighter_script_sound_policy.c": "494b6746e7c4c00f3c93ee3841d1339e9ed339ef8f1b5b932edaffbc01c97302",
+    "tools/native_fighter_script_surface_policy.c": "bc69491e7c017925e250c8b9685ca56b077947e02e582f9144b9b1fcf4c4de47",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialn.c": "136a472eaacd0660a583227526243dfc3b44731ae1dec8de82a6d64e9b83953f",
+    "src/melee/ft/kinds/ftPopo/ftpopospeciallw.c": "ea6c9376e107c804c2b6d1f1af6c4575dd92f4b8331c6ef45bfb253205c8c23e"
+  },
+  "anchors": {
+    "load_primary": "ftPp_Init_OnLoad: x2222_b5 -> PUSH_ATTRS -> x40=x0 -> item registrations0..2",
+    "load_secondary": "ftNn_Init_OnLoad: x2222_b4 -> PUSH_ATTRS -> x40=xC4",
+    "reset": "Fighter_UnkInitReset clears both x2222 flags before load",
+    "sleep": "ftCo_800BFD9C: normal Sleep/camera -> retire entity1 -> gm status",
+    "pickup": "ftpickupitem_80094150/800942A0: !x2222_b4 || !it_8026B47C(candidate)",
+    "friction": "ft_GetGroundFrictionMultiplier: ignore =>1, shared movement retains original projection",
+    "sound": "ft_80087D0C bank13 range/costume remapping; ftLib_8008746C alternate KO cue",
+    "member_cues": "ftPp_SpecialN_Anim raw secondary cue130090; ftPp_SpecialLw cue0x1FC0F/loop0x1FBEE. Same explicit owned defaults as accepted per-member FMP."
+  },
+  "source_hash_context": "Historical policy audit hashes retained; final assembly inputs are freshly hashed in assembly.json.",
+  "cpu_handoff": "Frozen ice_climbers_cpu_owned fragments, root-reproduced and committed1af531f7a; Popo capture+pummel, Nana eight follower hooks; query_fixture excluded.",
+  "imports": "Actual retail DAT attribute declarations restored from accepted fixture offset maps; audited solver/enum/cue constants remain owned parameter defaults."
+}

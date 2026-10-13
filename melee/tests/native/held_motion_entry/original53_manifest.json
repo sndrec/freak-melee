@@ -1,0 +1,43 @@
+{
+  "snapshot": "baseline53",
+  "freeze_sha256": "8bab78de5b04717cc68385a5664231dc15b40b4c817d21e04d654307fd9f904a",
+  "inputs": {
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c": {
+      "sha256": "3ab6fd83d3932435881b909c58c7c84ef79f9f626c5a62e916774983aa2fd94b",
+      "bodies": {
+        "ft_800CEF08_inline1": {
+          "line": 38,
+          "sha256": "31c4b54b2cc185cd99ff352616f406d83d77635007f0a759b552888c9ab9084b"
+        },
+        "ft_800CEF08": {
+          "line": 48,
+          "sha256": "8becebc360a5a745c36c692e8990cbae8d680cc6022617e45b17cff7a78a0c47"
+        },
+        "ftCo_800CEFE0": {
+          "line": 62,
+          "sha256": "70479274e0225a392b5d550d5898b9d82401045c18feea0d39c8fc2e9f67b1c5"
+        }
+      }
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c": {
+      "sha256": "fb43737a010f8465e16830b0cba5243ea17c22bdf765e9129d9c9815126837eb",
+      "bodies": {
+        "ftCo_800CF3C8": {
+          "line": 17,
+          "sha256": "fbed483320b6327840fb7fda09f4db50a7805ca04c225b025d0330fc34eea074"
+        }
+      }
+    },
+    "src/melee/ft/kinds/ftCommon/inlines.h": {
+      "sha256": "30135b8b8b91347f2119ac6eaff5476ecd48e8725e4084be4bbd68c90243753e",
+      "bodies": {
+        "ftCo_ItemParasolGetFallMotionId": {
+          "line": 55,
+          "sha256": "998ebd252abfee5e9fc91659087aa892af1f74f44ac1b93731243677f0696d78"
+        }
+      }
+    }
+  },
+  "extraction": "complete bodies, symbol renaming only; no branch/body rewriting",
+  "original_inc_sha256": "7a80d77d0821d3c219d72fec57e2f62ce37690838c955179f4fe844c1f3e55e0"
+}

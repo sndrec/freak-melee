@@ -1,0 +1,10 @@
+action Fire:
+    on state_341_animation:
+        articles.launch_projectile(It_Kind_Fox_Laser, RightThumb, 0, 1.2325000762939453, 4.263599872589111, 3.141592653589793, 5.5, 1)
+article It_Kind_Fox_Laser states 2:
+    projectile appearance -1 state 0 speed 1 angle 0 lifetime 35 initial_update off initial_velocity off auto_lifetime off
+    state bool ready
+    on launched:
+            item.state.ready = true
+    state 0 anim 0:
+    state 1 anim 1:

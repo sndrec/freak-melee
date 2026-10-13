@@ -1,0 +1,2560 @@
+# Independent Samus Workshop template.
+# Maintained components: tests/native/samus_grapple_constructor/compose.py.
+# Fighter decisions, four articles, grapple resources and lifecycle are script-owned.
+fighter:
+    behavior independent
+
+attribute float spin_ground_speed 56
+
+attribute float spin_drift_acceleration 60
+
+attribute float spin_horizontal_limit 64
+
+attribute float spin_air_vertical_speed 68
+
+attribute float spin_freefall_drift 72
+
+attribute float spin_turn_threshold 76
+
+attribute float spin_landing_lag 80
+
+
+attribute float shot_max_charge 24
+
+attribute float shot_air_recoil 28
+
+attribute int shot_charge_interval 32
+
+attribute float shot_landing_lag 36
+# Saved own-rig joint indices, editable without adding a fighter-specific API.
+
+parameter int shot_hand_joint = 50
+
+parameter int shot_release_joint = 51
+
+state int shot_handle
+
+state int shot_charge
+
+state int shot_charge_timer
+
+state bool shot_air_started
+
+state float shot_x
+
+state float shot_y
+
+state float shot_z
+
+
+state bool spin_turned
+
+state bool spin_effect
+
+
+attribute float missile_smash_window 40
+
+attribute float missile_start_deceleration 44
+
+attribute float missile_air_deceleration 48
+
+attribute float missile_spawn_offset 52
+
+parameter int missile_joint = 56
+
+parameter float cpu_initial_spacing = 3.5
+
+parameter float cpu_spacing_range = 4
+
+parameter float cpu_bomb_angle = -0.7853981573134661
+
+parameter float cpu_spin_threat_distance = 30
+
+state int missile_serial
+
+state float missile_x
+
+state float missile_y
+
+state float missile_z
+
+
+attribute float morph_jump_frame 0
+
+attribute float morph_jump_angle 4
+
+attribute float morph_jump_speed 8
+
+attribute float morph_ground_mobility 12
+
+attribute float morph_air_mobility 16
+
+attribute float morph_crouch_threshold 20
+
+attribute float bomb_hop_speed 84
+
+attribute float bomb_air_start_speed 88
+
+attribute float bomb_ground_speed 92
+
+attribute float bomb_air_speed 96
+
+attribute float bomb_ground_accel 100
+
+attribute float bomb_air_accel 104
+
+attribute float bomb_ground_start_deceleration 108
+
+attribute float bomb_air_start_deceleration 112
+
+attribute float bomb_spawn_x 116
+
+attribute float bomb_spawn_y 120
+
+attribute float bomb_spawn_z 124
+
+attribute float bomb_crouch_threshold 128
+
+attribute float morph_ecb_top 132
+
+attribute float morph_ecb_bottom 136
+
+attribute float morph_ecb_left_x 140
+
+attribute float morph_ecb_left_y 144
+
+attribute float morph_ecb_right_x 148
+
+attribute float morph_ecb_right_y 152
+
+state bool morph_hurtbox
+
+state float bomb_x
+
+state float bomb_y
+
+state float bomb_z
+
+
+state float scaled_morph_jump_speed
+
+state float scaled_bomb_spawn_y
+
+state float scaled_bomb_hop_speed
+
+state float scaled_bomb_air_start_speed
+
+state float scaled_morph_ecb_top
+
+state float scaled_morph_ecb_bottom
+
+state float scaled_morph_ecb_left_x
+
+state float scaled_morph_ecb_left_y
+
+state float scaled_morph_ecb_right_x
+
+state float scaled_morph_ecb_right_y
+
+
+attribute int tether_standing_launch 160
+
+attribute int tether_dash_launch 176
+
+attribute int tether_air_launch 192
+
+state int tether_handle
+
+state int tether_attachment_part
+
+state float tether_counter
+
+state bool tether_before_launch
+
+state bool tether_create_requested
+
+
+attribute int tether_air_create 188
+
+attribute int tether_air_retract 196
+
+attribute int tether_air_remove 200
+
+attribute float tether_pull_jump_multiplier 204
+
+attribute int tether_hang_frames 208
+
+parameter int tether_attachment_joint = 51
+
+state bool tether_launch_blocked
+
+state bool tether_launch_now
+
+state bool tether_allowed_motion
+
+state bool tether_grounded
+
+state bool tether_attack_pressed
+
+state bool tether_hang_expired
+
+state float tether_hang_timer
+
+state float tether_facing
+
+state float tether_position_x
+
+state float tether_position_y
+
+state float tether_target_x
+
+state float tether_target_y
+
+state float tether_old_x
+
+state float tether_old_y
+
+state float tether_thumb_x
+
+state float tether_thumb_y
+
+state float tether_thumb_z
+
+state float tether_hit_x
+
+state float tether_hit_y
+
+state float tether_hit_z
+
+state int tether_hit_timer
+
+state int tether_hit_aux
+
+
+state int tether_code_sequence
+
+state float tether_target_z
+
+
+attribute int tether_standing_create 156
+
+attribute int tether_standing_retract 164
+
+attribute int tether_standing_remove 168
+
+attribute int tether_dash_create 172
+
+attribute int tether_dash_retract 180
+
+attribute int tether_dash_remove 184
+
+state bool tether_ground_consumed
+
+
+func Samus_ScaleOwnedAttributes():
+    state.scaled_morph_jump_speed = attrs.morph_jump_speed * model.instance_scale_y
+    state.scaled_bomb_spawn_y = attrs.bomb_spawn_y * model.instance_scale_y
+    state.scaled_bomb_hop_speed = attrs.bomb_hop_speed * model.instance_scale_y
+    state.scaled_bomb_air_start_speed = attrs.bomb_air_start_speed * model.instance_scale_y
+    state.scaled_morph_ecb_top = attrs.morph_ecb_top * model.instance_scale_y
+    state.scaled_morph_ecb_bottom = attrs.morph_ecb_bottom * model.instance_scale_y
+    state.scaled_morph_ecb_left_x = attrs.morph_ecb_left_x * model.instance_scale_y
+    state.scaled_morph_ecb_left_y = attrs.morph_ecb_left_y * model.instance_scale_y
+    state.scaled_morph_ecb_right_x = attrs.morph_ecb_right_x * model.instance_scale_y
+    state.scaled_morph_ecb_right_y = attrs.morph_ecb_right_y * model.instance_scale_y
+
+
+func spin_clear():
+    effects.destroy_all()
+    state.spin_effect = false
+
+
+func spin_track_cleanup():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+
+func spin_reset_commands():
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    state.spin_turned = false
+
+
+func spin_end():
+    if animation.finished:
+        spin_clear()
+        physics.force_air_and_use_jumps()
+        if attrs.spin_landing_lag == 0: state.fall()
+        else: state.freefall(1, 1, false, attrs.spin_freefall_drift, attrs.spin_landing_lag)
+
+
+func spin_turn():
+    if not command(1) and not state.spin_turned:
+        if abs(input.x) > attrs.spin_turn_threshold:
+            if facing.direction == 1 and input.x < 0 or facing.direction == -1 and input.x > 0:
+                command(1) = 1
+                state.spin_turned = true
+                facing.from_input()
+                bones.root.rotate_y(0, pi / 2 * facing.direction)
+
+
+func spin_collide():
+    if not grounded:
+        if velocity.y >= 0:
+            if collision.landed: return
+            return
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            spin_clear()
+            state.landing_special(false, attrs.spin_landing_lag)
+            return
+        if collision.cliff_catch():
+            spin_clear()
+            state.catch_ledge()
+    else: collision.ground_standard()
+
+
+func shot_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+
+export func shot_forget():
+    state.shot_handle = -1
+
+
+func shot_remove():
+    if articles.owned(state.shot_handle): articles.remove_owned(state.shot_handle)
+    shot_forget()
+
+
+func shot_create():
+    if command(0) == 1 and not articles.owned(state.shot_handle):
+        command(0) = 0
+        bones.world_position(attrs.shot_hand_joint, state.shot_x, state.shot_y, state.shot_z, 0, 0, 4)
+        state.shot_handle = articles.create_at_position(It_Kind_Samus_Charge, state.shot_x, state.shot_y, 0, facing.direction, true)
+        if articles.owned(state.shot_handle): shot_callbacks()
+
+
+func shot_enter(bool air_started):
+    let target = 343
+    if air_started: target = 347
+    state.enter_at_speed(target, 0, 0, 1)
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    if not air_started:
+        physics.switch_to_ground()
+        velocity.y = 0
+    shot_callbacks()
+    state.shot_air_started = air_started
+    state.shot_charge_timer = 0
+    animation.start()
+
+
+func shot_start_animation(bool air):
+    shot_create()
+    if air: state.shot_air_started = true
+    if animation.finished:
+        if air: state.enter_at_speed(348, 0, 0, 1)
+        elif state.shot_air_started or state.shot_charge == attrs.shot_max_charge: state.enter_at_speed(346, 0, 0, 1)
+        else: state.enter_at_speed(344, 0, 0, 1)
+        shot_callbacks()
+
+
+func shot_fire():
+    if command(1) == 1 and articles.owned(state.shot_handle):
+        command(1) = 2
+        bones.world_position(attrs.shot_release_joint, state.shot_x, state.shot_y, state.shot_z)
+        let angle = float(0)
+        if facing.direction != 1: angle = pi
+        articles.signal_owned(state.shot_handle, It_Kind_Samus_Charge, "release", angle)
+        if motion.id == 348 or airborne: velocity.x = facing.direction * (attrs.shot_air_recoil * state.shot_charge)
+        state.shot_charge = 0
+        shot_forget()
+        effects.spawn_with_scalar_at_position(1158, state.shot_x, state.shot_y, 0, facing.direction)
+
+
+func shot_hold_animation():
+    if command(2):
+        command(2) = 0
+        let fraction = float(0)
+        if state.shot_charge: fraction = float(state.shot_charge / attrs.shot_max_charge)
+        let index = int(5 * fraction)
+        let sound_id = 260006
+        if index == 1: sound_id = 260009
+        elif index == 2: sound_id = 260012
+        elif index == 3: sound_id = 260015
+        elif index == 4: sound_id = 260018
+        sound.loop(sound_id, 127, 64)
+    state.shot_charge_timer = state.shot_charge_timer + 1
+    if state.shot_charge_timer > attrs.shot_charge_interval:
+        state.shot_charge_timer = 0
+        state.shot_charge = state.shot_charge + 1
+        if state.shot_charge >= attrs.shot_max_charge:
+            color.start(53, false)
+            state.shot_charge = int(attrs.shot_max_charge)
+            state.enter_at_speed(345, 0, 0, 1)
+            shot_remove()
+            shot_callbacks()
+
+
+func shot_hold_interrupt():
+    if controls.try_roll(): shot_remove()
+    elif input.special_pressed:
+        state.enter_at_speed(346, 0, 0, 1)
+        shot_callbacks()
+    elif input.shield_pressed:
+        state.enter_at_speed(345, 0, 0, 1)
+        shot_remove()
+        shot_callbacks()
+
+
+func shot_ground_collision(int destination, bool force_release):
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.enter_at_speed(destination, 0x0c4c5080, frame, 1)
+        shot_callbacks()
+        if force_release:
+            sound.play(260021, 127, 64)
+            command(1) = 1
+
+
+func shot_air_collision(int destination):
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(destination, 0x0c4c5080, frame, 1)
+        shot_callbacks()
+
+
+func missile_begin(bool air_started):
+    let target = 349
+    if input.horizontal_smash_age < attrs.missile_smash_window: target = 350
+    if air_started:
+        velocity.x = velocity.x / attrs.missile_start_deceleration
+        target = target + 2
+    else:
+        ground.velocity = ground.velocity / attrs.missile_start_deceleration
+        velocity.y = 0
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    cue.throw.reset()
+
+
+func missile_accessory():
+    if cue.article.consume():
+        state.missile_serial = uint(state.missile_serial) + 1
+        bones.world_position(attrs.missile_joint, state.missile_x, state.missile_y, state.missile_z)
+        state.missile_x = state.missile_x + attrs.missile_spawn_offset * facing.direction
+        let smash = motion.id != 349 and motion.id != 351
+        articles.create_at_position(It_Kind_Samus_Missile, state.missile_x, state.missile_y, 0, facing.direction, true, 0, smash)
+        if not effects.active:
+            effects.spawn_at_position(1155, state.missile_x, state.missile_y, state.missile_z)
+            effects.active = true
+        effects.pause_during_hitlag()
+        articles.stop_cue()
+
+
+func morph_shape():
+    if command(0) and not state.morph_hurtbox:
+        hurtboxes.set_all(Hurt.intangible)
+        hurtboxes.define(0, bones.index(XRotN), Hurt.height_mid, false, 0, 0, 0, 0, 0, 0, 3)
+        state.morph_hurtbox = true
+    if not command(0) and state.morph_hurtbox:
+        hurtboxes.set_all(Hurt.normal)
+        state.morph_hurtbox = false
+
+
+func bomb_transition(bool air_started, bool hop):
+    if hop: velocity.y = state.scaled_bomb_hop_speed
+    if air_started: physics.ground_to_air()
+    else: physics.switch_to_ground()
+    let target = 355
+    if air_started: target = 356
+    state.enter_at_speed(target, Transition.common_ground_air | Transition.keep_hurt_status | Transition.skip_hitboxes | Transition.skip_model, frame, 1)
+    if not hop:
+        command(1) = 2
+        state.morph_hurtbox = false
+
+
+export func bomb_jump(float center, float radius):
+    let ratio = (position.x - center) / radius
+    if ratio >= 1: ratio = 1
+    if ratio <= -1: ratio = -1
+    let angle = -attrs.morph_jump_angle * ratio + float(1.5707963705062866)
+    if hurtboxes.status == 0:
+        if action.category == 0 or action.category == 2 or action.category == 3 or action.category == 4:
+            # Current semantic metadata: move ID in the low byte, original
+            # motion flag x2071_b5 at canonical bit 18, independent of host packing.
+            if action.move_id(action.current_metadata) == 20 or (action.current_metadata & 262144) == 0:
+                let float start = 0
+                if animation.id == 2: start = attrs.morph_jump_frame
+                damage.interrupt_cleanup()
+                velocity.x = state.scaled_morph_jump_speed * cos(angle)
+                velocity.y = state.scaled_morph_jump_speed * sin(angle)
+                physics.clamp_horizontal_speed(air.drift_max * attrs.morph_air_mobility)
+                command(0) = 0
+                command(1) = 0
+                state.morph_hurtbox = false
+                if grounded: physics.ground_to_air()
+                state.enter_at_speed(342, 0, start, 1)
+                animation.start()
+
+
+func bomb_accessory():
+    if cue.article.consume():
+        bones.world_position(bones.index(Top), state.bomb_x, state.bomb_y, state.bomb_z)
+        state.bomb_x = state.bomb_x + attrs.bomb_spawn_x * facing.direction
+        state.bomb_y = state.bomb_y + state.scaled_bomb_spawn_y
+        state.bomb_z = state.bomb_z + attrs.bomb_spawn_z
+        articles.create_at_position(It_Kind_Samus_Bomb, state.bomb_x, state.bomb_y, 0, facing.direction, true)
+        articles.stop_cue()
+
+
+func morph_roll_animation():
+    morph_shape()
+    if cue.reverse.consume(): facing.direction = -facing.direction
+    if animation.finished:
+        ground.velocity = 0
+        state.wait()
+
+
+func morph_roll_collision():
+    if command(0): collision.ground_standard_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+    else: collision.ground_standard()
+
+
+func cpu_tap_shield():
+    cpu.queue(Cpu.press_r)
+    cpu.queue(Cpu.wait, 1)
+    cpu.queue(Cpu.release_r)
+
+func Tether_Unbind(int expected):
+    if state.tether_handle != expected:
+        return
+    state.tether_handle = -1
+    if callbacks.matches(Callback.accessory_before, Tether_Update):
+        callbacks.accessory_before(None)
+    if callbacks.matches(Callback.accessory_hitlag, Tether_Hitlag):
+        callbacks.accessory_hitlag(None)
+    if callbacks.matches(Callback.death1, Tether_Remove):
+        callbacks.death1(None)
+
+
+func Tether_Remove():
+    if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "remove", 0)
+    else:
+        Tether_Unbind(state.tether_handle)
+
+
+func Tether_Update():
+    if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "normal_update", 0)
+    else:
+        Tether_Unbind(state.tether_handle)
+
+
+func Tether_Hitlag():
+    if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        Tether_Unbind(state.tether_handle)
+        return
+    state.tether_before_launch = false
+    if motion.id == 212 and state.tether_counter < attrs.tether_standing_launch:
+        state.tether_before_launch = true
+    if motion.id == 214 and state.tether_counter < attrs.tether_dash_launch:
+        state.tether_before_launch = true
+    if motion.id == 357 and state.tether_counter < attrs.tether_air_launch:
+        state.tether_before_launch = true
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "hitlag_update", 0)
+
+
+func Tether_ReadInputs():
+    state.tether_launch_now = (motion.id == 212 and state.tether_counter == attrs.tether_standing_launch) or (motion.id == 214 and state.tether_counter == attrs.tether_dash_launch) or (motion.id == 357 and state.tether_counter == attrs.tether_air_launch)
+    state.tether_allowed_motion = motion.id == 212 or motion.id == 214 or motion.id == 357 or motion.id == 358
+    state.tether_grounded = grounded
+    state.tether_attack_pressed = input.attack_pressed
+    state.tether_facing = facing.direction
+
+
+func Tether_ReadPosition():
+    state.tether_old_x = position.x
+    state.tether_old_y = position.y
+    state.tether_position_x = position.x
+    state.tether_position_y = position.y
+
+
+func Tether_ApplyPosition():
+    position.x = state.tether_target_x
+    position.y = state.tether_target_y
+
+
+func Tether_AddDisplacement():
+    # fn_802B8D38 adds the completed displacement, not (velocity + position)
+    # followed by subtraction. Preserve its F32 evaluation order while hanging.
+    velocity.x = velocity.x + (position.x - state.tether_old_x)
+    velocity.y = velocity.y + (position.y - state.tether_old_y)
+    position.delta.x = velocity.x
+    position.delta.y = velocity.y
+
+
+func Tether_HitEffect():
+    effects.spawn_with_scalar_at_position(1009, state.tether_hit_x, state.tether_hit_y, state.tether_hit_z, facing.direction)
+
+
+func Tether_ClearAttack():
+    hitbox.clear_all()
+
+
+func Tether_ClearCaptureMask():
+    capture.mask(0)
+
+
+func Tether_StartHangTimer():
+    state.tether_hang_timer = attrs.tether_hang_frames
+
+
+func Tether_HangCountdown():
+    state.tether_hang_expired = state.tether_hang_timer <= 0
+    state.tether_hang_timer = state.tether_hang_timer - 1
+
+
+func Tether_DamageFall():
+    state.damage_fall()
+
+
+func Tether_PullComplete():
+    let bool ledge = collision.probe_ledge(5, 5)
+    if ledge:
+        velocity.x = 0
+        velocity.y = 0
+    if ledge and collision.ledge_available():
+        state.catch_ledge()
+    else:
+        velocity.x = 0
+        state.cliff_jump_phase2(attrs.tether_pull_jump_multiplier)
+
+
+func Tether_EnterAir():
+    state.tether_counter = 0
+    acceleration.x = 0
+    acceleration.y = 0
+    acceleration.z = 0
+    state.enter_at(357, 0, 0)
+    capture.mask(511)
+
+
+func Tether_EnterHit():
+    state.enter_flags(358, 1)
+    physics.clamp_horizontal_speed(air.drift_max)
+    state.tether_hit_timer = 20
+    state.tether_hit_aux = 0
+    if grounded:
+        physics.ground_to_air()
+
+
+func Tether_FinishAir():
+    state.freefall(1, 0, true, 1, movement.special_landing_lag)
+
+
+func Tether_LaunchAir():
+    bones.world_position(state.tether_attachment_part, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    state.tether_launch_blocked = stage.segment_blocked(collision.position.x, state.tether_thumb_y, state.tether_thumb_x + 1.8 * facing.direction * model.instance_scale_y, state.tether_thumb_y)
+    if state.tether_launch_blocked:
+        Tether_Remove()
+        Tether_FinishAir()
+        return
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "extend_air", position.delta.x)
+
+
+
+func Tether_AirAnimation():
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == attrs.tether_air_create:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            Tether_FinishAir()
+    elif state.tether_counter > attrs.tether_air_create and state.tether_counter <= attrs.tether_air_remove:
+        if state.tether_counter == attrs.tether_air_launch:
+            Tether_LaunchAir()
+            if state.tether_launch_blocked:
+                return
+        elif state.tether_counter == attrs.tether_air_retract:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract", 0)
+
+        elif state.tether_counter == attrs.tether_air_remove:
+            Tether_Remove()
+    if animation.finished:
+        Tether_FinishAir()
+
+
+func Tether_AirPhysics():
+    physics.check_fastfall()
+    if movement.fastfall:
+        physics.fastfall()
+    else:
+        if state.tether_counter < 20 and position.delta.y < 0:
+            physics.fall(air.gravity * 0.2, air.terminal_velocity)
+        else:
+            physics.fall(air.gravity, air.terminal_velocity)
+    physics.air_accel_normal()
+
+
+func Tether_HitPhysics():
+    velocity.x = position.delta.x
+    velocity.y = position.delta.y
+    velocity.z = position.delta.z
+    physics.fall(air.gravity, air.terminal_velocity)
+
+# Proposed exact engine-policy hook, replacing stock kind gate only here.
+
+func Tether_AdvanceCodeSequence():
+    # Stock samples one switch case per normal update, including held inputs.
+    # Completing Up/Down/Up/A persists until death or an incomplete creation.
+    if state.tether_code_sequence == 0:
+        if input.up_held:
+            state.tether_code_sequence = 1
+    elif state.tether_code_sequence == 1:
+        if input.down_held:
+            state.tether_code_sequence = 2
+    elif state.tether_code_sequence == 2:
+        if input.up_held:
+            state.tether_code_sequence = 3
+    elif state.tether_code_sequence == 3:
+        if input.attack_pressed:
+            state.tether_code_sequence = 4
+
+
+func Tether_HoldHangTimer(int modified_mode):
+    # fn_802B8D38 tests physical L, before its ground/attack exits and decrement.
+    if modified_mode != 0 and input.l_held:
+        state.tether_hang_timer = state.tether_hang_timer + 1
+
+hitbox_definition tether_tip:
+    bone 139
+    damage 0
+    radius 1200 * 0.003906
+    angle 361
+    growth 100
+    item_interaction true
+    element 8
+    sound_severity 1
+    sound_kind 2
+    aerial false
+    # Retail's trailing victim-only bit was undefined; choose false explicitly.
+    victim_only false
+
+
+func Tether_UpdateModifiedGroundAttack(int mode) -> bool:
+    if not grounded or mode != 1:
+        return false
+    hitbox.clear_all()
+    if not input.attack_pressed:
+        return false
+    return hitbox.create(0, tether_tip)
+
+
+func Tether_ReadHomingTarget() -> bool:
+    let int target = targets.nearest_available_fighter()
+    return targets.read_position(target, state.tether_target_x, state.tether_target_y, state.tether_target_z)
+
+
+func Tether_Create():
+    if motion.id != 357 and motion.id != 358 and motion.id != 212 and motion.id != 214:
+        return
+    Tether_ReadInputs()
+    state.tether_attachment_part = attrs.tether_attachment_joint
+    bones.world_position(state.tether_attachment_part, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    # Stock passes the supplied position/facing, no center offset, zero velocity,
+    # and collision flag true. Collision-group0 replaces uninitialized Spawn.x40.
+    state.tether_handle = articles.create_with_velocity(It_Kind_Samus_GBeam, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        state.tether_handle = -1
+        return
+    # Retail Samus uses raw joint51 (FtPart_ThrowN), not semantic bone slot4.
+    # The owned parameter also supplies the resource links' borrowed joint.
+    let bool attached = items.attach(state.tether_handle, attrs.tether_attachment_joint, false)
+    if not attached:
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "remove", 0)
+        state.tether_handle = -1
+        return
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "scale_after_attach", 0)
+    if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        state.tether_handle = -1
+        return
+    callbacks.accessory_before(Tether_Update)
+    callbacks.death1(Tether_Remove)
+    callbacks.accessory_hitlag(Tether_Hitlag)
+
+
+
+func Tether_CreateThrowAccessory(int motion, float rate):
+    # Common ThrowF..ThrowLw are 219..222. This selection owns no stock handler.
+    if accessory.create(4):
+        accessory.set_scale(model.instance_scale_y, model.instance_scale_y, model.instance_scale_y)
+        accessory.add_animation(4, -1)
+        accessory.add_animation(4, motion - 219)
+        # Preserve looping geometry and all material/texture clocks.
+        accessory.set_geometry_animation_rate(rate, false)
+        accessory.request_frame(0.0)
+        accessory.evaluate()
+        accessory.follow_bone(51)
+
+func Tether_GroundSpark():
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "ground_spark", 0)
+
+
+func Tether_BlockGroundLaunch():
+    bones.world_position(attrs.tether_attachment_joint, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    if stage.segment_blocked(collision.position.x, state.tether_thumb_y, state.tether_thumb_x + 2 * facing.direction * model.instance_scale_y, state.tether_thumb_y):
+        Tether_Remove()
+        state.wait()
+        state.tether_ground_consumed = true
+
+
+func Tether_GroundFrame(int create_frame, int launch_frame, int retract_frame, int remove_frame, bool standing):
+    state.tether_ground_consumed = false
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == create_frame:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            state.wait()
+            state.tether_ground_consumed = true
+            return
+    elif state.tether_counter > create_frame and state.tether_counter <= remove_frame:
+        if state.tether_counter == 20 or state.tether_counter == 23 or state.tether_counter == 26 or state.tether_counter == 29:
+            Tether_GroundSpark()
+        if standing and (state.tether_counter == 32 or state.tether_counter == 35):
+            Tether_GroundSpark()
+        if state.tether_counter == launch_frame:
+            if standing:
+                Tether_BlockGroundLaunch()
+            if state.tether_ground_consumed:
+                return
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "extend_ground", 0)
+        elif state.tether_counter == retract_frame:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract", 0)
+        elif state.tether_counter == remove_frame:
+            Tether_Remove()
+
+
+func Samus_DamageDeathCleanup():
+    shot_remove()
+    state.shot_charge = 0
+    spin_clear()
+    Tether_Remove()
+    # ftCo_800D9C98 clears these after grapple removal; retain that order.
+    callbacks.death2(None)
+    callbacks.secondary_damage(None)
+    callbacks.damage(None)
+
+article It_Kind_Samus_Charge states 9:
+    attribute float lifetime 0
+    attribute float speed_min 8
+    attribute float speed_max 12
+    attribute float scale_min 24
+    attribute float scale_max 28
+    state bool fired
+    state float charge
+    state float maximum
+    state float angle
+    state float speed
+    state float size
+    state float release_charge
+    state int effect_step
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.attach_to_owner(program.attrs.shot_hand_joint)
+    on picked_up:
+            item.change_state(0)
+            item.spawn_joint_effect(1151, "0/0")
+    on destroyed:
+            item.destroy_effects()
+            if not item.state.fired and owner.exists:
+                let bool forgotten = targets.call(item.current_owner, "shot_forget")
+            item.detach_owner()
+            item.owner_bound = false
+    on signal release:
+            item.state.angle = signal.value
+            item.set_lifetime(item.attr.lifetime)
+            if not owner.exists: return
+            item.state.release_charge = max(0, min(float(owner.state.shot_charge), program.attrs.shot_max_charge))
+            item.state.charge = item.state.release_charge
+            item.state.maximum = program.attrs.shot_max_charge
+            item.destroy_effects()
+            # Stock clamps the stored charge for the animation and visual size,
+            # but keeps the original release charge for projectile speed.
+            if item.state.charge >= 8: item.state.charge = 7
+            item.change_state(int(item.state.charge) + 1)
+            item.track_accessory()
+            item.release_attachment(0, 0, 0, true)
+            item.throw_speed_damage = false
+            item.use_manual_lifetime()
+            item.state.speed = float(item.state.release_charge * ((item.attr.speed_max - item.attr.speed_min) / program.attrs.shot_max_charge) + item.attr.speed_min)
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            item.state.effect_step = 0
+            facing = owner.facing
+            position.x = owner.state.shot_x
+            position.y = owner.state.shot_y
+            position.z = 0
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            item.state.fired = true
+    on accessory:
+            if item.state.charge == item.state.maximum and item.state.effect_step == 0:
+                item.spawn_root_effect(1152)
+                item.spawn_root_effect(1153)
+            item.state.effect_step = (item.state.effect_step + 1) % 3
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on reflected:
+            facing = -facing
+            item.joint("").rotation.y = pi / 2 * facing
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            facing = -1
+            if velocity.x >= 0: facing = 1
+            item.joint("").rotation.y = pi / 2 * facing
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if owner.exists:
+                if owner.motion < 343 or owner.motion > 348 or owner.fighter.action_detaches_items: return true
+                # Creation ID zero is valid; -1 is the absent-handle sentinel.
+                # Stock checks a pointer here, not the numeric creation ID.
+                if owner.motion == 345 or owner.state.shot_handle < 0: return true
+                item.state.charge = float(owner.state.shot_charge)
+                item.state.maximum = float(int(program.attrs.shot_max_charge))
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            return false
+        on collision:
+            return false
+    state 1 anim 1:
+        on animation:
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            item.life = item.life - 1
+            return item.life <= 0
+        on physics:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+        on collision:
+            item.stage_collision(false)
+            if velocity.y > 0 and collision.ceiling_contact: return true
+            if velocity.y <= 0 and collision.floor_contact: return true
+            if velocity.x > 0 and collision.left_wall: return true
+            if velocity.x <= 0 and collision.right_wall: return true
+            return false
+    state 2 anim 2 use 1:
+    state 3 anim 3 use 1:
+    state 4 anim 4 use 1:
+    state 5 anim 5 use 1:
+    state 6 anim 6 use 1:
+    state 7 anim 7 use 1:
+    state 8 anim 8 use 1:
+
+
+article It_Kind_Samus_Missile states 4:
+    attribute float homing_lifetime 4
+    attribute float homing_duration 8
+    attribute float homing_speed 12
+    attribute float coast_deceleration 16
+    attribute float coast_min_speed 20
+    attribute float turn_step 24
+    attribute float turn_limit 28
+    attribute float turn_deadzone 32
+    attribute float super_lifetime 36
+    attribute float super_delay 40
+    attribute float super_start_speed 44
+    attribute float super_acceleration 48
+    attribute float super_max_speed 52
+    state bool smash
+    state int serial
+    state float turn
+    state float target_x
+    state float target_y
+    state float target_z
+    state bool target_found
+    state float direction_x
+    state float direction_y
+    state float direction_z
+    state float velocity_x
+    state float velocity_y
+    state float velocity_z
+    state float rotation_angle
+    state float angle
+    on created:
+            item.state.smash = item.creation_value != 0
+            item.state.serial = owner.state.missile_serial
+            velocity.y = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.use_manual_lifetime()
+            if item.state.smash:
+                velocity.x = item.params.super_start_speed * facing
+                item.command1 = 0
+                item.set_lifetime(item.params.super_lifetime)
+                item.change_state(1)
+                item.spawn_joint_effect(1156, "0/0")
+            else:
+                velocity.x = item.params.homing_speed * facing
+                item.command0 = 0
+                item.set_lifetime(item.params.homing_lifetime)
+                item.state.turn = 0
+                item.change_state(0)
+                item.spawn_joint_effect(1157, "0/0")
+            item.inherit_owner_debug_display()
+    on signal explode:
+            item.hide_model()
+            item.physics_disabled = true
+            item.begin_expiry()
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.destroy_effects()
+            if item.state.smash:
+                item.spawn_effect_at_position(1038, position.x, position.y, position.z)
+            else:
+                item.spawn_effect_at_position(1036, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.contact_hitlag = false
+            if item.state.smash:
+                item.change_state(3)
+            else:
+                item.change_state(2)
+    on stage_contact:
+            item.signal("explode", 0)
+    on damage_dealt:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on clanked:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on hit_shield:
+            if item.motion_state == 2 or item.motion_state == 3:
+                return false
+            item.signal("explode", 0)
+            return false
+    on shield_bounced:
+            if item.state.smash:
+                item.shield_bounce()
+                item.state.angle = atan2(velocity.x, velocity.y)
+                if facing == 1:
+                    item.joint("0").rotation.x = item.state.angle - pi / 2
+                else:
+                    item.joint("0").rotation.x = pi * 1.5 - item.state.angle
+            return false
+    on reflected:
+            item.command3 = 1
+            item.reflect()
+            if item.state.smash:
+                velocity.x = item.params.super_start_speed * facing
+            if velocity.y < 0:
+                velocity.y = -velocity.y * item.reflection_multiplier
+            item.joint("").rotation.y = pi / 2 * facing
+            item.destroy_effects()
+            if item.state.smash:
+                item.spawn_joint_effect(1156, "0/0")
+            else:
+                item.spawn_joint_effect(1157, "0/0")
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.life > item.params.homing_lifetime - item.params.homing_duration:
+                item.command0 = 1
+            else:
+                item.command0 = 0
+            if item.life == item.params.homing_lifetime - item.params.homing_duration and not item.state.smash:
+                item.destroy_effects()
+            if item.life <= item.params.super_lifetime - item.params.super_delay:
+                item.command1 = 1
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+            if item.command3 == 0 and item.attachment_active:
+                if item.motion_state != 2 and item.motion_state != 3 and uint(owner.state.missile_serial) - uint(item.state.serial) >= 2:
+                    item.signal("explode", 0)
+            return false
+        on physics:
+            if item.command0:
+                item.state.target_found = targets.read_opponent_ahead(item.state.target_x, item.state.target_y, item.state.target_z)
+                if not item.state.target_found:
+                    item.state.target_found = targets.read_lockable_item_ahead(item.state.target_x, item.state.target_y, item.state.target_z)
+                if item.state.target_found and (item.state.target_x != 0 or item.state.target_y != 0):
+                    item.state.velocity_x = velocity.x
+                    item.state.velocity_y = velocity.y
+                    item.state.velocity_z = 0
+                    vectors.normalize_xy(item.state.velocity_x, item.state.velocity_y, item.state.velocity_z)
+                    item.state.direction_x = item.state.target_x - position.x
+                    item.state.direction_y = item.state.target_y - position.y
+                    item.state.direction_z = 0
+                    vectors.normalize_xy(item.state.direction_x, item.state.direction_y, item.state.direction_z)
+                    item.state.angle = vectors.angle_xy(item.state.velocity_x, item.state.velocity_y, item.state.direction_x, item.state.direction_y)
+                    if item.state.angle >= item.params.turn_deadzone:
+                        item.state.direction_y = item.state.direction_y - item.state.velocity_y
+                        if item.state.direction_y > 0.001:
+                            item.state.turn = item.state.turn - item.params.turn_step
+                        elif item.state.direction_y < 0.001:
+                            item.state.turn = item.state.turn + item.params.turn_step
+                        if abs(item.state.turn) > item.params.turn_limit:
+                            if item.state.turn > 0:
+                                item.state.turn = item.params.turn_limit
+                            else:
+                                item.state.turn = -item.params.turn_limit
+                item.state.velocity_x = item.params.homing_speed * facing
+                item.state.velocity_y = 0
+                item.state.velocity_z = 0
+                item.state.rotation_angle = item.state.turn * -facing
+                vectors.rotate(item.state.velocity_x, item.state.velocity_y, item.state.velocity_z, 4, item.state.rotation_angle, item.state.velocity_x, item.state.velocity_y, item.state.velocity_z)
+                velocity.x = item.state.velocity_x
+                velocity.y = item.state.velocity_y
+            else:
+                if velocity.x * velocity.x + velocity.y * velocity.y > item.params.coast_min_speed * item.params.coast_min_speed:
+                    velocity.x = velocity.x * item.params.coast_deceleration
+                    velocity.y = velocity.y * item.params.coast_deceleration
+            item.joint("0").rotation.x = item.state.turn
+        on collision:
+            item.respond_to_stage()
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.life > item.params.homing_lifetime - item.params.homing_duration:
+                item.command0 = 1
+            else:
+                item.command0 = 0
+            if item.life == item.params.homing_lifetime - item.params.homing_duration and not item.state.smash:
+                item.destroy_effects()
+            if item.life <= item.params.super_lifetime - item.params.super_delay:
+                item.command1 = 1
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+            if item.command3 == 0 and item.attachment_active:
+                if item.motion_state != 2 and item.motion_state != 3 and uint(owner.state.missile_serial) - uint(item.state.serial) >= 2:
+                    item.signal("explode", 0)
+            return false
+        on physics:
+            if item.command1:
+                velocity.x = item.params.super_acceleration * facing + velocity.x
+                if abs(velocity.x) > item.params.super_max_speed:
+                    if facing == 1:
+                        velocity.x = item.params.super_max_speed
+                    else:
+                        velocity.x = -item.params.super_max_speed
+        on collision:
+            item.respond_to_stage()
+            return false
+    state 2 anim 2:
+        on animation:
+            return item.expire_tick()
+    state 3 anim 3 use 2:
+
+
+article It_Kind_Samus_Bomb states 4:
+    attribute float fuse 0
+    attribute float fast_animation_threshold 4
+    attribute float fast_animation_rate 8
+    attribute float slide_speed 12
+    state bool jump_pending
+    state float slide_x
+    state float slide_y
+    state float slide_z
+    on created:
+            velocity.y = item.drop_speed
+            item.command2 = 0
+            item.set_lifetime(item.params.fuse)
+            item.use_manual_lifetime()
+            item.change_state(1)
+            item.inherit_owner_debug_display()
+    on signal explode:
+            item.change_state(3)
+            item.animation_rate = 1
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.hide_model()
+            item.spawn_effect_at_position(1036, position.x, position.y, position.z)
+            item.play_sound(116, 127, 64)
+            item.use_manual_lifetime()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.track_accessory()
+            item.state.jump_pending = true
+    on signal tick:
+            if item.life <= item.params.fast_animation_threshold:
+                item.set_model_animation_rate(item.params.fast_animation_rate)
+            if item.life <= 0:
+                item.signal("explode", 0)
+            else:
+                item.life = item.life - 1
+    on signal orientation:
+            if abs(velocity.x) >= 0.0001:
+                item.align_facing_to_velocity()
+                if facing == 1:
+                    item.joint("").rotation.y = 0
+                else:
+                    item.joint("").rotation.y = pi
+    on stage_landed:
+            item.change_state_flags(0, 17)
+    on stage_left:
+            item.change_state_flags(1, 17)
+    on entered_air:
+            item.change_state_flags(2, 17)
+    on damage_dealt:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on clanked:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on hit_shield:
+            if item.motion_state != 3: item.signal("explode", 0)
+            return false
+    on shield_bounced:
+            return item.shield_bounce()
+    on reflected:
+            item.reflect()
+            if velocity.y < 0: velocity.y = -velocity.y * item.reflection_multiplier
+            item.clear_attachment_owner()
+            return false
+    on interaction:
+            item.interact(other)
+            item.clear_attachment_owner()
+    on accessory:
+            if item.state.jump_pending:
+                item.state.jump_pending = false
+                if attachment_owner.exists:
+                    let control_owner = attachment_owner.fighter.creation_id
+                    if targets.overlaps_hitbox(control_owner, 0):
+                        targets.call(control_owner, "bomb_jump", position.x, hitbox.radius(0))
+    state 0 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            return false
+        on collision:
+            item.follow_ground()
+            return false
+    state 1 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            item.signal("orientation", 0)
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.bounce_to_ground()
+            return false
+    state 2 anim 0:
+        on animation:
+            item.signal("tick", 0)
+            item.signal("orientation", 0)
+            return false
+        on physics:
+            if sqrt(item.slide_velocity.x * item.slide_velocity.x + item.slide_velocity.y * item.slide_velocity.y) > item.params.slide_speed:
+                item.state.slide_x = item.slide_velocity.x
+                item.state.slide_y = item.slide_velocity.y
+                item.state.slide_z = 0
+                vectors.normalize_xy(item.state.slide_x, item.state.slide_y, item.state.slide_z)
+                item.slide_velocity.x = item.state.slide_x * item.params.slide_speed
+                item.slide_velocity.y = item.state.slide_y * item.params.slide_speed
+        on collision:
+            item.slide_on_ground()
+            return false
+    state 3 anim 1:
+        on animation:
+            return item.expire_tick()
+
+
+article It_Kind_Samus_GBeam states 9:
+    resources capacity 90 reserve_part 139
+    model_root ChainA 100
+    model_root ChainB 104
+    model_root ChainC 108
+    model_root Endpoint 112
+    attribute float bounce 0
+    attribute float count_blend 8
+    attribute int source_count 12
+    attribute float source_length 16
+    attribute float source_min_length 20
+    attribute float source_launch_speed 24
+    attribute float source_gravity 28
+    attribute float source_retract_speed 36
+    attribute float source_pull_speed 44
+    attribute float source_friction 48
+    attribute float ground_coefficient 92
+    attribute float air_coefficient 96
+    state int count
+    state int endpoint
+    state int solver
+    state int cursor
+    state int result
+    state int collision_result
+    state bool completed
+    state bool deployed[90]
+    state bool on_floor[90]
+    state float length
+    state float min_length
+    state float launch_speed
+    state float gravity
+    state float retract_speed
+    state float pull_speed
+    state float friction
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float dx
+    state float dy
+    state float dz
+    state float norm_length
+    state float random_gravity
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state float speed_x
+    state float speed_y
+    state float speed_z
+    state float matrix[12]
+
+    model_animation ChainAAnimation joint 116[0] material 120[0] shape None
+    model_animation ChainBAnimation joint 128[0] material 132[0] shape None
+    model_animation ChainCAnimation joint 140[0] material 144[0] shape None
+    model_animation EndpointAnimation joint 152[0] material None shape None
+    model_animation PrimaryAnimation joint 164[0] material None shape None
+    attribute float source_launch_auxiliary 32
+    attribute float source_retract_auxiliary 40
+    state int modified_mode
+    state float launch_auxiliary
+    state float retract_auxiliary
+
+    func InitializeGeometry() -> bool:
+        let float scale = creator.model.instance_scale_y
+        let float coefficient = item.attr.ground_coefficient
+        if creator.motion == 357:
+            coefficient = item.attr.air_coefficient
+        item.state.length = item.attr.source_length * scale
+        item.state.min_length = item.attr.source_min_length * scale
+        item.state.launch_speed = coefficient * (item.attr.source_launch_speed * scale)
+        item.state.gravity = item.attr.source_gravity * scale
+        item.state.launch_auxiliary = coefficient * (item.attr.source_launch_auxiliary * scale)
+        item.state.retract_speed = coefficient * (item.attr.source_retract_speed * scale)
+        item.state.retract_auxiliary = coefficient * (item.attr.source_retract_auxiliary * scale)
+        item.state.pull_speed = coefficient * (item.attr.source_pull_speed * scale)
+        item.state.friction = item.attr.source_friction * scale
+        let float count_value = item.attr.source_count * item.state.length
+        if scale > 1:
+            count_value = item.attr.count_blend * (item.attr.source_count * item.state.length) + (1 - item.attr.count_blend) * (item.attr.source_count * item.attr.source_length)
+        # Stock stores the quotient in s32 before doubling modified ground mode.
+        # Explicit finite/range policy rejects malformed geometry before int().
+        if item.state.length == 0:
+            return false
+        let float quotient = (count_value * coefficient) / item.state.length
+        if not(quotient >= 2 and quotient < 91):
+            return false
+        item.state.count = int(quotient)
+        if item.state.modified_mode == 1:
+            item.state.count = item.state.count * 2
+        if item.state.count < 2 or item.state.count > 90:
+            return false
+        item.state.endpoint = item.state.count - 1
+        return true
+
+    func InitializeLinks() -> bool:
+        if not item.resources.begin(item.state.count):
+            return false
+        let int index = 0
+        while index < item.state.count:
+            let float radius = 1
+            if index == item.state.endpoint:
+                radius = 1.5
+            if not item.resource(index).create(creator.state.tether_attachment_part, radius, 0):
+                return false
+            let bool loaded = false
+            let bool animated = false
+            if index == item.state.endpoint:
+                loaded = item.resource(index).load_model(Endpoint)
+                if loaded:
+                    animated = item.resource(index).joint("0").add_animation(EndpointAnimation)
+            else:
+                let int type = index % 3
+                if type == 0:
+                    loaded = item.resource(index).load_model(ChainA)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainAAnimation)
+                if type == 1:
+                    loaded = item.resource(index).load_model(ChainB)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainBAnimation)
+                if type == 2:
+                    loaded = item.resource(index).load_model(ChainC)
+                    if loaded:
+                        animated = item.resource(index).joint("0").add_animation(ChainCAnimation)
+            if not loaded or not animated:
+                return false
+            if not item.resource(index).joint("0").request_animation(0):
+                return false
+            index = index + 1
+        return true
+
+
+    state bool capture_bound
+
+
+    func Dispose():
+        item.state.solver = -1
+        # Creator cleanup is guarded by the expected handle; damage ownership
+        # can change independently of the control owner. Free resources even
+        # after that owner expires (retail can leak them in this case).
+        if creator.exists:
+            creator.helpers.Tether_Unbind(int(item.creation_id))
+        item.resources.release()
+        item.remove()
+
+    func Normalize(float x, float y, float z):
+        item.state.dx = x
+        item.state.dy = y
+        item.state.dz = z
+        item.state.norm_length = sqrt(x * x + y * y + z * z)
+        let float inverse = 0
+        if item.state.norm_length != 0:
+            inverse = 1 / item.state.norm_length
+        item.state.dx = item.state.dx * inverse
+        item.state.dy = item.state.dy * inverse
+        item.state.dz = item.state.dz * inverse
+
+    func CopyCollisionPosition(int i, bool reset):
+        if reset:
+            item.resource(i).collision.previous.x = item.resource(i).position.x
+        else:
+            item.resource(i).collision.previous.x = item.resource(i).collision.position.x
+        item.resource(i).collision.position.x = item.resource(i).position.x
+        if reset:
+            item.resource(i).collision.previous.y = item.resource(i).position.y
+        else:
+            item.resource(i).collision.previous.y = item.resource(i).collision.position.y
+        item.resource(i).collision.position.y = item.resource(i).position.y
+        if reset:
+            item.resource(i).collision.previous.z = item.resource(i).position.z
+        else:
+            item.resource(i).collision.previous.z = item.resource(i).collision.position.z
+        item.resource(i).collision.position.z = item.resource(i).position.z
+
+    func MarkDeployed(int i, bool value):
+        item.state.deployed[i] = value
+        item.resource(i).set_draw(i == item.state.endpoint or value)
+
+    func Integrate(int i):
+        item.resource(i).position.x = item.resource(i).position.x + item.resource(i).velocity.x
+        item.resource(i).position.y = item.resource(i).position.y + item.resource(i).velocity.y
+        item.resource(i).position.z = item.resource(i).position.z + item.resource(i).velocity.z
+
+    func ClampToAnchor(int i, float radius):
+        Normalize(item.resource(i).position.x - item.state.anchor_x, item.resource(i).position.y - item.state.anchor_y, item.resource(i).position.z - item.state.anchor_z)
+        item.resource(i).position.x = item.state.dx * radius + item.state.anchor_x
+        item.resource(i).position.y = item.state.dy * radius + item.state.anchor_y
+        item.resource(i).position.z = item.state.dz * radius + item.state.anchor_z
+
+    func MoveWall():
+        let int tip = item.state.endpoint
+        if stage.line_exists(item.resource(tip).surface_line):
+            item.resource(tip).read_line_speed(item.resource(tip).surface_line, item.state.speed_x, item.state.speed_y, item.state.speed_z)
+            item.resource(tip).position.x = item.resource(tip).position.x + item.state.speed_x
+            item.resource(tip).position.y = item.resource(tip).position.y + item.state.speed_y
+            item.resource(tip).position.z = item.resource(tip).position.z + item.state.speed_z
+
+    func OrientModel(int i, float dx, float dy, float dz):
+        Normalize(dx, dy, dz)
+        let float z0 = item.state.dx
+        let float z1 = item.state.dy
+        let float z2 = item.state.dz
+        let float rx = 0
+        let float ry = 1
+        if z1 > 0.9999:
+            rx = -1
+            ry = 0
+        else:
+            if z1 < -0.9999:
+                rx = 1
+                ry = 0
+        let float rawx0 = ry * z2
+        let float rawx1 = -rx * z2
+        let float rawx2 = rx * z1 - ry * z0
+        let float rawy0 = z1 * rawx2 - z2 * rawx1
+        let float rawy1 = z2 * rawx0 - z0 * rawx2
+        let float rawy2 = z0 * rawx1 - z1 * rawx0
+        Normalize(rawx0, rawx1, rawx2)
+        # Reuse raw locals after both cross products to stay within16locals.
+        rawx0 = item.state.dx
+        rawx1 = item.state.dy
+        rawx2 = item.state.dz
+        Normalize(rawy0, rawy1, rawy2)
+        let float scale = attachment_owner.model.instance_scale_y
+        item.state.matrix[0] = rawx0 * scale
+        item.state.matrix[1] = item.state.dx * scale
+        item.state.matrix[2] = z0 * scale
+        item.state.matrix[3] = item.resource(i).position.x
+        item.state.matrix[4] = rawx1 * scale
+        item.state.matrix[5] = item.state.dy * scale
+        item.state.matrix[6] = z1 * scale
+        item.state.matrix[7] = item.resource(i).position.y
+        item.state.matrix[8] = rawx2 * scale
+        item.state.matrix[9] = item.state.dz * scale
+        item.state.matrix[10] = z2 * scale
+        item.state.matrix[11] = item.resource(i).position.z
+        item.resource(i).joint("").translation.x = item.resource(i).position.x
+        item.resource(i).joint("").translation.y = item.resource(i).position.y
+        item.resource(i).joint("").translation.z = item.resource(i).position.z
+        item.resource(i).set_world_matrix(item.state.matrix)
+
+    func UpdateModels():
+        let int i = int(0)
+        while i < item.state.count and not item.state.deployed[i]:
+            i = i + 1
+        while i < item.state.count:
+            let int next = i - 1
+            let int previous = i + 1
+            let float ax = item.state.anchor_x
+            let float ay = item.state.anchor_y
+            let float az = item.state.anchor_z
+            if next >= 0 and item.state.deployed[next]:
+                ax = item.resource(next).position.x
+                ay = item.resource(next).position.y
+                az = item.resource(next).position.z
+            let float bx = item.resource(i).position.x
+            let float by = item.resource(i).position.y
+            let float bz = item.resource(i).position.z
+            if previous < item.state.count:
+                bx = item.resource(previous).position.x
+                by = item.resource(previous).position.y
+                bz = item.resource(previous).position.z
+            OrientModel(i, bx - ax, by - ay, bz - az)
+            i = i + 1
+
+    func Animate():
+        item.advance_model_animation()
+        let int i = int(0)
+        while i < item.state.count:
+            item.resource(i).joint("").advance_animation()
+            i = i + 1
+
+    func CopyEndpointMatrix():
+        item.resource(item.state.endpoint).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.endpoint).set_world_matrix(item.state.matrix)
+
+    func CopyHeldMatrix():
+        CopyEndpointMatrix()
+        Animate()
+
+    func ClampNode(int i, int previous, bool minimum):
+        Normalize(item.resource(i).position.x - item.resource(previous).position.x, item.resource(i).position.y - item.resource(previous).position.y, item.resource(i).position.z - item.resource(previous).position.z)
+        let float distance = item.state.norm_length
+        if distance > item.state.length or (minimum and distance < item.state.min_length):
+            let float radius = item.state.length
+            if distance < item.state.min_length:
+                radius = item.state.min_length
+            item.resource(i).position.x = item.state.dx * radius + item.resource(previous).position.x
+            item.resource(i).position.y = item.state.dy * radius + item.resource(previous).position.y
+            item.resource(i).position.z = item.state.dz * radius + item.resource(previous).position.z
+
+    func RandomGravity(int i, float coefficient):
+        item.state.random_gravity = 0
+        if random.float() > 0.9:
+            let float y = item.resource(i).velocity.y
+            if y < 0:
+                item.state.random_gravity = -(coefficient * random.float() - y)
+            else:
+                item.state.random_gravity = coefficient * random.float() + y
+        item.resource(i).velocity.y = item.resource(i).velocity.y - item.state.random_gravity
+
+    func Forward(int first, float radius, bool deterministic):
+        ClampToAnchor(first, radius)
+        let int i = first + 1
+        while i < item.state.count:
+            if deterministic:
+                item.resource(i).velocity.y = item.resource(i).velocity.y - item.state.gravity
+            else:
+                RandomGravity(i, 0.6)
+            Integrate(i)
+            CopyCollisionPosition(i, false)
+            ClampNode(i, i - 1, true)
+            i = i + 1
+
+    func Retract(float speed, bool deterministic):
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        let int current = item.state.cursor
+        Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        while current + 1 < item.state.count and speed > item.state.norm_length:
+            MarkDeployed(current, false)
+            current = current + 1
+            Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        let float radius = item.state.norm_length - speed
+        if radius > item.state.length:
+            radius = item.state.length
+        Forward(current, radius, deterministic)
+        item.state.result = int(0)
+        if current == item.state.endpoint:
+            item.state.result = int(1)
+
+    func RetractDamping():
+        let int i = int(0)
+        while i < item.state.count:
+            let float dx = item.resource(i).collision.position.x - item.resource(i).collision.previous.x
+            let float dz = item.resource(i).collision.position.z - item.resource(i).collision.previous.z
+            let float remaining = dz - item.resource(i).velocity.z
+            item.resource(i).velocity.x = item.resource(i).velocity.x + 0.12 * (dx - item.resource(i).velocity.x)
+            item.resource(i).velocity.z = item.resource(i).velocity.z + 0.12 * remaining
+            i = i + 1
+
+    func Friction(int i):
+        let float x = item.resource(i).velocity.x
+        if x > item.state.friction:
+            x = x - item.state.friction
+        else:
+            if x < -item.state.friction:
+                x = x + item.state.friction
+            else:
+                x = 0
+        item.resource(i).velocity.x = x
+
+    func Flight(bool falling):
+        let int tip = item.state.endpoint
+        if not falling and attachment_owner.state.tether_launch_now:
+            item.resource(tip).position.x = item.state.anchor_x
+            item.resource(tip).position.y = item.state.anchor_y
+            item.resource(tip).position.z = item.state.anchor_z
+            CopyCollisionPosition(tip, true)
+            MarkDeployed(tip, true)
+        # Stock updates the modified capsule/mode before its homing check.
+        if attachment_owner.helpers.Tether_UpdateModifiedGroundAttack(item.state.modified_mode):
+            item.state.modified_mode = 2
+        if falling:
+            RandomGravity(tip, 0.6)
+            Friction(tip)
+        elif item.state.modified_mode == 1 and attachment_owner.input.l_held:
+            if attachment_owner.helpers.Tether_ReadHomingTarget():
+                # Selection uses 2D fighter distance; steering uses the native
+                # normalized 3D vector from the endpoint to the selected fighter.
+                Normalize(attachment_owner.state.tether_target_x - item.resource(tip).position.x, attachment_owner.state.tether_target_y - item.resource(tip).position.y, attachment_owner.state.tether_target_z - item.resource(tip).position.z)
+                item.resource(tip).velocity.x = item.state.dx * item.state.launch_speed
+                item.resource(tip).velocity.y = item.state.dy * item.state.launch_speed
+                item.resource(tip).velocity.z = item.state.dz * item.state.launch_speed
+        Integrate(tip)
+        CopyCollisionPosition(tip, false)
+        item.state.on_floor[tip] = item.resource(tip).sweep_stage()
+        item.resource(tip).position.x = item.resource(tip).collision.position.x
+        item.resource(tip).position.y = item.resource(tip).collision.position.y
+        item.resource(tip).position.z = item.resource(tip).collision.position.z
+        item.state.result = int(0)
+        item.state.collision_result = item.resource(tip).collision.environment & (Collision.floor_mask | Collision.wall_mask)
+        if item.state.collision_result != 0:
+            if (item.state.collision_result & Collision.wall_mask) != 0:
+                item.state.result = int(1)
+                if not falling:
+                    if (item.state.collision_result & Collision.left_wall_mask) != 0:
+                        item.resource(tip).surface_line = item.resource(tip).collision.left_wall_line
+                    else:
+                        item.resource(tip).surface_line = item.resource(tip).collision.right_wall_line
+            else:
+                item.state.result = int(2)
+        let int current = tip
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                if falling:
+                    RandomGravity(next, 0.6)
+                    Integrate(next)
+                else:
+                    RandomGravity(next, 1)
+                    item.resource(next).position.y = item.resource(next).position.y + item.resource(next).velocity.y
+                ClampNode(next, current, true)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    return
+            current = next
+            next = next - 1
+        Forward(current, item.state.length, false)
+        item.state.result = int(3)
+
+    func Slack():
+        if attachment_owner.helpers.Tether_UpdateModifiedGroundAttack(item.state.modified_mode):
+            item.state.modified_mode = 2
+        let int current = int(0)
+        while current < item.state.endpoint and not item.state.deployed[current]:
+            current = current + 1
+        RandomGravity(current, 0.6)
+        Integrate(current)
+        Normalize(item.resource(current).position.x - item.state.anchor_x, item.resource(current).position.y - item.state.anchor_y, item.resource(current).position.z - item.state.anchor_z)
+        if item.state.norm_length > item.state.length:
+            ClampToAnchor(current, item.state.length)
+        let int i = current + 1
+        while i < item.state.count:
+            RandomGravity(i, 0.6)
+            Integrate(i)
+            ClampNode(i, current, true)
+            current = i
+            i = i + 1
+        Friction(current)
+
+    func WallExtend():
+        MoveWall()
+        item.state.result = int(1)
+        let int current = item.state.endpoint
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                RandomGravity(next, 0.6)
+                Integrate(next)
+                ClampNode(next, current, false)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    item.state.result = int(0)
+                    return
+            current = next
+            next = next - 1
+
+    func TailConstraint(bool stop_when_slack):
+        let int current = item.state.endpoint
+        let int next = current - 1
+        let bool slack = false
+        item.state.result = int(0)
+        while next >= 0 and item.state.deployed[next]:
+            item.state.result = item.state.result + 1
+            if not slack:
+                Normalize(item.resource(next).position.x - item.resource(current).position.x, item.resource(next).position.y - item.resource(current).position.y, item.resource(next).position.z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    ClampNode(next, current, false)
+                else:
+                    slack = stop_when_slack
+            current = next
+            next = next - 1
+        Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+        if item.state.norm_length > item.state.length:
+            item.state.anchor_x = item.state.dx * item.state.length + item.resource(current).position.x
+            item.state.anchor_y = item.state.dy * item.state.length + item.resource(current).position.y
+            item.state.anchor_z = item.state.dz * item.state.length + item.resource(current).position.z
+
+    func PullConstraint():
+        MoveWall()
+        item.state.saved_x = item.resource(item.state.endpoint).position.x
+        item.state.saved_y = item.resource(item.state.endpoint).position.y
+        item.state.saved_z = item.resource(item.state.endpoint).position.z
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        Forward(item.state.cursor, item.state.length, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        Retract(item.state.retract_speed, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        TailConstraint(false)
+        if item.state.result != 0:
+            item.state.result = int(0)
+        else:
+            item.state.result = int(1)
+
+    func HangConstraint():
+        MoveWall()
+        item.state.saved_x = item.resource(item.state.endpoint).position.x
+        item.state.saved_y = item.resource(item.state.endpoint).position.y
+        item.state.saved_z = item.resource(item.state.endpoint).position.z
+        item.state.cursor = int(0)
+        while item.state.cursor + 1 < item.state.count and not item.state.deployed[item.state.cursor]:
+            item.state.cursor = item.state.cursor + 1
+        Forward(item.state.cursor, item.state.length, true)
+        item.resource(item.state.endpoint).position.x = item.state.saved_x
+        item.resource(item.state.endpoint).position.y = item.state.saved_y
+        item.resource(item.state.endpoint).position.z = item.state.saved_z
+        TailConstraint(true)
+
+    func ChangeMode(int next, bool clear_attack):
+        item.change_state_flags(next, int(2))
+        if clear_attack:
+            attachment_owner.helpers.Tether_ClearAttack()
+        item.scale_by_attribute(attachment_owner.model.instance_scale_y)
+        if next == 8:
+            attachment_owner.helpers.Tether_StartHangTimer()
+
+    func WallStates(int mode):
+        if mode == 6 or mode == 8:
+            if stage.segment_blocked(item.state.anchor_x, item.state.anchor_y, item.resource(item.state.endpoint).position.x, item.resource(item.state.endpoint).position.y) or stage.segment_blocked(attachment_owner.position.x, attachment_owner.position.y, item.resource(item.state.endpoint).position.x, item.resource(item.state.endpoint).position.y):
+                attachment_owner.helpers.Tether_DamageFall()
+                Dispose()
+                return
+        if mode == 6:
+            WallExtend()
+            if item.state.result != 0:
+                ChangeMode(int(8), false)
+                return
+        else:
+            attachment_owner.helpers.Tether_ReadPosition()
+            let float offset_x = attachment_owner.state.tether_position_x - item.state.anchor_x
+            let float offset_y = attachment_owner.state.tether_position_y - item.state.anchor_y
+            if mode == 7:
+                PullConstraint()
+            else:
+                HangConstraint()
+            attachment_owner.state.tether_target_x = item.state.anchor_x + offset_x
+            attachment_owner.state.tether_target_y = item.state.anchor_y + offset_y
+            attachment_owner.helpers.Tether_ApplyPosition()
+            if mode == 7 and item.state.result != 0:
+                attachment_owner.helpers.Tether_PullComplete()
+                Dispose()
+                return
+            if mode == 8:
+                attachment_owner.helpers.Tether_AddDisplacement()
+        UpdateModels()
+        Animate()
+        if mode == 8:
+            attachment_owner.helpers.Tether_HoldHangTimer(item.state.modified_mode)
+        if attachment_owner.state.tether_grounded:
+            ChangeMode(int(4), false)
+            return
+        if mode != 7 and attachment_owner.state.tether_attack_pressed:
+            ChangeMode(int(7), false)
+            return
+        if mode == 8:
+            attachment_owner.helpers.Tether_HangCountdown()
+            if attachment_owner.state.tether_hang_expired:
+                attachment_owner.helpers.Tether_DamageFall()
+                Dispose()
+
+    func FlightUpdate(int mode):
+        if mode == 1 and not attachment_owner.state.tether_allowed_motion and not item.state.deployed[item.state.endpoint - 1]:
+            Dispose()
+            return
+        Flight(mode == 2)
+        if item.state.result == 1:
+            if mode == 1 and attachment_owner.motion.id == 357:
+                # Air wall contact enters AirCatchHit and wall-extension mode.
+                # Effect 0x41C ignores stock's extra ItemLink argument; both
+                # effects are position generators owned by the endpoint GObj.
+                attachment_owner.helpers.Tether_EnterHit()
+                ChangeMode(int(6), false)
+                let float x = item.resource(item.state.endpoint).position.x
+                let float y = item.resource(item.state.endpoint).position.y
+                let float z = item.resource(item.state.endpoint).position.z
+                item.resource(item.state.endpoint).spawn_effect_at_position(1052, x, y, z)
+                item.resource(item.state.endpoint).spawn_effect_facing_at_position(1009, x, y, z, attachment_owner.facing)
+                return
+            item.resource(item.state.endpoint).velocity.x = -item.resource(item.state.endpoint).velocity.x * item.attr.bounce
+            if mode == 1:
+                ChangeMode(int(2), true)
+                attachment_owner.helpers.Tether_ClearCaptureMask()
+        else:
+            if item.state.result == 2:
+                Normalize(item.resource(item.state.endpoint).collision.floor_normal.x, item.resource(item.state.endpoint).collision.floor_normal.y, item.resource(item.state.endpoint).collision.floor_normal.z)
+                let float dot = item.resource(item.state.endpoint).velocity.x * item.state.dx + item.resource(item.state.endpoint).velocity.y * item.state.dy + 0
+                item.resource(item.state.endpoint).velocity.x = item.resource(item.state.endpoint).velocity.x - 2 * dot * item.state.dx
+                item.resource(item.state.endpoint).velocity.y = (item.resource(item.state.endpoint).velocity.y - 2 * dot * item.state.dy) * item.attr.bounce
+                item.resource(item.state.endpoint).velocity.z = item.resource(item.state.endpoint).velocity.z - 2 * dot * item.state.dz
+                if mode == 1:
+                    ChangeMode(int(2), true)
+                    attachment_owner.helpers.Tether_ClearCaptureMask()
+            else:
+                if item.state.result == 3:
+                    ChangeMode(int(3), true)
+                    if mode == 1:
+                        attachment_owner.helpers.Tether_ClearCaptureMask()
+        UpdateModels()
+        Animate()
+        return
+
+    func RetractUpdate(int mode):
+        if mode == 5 and item.state.completed:
+            Dispose()
+            return
+        let float speed = item.state.retract_speed
+        if mode == 4 and not attachment_owner.state.tether_grounded:
+            speed = 2 * speed
+        if mode == 5:
+            speed = item.state.pull_speed
+        Retract(speed, false)
+        if mode == 4:
+            RetractDamping()
+        if item.state.result != 0:
+            if mode == 5:
+                item.state.completed = true
+                return
+            if not attachment_owner.state.tether_allowed_motion:
+                Dispose()
+                return
+            ChangeMode(int(0), false)
+        UpdateModels()
+        Animate()
+        return
+
+    func DispatchNormal():
+        let int mode = item.state.solver
+        if mode == 0 or mode == 1:
+            attachment_owner.helpers.Tether_AdvanceCodeSequence()
+        if mode == 0:
+            CopyHeldMatrix()
+            if not attachment_owner.state.tether_allowed_motion:
+                Dispose()
+            return
+        item.resource(item.state.endpoint).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if mode == 1 or mode == 2:
+            FlightUpdate(mode)
+            return
+        if mode == 3:
+            Slack()
+            UpdateModels()
+            Animate()
+            if not attachment_owner.state.tether_allowed_motion:
+                ChangeMode(int(4), false)
+            return
+        if mode == 4 or mode == 5:
+            RetractUpdate(mode)
+            return
+        WallStates(mode)
+
+    func HitlagConstraints():
+        let int current = item.state.endpoint
+        let int next = current - 1
+        while next >= 0:
+            if item.state.deployed[next]:
+                ClampNode(next, current, false)
+                CopyCollisionPosition(next, false)
+            else:
+                Normalize(item.state.anchor_x - item.resource(current).position.x, item.state.anchor_y - item.resource(current).position.y, item.state.anchor_z - item.resource(current).position.z)
+                if item.state.norm_length > item.state.length:
+                    item.resource(next).position.x = item.state.dx * item.state.length + item.resource(current).position.x
+                    item.resource(next).position.y = item.state.dy * item.state.length + item.resource(current).position.y
+                    item.resource(next).position.z = item.state.dz * item.state.length + item.resource(current).position.z
+                    MarkDeployed(next, true)
+                    CopyCollisionPosition(next, true)
+                else:
+                    return
+            current = next
+            next = next - 1
+        Forward(current, item.state.length, false)
+
+    on created:
+            item.state.solver = -1
+            if not creator.exists:
+                Dispose()
+                return
+            item.state.modified_mode = 0
+            if creator.state.tether_code_sequence >= 4:
+                if creator.state.tether_grounded:
+                    item.state.modified_mode = 1
+                else:
+                    item.state.modified_mode = 2
+            else:
+                creator.state.tether_code_sequence = 0
+            if not InitializeGeometry():
+                Dispose()
+                return
+            if not InitializeLinks():
+                Dispose()
+                return
+            if not item.add_model_animation(0, "0", PrimaryAnimation):
+                Dispose()
+                return
+            item.request_model_animation(0, "0", 0)
+            if not item.resource(item.state.endpoint).bind_part(139):
+                Dispose()
+                return
+
+    on picked_up:
+            ChangeMode(int(0), false)
+
+    on signal scale_after_attach:
+            # Tethers attach to a bone without occupying the held-item slot.
+            item.scale_by_attribute(attachment_owner.model.instance_scale_y)
+
+    on signal hitlag_update:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            if attachment_owner.state.tether_before_launch:
+                CopyEndpointMatrix()
+            else:
+                HitlagConstraints()
+                UpdateModels()
+    on destroyed:
+            item.state.solver = -1
+            if creator.exists:
+                creator.helpers.Tether_Unbind(int(item.creation_id))
+            item.resources.release()
+    on interaction:
+            item.interact(other)
+            if item.attachment_owner_is(other):
+                item.clear_attachment_owner()
+    on signal normal_update:
+            if item.state.solver < 0:
+                return
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            attachment_owner.helpers.Tether_ReadInputs()
+            DispatchNormal()
+    on signal remove:
+            Dispose()
+    on signal extend_air:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).velocity.x = item.state.launch_speed * attachment_owner.facing + signal.value
+            item.resource(item.state.endpoint).velocity.y = 0
+            item.resource(item.state.endpoint).velocity.z = 0
+            ChangeMode(int(1), false)
+    on signal extend_ground:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).velocity.x = item.state.launch_speed * attachment_owner.facing
+            item.resource(item.state.endpoint).velocity.y = 0
+            item.resource(item.state.endpoint).velocity.z = 0
+            ChangeMode(int(1), false)
+    on signal retract:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(4), false)
+    on signal bind_capture:
+            item.state.capture_bound = false
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(5), true)
+            item.state.capture_bound = item.resource(item.state.endpoint).bind_capture_anchor()
+    on signal retract_capture:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(5), true)
+    on signal ground_spark:
+            if not item.resource(item.state.endpoint).read_world_matrix(item.state.matrix):
+                return
+            let float x = 4 * (random.float() - 0.5) + item.state.matrix[3]
+            let float y = 4 * (random.float() - 0.5) + item.state.matrix[7]
+            let float centered = random.float() - 0.5
+            let float z = 4 * centered + item.state.matrix[11]
+            item.resource(item.state.endpoint).spawn_effect_at_position(1011, x, y, z)
+
+    state 0 anim -1:
+        on physics:
+            item.state.solver = 0
+    state 1 anim -1:
+        on physics:
+            item.state.solver = 1
+    state 2 anim -1:
+        on physics:
+            item.state.solver = 2
+    state 3 anim -1:
+        on physics:
+            item.state.solver = 3
+    state 4 anim -1:
+        on physics:
+            item.state.solver = 4
+    state 5 anim -1:
+        on physics:
+            item.state.solver = 5
+    state 6 anim -1:
+        on physics:
+            item.state.solver = 6
+    state 7 anim -1:
+        on physics:
+            item.state.solver = 7
+    state 8 anim -1:
+        on physics:
+            item.state.solver = 8
+
+move ScrewAttack:
+    entry explicit
+    on special_hi:
+        state.enter_at_speed(353, 0, 0, 1)
+        spin_track_cleanup()
+        effects.pause_during_hitlag()
+        physics.switch_to_ground()
+        spin_reset_commands()
+        animation.start()
+        effects.spawn_on_part(1154, 3)
+        state.spin_effect = true
+    on special_air_hi:
+        state.enter_at_speed(354, 0, 0, 1)
+        spin_track_cleanup()
+        effects.pause_during_hitlag()
+        physics.force_air_and_use_jumps()
+        spin_reset_commands()
+        velocity.y = attrs.spin_air_vertical_speed
+        physics.clamp_horizontal_speed(attrs.spin_horizontal_limit)
+        animation.start()
+        effects.spawn_on_part(1154, 3)
+        state.spin_effect = true
+    on ground_animation:
+        spin_end()
+    on air_animation:
+        spin_end()
+    on ground_interrupt:
+        spin_turn()
+    on air_interrupt:
+        spin_turn()
+    on ground_physics:
+        if command(0):
+            physics.force_air_and_use_jumps()
+            command(0) = 0
+            velocity.x = attrs.spin_ground_speed * facing.direction
+        if not grounded:
+            velocity.y = animation.delta.y
+            physics.air_accel_friction(0, attrs.spin_drift_acceleration, attrs.spin_horizontal_limit)
+            physics.air_accel_normal()
+            return
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+        physics.air_accel_friction(0, attrs.spin_drift_acceleration, attrs.spin_horizontal_limit)
+    on ground_collision:
+        spin_collide()
+    on air_collision:
+        spin_collide()
+
+
+move ChargeShot:
+    entry explicit
+    on special_n:
+        shot_enter(false)
+    on special_air_n:
+        shot_enter(true)
+    on ground_animation:
+        shot_start_animation(false)
+    on air_animation:
+        shot_start_animation(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        shot_ground_collision(347, false)
+    on air_collision:
+        shot_air_collision(343)
+
+
+move Missiles:
+    entry explicit
+    on special_s:
+        missile_begin(false)
+        callbacks.accessory(missile_accessory)
+    on special_air_s:
+        missile_begin(true)
+        callbacks.accessory(missile_accessory)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on ground_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on ground_collision:
+        if collision.special_ground_lost: state.fall()
+    on air_animation:
+        if animation.finished: state.fall()
+    on air_interrupt:
+        pass
+    on air_physics:
+        physics.fall_basic()
+        physics.air_decel(attrs.missile_air_deceleration)
+    on air_collision:
+        if collision.landed:
+            if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+            else: state.basic_landing()
+
+
+move Bombs:
+    entry explicit
+    on special_lw:
+        ground.velocity = ground.velocity * attrs.bomb_ground_start_deceleration
+        if motion.id == 40:
+            state.enter_at_speed(355, 0, 3, 1)
+            command(0) = 0
+            command(1) = 2
+            command(2) = 0
+            cue.throw.reset()
+            state.morph_hurtbox = false
+            bomb_transition(true, true)
+        else:
+            state.enter_at_speed(355, 0, 0, 1)
+            animation.start()
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            state.morph_hurtbox = false
+            if frame == 3: command(1) = 1
+        callbacks.accessory(bomb_accessory)
+    on special_air_lw:
+        velocity.x = velocity.x * attrs.bomb_air_start_deceleration
+        velocity.y = state.scaled_bomb_air_start_speed
+        state.enter_at_speed(356, 0, 0, 1)
+        animation.start()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        cue.throw.reset()
+        state.morph_hurtbox = false
+        if frame == 3: command(1) = 1
+        callbacks.accessory(bomb_accessory)
+    on ground_animation:
+        if command(1) == 1:
+            command(1) = 2
+            bomb_transition(true, true)
+            callbacks.accessory(bomb_accessory)
+            return
+        morph_shape()
+        if animation.finished: state.wait()
+    on ground_interrupt:
+        if command(2) and input.y < attrs.bomb_crouch_threshold:
+            command(2) = 0
+            state.crouch_wait()
+    on ground_physics:
+        if command(0):
+            physics.ground_accel(ground.walk_acceleration_multiplier * attrs.bomb_ground_accel, ground.walk_max_speed * attrs.bomb_ground_speed)
+            physics.ground_to_self()
+        else:
+            physics.ground_friction()
+    on ground_collision:
+        let touching = false
+        if command(0): touching = collision.ground_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.special_ground_lost == false
+        if not touching:
+            bomb_transition(true, false)
+            callbacks.accessory(bomb_accessory)
+    on air_animation:
+        morph_shape()
+        if animation.finished: state.fall()
+    on air_interrupt:
+        pass
+    on air_physics:
+        physics.fall_basic()
+        physics.air_accel(air.drift_stick_mul * attrs.bomb_air_accel, air.drift_max * attrs.bomb_air_speed)
+    on air_collision:
+        let touching = false
+        if command(0): touching = collision.air_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.landed
+        if touching:
+            bomb_transition(false, false)
+            callbacks.accessory(bomb_accessory)
+
+
+action ChargePhases:
+    on state_344_animation:
+        shot_hold_animation()
+    on state_344_interrupt:
+        shot_hold_interrupt()
+    on state_344_physics:
+        physics.ground_friction()
+    on state_344_collision:
+        shot_ground_collision(348, true)
+    on state_345_animation:
+        shot_remove()
+        if animation.finished: state.wait()
+    on state_345_interrupt:
+        pass
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        shot_ground_collision(348, false)
+    on state_346_animation:
+        shot_fire()
+        if animation.finished: state.wait()
+    on state_346_interrupt:
+        pass
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        shot_ground_collision(348, false)
+    on state_348_animation:
+        shot_fire()
+        if animation.finished:
+            if attrs.shot_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.shot_landing_lag)
+    on state_348_interrupt:
+        pass
+    on state_348_physics:
+        physics.air_gravity_and_friction()
+    on state_348_collision:
+        shot_air_collision(346)
+
+
+action MissilePhases:
+    on state_350_animation:
+        if animation.finished: state.wait()
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        if collision.left_ground: state.fall()
+    on state_352_animation:
+        if animation.finished: state.fall()
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.fall_basic()
+        physics.air_decel(attrs.missile_air_deceleration)
+    on state_352_collision:
+        if collision.landed:
+            if velocity.y > collision.basic_landing_velocity_threshold: state.wait()
+            else: state.basic_landing()
+
+
+action MorphPhases:
+    on state_341_animation:
+        morph_shape()
+        if animation.finished: state.wait()
+    on state_342_animation:
+        morph_shape()
+        if animation.finished: state.fall()
+    on state_341_interrupt:
+        if command(1) and input.y < attrs.morph_crouch_threshold:
+            command(1) = 0
+            state.crouch_wait()
+            return
+        if controls.try_side_special(): return
+        if controls.try_up_special(): return
+        if controls.try_neutral_special(): return
+        if controls.try_down_special(): return
+        if controls.try_catch(): return
+        if controls.try_side_smash(): return
+        if controls.try_up_smash(): return
+        if controls.try_down_smash(): return
+        if controls.try_side_tilt(): return
+        if controls.try_up_tilt(): return
+        if controls.try_down_tilt(): return
+        if controls.try_jab(): return
+        if controls.try_spotdodge(): return
+    on state_342_interrupt:
+        controls.air_actions()
+    on state_341_physics:
+        if command(0):
+            physics.ground_accel(ground.walk_acceleration_multiplier * attrs.morph_ground_mobility, ground.walk_max_speed * attrs.morph_ground_mobility)
+            physics.ground_to_self()
+        else:
+            physics.ground_friction()
+    on state_342_physics:
+        physics.fall_basic()
+        physics.air_accel_friction(0, air.ground_jump_momentum_multiplier * attrs.morph_air_mobility, air.jump_horizontal_max * attrs.morph_air_mobility)
+    on state_341_collision:
+        let touching = false
+        if command(0): touching = collision.ground_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.special_ground_lost == false
+        if not touching:
+            physics.ground_to_air()
+            state.enter_at_speed(342, Transition.skip_model, frame, animation.rate)
+    on state_342_collision:
+        let touching = false
+        if command(0): touching = collision.air_box(state.scaled_morph_ecb_top, state.scaled_morph_ecb_bottom, state.scaled_morph_ecb_left_x, state.scaled_morph_ecb_left_y, state.scaled_morph_ecb_right_x, state.scaled_morph_ecb_right_y)
+        else: touching = collision.landed
+        if touching:
+            physics.switch_to_ground()
+            state.enter_at_speed(341, Transition.skip_model, frame, animation.rate)
+
+
+action FighterEvents:
+    on throw_presentation:
+        Tether_CreateThrowAccessory(event.motion, event.rate)
+    on load:
+        fighter.enable_walljump()
+        fighter.copy_ext_attributes()
+        state.shot_handle = -1
+        state.tether_handle = -1
+        state.tether_code_sequence = 0
+        Samus_ScaleOwnedAttributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        Samus_ScaleOwnedAttributes()
+    on death:
+        visuals.set_group(0, 0)
+        state.shot_handle = -1
+        state.shot_charge = 0
+        state.missile_serial = 0
+        state.spin_effect = false
+        state.tether_handle = -1
+        state.tether_code_sequence = 0
+    on damage:
+        Samus_DamageDeathCleanup()
+    on death2:
+        Samus_DamageDeathCleanup()
+    on color_animation_reset:
+        if state.shot_charge == attrs.shot_max_charge: color.start(53, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 0, 0)
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_visible:
+        fighter.item_visible(0)
+    on item_invisible:
+        fighter.item_invisible(0)
+    on roll_enter:
+        command(0) = 0
+        state.morph_hurtbox = false
+        callbacks.animation(morph_roll_animation)
+        callbacks.collision(morph_roll_collision)
+
+
+action CpuPolicy:
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_attack_motion:
+        return motion.id >= 341
+    on cpu_grab_motion:
+        return false
+    on cpu_attack_decision:
+        if motion.id == 344:
+            cpu_tap_shield()
+            cpu.queue(Cpu.wait, 5)
+        return false
+    on cpu_special_candidate:
+        # The stock double threshold lies just above its nearest float value;
+        # inclusive comparison with that owned float preserves the boundary.
+        if not grounded and event.angle <= attrs.cpu_bomb_angle:
+            cpu.selected_command = 38
+            return true
+        return false
+    on cpu_threat:
+        if motion.id != 353 or position.y >= other.position.y: return false
+        let dx = other.position.x - position.x
+        let dy = other.position.y - position.y
+        return sqrt(dx * dx + dy * dy) < attrs.cpu_spin_threat_distance
+    on cpu_charge_decision:
+        if motion.id != 344 and state.shot_charge == 0:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.press_b)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            return true
+        return false
+    on cpu_charge_cancel:
+        if motion.id == 344:
+            cpu_tap_shield()
+            cpu.queue(Cpu.wait, 1)
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_y, 88)
+        cpu.queue(Cpu.x_toward_destination, 88)
+        cpu.queue(Cpu.press_b_for, 1)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.x_toward_destination, 127)
+        cpu.queue(Cpu.done)
+
+
+action TetherInput:
+    on air_tether_input:
+        if movement.used_tether:
+            return false
+        if not callbacks.matches(Callback.accessory_before, None) or not callbacks.matches(Callback.death1, None) or not callbacks.matches(Callback.accessory_hitlag, None):
+            return false
+        if items.held:
+            return false
+        if input.shield_held and input.attack_pressed:
+            if airborne:
+                Tether_EnterAir()
+            movement.used_tether = true
+            return true
+        return false
+
+
+action TetherAirPhases:
+    on state_357_animation:
+        Tether_AirAnimation()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        Tether_AirPhysics()
+    on state_357_collision:
+        # Uses the same ft_80081D0C contact test as ftCo_AirCatch_Coll.
+        if collision.landed:
+            state.landing(int(42), false, int(0), 0, 1)
+    on state_358_animation:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        Tether_HitPhysics()
+    on state_358_collision:
+        collision.air_catch_hit()
+
+action GroundCatchPolicy:
+    on catch_allowed:
+        return not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists
+    on catch_start:
+        state.tether_counter = 0
+    on catch_frame:
+        if motion.id == 212:
+            Tether_GroundFrame(attrs.tether_standing_create, attrs.tether_standing_launch, attrs.tether_standing_retract, attrs.tether_standing_remove, true)
+        else:
+            Tether_GroundFrame(attrs.tether_dash_create, attrs.tether_dash_launch, attrs.tether_dash_retract, attrs.tether_dash_remove, false)
+        return state.tether_ground_consumed
+    on catch_exit:
+        Tether_Remove()
+    on catch_wait_release:
+        Tether_Remove()
+    on catch_pull_anchor:
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            return false
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "bind_capture", 0)
+        return articles.ref(state.tether_handle, It_Kind_Samus_GBeam).state.capture_bound
+    on catch_pull_ready:
+        return not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists or articles.ref(state.tether_handle, It_Kind_Samus_GBeam).state.completed
+    on catch_pull_follow:
+        return false
+    on capture_wait_enter:
+        if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract_capture", 0)

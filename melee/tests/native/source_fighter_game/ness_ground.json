@@ -1,0 +1,14 @@
+{
+  "stock": "ness",
+  "samples": 360,
+  "cases": [
+    {"name": "idle", "inputs": []},
+    {"name": "neutral", "motions": [348, 349, 350, 351], "inputs": [{"start": 100, "buttons": 512}]},
+    {"name": "side", "motions": [356], "inputs": [{"start": 100, "buttons": 512, "x": 60}]},
+    {"name": "down", "motions": [367, 368, 369, 370, 371], "inputs": [{"start": 100, "hold": 40, "buttons": 512, "y": -60}]},
+    {"name": "up", "motions": [358, 359, 360, 361], "inputs": [{"start": 100, "buttons": 512, "y": 60}]},
+    {"name": "forward-smash", "motions": [341], "inputs": [{"start": 100, "buttons": 256, "x": 100}]},
+    {"name": "up-smash", "motions": [342, 343, 344], "inputs": [{"start": 100, "buttons": 256, "y": 100}]},
+    {"name": "down-smash", "motions": [345, 346, 347], "inputs": [{"start": 100, "buttons": 256, "y": -100}]}
+  ]
+}

@@ -1,0 +1,144 @@
+# Primary Squall entries/animation/ground physics. Uses accepted solo.fms
+# IASAs and air physics unchanged. No private effect transport override.
+parameter float linked_squall_ground_launch = 1
+parameter float linked_squall_air_launch = 1
+parameter float linked_squall_solo_lift = 1
+parameter float linked_squall_pair_lift = 1
+parameter float linked_squall_ground_max = 1
+parameter float linked_squall_slope_accel = 1
+parameter float linked_squall_fall_lag = 1
+state bool linked_squall_on_floor
+
+func linked_primary_callbacks():
+    callbacks.damage(linked_full_cleanup)
+    callbacks.death2(linked_full_cleanup)
+    effects.pause_during_hitlag()
+
+func linked_primary_squall_enter(bool air):
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    state.linked_squall_on_floor = false
+    state.squall_pending_pumps = 0
+    state.squall_pump_timer = attrs.squall_pump_interval
+    state.squall_elapsed = 0
+    state.squall_input_accel = 0
+    let int companion = family.member_id(1)
+    let bool paired = false
+    if companion != 0:
+        if air:
+            paired = targets.call_bool(companion, "linked_join_squall_air")
+        else:
+            paired = targets.call_bool(companion, "linked_join_squall_ground")
+    if air:
+        if paired:
+            state.enter_at_speed(346, 0, 0, 1)
+            hitlag.link(companion)
+            velocity.y = attrs.linked_squall_pair_lift
+        else:
+            state.enter_at_speed(345, 0, 0, 1)
+            hitlag.unlink()
+            velocity.y = attrs.linked_squall_solo_lift
+        velocity.x = attrs.linked_squall_air_launch * facing.direction
+    else:
+        if paired:
+            state.enter_at_speed(344, 0, 0, 1)
+            hitlag.link(companion)
+        else:
+            state.enter_at_speed(343, 0, 0, 1)
+            hitlag.unlink()
+        velocity.y = 0
+        let float speed = attrs.linked_squall_ground_launch * facing.direction
+        velocity.x = speed
+        ground.velocity = speed
+    linked_primary_callbacks()
+    animation.start()
+    # Source repeats marker/hitlag and damage bindings after animation entry.
+    effects.active = true
+    effects.pause_during_hitlag()
+    linked_primary_callbacks()
+
+func linked_primary_squall_finish(bool air, bool paired):
+    if paired:
+        linked_cleanup_hitlag()
+    linked_clear_callbacks()
+    if not air:
+        state.wait()
+    elif attrs.linked_squall_fall_lag == 0:
+        state.fall()
+    else:
+        physics.force_air_and_use_jumps()
+        state.freefall(1, 0, true, 1, attrs.linked_squall_fall_lag)
+
+func linked_calc_ground_accel(float accel, float target):
+    if target == 0:
+        accel = -ground.velocity
+    elif not(ground.velocity * accel < 0):
+        if accel > 0:
+            if ground.velocity + accel > target:
+                accel = target - ground.velocity
+        elif ground.velocity + accel < target:
+            accel = target - ground.velocity
+    ground.acceleration = accel
+
+func linked_primary_ground_physics(bool paired):
+    if command(0) == 0 and state.squall_input_accel != 0:
+        let float target = -attrs.linked_squall_ground_max
+        if state.squall_input_accel > 0:
+            target = attrs.linked_squall_ground_max
+        linked_calc_ground_accel(state.squall_input_accel, target)
+        ground.acceleration = ground.acceleration + attrs.linked_squall_slope_accel * floor.normal.x
+    else:
+        physics.ground_decelerate(ground.friction)
+    physics.clamp_ground_speed(attrs.linked_squall_ground_max)
+    physics.ground_to_self()
+    state.squall_pump_timer = state.squall_pump_timer + 1
+    if command(2) != 0 and input.special_pressed:
+        state.squall_pending_pumps = state.squall_pending_pumps + 1
+    if state.squall_pending_pumps != 0 and state.squall_pump_timer > attrs.squall_pump_interval:
+        physics.ground_to_air()
+        acceleration.x = ground.acceleration
+        if paired:
+            state.enter_at_speed(346, 0x0C4C528A, frame, 1)
+        else:
+            state.enter_at_speed(345, 0x0C4C528A, frame, 1)
+        linked_primary_callbacks()
+        physics.clamp_horizontal_speed(attrs.squall_air_max)
+        if paired:
+            velocity.y = velocity.y + attrs.squall_pair_pump_speed
+        else:
+            velocity.y = velocity.y + attrs.squall_solo_pump_speed
+        state.squall_pending_pumps = 0
+        state.squall_pump_timer = 0
+    state.squall_elapsed = state.squall_elapsed + 1
+
+move PrimarySquall:
+    on special_s:
+        linked_primary_squall_enter(false)
+    on special_air_s:
+        linked_primary_squall_enter(true)
+    on state_343_animation:
+        if animation.finished:
+            linked_primary_squall_finish(false, false)
+    on state_345_animation:
+        if animation.finished:
+            linked_primary_squall_finish(true, false)
+    on state_344_animation:
+        let int companion = family.member_id(1)
+        let bool finished = animation.finished
+        if not finished and companion != 0:
+            finished = targets.call_bool(companion, "linked_secondary_finished")
+        if finished or companion == 0:
+            linked_primary_squall_finish(false, true)
+    on state_346_animation:
+        let int companion = family.member_id(1)
+        let bool finished = animation.finished
+        if not finished and companion != 0:
+            finished = targets.call_bool(companion, "linked_secondary_finished")
+        if finished or companion == 0:
+            linked_primary_squall_finish(true, true)
+    on state_343_physics:
+        linked_primary_ground_physics(false)
+    on state_344_physics:
+        linked_primary_ground_physics(true)

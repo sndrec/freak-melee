@@ -1,0 +1,420 @@
+{
+  "scope": "Design only; proposed APIs are unimplemented; current source snapshot hashes in source_manifest.json.",
+  "original_callbacks": [
+    {
+      "name": "ftGw_Init_OnLoad",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 522,
+      "last_line": 553,
+      "body_sha256": "a49bf2075b6a55169365e69e4b80ff68deec4369fb432b9f6eda2a438730478a"
+    },
+    {
+      "name": "ftGw_Init_OnDeath",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 490,
+      "last_line": 520,
+      "body_sha256": "868067673005b7c740b320f71c2ea5adec14fbeb7ef90586e6641a992af33c76"
+    },
+    {
+      "name": "ftGw_Init_OnDamage",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 555,
+      "last_line": 566,
+      "body_sha256": "39ac05412ba4a15133379f9660f17699fd2ba8dc53b8434575a6af05c22f9246"
+    },
+    {
+      "name": "ftGw_Init_8014A538",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 568,
+      "last_line": 582,
+      "body_sha256": "45fcc2e3090a446572b9eb52795b2b2a3d1468cc57abca7f4b36fb5e123730d6"
+    },
+    {
+      "name": "ftGw_Init_OnItemPickup",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 584,
+      "last_line": 587,
+      "body_sha256": "1bd54022a3ab1fb2527374e242f9d7d96d585a4c2c9b0df4a80f4d6aff821900"
+    },
+    {
+      "name": "ftGw_Init_OnItemInvisible",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 589,
+      "last_line": 592,
+      "body_sha256": "075a7c2806c0322c98373f6131b804f87a2cf6fb95946bc4e2bd7d5964db5ff7"
+    },
+    {
+      "name": "ftGw_Init_OnItemVisible",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 597,
+      "last_line": 600,
+      "body_sha256": "1abf8bf04938d37d0bb14d169b6f2fa3d7a50aac618e68ef9607c9cc3742f67a"
+    },
+    {
+      "name": "ftGw_Init_OnItemDrop",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 604,
+      "last_line": 607,
+      "body_sha256": "768700c094ae448b9c4f0a9fe29c124ebc1960bb37d58519e140ba7d4b48be34"
+    },
+    {
+      "name": "ftGw_Init_UnkMotionStates4",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 611,
+      "last_line": 618,
+      "body_sha256": "ec87335f98dbaeb6a1da1dc0851c13a1dc73dac521ddd86b1b06be3c46b963fd"
+    },
+    {
+      "name": "ftGw_Init_LoadSpecialAttrs",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 623,
+      "last_line": 626,
+      "body_sha256": "03bce6167c10ba49b8a2b9023c3079de85a4745b9d167ffa127f2f0da41a0a75"
+    },
+    {
+      "name": "ftGw_Init_8014A7F4",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 630,
+      "last_line": 636,
+      "body_sha256": "d15271cb4656e1b5e2eecb65b80bc2d149103eb910bfcadff782a873fb804e15"
+    },
+    {
+      "name": "ftGw_Init_8014A814",
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "first_line": 641,
+      "last_line": 647,
+      "body_sha256": "9e755b25210861ae2695182cdf2f8392d653314914d59e67f807c968d7327c28"
+    }
+  ],
+  "load_order": [
+    "x2222_b6=false",
+    "x2223_b1=true",
+    "x2224_b0=true",
+    "PUSH_ATTRS",
+    "panicCharge=Empty",
+    "instance width",
+    "outline GXColor",
+    "diffuse material traversal",
+    "slot10 -> fighter visibility table4",
+    "article slots0..9 binding"
+  ],
+  "proposed_fighter_surfaces": [
+    "visuals.set_diffuse_color(Int)",
+    "visuals.outline_color RW Int",
+    "visuals.preserve_secondary_material RW Bool",
+    "model.instance_scale_z RW Float",
+    "visuals.install_outline_visibility(Int) -> Bool"
+  ],
+  "proposed_host_signatures": [
+    "void (*set_fighter_diffuse_color)(Fighter_GObj*, GXColor*)",
+    "bool (*install_outline_visibility)(Fighter_GObj*, int32_t asset_slot)"
+  ],
+  "flags": {
+    "x2222_b6": [
+      {
+        "path": "src/melee/ft/fighter.c",
+        "line": 874,
+        "source": "fp->x2222_b6 = 0;"
+      },
+      {
+        "path": "src/melee/ft/ft_0D31.c",
+        "line": 903,
+        "source": "if (fp->x2222_b6) {"
+      },
+      {
+        "path": "src/melee/ft/ft_0D31.c",
+        "line": 914,
+        "source": "if (fp->x2222_b6) {"
+      },
+      {
+        "path": "src/melee/ft/ftmovement_integrate.c",
+        "line": 165,
+        "source": "if (fp->x2222_b6 && !fp->x2222_b7) {"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftCommon/ftCo_CaptureDamageKoopa.c",
+        "line": 20,
+        "source": "fp->x2222_b6 ? Ft_MF_FreezeState : Ft_MF_None, 0,"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftCommon/ftCo_HammerTurn.c",
+        "line": 47,
+        "source": "if (!fp->x2222_b6) {"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftCommon/ftCo_Lift.c",
+        "line": 148,
+        "source": "if (!fp->x2222_b6) {"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftCommon/ftCo_Shouldered.c",
+        "line": 35,
+        "source": "gobj, msid, fp->x2222_b6 ? Ft_MF_FreezeState : Ft_MF_None, 0, 1, 0,"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftCommon/ftCo_ThrownMewtwo.c",
+        "line": 23,
+        "source": "fp->x2222_b6 ? Ft_MF_FreezeState : Ft_MF_None, 0,"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+        "line": 527,
+        "source": "fp->x2222_b6 = false;"
+      },
+      {
+        "path": "src/melee/ft/types.h",
+        "line": 1707,
+        "source": "/* fp+2222:6 */ u8 x2222_b6 : 1;"
+      }
+    ],
+    "x2223_b1": [
+      {
+        "path": "src/melee/ft/fighter.c",
+        "line": 876,
+        "source": "fp->x2223_b1 = 0;"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+        "line": 528,
+        "source": "fp->x2223_b1 = true;"
+      },
+      {
+        "path": "src/melee/ft/types.h",
+        "line": 1711,
+        "source": "/* fp+2223:1 */ u8 x2223_b1 : 1;"
+      }
+    ],
+    "x2224_b0": [
+      {
+        "path": "src/melee/ft/fighter.c",
+        "line": 891,
+        "source": "fp->x2224_b0 = 0;"
+      },
+      {
+        "path": "src/melee/ft/ftmaterial.c",
+        "line": 49,
+        "source": "if (!fp->x2223_b2 && (!fp->x2228_b0 || !fp->x2224_b0)) {"
+      },
+      {
+        "path": "src/melee/ft/ftmaterial_tev.c",
+        "line": 105,
+        "source": "if (fp->x2228_b0 && fp->x2224_b0) {"
+      },
+      {
+        "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+        "line": 529,
+        "source": "fp->x2224_b0 = true;"
+      },
+      {
+        "path": "src/melee/ft/types.h",
+        "line": 1719,
+        "source": "/* fp+2224:0 */ u8 x2224_b0 : 1;"
+      }
+    ],
+    "x2228_b0": [
+      {
+        "path": "src/melee/ft/ftdrawcommon.c",
+        "line": 277,
+        "source": "fighter->x2228_b0 = false;"
+      },
+      {
+        "path": "src/melee/ft/ftdrawcommon.c",
+        "line": 323,
+        "source": "fighter->x2228_b0 = 1;"
+      },
+      {
+        "path": "src/melee/ft/ftmaterial.c",
+        "line": 49,
+        "source": "if (!fp->x2223_b2 && (!fp->x2228_b0 || !fp->x2224_b0)) {"
+      },
+      {
+        "path": "src/melee/ft/ftmaterial_tev.c",
+        "line": 105,
+        "source": "if (fp->x2228_b0 && fp->x2224_b0) {"
+      },
+      {
+        "path": "src/melee/ft/types.h",
+        "line": 1755,
+        "source": "/* fp+2228:0 */ u8 x2228_b0 : 1;"
+      }
+    ]
+  },
+  "owned_import_values": [
+    {
+      "name": "model_width",
+      "declaration": "attribute float model_width 0",
+      "type": "Float",
+      "offset": 0,
+      "retail_binary32": 0.009999999776482582
+    },
+    {
+      "name": "body0_r",
+      "declaration": "attribute byte body0_r 4",
+      "type_after_import": "Int",
+      "offset": 4,
+      "retail_byte": 0
+    },
+    {
+      "name": "body0_g",
+      "declaration": "attribute byte body0_g 5",
+      "type_after_import": "Int",
+      "offset": 5,
+      "retail_byte": 0
+    },
+    {
+      "name": "body0_b",
+      "declaration": "attribute byte body0_b 6",
+      "type_after_import": "Int",
+      "offset": 6,
+      "retail_byte": 0
+    },
+    {
+      "name": "body0_a",
+      "declaration": "attribute byte body0_a 7",
+      "type_after_import": "Int",
+      "offset": 7,
+      "retail_byte": 255
+    },
+    {
+      "name": "body1_r",
+      "declaration": "attribute byte body1_r 8",
+      "type_after_import": "Int",
+      "offset": 8,
+      "retail_byte": 110
+    },
+    {
+      "name": "body1_g",
+      "declaration": "attribute byte body1_g 9",
+      "type_after_import": "Int",
+      "offset": 9,
+      "retail_byte": 0
+    },
+    {
+      "name": "body1_b",
+      "declaration": "attribute byte body1_b 10",
+      "type_after_import": "Int",
+      "offset": 10,
+      "retail_byte": 0
+    },
+    {
+      "name": "body1_a",
+      "declaration": "attribute byte body1_a 11",
+      "type_after_import": "Int",
+      "offset": 11,
+      "retail_byte": 255
+    },
+    {
+      "name": "body2_r",
+      "declaration": "attribute byte body2_r 12",
+      "type_after_import": "Int",
+      "offset": 12,
+      "retail_byte": 0
+    },
+    {
+      "name": "body2_g",
+      "declaration": "attribute byte body2_g 13",
+      "type_after_import": "Int",
+      "offset": 13,
+      "retail_byte": 0
+    },
+    {
+      "name": "body2_b",
+      "declaration": "attribute byte body2_b 14",
+      "type_after_import": "Int",
+      "offset": 14,
+      "retail_byte": 110
+    },
+    {
+      "name": "body2_a",
+      "declaration": "attribute byte body2_a 15",
+      "type_after_import": "Int",
+      "offset": 15,
+      "retail_byte": 255
+    },
+    {
+      "name": "body3_r",
+      "declaration": "attribute byte body3_r 16",
+      "type_after_import": "Int",
+      "offset": 16,
+      "retail_byte": 0
+    },
+    {
+      "name": "body3_g",
+      "declaration": "attribute byte body3_g 17",
+      "type_after_import": "Int",
+      "offset": 17,
+      "retail_byte": 110
+    },
+    {
+      "name": "body3_b",
+      "declaration": "attribute byte body3_b 18",
+      "type_after_import": "Int",
+      "offset": 18,
+      "retail_byte": 0
+    },
+    {
+      "name": "body3_a",
+      "declaration": "attribute byte body3_a 19",
+      "type_after_import": "Int",
+      "offset": 19,
+      "retail_byte": 255
+    },
+    {
+      "name": "outline_r",
+      "declaration": "attribute byte outline_r 20",
+      "type_after_import": "Int",
+      "offset": 20,
+      "retail_byte": 255
+    },
+    {
+      "name": "outline_g",
+      "declaration": "attribute byte outline_g 21",
+      "type_after_import": "Int",
+      "offset": 21,
+      "retail_byte": 255
+    },
+    {
+      "name": "outline_b",
+      "declaration": "attribute byte outline_b 22",
+      "type_after_import": "Int",
+      "offset": 22,
+      "retail_byte": 255
+    },
+    {
+      "name": "outline_a",
+      "declaration": "attribute byte outline_a 23",
+      "type_after_import": "Int",
+      "offset": 23,
+      "retail_byte": 128
+    }
+  ],
+  "owned_import_count": 21,
+  "retail_provenance": {
+    "census": "tests/native/article_layered_render_proposal/retail_census.json",
+    "dat_sha256": "1c057a2882b7b42f3184b96ddf5221cae50e69652b00f6c78819c819804e0a1f",
+    "fresh_DAT_read_in_this_task": false,
+    "fighter_layer_lookup_DAT_offset": 31248
+  },
+  "visibility": {
+    "asset_slot": 10,
+    "destination_table": 4,
+    "index_domain": "costume DObj list, not fighter semantic bones or article joint ordinals",
+    "existing_group_capacity": 11,
+    "existing_variant_and_draw_count_import_limit": 256,
+    "character_asset_slot_capacity": 16,
+    "missing_validation": "slot10 costume DObj byte indices against actual selectable costume lists"
+  },
+  "non_gaps": {
+    "x2223_b1": "write-only, remove dead assignment",
+    "x2222_b6": "false already established by common load initialization",
+    "attribute_byte": "already imports original raw byte -> owned Int",
+    "stock_knockback_enter_exit": "both NULL",
+    "model_event_getter": "both NULL"
+  },
+  "limits": [
+    "No renderer/material/DSL operation implemented or tested",
+    "No package or template activated",
+    "Article layered rendering remains distinct pending frozen proposal",
+    "Live common palette edits are input hashes, not acceptance evidence"
+  ]
+}

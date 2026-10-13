@@ -1,0 +1,1718 @@
+{
+  "scope": "read-only census, not implementation or parity acceptance",
+  "sources": {
+    "src/melee/ft/kinds/ftNana/ftnana.c": "41636d300ef9e9f53f081a40df30e03a367499a72718ff0ed48e581ba200a4e2",
+    "src/melee/ft/kinds/ftNana/ftnana.h": "03448da8a294296ba5064cdb2eab4055e9f82c5af8b59c3bad605f8de85bb85c",
+    "src/melee/ft/kinds/ftNana/ftnanaspecialhi.c": "32a2e2247b3b58a78c07113bc9afe85131d11b7b5ba32908de7f35c82b165b6a",
+    "src/melee/ft/kinds/ftNana/ftnanaspecialhi.h": "bcefbb4193bca5272c5e07764914bf0c9c42bf327ed43fa9de320bd37677ddec",
+    "src/melee/ft/kinds/ftNana/ftnanaspecials.c": "12e37a3340012c34c0c7fc4d7c9f53409758d173d2b38e42bfcdf78d8500359b",
+    "src/melee/ft/kinds/ftPopo/forward.h": "ffce60ae50c5cdbc9e5a2bfb75e423e4519d36d2c7553a6fd17d634717e937fa",
+    "src/melee/ft/kinds/ftPopo/ftpopo.c": "d10c129b12e950811146fe555cd5d03c79f162c49c43b4e1c7e5eee67c3619ac",
+    "src/melee/ft/kinds/ftPopo/ftpopo.h": "2302696d1f0c818e4cd99eb1e5c0301f9c59204b1f750d3c27ada8f0fd720230",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialhi.c": "24d99fbb1dd75b5fa7f347556d619d933f2fa877a1d7bcb5bea52358ef2499be",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialhi.h": "4fc6ec5a957b27569418ae4abc51bd8b96e2923cf8aff408a4fc45cfaece6426",
+    "src/melee/ft/kinds/ftPopo/ftpopospeciallw.c": "ea6c9376e107c804c2b6d1f1af6c4575dd92f4b8331c6ef45bfb253205c8c23e",
+    "src/melee/ft/kinds/ftPopo/ftpopospeciallw.h": "8fa8548aa829fbf79e306ff72be2633e567eae558f807ac28bed146a5b45112e",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialn.c": "136a472eaacd0660a583227526243dfc3b44731ae1dec8de82a6d64e9b83953f",
+    "src/melee/ft/kinds/ftPopo/ftpopospecialn.h": "416e8311e03111c9c18b64ef8c8159620f43687ea6acaf083e1558294f2cfbdb",
+    "src/melee/ft/kinds/ftPopo/ftpopospecials.c": "e919f6f907a8f2aaf592d4cb8f8cb5cb4a24dd3e6848f87b9da4c5524d872aca",
+    "src/melee/ft/kinds/ftPopo/ftpopospecials.h": "e2e4244f165a5a037539c2a4115964810ecb378907b3d4a0d30f5d3f782d1b02",
+    "src/melee/ft/kinds/ftPopo/types.h": "1508a2e5f70f1e64cf9a2428a0e669b44b4d85410bdf15f9bac21ed233c9566d",
+    "src/melee/it/kinds/itclimbersblizzard.c": "4c3240e63c2ca8371f5e57a765bdd464c2ce98900852e65c5ec67e4a6bbeafa5",
+    "src/melee/it/kinds/itclimbersblizzard.h": "8a4fd6e386f49c7b38dc96b831091a41acefe231efedb69454f9b83c05c68005",
+    "src/melee/it/kinds/itclimbersice.c": "495bf27baafa8376fcdbcd856b5e9f280a9db5477e368a630628f84991ccfc5c",
+    "src/melee/it/kinds/itclimbersice.h": "591e79f79e4b9e4b09430d62ba9398fd903c5cb3975f8b6f3d7ae26eb5500976",
+    "src/melee/it/kinds/itclimbersstring.c": "85137b0fb220eeb98f92a2fe1d0195b257e37c5a9a77bb9db2df6d377bff7193",
+    "src/melee/it/kinds/itclimbersstring.h": "7f30a5386ef98ccc20c9e40eed114eb8c393250311650db014c77fc18a7da37f",
+    "src/melee/pl/player.c": "bc5c4d7020d19e8739589ecf38cc4b2ecf77c9a512805e28aa0d05858759de15",
+    "src/melee/ft/types.h": "7a78a32a66dfea5a7f9606ca91e7f0a9213e7ed1663ff76ecddf87f8b957d013",
+    "src/melee/ft/ftdata.c": "39e51d211818e7a545c7a285d92a07b2cc1efeb6c7c1bc58364ad5222ff2dcba",
+    "src/melee/ft/ftmovement.c": "3a0069a67f20241d8ef83c81a8a38463c424a6b4dc077b775079ff74143e22d6",
+    "src/melee/ft/ftcommon.c": "7d2baf872ba133baf7b4eb56183a911ebae273bf0549057b785e12a59ef01588",
+    "src/melee/ft/ft_0877.c": "a1fd51a4e62f7494cdcd51a755633d89104d9759736d76c05578d99383ff31b9",
+    "src/melee/ft/ftcpuattack.c": "1de1d6316df3ce6e79a19535002c511244def9c64846c2e5735c9d2433041ca1",
+    "src/melee/ft/fighter.c": "3fc5501a53747c3cf002327fd98f7a02b8931f700f95c84655e07afb1bc530e6",
+    "src/melee/ft/ftcolanim.c": "246e9ebf0c5e38b1ef7fe460890ccd1fc3b7e611f4d0efbe7f1652fcb9f08fa8",
+    "src/melee/ft/kinds/ftCommon/ftCo_0A01.c": "77ca8266aa6fa14bddd4c7810c2e1ed0b47e7f4c7b7a37e16c5903b4c4389531",
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": "38fd7553ba953a1fc833557fd57a36383fcae32c721051a6a6d31a94666444b5",
+    "src/melee/ft/kinds/ftCommon/ftpickupitem.c": "72bf9e6fc5e2882996216f3546253cd0f55c9daa5ffbabb74dd2290a99f1302b",
+    "src/melee/ft/ftcharacter_assets.c": "d55fcb17e98765ca553d4ed0f058c2ecf110b37e4221c0282cb16c9a41a69862",
+    "src/melee/ft/ftcharacter_asset_layout.h": "80181953376b3b645de6b9c9ddb967c5a0c0aa8431bf8f0d6de77dd318aaa344",
+    "src/melee/ft/native_fighter_runtime.c": "cddd5d943f66690008cadd8c6a8de251e491fc828a22ae23afedf6dfe870dcb6",
+    "src/melee/ft/native_fighter_runtime.h": "0dcc74b3ca4a67b2c10819409b3dbb774c9e54783dd0992e2a587e106a1c3dfe",
+    "src/melee/ft/native_fighter_article_bindings.c": "6ce385f881f67b864c7f46a40ebef7a30987539edbb2cddb73665141ab4bb406",
+    "src/melee/it/itCharItems.h": "069229d510766a4f160209715647990931693f85e2c59f243728b8d2e6cd0d91",
+    "src/melee/it/it_3F2F.c": "d7e9af9e7239db1b142becc6032ec13ecc64e95636afa97644c4edfdd2c80f0a",
+    "src/melee/ft/native_fighter_target.h": "7676574447ae4466a748c3d861542ad8784caeaab18383d7d4434d5b08d1b074",
+    "src/melee/ft/ftanim.c": "696bb6e3d93b2c6547f44e9f8113dbc31bc1fa52bc8482085c8037652420be28",
+    "src/melee/ef/efsync.c": "dba92dece66d3a4fade6dd9880001e648c8de17edf576466aabc7f4a4b4cfea6",
+    "src/melee/ef/eflib.c": "560c4bb5bb6c275514d08d262345525d8553f52e560a498f40fb9087f5167ba8",
+    "tools/native_fighter_script_cpu.c": "ad0e1bcf540030a79c26cf14ef552d4dd0fd5ef4d9322505d3cb49158bbfb471",
+    "tools/native_fighter_script_primitives.c": "43d8ef02e1418546d03998171c69f9a4919800df425f2cea4a40ef67d44dcfd0",
+    "tools/extract_native_animation.py": "d23c015f8f40ec5f9ec99b6ca76a4916d062908a5010ba3918eadb95d9e7bb3d",
+    "tools/prepare_native_assets.py": "92bea6648e645fa98220ee92f696284af0280717608a190033b69c4076e4edff",
+    "src/melee/ft/forward.h": "74b5cec4c93eda01cb37da118ed18620e76b6d659ef6d3bed2c4659b390a87c0"
+  },
+  "motion_tables": {
+    "ftPopo": [
+      {
+        "id": 341,
+        "animation": "ftPp_SM_SpecialN",
+        "flags": [
+          "ftPp_MF_SpecialN",
+          "(FtMoveId_SpecialN << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialN_Anim",
+          "input": "ftPp_SpecialN_IASA",
+          "physics": "ftPp_SpecialN_Phys",
+          "collision": "ftPp_SpecialN_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 342,
+        "animation": "ftPp_SM_SpecialAirN",
+        "flags": [
+          "ftPp_MF_SpecialAirN",
+          "(FtMoveId_SpecialN << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirN_Anim",
+          "input": "ftPp_SpecialAirN_IASA",
+          "physics": "ftPp_SpecialAirN_Phys",
+          "collision": "ftPp_SpecialAirN_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 343,
+        "animation": "ftPp_SM_SpecialS1",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS1_Anim",
+          "input": "ftPp_SpecialS1_IASA",
+          "physics": "ftPp_SpecialS1_Phys",
+          "collision": "ftPp_SpecialS1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 344,
+        "animation": "ftPp_SM_SpecialS2",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS2_Anim",
+          "input": "ftPp_SpecialS2_IASA",
+          "physics": "ftPp_SpecialS2_Phys",
+          "collision": "ftPp_SpecialS2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 345,
+        "animation": "ftPp_SM_SpecialAirS1",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirS1_Anim",
+          "input": "ftPp_SpecialAirS1_IASA",
+          "physics": "ftPp_SpecialAirS1_Phys",
+          "collision": "ftPp_SpecialAirS1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 346,
+        "animation": "ftPp_SM_SpecialAirS2",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirS2_Anim",
+          "input": "ftPp_SpecialAirS2_IASA",
+          "physics": "ftPp_SpecialAirS2_Phys",
+          "collision": "ftPp_SpecialAirS2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 347,
+        "animation": "ftPp_SM_SpecialHiStart_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiStart_0_Anim",
+          "input": "ftPp_SpecialHiStart_0_IASA",
+          "physics": "ftPp_SpecialHiStart_0_Phys",
+          "collision": "ftPp_SpecialHiStart_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 348,
+        "animation": "ftPp_SM_SpecialHiThrow_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow_0_Anim",
+          "input": "ftPp_SpecialHiThrow_0_IASA",
+          "physics": "ftPp_SpecialHiThrow_0_Phys",
+          "collision": "ftPp_SpecialHiThrow_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 349,
+        "animation": "ftPp_SM_SpecialHiThrow2",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow2_Anim",
+          "input": "ftPp_SpecialHiThrow2_IASA",
+          "physics": "ftPp_SpecialHiThrow2_Phys",
+          "collision": "ftPp_SpecialHiThrow2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 350,
+        "animation": "ftPp_SM_SpecialHiStart_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiStart_1_Anim",
+          "input": "ftPp_SpecialHiStart_1_IASA",
+          "physics": "ftPp_SpecialHiStart_1_Phys",
+          "collision": "ftPp_SpecialHiStart_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 351,
+        "animation": "ftPp_SM_SpecialHiThrow_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow_1_Anim",
+          "input": "ftPp_SpecialHiThrow_1_IASA",
+          "physics": "ftPp_SpecialHiThrow_1_Phys",
+          "collision": "ftPp_SpecialHiThrow_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 352,
+        "animation": "ftPp_SM_SpecialAirHiStart_0",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiStart_0_Anim",
+          "input": "ftPp_SpecialAirHiStart_0_IASA",
+          "physics": "ftPp_SpecialAirHiStart_0_Phys",
+          "collision": "ftPp_SpecialAirHiStart_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 353,
+        "animation": "ftPp_SM_SpecialAirHiThrow_0",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow_0_Anim",
+          "input": "ftPp_SpecialAirHiThrow_0_IASA",
+          "physics": "ftPp_SpecialAirHiThrow_0_Phys",
+          "collision": "ftPp_SpecialAirHiThrow_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 354,
+        "animation": "ftPp_SM_SpecialAirHiThrow2",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow2_Anim",
+          "input": "ftPp_SpecialAirHiThrow2_IASA",
+          "physics": "ftPp_SpecialAirHiThrow2_Phys",
+          "collision": "ftPp_SpecialAirHiThrow2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 355,
+        "animation": "ftPp_SM_SpecialAirHiStart_1",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiStart_1_Anim",
+          "input": "ftPp_SpecialAirHiStart_1_IASA",
+          "physics": "ftPp_SpecialAirHiStart_1_Phys",
+          "collision": "ftPp_SpecialAirHiStart_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 356,
+        "animation": "ftPp_SM_SpecialAirHiThrow_1",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow_1_Anim",
+          "input": "ftPp_SpecialAirHiThrow_1_IASA",
+          "physics": "ftPp_SpecialAirHiThrow_1_Phys",
+          "collision": "ftPp_SpecialAirHiThrow_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 357,
+        "animation": "ftPp_SM_SpecialLw",
+        "flags": [
+          "ftPp_MF_SpecialLw",
+          "(FtMoveId_SpecialLw << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialLw_Anim",
+          "input": "ftPp_SpecialLw_IASA",
+          "physics": "ftPp_SpecialLw_Phys",
+          "collision": "ftPp_SpecialLw_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 358,
+        "animation": "ftPp_SM_SpecialAirLw",
+        "flags": [
+          "ftPp_MF_MS_358",
+          "(FtMoveId_SpecialLw << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirLw_Anim",
+          "input": "ftPp_SpecialAirLw_IASA",
+          "physics": "ftPp_SpecialAirLw_Phys",
+          "collision": "ftPp_SpecialAirLw_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 359,
+        "animation": "ftPp_SM_SpecialS_0",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS_0_Anim",
+          "input": "ftPp_SpecialS_0_IASA",
+          "physics": "ftPp_SpecialS_0_Phys",
+          "collision": "ftPp_SpecialS_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 360,
+        "animation": "ftPp_SM_SpecialS_1",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS_1_Anim",
+          "input": "ftPp_SpecialS_1_IASA",
+          "physics": "ftPp_SpecialS_1_Phys",
+          "collision": "ftPp_SpecialS_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 361,
+        "animation": "ftPp_SM_SpecialHi_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_0_Anim",
+          "input": "ftPp_SpecialHi_0_IASA",
+          "physics": "ftPp_SpecialHi_0_Phys",
+          "collision": "ftPp_SpecialHi_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 362,
+        "animation": "ftPp_SM_SpecialHi_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_1_Anim",
+          "input": "ftPp_SpecialHi_1_IASA",
+          "physics": "ftPp_SpecialHi_1_Phys",
+          "collision": "ftPp_SpecialHi_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 363,
+        "animation": "ftPp_SM_SpecialHi_2",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "NULL",
+          "input": "NULL",
+          "physics": "NULL",
+          "collision": "NULL"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 364,
+        "animation": "ftPp_SM_SpecialHi_3",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_3_Anim",
+          "input": "ftPp_SpecialHi_3_IASA",
+          "physics": "ftPp_SpecialHi_3_Phys",
+          "collision": "ftPp_SpecialHi_3_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 365,
+        "animation": "ftPp_SM_SpecialHi_4",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_4_Anim",
+          "input": "ftPp_SpecialHi_4_IASA",
+          "physics": "ftPp_SpecialHi_4_Phys",
+          "collision": "ftPp_SpecialHi_4_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 366,
+        "animation": "ftPp_SM_SpecialHi_5",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "NULL",
+          "input": "NULL",
+          "physics": "NULL",
+          "collision": "NULL"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      }
+    ],
+    "ftNana": [
+      {
+        "id": 341,
+        "animation": "ftPp_SM_SpecialN",
+        "flags": [
+          "ftPp_MF_SpecialN",
+          "(FtMoveId_SpecialN << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialN_Anim",
+          "input": "ftPp_SpecialN_IASA",
+          "physics": "ftPp_SpecialN_Phys",
+          "collision": "ftPp_SpecialN_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 342,
+        "animation": "ftPp_SM_SpecialAirN",
+        "flags": [
+          "ftPp_MF_SpecialAirN",
+          "(FtMoveId_SpecialN << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirN_Anim",
+          "input": "ftPp_SpecialAirN_IASA",
+          "physics": "ftPp_SpecialAirN_Phys",
+          "collision": "ftPp_SpecialAirN_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 343,
+        "animation": "ftPp_SM_SpecialS1",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS1_Anim",
+          "input": "ftPp_SpecialS1_IASA",
+          "physics": "ftPp_SpecialS1_Phys",
+          "collision": "ftPp_SpecialS1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 344,
+        "animation": "ftPp_SM_SpecialS2",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS2_Anim",
+          "input": "ftPp_SpecialS2_IASA",
+          "physics": "ftPp_SpecialS2_Phys",
+          "collision": "ftPp_SpecialS2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 345,
+        "animation": "ftPp_SM_SpecialAirS1",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirS1_Anim",
+          "input": "ftPp_SpecialAirS1_IASA",
+          "physics": "ftPp_SpecialAirS1_Phys",
+          "collision": "ftPp_SpecialAirS1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 346,
+        "animation": "ftPp_SM_SpecialAirS2",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirS2_Anim",
+          "input": "ftPp_SpecialAirS2_IASA",
+          "physics": "ftPp_SpecialAirS2_Phys",
+          "collision": "ftPp_SpecialAirS2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 347,
+        "animation": "ftPp_SM_SpecialHiStart_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiStart_0_Anim",
+          "input": "ftPp_SpecialHiStart_0_IASA",
+          "physics": "ftPp_SpecialHiStart_0_Phys",
+          "collision": "ftPp_SpecialHiStart_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 348,
+        "animation": "ftPp_SM_SpecialHiThrow_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow_0_Anim",
+          "input": "ftPp_SpecialHiThrow_0_IASA",
+          "physics": "ftPp_SpecialHiThrow_0_Phys",
+          "collision": "ftPp_SpecialHiThrow_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 349,
+        "animation": "ftPp_SM_SpecialHiThrow2",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow2_Anim",
+          "input": "ftPp_SpecialHiThrow2_IASA",
+          "physics": "ftPp_SpecialHiThrow2_Phys",
+          "collision": "ftPp_SpecialHiThrow2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 350,
+        "animation": "ftPp_SM_SpecialHiStart_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiStart_1_Anim",
+          "input": "ftPp_SpecialHiStart_1_IASA",
+          "physics": "ftPp_SpecialHiStart_1_Phys",
+          "collision": "ftPp_SpecialHiStart_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 351,
+        "animation": "ftPp_SM_SpecialHiThrow_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHiThrow_1_Anim",
+          "input": "ftPp_SpecialHiThrow_1_IASA",
+          "physics": "ftPp_SpecialHiThrow_1_Phys",
+          "collision": "ftPp_SpecialHiThrow_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 352,
+        "animation": "ftPp_SM_SpecialAirHiStart_0",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiStart_0_Anim",
+          "input": "ftPp_SpecialAirHiStart_0_IASA",
+          "physics": "ftPp_SpecialAirHiStart_0_Phys",
+          "collision": "ftPp_SpecialAirHiStart_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 353,
+        "animation": "ftPp_SM_SpecialAirHiThrow_0",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow_0_Anim",
+          "input": "ftPp_SpecialAirHiThrow_0_IASA",
+          "physics": "ftPp_SpecialAirHiThrow_0_Phys",
+          "collision": "ftPp_SpecialAirHiThrow_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 354,
+        "animation": "ftPp_SM_SpecialAirHiThrow2",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow2_Anim",
+          "input": "ftPp_SpecialAirHiThrow2_IASA",
+          "physics": "ftPp_SpecialAirHiThrow2_Phys",
+          "collision": "ftPp_SpecialAirHiThrow2_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 355,
+        "animation": "ftPp_SM_SpecialAirHiStart_1",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiStart_1_Anim",
+          "input": "ftPp_SpecialAirHiStart_1_IASA",
+          "physics": "ftPp_SpecialAirHiStart_1_Phys",
+          "collision": "ftPp_SpecialAirHiStart_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 356,
+        "animation": "ftPp_SM_SpecialAirHiThrow_1",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirHiThrow_1_Anim",
+          "input": "ftPp_SpecialAirHiThrow_1_IASA",
+          "physics": "ftPp_SpecialAirHiThrow_1_Phys",
+          "collision": "ftPp_SpecialAirHiThrow_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 357,
+        "animation": "ftPp_SM_SpecialLw",
+        "flags": [
+          "ftPp_MF_SpecialLw",
+          "(FtMoveId_SpecialLw << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialLw_Anim",
+          "input": "ftPp_SpecialLw_IASA",
+          "physics": "ftPp_SpecialLw_Phys",
+          "collision": "ftPp_SpecialLw_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 358,
+        "animation": "ftPp_SM_SpecialAirLw",
+        "flags": [
+          "ftPp_MF_MS_358",
+          "(FtMoveId_SpecialLw << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialAirLw_Anim",
+          "input": "ftPp_SpecialAirLw_IASA",
+          "physics": "ftPp_SpecialAirLw_Phys",
+          "collision": "ftPp_SpecialAirLw_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 359,
+        "animation": "ftPp_SM_SpecialS_0",
+        "flags": [
+          "ftPp_MF_SpecialS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS_0_Anim",
+          "input": "ftPp_SpecialS_0_IASA",
+          "physics": "ftPp_SpecialS_0_Phys",
+          "collision": "ftPp_SpecialS_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 360,
+        "animation": "ftPp_SM_SpecialS_1",
+        "flags": [
+          "ftPp_MF_SpecialAirS",
+          "(FtMoveId_SpecialS << 24) | (1 << 23)"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialS_1_Anim",
+          "input": "ftPp_SpecialS_1_IASA",
+          "physics": "ftPp_SpecialS_1_Phys",
+          "collision": "ftPp_SpecialS_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 361,
+        "animation": "ftPp_SM_SpecialHi_0",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_0_Anim",
+          "input": "ftPp_SpecialHi_0_IASA",
+          "physics": "ftPp_SpecialHi_0_Phys",
+          "collision": "ftPp_SpecialHi_0_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 362,
+        "animation": "ftPp_SM_SpecialHi_1",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_1_Anim",
+          "input": "ftPp_SpecialHi_1_IASA",
+          "physics": "ftPp_SpecialHi_1_Phys",
+          "collision": "ftPp_SpecialHi_1_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 363,
+        "animation": "ftPp_SM_SpecialHi_2",
+        "flags": [
+          "ftPp_MF_SpecialHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "NULL",
+          "input": "NULL",
+          "physics": "NULL",
+          "collision": "NULL"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 364,
+        "animation": "ftPp_SM_SpecialHi_3",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_3_Anim",
+          "input": "ftPp_SpecialHi_3_IASA",
+          "physics": "ftPp_SpecialHi_3_Phys",
+          "collision": "ftPp_SpecialHi_3_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 365,
+        "animation": "ftPp_SM_SpecialHi_4",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "ftPp_SpecialHi_4_Anim",
+          "input": "ftPp_SpecialHi_4_IASA",
+          "physics": "ftPp_SpecialHi_4_Phys",
+          "collision": "ftPp_SpecialHi_4_Coll"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      },
+      {
+        "id": 366,
+        "animation": "ftPp_SM_SpecialHi_5",
+        "flags": [
+          "ftPp_MF_SpecialAirHi",
+          "FtMoveId_SpecialHi << 24"
+        ],
+        "phases": {
+          "animation": "NULL",
+          "input": "NULL",
+          "physics": "NULL",
+          "collision": "NULL"
+        },
+        "camera": "ftCamera_UpdateCameraBox"
+      }
+    ]
+  },
+  "kind_tables": {
+    "CostumeListsForeachCharacter": {
+      "Popo": "{ ftPp_CostumeList, ARRAY_SIZE(ftPp_CostumeList) }",
+      "Nana": "{ ftNn_CostumeList, FTNANA_COSTUME_COUNT }"
+    },
+    "ftData_Table_Unk0": {
+      "Popo": "{ 0, 321 }",
+      "Nana": "{ 0, 321 }"
+    },
+    "ftData_Table_Unk1": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_OnLoad": {
+      "Popo": "ftPp_Init_OnLoad",
+      "Nana": "ftNn_Init_OnLoad"
+    },
+    "ftData_OnDeath": {
+      "Popo": "ftPp_Init_OnDeath",
+      "Nana": "ftNn_Init_OnDeath"
+    },
+    "ftData_OnUserDataRemove": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_CharacterStateTables": {
+      "Popo": "ftPp_Init_MotionStateTable",
+      "Nana": "ftNn_Init_MotionStateTable"
+    },
+    "ftData_UnkMotionStates0": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_SpecialS": {
+      "Popo": "ftPp_SpecialS_Enter",
+      "Nana": "NULL"
+    },
+    "ftData_SpecialAirHi": {
+      "Popo": "ftPp_SpecialAirHi_Enter",
+      "Nana": "NULL"
+    },
+    "ftData_SpecialAirLw": {
+      "Popo": "ftPp_SpecialAirLw_Enter",
+      "Nana": "ftPp_SpecialAirLw_Enter"
+    },
+    "ftData_SpecialAirS": {
+      "Popo": "ftPp_SpecialAirS_Enter",
+      "Nana": "NULL"
+    },
+    "ftData_SpecialAirN": {
+      "Popo": "ftPp_SpecialAirN_Enter",
+      "Nana": "ftPp_SpecialAirN_Enter"
+    },
+    "ftData_SpecialN": {
+      "Popo": "ftPp_SpecialN_Enter",
+      "Nana": "ftPp_SpecialN_Enter"
+    },
+    "ftData_SpecialLw": {
+      "Popo": "ftPp_SpecialLw_Enter",
+      "Nana": "ftPp_SpecialLw_Enter"
+    },
+    "ftData_SpecialHi": {
+      "Popo": "ftPp_SpecialHi_Enter",
+      "Nana": "NULL"
+    },
+    "ftData_OnAbsorb": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_OnItemPickupExt": {
+      "Popo": "ftPp_Init_OnItemPickup",
+      "Nana": "ftPp_Init_OnItemPickup"
+    },
+    "ftData_OnItemInvisible": {
+      "Popo": "ftPp_Init_OnItemInvisible",
+      "Nana": "ftPp_Init_OnItemInvisible"
+    },
+    "ftData_OnItemVisible": {
+      "Popo": "ftPp_Init_OnItemVisible",
+      "Nana": "ftPp_Init_OnItemVisible"
+    },
+    "ftData_OnItemDropExt": {
+      "Popo": "ftPp_Init_OnItemDrop",
+      "Nana": "ftPp_Init_OnItemDrop"
+    },
+    "ftData_OnItemPickup": {
+      "Popo": "ftPp_Init_OnItemPickup",
+      "Nana": "ftPp_Init_OnItemPickup"
+    },
+    "ftData_OnItemDrop": {
+      "Popo": "ftPp_Init_OnItemDrop",
+      "Nana": "ftPp_Init_OnItemDrop"
+    },
+    "ftData_UnkMotionStates1": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_UnkMotionStates2": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_OnKnockbackEnter": {
+      "Popo": "ftPp_Init_OnKnockbackEnter",
+      "Nana": "ftPp_Init_OnKnockbackEnter"
+    },
+    "ftData_OnKnockbackExit": {
+      "Popo": "ftPp_Init_OnKnockbackExit",
+      "Nana": "ftPp_Init_OnKnockbackExit"
+    },
+    "ftData_UnkMotionStates3": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_UnkMotionStates4": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftKindCalcIndiviParamTable": {
+      "Popo": "ftPp_Init_LoadSpecialAttrs",
+      "Nana": "ftNn_Init_LoadSpecialAttrs"
+    },
+    "ftData_803C1F40": {
+      "Popo": "{ ftPp_Init_DatFilename, ftPp_Init_DataName }",
+      "Nana": "{ ftNn_Init_DatFilename, ftNn_Init_DataName }"
+    },
+    "ftData_UnkMotionStates5": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_UnkMtxFunc0": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_803C2360": {
+      "Popo": "ftPp_Init_CostumeStrings",
+      "Nana": "ftNn_Init_CostumeStrings"
+    },
+    "ftData_803C23E4": {
+      "Popo": "ftPp_Init_AnimDatFilename",
+      "Nana": "ftNn_Init_AnimDatFilename"
+    },
+    "ftData_803C2468": {
+      "Popo": "&ftPp_Init_DemoMotionFilenames",
+      "Nana": "&ftNn_Init_DemoMotionFilenames"
+    },
+    "ftData_803C24EC": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_UnkDemoCallbacks0": {
+      "Popo": "NULL",
+      "Nana": "NULL"
+    },
+    "ftData_UnkIntPairs": {
+      "Popo": "{ 0, 14 }",
+      "Nana": "{ 0, 14 }"
+    },
+    "ftData_UnkBytePerCharacter": {
+      "Popo": "14",
+      "Nana": "14"
+    }
+  },
+  "retail": {
+    "iso": "C:\\gayms\\freak-melee\\Super Smash Bros. Melee (USA) (v1.02).iso",
+    "PlCo_sha256": "63841336337eb5a7366b06ccc60ea4bd37c3604ab56e19939d78b9aa9cdd234c",
+    "Popo": {
+      "internal_kind": 10,
+      "runtime_parts": 49,
+      "bones": [
+        {
+          "part": 0,
+          "role": "FtPart_TopN",
+          "joint": 0
+        },
+        {
+          "part": 1,
+          "role": "FtPart_TransN",
+          "joint": 1
+        },
+        {
+          "part": 2,
+          "role": "FtPart_XRotN",
+          "joint": 2
+        },
+        {
+          "part": 3,
+          "role": "FtPart_YRotN",
+          "joint": 3
+        },
+        {
+          "part": 4,
+          "role": "FtPart_HipN",
+          "joint": 4
+        },
+        {
+          "part": 5,
+          "role": "FtPart_WaistN",
+          "joint": 5
+        },
+        {
+          "part": 6,
+          "role": "FtPart_LLegJA",
+          "joint": 35
+        },
+        {
+          "part": 7,
+          "role": "FtPart_LLegJ",
+          "joint": 36
+        },
+        {
+          "part": 8,
+          "role": "FtPart_LKneeJ",
+          "joint": 37
+        },
+        {
+          "part": 9,
+          "role": "FtPart_LFootJA",
+          "joint": 38
+        },
+        {
+          "part": 10,
+          "role": "FtPart_LFootJ",
+          "joint": 39
+        },
+        {
+          "part": 11,
+          "role": "FtPart_RLegJA",
+          "joint": 41
+        },
+        {
+          "part": 12,
+          "role": "FtPart_RLegJ",
+          "joint": 42
+        },
+        {
+          "part": 13,
+          "role": "FtPart_RKneeJ",
+          "joint": 43
+        },
+        {
+          "part": 14,
+          "role": "FtPart_RFootJA",
+          "joint": 44
+        },
+        {
+          "part": 15,
+          "role": "FtPart_RFootJ",
+          "joint": 45
+        },
+        {
+          "part": 18,
+          "role": "FtPart_LShoulderJA",
+          "joint": 7
+        },
+        {
+          "part": 19,
+          "role": "FtPart_LShoulderJ",
+          "joint": 8
+        },
+        {
+          "part": 20,
+          "role": "FtPart_LArmJ",
+          "joint": 9
+        },
+        {
+          "part": 21,
+          "role": "FtPart_LHandN",
+          "joint": 10
+        },
+        {
+          "part": 22,
+          "role": "FtPart_L1stNa",
+          "joint": 11
+        },
+        {
+          "part": 27,
+          "role": "FtPart_L3rdNb",
+          "joint": 12
+        },
+        {
+          "part": 28,
+          "role": "FtPart_L4thNa",
+          "joint": 13
+        },
+        {
+          "part": 31,
+          "role": "FtPart_LThumbNb",
+          "joint": 14
+        },
+        {
+          "part": 32,
+          "role": "FtPart_LHandNb",
+          "joint": 16
+        },
+        {
+          "part": 33,
+          "role": "FtPart_NeckN",
+          "joint": 17
+        },
+        {
+          "part": 34,
+          "role": "FtPart_HeadN",
+          "joint": 18
+        },
+        {
+          "part": 35,
+          "role": "FtPart_RShoulderN",
+          "joint": 19
+        },
+        {
+          "part": 36,
+          "role": "FtPart_RShoulderJA",
+          "joint": 22
+        },
+        {
+          "part": 37,
+          "role": "FtPart_RShoulderJ",
+          "joint": 23
+        },
+        {
+          "part": 38,
+          "role": "FtPart_RArmJ",
+          "joint": 24
+        },
+        {
+          "part": 39,
+          "role": "FtPart_RHandN",
+          "joint": 25
+        },
+        {
+          "part": 40,
+          "role": "FtPart_R1stNa",
+          "joint": 26
+        },
+        {
+          "part": 45,
+          "role": "FtPart_R3rdNb",
+          "joint": 27
+        },
+        {
+          "part": 46,
+          "role": "FtPart_R4thNa",
+          "joint": 28
+        },
+        {
+          "part": 49,
+          "role": "FtPart_RThumbNb",
+          "joint": 29
+        },
+        {
+          "part": 50,
+          "role": "FtPart_RHandNb",
+          "joint": 30
+        },
+        {
+          "part": 51,
+          "role": "FtPart_ThrowN",
+          "joint": 31
+        },
+        {
+          "part": 52,
+          "role": "FtPart_TransN2",
+          "joint": 47
+        },
+        {
+          "part": 53,
+          "role": "53",
+          "joint": 48
+        }
+      ],
+      "part_to_joint": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        35,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        45,
+        255,
+        255,
+        7,
+        8,
+        9,
+        10,
+        11,
+        255,
+        255,
+        255,
+        255,
+        12,
+        13,
+        255,
+        255,
+        14,
+        16,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        25,
+        26,
+        255,
+        255,
+        255,
+        255,
+        27,
+        28,
+        255,
+        255,
+        29,
+        30,
+        31,
+        47,
+        48
+      ],
+      "joint_to_part": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        255,
+        18,
+        19,
+        20,
+        21,
+        22,
+        27,
+        28,
+        31,
+        255,
+        32,
+        33,
+        34,
+        35,
+        255,
+        255,
+        36,
+        37,
+        38,
+        39,
+        40,
+        45,
+        46,
+        49,
+        50,
+        51,
+        255,
+        255,
+        255,
+        6,
+        7,
+        8,
+        9,
+        10,
+        255,
+        11,
+        12,
+        13,
+        14,
+        15,
+        255,
+        52,
+        53
+      ],
+      "omissions": [],
+      "costumes": [
+        {
+          "archive": "PlPpNr.dat",
+          "root": "PlyPopo5K_Share_joint",
+          "physical_joints": 49,
+          "sha256": "59b82867ced89124e83025fbbd423cec0ad9ce65ebe177e6351ebfeba7c73cdc"
+        },
+        {
+          "archive": "PlPpGr.dat",
+          "root": "PlyPopo5KGr_Share_joint",
+          "physical_joints": 49,
+          "sha256": "2ae621a65da95281721db39b30a0a7803e40fa53589547db568c1d491157b438"
+        },
+        {
+          "archive": "PlPpOr.dat",
+          "root": "PlyPopo5KOr_Share_joint",
+          "physical_joints": 49,
+          "sha256": "2869b0188575eda120edd445035c8f2780786f6b0db101f195517a46f5fce446"
+        },
+        {
+          "archive": "PlPpRe.dat",
+          "root": "PlyPopo5KRe_Share_joint",
+          "physical_joints": 49,
+          "sha256": "0014407dad2cec89457f7d921815895e89c580ab3d6733b41b072fbec240934c"
+        }
+      ],
+      "data_sha256": "5dd044b2ac5003f18dfca6e3a5197724f383419b4fc31bd4cb0a6205052507c0",
+      "special_attributes_offset": 13320,
+      "special_attributes_0x15C_sha256": "58e286f095e952f2a8306ee02512286b2635f0d3f9adaffb2d6ad0aa6824f6b2",
+      "article_table_offset": 36832,
+      "article_offsets": [
+        36704,
+        36760,
+        36808
+      ],
+      "string_attribute_offset": 15520,
+      "string_link_count": 40,
+      "string_joint_roots": [
+        59624,
+        59624
+      ]
+    },
+    "Nana": {
+      "internal_kind": 11,
+      "runtime_parts": 49,
+      "bones": [
+        {
+          "part": 0,
+          "role": "FtPart_TopN",
+          "joint": 0
+        },
+        {
+          "part": 1,
+          "role": "FtPart_TransN",
+          "joint": 1
+        },
+        {
+          "part": 2,
+          "role": "FtPart_XRotN",
+          "joint": 2
+        },
+        {
+          "part": 3,
+          "role": "FtPart_YRotN",
+          "joint": 3
+        },
+        {
+          "part": 4,
+          "role": "FtPart_HipN",
+          "joint": 4
+        },
+        {
+          "part": 5,
+          "role": "FtPart_WaistN",
+          "joint": 5
+        },
+        {
+          "part": 6,
+          "role": "FtPart_LLegJA",
+          "joint": 35
+        },
+        {
+          "part": 7,
+          "role": "FtPart_LLegJ",
+          "joint": 36
+        },
+        {
+          "part": 8,
+          "role": "FtPart_LKneeJ",
+          "joint": 37
+        },
+        {
+          "part": 9,
+          "role": "FtPart_LFootJA",
+          "joint": 38
+        },
+        {
+          "part": 10,
+          "role": "FtPart_LFootJ",
+          "joint": 39
+        },
+        {
+          "part": 11,
+          "role": "FtPart_RLegJA",
+          "joint": 41
+        },
+        {
+          "part": 12,
+          "role": "FtPart_RLegJ",
+          "joint": 42
+        },
+        {
+          "part": 13,
+          "role": "FtPart_RKneeJ",
+          "joint": 43
+        },
+        {
+          "part": 14,
+          "role": "FtPart_RFootJA",
+          "joint": 44
+        },
+        {
+          "part": 15,
+          "role": "FtPart_RFootJ",
+          "joint": 45
+        },
+        {
+          "part": 18,
+          "role": "FtPart_LShoulderJA",
+          "joint": 7
+        },
+        {
+          "part": 19,
+          "role": "FtPart_LShoulderJ",
+          "joint": 8
+        },
+        {
+          "part": 20,
+          "role": "FtPart_LArmJ",
+          "joint": 9
+        },
+        {
+          "part": 21,
+          "role": "FtPart_LHandN",
+          "joint": 10
+        },
+        {
+          "part": 22,
+          "role": "FtPart_L1stNa",
+          "joint": 11
+        },
+        {
+          "part": 27,
+          "role": "FtPart_L3rdNb",
+          "joint": 12
+        },
+        {
+          "part": 28,
+          "role": "FtPart_L4thNa",
+          "joint": 13
+        },
+        {
+          "part": 31,
+          "role": "FtPart_LThumbNb",
+          "joint": 14
+        },
+        {
+          "part": 32,
+          "role": "FtPart_LHandNb",
+          "joint": 16
+        },
+        {
+          "part": 33,
+          "role": "FtPart_NeckN",
+          "joint": 17
+        },
+        {
+          "part": 34,
+          "role": "FtPart_HeadN",
+          "joint": 18
+        },
+        {
+          "part": 35,
+          "role": "FtPart_RShoulderN",
+          "joint": 19
+        },
+        {
+          "part": 36,
+          "role": "FtPart_RShoulderJA",
+          "joint": 22
+        },
+        {
+          "part": 37,
+          "role": "FtPart_RShoulderJ",
+          "joint": 23
+        },
+        {
+          "part": 38,
+          "role": "FtPart_RArmJ",
+          "joint": 24
+        },
+        {
+          "part": 39,
+          "role": "FtPart_RHandN",
+          "joint": 25
+        },
+        {
+          "part": 40,
+          "role": "FtPart_R1stNa",
+          "joint": 26
+        },
+        {
+          "part": 45,
+          "role": "FtPart_R3rdNb",
+          "joint": 27
+        },
+        {
+          "part": 46,
+          "role": "FtPart_R4thNa",
+          "joint": 28
+        },
+        {
+          "part": 49,
+          "role": "FtPart_RThumbNb",
+          "joint": 29
+        },
+        {
+          "part": 50,
+          "role": "FtPart_RHandNb",
+          "joint": 30
+        },
+        {
+          "part": 51,
+          "role": "FtPart_ThrowN",
+          "joint": 31
+        },
+        {
+          "part": 52,
+          "role": "FtPart_TransN2",
+          "joint": 47
+        },
+        {
+          "part": 53,
+          "role": "53",
+          "joint": 48
+        }
+      ],
+      "part_to_joint": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        35,
+        36,
+        37,
+        38,
+        39,
+        41,
+        42,
+        43,
+        44,
+        45,
+        255,
+        255,
+        7,
+        8,
+        9,
+        10,
+        11,
+        255,
+        255,
+        255,
+        255,
+        12,
+        13,
+        255,
+        255,
+        14,
+        16,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        25,
+        26,
+        255,
+        255,
+        255,
+        255,
+        27,
+        28,
+        255,
+        255,
+        29,
+        30,
+        31,
+        47,
+        48
+      ],
+      "joint_to_part": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        255,
+        18,
+        19,
+        20,
+        21,
+        22,
+        27,
+        28,
+        31,
+        255,
+        32,
+        33,
+        34,
+        35,
+        255,
+        255,
+        36,
+        37,
+        38,
+        39,
+        40,
+        45,
+        46,
+        49,
+        50,
+        51,
+        255,
+        255,
+        255,
+        6,
+        7,
+        8,
+        9,
+        10,
+        255,
+        11,
+        12,
+        13,
+        14,
+        15,
+        255,
+        52,
+        53
+      ],
+      "omissions": [],
+      "costumes": [
+        {
+          "archive": "PlNnNr.dat",
+          "root": "PlyNana5K_Share_joint",
+          "physical_joints": 49,
+          "sha256": "b49241ac2c1f8743ebfc5ae0c35250459e328d121d1a670d5d5a37794347fdd2"
+        },
+        {
+          "archive": "PlNnYe.dat",
+          "root": "PlyNana5KYe_Share_joint",
+          "physical_joints": 49,
+          "sha256": "55f9a305b84f6209bdc279ca945e5f51154e9863d6303a6d3639326642b2bddf"
+        },
+        {
+          "archive": "PlNnAq.dat",
+          "root": "PlyNana5KAq_Share_joint",
+          "physical_joints": 49,
+          "sha256": "a86967401aa0d4fb95b34f6874eae93282a21ed940008ebbb93315d366b69109"
+        },
+        {
+          "archive": "PlNnWh.dat",
+          "root": "PlyNana5KWh_Share_joint",
+          "physical_joints": 49,
+          "sha256": "e5c65fafbe3eca8e160a4618433dd7974b12d48d38a7ec1442bc64fcce5aa8d4"
+        }
+      ],
+      "data_sha256": "83bc4d19539a9f9bc3f4e85d38e190899e9330eb424565dcb1605401582b0cc2",
+      "special_attributes_offset": 4844,
+      "special_attributes_0x15C_sha256": "58e286f095e952f2a8306ee02512286b2635f0d3f9adaffb2d6ad0aa6824f6b2",
+      "article_table_offset": 28024,
+      "article_offsets": [
+        27896,
+        27952,
+        28000
+      ],
+      "string_attribute_offset": 7044,
+      "string_link_count": 40,
+      "string_joint_roots": [
+        7084,
+        27976
+      ]
+    }
+  }
+}

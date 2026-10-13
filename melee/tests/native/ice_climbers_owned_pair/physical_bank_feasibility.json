@@ -1,0 +1,7035 @@
+{
+  "scope": "Read-only physical fallback feasibility; no files rewritten",
+  "replacement_indices": [
+    0,
+    1,
+    2,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    62,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    238,
+    239,
+    242,
+    243,
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+    256,
+    257,
+    258,
+    262,
+    263,
+    264,
+    265,
+    286,
+    287,
+    288,
+    289,
+    290,
+    291,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310,
+    311,
+    312
+  ],
+  "count": 260,
+  "primary_bank_clips": 200,
+  "secondary_bank_clips": 8,
+  "replacement_flag_xors": {
+    "1": 256,
+    "2147483648": 4
+  },
+  "blend_byte_differences": [],
+  "replacement_rows": [
+    {
+      "id": 0,
+      "primary": {
+        "index": 0,
+        "name": "PlyPopo5K_Share_ACTION_WallDamage_figatree",
+        "size": 5563,
+        "flags": 10,
+        "command": 15564,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 0,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7088,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "0175d52d3f29b3df9f8056374318026b9aa0a0fe8b536826691e3524ef317524"
+    },
+    {
+      "id": 1,
+      "primary": {
+        "index": 1,
+        "name": "PlyPopo5K_Share_ACTION_DamageFall_figatree",
+        "size": 3327,
+        "flags": 10,
+        "command": 15564,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 1,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7088,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b3198f160571c62cb5b0b03220186acdc3a9e8aad930c537510d868c937a2490"
+    },
+    {
+      "id": 2,
+      "primary": {
+        "index": 2,
+        "name": "PlyPopo5K_Share_ACTION_Wait_figatree",
+        "size": 10057,
+        "flags": 10,
+        "command": 15572,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 2,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7096,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "copied_clip_sha256": "954a1842442ee9321a389c22049056243a979f7e634858177170db13b84ef664"
+    },
+    {
+      "id": 6,
+      "primary": {
+        "index": 6,
+        "name": "PlyPopo5K_Share_ACTION_WaitItem_figatree",
+        "size": 9957,
+        "flags": 10,
+        "command": 15664,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 6,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7188,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1b756bd78dee6fcc2dae6fc42d646e7b624a92049d60777b815beb97bc9975bd"
+    },
+    {
+      "id": 7,
+      "primary": {
+        "index": 7,
+        "name": "PlyPopo5K_Share_ACTION_WalkSlow_figatree",
+        "size": 3713,
+        "flags": 1073741834,
+        "command": 15676,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 7,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7200,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "copied_clip_sha256": "2f59ba75a4bdc9956f0068847f8d78a411c546c35c4c7f7342a30d9733219c3a"
+    },
+    {
+      "id": 8,
+      "primary": {
+        "index": 8,
+        "name": "PlyPopo5K_Share_ACTION_WalkMiddle_figatree",
+        "size": 4779,
+        "flags": 1073741834,
+        "command": 15720,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 8,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7244,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "copied_clip_sha256": "db59d3fd0329bc1786407690e700b1229774572f17573de4978f2ae5b5f6e976"
+    },
+    {
+      "id": 9,
+      "primary": {
+        "index": 9,
+        "name": "PlyPopo5K_Share_ACTION_WalkFast_figatree",
+        "size": 4885,
+        "flags": 1073741834,
+        "command": 15772,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 9,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7296,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7c2d4ff1ec2ba134908c6ae240c382f1d71966cb0d53a333258c3653aad81548"
+    },
+    {
+      "id": 10,
+      "primary": {
+        "index": 10,
+        "name": "PlyPopo5K_Share_ACTION_Turn_figatree",
+        "size": 3753,
+        "flags": 202,
+        "command": 15824,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 10,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 7348,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8ea42952605ebd8905467c0638f4b13f3aa5de355489b30f17e984ce9744161b"
+    },
+    {
+      "id": 11,
+      "primary": {
+        "index": 11,
+        "name": "PlyPopo5K_Share_ACTION_TurnRun_figatree",
+        "size": 5588,
+        "flags": 2147483850,
+        "command": 15828,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 11,
+        "name": null,
+        "size": 0,
+        "flags": 2147483851,
+        "command": 7352,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "64fcf66bfb8241926e6b742c5897558d9c2114d52046445f096a48c074e17a1a"
+    },
+    {
+      "id": 12,
+      "primary": {
+        "index": 12,
+        "name": "PlyPopo5K_Share_ACTION_Dash_figatree",
+        "size": 5177,
+        "flags": 2147483658,
+        "command": 15884,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 12,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 7408,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "14d4b66ce2142e600b335a56c89cab523b898eec188be55e95f7c05233474d2a"
+    },
+    {
+      "id": 13,
+      "primary": {
+        "index": 13,
+        "name": "PlyPopo5K_Share_ACTION_Run_figatree",
+        "size": 5208,
+        "flags": 1073741834,
+        "command": 15944,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 13,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7468,
+        "blend": [
+          6,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b805c467dba7d7c98ce364caedece82485c75acb3d08ad8056a6589a06304742"
+    },
+    {
+      "id": 14,
+      "primary": {
+        "index": 14,
+        "name": "PlyPopo5K_Share_ACTION_RunBrake_figatree",
+        "size": 4037,
+        "flags": 10,
+        "command": 16044,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 14,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7568,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "cbeee15f0cbb04e11de38dad30450e5848fe54f6d996075d2bc3ad2872932bc5"
+    },
+    {
+      "id": 15,
+      "primary": {
+        "index": 15,
+        "name": "PlyPopo5K_Share_ACTION_Landing_figatree",
+        "size": 5460,
+        "flags": 10,
+        "command": 16128,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 15,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7652,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1b99542376e337d2cd9048a923874f55e608e430d02089ae9af7a8d09467cced"
+    },
+    {
+      "id": 16,
+      "primary": {
+        "index": 16,
+        "name": "PlyPopo5K_Share_ACTION_JumpF_figatree",
+        "size": 4622,
+        "flags": 10,
+        "command": 16132,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 16,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7656,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7ff8134a69cd8e6db0a47ce7a2a0430f8ab2184383698d01f5d6d29035673494"
+    },
+    {
+      "id": 17,
+      "primary": {
+        "index": 17,
+        "name": "PlyPopo5K_Share_ACTION_JumpB_figatree",
+        "size": 4578,
+        "flags": 10,
+        "command": 16180,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 17,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7704,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "2e2abc7ec495c19fa4848c4454bcf7f9f6722be8d30a5136003de4fd943e0dbd"
+    },
+    {
+      "id": 18,
+      "primary": {
+        "index": 18,
+        "name": "PlyPopo5K_Share_ACTION_JumpAerialF_figatree",
+        "size": 4556,
+        "flags": 10,
+        "command": 16208,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 18,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7732,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "edd783915205efe1b1691745b56a6dff2bd9f60f8f4496f4cc370cd06532cf54"
+    },
+    {
+      "id": 19,
+      "primary": {
+        "index": 19,
+        "name": "PlyPopo5K_Share_ACTION_JumpAerialB_figatree",
+        "size": 4576,
+        "flags": 10,
+        "command": 16208,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 19,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7732,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e9a861675c35fe13de151fba914494d85a23c0d97ea28f32f9bffda0ec002021"
+    },
+    {
+      "id": 20,
+      "primary": {
+        "index": 20,
+        "name": "PlyPopo5K_Share_ACTION_Fall_figatree",
+        "size": 3157,
+        "flags": 1073741834,
+        "command": 16256,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 20,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7780,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6a616d04c21404aa8f6e3a06ecc4068d161d72ef96b6482b5527cd2c9b50c93e"
+    },
+    {
+      "id": 21,
+      "primary": {
+        "index": 21,
+        "name": "PlyPopo5K_Share_ACTION_FallF_figatree",
+        "size": 3198,
+        "flags": 1073741834,
+        "command": 16256,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 21,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7780,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ac2e96a9f411425d9a92c22adb3cf31bb085692d7964c443293a439890d810eb"
+    },
+    {
+      "id": 22,
+      "primary": {
+        "index": 22,
+        "name": "PlyPopo5K_Share_ACTION_FallB_figatree",
+        "size": 3246,
+        "flags": 1073741834,
+        "command": 16256,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 22,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7780,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "640e0010bad7be5f4d1f30e28b65bf6f66e4ddb2d11667044909485e871f5b80"
+    },
+    {
+      "id": 23,
+      "primary": {
+        "index": 23,
+        "name": "PlyPopo5K_Share_ACTION_FallAerial_figatree",
+        "size": 3087,
+        "flags": 1073741834,
+        "command": 16260,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 23,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7784,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "13de2b895c448bbcbf0b2085077d77f33c77992c90ce9f0bc417b70090fb49f2"
+    },
+    {
+      "id": 24,
+      "primary": {
+        "index": 24,
+        "name": "PlyPopo5K_Share_ACTION_FallAerialF_figatree",
+        "size": 3228,
+        "flags": 1073741834,
+        "command": 16260,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 24,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7784,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3692ad47a1cb1f40e9d528ff46d8798b451e4f29fa8e83e27d05b5ccd60234e9"
+    },
+    {
+      "id": 25,
+      "primary": {
+        "index": 25,
+        "name": "PlyPopo5K_Share_ACTION_FallAerialB_figatree",
+        "size": 3212,
+        "flags": 1073741834,
+        "command": 16260,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 25,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7784,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "694a66120915104cb96f038e929e966d7655cdec2250d203a73230d176609c7a"
+    },
+    {
+      "id": 26,
+      "primary": {
+        "index": 26,
+        "name": "PlyPopo5K_Share_ACTION_FallSpecial_figatree",
+        "size": 3136,
+        "flags": 1073741834,
+        "command": 16264,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 26,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7788,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c81fad889f8aa9dfe0935ab6d0018b0cf857369ca5089d3bace27650bbdb362c"
+    },
+    {
+      "id": 27,
+      "primary": {
+        "index": 27,
+        "name": "PlyPopo5K_Share_ACTION_FallSpecialF_figatree",
+        "size": 3229,
+        "flags": 1073741834,
+        "command": 16264,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 27,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7788,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ace78c77a6da9e4397431eee484f94dc95145a4134e9403d8303330df5832039"
+    },
+    {
+      "id": 28,
+      "primary": {
+        "index": 28,
+        "name": "PlyPopo5K_Share_ACTION_FallSpecialB_figatree",
+        "size": 3269,
+        "flags": 1073741834,
+        "command": 16264,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 28,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7788,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "2d3316d2fd8734ca2730c8579cb3e80186c35b562ee49a08e2efcda04813a413"
+    },
+    {
+      "id": 29,
+      "primary": {
+        "index": 29,
+        "name": "PlyPopo5K_Share_ACTION_DamageFall_figatree",
+        "size": 3327,
+        "flags": 1073741834,
+        "command": 16272,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 29,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 7796,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b3198f160571c62cb5b0b03220186acdc3a9e8aad930c537510d868c937a2490"
+    },
+    {
+      "id": 30,
+      "primary": {
+        "index": 30,
+        "name": "PlyPopo5K_Share_ACTION_Squat_figatree",
+        "size": 3790,
+        "flags": 10,
+        "command": 16276,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 30,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7800,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a37cdf6a684086f737598d45af47a151582c54393caf8183dcc09bd617e2b905"
+    },
+    {
+      "id": 31,
+      "primary": {
+        "index": 31,
+        "name": "PlyPopo5K_Share_ACTION_SquatWait_figatree",
+        "size": 4842,
+        "flags": 10,
+        "command": 16284,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 31,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7808,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5e6bd3a6ecfb3913709ab17b449f49bd605a2fef966b71eca977f1a40a0e6c81"
+    },
+    {
+      "id": 33,
+      "primary": {
+        "index": 33,
+        "name": "PlyPopo5K_Share_ACTION_SquatWaitItem_figatree",
+        "size": 4834,
+        "flags": 10,
+        "command": 16360,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 33,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7884,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3c1e4d4318eac5e86087ccedaf1c0ed479144daa2678c3c6aacb5712125ea281"
+    },
+    {
+      "id": 34,
+      "primary": {
+        "index": 34,
+        "name": "PlyPopo5K_Share_ACTION_SquatRv_figatree",
+        "size": 4056,
+        "flags": 10,
+        "command": 16368,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 34,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7892,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "bffa0e0b1ed70efc12e84155d0637db6f0b5550f6e7112a11eb90f3b2ab23435"
+    },
+    {
+      "id": 35,
+      "primary": {
+        "index": 35,
+        "name": "PlyPopo5K_Share_ACTION_Landing_figatree",
+        "size": 5460,
+        "flags": 10,
+        "command": 16376,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 35,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7900,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1b99542376e337d2cd9048a923874f55e608e430d02089ae9af7a8d09467cced"
+    },
+    {
+      "id": 36,
+      "primary": {
+        "index": 36,
+        "name": "PlyPopo5K_Share_ACTION_Landing_figatree",
+        "size": 5460,
+        "flags": 10,
+        "command": 16392,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 36,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7916,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1b99542376e337d2cd9048a923874f55e608e430d02089ae9af7a8d09467cced"
+    },
+    {
+      "id": 37,
+      "primary": {
+        "index": 37,
+        "name": "PlyPopo5K_Share_ACTION_GuardOn_figatree",
+        "size": 3256,
+        "flags": 10,
+        "command": 16408,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 37,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7932,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7a316367c645012c7386a221a7742def4ab0b3386d8c7e64ee0d5507cbe15285"
+    },
+    {
+      "id": 38,
+      "primary": {
+        "index": 38,
+        "name": "PlyPopo5K_Share_ACTION_Guard_figatree",
+        "size": 4646,
+        "flags": 10,
+        "command": 16412,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 38,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7936,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "24b75ca418370e89ddc73f56cfe43395da980b97fabb6e7cda9a8107b062667a"
+    },
+    {
+      "id": 39,
+      "primary": {
+        "index": 39,
+        "name": "PlyPopo5K_Share_ACTION_GuardOff_figatree",
+        "size": 5481,
+        "flags": 10,
+        "command": 16416,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 39,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7940,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e8a4d23e8f489b3d09a3a9a0a85ca788fb5e1a3ac5f5886cf54d58ea9954f46b"
+    },
+    {
+      "id": 40,
+      "primary": {
+        "index": 40,
+        "name": "PlyPopo5K_Share_ACTION_GuardDamage_figatree",
+        "size": 3044,
+        "flags": 10,
+        "command": 16420,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 40,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7944,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3474a108bf4878e7045adfd573bc4f7de51dc421e0d5e5dda286a7f32b748341"
+    },
+    {
+      "id": 41,
+      "primary": {
+        "index": 41,
+        "name": "PlyPopo5K_Share_ACTION_EscapeN_figatree",
+        "size": 9080,
+        "flags": 10,
+        "command": 16424,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 41,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 7948,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "52a20caa90e12ae7275270af08b6c039a1c65e1b0fc0febaa6d25c5445c85b65"
+    },
+    {
+      "id": 42,
+      "primary": {
+        "index": 42,
+        "name": "PlyPopo5K_Share_ACTION_EscapeF_figatree",
+        "size": 10796,
+        "flags": 2147483914,
+        "command": 16476,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 42,
+        "name": null,
+        "size": 0,
+        "flags": 2147483915,
+        "command": 8000,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "88668fc81f53549034ec056ce4096901def3c5dee4b3195cc1dbacb2369f9266"
+    },
+    {
+      "id": 43,
+      "primary": {
+        "index": 43,
+        "name": "PlyPopo5K_Share_ACTION_EscapeB_figatree",
+        "size": 9048,
+        "flags": 2147483658,
+        "command": 16552,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 43,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 8076,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b3450c827448d385578532571848223d89465df10960404aa077798f0625f57a"
+    },
+    {
+      "id": 44,
+      "primary": {
+        "index": 44,
+        "name": "PlyPopo5K_Share_ACTION_EscapeAir_figatree",
+        "size": 8806,
+        "flags": 10,
+        "command": 16624,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 44,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8148,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b5712f4b9fdddcaf4702659fd1842a929053b63f64077d05b06c7bc5dc70553e"
+    },
+    {
+      "id": 45,
+      "primary": {
+        "index": 45,
+        "name": "PlyPopo5K_Share_ACTION_Rebound_figatree",
+        "size": 8924,
+        "flags": 10,
+        "command": 16660,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 45,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8184,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3c4f42b50099fa9a70a7033bacba3feca2788126d371dc8cb3c3cb9473fcda32"
+    },
+    {
+      "id": 46,
+      "primary": {
+        "index": 46,
+        "name": "PlyPopo5K_Share_ACTION_Attack11_figatree",
+        "size": 5541,
+        "flags": 10,
+        "command": 16664,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 46,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8188,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "740738b6cdb125a5af8b196c4b177ae652730e0ae91b2a1d9fa84cda4ce04954"
+    },
+    {
+      "id": 47,
+      "primary": {
+        "index": 47,
+        "name": "PlyPopo5K_Share_ACTION_Attack12_figatree",
+        "size": 5561,
+        "flags": 10,
+        "command": 16760,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 47,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8284,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "cebbb5dde9991ffa6f35d8d3593ad70fd5b9ab3d53e96981a613a77228570429"
+    },
+    {
+      "id": 52,
+      "primary": {
+        "index": 52,
+        "name": "PlyPopo5K_Share_ACTION_AttackDash_figatree",
+        "size": 8071,
+        "flags": 2147483658,
+        "command": 16856,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 52,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 8380,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "301464e7323cba857ac307ee161206d30628aa714d0c0666fd94bd41de2778b2"
+    },
+    {
+      "id": 53,
+      "primary": {
+        "index": 53,
+        "name": "PlyPopo5K_Share_ACTION_AttackS3Hi_figatree",
+        "size": 6147,
+        "flags": 10,
+        "command": 17064,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 53,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8588,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "336d0212341859d02a9dfafa53113f66242b19fc49918e05c47c197286daf173"
+    },
+    {
+      "id": 54,
+      "primary": {
+        "index": 54,
+        "name": "PlyPopo5K_Share_ACTION_AttackS3HiS_figatree",
+        "size": 6128,
+        "flags": 10,
+        "command": 17072,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 54,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8596,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "726583a2dc8ff22eb8ad50db870a4377b1a7d9d8c165fe7ca2c8520c0801bb19"
+    },
+    {
+      "id": 55,
+      "primary": {
+        "index": 55,
+        "name": "PlyPopo5K_Share_ACTION_AttackS3S_figatree",
+        "size": 6162,
+        "flags": 10,
+        "command": 16984,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 55,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8508,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "0765e0d55369b679e6445204bb4a479ea5edd8a44d5f98f33797bad220f93327"
+    },
+    {
+      "id": 56,
+      "primary": {
+        "index": 56,
+        "name": "PlyPopo5K_Share_ACTION_AttackS3LwS_figatree",
+        "size": 6100,
+        "flags": 10,
+        "command": 17080,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 56,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8604,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5d4b0a3d2092c3d943867b24114e0d85292779d8a3ad9ad20dbd4b68ee331709"
+    },
+    {
+      "id": 57,
+      "primary": {
+        "index": 57,
+        "name": "PlyPopo5K_Share_ACTION_AttackS3Lw_figatree",
+        "size": 6131,
+        "flags": 10,
+        "command": 17088,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 57,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8612,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "87105da2ad7784a24c205cc87156899ad2520ddcb4bf0165a271f273a7f7e4d8"
+    },
+    {
+      "id": 58,
+      "primary": {
+        "index": 58,
+        "name": "PlyPopo5K_Share_ACTION_AttackHi3_figatree",
+        "size": 7742,
+        "flags": 10,
+        "command": 17096,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 58,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8620,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ef6cd4a299f9efc05a284c5533df09326190c420ee5b7ec8bf82dfda67081c0b"
+    },
+    {
+      "id": 59,
+      "primary": {
+        "index": 59,
+        "name": "PlyPopo5K_Share_ACTION_AttackLw3_figatree",
+        "size": 7102,
+        "flags": 10,
+        "command": 17236,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 59,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8760,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7c7eb441e999e5747bd4fd17d1eef4c5018da672a382d9b9f73a5af1dac0519c"
+    },
+    {
+      "id": 62,
+      "primary": {
+        "index": 62,
+        "name": "PlyPopo5K_Share_ACTION_AttackS4_figatree",
+        "size": 7325,
+        "flags": 10,
+        "command": 17348,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 62,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 8872,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "92f73fc367b9357c5bf2d5758c240fa1c218d82c38a1b5b817ccd1709b4206e2"
+    },
+    {
+      "id": 66,
+      "primary": {
+        "index": 66,
+        "name": "PlyPopo5K_Share_ACTION_AttackHi4_figatree",
+        "size": 7490,
+        "flags": 10,
+        "command": 17564,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 66,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9088,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "03b46bff14f5cf3268c1ae016cd5f382f1f973531221a7e026855e47ce3a4b0a"
+    },
+    {
+      "id": 67,
+      "primary": {
+        "index": 67,
+        "name": "PlyPopo5K_Share_ACTION_AttackLw4_figatree",
+        "size": 6506,
+        "flags": 10,
+        "command": 17700,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 67,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9224,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1fbbc71b8ef89f0a97b4d3892eb1af3d08ce9481f6851327dafc96f7126af6ea"
+    },
+    {
+      "id": 68,
+      "primary": {
+        "index": 68,
+        "name": "PlyPopo5K_Share_ACTION_AttackAirN_figatree",
+        "size": 8671,
+        "flags": 10,
+        "command": 17872,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 68,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9396,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "4cf09b73b0157bb758ffb9098322876283906e7c99a89cff204fa6c3db26aeb9"
+    },
+    {
+      "id": 69,
+      "primary": {
+        "index": 69,
+        "name": "PlyPopo5K_Share_ACTION_AttackAirF_figatree",
+        "size": 7099,
+        "flags": 10,
+        "command": 17964,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 69,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9488,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "44516400602f5829efbaa3129b8aa15c74f8163323983ddd060edbac31013f95"
+    },
+    {
+      "id": 70,
+      "primary": {
+        "index": 70,
+        "name": "PlyPopo5K_Share_ACTION_AttackAirB_figatree",
+        "size": 7487,
+        "flags": 10,
+        "command": 18108,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 70,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9632,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "d74572934c8a8f91330c5f271a41959db2dd849b49612bae68ae870ee83c7f5a"
+    },
+    {
+      "id": 71,
+      "primary": {
+        "index": 71,
+        "name": "PlyPopo5K_Share_ACTION_AttackAirHi_figatree",
+        "size": 7384,
+        "flags": 10,
+        "command": 18200,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 71,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9724,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "642abde92af5186e7ae548f030cf08e4e506b55d8672937b9d73a0218efc932b"
+    },
+    {
+      "id": 72,
+      "primary": {
+        "index": 72,
+        "name": "PlyPopo5K_Share_ACTION_AttackAirLw_figatree",
+        "size": 6624,
+        "flags": 10,
+        "command": 18336,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 72,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9860,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "613200dc64c67160066fec432bf525548f07f8ec2a3dac8e266f4edfd260eaf7"
+    },
+    {
+      "id": 73,
+      "primary": {
+        "index": 73,
+        "name": "PlyPopo5K_Share_ACTION_LandingAirN_figatree",
+        "size": 6660,
+        "flags": 10,
+        "command": 18428,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 73,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9952,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1647482570ff3999d7b7c3a596fd4d76aae5953adac51494c077d2577a314c81"
+    },
+    {
+      "id": 74,
+      "primary": {
+        "index": 74,
+        "name": "PlyPopo5K_Share_ACTION_LandingAirF_figatree",
+        "size": 6220,
+        "flags": 10,
+        "command": 18444,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 74,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9968,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "93f6fbc71eaebdddda23b0dd3eddd8f70fda434cf02b4513ed1a4a3d485f7421"
+    },
+    {
+      "id": 75,
+      "primary": {
+        "index": 75,
+        "name": "PlyPopo5K_Share_ACTION_LandingAirB_figatree",
+        "size": 6448,
+        "flags": 10,
+        "command": 18460,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 75,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 9984,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5c3f6c37d394dc8d165698e32677d776b5a50019d092dd39656f5cb0d26ed129"
+    },
+    {
+      "id": 76,
+      "primary": {
+        "index": 76,
+        "name": "PlyPopo5K_Share_ACTION_LandingAirHi_figatree",
+        "size": 7589,
+        "flags": 10,
+        "command": 18488,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 76,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10012,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8b7f2ee612d036b8b3515a5a0007627e861bb61e0978effb6a0b0a74bbdde537"
+    },
+    {
+      "id": 77,
+      "primary": {
+        "index": 77,
+        "name": "PlyPopo5K_Share_ACTION_LandingAirLw_figatree",
+        "size": 8301,
+        "flags": 10,
+        "command": 18504,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 77,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10028,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3da6e67a70b3333eee27947e8542e10c1666cb6486e5653d26754569c31e5af3"
+    },
+    {
+      "id": 78,
+      "primary": {
+        "index": 78,
+        "name": "PlyPopo5K_Share_ACTION_LightGet_figatree",
+        "size": 3909,
+        "flags": 10,
+        "command": 18544,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 78,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10068,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6422ed6b964af3ea4dc9d018602d7dd791db5a9ffe88ccdb636fb6899d485ccb"
+    },
+    {
+      "id": 79,
+      "primary": {
+        "index": 79,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowF_figatree",
+        "size": 6468,
+        "flags": 10,
+        "command": 18576,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 79,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10100,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a1ec31c3d3aba25fdd9ca4961892b6d5fbf46a3394e16d9dc767873cca26683f"
+    },
+    {
+      "id": 80,
+      "primary": {
+        "index": 80,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowB_figatree",
+        "size": 6592,
+        "flags": 202,
+        "command": 18608,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 80,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 10132,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "95b72df33daf8e46db90fa21b926f68867d3557e3c19175c31aa12552b6d1c80"
+    },
+    {
+      "id": 81,
+      "primary": {
+        "index": 81,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowHi_figatree",
+        "size": 6341,
+        "flags": 10,
+        "command": 18648,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 81,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10172,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "10087e1f4389797058a6bc9f0a9c9acc146856ca29bc7c009e57ac3ec37876e0"
+    },
+    {
+      "id": 82,
+      "primary": {
+        "index": 82,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowLw_figatree",
+        "size": 5957,
+        "flags": 10,
+        "command": 18680,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 82,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10204,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "d09f1fb446cc0daa94dfc7aba48e92ceb043dd56ee40797dc3c901aad67b5e8d"
+    },
+    {
+      "id": 83,
+      "primary": {
+        "index": 83,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowDash_figatree",
+        "size": 9951,
+        "flags": 2147483658,
+        "command": 18712,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 83,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 10236,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c46d8a9397f1cf4b15510ec77841f462e0fd9758a74c292aadfaf3e30feb7051"
+    },
+    {
+      "id": 84,
+      "primary": {
+        "index": 84,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowDrop_figatree",
+        "size": 4143,
+        "flags": 10,
+        "command": 18744,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 84,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10268,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6155120a3ee09d48c9da66d5b0b7f1a4b8724fe0fc0126aaf2ecd1f7a73093e3"
+    },
+    {
+      "id": 85,
+      "primary": {
+        "index": 85,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirF_figatree",
+        "size": 4955,
+        "flags": 10,
+        "command": 18756,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 85,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10280,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "80df5d46ba51e1081e5bf8ce85698252865fa48556d28e39d2fed944dfcb3368"
+    },
+    {
+      "id": 86,
+      "primary": {
+        "index": 86,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirB_figatree",
+        "size": 4699,
+        "flags": 202,
+        "command": 18788,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 86,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 10312,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b68fe1cbdd65892c8a047415b504b5105c262126fcb4adf93d69457b42c9e37d"
+    },
+    {
+      "id": 87,
+      "primary": {
+        "index": 87,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirHi_figatree",
+        "size": 4644,
+        "flags": 10,
+        "command": 18828,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 87,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10352,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "27d4579d602de0fce957fd4afe81df0c728db2c6abc297ace46bfdd68eb158dc"
+    },
+    {
+      "id": 88,
+      "primary": {
+        "index": 88,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirLw_figatree",
+        "size": 4416,
+        "flags": 10,
+        "command": 18860,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 88,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10384,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "62e2be722bebaba3010c8bd03d2e9c7071321ee0505a2300caea21ddc38b7ff5"
+    },
+    {
+      "id": 89,
+      "primary": {
+        "index": 89,
+        "name": "PlyPopo5K_Share_ACTION_HeavyGet_figatree",
+        "size": 8273,
+        "flags": 10,
+        "command": 18892,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 89,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10416,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f352376bbe816148632688f24c4a0cf4f3fa7e7038f2e62f1312730b99bc274b"
+    },
+    {
+      "id": 90,
+      "primary": {
+        "index": 90,
+        "name": "PlyPopo5K_Share_ACTION_HeavyWalk1_figatree",
+        "size": 4799,
+        "flags": 2147483658,
+        "command": 18924,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 90,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 10448,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1081a81d6c29869dc764cd25b1dfc3484ea32e23720da8fe5047193394df85bf"
+    },
+    {
+      "id": 91,
+      "primary": {
+        "index": 91,
+        "name": "PlyPopo5K_Share_ACTION_HeavyWalk2_figatree",
+        "size": 4823,
+        "flags": 2147483658,
+        "command": 18972,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 91,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 10496,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "bccf47f75cb4e01cb8f06959f5e2323979c441e166f7d9351d6566e55ca63784"
+    },
+    {
+      "id": 92,
+      "primary": {
+        "index": 92,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowF_figatree",
+        "size": 7776,
+        "flags": 10,
+        "command": 19020,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 92,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10544,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9ea0ed2c4bd30c604ed831dbfb134d68903df60b45543c767868fec469d09977"
+    },
+    {
+      "id": 93,
+      "primary": {
+        "index": 93,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowB_figatree",
+        "size": 9056,
+        "flags": 202,
+        "command": 19052,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 93,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 10576,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a65b96a5e2d252fc7494956c50933ea7a2ca0ab6b902a9bc07bff2440d97e03e"
+    },
+    {
+      "id": 94,
+      "primary": {
+        "index": 94,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowHi_figatree",
+        "size": 6893,
+        "flags": 10,
+        "command": 19092,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 94,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10616,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1776b82a7998babf8ca27cd39d59d79c8faaf629505adc44259b69211c552ac0"
+    },
+    {
+      "id": 95,
+      "primary": {
+        "index": 95,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowLw_figatree",
+        "size": 8193,
+        "flags": 10,
+        "command": 19124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 95,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10648,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "62484745b51c8ab7caff268fa25f4eb54c6ca610f86cf4f4c67eb8741cbe194e"
+    },
+    {
+      "id": 96,
+      "primary": {
+        "index": 96,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowF_figatree",
+        "size": 6468,
+        "flags": 10,
+        "command": 19156,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 96,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10680,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a1ec31c3d3aba25fdd9ca4961892b6d5fbf46a3394e16d9dc767873cca26683f"
+    },
+    {
+      "id": 97,
+      "primary": {
+        "index": 97,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowB_figatree",
+        "size": 6592,
+        "flags": 202,
+        "command": 19212,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 97,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 10736,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "95b72df33daf8e46db90fa21b926f68867d3557e3c19175c31aa12552b6d1c80"
+    },
+    {
+      "id": 98,
+      "primary": {
+        "index": 98,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowHi_figatree",
+        "size": 6341,
+        "flags": 10,
+        "command": 19276,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 98,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10800,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "10087e1f4389797058a6bc9f0a9c9acc146856ca29bc7c009e57ac3ec37876e0"
+    },
+    {
+      "id": 99,
+      "primary": {
+        "index": 99,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowLw_figatree",
+        "size": 5957,
+        "flags": 10,
+        "command": 19352,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 99,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10876,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "d09f1fb446cc0daa94dfc7aba48e92ceb043dd56ee40797dc3c901aad67b5e8d"
+    },
+    {
+      "id": 100,
+      "primary": {
+        "index": 100,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirF_figatree",
+        "size": 4955,
+        "flags": 10,
+        "command": 19428,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 100,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 10952,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "80df5d46ba51e1081e5bf8ce85698252865fa48556d28e39d2fed944dfcb3368"
+    },
+    {
+      "id": 101,
+      "primary": {
+        "index": 101,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirB_figatree",
+        "size": 4699,
+        "flags": 202,
+        "command": 19484,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 101,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 11008,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b68fe1cbdd65892c8a047415b504b5105c262126fcb4adf93d69457b42c9e37d"
+    },
+    {
+      "id": 102,
+      "primary": {
+        "index": 102,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirHi_figatree",
+        "size": 4644,
+        "flags": 10,
+        "command": 19548,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 102,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11072,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "27d4579d602de0fce957fd4afe81df0c728db2c6abc297ace46bfdd68eb158dc"
+    },
+    {
+      "id": 103,
+      "primary": {
+        "index": 103,
+        "name": "PlyPopo5K_Share_ACTION_LightThrowAirLw_figatree",
+        "size": 4416,
+        "flags": 10,
+        "command": 19604,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 103,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11128,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "62e2be722bebaba3010c8bd03d2e9c7071321ee0505a2300caea21ddc38b7ff5"
+    },
+    {
+      "id": 104,
+      "primary": {
+        "index": 104,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowF_figatree",
+        "size": 7776,
+        "flags": 10,
+        "command": 19660,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 104,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11184,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9ea0ed2c4bd30c604ed831dbfb134d68903df60b45543c767868fec469d09977"
+    },
+    {
+      "id": 105,
+      "primary": {
+        "index": 105,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowB_figatree",
+        "size": 9056,
+        "flags": 202,
+        "command": 19736,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 105,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 11260,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a65b96a5e2d252fc7494956c50933ea7a2ca0ab6b902a9bc07bff2440d97e03e"
+    },
+    {
+      "id": 106,
+      "primary": {
+        "index": 106,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowHi_figatree",
+        "size": 6893,
+        "flags": 10,
+        "command": 19820,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 106,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11344,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1776b82a7998babf8ca27cd39d59d79c8faaf629505adc44259b69211c552ac0"
+    },
+    {
+      "id": 107,
+      "primary": {
+        "index": 107,
+        "name": "PlyPopo5K_Share_ACTION_HeavyThrowLw_figatree",
+        "size": 8193,
+        "flags": 10,
+        "command": 19896,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 107,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11420,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "62484745b51c8ab7caff268fa25f4eb54c6ca610f86cf4f4c67eb8741cbe194e"
+    },
+    {
+      "id": 108,
+      "primary": {
+        "index": 108,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 23804,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 108,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14996,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 109,
+      "primary": {
+        "index": 109,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 23880,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 109,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15072,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 110,
+      "primary": {
+        "index": 110,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 23952,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 110,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 111,
+      "primary": {
+        "index": 111,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 24052,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 111,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 15244,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 112,
+      "primary": {
+        "index": 112,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 24140,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 112,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15332,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 113,
+      "primary": {
+        "index": 113,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 24188,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 113,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15380,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 114,
+      "primary": {
+        "index": 114,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 24244,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 114,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15436,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 115,
+      "primary": {
+        "index": 115,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 24332,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 115,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 15524,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 116,
+      "primary": {
+        "index": 116,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 24380,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 116,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15572,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 117,
+      "primary": {
+        "index": 117,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 24440,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 117,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15632,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 118,
+      "primary": {
+        "index": 118,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 24504,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 118,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15696,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 119,
+      "primary": {
+        "index": 119,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 24584,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 119,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 15776,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 120,
+      "primary": {
+        "index": 120,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 24640,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 120,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15832,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 121,
+      "primary": {
+        "index": 121,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 24692,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 121,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15884,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 122,
+      "primary": {
+        "index": 122,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 24756,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 122,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 15948,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 123,
+      "primary": {
+        "index": 123,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 24832,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 123,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 16024,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 124,
+      "primary": {
+        "index": 124,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 24884,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 124,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16076,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 125,
+      "primary": {
+        "index": 125,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 24936,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 125,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16128,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 126,
+      "primary": {
+        "index": 126,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 25004,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 126,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16196,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 127,
+      "primary": {
+        "index": 127,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 25092,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 127,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 16284,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 128,
+      "primary": {
+        "index": 128,
+        "name": "PlyPopo5K_Share_ACTION_Swing1_figatree",
+        "size": 5251,
+        "flags": 10,
+        "command": 25144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 128,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16336,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "784027097a6eb5f61ea67840339a7275d99c9025048001b793705081dffc1aeb"
+    },
+    {
+      "id": 129,
+      "primary": {
+        "index": 129,
+        "name": "PlyPopo5K_Share_ACTION_Swing3_figatree",
+        "size": 6103,
+        "flags": 10,
+        "command": 25192,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 129,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16384,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b61777d2820f3dd42808f50d302f2a5c4b846de80344809beeff3305f2569e34"
+    },
+    {
+      "id": 130,
+      "primary": {
+        "index": 130,
+        "name": "PlyPopo5K_Share_ACTION_Swing4_figatree",
+        "size": 8271,
+        "flags": 10,
+        "command": 25256,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 130,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16448,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29626ab0c80461cbf0cbd3568c3106a6de2b709c5e74d10a1c3f8f365b976759"
+    },
+    {
+      "id": 131,
+      "primary": {
+        "index": 131,
+        "name": "PlyPopo5K_Share_ACTION_SwingDash_figatree",
+        "size": 6126,
+        "flags": 2147483658,
+        "command": 25340,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 131,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 16532,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1d01fc4acf43dd4967f3550fc4f4b6bb5b68278e909c4702bd2b6ae6948f819d"
+    },
+    {
+      "id": 132,
+      "primary": {
+        "index": 132,
+        "name": "PlyPopo5K_Share_ACTION_ItemHammerWait_figatree",
+        "size": 4935,
+        "flags": 1073741834,
+        "command": 25388,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 132,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 16580,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "4f04a7990ee4c595f3789e2c9636003b4a48217d541fded023a7dcb5969120e2"
+    },
+    {
+      "id": 133,
+      "primary": {
+        "index": 133,
+        "name": "PlyPopo5K_Share_ACTION_ItemHammerMove_figatree",
+        "size": 5163,
+        "flags": 1073741834,
+        "command": 25396,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 133,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 16588,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f6af11ee0918e7774ba6fa3cdae1644b71f1222f860cf664324a540871f97991"
+    },
+    {
+      "id": 134,
+      "primary": {
+        "index": 134,
+        "name": "PlyPopo5K_Share_ACTION_ItemParasolOpen_figatree",
+        "size": 4076,
+        "flags": 10,
+        "command": 25400,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 134,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16592,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c372c18fb0a0c34ec2fbc8115456eb2cc6fc617bbdb944c372eb0423e96ded67"
+    },
+    {
+      "id": 135,
+      "primary": {
+        "index": 135,
+        "name": "PlyPopo5K_Share_ACTION_ItemParasolFall_figatree",
+        "size": 3884,
+        "flags": 1073741834,
+        "command": 25420,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 135,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 16612,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9b6995ce570c3a58b6b795ceb8d84d0ce281948d396e8be1fa53cd4288000c28"
+    },
+    {
+      "id": 136,
+      "primary": {
+        "index": 136,
+        "name": "PlyPopo5K_Share_ACTION_ItemParasolFall_figatree",
+        "size": 3884,
+        "flags": 1073741834,
+        "command": 25424,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 136,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 16616,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9b6995ce570c3a58b6b795ceb8d84d0ce281948d396e8be1fa53cd4288000c28"
+    },
+    {
+      "id": 137,
+      "primary": {
+        "index": 137,
+        "name": "PlyPopo5K_Share_ACTION_DamageFall_figatree",
+        "size": 3327,
+        "flags": 1073741834,
+        "command": 25428,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 137,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 16620,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b3198f160571c62cb5b0b03220186acdc3a9e8aad930c537510d868c937a2490"
+    },
+    {
+      "id": 138,
+      "primary": {
+        "index": 138,
+        "name": "PlyPopo5K_Share_ACTION_ItemShoot_figatree",
+        "size": 5582,
+        "flags": 10,
+        "command": 25432,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 138,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16624,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "18bf7594ae54eefc46c289ba1736275494a0affe1a7dc79f8e3d4f13fd4e2682"
+    },
+    {
+      "id": 139,
+      "primary": {
+        "index": 139,
+        "name": "PlyPopo5K_Share_ACTION_ItemShootAir_figatree",
+        "size": 4881,
+        "flags": 10,
+        "command": 25500,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 139,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16692,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "dc18d1b995d61f2f6d01dad5662b5c0632c91d8ec00933d04c3c1cfe88eb5821"
+    },
+    {
+      "id": 140,
+      "primary": {
+        "index": 140,
+        "name": "PlyPopo5K_Share_ACTION_ItemShoot_figatree",
+        "size": 5582,
+        "flags": 10,
+        "command": 25512,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 140,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16704,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "18bf7594ae54eefc46c289ba1736275494a0affe1a7dc79f8e3d4f13fd4e2682"
+    },
+    {
+      "id": 141,
+      "primary": {
+        "index": 141,
+        "name": "PlyPopo5K_Share_ACTION_ItemShootAir_figatree",
+        "size": 4881,
+        "flags": 10,
+        "command": 25524,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 141,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16716,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "dc18d1b995d61f2f6d01dad5662b5c0632c91d8ec00933d04c3c1cfe88eb5821"
+    },
+    {
+      "id": 142,
+      "primary": {
+        "index": 142,
+        "name": "PlyPopo5K_Share_ACTION_ItemShoot_figatree",
+        "size": 5582,
+        "flags": 10,
+        "command": 25536,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 142,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16728,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "18bf7594ae54eefc46c289ba1736275494a0affe1a7dc79f8e3d4f13fd4e2682"
+    },
+    {
+      "id": 143,
+      "primary": {
+        "index": 143,
+        "name": "PlyPopo5K_Share_ACTION_ItemShootAir_figatree",
+        "size": 4881,
+        "flags": 10,
+        "command": 25564,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 143,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16756,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "dc18d1b995d61f2f6d01dad5662b5c0632c91d8ec00933d04c3c1cfe88eb5821"
+    },
+    {
+      "id": 144,
+      "primary": {
+        "index": 144,
+        "name": "PlyPopo5K_Share_ACTION_ItemScrew_figatree",
+        "size": 3726,
+        "flags": 10,
+        "command": 25576,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 144,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16768,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c772ce53f814f8a878413f9c89856d020330e2d296bb2b8c4c57cec362241d28"
+    },
+    {
+      "id": 145,
+      "primary": {
+        "index": 145,
+        "name": "PlyPopo5K_Share_ACTION_ItemScrewAir_figatree",
+        "size": 3865,
+        "flags": 10,
+        "command": 25716,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 145,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 16908,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a6aee238c749e0638d44bf5269c605b51a07a7e8285cd09713084e247ca757a7"
+    },
+    {
+      "id": 146,
+      "primary": {
+        "index": 146,
+        "name": "PlyPopo5K_Share_ACTION_ItemScrewDamage_figatree",
+        "size": 3844,
+        "flags": 10,
+        "command": 25856,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 146,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17048,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9e477cb5c13f84dc787ab19292436783d00bd17d66d124b32b51fecb71b28ece"
+    },
+    {
+      "id": 147,
+      "primary": {
+        "index": 147,
+        "name": "PlyPopo5K_Share_ACTION_ItemScrewDamage_figatree",
+        "size": 3844,
+        "flags": 10,
+        "command": 25876,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 147,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17068,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9e477cb5c13f84dc787ab19292436783d00bd17d66d124b32b51fecb71b28ece"
+    },
+    {
+      "id": 148,
+      "primary": {
+        "index": 148,
+        "name": "PlyPopo5K_Share_ACTION_ItemBlind_figatree",
+        "size": 5054,
+        "flags": 3221225482,
+        "command": 25900,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 148,
+        "name": null,
+        "size": 0,
+        "flags": 3221225483,
+        "command": 17092,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ff833e3f8b4caea1edcc6dd97499a9a085c4a5943ffd8526c10360daeb897cd7"
+    },
+    {
+      "id": 149,
+      "primary": {
+        "index": 149,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeStart_figatree",
+        "size": 3707,
+        "flags": 10,
+        "command": 25904,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 149,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17096,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6d10b861e5e8c1daac96f5fc752a3afec7187e78322541d9abf24bf0e120c829"
+    },
+    {
+      "id": 150,
+      "primary": {
+        "index": 150,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeRapid_figatree",
+        "size": 3339,
+        "flags": 1073741834,
+        "command": 25952,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 150,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 17144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9185f35f173c678b21daf7b647ccec0ec141f9b1cf2520709a50e3933aafd55d"
+    },
+    {
+      "id": 151,
+      "primary": {
+        "index": 151,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeFire_figatree",
+        "size": 4638,
+        "flags": 10,
+        "command": 25996,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 151,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17188,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c21206e29d7cb21607c9889d16456f2df2afdff8ce87e3502f10048d99dc0d46"
+    },
+    {
+      "id": 152,
+      "primary": {
+        "index": 152,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeEnd_figatree",
+        "size": 3761,
+        "flags": 10,
+        "command": 26052,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 152,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17244,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "42a04f2ffeeb4c902dda71d096f4fc4e84bc8a969a9dbe3c1432d43dd1ca3f7e"
+    },
+    {
+      "id": 153,
+      "primary": {
+        "index": 153,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirStart_figatree",
+        "size": 4106,
+        "flags": 10,
+        "command": 26076,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 153,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17268,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "eaa1180bfcc9c472d0dfc1b96d87227fa368427f8ecb62f53c670a42d102fb7f"
+    },
+    {
+      "id": 154,
+      "primary": {
+        "index": 154,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirRapid_figatree",
+        "size": 3270,
+        "flags": 1073741834,
+        "command": 26084,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 154,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 17276,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a959a44fee6918b2263421fab882c49774cf7a03948da33953a850f4f24dac9e"
+    },
+    {
+      "id": 155,
+      "primary": {
+        "index": 155,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirFire_figatree",
+        "size": 5037,
+        "flags": 10,
+        "command": 26092,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 155,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17284,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ea812f84faeb11c89b06ebb63a396c70d74f6d2a82939a99b9b662a2c09d2ac1"
+    },
+    {
+      "id": 156,
+      "primary": {
+        "index": 156,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirEnd_figatree",
+        "size": 4340,
+        "flags": 10,
+        "command": 26100,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 156,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17292,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8325a1429d232838795edcae122f3efa4147b2b470d1da32d7af6efac7766e9a"
+    },
+    {
+      "id": 157,
+      "primary": {
+        "index": 157,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeStart_figatree",
+        "size": 3707,
+        "flags": 10,
+        "command": 26108,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 157,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17300,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6d10b861e5e8c1daac96f5fc752a3afec7187e78322541d9abf24bf0e120c829"
+    },
+    {
+      "id": 158,
+      "primary": {
+        "index": 158,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeRapid_figatree",
+        "size": 3339,
+        "flags": 1073741834,
+        "command": 26124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 158,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 17316,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9185f35f173c678b21daf7b647ccec0ec141f9b1cf2520709a50e3933aafd55d"
+    },
+    {
+      "id": 159,
+      "primary": {
+        "index": 159,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeFire_figatree",
+        "size": 4638,
+        "flags": 10,
+        "command": 26144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 159,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17336,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "c21206e29d7cb21607c9889d16456f2df2afdff8ce87e3502f10048d99dc0d46"
+    },
+    {
+      "id": 160,
+      "primary": {
+        "index": 160,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeEnd_figatree",
+        "size": 3761,
+        "flags": 10,
+        "command": 26156,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 160,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17348,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "42a04f2ffeeb4c902dda71d096f4fc4e84bc8a969a9dbe3c1432d43dd1ca3f7e"
+    },
+    {
+      "id": 161,
+      "primary": {
+        "index": 161,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirStart_figatree",
+        "size": 4106,
+        "flags": 10,
+        "command": 26160,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 161,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17352,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "eaa1180bfcc9c472d0dfc1b96d87227fa368427f8ecb62f53c670a42d102fb7f"
+    },
+    {
+      "id": 162,
+      "primary": {
+        "index": 162,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirRapid_figatree",
+        "size": 3270,
+        "flags": 1073741834,
+        "command": 26168,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 162,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 17360,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a959a44fee6918b2263421fab882c49774cf7a03948da33953a850f4f24dac9e"
+    },
+    {
+      "id": 163,
+      "primary": {
+        "index": 163,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirFire_figatree",
+        "size": 5037,
+        "flags": 10,
+        "command": 26176,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 163,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17368,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ea812f84faeb11c89b06ebb63a396c70d74f6d2a82939a99b9b662a2c09d2ac1"
+    },
+    {
+      "id": 164,
+      "primary": {
+        "index": 164,
+        "name": "PlyPopo5K_Share_ACTION_ItemScopeAirEnd_figatree",
+        "size": 4340,
+        "flags": 10,
+        "command": 26184,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 164,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 17376,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8325a1429d232838795edcae122f3efa4147b2b470d1da32d7af6efac7766e9a"
+    },
+    {
+      "id": 165,
+      "primary": {
+        "index": 165,
+        "name": "PlyPopo5K_Share_ACTION_DamageHi1_figatree",
+        "size": 5506,
+        "flags": 10,
+        "command": 19972,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 165,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11496,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9ea9ab13dd2e93c950523c943cd08e03ff4f4051333698772dd6a91434a6abc2"
+    },
+    {
+      "id": 166,
+      "primary": {
+        "index": 166,
+        "name": "PlyPopo5K_Share_ACTION_DamageHi2_figatree",
+        "size": 6762,
+        "flags": 10,
+        "command": 19976,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 166,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11500,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6466e2b732e8342e3c69399ababbfbb98e8e746d108a86d7ec7fceb58c41e332"
+    },
+    {
+      "id": 167,
+      "primary": {
+        "index": 167,
+        "name": "PlyPopo5K_Share_ACTION_DamageHi3_figatree",
+        "size": 5814,
+        "flags": 10,
+        "command": 19980,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 167,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11504,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "bd7151d20068d6e59fc768acbc49edb7ae7d8949bfdbe7efa36fbb445b648612"
+    },
+    {
+      "id": 168,
+      "primary": {
+        "index": 168,
+        "name": "PlyPopo5K_Share_ACTION_DamageN1_figatree",
+        "size": 5225,
+        "flags": 10,
+        "command": 19984,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 168,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11508,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "60385e6892bd2f165d1958bf83192e10ffe86ba0760606ca10c058320a9226fb"
+    },
+    {
+      "id": 169,
+      "primary": {
+        "index": 169,
+        "name": "PlyPopo5K_Share_ACTION_DamageN2_figatree",
+        "size": 5741,
+        "flags": 10,
+        "command": 19988,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 169,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11512,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3e424fb9df357238cd7a020bc73ae3052d892548794fd5927bd0ded49a6ad35a"
+    },
+    {
+      "id": 170,
+      "primary": {
+        "index": 170,
+        "name": "PlyPopo5K_Share_ACTION_DamageN3_figatree",
+        "size": 6113,
+        "flags": 10,
+        "command": 19992,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 170,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11516,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e8c29ec867dc7bc39fa069c1dc931282ea855e12a54dcb50711962c6d0e22c47"
+    },
+    {
+      "id": 171,
+      "primary": {
+        "index": 171,
+        "name": "PlyPopo5K_Share_ACTION_DamageLw1_figatree",
+        "size": 4734,
+        "flags": 10,
+        "command": 19996,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 171,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11520,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ac429a7b0468806289a461821f734ce9078e47e9d4ee27fc8a4da93ed73924e2"
+    },
+    {
+      "id": 172,
+      "primary": {
+        "index": 172,
+        "name": "PlyPopo5K_Share_ACTION_DamageLw2_figatree",
+        "size": 5290,
+        "flags": 10,
+        "command": 20000,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 172,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11524,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b90b0b3fb92899e6bd3f13c379585dd9112379846bde86ec573f62d4b26f6b1c"
+    },
+    {
+      "id": 173,
+      "primary": {
+        "index": 173,
+        "name": "PlyPopo5K_Share_ACTION_DamageLw3_figatree",
+        "size": 5154,
+        "flags": 10,
+        "command": 20004,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 173,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11528,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "d2b1ad9b6282825fd0cb40ffb9374bcd7a3a3bb970e76da3b6a77bff0f3b4375"
+    },
+    {
+      "id": 174,
+      "primary": {
+        "index": 174,
+        "name": "PlyPopo5K_Share_ACTION_DamageAir1_figatree",
+        "size": 4239,
+        "flags": 10,
+        "command": 20008,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 174,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11532,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "de3b06f20a97466b2dc7b5663fe9a4db66fcdb449e337cce47b9e3e4fe389fe7"
+    },
+    {
+      "id": 175,
+      "primary": {
+        "index": 175,
+        "name": "PlyPopo5K_Share_ACTION_DamageAir2_figatree",
+        "size": 4515,
+        "flags": 10,
+        "command": 20012,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 175,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11536,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b68297fd11d2e1df8d379d97cd6fca1c2baab5bb54939f1b12edc4f4507411f6"
+    },
+    {
+      "id": 176,
+      "primary": {
+        "index": 176,
+        "name": "PlyPopo5K_Share_ACTION_DamageAir3_figatree",
+        "size": 5187,
+        "flags": 10,
+        "command": 20016,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 176,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11540,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b76a486668e5474baf61cc932f2d74685ab34e10bde5a171dbdbdc6406eaee80"
+    },
+    {
+      "id": 177,
+      "primary": {
+        "index": 177,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyHi_figatree",
+        "size": 5148,
+        "flags": 10,
+        "command": 20020,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 177,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11544,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7b3412efed525e8ef971b26106eae24063346f04374edaa6c718fd777479c3fe"
+    },
+    {
+      "id": 178,
+      "primary": {
+        "index": 178,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyN_figatree",
+        "size": 4803,
+        "flags": 10,
+        "command": 20032,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 178,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11556,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ab8b29417149fe69c228890cc77efa2a561883db64630b0bfe0e53ffbd858d4f"
+    },
+    {
+      "id": 179,
+      "primary": {
+        "index": 179,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyLw_figatree",
+        "size": 4904,
+        "flags": 10,
+        "command": 20044,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 179,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11568,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e3fbe0e027e5ae55c5f501876703719c35f240d2e215adb378129690d6fbb20b"
+    },
+    {
+      "id": 180,
+      "primary": {
+        "index": 180,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyTop_figatree",
+        "size": 4549,
+        "flags": 10,
+        "command": 20056,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 180,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11580,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f9cab8618bf4fe6ea5dfbf7d0fb3dbf8e53e1690660e2db8719a1490d975d27f"
+    },
+    {
+      "id": 181,
+      "primary": {
+        "index": 181,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyRoll_figatree",
+        "size": 3878,
+        "flags": 1073741834,
+        "command": 20068,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 181,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 11592,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "caf0ff2241e1b5fc8e916a13b5e7d39c87e0e4ccbc9c6c95e9c9caf1104578ce"
+    },
+    {
+      "id": 183,
+      "primary": {
+        "index": 183,
+        "name": "PlyPopo5K_Share_ACTION_DownBoundU_figatree",
+        "size": 5299,
+        "flags": 10,
+        "command": 20084,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 183,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11608,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "23024141aa3dc2fe16366e11011db73ea597070f01b727ad631f5fb8a68f7df4"
+    },
+    {
+      "id": 184,
+      "primary": {
+        "index": 184,
+        "name": "PlyPopo5K_Share_ACTION_DownWaitU_figatree",
+        "size": 3578,
+        "flags": 1073741834,
+        "command": 20128,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 184,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 11652,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ab61b0d9a268e17e82d994ee5293693e2250ed63d8e52faab4df2f9199501360"
+    },
+    {
+      "id": 185,
+      "primary": {
+        "index": 185,
+        "name": "PlyPopo5K_Share_ACTION_DownDamageU_figatree",
+        "size": 5072,
+        "flags": 10,
+        "command": 20144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 185,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11668,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5ecd6db6dccee170163543c93c588eb0ccdf2139233f963612f9c614865d0f00"
+    },
+    {
+      "id": 186,
+      "primary": {
+        "index": 186,
+        "name": "PlyPopo5K_Share_ACTION_DownStandU_figatree",
+        "size": 6307,
+        "flags": 10,
+        "command": 20160,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 186,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11684,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "81a9e631a6dd90599e89025ab35706d3ab40e99e88c6c9fc8df7eb3b11d6c391"
+    },
+    {
+      "id": 187,
+      "primary": {
+        "index": 187,
+        "name": "PlyPopo5K_Share_ACTION_DownAttackU_figatree",
+        "size": 11052,
+        "flags": 10,
+        "command": 20196,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 187,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 11720,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "3228efeabc91f0fadc665eff18aae9a81c7e4fcfeabf1e8869ba2f44ecf961f0"
+    },
+    {
+      "id": 188,
+      "primary": {
+        "index": 188,
+        "name": "PlyPopo5K_Share_ACTION_DownFowardU_figatree",
+        "size": 8200,
+        "flags": 2147483658,
+        "command": 20464,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 188,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 11988,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "31c90f8a9ca67eb6b0ccb2cc1b8de5833f98872d6b1d5242da24f6839d6515d7"
+    },
+    {
+      "id": 189,
+      "primary": {
+        "index": 189,
+        "name": "PlyPopo5K_Share_ACTION_DownBackU_figatree",
+        "size": 6918,
+        "flags": 2147483658,
+        "command": 20524,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 189,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12048,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "7ac04a5826b1370d8287301cd57ae8ee6db2846df1722e9254b110e1156cdccf"
+    },
+    {
+      "id": 190,
+      "primary": {
+        "index": 190,
+        "name": "PlyPopo5K_Share_ACTION_DownSpotU_figatree",
+        "size": 6058,
+        "flags": 10,
+        "command": 20580,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 190,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12104,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f20e02a4d5d1d59fbf90f8633a1051c97d1c36839146c809807fe6aa47bedf12"
+    },
+    {
+      "id": 191,
+      "primary": {
+        "index": 191,
+        "name": "PlyPopo5K_Share_ACTION_DownBoundD_figatree",
+        "size": 5567,
+        "flags": 10,
+        "command": 20596,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 191,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12120,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "387562ffa385fb274dbb1573670a673ce73af8a30297b67eb422d8114d1f73ed"
+    },
+    {
+      "id": 192,
+      "primary": {
+        "index": 192,
+        "name": "PlyPopo5K_Share_ACTION_DownWaitD_figatree",
+        "size": 4114,
+        "flags": 1073741834,
+        "command": 20640,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 192,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 12164,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "63eadd5d64c76691d0a92ab62c7ed22bb4ae6b0e3abe7fa76f85447af970e039"
+    },
+    {
+      "id": 193,
+      "primary": {
+        "index": 193,
+        "name": "PlyPopo5K_Share_ACTION_DownDamageD_figatree",
+        "size": 5120,
+        "flags": 10,
+        "command": 20656,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 193,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12180,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "fbe976f8e41d85efa4a7368df4a6ee3f392f66d844aeb1fc5b10a60d7979a4b5"
+    },
+    {
+      "id": 194,
+      "primary": {
+        "index": 194,
+        "name": "PlyPopo5K_Share_ACTION_DownStandD_figatree",
+        "size": 6095,
+        "flags": 10,
+        "command": 20672,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 194,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12196,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "086e4c43926b53989e4eb997bdec0566dac80d7c010fa663bdc9e88e134fd82d"
+    },
+    {
+      "id": 195,
+      "primary": {
+        "index": 195,
+        "name": "PlyPopo5K_Share_ACTION_DownAttackD_figatree",
+        "size": 10092,
+        "flags": 10,
+        "command": 20688,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 195,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12212,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "91734e23fa2b8179f37ce9ef0848c78a4ba2c6634fb5c89b01c85d639521f8f3"
+    },
+    {
+      "id": 196,
+      "primary": {
+        "index": 196,
+        "name": "PlyPopo5K_Share_ACTION_DownFowardD_figatree",
+        "size": 8024,
+        "flags": 2147483658,
+        "command": 20916,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 196,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12440,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f920fa81423cb55f9a0ddb1da8a275cb15fcccbc40eac6ac814eca2dc7d37310"
+    },
+    {
+      "id": 197,
+      "primary": {
+        "index": 197,
+        "name": "PlyPopo5K_Share_ACTION_DownBackD_figatree",
+        "size": 8066,
+        "flags": 2147483658,
+        "command": 20956,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 197,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12480,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "567ea5a035252399e636cd0a0c3917c38f5be29eca77c2d82d5b79db9353f762"
+    },
+    {
+      "id": 199,
+      "primary": {
+        "index": 199,
+        "name": "PlyPopo5K_Share_ACTION_Passive_figatree",
+        "size": 6552,
+        "flags": 10,
+        "command": 21012,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 199,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12536,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "cadfdf23f3dd9570a057aa7362b3844f25b1ff5656e1863a18715c41b99667ff"
+    },
+    {
+      "id": 200,
+      "primary": {
+        "index": 200,
+        "name": "PlyPopo5K_Share_ACTION_PassiveStandF_figatree",
+        "size": 6494,
+        "flags": 2147483658,
+        "command": 21048,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 200,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12572,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5084c153dd3fb591bf5a6047eebebff5bdb6ee1eef86f99b0f93330c12c1832c"
+    },
+    {
+      "id": 201,
+      "primary": {
+        "index": 201,
+        "name": "PlyPopo5K_Share_ACTION_PassiveStandB_figatree",
+        "size": 6770,
+        "flags": 2147483658,
+        "command": 21084,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 201,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12608,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "73a87a7a8877639ef31a201749a899b55c9ad750d31fba4bec52b724767613a5"
+    },
+    {
+      "id": 202,
+      "primary": {
+        "index": 202,
+        "name": "PlyPopo5K_Share_ACTION_PassiveWall_figatree",
+        "size": 4736,
+        "flags": 2147483658,
+        "command": 21120,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 202,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12644,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9b86ca7a0f90031b75a0e979b38fb61c3e1b7a57be3283d2be65d23babb9b6fc"
+    },
+    {
+      "id": 203,
+      "primary": {
+        "index": 203,
+        "name": "PlyPopo5K_Share_ACTION_PassiveWallJump_figatree",
+        "size": 5104,
+        "flags": 2147483658,
+        "command": 21124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 203,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12648,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "2b8e90aad7280792c9385e0d4e7bde314f29cff6de677d9c8e926b0341a444be"
+    },
+    {
+      "id": 204,
+      "primary": {
+        "index": 204,
+        "name": "PlyPopo5K_Share_ACTION_PassiveCeil_figatree",
+        "size": 5212,
+        "flags": 2147483658,
+        "command": 21128,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 204,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 12652,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8106cffeb504600cbbca925ae23efba205e8adfe2fc1ca7813549326d35a186e"
+    },
+    {
+      "id": 205,
+      "primary": {
+        "index": 205,
+        "name": "PlyPopo5K_Share_ACTION_FuraFura_figatree",
+        "size": 2917,
+        "flags": 1073741834,
+        "command": 21148,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 205,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 12672,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5ca4d140fdba4d7f4cd01d97d9b7b2e85732dad53578c479e2d14052ed67feaf"
+    },
+    {
+      "id": 206,
+      "primary": {
+        "index": 206,
+        "name": "PlyPopo5K_Share_ACTION_FuraSleepStart_figatree",
+        "size": 3871,
+        "flags": 10,
+        "command": 21332,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 206,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12856,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "37e81db4f5ab177c0fe4a359c3ff8c4b30b58648d78290bd1fed51a0728740b1"
+    },
+    {
+      "id": 207,
+      "primary": {
+        "index": 207,
+        "name": "PlyPopo5K_Share_ACTION_FuraSleepLoop_figatree",
+        "size": 3418,
+        "flags": 1073741834,
+        "command": 21388,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 207,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 12912,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "378b8f7aaab189c9cf8c3baf1d95f5ca12cfd670974ed9aac1e619d73b0cfac9"
+    },
+    {
+      "id": 208,
+      "primary": {
+        "index": 208,
+        "name": "PlyPopo5K_Share_ACTION_FuraSleepEnd_figatree",
+        "size": 4173,
+        "flags": 10,
+        "command": 21468,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 208,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 12992,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "0f51e9e577728f5dc39f86c6a2f596911007b5de1ceece7545491f2a47d2674e"
+    },
+    {
+      "id": 209,
+      "primary": {
+        "index": 209,
+        "name": "PlyPopo5K_Share_ACTION_Pass_figatree",
+        "size": 4917,
+        "flags": 10,
+        "command": 21524,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 209,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13048,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "783e747ccf06bca40be77113b37951487aa514aa6a69b1fb6684fc2f268d1e6d"
+    },
+    {
+      "id": 210,
+      "primary": {
+        "index": 210,
+        "name": "PlyPopo5K_Share_ACTION_Ottotto_figatree",
+        "size": 3512,
+        "flags": 10,
+        "command": 21528,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 210,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13052,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "904b1c2aef932b3d46d90b6cb1ae28a2d04c2907394a65fe313bf54b8bbaf265"
+    },
+    {
+      "id": 211,
+      "primary": {
+        "index": 211,
+        "name": "PlyPopo5K_Share_ACTION_OttottoWait_figatree",
+        "size": 8412,
+        "flags": 1073741834,
+        "command": 21532,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 211,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 13056,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f1495b3700e38e53f5fa24088fde901587cab43999e932ef822894b9a5052599"
+    },
+    {
+      "id": 212,
+      "primary": {
+        "index": 212,
+        "name": "PlyPopo5K_Share_ACTION_WallDamage_figatree",
+        "size": 5563,
+        "flags": 2147483658,
+        "command": 21536,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 212,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13060,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "0175d52d3f29b3df9f8056374318026b9aa0a0fe8b536826691e3524ef317524"
+    },
+    {
+      "id": 213,
+      "primary": {
+        "index": 213,
+        "name": "PlyPopo5K_Share_ACTION_StopWall_figatree",
+        "size": 5493,
+        "flags": 2147483658,
+        "command": 21548,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 213,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13072,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9d1e118080a64b270c3d6fd968d79484443497cffc2d9bd1bdd49c5881e1db75"
+    },
+    {
+      "id": 214,
+      "primary": {
+        "index": 214,
+        "name": "PlyPopo5K_Share_ACTION_StopCeil_figatree",
+        "size": 4397,
+        "flags": 2147483658,
+        "command": 21560,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 214,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13084,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5093c6b8dcaffd3e43a083f7230d91f6b0fc14b5fa1cbe062cec4113ab8cad8f"
+    },
+    {
+      "id": 215,
+      "primary": {
+        "index": 215,
+        "name": "PlyPopo5K_Share_ACTION_MissFoot_figatree",
+        "size": 5713,
+        "flags": 10,
+        "command": 21580,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 215,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13104,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "23f85ca2cb3bef4390281d3cea9908bbc2b606bd06a6380e2be2145d1957dca0"
+    },
+    {
+      "id": 216,
+      "primary": {
+        "index": 216,
+        "name": "PlyPopo5K_Share_ACTION_CliffCatch_figatree",
+        "size": 4231,
+        "flags": 2147483658,
+        "command": 21584,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 216,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13108,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "94c42943b1a42e0dcd6f500e5928e0c59b9684a2a289a1a3d6f903451cf4d0e0"
+    },
+    {
+      "id": 217,
+      "primary": {
+        "index": 217,
+        "name": "PlyPopo5K_Share_ACTION_CliffWait_figatree",
+        "size": 4318,
+        "flags": 3221225482,
+        "command": 21592,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 217,
+        "name": null,
+        "size": 0,
+        "flags": 3221225483,
+        "command": 13116,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e7aadba22ef875106220485860e0378e0c1c45efbafbd6a76978c2c24069f7c9"
+    },
+    {
+      "id": 219,
+      "primary": {
+        "index": 219,
+        "name": "PlyPopo5K_Share_ACTION_CliffClimbSlow_figatree",
+        "size": 6511,
+        "flags": 2147483658,
+        "command": 21600,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 219,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "0b7676549d2e64edaee2f629e2c4a4e16644948fef2c794fd33a2fbffa43b84a"
+    },
+    {
+      "id": 220,
+      "primary": {
+        "index": 220,
+        "name": "PlyPopo5K_Share_ACTION_CliffClimbQuick_figatree",
+        "size": 6900,
+        "flags": 2147483658,
+        "command": 21648,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 220,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13172,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "d64dcbfc1fc9e065f2fc1eb51fd34f0223a50efddaab259e457915ad5017c00d"
+    },
+    {
+      "id": 221,
+      "primary": {
+        "index": 221,
+        "name": "PlyPopo5K_Share_ACTION_CliffAttackSlow_figatree",
+        "size": 8184,
+        "flags": 2147483658,
+        "command": 21700,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 221,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13224,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5d494716ee1d98418e248eb9b68ca3cbe7a801b8a854d4cdb330c6ea3ec14d6e"
+    },
+    {
+      "id": 222,
+      "primary": {
+        "index": 222,
+        "name": "PlyPopo5K_Share_ACTION_CliffAttackQuick_figatree",
+        "size": 7989,
+        "flags": 2147483658,
+        "command": 21836,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 222,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13360,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "404e3d0becb28c6ed96223b1fe7b96ffaf3b0f90394ef0ed8a057f81193b0b7f"
+    },
+    {
+      "id": 223,
+      "primary": {
+        "index": 223,
+        "name": "PlyPopo5K_Share_ACTION_CliffEscapeSlow_figatree",
+        "size": 10420,
+        "flags": 2147483658,
+        "command": 21972,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 223,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13496,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "849794accaa212d6b9aa332b35b06704d6602a94826ea961b7a8a3e30b9eb8fc"
+    },
+    {
+      "id": 224,
+      "primary": {
+        "index": 224,
+        "name": "PlyPopo5K_Share_ACTION_CliffEscapeQuick_figatree",
+        "size": 7905,
+        "flags": 2147483658,
+        "command": 22036,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 224,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13560,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "973d1ea7f07e951231d855221fed5b8d24b643b82cb828d957abc6974960c456"
+    },
+    {
+      "id": 225,
+      "primary": {
+        "index": 225,
+        "name": "PlyPopo5K_Share_ACTION_CliffJumpSlow1_figatree",
+        "size": 4979,
+        "flags": 2147483658,
+        "command": 22124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 225,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13648,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "25f56e811935d1c28058c557a552c941940771004df87d4933b1b7e4e5b3ba07"
+    },
+    {
+      "id": 226,
+      "primary": {
+        "index": 226,
+        "name": "PlyPopo5K_Share_ACTION_CliffJumpSlow2_figatree",
+        "size": 4591,
+        "flags": 10,
+        "command": 22132,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 226,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13656,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "dabe94e0c8b641f7b4d2b87b39a646ba3f61058aaae4bd05d3a7b820676bcb71"
+    },
+    {
+      "id": 227,
+      "primary": {
+        "index": 227,
+        "name": "PlyPopo5K_Share_ACTION_CliffJumpQuick1_figatree",
+        "size": 5132,
+        "flags": 2147483658,
+        "command": 22156,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 227,
+        "name": null,
+        "size": 0,
+        "flags": 2147483659,
+        "command": 13680,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "2fd2783b396d30a08e3295e3dc10b408a5cad979634b8090f2597bde1eea4726"
+    },
+    {
+      "id": 228,
+      "primary": {
+        "index": 228,
+        "name": "PlyPopo5K_Share_ACTION_CliffJumpQuick2_figatree",
+        "size": 4552,
+        "flags": 10,
+        "command": 22164,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 228,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13688,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "29503d3dad66b408d8a784a6aef64db7e94bb7fa0f051d99e12416413be12287"
+    },
+    {
+      "id": 238,
+      "primary": {
+        "index": 238,
+        "name": "PlyPopo5K_Share_ACTION_Entry_figatree",
+        "size": 2294,
+        "flags": 10,
+        "command": 22244,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 238,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13768,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "af8f92636e4af4984b934425381456eca34f798bf308ad85200a1582ca436173"
+    },
+    {
+      "id": 239,
+      "primary": {
+        "index": 239,
+        "name": "PlyPopo5K_Share_ACTION_Appeal_figatree",
+        "size": 8315,
+        "flags": 10,
+        "command": 22248,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 239,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13772,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "fcadb0736202f8ba10b04ccd1c78cf5381993ee77216be02a21972dc57151ffc"
+    },
+    {
+      "id": 242,
+      "primary": {
+        "index": 242,
+        "name": "PlyPopo5K_Share_ACTION_Catch_figatree",
+        "size": 6470,
+        "flags": 10,
+        "command": 22372,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 242,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13872,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "fcfc31db88202682dedb729ec268f57173eb2f8f794bbe6c1b383da13d9d7132"
+    },
+    {
+      "id": 243,
+      "primary": {
+        "index": 243,
+        "name": "PlyPopo5K_Share_ACTION_CatchDash_figatree",
+        "size": 8330,
+        "flags": 10,
+        "command": 22476,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 243,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 13976,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "326a381145799066fa842eed087a47ef14bb896af7f07a24feee02ffc0b44daa"
+    },
+    {
+      "id": 244,
+      "primary": {
+        "index": 244,
+        "name": "PlyPopo5K_Share_ACTION_CatchWait_figatree",
+        "size": 4158,
+        "flags": 1073741834,
+        "command": 22580,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 244,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 14080,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6f36683c8054785e8046d1c3d6f2760efaad8a45e946b775b3cc2b8c3df15e52"
+    },
+    {
+      "id": 245,
+      "primary": {
+        "index": 245,
+        "name": "PlyPopo5K_Share_ACTION_CatchAttack_figatree",
+        "size": 5856,
+        "flags": 10,
+        "command": 22584,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 245,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14084,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9416172facb42042780fb9bb3f4261398176f748a4b8dca05a6990bfa1302d16"
+    },
+    {
+      "id": 246,
+      "primary": {
+        "index": 246,
+        "name": "PlyPopo5K_Share_ACTION_CatchCut_figatree",
+        "size": 5189,
+        "flags": 10,
+        "command": 22620,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 246,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14120,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f5f209d87a7de917a966455b46086f3a3aadc899b57ec0f0294620fe05354680"
+    },
+    {
+      "id": 247,
+      "primary": {
+        "index": 247,
+        "name": "PlyPopo5K_Share_ACTION_ThrowF_figatree",
+        "size": 8335,
+        "flags": 10,
+        "command": 22624,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 247,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14124,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "84d8a70a35e13d6ad0c4d0270b1434f4b595522f3955ea2036de045c1550d854"
+    },
+    {
+      "id": 248,
+      "primary": {
+        "index": 248,
+        "name": "PlyPopo5K_Share_ACTION_ThrowB_figatree",
+        "size": 8575,
+        "flags": 202,
+        "command": 22780,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 248,
+        "name": null,
+        "size": 0,
+        "flags": 203,
+        "command": 14280,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "91b58202ab0c7fb5a881ec396f45d445ce82b03e585fa2aa11a0c2d4f7c94dbb"
+    },
+    {
+      "id": 249,
+      "primary": {
+        "index": 249,
+        "name": "PlyPopo5K_Share_ACTION_ThrowHi_figatree",
+        "size": 10728,
+        "flags": 10,
+        "command": 22900,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 249,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14400,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "028bba5a4ae2a337d0b8f29b6488fb1483c49507b9d12a5c125924a56e9083a0"
+    },
+    {
+      "id": 250,
+      "primary": {
+        "index": 250,
+        "name": "PlyPopo5K_Share_ACTION_ThrowLw_figatree",
+        "size": 12872,
+        "flags": 10,
+        "command": 23040,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 250,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14540,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5d9ce81f210f1e84c6b26464fa86a6f98daaa46e87efbea732a78b062116074c"
+    },
+    {
+      "id": 251,
+      "primary": {
+        "index": 251,
+        "name": "PlyPopo5K_Share_ACTION_CapturePulledHi_figatree",
+        "size": 4112,
+        "flags": 10,
+        "command": 23144,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 251,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14644,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5365ed4a15294e97f32e8f29d29e9cee9b3fcfe22872ecc8c8159311d83e4fd6"
+    },
+    {
+      "id": 252,
+      "primary": {
+        "index": 252,
+        "name": "PlyPopo5K_Share_ACTION_CaptureWaitHi_figatree",
+        "size": 6990,
+        "flags": 1073741834,
+        "command": 23152,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 252,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 14652,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "61f8bc98a9e025888d3a43ac69dcac9475605a126e080049eb7412adaf1fdeb6"
+    },
+    {
+      "id": 253,
+      "primary": {
+        "index": 253,
+        "name": "PlyPopo5K_Share_ACTION_CaptureDamageHi_figatree",
+        "size": 4292,
+        "flags": 10,
+        "command": 23160,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 253,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14660,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "cfe6f6c80e67f610bceb8b80acb61eb277dc2665c5fa502aa9c0a75f316b54b8"
+    },
+    {
+      "id": 254,
+      "primary": {
+        "index": 254,
+        "name": "PlyPopo5K_Share_ACTION_CapturePulledLw_figatree",
+        "size": 3940,
+        "flags": 10,
+        "command": 23168,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 254,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14668,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e32be79681bd426321288cb5cbc97115a9a023d9565bed9ecde80ce5ac5a7ede"
+    },
+    {
+      "id": 255,
+      "primary": {
+        "index": 255,
+        "name": "PlyPopo5K_Share_ACTION_CaptureWaitLw_figatree",
+        "size": 5542,
+        "flags": 1073741834,
+        "command": 23176,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 255,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 14676,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "9cbdba84aa49f070d2f8e8e682b6ff91ce66eaadb2ddf4189be551afd30ea9a3"
+    },
+    {
+      "id": 256,
+      "primary": {
+        "index": 256,
+        "name": "PlyPopo5K_Share_ACTION_CaptureDamageLw_figatree",
+        "size": 4648,
+        "flags": 10,
+        "command": 23184,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 256,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14684,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "e714306caa795f18b76ab6ed98554b8adc8d0251f92548116fa32c0e3e81a797"
+    },
+    {
+      "id": 257,
+      "primary": {
+        "index": 257,
+        "name": "PlyPopo5K_Share_ACTION_CaptureCut_figatree",
+        "size": 5243,
+        "flags": 10,
+        "command": 23192,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 257,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14692,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a0c582ba67d81f5d424415a9693a2247e981629badb8274d89dffc79b95c9af2"
+    },
+    {
+      "id": 258,
+      "primary": {
+        "index": 258,
+        "name": "PlyPopo5K_Share_ACTION_CaptureJump_figatree",
+        "size": 6040,
+        "flags": 10,
+        "command": 23196,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 258,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14696,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "8e68b232f876793281a966813e4d0388c47c5c3ece5726dbc0fa677ea3acd687"
+    },
+    {
+      "id": 262,
+      "primary": {
+        "index": 262,
+        "name": "PlyTaro_Share_ACTION_TPopoThrowF_figatree",
+        "size": 5034,
+        "flags": 2147483681,
+        "command": 23212,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 262,
+        "name": null,
+        "size": 0,
+        "flags": 33,
+        "command": 14712,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "eab17a40171a4844ab06a776e791f1ee019973d46529582b208559185af121ca"
+    },
+    {
+      "id": 263,
+      "primary": {
+        "index": 263,
+        "name": "PlyTaro_Share_ACTION_TPopoThrowB_figatree",
+        "size": 4698,
+        "flags": 2147483681,
+        "command": 23216,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 263,
+        "name": null,
+        "size": 0,
+        "flags": 33,
+        "command": 14716,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a692e486c510c0ca553194c6754d550d99b803a2d7c0506cc64352c3de74a657"
+    },
+    {
+      "id": 264,
+      "primary": {
+        "index": 264,
+        "name": "PlyTaro_Share_ACTION_TPopoThrowHi_figatree",
+        "size": 5291,
+        "flags": 2147483681,
+        "command": 23240,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 264,
+        "name": null,
+        "size": 0,
+        "flags": 33,
+        "command": 14740,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "bec560f195b0d4cb0116084a808f82eaa622f4975d5a0d4c2fdca42e0a27ad96"
+    },
+    {
+      "id": 265,
+      "primary": {
+        "index": 265,
+        "name": "PlyTaro_Share_ACTION_TPopoThrowLw_figatree",
+        "size": 5975,
+        "flags": 2147483681,
+        "command": 23244,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 265,
+        "name": null,
+        "size": 0,
+        "flags": 33,
+        "command": 14744,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "101b812576c909204dd9ad87557d6ff6e18f91927f379a577b6e823a4f030ec2"
+    },
+    {
+      "id": 286,
+      "primary": {
+        "index": 286,
+        "name": "PlyPopo5K_Share_ACTION_DamageFlyTop_figatree",
+        "size": 4549,
+        "flags": 10,
+        "command": 23332,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 286,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14832,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f9cab8618bf4fe6ea5dfbf7d0fb3dbf8e53e1690660e2db8719a1490d975d27f"
+    },
+    {
+      "id": 287,
+      "primary": {
+        "index": 287,
+        "name": "PlyPopo5K_Share_ACTION_DamageFall_figatree",
+        "size": 3327,
+        "flags": 1073741834,
+        "command": 23328,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 287,
+        "name": null,
+        "size": 0,
+        "flags": 1073741835,
+        "command": 14828,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "b3198f160571c62cb5b0b03220186acdc3a9e8aad930c537510d868c937a2490"
+    },
+    {
+      "id": 288,
+      "primary": {
+        "index": 288,
+        "name": "PlyPopo5K_Share_ACTION_DownBoundU_figatree",
+        "size": 5299,
+        "flags": 10,
+        "command": 23396,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 288,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14896,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "23024141aa3dc2fe16366e11011db73ea597070f01b727ad631f5fb8a68f7df4"
+    },
+    {
+      "id": 289,
+      "primary": {
+        "index": 289,
+        "name": "PlyPopo5K_Share_ACTION_DownBoundD_figatree",
+        "size": 5567,
+        "flags": 10,
+        "command": 23440,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 289,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14940,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "387562ffa385fb274dbb1573670a673ce73af8a30297b67eb422d8114d1f73ed"
+    },
+    {
+      "id": 290,
+      "primary": {
+        "index": 290,
+        "name": "PlyPopo5K_Share_ACTION_DownStandU_figatree",
+        "size": 6307,
+        "flags": 10,
+        "command": 23484,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 290,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14984,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "81a9e631a6dd90599e89025ab35706d3ab40e99e88c6c9fc8df7eb3b11d6c391"
+    },
+    {
+      "id": 291,
+      "primary": {
+        "index": 291,
+        "name": "PlyPopo5K_Share_ACTION_DownStandD_figatree",
+        "size": 6095,
+        "flags": 10,
+        "command": 23488,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 291,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 14988,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "086e4c43926b53989e4eb997bdec0566dac80d7c010fa663bdc9e88e134fd82d"
+    },
+    {
+      "id": 295,
+      "primary": {
+        "index": 295,
+        "name": "PlyPopo5K_Share_ACTION_SpecialN_figatree",
+        "size": 8437,
+        "flags": 10,
+        "command": 13668,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 295,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 5192,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a8b776b900e2c68a201c1e9aa82c3a26152eb5b70bd309cde4f61fd3bcd9da81"
+    },
+    {
+      "id": 296,
+      "primary": {
+        "index": 296,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirN_figatree",
+        "size": 8472,
+        "flags": 10,
+        "command": 13736,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 296,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 5260,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "6a8a5235a3f7566846d9a34c711afc7e61dacc06593efc3499ca61af02b402b8"
+    },
+    {
+      "id": 297,
+      "primary": {
+        "index": 297,
+        "name": "PlyPopo5K_Share_ACTION_SpecialS1_figatree",
+        "size": 8782,
+        "flags": 10,
+        "command": 13872,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 297,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 5396,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "06581fa4f099fa1850eed15fa1f701236d2e3ca2843fc10110253e3e0f07bc30"
+    },
+    {
+      "id": 298,
+      "primary": {
+        "index": 298,
+        "name": "PlyPopo5K_Share_ACTION_SpecialS2_figatree",
+        "size": 7806,
+        "flags": 10,
+        "command": 14096,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 298,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 5620,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "874582009335d46884e1106ee9442a107aef8b3b2120471cf32cbb8ce8d41680"
+    },
+    {
+      "id": 299,
+      "primary": {
+        "index": 299,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirS1_figatree",
+        "size": 8125,
+        "flags": 10,
+        "command": 14276,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 299,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 5800,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "5a8e252d7b22436366302a0c99c2c30a0c88610aaf5c839abfc87713d29fcc7f"
+    },
+    {
+      "id": 300,
+      "primary": {
+        "index": 300,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirS2_figatree",
+        "size": 8141,
+        "flags": 10,
+        "command": 14488,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 300,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6012,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "72f2a503393fdcf8414056b71b6dcd1fa72459026624ebb2a38e0ad07c5f3d27"
+    },
+    {
+      "id": 301,
+      "primary": {
+        "index": 301,
+        "name": "PlyPopo5K_Share_ACTION_SpecialHiStart_figatree",
+        "size": 5583,
+        "flags": 10,
+        "command": 14652,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 301,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6176,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a8c5d0e3837506a50149ec906266909cd106258634515558b9fae8d51409ba9b"
+    },
+    {
+      "id": 302,
+      "primary": {
+        "index": 302,
+        "name": "PlyPopo5K_Share_ACTION_SpecialHiThrow_figatree",
+        "size": 4855,
+        "flags": 10,
+        "command": 14716,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 302,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6240,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a575d68daf9b2142483bedb1b787c3afd43d26d117b156efcb82fba8b25bbc49"
+    },
+    {
+      "id": 303,
+      "primary": {
+        "index": 303,
+        "name": "PlyPopo5K_Share_ACTION_SpecialHiThrow2_figatree",
+        "size": 6144,
+        "flags": 10,
+        "command": 14768,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 303,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6292,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "de022d030b6662a295ffe86f7b0d537abb190ec5deedc4a6ca5c0246450033d7"
+    },
+    {
+      "id": 304,
+      "primary": {
+        "index": 304,
+        "name": "PlyPopo5K_Share_ACTION_SpecialHiStart_figatree",
+        "size": 5583,
+        "flags": 10,
+        "command": 14776,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 304,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6300,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a8c5d0e3837506a50149ec906266909cd106258634515558b9fae8d51409ba9b"
+    },
+    {
+      "id": 305,
+      "primary": {
+        "index": 305,
+        "name": "PlyPopo5K_Share_ACTION_SpecialHiThrow_figatree",
+        "size": 4855,
+        "flags": 10,
+        "command": 14824,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 305,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6348,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "a575d68daf9b2142483bedb1b787c3afd43d26d117b156efcb82fba8b25bbc49"
+    },
+    {
+      "id": 306,
+      "primary": {
+        "index": 306,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "size": 5950,
+        "flags": 10,
+        "command": 14832,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 306,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6356,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ffbe0ef3e05984e4608e9cab9de717b9df9ceb1e38a8927465e109b3fe45d2cb"
+    },
+    {
+      "id": 307,
+      "primary": {
+        "index": 307,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirHiThrow_figatree",
+        "size": 5102,
+        "flags": 10,
+        "command": 14840,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 307,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6364,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1e746c51af78a3ce4d088e73d4e5419c8dc3c7d98a75d2ee02413f27aed1f1f8"
+    },
+    {
+      "id": 308,
+      "primary": {
+        "index": 308,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirHiThrow2_figatree",
+        "size": 6191,
+        "flags": 10,
+        "command": 14848,
+        "blend": [
+          5,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 308,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6372,
+        "blend": [
+          5,
+          0
+        ]
+      },
+      "copied_clip_sha256": "71e44b1a743c78ab14bfe46c5f398a0fdc8b0b0a1c936600a6e19807d5c25766"
+    },
+    {
+      "id": 309,
+      "primary": {
+        "index": 309,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirHiStart_figatree",
+        "size": 5950,
+        "flags": 10,
+        "command": 14856,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 309,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6380,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "ffbe0ef3e05984e4608e9cab9de717b9df9ceb1e38a8927465e109b3fe45d2cb"
+    },
+    {
+      "id": 310,
+      "primary": {
+        "index": 310,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirHiThrow_figatree",
+        "size": 5102,
+        "flags": 10,
+        "command": 14864,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 310,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6388,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "1e746c51af78a3ce4d088e73d4e5419c8dc3c7d98a75d2ee02413f27aed1f1f8"
+    },
+    {
+      "id": 311,
+      "primary": {
+        "index": 311,
+        "name": "PlyPopo5K_Share_ACTION_SpecialLw_figatree",
+        "size": 7250,
+        "flags": 10,
+        "command": 14872,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 311,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6396,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "489c97a28d5abb4c937a4b367fc61129a79e5008f1750c7e93ea276f1f41733d"
+    },
+    {
+      "id": 312,
+      "primary": {
+        "index": 312,
+        "name": "PlyPopo5K_Share_ACTION_SpecialAirLw_figatree",
+        "size": 7281,
+        "flags": 10,
+        "command": 14924,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "secondary": {
+        "index": 312,
+        "name": null,
+        "size": 0,
+        "flags": 11,
+        "command": 6448,
+        "blend": [
+          0,
+          0
+        ]
+      },
+      "copied_clip_sha256": "f57f50c4507321eda28bce06796f02d362889b94ec54c7ffc1cb87a4f35fd532"
+    }
+  ]
+}

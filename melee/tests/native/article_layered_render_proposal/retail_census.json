@@ -1,0 +1,341 @@
+{
+  "scope": "read-only original USA v1.02 DAT census; no importer/render execution",
+  "dat_sha256": "1c057a2882b7b42f3184b96ddf5221cae50e69652b00f6c78819c819804e0a1f",
+  "fighter_root": 40732,
+  "attributes": 14200,
+  "width": 0.009999999776482582,
+  "body_colors": [
+    "000000ff",
+    "6e0000ff",
+    "00006eff",
+    "006e00ff"
+  ],
+  "outline": "ffffff80",
+  "fighter_layer_lookup": 31248,
+  "articles": [
+    {
+      "slot": 0,
+      "name": "Greenhouse",
+      "article": 40064,
+      "special_attributes": 15796,
+      "visibility": 15780,
+      "retail_bytes": "0003000000003d9c0003000000003da0",
+      "normal": [
+        4,
+        7,
+        10
+      ],
+      "overlay": [
+        3,
+        6,
+        9
+      ],
+      "declared_bones": 11,
+      "physical_joints": 11,
+      "parents_at_listed_indices": {
+        "3": 2,
+        "4": 2,
+        "6": 5,
+        "7": 5,
+        "9": 8,
+        "10": 8
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 1,
+      "name": "Manhole",
+      "article": 40120,
+      "special_attributes": 15956,
+      "visibility": 15940,
+      "retail_bytes": "0001000000003e3c0001000000003e40",
+      "normal": [
+        5
+      ],
+      "overlay": [
+        4
+      ],
+      "declared_bones": 6,
+      "physical_joints": 6,
+      "parents_at_listed_indices": {
+        "4": 3,
+        "5": 3
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 2,
+      "name": "Fire",
+      "article": 40176,
+      "special_attributes": 16128,
+      "visibility": 16112,
+      "retail_bytes": "0004000000003ee80004000000003eec",
+      "normal": [
+        5,
+        8,
+        11,
+        15
+      ],
+      "overlay": [
+        4,
+        7,
+        10,
+        14
+      ],
+      "declared_bones": 16,
+      "physical_joints": 16,
+      "parents_at_listed_indices": {
+        "4": 3,
+        "5": 3,
+        "7": 6,
+        "8": 6,
+        "10": 9,
+        "11": 9,
+        "14": 13,
+        "15": 13
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 3,
+      "name": "Parachute",
+      "article": 40248,
+      "special_attributes": 16288,
+      "visibility": 16272,
+      "retail_bytes": "0002000000003f880002000000003f8c",
+      "normal": [
+        6,
+        9
+      ],
+      "overlay": [
+        5,
+        8
+      ],
+      "declared_bones": 10,
+      "physical_joints": 10,
+      "parents_at_listed_indices": {
+        "8": 7,
+        "9": 7,
+        "5": 4,
+        "6": 4
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 4,
+      "name": "Turtle",
+      "article": 40320,
+      "special_attributes": 16456,
+      "visibility": 16440,
+      "retail_bytes": "00050000000040280005000000004030",
+      "normal": [
+        4,
+        7,
+        11,
+        14,
+        17
+      ],
+      "overlay": [
+        5,
+        8,
+        10,
+        13,
+        16
+      ],
+      "declared_bones": 18,
+      "physical_joints": 18,
+      "parents_at_listed_indices": {
+        "4": 3,
+        "5": 3,
+        "7": 6,
+        "8": 6,
+        "10": 9,
+        "11": 9,
+        "13": 12,
+        "14": 12,
+        "16": 15,
+        "17": 15
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 5,
+      "name": "Breath",
+      "article": 40392,
+      "special_attributes": 16616,
+      "visibility": 16600,
+      "retail_bytes": "00010000000040d000010000000040d4",
+      "normal": [
+        4
+      ],
+      "overlay": [
+        3
+      ],
+      "declared_bones": 5,
+      "physical_joints": 5,
+      "parents_at_listed_indices": {
+        "3": 2,
+        "4": 2
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 6,
+      "name": "Judge",
+      "article": 40448,
+      "special_attributes": 16792,
+      "visibility": 16776,
+      "retail_bytes": "000b000000004170000b00000000417c",
+      "normal": [
+        7,
+        10,
+        13,
+        16,
+        19,
+        22,
+        25,
+        28,
+        31,
+        34,
+        37
+      ],
+      "overlay": [
+        6,
+        9,
+        12,
+        15,
+        18,
+        21,
+        24,
+        27,
+        30,
+        33,
+        36
+      ],
+      "declared_bones": 38,
+      "physical_joints": 38,
+      "parents_at_listed_indices": {
+        "6": 5,
+        "7": 5,
+        "9": 8,
+        "10": 8,
+        "12": 11,
+        "13": 11,
+        "15": 14,
+        "16": 14,
+        "18": 17,
+        "19": 17,
+        "21": 20,
+        "22": 20,
+        "24": 23,
+        "25": 23,
+        "27": 26,
+        "28": 26,
+        "30": 29,
+        "31": 29,
+        "33": 32,
+        "34": 32,
+        "36": 35,
+        "37": 35
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 7,
+      "name": "Panic",
+      "article": 40520,
+      "special_attributes": 16952,
+      "visibility": 16936,
+      "retail_bytes": "00030000000042200003000000004224",
+      "normal": [
+        4,
+        7,
+        10
+      ],
+      "overlay": [
+        3,
+        6,
+        9
+      ],
+      "declared_bones": 11,
+      "physical_joints": 11,
+      "parents_at_listed_indices": {
+        "3": 2,
+        "4": 2,
+        "6": 5,
+        "7": 5,
+        "9": 8,
+        "10": 8
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 8,
+      "name": "Chef",
+      "article": 40592,
+      "special_attributes": 17272,
+      "visibility": 17256,
+      "retail_bytes": "00020000000043600002000000004364",
+      "normal": [
+        4,
+        7
+      ],
+      "overlay": [
+        3,
+        6
+      ],
+      "declared_bones": 8,
+      "physical_joints": 8,
+      "parents_at_listed_indices": {
+        "3": 2,
+        "4": 2,
+        "6": 5,
+        "7": 5
+      },
+      "list_intersection": []
+    },
+    {
+      "slot": 9,
+      "name": "Rescue",
+      "article": 40664,
+      "special_attributes": 17112,
+      "visibility": 17096,
+      "retail_bytes": "00020000000042c000020000000042c4",
+      "normal": [
+        4,
+        7
+      ],
+      "overlay": [
+        3,
+        6
+      ],
+      "declared_bones": 8,
+      "physical_joints": 8,
+      "parents_at_listed_indices": {
+        "3": 2,
+        "4": 2,
+        "6": 5,
+        "7": 5
+      },
+      "list_intersection": []
+    }
+  ],
+  "common_palette": {
+    "dat_sha256": "63841336337eb5a7366b06ccc60ea4bd37c3604ab56e19939d78b9aa9cdd234c",
+    "common_offset": 40896,
+    "controller_colors": [
+      "ffffff50",
+      "00000050",
+      "000000ff",
+      "808080ff"
+    ],
+    "extra_material_color": "ff8080ff",
+    "current_import_native_bytes": [
+      "50ffffff",
+      "50000000",
+      "ff000000",
+      "ff808080"
+    ],
+    "scope": "byte order derived from actual import_words implementation, not executed renderer"
+  }
+}

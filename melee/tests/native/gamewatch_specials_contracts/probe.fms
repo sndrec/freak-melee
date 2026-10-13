@@ -1,0 +1,77 @@
+# Unregistered generic-contract and Oil Panic source comparison.
+# Paper resources, real prop constructors and full GameWatch activation excluded.
+state int hits
+state float deadzone
+state bool target_air
+state bool spawned
+state int continued
+state int coordinate_order
+state int panic_charge
+state int panic_damage
+state int panic_turn
+state bool panic_release
+attribute float panic_turn_frames 124
+func Observe(int target) -> bool:
+    return targets.airborne(target)
+func Coordinate(int channel) -> float:
+    state.coordinate_order = state.coordinate_order * 10 + channel
+    return float(channel) + 0.25
+func BucketModels():
+    visuals.set_group(5, 2)
+    if state.panic_charge == 0:
+        visuals.set_group(6, -1)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+    elif state.panic_charge == 1:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+    elif state.panic_charge == 2:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, 0)
+        visuals.set_group(8, -1)
+    else:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, 0)
+        visuals.set_group(8, 0)
+action Contract:
+    on load:
+        state.hits = absorber.hits
+        state.deadzone = controls.horizontal_stick_deadzone
+        state.target_air = targets.airborne(uint(0xFEDCBA98))
+        state.spawned = items.spawn_food(Coordinate(1), Coordinate(2), Coordinate(3))
+        state.continued = 1
+    on absorb:
+        state.panic_charge = state.panic_charge + absorber.hits
+        state.panic_damage = state.panic_damage + absorber.damage
+        if state.panic_charge >= 3: color.start(5, false)
+        let int motion = 376
+        if airborne: motion = 379
+        state.enter_at_speed(motion, 0, 0, 1)
+        BucketModels()
+    on state_375_interrupt:
+        if state.panic_turn > 0: state.panic_turn = state.panic_turn - 1
+        else:
+            if abs(input.x) > controls.horizontal_stick_deadzone:
+                let float previous = facing.direction
+                facing.from_input()
+                if previous != facing.direction: state.panic_turn = int(attrs.panic_turn_frames)
+        if not input.special_held: state.panic_release = true
+article It_Kind_GameWatch_Panic states 2:
+    state int target
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.airborne = targets.airborne(item.current_owner)
+                if item.airborne:
+                    item.change_state_flags(1, 2)
+                else:
+                    item.change_state_flags(0, 2)
+                item.advance_animation()
+    state 0 anim -1:
+        on physics:
+            item.airborne = targets.airborne(item.state.target)
+    state 1 anim -1:
+        on physics:
+            pass

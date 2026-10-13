@@ -1,0 +1,29 @@
+func Helper(int value) -> int:
+    return value + 1
+
+action Outer:
+    on cpu_projectile_hit:
+        let int before = Helper(event.prediction_frames)
+        if event.unblockable: before = before + 1
+        test.reenter()
+        return before + event.prediction_frames
+    on cpu_prepare:
+        return event.history_source
+    on cpu_projectile_defense:
+        test.retire()
+        return event.category != 0
+    on capture_wait_enter:
+        test.observe(other)
+
+action Inner:
+    on action_metadata:
+        return event.metadata
+
+article It_Kind_Mario_Fire states 1:
+    state float observed
+    on signal outer:
+        state.observed = signal.value
+        test.reenter_signal()
+        state.observed = state.observed + signal.value
+    on signal inner:
+        state.observed = state.observed + signal.value

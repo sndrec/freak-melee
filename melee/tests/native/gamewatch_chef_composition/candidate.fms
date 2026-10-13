@@ -1,0 +1,206 @@
+# UNREGISTERED Chef + food behavior candidate. Inherited synthetic base only.
+# Paper material/palette/pass setup is a controlled boundary until generic
+# immutable layered-render metadata is available. No complete-fighter claim.
+state int chef_latest
+state int chef_previous
+state int chef_spawned
+state bool chef_loop_disabled
+func ChefCreate():
+    if command(0) != 0:
+        command(0) = 0
+        if float(state.chef_spawned) < attrs.chef_max_food:
+            state.chef_spawned = state.chef_spawned + 1
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            bones.world_position(attrs.chef_spawn_joint, x, y, z, attrs.chef_spawn_offset_x, attrs.chef_spawn_offset_y, attrs.chef_spawn_offset_z)
+            let int variant = random.int_excluding(attrs.chef_variant_count, state.chef_latest, state.chef_previous)
+            state.chef_previous = state.chef_latest
+            state.chef_latest = variant
+            # Count and history deliberately change even if creation fails.
+            let int created = articles.create_with_velocity(It_Kind_GameWatch_Chef, x, y, 0, 0, 0, 0, facing.direction, true, 0, float(variant), true)
+        callbacks.accessory(None)
+func ChefEnter(bool in_air):
+    velocity.y = 0
+    if in_air: state.enter_at_speed(attrs.chef_air_motion, 0, 0, 1)
+    else: state.enter_at_speed(attrs.chef_ground_motion, 0, 0, 1)
+    animation.start()
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    state.chef_loop_disabled = false
+    state.chef_spawned = 0
+    callbacks.accessory(ChefCreate)
+func ChefLoop(bool in_air):
+    let int motion = attrs.chef_ground_motion
+    if in_air: motion = attrs.chef_air_motion
+    state.enter_at_speed(motion, attrs.chef_transition_flags, attrs.chef_loop_frame - 1, 1)
+    animation.start()
+    command(1) = 0
+    command(2) = 0
+    state.chef_loop_disabled = false
+    callbacks.accessory(ChefCreate)
+func ChefInterrupt(bool in_air):
+    if not input.special_held: state.chef_loop_disabled = true
+    if command(1) != 0 and input.special_pressed and float(state.chef_spawned) < attrs.chef_max_food:
+        ChefLoop(in_air)
+move Chef:
+    entry explicit
+    on special_n:
+        ChefEnter(false)
+    on special_air_n:
+        ChefEnter(true)
+    on ground_animation:
+        if command(2) != 0:
+            command(2) = 0
+            if float(state.chef_spawned) < attrs.chef_max_food and not state.chef_loop_disabled:
+                ChefLoop(false)
+        if animation.finished: state.wait()
+    on air_animation:
+        if command(2) != 0:
+            command(2) = 0
+            if not state.chef_loop_disabled and float(state.chef_spawned) < attrs.chef_max_food:
+                ChefLoop(true)
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        ChefInterrupt(false)
+    on air_interrupt:
+        ChefInterrupt(true)
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.chef_air_motion, attrs.chef_transition_flags, frame, 1)
+            callbacks.accessory(ChefCreate)
+    on air_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.chef_ground_motion, attrs.chef_transition_flags, frame, 1)
+            callbacks.accessory(ChefCreate)
+action ChefHistory:
+    on death:
+        # Scoped history slice of stock OnDeath; other props not implemented.
+        state.chef_latest = 1
+        state.chef_previous = 3
+article It_Kind_GameWatch_Chef states 2:
+    state int variant
+    func Expire():
+        velocity.y = 0
+        velocity.x = 0
+        item.set_lifetime(attrs.food_inactive_lifetime)
+        item.change_state_flags(1, 2)
+    func Collide():
+        if velocity.x != 0:
+            let int flags = item.sweep_stage_flags()
+            if flags & 12:
+                velocity.x = velocity.x * -attrs.food_wall_bounce
+            if flags & 3:
+                Expire()
+    on created:
+            item.state.variant = int(item.creation_value)
+            item.set_lifetime(attrs.food_active_lifetime)
+            item.disable_surface_response()
+            velocity.x = attrs.food_4_horizontal * facing
+            velocity.y = attrs.food_4_vertical
+            if item.state.variant == 0:
+                velocity.x = attrs.food_0_horizontal * facing
+                velocity.y = attrs.food_0_vertical
+            if item.state.variant == 1:
+                velocity.x = attrs.food_1_horizontal * facing
+                velocity.y = attrs.food_1_vertical
+            if item.state.variant == 2:
+                velocity.x = attrs.food_2_horizontal * facing
+                velocity.y = attrs.food_2_vertical
+            if item.state.variant == 3:
+                velocity.x = attrs.food_3_horizontal * facing
+                velocity.y = attrs.food_3_vertical
+            item.use_manual_lifetime()
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+            # Body/outline colors and pass-local visibility are controlled.
+            # Preserve the common scale stage of original paper setup.
+            item.inherit_owner_scale()
+    state 0 anim 0:
+        on animation:
+            let float angular = attrs.food_4_angular
+            if item.state.variant == 0:
+                angular = attrs.food_0_angular
+            if item.state.variant == 1:
+                angular = attrs.food_1_angular
+            if item.state.variant == 2:
+                angular = attrs.food_2_angular
+            if item.state.variant == 3:
+                angular = attrs.food_3_angular
+            item.joint("").rotation.x = item.joint("").rotation.x + angular
+            item.life = item.life - 1
+            if item.life <= 0:
+                item.life = 0
+                Expire()
+            return false
+        on physics:
+            let float gravity = attrs.food_4_gravity
+            let float terminal = attrs.food_4_terminal
+            if item.state.variant == 0:
+                gravity = attrs.food_0_gravity
+                terminal = attrs.food_0_terminal
+            if item.state.variant == 1:
+                gravity = attrs.food_1_gravity
+                terminal = attrs.food_1_terminal
+            if item.state.variant == 2:
+                gravity = attrs.food_2_gravity
+                terminal = attrs.food_2_terminal
+            if item.state.variant == 3:
+                gravity = attrs.food_3_gravity
+                terminal = attrs.food_3_terminal
+            # Same sign/threshold decision as generic it_80272860. The current
+            # item.gravity(false) DSL only supplies item defaults, not variant
+            # tuning; keep this small scalar formula authored.
+            let int gravity_sign = 1
+            if gravity < 0:
+                gravity_sign = -1
+            let int velocity_sign = 1
+            if velocity.y < 0:
+                velocity_sign = -1
+            if velocity_sign != gravity_sign:
+                if abs(velocity.y) < terminal:
+                    velocity.y = velocity.y - gravity
+            else:
+                velocity.y = velocity.y - gravity
+        on collision:
+            Collide()
+            return false
+    state 1 anim 1:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0:
+                item.life = 0
+                return true
+            item.joint("").visible = (int(item.life) & 2) != 0
+            return false
+        on physics:
+            pass
+        on collision:
+            Collide()
+            return false
+    on damage_dealt:
+            Expire()
+            return false
+    on clanked:
+            Expire()
+            return false
+    on hit_shield:
+            Expire()
+            return false
+    on absorbed:
+            Expire()
+            item.life = 0
+            return false
+    on shield_bounced:
+            return item.shield_bounce()
+    on reflected:
+            return item.reflect()
+    on interaction:
+            item.interact(other)

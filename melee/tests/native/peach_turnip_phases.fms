@@ -1,0 +1,60 @@
+# UNREGISTERED executable subset: all available Turnip phases.
+# Thrown absolute scale restoration and masked stage response are excluded
+# until the exact generic contracts are added. No article activation.
+state int vegetable_handle
+export func forget_vegetable():
+    state.vegetable_handle = -1
+article It_Kind_Peach_Turnip states 5:
+    state int face
+    state int face_damage
+    state bool picked_up_once
+    on dropped:
+            item.change_state_flags(3, 6)
+            item.set_appearance(0, float(item.state.face))
+    on damage_dealt:
+            item.bounce()
+            item.change_state(1)
+            return false
+    on clanked:
+            item.bounce()
+            return false
+    on reflected:
+            item.reflect()
+            return false
+    on hit_shield:
+            item.bounce()
+            return false
+    on shield_bounced:
+            item.shield_bounce()
+            return false
+    on destroyed:
+            creator.call(forget_vegetable)
+    on interaction:
+            if item.attachment_owner_is(other):
+                item.clear_attachment_owner()
+            item.interact(other)
+    state 0 anim 1:
+        on animation:
+            return false
+        on physics:
+            return
+    state 1 anim -1:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity(false)
+    state 2 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+    state 3 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+    state 4 anim -1:
+        on animation:
+            return false
+        on physics:
+            return

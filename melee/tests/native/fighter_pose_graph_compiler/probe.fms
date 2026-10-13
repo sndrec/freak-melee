@@ -1,0 +1,48 @@
+pose_graph GroundRest slot 4 path "0"
+pose_graph AirRest slot 5 path "0/1"
+state int continued
+state float frame
+state float descriptor_weight
+state float existing_weight
+func PosePolicy():
+    pose.load_animation(Pose.blend, 305)
+    pose.request_frame(Pose.blend, state.frame)
+    pose.copy_costume(Pose.blend, 1)
+    pose.evaluate(Pose.blend)
+    pose.blend_graph(Pose.blend, 1, GroundRest, state.descriptor_weight, state.existing_weight)
+    pose.blend_to_live(1, state.descriptor_weight, state.existing_weight)
+    pose.copy_to_live(1)
+    pose.copy_graph(Pose.live, 1, AirRest)
+    pose.load_animation(Pose.live, 308)
+    pose.request_frame(Pose.live, state.frame)
+    pose.copy_costume(Pose.live, 1)
+    pose.evaluate(Pose.live)
+    pose.blend_graph(Pose.live, 1, AirRest, state.descriptor_weight, state.existing_weight)
+    pose.copy_graph(Pose.blend, 1, GroundRest)
+    state.continued = 1
+func MutatingWeight() -> float:
+    pose.evaluate(Pose.live)
+    return state.descriptor_weight
+func NestedPose():
+    pose.blend_graph(Pose.live, 1, AirRest, MutatingWeight(), state.existing_weight)
+    state.continued = 2
+func DynamicClip(int id):
+    pose.load_animation(Pose.live, id)
+func MutatingStart() -> int:
+    pose.evaluate(Pose.live)
+    return 1
+func MutatingFrame() -> float:
+    pose.evaluate(Pose.live)
+    return state.frame
+func NestedStart():
+    pose.blend_graph(Pose.live, MutatingStart(), AirRest, state.descriptor_weight, state.existing_weight)
+    state.continued = 3
+func NestedFrame():
+    pose.request_frame(Pose.live, MutatingFrame())
+    state.continued = 4
+func NestedBothWeights():
+    pose.blend_graph(Pose.live, 1, AirRest, MutatingWeight(), MutatingWeight())
+    state.continued = 5
+action Probe:
+    on load:
+        PosePolicy()

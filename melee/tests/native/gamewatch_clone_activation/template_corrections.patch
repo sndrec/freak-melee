@@ -1,0 +1,122 @@
+--- examples/gamewatch_full.fms
++++ candidate/gamewatch_full.fms
+@@ -894,7 +894,7 @@
+     state.basic_landing()
+     PropDamage()
+ func AirAnimation():
+-    if cue.consume(3): facing.flip()
++    if cue.consume(3): facing.direction = -facing.direction
+     if animation.finished: state.fall()
+ func LandingAnimation(int expected_motion):
+     if animation.finished: state.wait()
+@@ -902,7 +902,7 @@
+ func LandingCollision(int expected_motion):
+     collision.ground_with_nudge()
+     if motion.id != expected_motion: PropDamage()
+-action NormalEntries:
++move NormalEntries:
+     on jab_enter:
+         if attack.enter_jab(attrs.jab_motion): callbacks.accessory(GreenhouseSetup)
+     on rapid_jab_enter:
+@@ -1021,64 +1021,60 @@
+         LandingCollision(attrs.up_landing_motion)
+ 
+ move Chef:
+-    entry explicit
+     on special_n:
+         ChefEnter(false)
+     on special_air_n:
+         ChefEnter(true)
+-    on ground_animation:
++    on state_353_animation:
+         if command(2) != 0:
+             command(2) = 0
+             if float(state.chef_spawned) < attrs.chef_max_food and not state.chef_loop_disabled:
+                 ChefLoop(false)
+         if animation.finished: state.wait()
+-    on air_animation:
++    on state_354_animation:
+         if command(2) != 0:
+             command(2) = 0
+             if not state.chef_loop_disabled and float(state.chef_spawned) < attrs.chef_max_food:
+                 ChefLoop(true)
+         if animation.finished: state.fall()
+-    on ground_interrupt:
++    on state_353_interrupt:
+         ChefInterrupt(false)
+-    on air_interrupt:
++    on state_354_interrupt:
+         ChefInterrupt(true)
+-    on ground_physics:
++    on state_353_physics:
+         physics.ground_friction()
+-    on air_physics:
++    on state_354_physics:
+         physics.air_gravity_and_friction()
+-    on ground_collision:
++    on state_353_collision:
+         if collision.special_ground_lost:
+             physics.ground_to_air()
+             state.change(attrs.chef_air_motion, attrs.chef_transition_flags, frame, 1)
+             callbacks.accessory(ChefCreate)
+-    on air_collision:
++    on state_354_collision:
+         if collision.landed:
+             physics.air_to_ground()
+             state.change(attrs.chef_ground_motion, attrs.chef_transition_flags, frame, 1)
+             callbacks.accessory(ChefCreate)
+ 
+ move Judge:
+-    entry explicit
+     on special_s:
+         JudgeEnter(false)
+     on special_air_s:
+         JudgeEnter(true)
+ 
+ move Rescue:
+-    entry explicit
+     on special_hi:
+         RescueEnter(false)
+     on special_air_hi:
+         RescueEnter(true)
+ 
+ move Panic:
+-    entry explicit
+     on special_lw:
+         PanicEnter(false)
+     on special_air_lw:
+         PanicEnter(true)
+ 
+-action SpecialPhases:
++move SpecialPhases:
+     on state_355_animation:
+         if animation.finished: state.wait()
+     on state_355_interrupt:
+@@ -1297,7 +1293,7 @@
+     on state_380_collision:
+         if collision.air(): PanicSwitch(false, 2)
+ 
+-action Absorb:
++move Absorb:
+     on absorb:
+         state.panic_charge = state.panic_charge + absorber.hits
+         # Both source fields are s32; preserve their integer sum.
+@@ -1311,7 +1307,9 @@
+ # deliberately excluded. Rescue's original post-remove userdata reread is not
+ # reproduced; synchronous removal is terminal and generation-guarded.
+ 
+-action Lifecycle:
++move Lifecycle:
++    on load_special_attrs:
++        fighter.reload_ext_attributes()
+     on load:
+         visuals.preserve_secondary_material = true
+         model.instance_scale_z = attrs.model_width
+@@ -1985,6 +1983,6 @@
+     on interaction:
+             item.interact(other)
+ 
+-action GroundLandingPolicy:
++move GroundLandingPolicy:
+     on landing_action:
+         state.judge_impulse_used = false

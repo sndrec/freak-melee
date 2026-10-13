@@ -1,0 +1,12 @@
+{
+  "scope": "Read-only root-symbol scan; not writer implementation",
+  "iso": "C:\\gayms\\freak-melee\\Super Smash Bros. Melee (USA) (v1.02).iso",
+  "retail_dat_roots_scanned": 805,
+  "wanted": [
+    "ItmIceclimberGumStrings_TopN_joint",
+    "ItmIceclimberGum_TopN_joint",
+    "ItmIceclimberIceShot_TopN_animjoint",
+    "ItmIceclimberIceShot_TopN_joint"
+  ],
+  "matches": []
+}

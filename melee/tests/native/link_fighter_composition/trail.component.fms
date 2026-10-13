@@ -1,0 +1,31 @@
+# Actual SwordAttrs field layout begins at0x64; byte133 equivalent is unused.
+attribute float sword_inner_fade 100
+attribute float sword_outer_fade 104
+attribute byte sword_start_alpha 108
+attribute byte sword_end_alpha 109
+attribute byte sword_inner_red 110
+attribute byte sword_inner_green 111
+attribute byte sword_inner_blue 112
+attribute byte sword_outer_red 114
+attribute byte sword_outer_green 115
+attribute byte sword_outer_blue 116
+attribute int sword_bone 120
+attribute float sword_inner_distance 124
+attribute float sword_outer_distance 128
+
+action SwordRibbon:
+    on trail:
+        trail.axis = 0
+        trail.inner_fade = attrs.sword_inner_fade
+        trail.outer_fade = attrs.sword_outer_fade
+        trail.start_alpha = attrs.sword_start_alpha
+        trail.end_alpha = attrs.sword_end_alpha
+        trail.inner_red = attrs.sword_inner_red
+        trail.inner_green = attrs.sword_inner_green
+        trail.inner_blue = attrs.sword_inner_blue
+        trail.outer_red = attrs.sword_outer_red
+        trail.outer_green = attrs.sword_outer_green
+        trail.outer_blue = attrs.sword_outer_blue
+        trail.bone = attrs.sword_bone
+        trail.inner_distance = attrs.sword_inner_distance
+        trail.outer_distance = attrs.sword_outer_distance

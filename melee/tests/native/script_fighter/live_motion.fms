@@ -1,0 +1,35 @@
+fighter:
+    behavior independent
+
+state int ticks
+state int late_calls
+state int damaged
+state int hitlag_starts
+state int hitlag_ends
+state int dealt_hits
+state int deaths
+state int motion_calls
+
+func Dealt():
+    state.dealt_hits = state.dealt_hits + 1
+
+action Lifecycle:
+    on tick:
+        state.ticks = state.ticks + 1
+        callbacks.track_damage()
+        callbacks.track_hitlag()
+        callbacks.deal_damage(Dealt)
+    on late_update:
+        state.late_calls = state.late_calls + 1
+    on damage:
+        state.damaged = state.damaged + 1
+    on pre_hitlag:
+        state.hitlag_starts = state.hitlag_starts + 1
+    on post_hitlag:
+        state.hitlag_ends = state.hitlag_ends + 1
+    on death:
+        state.deaths = state.deaths + 1
+
+action Idle:
+    on state_14_accessory:
+        state.motion_calls = state.motion_calls + 1

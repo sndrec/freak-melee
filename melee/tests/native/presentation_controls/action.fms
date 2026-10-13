@@ -1,0 +1,36 @@
+visibility_asset 10
+state int sequence
+state int packed
+state bool available
+state bool installed
+func next_channel() -> int:
+    state.sequence = state.sequence + 1
+    return state.sequence
+action Presentation:
+    on load:
+        visuals.outline_color = color.rgba(next_channel(), next_channel(), next_channel(), next_channel())
+        visuals.set_diffuse_color(int(0xFE0102FF))
+        visuals.preserve_secondary_material = true
+        model.instance_scale_z = -2
+        state.packed = targets.controller_color(int(0x80000001))
+        state.available = targets.controller_color_present(int(0x80000001))
+        state.installed = visuals.install_outline_visibility(10)
+        velocity.y = input.previous_y
+article It_Kind_Ness_PKFire states 1:
+    state int observed
+    state bool available
+    on created:
+            item.outline_color = color.rgba(254, -1, 256, 255)
+            item.controller_tint = targets.controller_color(int(0x80000001))
+            item.controller_tint_enabled = targets.controller_color_present(int(0x80000001))
+            item.material_opacity = 255
+            item.layered = true
+            item.set_diffuse_color(item.outline_color)
+            item.custom_floor_motion = true
+            item.disable_hitbox(2)
+            item.disable_hitbox(-1)
+            item.disable_hitbox(4)
+    state 0 anim -1:
+        on physics:
+            item.material_opacity = 256
+            item.layered = false

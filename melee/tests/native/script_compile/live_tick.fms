@@ -1,0 +1,15 @@
+fighter:
+    behavior independent
+
+state int ticks
+state float accumulated
+parameter float increment = 0.125
+
+func Add(float value) -> float:
+    return value + attrs.increment
+
+action Lifecycle:
+    on tick:
+        state.ticks = state.ticks + 1
+        state.accumulated = Add(state.accumulated)
+        velocity.x = velocity.x

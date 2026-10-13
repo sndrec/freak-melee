@@ -1,0 +1,24 @@
+# Pending coordinated SDK: current-link and lifetime-stamped operations.
+# Each form composes this real policy; it is not an engine callback delegate.
+export func linked_release_and_unlink():
+    hitlag.request_release()
+    hitlag.unlink()
+
+func linked_cleanup_hitlag():
+    bones.root.rotate_x(0, 0)
+    hitlag.request_release()
+    let int peer = hitlag.linked_id
+    if peer != 0:
+        targets.call(peer, "linked_release_and_unlink")
+    hitlag.unlink()
+
+func linked_clear_callbacks():
+    callbacks.damage(None)
+    callbacks.death2(None)
+    callbacks.clear_hitlag()
+    hitlag.unlink()
+
+func linked_secondary_callbacks():
+    callbacks.damage(linked_cleanup_hitlag)
+    callbacks.death2(linked_cleanup_hitlag)
+    effects.pause_during_hitlag()

@@ -1,0 +1,1234 @@
+# Independent Pikachu behavior with owned rigs, tuning and articles.
+fighter:
+    behavior independent
+
+# Shared Thunder Jolt, Skull Bash, Quick Attack/Agility and Thunder for independent Pikachu/Pichu assets.
+# Import stock defaults once into fighter_parameters.fmp before building.
+# Fighter-wide decisions below are authored; broader runtime acceptance remains open.
+attribute float jolt_ground_offset_x 0
+attribute float jolt_ground_offset_y 4
+attribute float jolt_air_offset_x 8
+attribute float jolt_air_offset_y 12
+attribute float jolt_landing_lag 16
+attribute int jolt_kind 20
+parameter int jolt_pikachu_voice = 240076
+parameter int jolt_pichu_voice = 230067
+parameter float cpu_initial_spacing = 3.5
+parameter float cpu_spacing_range = 4
+parameter float cpu_ranged_probe_distance = 57
+parameter float cpu_recovery_horizontal_threshold = 60
+parameter int cpu_recovery_diagonal_stick = 88
+parameter int cpu_recovery_wait = 15
+
+# Stock Thunder feedback runs on the original fighter, not the Item.
+func thunder_impact_feedback():
+    camera.quake(2, position.x, position.y, position.z)
+    controller.rumble(11, 0)
+
+func jab_record():
+    stats.record_attack()
+    stats.refresh_attack()
+
+func cpu_recovery_start():
+    cpu.queue(Cpu.stick_y, 127)
+    cpu.queue(Cpu.stick_x, 0)
+    cpu.queue(Cpu.press_b_for, 1)
+    cpu.queue(Cpu.release_b)
+
+func jolt_emit(float offset_x, float offset_y):
+    if command(0) == 1:
+        command(0) = 0
+        if not command(1):
+            command(1) = 1
+            let x = model.instance_scale_y * (offset_x * facing.direction) + position.x
+            let y = offset_y * model.instance_scale_y + position.y
+            articles.create_at_position(It_Kind_Pikachu_TJolt_Ground, x, y, 0, facing.direction, true)
+            if attrs.jolt_kind == It_Kind_Pichu_TJolt_Ground: sound.play(attrs.jolt_pichu_voice, 127, 64)
+            else: sound.play(attrs.jolt_pikachu_voice, 127, 64)
+
+attribute float skull_smash_window 28
+attribute float skull_initial_charge 32
+attribute float skull_max_charge 36
+attribute float skull_damage_base 40
+attribute float skull_damage_per_charge 44
+attribute float skull_start_velocity_divisor 48
+attribute float skull_start_friction 52
+attribute float skull_start_gravity 56
+attribute float skull_launch_horizontal_base 60
+attribute float skull_launch_horizontal_per_charge 64
+attribute float skull_launch_vertical_speed 68
+attribute float skull_flight_gravity 72
+attribute float skull_flight_terminal_velocity 76
+attribute float skull_end_velocity_divisor 80
+attribute float skull_end_friction 84
+attribute float skull_end_gravity 88
+state int skull_charge
+
+func skull_charge_effect():
+    if not effects.active:
+        effects.spawn_on_part(1214, bones.index(Hip))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func skull_launch_effect():
+    if not effects.active:
+        effects.spawn_on_part(1215, bones.index(Hip))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func skull_release(int motion):
+    state.enter_at_speed(motion, 0, 0, 1)
+    command(0) = 0
+    effects.clear_all()
+    callbacks.accessory(skull_launch_effect)
+
+func skull_launch():
+    command(0) = 0
+    velocity.x = attrs.skull_launch_horizontal_per_charge * state.skull_charge + attrs.skull_launch_horizontal_base
+    velocity.x = velocity.x * facing.direction
+    let lift = 0.5 * state.skull_charge / attrs.skull_max_charge
+    velocity.y = 0.5 * attrs.skull_launch_vertical_speed + attrs.skull_launch_vertical_speed * lift
+    state.enter_at_speed(350, 10, frame, 1)
+    callbacks.align_velocity_to_facing()
+    callbacks.track_deal_damage()
+
+func skull_ground_end():
+    command(0) = 0
+    ground.velocity = ground.velocity / attrs.skull_end_velocity_divisor
+    state.enter_at_speed(346, 0, 0, 1)
+
+func skull_air_end():
+    command(0) = 0
+    velocity.x = velocity.x / attrs.skull_end_velocity_divisor
+    state.enter_at_speed(351, 0, 0, 1)
+
+attribute int hi_gravity_delay 92
+attribute int hi_dash_frames 96
+attribute float hi_gravity 100
+attribute float hi_ground_rotation 104
+attribute float hi_ground_scale_x 108
+attribute float hi_ground_scale_y 112
+attribute float hi_ground_scale_z 116
+attribute float hi_air_rotation 120
+attribute float hi_air_scale_x 124
+attribute float hi_air_scale_y 128
+attribute float hi_air_scale_z 132
+attribute float hi_platform_grace 136
+attribute float hi_min_stick 140
+attribute float hi_speed_slope 144
+attribute float hi_speed_base 148
+attribute float hi_second_speed_multiplier 152
+attribute float hi_recovery_drift_multiplier 156
+attribute int hi_surface_angle 160
+attribute float hi_end_speed_multiplier 164
+attribute int hi_second_min_angle 168
+attribute float hi_freefall_mobility 172
+attribute float hi_landing_lag 176
+attribute float hi_box_top 224
+attribute float hi_box_bottom 228
+attribute float hi_box_left_x 232
+attribute float hi_box_left_y 236
+attribute float hi_box_right_x 240
+attribute float hi_box_right_y 244
+state int hi_delay
+state int hi_dash_remaining
+state int hi_travel_age
+state bool hi_second
+state bool hi_wants_second
+state float hi_input_x
+state float hi_input_y
+state float hi_saved_x
+state float hi_saved_y
+state float hi_saved_ground
+state float hi_effect_x
+state float hi_effect_y
+state float hi_effect_z
+
+func hi_facing_changed():
+    ground.velocity = facing.direction * abs(ground.velocity)
+    velocity.x = facing.direction * abs(velocity.x)
+    state.hi_input_x = facing.direction * abs(state.hi_input_x)
+
+func hi_begin_travel(int motion):
+    if state.hi_second:
+        state.enter_at_speed(motion, 2, 12, 1)
+        animation.start()
+    state.enter_at_speed(motion, 10, 13, 1)
+    animation.start()
+    animation.set_rate(0)
+    items.block_ground_pickup = true
+    callbacks.reflect(hi_facing_changed)
+
+func hi_air_launch():
+    let magnitude = sqrt(input.x * input.x + input.y * input.y)
+    if magnitude > float(0.999): magnitude = 0.999
+    let angle = float(pi_half)
+    if magnitude > attrs.hi_min_stick:
+        if abs(input.x) > float(0.001): facing.from_input()
+        angle = atan2_float(input.y, input.x * facing.direction)
+        state.hi_input_x = input.x
+        state.hi_input_y = input.y
+    else:
+        facing.from_input_threshold()
+        magnitude = 0.999
+        state.hi_input_x = 0
+        state.hi_input_y = 0.999
+    state.hi_dash_remaining = attrs.hi_dash_frames
+    jumps.used = jumps.max
+    let horizontal = (attrs.hi_speed_slope * magnitude + attrs.hi_speed_base) * cos(angle)
+    velocity.x = facing.direction * horizontal
+    velocity.y = (attrs.hi_speed_slope * magnitude + attrs.hi_speed_base) * sin(angle)
+    if state.hi_second:
+        velocity.x = velocity.x * attrs.hi_second_speed_multiplier
+        velocity.y = velocity.y * attrs.hi_second_speed_multiplier
+    hi_begin_travel(357)
+
+func hi_ground_launch():
+    let magnitude = sqrt(input.x * input.x + input.y * input.y)
+    if magnitude > float(0.999): magnitude = 0.999
+    if not (magnitude < attrs.hi_min_stick):
+        let slope_angle = vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y)
+        if not (slope_angle < float(pi_half)) and not collision.skip_soft_floor():
+            facing.from_input()
+            state.hi_input_x = input.x
+            state.hi_input_y = input.y
+            state.hi_dash_remaining = attrs.hi_dash_frames
+            jumps.used = jumps.max
+            ground.velocity = attrs.hi_speed_slope * magnitude + attrs.hi_speed_base
+            ground.velocity = ground.velocity * facing.direction
+            if state.hi_second: ground.velocity = ground.velocity * attrs.hi_second_speed_multiplier
+            hi_begin_travel(354)
+            return
+    physics.force_air_and_use_jumps()
+    hi_air_launch()
+
+func hi_air_pose():
+    let half_pi = float(pi_half)
+    let rotation = facing.direction * atan2_float(velocity.x, velocity.y) + (attrs.hi_air_rotation - half_pi)
+    bones.rotate_x(XRotN, rotation)
+    bones.set_scale(XRotN, attrs.hi_air_scale_x, attrs.hi_air_scale_y, attrs.hi_air_scale_z)
+    let x = velocity.x
+    let y = velocity.y
+    let z = velocity.z
+    physics.clear_kinetics()
+    velocity.x = x
+    velocity.y = y
+    velocity.z = z
+    animation.clear_motion_samples()
+
+func hi_ground_pose():
+    if collision.floor_contact:
+        let rotation = facing.direction * atan2_float(floor.normal.x, floor.normal.y) + attrs.hi_ground_rotation
+        bones.rotate_x(XRotN, rotation)
+    bones.set_scale(XRotN, attrs.hi_ground_scale_x, attrs.hi_ground_scale_y, attrs.hi_ground_scale_z)
+
+func hi_ground_end():
+    state.hi_saved_x = velocity.x
+    state.hi_saved_y = velocity.y
+    state.hi_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    ground.velocity = state.hi_saved_ground * attrs.hi_end_speed_multiplier
+    state.enter_at_speed(355, 2, 0, 1)
+    callbacks.reflect(hi_facing_changed)
+
+func hi_air_end():
+    state.hi_saved_x = velocity.x
+    state.hi_saved_y = velocity.y
+    state.hi_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    velocity.x = state.hi_saved_x * attrs.hi_end_speed_multiplier
+    velocity.y = state.hi_saved_y * attrs.hi_end_speed_multiplier
+    state.enter_at_speed(358, 2, 0, 1)
+    callbacks.reflect(hi_facing_changed)
+
+func hi_travel_effect(float jitter):
+    # Pichu's original Agility omits Quick Attack's electrical trail.
+    # This is owned package configuration, never a live fighter-kind query.
+    if attrs.jolt_kind != It_Kind_Pichu_TJolt_Ground:
+        bones.world_position(bones.index(XRotN), state.hi_effect_x, state.hi_effect_y, state.hi_effect_z)
+        if jitter > 0:
+            let sample = random.float()
+            state.hi_effect_x = state.hi_effect_x + (jitter * sample - jitter / 2)
+            sample = random.float()
+            state.hi_effect_y = state.hi_effect_y + (jitter * sample - jitter / 2)
+        effects.spawn_at_position(1012, state.hi_effect_x, state.hi_effect_y, state.hi_effect_z)
+        effects.active = true
+        effects.pause_during_hitlag()
+
+func hi_second_check():
+    state.hi_wants_second = false
+    let magnitude = sqrt(input.x * input.x + input.y * input.y)
+    if magnitude < attrs.hi_min_stick: return
+    if not state.hi_second:
+        let difference = vectors.angle_xy(state.hi_input_x, state.hi_input_y, input.x, input.y)
+        if difference > radians(attrs.hi_second_min_angle): state.hi_wants_second = true
+
+func hi_surface_collisions():
+    let limit = radians(90 + attrs.hi_surface_angle)
+    if collision.ceiling_contact:
+        let difference = vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y)
+        if difference > limit: hi_air_end()
+    if collision.left_wall:
+        let difference = vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y)
+        if difference > limit: hi_air_end()
+    if collision.right_wall:
+        let difference = vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y)
+        if difference > limit: hi_air_end()
+
+
+attribute float thunder_air_hit_velocity 180
+attribute float thunder_hit_gravity 184
+attribute float thunder_catch_offset_y 188
+attribute float thunder_velocity_y 192
+attribute float thunder_catch_width 196
+attribute float thunder_catch_height 200
+attribute float thunder_cloud_offset_y 204
+attribute float thunder_spawn_offset_y 208
+attribute int thunder_segment_count 212
+attribute int thunder_segment_delay 216
+attribute int thunder_kind 220
+state int thunder_status
+state int thunder_first
+state int thunder_group
+state int thunder_previous
+state int thunder_current
+state float thunder_tip_x
+state float thunder_tip_y
+state bool thunder_stopped
+state bool thunder_caught
+
+func thunder_damage():
+    state.thunder_status = 0
+
+func thunder_bind():
+    callbacks.damage(thunder_damage)
+    callbacks.accessory(thunder_spawn)
+
+func thunder_spawn():
+    if cue.article.consume() and state.thunder_first < 0:
+        let y = position.y + attrs.thunder_spawn_offset_y
+        let cloud_y = y + attrs.thunder_cloud_offset_y
+        effects.spawn_at_position(1219, position.x, cloud_y, position.z)
+        state.thunder_group = articles.new_collision_group()
+        state.thunder_previous = -1
+        let index = 0
+        while index < attrs.thunder_segment_count:
+            state.thunder_current = articles.create_at_position(It_Kind_Pikachu_Thunder, position.x, y, 0, -1, false, state.thunder_group, index)
+            if index == 0: state.thunder_first = state.thunder_current
+            if articles.owned(state.thunder_current):
+                if articles.owned(state.thunder_previous): articles.link_owned(state.thunder_previous, 0, state.thunder_current)
+            state.thunder_previous = state.thunder_current
+            index = index + 1
+
+func thunder_catch():
+    state.thunder_caught = false
+    if state.thunder_status == 0 or not articles.owned(state.thunder_first): return
+    articles.signal_owned(state.thunder_first, It_Kind_Pikachu_Thunder, "sample", 0)
+    let x = abs(position.x - state.thunder_tip_x)
+    let y = abs(position.y + abs(attrs.thunder_catch_offset_y) - state.thunder_tip_y)
+    if x < abs(attrs.thunder_catch_width) and y < attrs.thunder_catch_height and not state.thunder_stopped:
+        articles.signal_owned(state.thunder_first, It_Kind_Pikachu_Thunder, "stop", 0)
+        state.thunder_caught = true
+
+func thunder_loop(int end_motion, int hit_motion, bool air):
+    if state.thunder_status == 3 or command(0):
+        callbacks.damage(None)
+        state.enter_at_speed(end_motion, 0, 0, 1)
+        return
+    thunder_catch()
+    if state.thunder_caught:
+        state.enter_at_speed(hit_motion, 0, 0, 1)
+        command(0) = 0
+        callbacks.damage(None)
+        if air: velocity.y = attrs.thunder_air_hit_velocity
+        effects.spawn_async_attached(1216, Top)
+
+move Thunder:
+    entry explicit
+    on special_lw:
+        command(0) = 0
+        cue.throw.reset()
+        state.thunder_status = 1
+        state.thunder_first = -1
+        state.enter_at_speed(359, 0, 0, 1)
+        animation.start()
+    on special_air_lw:
+        command(0) = 0
+        cue.throw.reset()
+        state.thunder_status = 1
+        state.thunder_first = -1
+        state.enter_at_speed(363, 0, 0, 1)
+        animation.start()
+    on ground_animation:
+        if animation.finished:
+            state.enter_at_speed(360, 2048, 0, 1)
+            cue.throw.reset()
+            thunder_bind()
+    on air_animation:
+        if animation.finished:
+            state.enter_at_speed(364, 2048, 0, 1)
+            cue.throw.reset()
+            thunder_bind()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        if collision.left_ground:
+            state.switch_to_air(363, 0x0c4c5086)
+            physics.clamp_air_drift()
+    on air_collision:
+        if collision.landed: state.switch_to_ground(359, 0x0c4c5086)
+
+move ThunderJolt:
+    entry explicit
+    on special_n:
+        state.enter_at_speed(341, 0, 0, 1)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        animation.start()
+    on special_air_n:
+        state.enter_at_speed(342, 0, 0, 1)
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        animation.start()
+    on ground_animation:
+        jolt_emit(attrs.jolt_ground_offset_x, attrs.jolt_ground_offset_y)
+        if animation.finished: state.wait()
+    on air_animation:
+        jolt_emit(attrs.jolt_air_offset_x, attrs.jolt_air_offset_y)
+        if animation.finished:
+            if attrs.jolt_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.jolt_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.switch_to_air(342, 0x0c4c5082)
+    on air_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            velocity.y = 0
+            state.enter_at_speed(341, 0x0c4c5082, frame, 1)
+
+move SkullBash:
+    on special_s:
+        callbacks.track_state_change()
+        ground.velocity = ground.velocity / attrs.skull_start_velocity_divisor
+        state.enter(SideSpecial)
+    on special_air_s:
+        callbacks.track_state_change()
+        velocity.x = velocity.x / attrs.skull_start_velocity_divisor
+        velocity.y = 0
+        state.enter(SideSpecial)
+    on ground_animation:
+        if animation.finished:
+            state.enter_at_speed(344, 512, 0, 1)
+            callbacks.accessory(skull_charge_effect)
+    on air_animation:
+        if animation.finished:
+            state.enter_at_speed(349, 512, 0, 1)
+            callbacks.accessory(skull_charge_effect)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_decelerate(attrs.skull_start_friction)
+        physics.ground_to_self()
+    on air_physics:
+        if command(0): physics.fall(attrs.skull_start_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.skull_start_friction)
+    on ground_collision:
+        if collision.left_ground: state.switch_to_air(348, 0x0c4c5284)
+    on air_collision:
+        if collision.landed: state.switch_to_ground(343, 0x0c4c5284)
+
+move QuickAttack:
+    entry explicit
+    on special_hi:
+        command(0) = 0
+        state.hi_delay = attrs.hi_gravity_delay
+        state.hi_second = false
+        state.hi_travel_age = 0
+        ground.velocity = 0
+        velocity.y = 0
+        velocity.x = 0
+        state.enter_at_speed(353, 0, 0, 1)
+        animation.start()
+    on special_air_hi:
+        command(0) = 0
+        state.hi_delay = attrs.hi_gravity_delay
+        state.hi_second = false
+        state.hi_travel_age = 0
+        ground.velocity = 0
+        velocity.y = 0
+        velocity.x = 0
+        state.enter_at_speed(356, 0, 0, 1)
+        animation.start()
+    on ground_animation:
+        if animation.finished: hi_ground_launch()
+    on air_animation:
+        if animation.finished: hi_air_launch()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        if state.hi_delay != 0: state.hi_delay = state.hi_delay - 1
+        else: physics.fall(attrs.hi_gravity, air.terminal_velocity)
+        physics.quick_air_decel()
+    on ground_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(356, 0x0c4c5084, frame, 1)
+    on air_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)): state.switch_to_ground(353, 0x0c4c5084)
+        elif not collision.cliff_catch(): return
+
+action FighterEvents:
+    on load:
+        fighter.copy_ext_attributes()
+        # This is package-owned configuration, not a live fighter-kind query.
+        # A custom author can replace this policy independently of the asset base.
+        if attrs.jolt_kind == It_Kind_Pichu_TJolt_Ground: fighter.enable_walljump()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.set_group(0, 0)
+        if attrs.jolt_kind == It_Kind_Pichu_TJolt_Ground:
+            if costume.index < 4:
+                visuals.set_group(1, -1)
+                visuals.set_group(2, -1)
+                visuals.set_group(3, -1)
+                if costume.index > 0: visuals.set_group(costume.index, 0)
+        else: visuals.set_group(1, 0)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 0, 0)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 0, 0)
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_visible:
+        fighter.item_visible(0)
+    on item_invisible:
+        fighter.item_invisible(0)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on auxiliary_item_attach:
+        if attrs.jolt_kind != It_Kind_Pichu_TJolt_Ground:
+            visuals.set_group(1, -1)
+            visuals.set_current_group(1, 0)
+    on auxiliary_item_visibility_reset:
+        if attrs.jolt_kind != It_Kind_Pichu_TJolt_Ground:
+            visuals.set_group(1, 0)
+            visuals.set_current_group(1, 0)
+    on jab_start:
+        callbacks.state_changed(jab_record)
+        return Transition.skip_attack_count
+    on jab_restart:
+        return event.motion == 45
+    on forward_smash_start:
+        effects.pause_during_hitlag()
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_attack_motion:
+        return motion.id >= 341
+    on cpu_grab_motion:
+        return false
+    on cpu_attack_decision:
+        return false
+    on cpu_capture_decision:
+        return false
+    on cpu_pummel_special:
+        return false
+    on cpu_charge_decision:
+        return false
+    on cpu_charge_cancel:
+        pass
+    on cpu_ranged_allowed:
+        return true
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(attrs.cpu_ranged_probe_distance): cpu.add_candidate(27)
+    on cpu_threat:
+        return false
+    on cpu_recovery:
+        if abs(position.x - cpu.destination.x) > attrs.cpu_recovery_horizontal_threshold:
+            cpu_recovery_start()
+            cpu.queue(Cpu.stick_y, attrs.cpu_recovery_diagonal_stick)
+            cpu.queue(Cpu.x_toward_destination, attrs.cpu_recovery_diagonal_stick)
+            cpu.queue(Cpu.wait, attrs.cpu_recovery_wait)
+            cpu.queue(Cpu.x_toward_destination, 127)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.wait, attrs.cpu_recovery_wait)
+            cpu.queue(Cpu.done)
+        else:
+            cpu_recovery_start()
+            cpu.queue(Cpu.wait, attrs.cpu_recovery_wait)
+            if random.float() > 0.5:
+                cpu.queue(Cpu.x_toward_destination, attrs.cpu_recovery_diagonal_stick)
+                cpu.queue(Cpu.stick_y, attrs.cpu_recovery_diagonal_stick)
+            else:
+                cpu.queue(Cpu.x_toward_destination, 127)
+                cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.wait, attrs.cpu_recovery_wait)
+            cpu.queue(Cpu.done)
+
+action ThunderPhases:
+    on state_360_animation:
+        thunder_loop(362, 361, false)
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        physics.ground_friction()
+    on state_360_collision:
+        if collision.left_ground:
+            state.switch_to_air(364, 0x0c4c588e)
+            thunder_bind()
+            physics.clamp_air_drift()
+    on state_364_animation:
+        thunder_loop(366, 365, true)
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        physics.air_gravity_and_friction()
+    on state_364_collision:
+        if collision.landed:
+            state.switch_to_ground(360, 0x0c4c588e)
+            thunder_bind()
+    on state_361_animation:
+        if command(0):
+            callbacks.damage(None)
+            state.enter_at_speed(362, 0, 0, 1)
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        physics.ground_friction()
+    on state_361_collision:
+        if collision.left_ground:
+            state.switch_to_air(365, 0x0c4c508e)
+            physics.clamp_air_drift()
+    on state_365_animation:
+        if command(0):
+            callbacks.damage(None)
+            state.enter_at_speed(366, 0, 0, 1)
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        physics.fall(attrs.thunder_hit_gravity, air.terminal_velocity)
+        physics.quick_air_decel()
+    on state_365_collision:
+        if collision.landed:
+            state.switch_to_ground(361, 0x0c4c508e)
+    on state_362_animation:
+        if animation.finished: state.wait()
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        physics.ground_friction()
+    on state_362_collision:
+        if collision.left_ground:
+            state.switch_to_air(366, 0x0c4c5086)
+            physics.clamp_air_drift()
+    on state_366_animation:
+        if animation.finished: state.fall()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        physics.air_gravity_and_friction()
+    on state_366_collision:
+        if collision.landed:
+            state.switch_to_ground(362, 0x0c4c5086)
+
+action SkullBashPhases:
+    on state_change:
+        command(0) = 0
+        if input.horizontal_smash_age < attrs.skull_smash_window:
+            state.skull_charge = int(attrs.skull_initial_charge)
+            stats.count_as_thrown_item()
+        else: state.skull_charge = 0
+    on deal_damage:
+        velocity.x = 0
+        if velocity.y >= 0: velocity.y = 0
+        skull_air_end()
+    on state_344_animation:
+        if animation.finished:
+            effects.clear_all()
+            callbacks.accessory(skull_charge_effect)
+        state.skull_charge = state.skull_charge + 1
+        if state.skull_charge > attrs.skull_max_charge: skull_release(347)
+    on state_349_animation:
+        if animation.finished:
+            effects.clear_all()
+            callbacks.accessory(skull_charge_effect)
+        state.skull_charge = state.skull_charge + 1
+        if state.skull_charge > attrs.skull_max_charge: skull_release(352)
+    on state_344_interrupt:
+        if not input.special_held: skull_release(347)
+    on state_349_interrupt:
+        if not input.special_held: skull_release(352)
+    on state_344_physics:
+        physics.ground_friction()
+    on state_349_physics:
+        physics.air_gravity_and_friction()
+    on state_344_collision:
+        if collision.left_ground: state.switch_to_air(349, 0x0c4c5286)
+    on state_349_collision:
+        if collision.landed: state.switch_to_ground(344, 0x0c4c5286)
+    on state_347_animation:
+        if (hitbox.state(0) == Hitbox.enabled): hitbox.set_damage(0, state.skull_charge * attrs.skull_damage_per_charge + attrs.skull_damage_base)
+        if command(0):
+            physics.ground_to_air()
+            skull_launch()
+    on state_352_animation:
+        if (hitbox.state(0) == Hitbox.enabled): hitbox.set_damage(0, state.skull_charge * attrs.skull_damage_per_charge + attrs.skull_damage_base)
+        if command(0): skull_launch()
+    on state_347_interrupt:
+        pass
+    on state_352_interrupt:
+        pass
+    on state_347_physics:
+        physics.ground_friction()
+    on state_352_physics:
+        physics.air_gravity_and_friction()
+    on state_347_collision:
+        if collision.left_ground: state.switch_to_air(352, 0x0c4c5086)
+    on state_352_collision:
+        if collision.landed: state.switch_to_ground(347, 0x0c4c5086)
+    on state_345_animation:
+        pass
+    on state_345_interrupt:
+        pass
+    on state_345_physics:
+        pass
+    on state_345_collision:
+        pass
+    on state_350_animation:
+        if animation.finished: skull_air_end()
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        if command(0): physics.fall(attrs.skull_end_gravity, attrs.skull_flight_terminal_velocity)
+        else: physics.fall(attrs.skull_flight_gravity, attrs.skull_flight_terminal_velocity)
+        if command(0): physics.air_decel(attrs.skull_end_friction)
+    on state_350_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            skull_ground_end()
+        if collision.left_wall or collision.right_wall: skull_air_end()
+    on state_346_animation:
+        if animation.finished: state.wait()
+    on state_351_animation:
+        if animation.finished: state.fall()
+    on state_346_interrupt:
+        pass
+    on state_351_interrupt:
+        pass
+    on state_346_physics:
+        physics.ground_decelerate(attrs.skull_end_friction)
+        physics.ground_to_self()
+    on state_351_physics:
+        physics.fall(attrs.skull_end_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.skull_end_friction)
+    on state_346_collision:
+        if collision.left_ground: state.fall()
+    on state_351_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            skull_ground_end()
+
+# The moving controller owns lifetime and the contact point. Its linked model
+# owns the surface-path animation. Neither calls a stock fighter/item handler.
+action QuickAttackTravel:
+    on state_354_animation:
+        state.hi_dash_remaining = state.hi_dash_remaining - 1
+        if state.hi_dash_remaining <= 0:
+            hi_ground_end()
+            hi_travel_effect(0)
+        else: hi_travel_effect(6)
+    on state_357_animation:
+        state.hi_dash_remaining = state.hi_dash_remaining - 1
+        if state.hi_dash_remaining <= 0:
+            hi_air_end()
+            hi_travel_effect(0)
+        else: hi_travel_effect(10)
+    on state_354_interrupt:
+        pass
+    on state_357_interrupt:
+        pass
+    on state_354_physics:
+        physics.ground_to_self()
+    on state_357_physics:
+        hi_air_pose()
+    on state_354_collision:
+        let box_top = attrs.hi_box_top * model.instance_scale_y
+        let box_bottom = attrs.hi_box_bottom * model.instance_scale_y
+        let box_left_x = attrs.hi_box_left_x * model.instance_scale_y
+        let box_left_y = attrs.hi_box_left_y * model.instance_scale_y
+        let box_right_x = attrs.hi_box_right_x * model.instance_scale_y
+        let box_right_y = attrs.hi_box_right_y * model.instance_scale_y
+        if not collision.ground_box(box_top, box_bottom, box_left_x, box_left_y, box_right_x, box_right_y):
+            if collision.wall_contact:
+                physics.force_air_and_use_jumps()
+                hi_air_end()
+                return
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(357, 0x0c4c508a, frame, 0)
+            items.block_ground_pickup = true
+            hi_air_pose()
+            return
+        hi_ground_pose()
+        if collision.wall_contact: hi_ground_end()
+    on state_357_collision:
+        state.hi_travel_age = state.hi_travel_age + 1
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            let can_land = true
+            if state.hi_travel_age < attrs.hi_platform_grace: can_land = not collision.skip_soft_floor()
+            if can_land:
+                let difference = vectors.angle_xy(floor.normal.x, floor.normal.y, velocity.x, velocity.y)
+                let limit = float(0.017453292) * (90 + attrs.hi_surface_angle)
+                if difference > limit:
+                    physics.switch_to_ground()
+                    hi_ground_end()
+                    return
+                physics.switch_to_ground()
+                state.enter_at_speed(354, 0x0c4c508a, frame, 0)
+                hi_ground_pose()
+                return
+        if not collision.cliff_catch(): hi_surface_collisions()
+
+action QuickAttackEnd:
+    on state_355_animation:
+        if command(0) == 1:
+            hi_second_check()
+            if state.hi_wants_second:
+                command(0) = 0
+                state.hi_second = true
+                hi_ground_launch()
+                return
+            command(0) = 2
+            return
+        if animation.finished: state.wait()
+    on state_358_animation:
+        if command(0) == 1:
+            hi_second_check()
+            if state.hi_wants_second:
+                command(0) = 0
+                state.hi_second = true
+                hi_air_launch()
+            else: command(0) = 2
+        elif animation.finished: state.freefall(1, 0, true, attrs.hi_freefall_mobility, attrs.hi_landing_lag)
+    on state_355_interrupt:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_355_physics:
+        if command(0): physics.ground_friction()
+    on state_358_physics:
+        if command(0):
+            physics.fall_basic()
+            physics.clamp_horizontal_speed(attrs.hi_recovery_drift_multiplier * air.drift_max)
+        else:
+            velocity.y = velocity.y - velocity.y / 9
+            physics.air_decel_normal()
+    on state_355_collision:
+        let box_top = attrs.hi_box_top * model.instance_scale_y
+        let box_bottom = attrs.hi_box_bottom * model.instance_scale_y
+        let box_left_x = attrs.hi_box_left_x * model.instance_scale_y
+        let box_left_y = attrs.hi_box_left_y * model.instance_scale_y
+        let box_right_x = attrs.hi_box_right_x * model.instance_scale_y
+        let box_right_y = attrs.hi_box_right_y * model.instance_scale_y
+        if not collision.ground_box(box_top, box_bottom, box_left_x, box_left_y, box_right_x, box_right_y):
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(358, 0x0c4c508a, frame, 1)
+    on state_358_collision:
+        let box_top = attrs.hi_box_top * model.instance_scale_y
+        let box_bottom = attrs.hi_box_bottom * model.instance_scale_y
+        let box_left_x = attrs.hi_box_left_x * model.instance_scale_y
+        let box_left_y = attrs.hi_box_left_y * model.instance_scale_y
+        let box_right_x = attrs.hi_box_right_x * model.instance_scale_y
+        let box_right_y = attrs.hi_box_right_y * model.instance_scale_y
+        if collision.air_box_ledge(1 - 2 * int(facing.direction < 0), box_top, box_bottom, box_left_x, box_left_y, box_right_x, box_right_y): state.landing_special(false, attrs.hi_landing_lag)
+        elif not collision.cliff_catch(): return
+
+# The moving controller owns lifetime and the contact point. Its linked model
+# owns the surface-path animation. Neither calls a stock fighter/item handler.
+
+article It_Kind_Pikachu_TJolt_Ground states 2:
+    attribute float lifetime 0
+    attribute float launch_angle 4
+    attribute float speed 8
+    attribute float maximum_surface_turn 12
+    state float angle
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float previous_normal_x
+    state float previous_normal_y
+    state float previous_normal_z
+    state float difference
+    state float surface_turn
+    state float child_facing
+    state int contact_frames
+    state bool contact
+    state bool created_link
+    on created:
+            item.state.contact = item.sweep_stage_normal(item.launch_origin.x, item.launch_origin.y, item.launch_origin.z)
+            if item.state.contact: position.x = item.launch_origin.x
+            if item.state.contact: position.y = item.launch_origin.y
+            if item.state.contact: position.z = item.launch_origin.z
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.params.lifetime)
+            item.state.previous_x = item.launch_origin.x
+            item.state.previous_y = item.launch_origin.y
+            item.state.previous_z = item.launch_origin.z
+            item.surface_normal.x = 0
+            item.surface_normal.y = 0
+            item.surface_normal.z = 0
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            if item.joint(0, "0").exists: item.joint(0, "0").local_visible = true
+            item.change_state_flags(0, 2)
+            item.state.angle = item.params.launch_angle
+            if facing != 1: item.state.angle = pi + abs(item.params.launch_angle)
+            item.spawn_root_effect(1213)
+            item.inherit_owner_debug_display()
+    state 0 anim 0:
+        on animation:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+            item.life = item.life - 1
+            return item.life <= 0
+        on physics:
+            velocity.x = item.params.speed * cos(item.state.angle)
+            velocity.y = item.params.speed * sin(item.state.angle)
+        on collision:
+            item.state.previous_normal_x = item.surface_normal.x
+            item.state.previous_normal_y = item.surface_normal.y
+            item.state.previous_normal_z = item.surface_normal.z
+            item.state.contact = item.sweep_stage_normal(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if not item.state.contact: return false
+            item.destroy_effects()
+            item.change_state_flags(1, 2)
+            item.state.difference = atan2(velocity.y, velocity.x) - atan2(item.surface_normal.y, item.surface_normal.x)
+            item.state.difference = wrap_angle(item.state.difference)
+            item.state.child_facing = 1
+            if item.state.difference < pi: item.state.child_facing = -1
+            item.state.created_link = item.create_linked(It_Kind_Pikachu_TJolt_Air, 0, 0, position.x, position.y, position.z, item.state.child_facing) != -1
+            item.state.previous_normal_x = item.surface_normal.x
+            item.state.previous_normal_y = item.surface_normal.y
+            item.state.previous_normal_z = item.surface_normal.z
+            if not item.state.created_link: return true
+            articles.signal(item.link_id(0), It_Kind_Pikachu_TJolt_Air, "follow", 0)
+            item.state.contact_frames = 0
+            hitboxes.disable_all()
+            return false
+    state 1 anim 1:
+        on animation:
+            if not (item.link_id(0) != -1) or not item.link_reciprocal(0, 0): return true
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            let float bone_x = 0
+            let float bone_y = 0
+            let float bone_z = 0
+            articles.read_bone_position(item.link_id(0), It_Kind_Pikachu_TJolt_Air, 6, bone_x, bone_y, bone_z)
+            position.x = bone_x
+            position.y = bone_y
+            position.z = 0
+            return false
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            item.state.previous_normal_x = item.surface_normal.x
+            item.state.previous_normal_y = item.surface_normal.y
+            item.state.previous_normal_z = item.surface_normal.z
+            item.state.contact = false
+            if item.state.contact_frames >= 0: item.state.contact = item.sweep_stage_normal(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            item.state.surface_turn = 0
+            if item.state.contact and item.params.maximum_surface_turn != 0: item.state.surface_turn = vectors.angle(item.surface_normal.x, item.surface_normal.y, item.surface_normal.z, item.state.previous_normal_x, item.state.previous_normal_y, item.state.previous_normal_z)
+            if item.state.contact and item.state.surface_turn > abs(item.params.maximum_surface_turn): return true
+            if item.state.contact and not (item.link_id(0) != -1): return true
+            if item.state.contact: articles.signal(item.link_id(0), It_Kind_Pikachu_TJolt_Air, "follow", 0)
+            if item.state.contact: item.state.contact_frames = 0
+            item.state.contact_frames = item.state.contact_frames + 1
+            return false
+    on destroyed:
+            item.unlink(0)
+            item.destroy_effects()
+    on damage_dealt:
+            item.unlink(0)
+            item.destroy_effects()
+            return true
+    on clanked:
+            item.unlink(0)
+            item.destroy_effects()
+            return true
+    on absorbed:
+            item.unlink(0)
+            item.destroy_effects()
+            return true
+    on hit_shield:
+            item.unlink(0)
+            item.destroy_effects()
+            return true
+    on reflected:
+            facing = -facing
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            facing = -1
+            if velocity.x >= 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            return false
+    on interaction:
+            item.interact(other)
+
+article It_Kind_Pikachu_TJolt_Air states 1:
+    parameter int contact_sound = 240079
+    state float normal_x
+    state float normal_y
+    state float normal_z
+    state float angle
+    state int contact_frames
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            if item.joint(0, "0").exists: item.joint(0, "0").local_visible = true
+            item.change_state_flags(0, 2)
+            item.advance_animation()
+            item.inherit_owner_debug_display()
+    on signal follow:
+            position.x = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).position.x
+            position.y = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).position.y
+            position.z = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).position.z
+            item.copy_link_collision(0)
+            item.state.normal_x = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).surface_normal.x
+            item.state.normal_y = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).surface_normal.y
+            item.state.normal_z = articles.ref(item.link_id(0), It_Kind_Pikachu_TJolt_Ground).surface_normal.z
+            item.state.contact_frames = 0
+            item.joint("").translation.x = position.x
+            item.joint("").translation.y = position.y
+            item.joint("").translation.z = position.z
+            item.state.angle = atan2(item.state.normal_x, item.state.normal_y)
+            if facing != 1: item.state.angle = -item.state.angle
+            item.joint("").rotation.x = item.state.angle
+            item.change_state_flags(0, 18)
+            item.advance_animation()
+            item.play_sound(item.params.contact_sound, 127, 64)
+    state 0 anim 0:
+        on animation:
+            item.state.angle = atan2(item.state.normal_x, item.state.normal_y)
+            if facing != 1: item.state.angle = -item.state.angle
+            item.joint("").rotation.x = item.state.angle
+            item.state.contact_frames = item.state.contact_frames + 1
+            if item.state.contact_frames <= 24 and item.link_reciprocal(0, 0): return false
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    on damage_dealt:
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+    on clanked:
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+    on absorbed:
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+    on hit_shield:
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+    on shield_bounced:
+            hitboxes.disable_all()
+            item.unlink(0)
+            return true
+    on reflected:
+            let float bone_x = 0
+            let float bone_y = 0
+            let float bone_z = 0
+            articles.read_bone_position(item.creation_id, It_Kind_Pikachu_TJolt_Air, 6, bone_x, bone_y, bone_z)
+            position.x = bone_x
+            position.y = bone_y
+            position.z = bone_z
+            facing = -facing
+            item.state.angle = item.joint("").rotation.x
+            if facing != 1: item.state.angle = -item.state.angle
+            item.state.angle = item.state.angle + (pi - item.dynamic_joint(4).rotation.x)
+            item.state.angle = wrap_angle(item.state.angle)
+            item.joint("").rotation.x = item.state.angle
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.joint("").translation.x = position.x
+            item.joint("").translation.y = position.y
+            item.joint("").translation.z = position.z
+            item.state.normal_x = sin(item.state.angle)
+            item.state.normal_y = cos(item.state.angle)
+            if facing != 1: item.state.normal_x = sin(-item.state.angle)
+            if facing != 1: item.state.normal_y = cos(-item.state.angle)
+            item.state.normal_z = 0
+            item.state.contact_frames = 0
+            item.change_state_flags(0, 2)
+            return false
+    on interaction:
+            item.interact(other)
+
+# The moving controller owns lifetime and the contact point. Its linked model
+# owns the surface-path animation. Neither calls a stock fighter/item handler.
+article It_Kind_Pikachu_Thunder states 3:
+    attribute float lifetime 0
+    attribute float segment_length 4
+    attribute float tip_offset_y 8
+    state int index
+    state int delay
+    state bool stopped
+    state float shrink_lifetime
+    state float current_length
+    state float next_length
+    state float scale_y
+    state float ratio
+    state float stop_y
+    on created:
+            item.collision_mode = 2
+            item.damage_hitlag = false
+            item.inherit_owner_debug_display()
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.params.lifetime)
+            item.hide_model()
+            item.remove_at_bounds = false
+            item.exit_category = 14
+            item.state.index = int(item.creation_value)
+            item.state.delay = item.state.index * owner.attrs.thunder_segment_delay
+            item.state.shrink_lifetime = abs(item.params.segment_length / owner.attrs.thunder_velocity_y)
+            item.state.current_length = item.params.segment_length
+            item.state.scale_y = 1
+            item.state.stopped = false
+    on signal sample:
+            owner.state.thunder_tip_x = position.x
+            owner.state.thunder_tip_y = position.y + (-item.params.tip_offset_y * item.state.scale_y)
+            owner.state.thunder_stopped = item.state.stopped
+    on signal stop:
+            item.change_state_flags(2, 17)
+            item.life = item.state.shrink_lifetime
+            item.state.stopped = true
+            if (item.link_id(0) != -1): articles.signal(item.link_id(0), It_Kind_Pikachu_Thunder, "stop_y", position.y)
+    on signal stop_y:
+            item.state.stop_y = signal.value
+            item.state.stopped = true
+    state 0 anim -1:
+        on animation:
+            if item.state.delay <= 0:
+                item.change_state_flags(1, 2)
+                item.set_lifetime(item.params.lifetime)
+                velocity.y = owner.attrs.thunder_velocity_y
+                item.remove_at_bounds = true
+                item.show_model()
+            else:
+                item.state.delay = item.state.delay - 1
+            return false
+    state 1 anim 0:
+        on animation:
+            item.life = item.life - 1
+            return item.life <= 0
+        on collision:
+            if item.state.index == 0:
+                if item.check_ground():
+                    item.spawn_effect_at_position(1036, position.x, position.y - item.params.tip_offset_y, position.z)
+                    item.play_sound(116, 127, 64)
+                    item.contact_hitlag = false
+                    item.change_state_flags(2, 17)
+                    item.life = item.state.shrink_lifetime
+                    item.state.stopped = true
+                    if (item.link_id(0) != -1): articles.signal(item.link_id(0), It_Kind_Pikachu_Thunder, "stop_y", position.y)
+                    # Stock's four-bit action category suppresses feedback while
+                    # the owner is in certain incapacitated action categories.
+                    if item.attachment_active and not (owner.action.category >= 1 and owner.action.category <= 13 and owner.action.category != 3):
+                        owner.helpers.thunder_impact_feedback()
+            else:
+                if item.state.stopped and position.y <= item.state.stop_y:
+                    item.change_state_flags(2, 17)
+                    item.life = item.state.shrink_lifetime
+                    item.state.stopped = true
+                    if (item.link_id(0) != -1): articles.signal(item.link_id(0), It_Kind_Pikachu_Thunder, "stop_y", position.y)
+            return false
+    state 2 anim 0:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            item.state.next_length = item.state.current_length + owner.attrs.thunder_velocity_y
+            if item.state.next_length > 0:
+                item.state.ratio = 10000 * item.state.next_length / item.params.segment_length
+                item.state.scale_y = float(int(item.state.ratio + 1)) / 10000
+                if item.state.scale_y <= 0: item.state.scale_y = 0.01
+                item.state.ratio = 10000 * item.state.next_length / item.state.current_length
+                item.state.ratio = float(int(item.state.ratio + 1)) / 10000
+                if hitbox.enabled(0): hitbox.set_radius(0, hitbox.radius(0) * item.state.ratio)
+                item.state.current_length = item.state.next_length
+            item.joint("").scale.y = item.state.scale_y
+            return false
+    on destroyed:
+            if item.state.index == 0 and item.attachment_active and not (owner.action.category >= 1 and owner.action.category <= 13 and owner.action.category != 3): owner.state.thunder_status = 3
+    on damage_dealt:
+            return false
+    on hit_shield:
+            return false
+    on clanked:
+            return false
+    on absorbed:
+            return false
+    on interaction:
+            item.interact(other)
+
+# Each delayed segment links to the next using a creation ID. Script-owned
+# state drives catching, ground impact, stop propagation and quantized shrinking.

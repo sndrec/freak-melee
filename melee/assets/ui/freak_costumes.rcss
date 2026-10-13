@@ -1,0 +1,10 @@
+#costume-section { display: none; flex-shrink: 0; margin-top: 15dp; padding-top: 16dp; border-top: 1dp #54414a; }
+#costume-players { margin-top: 9dp; }
+#costume-players button { display: block; width: 100%; padding: 7dp 5dp; margin: 3dp 0; color: #dfcbd9; background-color: #27222e; border: 1dp #554752; border-radius: 3dp; font-size: 11dp; text-align: left; }
+#costume-players button.active { color: #ffe3cd; background-color: #51323b; border-color: #c17b68; }
+#costume-choices { display: none; max-height: 205dp; overflow-y: auto; margin-top: 7dp; }
+#costume-choices button { display: block; width: 100%; padding: 7dp 5dp; margin: 2dp 0; color: #d9c8d4; background-color: #211d28; border: 1dp #4e414d; border-radius: 3dp; font-size: 11dp; text-align: left; }
+#costume-choices button.selected { border-color: #e89a76; color: #ffe6d1; }
+#costume-choices #costume-import { margin-top: 8dp; color: #ffd8c0; border-color: #865b56; }
+#costume-choices button:hover, #costume-players button:hover { border-color: #f0ad8b; }
+#costume-status { min-height: 0; color: #ffad99; font-size: 10dp; line-height: 1.4; }

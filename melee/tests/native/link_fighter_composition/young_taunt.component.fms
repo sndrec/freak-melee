@@ -1,0 +1,47 @@
+# Actual ftCl_Init_80149318 and ftCl_AppealS_* decisions.
+action YoungTaunt:
+    on taunt:
+        state.taunt(342, 343)
+        command(1) = 0
+    on state_342_animation:
+        if command(1) == 1 and not articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+            state.milk_handle = articles.spawn_bone_attached(It_Kind_CLink_Milk, LeftThumb)
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                callbacks.death2(Cleanup_AllArticles)
+                callbacks.damage(Cleanup_AllArticles)
+        elif command(1) == 2:
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                articles.signal(state.milk_handle, It_Kind_CLink_Milk, "remove", 0)
+            state.milk_handle = -1
+        if animation.finished:
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                articles.signal(state.milk_handle, It_Kind_CLink_Milk, "remove", 0)
+            state.milk_handle = -1
+            state.wait()
+    on state_343_animation:
+        if command(1) == 1 and not articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+            state.milk_handle = articles.spawn_bone_attached(It_Kind_CLink_Milk, LeftThumb)
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                callbacks.death2(Cleanup_AllArticles)
+                callbacks.damage(Cleanup_AllArticles)
+        elif command(1) == 2:
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                articles.signal(state.milk_handle, It_Kind_CLink_Milk, "remove", 0)
+            state.milk_handle = -1
+        if animation.finished:
+            if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+                articles.signal(state.milk_handle, It_Kind_CLink_Milk, "remove", 0)
+            state.milk_handle = -1
+            state.wait()
+    on state_342_interrupt:
+        controls.taunt_actions()
+    on state_343_interrupt:
+        controls.taunt_actions()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_343_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        collision.ground_with_nudge()
+    on state_343_collision:
+        collision.ground_with_nudge()

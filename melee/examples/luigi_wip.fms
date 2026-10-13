@@ -1,0 +1,576 @@
+# Luigi specials and common fighter events.
+# Versus closure candidate; source/runtime acceptance is tracked in the ledger.
+
+fighter:
+    behavior independent
+
+parameter float cpu_ranged_probe_distance = 60
+parameter int cpu_fireball_command = 38
+parameter int cpu_recovery_vertical_stick = 0
+parameter int cpu_recovery_horizontal_stick = 127
+parameter int cpu_recovery_press_frames = 1
+parameter int cpu_recovery_wait_frames = 40
+parameter int taunt_input_move_id = 113
+parameter int taunt_attack_move_id = 99
+parameter int taunt_attack_category = 2
+parameter int taunt_animation_flags = 4
+parameter int taunt_statistics_flags = 0
+
+state int missile_charge
+state bool missile_misfire
+state float cyclone_ground_vel
+state bool cyclone_collision
+# Stock Luigi reads Cyclone charge before reliably initializing it.
+# Start each life uncharged instead of reproducing that undefined behavior.
+state bool cyclone_charge
+
+# Own the stock ftLg_SpecialLw_UpdateRot body instead of installing a native
+# Luigi callback: both damage and death2 reset the root's X rotation.
+func ResetRootX():
+    bones.root.rotate_x(0)
+
+# The stock visual updater reads private move storage; use owned state instead.
+model_effect CycloneSwirl 0x509:
+    on update:
+        effect.joint("1").visible = creator.motion == 357
+        if creator.command3 and creator.state.cyclone_collision:
+            effect.joint("").rotation.z = -atan2_float(creator.floor.normal.x, creator.floor.normal.y)
+        else:
+            effect.joint("").rotation.z = 0
+
+attribute float missile_smash_window 4
+attribute float missile_charge_rate 8
+attribute float missile_max_charge 12
+attribute float missile_damage_base 16
+attribute float missile_damage_slope 20
+attribute float missile_traction 24
+
+attribute float missile_start_decel 28
+attribute float missile_start_fall_speed 32
+attribute float missile_end_decel 60
+attribute float missile_end_gravity 64
+attribute float missile_flight_fall_speed 48
+attribute float missile_flight_terminal_speed 52
+attribute float missile_end_friction 56
+attribute float missile_launch_speed 36
+attribute float missile_launch_speed_per_charge 40
+attribute float missile_launch_vertical_speed 44
+attribute float missile_misfire_chance 68
+attribute float missile_misfire_speed 72
+attribute float missile_misfire_vertical_speed 76
+attribute float jump_freefall_mobility 80
+attribute float jump_landing_lag 84
+attribute float jump_reverse_stick_range 88
+attribute float jump_momentum_stick_range 92
+attribute float jump_angle_diff 96
+attribute float jump_air_horizontal_scale 100
+attribute float jump_gravity 104
+attribute float jump_velocity_scale 108
+attribute float cyclone_tap_momentum 112
+attribute float cyclone_ground_speed 116
+attribute float cyclone_air_speed 120
+attribute float cyclone_ground_accel 124
+attribute float cyclone_air_accel 128
+attribute float cyclone_end_friction 132
+attribute float cyclone_tap_speed 140
+attribute float cyclone_tap_gravity 144
+attribute int cyclone_landing_lag 148
+
+# Runs in accessory4, matching the stock deferred Green Missile GFX marker.
+func mark_green_missile_effect():
+    effects.active = true
+    effects.pause_during_hitlag()
+
+move Fireball:
+    on special_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on special_air_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        if command(0): controls.ground_actions()
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+    on neutral_special_cue:
+        articles.spawn_authored_projectile(It_Kind_Luigi_Fire, LeftHand, 0)
+        effects.spawn_with_scalar(1287, LeftHand, facing.direction)
+
+move GreenMissile:
+    on special_s:
+        callbacks.track_state_change()
+        ground.velocity = ground.velocity / attrs.missile_traction
+        state.enter(SideSpecial)
+    on special_air_s:
+        callbacks.track_state_change()
+        velocity.x = velocity.x / attrs.missile_traction
+        velocity.y = 0
+        state.enter(SideSpecial)
+
+move SuperJumpPunch:
+    on special_hi:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(UpSpecial)
+    on special_air_hi:
+        command(0) = 0
+        cue.throw.reset()
+        velocity.y = 0
+        velocity.x = velocity.x * attrs.jump_air_horizontal_scale
+        state.enter(UpSpecial)
+    on ground_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on air_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on ground_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on air_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on ground_physics:
+        if grounded: physics.ground_motion()
+        if airborne: physics.air_motion()
+    on air_physics:
+        if command(0): physics.air_motion()
+        if command(0): motion.scale_velocity(attrs.jump_velocity_scale)
+        if not command(0): physics.fall(attrs.jump_gravity, air.terminal_velocity)
+        if not command(0): physics.quick_air_decel()
+    on ground_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+    on air_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+
+move Cyclone:
+    on special_lw:
+        command(2) = 0
+        state.enter(AirDownSpecial)
+        motion.set_vertical_speed(attrs.cyclone_tap_momentum - attrs.cyclone_tap_speed)
+        physics.clamp_horizontal_speed(attrs.cyclone_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.cyclone_ground_vel = 0
+        state.cyclone_collision = false
+        callbacks.damage(ResetRootX)
+        callbacks.death2(ResetRootX)
+        effects.spawn_root(CycloneSwirl)
+        effects.pause_during_hitlag()
+    on special_air_lw:
+        command(2) = 0
+        state.enter(DownSpecial)
+        if state.cyclone_charge: motion.set_vertical_speed(attrs.cyclone_tap_momentum)
+        else: motion.set_vertical_speed(attrs.cyclone_tap_momentum - attrs.cyclone_tap_speed)
+        physics.clamp_horizontal_speed(attrs.cyclone_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.cyclone_ground_vel = 0
+        state.cyclone_collision = false
+        callbacks.damage(ResetRootX)
+        callbacks.death2(ResetRootX)
+        effects.spawn_root(CycloneSwirl)
+        effects.pause_during_hitlag()
+    on ground_animation:
+        if animation.finished:
+            callbacks.clear_damage_death()
+            state.wait()
+    on air_animation:
+        if command(1):
+            command(1) = 0
+            state.cyclone_charge = true
+        if animation.finished:
+            callbacks.clear_damage_death()
+            if attrs.cyclone_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.cyclone_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        let speed = attrs.cyclone_ground_speed
+        if command(0):
+            state.cyclone_ground_vel = state.cyclone_ground_vel - attrs.cyclone_end_friction
+            speed = speed + state.cyclone_ground_vel
+            if speed < 0: speed = 0
+        physics.ground_accel(attrs.cyclone_ground_accel, speed)
+        physics.ground_to_self()
+        if command(2) and input.special_pressed:
+            motion.add_vertical_speed(attrs.cyclone_tap_speed)
+            command(2) = 0
+            state.to_air()
+            physics.clamp_fall_speed(attrs.cyclone_tap_gravity)
+            physics.clamp_horizontal_speed(attrs.cyclone_air_speed)
+            effects.pause_during_hitlag()
+    on air_physics:
+        if not state.cyclone_charge and command(2) and input.special_pressed: physics.ascend(attrs.cyclone_tap_speed, attrs.cyclone_tap_gravity)
+        physics.fall_basic()
+        let speed = attrs.cyclone_air_speed
+        if command(0):
+            state.cyclone_ground_vel = state.cyclone_ground_vel - attrs.cyclone_end_friction
+            speed = speed + state.cyclone_ground_vel
+            if speed < 0: speed = 0
+        physics.air_accel(attrs.cyclone_air_accel, speed)
+    on ground_collision:
+        if grounded:
+            if collision.ground_box(12, 0, -6, 6, 6, 6): state.cyclone_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.cyclone_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.cyclone_air_speed)
+                effects.pause_during_hitlag()
+                state.cyclone_collision = false
+        else:
+            if collision.air_box(12, 0, -6, 6, 6, 6): state.cyclone_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.cyclone_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.cyclone_air_speed)
+                effects.pause_during_hitlag()
+                state.cyclone_collision = false
+        if command(3) and state.cyclone_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+    on air_collision:
+        if collision.air_box(12, 0, -6, 6, 6, 6):
+            command(2) = 0
+            motion.set_vertical_speed(0)
+            state.cyclone_charge = false
+            state.to_ground()
+            physics.clamp_ground_speed(attrs.cyclone_ground_speed)
+            effects.pause_during_hitlag()
+            state.cyclone_collision = true
+        else: state.cyclone_collision = false
+        if command(3) and state.cyclone_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+
+article It_Kind_Luigi_Fire states 1:
+    state bool bounced
+    attribute float launch_speed 0
+    attribute float lifetime 4
+    attribute float minimum_bounce_speed 12
+    projectile appearance -1 state 0 speed launch_speed angle 0 lifetime lifetime auto_lifetime on
+    state 0 anim 0:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.gravity()
+        on collision:
+            item.stage_collision()
+            item.state.bounced = item.bounce_stage()
+            if item.state.bounced and sqrt(velocity.x * velocity.x + velocity.y * velocity.y) < item.attr.minimum_bounce_speed: return true
+            if item.state.bounced: item.spawn_effect_on_bone(1288, 0, 1)
+            return false
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return item.shield_bounce()
+    on interaction:
+            item.interact(other)
+
+action CpuPolicies:
+    on cpu_ranged_candidates:
+        # Keep the geometry query even when the common candidate list is full.
+        if cpu.ranged_unsafe(attrs.cpu_ranged_probe_distance):
+            cpu.add_candidate(attrs.cpu_fireball_command)
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_y, attrs.cpu_recovery_vertical_stick)
+        cpu.queue(Cpu.x_toward_destination, attrs.cpu_recovery_horizontal_stick)
+        cpu.queue(Cpu.press_b_for, attrs.cpu_recovery_press_frames)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.wait, attrs.cpu_recovery_wait_frames)
+        cpu.queue(Cpu.done)
+    on cpu_falling_destination_reached:
+        # Common forced-fall, air, rising and wall gates run before this query.
+        return position.delta.y < 0
+
+action FighterEvents:
+    on action_metadata:
+        if action.move_id(event.metadata) == attrs.taunt_input_move_id:
+            return action.metadata(attrs.taunt_attack_move_id, attrs.taunt_attack_category, attrs.taunt_animation_flags, attrs.taunt_statistics_flags)
+        return event.metadata
+    on load:
+        fighter.copy_ext_attributes()
+        state.cyclone_charge = false
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.hide_group(0)
+        state.cyclone_charge = false
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+action GreenMissilePhases:
+    on state_change:
+        command(0) = 0
+        if input.horizontal_smash_age < attrs.missile_smash_window:
+            # The stock assignment converts Float charge rate to Int frames.
+            state.missile_charge = int(attrs.missile_charge_rate)
+            stats.count_as_thrown_item()
+        else: state.missile_charge = 0
+        # HSD_Randi's integer argument truncates the stock Float attribute.
+        state.missile_misfire = random.int(int(attrs.missile_misfire_chance)) == 0
+    on deal_damage:
+        velocity.x = 0
+        if velocity.y >= 0: velocity.y = 0
+        command(0) = 0
+        motion.divide_horizontal_speed(attrs.missile_end_friction)
+        state.enter(352, 0)
+    on state_343_animation:
+        if animation.finished:
+            state.enter_flags(344, 512)
+            callbacks.accessory(mark_green_missile_effect)
+    on state_349_animation:
+        if animation.finished:
+            state.enter_flags(350, 512)
+            callbacks.accessory(mark_green_missile_effect)
+    on state_344_animation:
+        if animation.finished:
+            effects.clear_all()
+            callbacks.accessory(mark_green_missile_effect)
+        state.missile_charge = state.missile_charge + 1
+        if state.missile_charge > attrs.missile_max_charge:
+            if state.missile_misfire: state.enter(348, 0)
+            else: state.enter(347, 0)
+            command(0) = 0
+            effects.clear_all()
+            if not effects.active:
+                effects.spawn(1290, Hip)
+                effects.active = true
+            effects.pause_during_hitlag()
+            articles.stop_cue()
+    on state_350_animation:
+        if animation.finished:
+            effects.clear_all()
+            callbacks.accessory(mark_green_missile_effect)
+        state.missile_charge = state.missile_charge + 1
+        if state.missile_charge > attrs.missile_max_charge:
+            if state.missile_misfire: state.enter(354, 0)
+            else: state.enter(353, 0)
+            command(0) = 0
+            effects.clear_all()
+            if not effects.active:
+                effects.spawn(1290, Hip)
+                effects.active = true
+            effects.pause_during_hitlag()
+            articles.stop_cue()
+    on state_344_interrupt:
+        if not input.special_held:
+            if state.missile_misfire: state.enter(348, 0)
+            else: state.enter(347, 0)
+            command(0) = 0
+            effects.clear_all()
+            if not effects.active:
+                effects.spawn(1290, Hip)
+                effects.active = true
+            effects.pause_during_hitlag()
+            articles.stop_cue()
+    on state_350_interrupt:
+        if not input.special_held:
+            if state.missile_misfire: state.enter(354, 0)
+            else: state.enter(353, 0)
+            command(0) = 0
+            effects.clear_all()
+            if not effects.active:
+                effects.spawn(1290, Hip)
+                effects.active = true
+            effects.pause_during_hitlag()
+            articles.stop_cue()
+    on state_347_animation:
+        if not state.missile_misfire and (hitbox.state(0) == Hitbox.enabled): hitbox.set_damage(0, state.missile_charge * attrs.missile_damage_slope + attrs.missile_damage_base)
+        if command(0):
+            physics.ground_to_air()
+            command(0) = 0
+            if state.missile_misfire: velocity.x = attrs.missile_misfire_speed
+            else: velocity.x = attrs.missile_launch_speed_per_charge * state.missile_charge + attrs.missile_launch_speed
+            velocity.x = velocity.x * facing.direction
+            if state.missile_misfire: velocity.y = attrs.missile_misfire_vertical_speed
+            else: velocity.y = 0.5 * attrs.missile_launch_vertical_speed + attrs.missile_launch_vertical_speed * (0.5 * state.missile_charge / attrs.missile_max_charge)
+            state.enter_at(351, 0x0c4c508a, frame)
+            callbacks.align_velocity_to_facing()
+            callbacks.track_deal_damage()
+    on state_353_animation:
+        if not state.missile_misfire and (hitbox.state(0) == Hitbox.enabled): hitbox.set_damage(0, state.missile_charge * attrs.missile_damage_slope + attrs.missile_damage_base)
+        if command(0):
+            command(0) = 0
+            if state.missile_misfire: velocity.x = attrs.missile_misfire_speed
+            else: velocity.x = attrs.missile_launch_speed_per_charge * state.missile_charge + attrs.missile_launch_speed
+            velocity.x = velocity.x * facing.direction
+            if state.missile_misfire: velocity.y = attrs.missile_misfire_vertical_speed
+            else: velocity.y = 0.5 * attrs.missile_launch_vertical_speed + attrs.missile_launch_vertical_speed * (0.5 * state.missile_charge / attrs.missile_max_charge)
+            state.enter_at(351, 0x0c4c508a, frame)
+            callbacks.align_velocity_to_facing()
+            callbacks.track_deal_damage()
+    on state_348_animation:
+        if command(0):
+            physics.ground_to_air()
+            command(0) = 0
+            velocity.x = attrs.missile_misfire_speed * facing.direction
+            velocity.y = attrs.missile_misfire_vertical_speed
+            state.enter_at(351, 0x0c4c508a, frame)
+            callbacks.align_velocity_to_facing()
+            callbacks.track_deal_damage()
+    on state_354_animation:
+        if command(0):
+            command(0) = 0
+            velocity.x = attrs.missile_misfire_speed * facing.direction
+            velocity.y = attrs.missile_misfire_vertical_speed
+            state.enter_at(351, 0x0c4c508a, frame)
+            callbacks.align_velocity_to_facing()
+            callbacks.track_deal_damage()
+    on state_343_physics:
+        physics.ground_decelerate(attrs.missile_start_decel)
+        physics.ground_to_self()
+    on state_349_physics:
+        if command(0): physics.fall(attrs.missile_start_fall_speed, air.terminal_velocity)
+        physics.air_decel(attrs.missile_start_decel)
+    on state_343_collision:
+        if collision.left_ground: state.switch_to_air(349, 0x0c4c5284)
+    on state_349_collision:
+        if collision.landed: state.switch_to_ground(343, 0x0c4c5284)
+    on state_344_collision:
+        if collision.left_ground: state.switch_to_air(350, 0x0c4c5286)
+    on state_350_collision:
+        if collision.landed: state.switch_to_ground(344, 0x0c4c5286)
+    on state_347_collision:
+        if collision.left_ground: state.switch_to_air(353, 0x0c4c5086)
+    on state_353_collision:
+        if collision.landed: state.switch_to_ground(347, 0x0c4c5086)
+    on state_348_collision:
+        if collision.left_ground: state.switch_to_air(354, 0x0c4c5086)
+    on state_354_collision:
+        if collision.landed: state.switch_to_ground(348, 0x0c4c5086)
+    on state_344_physics:
+        physics.ground_friction()
+    on state_350_physics:
+        physics.air_gravity_and_friction()
+    on state_347_physics:
+        physics.ground_friction()
+    on state_353_physics:
+        physics.air_gravity_and_friction()
+    on state_348_physics:
+        physics.ground_friction()
+    on state_354_physics:
+        physics.ground_friction()
+    on state_346_physics:
+        physics.ground_decelerate(attrs.missile_end_decel)
+        physics.ground_to_self()
+    on state_352_physics:
+        physics.fall(attrs.missile_end_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.missile_end_decel)
+    on state_345_animation:
+        pass
+    on state_351_animation:
+        if animation.finished:
+            command(0) = 0
+            motion.divide_horizontal_speed(attrs.missile_end_friction)
+            state.enter(352, 0)
+    on state_345_physics:
+        pass
+    on state_351_physics:
+        if command(0): physics.fall(attrs.missile_end_gravity, attrs.missile_flight_terminal_speed)
+        else: physics.fall(attrs.missile_flight_fall_speed, attrs.missile_flight_terminal_speed)
+        if command(0): physics.air_decel(attrs.missile_end_decel)
+    on state_345_collision:
+        pass
+    on state_351_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            command(0) = 0
+            ground.velocity = ground.velocity / attrs.missile_end_friction
+            state.enter(346, 0)
+        if collision.wall_contact:
+            command(0) = 0
+            motion.divide_horizontal_speed(attrs.missile_end_friction)
+            state.enter(352, 0)
+    on state_346_animation:
+        if animation.finished: state.wait()
+    on state_352_animation:
+        if animation.finished: state.fall()
+    on state_346_collision:
+        if collision.left_ground: state.fall()
+    on state_352_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            command(0) = 0
+            ground.velocity = ground.velocity / attrs.missile_end_friction
+            state.enter(346, 0)
+    on state_343_interrupt:
+        pass
+    on state_349_interrupt:
+        pass
+    on state_347_interrupt:
+        pass
+    on state_353_interrupt:
+        pass
+    on state_348_interrupt:
+        pass
+    on state_354_interrupt:
+        pass
+    on state_345_interrupt:
+        pass
+    on state_351_interrupt:
+        pass
+    on state_346_interrupt:
+        pass
+    on state_352_interrupt:
+        pass

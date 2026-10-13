@@ -1,0 +1,439 @@
+# UNREGISTERED CHAIN SOURCE CANDIDATE. Generic operations available in SDK64.
+# compose.py borrows the accepted Needles component; cleanup order is Needles,
+# then Chain, exactly ftSk_Init_80110198. No Transform/whole-fighter claim.
+attribute float chain_minimum_loop_ticks 20
+attribute float chain_rehit_ticks 24
+attribute float chain_spawn_tick 28
+attribute float chain_startup_ticks 32
+attribute float chain_retract_tick 36
+attribute float chain_destroy_tick 40
+parameter int chain_ground_pose_clip = 305
+parameter int chain_air_pose_clip = 308
+parameter int chain_raw_pose_start = 1
+parameter int chain_attachment_part = 26
+parameter float chain_angle_frame_scale = 0.0556
+parameter float chain_angle_frame_bias = 4
+parameter float chain_maximum_angle = 359
+parameter float chain_full_turn = 360
+parameter float chain_radians_to_degrees = 57.29577951
+parameter float chain_radians_full_turn = 6.283185307179586
+parameter float chain_half_turn = 180
+parameter float chain_forward_sound_delta = 0.3
+parameter float chain_up_sound_delta = 0.5
+parameter int chain_forward_sound_delay = 6
+parameter int chain_up_sound_delay = 12
+parameter int chain_backward_sound_delay = 6
+parameter int chain_forward_sound = 270152
+parameter int chain_backward_sound = 270155
+parameter float chain_neutral_delta_scale = 0.5
+parameter int chain_resume_grace = 2
+parameter float chain_start_sweep_radius = 0.5
+pose_graph ChainGroundRest slot 4 path "0"
+pose_graph ChainAirRest slot 5 path "0"
+state int chain_handle
+state int chain_tick
+state bool chain_release_requested
+state int chain_forward_sound_timer
+state int chain_backward_sound_timer
+state float chain_magnitude
+state float chain_angle
+state int chain_rehit_timer
+state int chain_resume_timer
+state float chain_hit_x[4]
+state float chain_hit_y[4]
+state float chain_hit_z[4]
+state float chain_old_x[4]
+state float chain_old_y[4]
+state float chain_old_z[4]
+state float chain_delta_x
+state float chain_delta_y
+state float chain_delta_z
+
+func chain_accessory():
+    pass
+
+func chain_resume():
+    if state.chain_handle != -1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "resume", 0)
+        state.chain_resume_timer = attrs.chain_resume_grace
+
+func chain_pause():
+    if state.chain_handle != -1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "pause", 0)
+
+export func chain_lost():
+    chain_resume()
+    state.chain_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func chain_destroy():
+    if state.chain_handle == -1:
+        return
+    articles.signal(state.chain_handle, It_Kind_Seak_Chain, "destroy", 0)
+    chain_resume()
+    state.chain_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func sheik_resource_cleanup():
+    needle_cleanup()
+    chain_destroy()
+
+func chain_bind(bool immune):
+    if state.chain_handle != -1:
+        callbacks.death2(sheik_resource_cleanup)
+        callbacks.damage(sheik_resource_cleanup)
+    if immune:
+        damage.song_immune = true
+    callbacks.accessory(chain_accessory)
+    callbacks.pre_hitlag(chain_pause)
+    callbacks.post_hitlag(chain_resume)
+
+func chain_zero_capsules():
+    let int hit = 0
+    while hit < 4:
+        hitbox.previous(hit).x = 0
+        hitbox.previous(hit).y = 0
+        hitbox.previous(hit).z = 0
+        hitbox.current(hit).x = 0
+        hitbox.current(hit).y = 0
+        hitbox.current(hit).z = 0
+        hit = hit + 1
+
+func chain_activate():
+    let int hit = 0
+    while hit < 4:
+        # Unlike Ness's original delayed rehit, Chain already sets cleanup bit.
+        hitbox.set_enabled(hit, true)
+        hit = hit + 1
+    chain_zero_capsules()
+
+func chain_disable():
+    let int hit = 0
+    while hit < 4:
+        hitbox.clear_victims(hit)
+        hitbox.set_enabled(hit, false)
+        hit = hit + 1
+    chain_zero_capsules()
+
+func chain_endpoint(int hit, float x, float y, float z):
+    if command(0) == 0:
+        return
+    state.chain_hit_x[hit] = x
+    state.chain_hit_y[hit] = y
+    state.chain_hit_z[hit] = z
+    if x != 0 or y != 0:
+        hitbox.set_world_position(hit, x, y, z)
+        hitbox.current(hit).x = x
+        hitbox.current(hit).y = y
+        hitbox.current(hit).z = z
+        if hitbox.previous(hit).x == 0 and hitbox.previous(hit).y == 0 and hitbox.previous(hit).z == 0:
+            hitbox.previous(hit).x = x
+            hitbox.previous(hit).y = y
+            hitbox.previous(hit).z = z
+
+func chain_clear_hitboxes():
+    hitbox.clear_all()
+
+func chain_center_y() -> float:
+    return position.y + 0.5 * (ecb.top.y + ecb.bottom.y)
+
+func chain_rehit():
+    if state.chain_handle == -1:
+        return
+    let float threshold = articles.ref(state.chain_handle, It_Kind_Seak_Chain).state.movement_threshold
+    let float threshold_squared = threshold * threshold
+    let bool moved = false
+    let int hit = 0
+    while hit < 4:
+        let float dx = state.chain_hit_x[hit] - state.chain_old_x[hit]
+        let float dy = state.chain_hit_y[hit] - state.chain_old_y[hit]
+        let float squared = dx * dx + dy * dy
+        if squared > threshold_squared:
+            moved = true
+        state.chain_old_x[hit] = state.chain_hit_x[hit]
+        state.chain_old_y[hit] = state.chain_hit_y[hit]
+        hit = hit + 1
+    if state.chain_rehit_timer > 0:
+        state.chain_rehit_timer = state.chain_rehit_timer - 1
+        if state.chain_rehit_timer == 0:
+            chain_disable()
+    if moved:
+        if state.chain_rehit_timer <= 0:
+            state.chain_rehit_timer = int(attrs.chain_rehit_ticks)
+            chain_activate()
+    elif state.chain_resume_timer > 0:
+        state.chain_resume_timer = state.chain_resume_timer - 1
+    else:
+        state.chain_rehit_timer = 0
+        chain_disable()
+
+func chain_smooth():
+    let float angle = atan2_float(input.y, input.x * facing.direction)
+    if angle < 0:
+        angle = angle + attrs.chain_radians_full_turn
+    # Original MTXRadToDeg multiplier (57.29577951f), not division by pi.
+    angle = angle * attrs.chain_radians_to_degrees
+    if angle < 0:
+        angle = 0
+    if angle > attrs.chain_maximum_angle:
+        angle = attrs.chain_maximum_angle
+    let float delta = angle - state.chain_angle
+    if delta > attrs.chain_half_turn:
+        delta = delta - attrs.chain_full_turn
+    elif delta < -attrs.chain_half_turn:
+        delta = delta + attrs.chain_full_turn
+    # Pending RO generic common field x44C, also used by shared shield smoothing.
+    let float smoothing = controls.stick_smoothing
+    angle = delta * smoothing + state.chain_angle
+    if angle > attrs.chain_full_turn:
+        angle = angle - attrs.chain_full_turn
+    elif angle < 0:
+        angle = angle + attrs.chain_full_turn
+    state.chain_angle = angle
+    let float magnitude = sqrt(input.x * input.x + input.y * input.y)
+    if magnitude > 1:
+        magnitude = 1
+    state.chain_magnitude = state.chain_magnitude + smoothing * (magnitude - state.chain_magnitude)
+
+func chain_pose(bool air_pose, float phase):
+    chain_smooth()
+    let float pose_frame = attrs.chain_angle_frame_scale * state.chain_angle + attrs.chain_angle_frame_bias
+    let int clip = attrs.chain_ground_pose_clip
+    if air_pose:
+        clip = attrs.chain_air_pose_clip
+    if state.chain_magnitude != 0:
+        pose.load_animation(Pose.blend, clip)
+        pose.request_frame(Pose.blend, pose_frame)
+        pose.copy_costume(Pose.blend, attrs.chain_raw_pose_start)
+        pose.evaluate(Pose.blend)
+        if state.chain_magnitude < 1:
+            if air_pose:
+                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainAirRest, 1 - state.chain_magnitude, state.chain_magnitude)
+            else:
+                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainGroundRest, 1 - state.chain_magnitude, state.chain_magnitude)
+        if phase < 1:
+            pose.blend_to_live(attrs.chain_raw_pose_start, phase, 1 - phase)
+        else:
+            pose.copy_to_live(attrs.chain_raw_pose_start)
+    elif phase < 1:
+        if air_pose:
+            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest, phase, 1 - phase)
+        else:
+            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest, phase, 1 - phase)
+    else:
+        if air_pose:
+            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest)
+        else:
+            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest)
+
+func chain_input():
+    state.chain_delta_x = input.x - input.previous_x
+    state.chain_delta_y = input.y - input.previous_y
+    let float horizontal_delta = state.chain_delta_x
+    let float forward_threshold = attrs.chain_forward_sound_delta
+    if state.chain_forward_sound_timer > 0:
+        state.chain_forward_sound_timer = state.chain_forward_sound_timer - 1
+    elif (facing.direction == 1 and horizontal_delta > forward_threshold) or (facing.direction == -1 and horizontal_delta < -forward_threshold):
+        sound.play(attrs.chain_forward_sound, 127, 64)
+        state.chain_forward_sound_timer = attrs.chain_forward_sound_delay
+    elif state.chain_delta_y > attrs.chain_up_sound_delta:
+        sound.play(attrs.chain_forward_sound, 127, 64)
+        state.chain_forward_sound_timer = attrs.chain_up_sound_delay
+    if state.chain_backward_sound_timer > 0:
+        state.chain_backward_sound_timer = state.chain_backward_sound_timer - 1
+    elif (facing.direction == 1 and horizontal_delta < -forward_threshold and input.x < 0) or (facing.direction == -1 and horizontal_delta > forward_threshold and input.x > 0):
+        sound.play(attrs.chain_backward_sound, 127, 64)
+        state.chain_backward_sound_timer = attrs.chain_backward_sound_delay
+    if state.chain_handle == -1:
+        return
+    let float deadzone = articles.ref(state.chain_handle, It_Kind_Seak_Chain).state.stick_deadzone
+    if abs(input.x) < deadzone and abs(input.y) < deadzone:
+        state.chain_delta_x = state.chain_delta_x * attrs.chain_neutral_delta_scale
+        state.chain_delta_y = state.chain_delta_y * attrs.chain_neutral_delta_scale
+
+func chain_initialize():
+    command(0) = 0
+    state.chain_tick = 0
+    state.chain_release_requested = false
+    state.chain_forward_sound_timer = 0
+    state.chain_backward_sound_timer = 0
+    state.chain_angle = attrs.chain_angle_frame_bias
+    state.chain_magnitude = 0
+    state.chain_rehit_timer = 0
+    state.chain_resume_timer = 0
+    state.chain_handle = -1
+    let int hit = 0
+    while hit < 4:
+        state.chain_hit_x[hit] = 0
+        state.chain_hit_y[hit] = 0
+        state.chain_hit_z[hit] = 0
+        state.chain_old_x[hit] = 0
+        state.chain_old_y[hit] = 0
+        state.chain_old_z[hit] = 0
+        hit = hit + 1
+    state.chain_delta_x = 0
+    state.chain_delta_y = 0
+    state.chain_delta_z = 0
+    damage.song_immune = true
+    callbacks.accessory(chain_accessory)
+
+func chain_spawn():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.chain_attachment_part, x, y, z)
+    state.chain_handle = articles.create_with_velocity(It_Kind_Seak_Chain, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    let bool bound = articles.bind_auxiliary(state.chain_handle)
+    if state.chain_handle != -1:
+        callbacks.death2(sheik_resource_cleanup)
+        callbacks.damage(sheik_resource_cleanup)
+    callbacks.pre_hitlag(chain_pause)
+    callbacks.post_hitlag(chain_resume)
+
+func chain_check_start() -> bool:
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick == attrs.chain_spawn_tick:
+        chain_spawn()
+        state.chain_rehit_timer = int(attrs.chain_rehit_ticks)
+        if state.chain_handle == -1:
+            if airborne:
+                state.fall()
+            else:
+                state.wait()
+    if state.chain_tick == attrs.chain_spawn_tick + 1:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "launch", 0)
+    return state.chain_tick > attrs.chain_startup_ticks
+
+func chain_end(bool air_started):
+    let int motion = 351
+    if air_started:
+        motion = 354
+    state.enter_at_speed(motion, 8, 0, 1)
+    state.chain_tick = 0
+    if state.chain_rehit_timer != 0:
+        chain_activate()
+    chain_bind(true)
+
+func chain_loop(bool air_started):
+    let int motion = 350
+    if air_started:
+        motion = 353
+    state.enter_at_speed(motion, 8, 0, 1)
+    chain_pose(air_started, 0)
+    state.chain_tick = 0
+    chain_activate()
+    chain_bind(true)
+    if not air_started:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.chain_attachment_part, x, y, z)
+        let float mid_y = position.y + 0.5 * (ecb.top.y + ecb.bottom.y)
+        let float radius = attrs.chain_start_sweep_radius * model.instance_scale_y
+        let int blocked = stage.sweep_box(position.x, mid_y, position.z, x, y, z, radius, -radius, -radius, 0, radius, 0, 5)
+        if blocked != 0:
+            chain_end(false)
+
+func chain_loop_tick(bool air_started):
+    chain_rehit()
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick > attrs.chain_minimum_loop_ticks and state.chain_release_requested:
+        state.chain_release_requested = false
+        chain_end(air_started)
+        return
+    chain_pose(air_started, 1)
+
+func chain_end_tick(bool air_started):
+    state.chain_tick = state.chain_tick + 1
+    if state.chain_tick < attrs.chain_destroy_tick:
+        if state.chain_tick == attrs.chain_retract_tick:
+            articles.signal(state.chain_handle, It_Kind_Seak_Chain, "retract", 0)
+        chain_rehit()
+    elif state.chain_tick == attrs.chain_destroy_tick:
+        articles.signal(state.chain_handle, It_Kind_Seak_Chain, "destroy", 0)
+    else:
+        chain_rehit()
+    if animation.finished:
+        if air_started:
+            state.fall()
+        else:
+            state.wait()
+
+move Chain:
+    on special_s:
+        state.enter_at_speed(349, 0, 0, 1)
+        animation.start()
+        chain_initialize()
+    on special_air_s:
+        velocity.y = 0
+        state.enter_at_speed(352, 0, 0, 1)
+        animation.start()
+        chain_initialize()
+    on state_349_animation:
+        if chain_check_start():
+            chain_loop(false)
+    on state_352_animation:
+        if chain_check_start():
+            chain_loop(true)
+    on state_350_animation:
+        chain_loop_tick(false)
+    on state_353_animation:
+        chain_loop_tick(true)
+    on state_351_animation:
+        chain_end_tick(false)
+    on state_354_animation:
+        chain_end_tick(true)
+    on state_349_interrupt:
+        pass
+    on state_352_interrupt:
+        pass
+    on state_350_interrupt:
+        if not input.special_held:
+            state.chain_release_requested = true
+        chain_input()
+    on state_353_interrupt:
+        if not input.special_held:
+            state.chain_release_requested = true
+        chain_input()
+    on state_351_interrupt:
+        pass
+    on state_354_interrupt:
+        pass
+    on state_349_physics:
+        physics.ground_friction()
+    on state_350_physics:
+        physics.ground_friction()
+    on state_351_physics:
+        physics.ground_friction()
+    on state_352_physics:
+        if command(0) != 0:
+            physics.fall(air.gravity, air.terminal_velocity)
+        physics.air_decel(air.friction)
+    on state_353_physics:
+        physics.air_gravity_and_friction()
+    on state_354_physics:
+        physics.air_gravity_and_friction()
+    on state_349_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(352, 0x0c4c5088)
+            chain_bind(false)
+    on state_352_collision:
+        if collision.landed:
+            state.switch_to_ground(349, 0x0c4c5088)
+            chain_bind(false)
+    on state_350_collision:
+        if collision.special_ground_lost:
+            chain_end(false)
+    on state_353_collision:
+        if collision.landed:
+            chain_end(true)
+    on state_351_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(354, 0x0c4c5088)
+            chain_bind(false)
+    on state_354_collision:
+        if collision.landed:
+            state.switch_to_ground(351, 0x0c4c5088)
+            chain_bind(false)

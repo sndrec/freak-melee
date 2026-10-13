@@ -1,0 +1,83 @@
+# Actual grounded Catch decisions; unregistered composed source fixture.
+state bool tether_ground_consumed
+
+attribute int tether_standing_create 132
+attribute int tether_standing_retract 140
+attribute int tether_standing_remove 144
+attribute int tether_dash_create 148
+attribute int tether_dash_retract 156
+attribute int tether_dash_remove 160
+
+func Tether_StandingFrame():
+    state.tether_ground_consumed = false
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == attrs.tether_standing_create:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Link_HShot).exists:
+            state.wait()
+            state.tether_ground_consumed = true
+            return
+    elif state.tether_counter > attrs.tether_standing_create and state.tether_counter <= attrs.tether_standing_remove:
+        if state.tether_counter == attrs.tether_standing_launch:
+            bones.world_position(bones.index(RightThumb), state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+            if stage.segment_blocked(collision.position.x, state.tether_thumb_y, state.tether_thumb_x + 8 * facing.direction * model.instance_scale_y, state.tether_thumb_y):
+                Tether_Remove()
+                state.wait()
+                state.tether_ground_consumed = true
+                return
+            articles.signal(state.tether_handle, It_Kind_Link_HShot, "extend_air", 0)
+            sound.play(attrs.tether_extend_sound, 127, 64)
+        elif state.tether_counter == attrs.tether_standing_retract:
+            articles.signal(state.tether_handle, It_Kind_Link_HShot, "retract", 0)
+            sound.play(attrs.tether_retract_sound, 127, 64)
+        elif state.tether_counter == attrs.tether_standing_remove:
+            Tether_Remove()
+
+func Tether_DashFrame():
+    state.tether_ground_consumed = false
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == attrs.tether_dash_create:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Link_HShot).exists:
+            state.wait()
+            state.tether_ground_consumed = true
+            return
+    elif state.tether_counter > attrs.tether_dash_create and state.tether_counter <= attrs.tether_dash_remove:
+        if state.tether_counter == attrs.tether_dash_launch:
+            articles.signal(state.tether_handle, It_Kind_Link_HShot, "extend_air", 0)
+            sound.play(attrs.tether_extend_sound, 127, 64)
+        elif state.tether_counter == attrs.tether_dash_retract:
+            articles.signal(state.tether_handle, It_Kind_Link_HShot, "retract", 0)
+            sound.play(attrs.tether_retract_sound, 127, 64)
+        elif state.tether_counter == attrs.tether_dash_remove:
+            Tether_Remove()
+
+
+action GroundCatchPolicy:
+    on catch_allowed:
+        return not articles.ref(state.tether_handle, It_Kind_Link_HShot).exists
+    on catch_start:
+        state.tether_counter = 0
+    on catch_frame:
+        if motion.id == 212:
+            Tether_StandingFrame()
+        else:
+            Tether_DashFrame()
+        return state.tether_ground_consumed
+    on catch_exit:
+        if articles.ref(state.tether_handle, It_Kind_Link_HShot).exists:
+            Tether_Remove()
+    on catch_wait_release:
+        Tether_Remove()
+    on catch_pull_anchor:
+        if not articles.ref(state.tether_handle, It_Kind_Link_HShot).exists:
+            return false
+        articles.signal(state.tether_handle, It_Kind_Link_HShot, "bind_capture", 0)
+        return articles.ref(state.tether_handle, It_Kind_Link_HShot).state.capture_bound
+    on catch_pull_ready:
+        return not articles.ref(state.tether_handle, It_Kind_Link_HShot).exists or articles.ref(state.tether_handle, It_Kind_Link_HShot).state.completed
+    on catch_pull_follow:
+        return false
+    on capture_wait_enter:
+        if articles.ref(state.tether_handle, It_Kind_Link_HShot).exists:
+            articles.signal(state.tether_handle, It_Kind_Link_HShot, "retract_capture", 0)

@@ -1,0 +1,41 @@
+{
+  "status": "Frozen unregistered source-only independent release-versus gate; constructor/render/gameplay acceptance pending",
+  "snapshot": "baseline57",
+  "snapshot_sha256": "c363120e76c4777316a2a769cd04402362e07ca77890a8fb64b01003f11ed695",
+  "receipt_path": ".local\\peach-activation57-final2\\receipt.json",
+  "receipt_sha256": "4caa84fdbcb8364451b4244d797b4432969daa5cf25e19b06ca7e5a1e50a9249",
+  "audit_path": ".local\\peach-activation57-final2\\audit.json",
+  "audit_sha256": "33a1b9b14fdf0634f5f9e760d22d18350dda33b0f51d5bf21b8f48fcf8d080e1",
+  "results": {
+    "checks": 11808,
+    "definition_callbacks": 34,
+    "stock_phases": 114,
+    "article_callbacks": 56,
+    "selection_cases": 30,
+    "reset_pairs": 20,
+    "load_pairs": 8,
+    "failures": 0
+  },
+  "parameter_count": 151,
+  "raw_attribute_count": 67,
+  "namespace_sources": {
+    "assemble.py": "6e69329d9454bb7b130ea47924ac86f03097e5f794fab9a6743587240e55fdc4",
+    "audit.py": "4eadee157d3777489d2100a527a678ca5cb0e76ffa368514cb562855a68f04fd",
+    "caller_closure.md": "f9d39149fbc87f4bb4a0df119a529604562b9e5ff3d3d76a0f4e466eb2ed38c9",
+    "ownership.c": "9d6c2fa8893285a75ce1db866ebc17f2e50036383d3f0b8386711875568098a3",
+    "prepare.py": "bedc726c6eaac7639276f58cd55c681b7a30616ff339d54d947025acee470358",
+    "README.md": "82524806c8c8d6f890e3f1281fe2c3f35e4115cadc4d7532b49990739c3fcb39"
+  },
+  "accepted_component": {
+    "path": "tests/native/peach_parasol_travel_composition/candidate.fms",
+    "sha256": "08bd625b98026969ccc75ba63aa7de68d694255511157d838042f7fffebde6b1"
+  },
+  "constructor_inputs": {
+    "src\\melee\\it\\kinds\\itpeachexplode.c": "de35e35ec11b165f41adf2cf07642fb2c6658b27e5a20f078466559840986a18",
+    "src\\melee\\it\\kinds\\itpeachparasol.c": "4ab2510baccbd35b68f53653831cf712bc9ab97068780a13c7c659b37582ca85",
+    "src\\melee\\it\\kinds\\itpeachtoad.c": "c9ff55592ac68dffaac46238b6fc81d27ea710df77fba56a7d3ac52ee1089b4c",
+    "src\\melee\\it\\kinds\\itpeachtoadspore.c": "06b08ca4fddc021bf2ab53fa509de70890744e9ad427af2cf48706c815969998",
+    "src\\melee\\it\\kinds\\itpeachturnip.c": "a93e2222a34ff3d956416158705f2594bfa5636077d6bd54e14267cc904b56ca"
+  },
+  "reproduction": "python tests/native/peach_activation_composition/prepare.py --snapshot .local/baseline57 --output .local/peach-activation57-reproduction"
+}

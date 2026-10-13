@@ -1,0 +1,27 @@
+{
+  "status": "Frozen scoped actual-source/import acceptance; no GX/game acceptance",
+  "receipt": ".local/common-palette-repair58-final2/receipt.json",
+  "receipt_sha256": "cf371e77a2c4290d2d4a202ce8adb9eb7b54c1dba1745fd735194fe16fe8e2cd",
+  "results": {
+    "checks": 19001,
+    "import_cases": 17,
+    "query_cases": 256,
+    "material_pairs": 4608,
+    "invalid_material_cases": 1000,
+    "failures": 0
+  },
+  "production_files": {
+    "src/melee/ft/ftcommon_assets.c": "6da11134ffcd2f406a69b335f3b710291f290dbe8472f32e11b7aebeb15bcc62",
+    "src/melee/ft/ftlib.c": "cd1f7263d39686c2e28d7f69fd0139d9e19bbe1f95fc00a497dd358e2d2a2148",
+    "src/melee/ft/ftlib.h": "246070d199964fced094480e8bc6d6d60054b3994a5e843475d993d12f0d815d",
+    "src/melee/ft/ftlib.dox": "8a08493e0446fcb3b6f1c7fb4f616a27c2135d7fad64970135af9ce525f9eba2",
+    "src/melee/ft/ftmaterial_tev.c": "73d014b3c967eb8e142ad48490a09070080fb722c989441f05b5ad4d25a9c9bf",
+    "src/melee/ft/types.h": "7a78a32a66dfea5a7f9606ca91e7f0a9213e7ed1663ff76ecddf87f8b957d013",
+    "src/melee/it/itzako.c": "11ba2949ee9f016a672ece6926adad5a4e5f3ac5f821c53a76c31c754ba093db"
+  },
+  "namespace_files": {
+    "README.md": "de3d3faf2626fee6e0497c8b4ef8f842423dfd34aaa2a6692971c481d96a050e",
+    "run.py": "f5bec31b583d224662f33b2d456def6e078bbc0308d754f76391d67035f143cc",
+    "test.c": "40764651f59e430cee007d6fd1c6620e70f9bc1a8871aee96f970d615eefef6c"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "status": "READ_ONLY_DESIGN_COMPLETE",
+  "scope": "Frozen71 actual-source census and unimplemented generic policy proposal; no compile/gameplay acceptance",
+  "snapshot_manifest_sha256": "820f4d64f0809c1d9cb412d54d84797b689434b753f714216179397e3c274b60",
+  "source_definition_count": 41,
+  "verified_input_count": 13,
+  "reproduction_output": "A:\\FreakMelee-test-archives\\cpu-follower-design71-receipt",
+  "namespace_inputs": {
+    "census.py": "bc4bfd9b6723bc4b3b05930270cddffe6982676c74b20f3cc19fb509e0eb74f7",
+    "API.md": "93e3941acbe0eae987341605a443a3a9729fa8cc577bf13f62633199c9051ceb",
+    "README.md": "1e3671a821447d6407e49fda61f662669a83b123315e34eefef780f25d558906",
+    "source_inventory.json": "97f3acd7a620594f20e9f4f65fcf1a659026c8fadce9c4c7deb478ba65310353"
+  },
+  "extraction_outputs": {
+    "ftcmdscript_bodies.txt": "7b55cdce5c8af1fe626f1120ae336624ccc6465ac92257ed041ef45943a943aa",
+    "ftCo_0A01_bodies.txt": "fb47bca9225b09af283de6dc90ea7ae2a870cca2df405c58540e4523626f3911",
+    "ftcpuattack_bodies.txt": "f24d6216ea0bec4251906ace5ca445fc9d57dec6558ac480f4d2de72121b0501",
+    "source_inventory.json": "97f3acd7a620594f20e9f4f65fcf1a659026c8fadce9c4c7deb478ba65310353"
+  },
+  "production_changes": false,
+  "accepted_namespace_changes": false,
+  "build_or_game_run": false
+}

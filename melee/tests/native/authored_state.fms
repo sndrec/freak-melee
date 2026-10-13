@@ -1,0 +1,30 @@
+move Burst:
+    on special_n:
+        state.enter(NeutralSpecial)
+        motion.add_facing_speed(0.8)
+    on special_air_n:
+        state.enter(NeutralSpecial)
+        motion.add_facing_speed(0.4)
+        motion.add_vertical_speed(0.25)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        if command(0): controls.ground_actions()
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+    on neutral_special_cue:
+        state.once()
+        articles.spawn(MarioFireball, LeftHand)
+        effects.spawn(1146, LeftHand)
+        motion.set_facing_speed(1.5)
+        motion.set_vertical_speed(0.5)

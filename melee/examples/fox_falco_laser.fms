@@ -1,0 +1,221 @@
+# Blaster laser callbacks, translated from itfoxlaser.c / Item_UpdateRayAnimation.
+# Also included in fox_wip.fms and falco_wip.fms; retained for focused comparisons.
+# Uses radians; launch angle/speed/state are supplied by the firing script.
+
+article It_Kind_Fox_Laser states 2:
+    attribute float lifetime 0
+    attribute float maximum_length 4
+    state float length
+    state float angle
+    state float speed
+    state float rotation_velocity_x
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state bool stage_hit
+    projectile appearance -1 state 0 speed 0 angle 0 lifetime lifetime initial_velocity off initial_update off
+    on launched:
+            item.state.length = 0
+            item.state.angle = item.launch_angle
+            item.state.speed = item.launch_speed
+            item.state.previous_x = item.launch_origin.x
+            item.state.previous_y = item.launch_origin.y
+            item.state.previous_z = item.launch_origin.z
+    on reflected:
+            if facing != item.reflect_facing: item.joint("").rotation.y = (pi / 2) * item.reflect_facing
+            facing = item.reflect_facing
+            item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.length = float(0.001)
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            return false
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false
+    state 1 anim 1:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false
+
+article It_Kind_Falco_Laser states 2:
+    attribute float lifetime 0
+    attribute float maximum_length 4
+    state float length
+    state float angle
+    state float speed
+    state float rotation_velocity_x
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state bool stage_hit
+    projectile appearance -1 state 0 speed 0 angle 0 lifetime lifetime initial_velocity off initial_update off
+    on launched:
+            item.state.length = 0
+            item.state.angle = item.launch_angle
+            item.state.speed = item.launch_speed
+            item.state.previous_x = item.launch_origin.x
+            item.state.previous_y = item.launch_origin.y
+            item.state.previous_z = item.launch_origin.z
+    on reflected:
+            if facing != item.reflect_facing: item.joint("").rotation.y = (pi / 2) * item.reflect_facing
+            facing = item.reflect_facing
+            item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.length = float(0.001)
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            return false
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false
+    state 1 anim 1:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false

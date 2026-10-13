@@ -1,0 +1,38 @@
+{
+  "status": "FOUR STRICT PAIR PASSES across initial/corrected packages; Chef/Rescue representation limits remain",
+  "snapshot": "A:\\FreakMelee-test-archives\\baseline65",
+  "freeze_sha256": "efd4397a8cda373b29abbe365d98e1f66179cfa36135f32d6456a1a90e603d71",
+  "files": {
+    "tests/native/gamewatch_clone_activation/assemble.py": "7dcb43c29c38eb7656dea5fcf765a5c7c0f7a027d0902b40b947e5e28b6e4cf9",
+    "tests/native/gamewatch_clone_activation/audit.py": "fe4147fc5002b9770fd346f4ee8123fd4f20d4e388bbb39dbbece6c4581a6135",
+    "tests/native/gamewatch_clone_activation/checkpoint64.json": "c2ae53e48d975e92e75432d1027c17405be1a73a84573c554ed8ed1871736a84",
+    "tests/native/gamewatch_clone_activation/inspect_probe_evidence.py": "8a6455f06d8c5190188406abc5823548e01613bbb0bd184c6f0288a6d8d6ad83",
+    "tests/native/gamewatch_clone_activation/normal_boundaries.h": "ab091b667dadf8a4144f3c08f3bd2b3f34ed8722492b360b81ae987017a75c02",
+    "tests/native/gamewatch_clone_activation/normal_compare.c": "929d5b9572635df8ad85adb0642c14fe0aa5fc39ad3a75d50e0112002287e1e1",
+    "tests/native/gamewatch_clone_activation/normal_compare.py": "c642c13fc4245d23b41f1a5d5271385fadeaed648aa656519f3a43bb53120cc5",
+    "tests/native/gamewatch_clone_activation/normal_matrix.h": "2a3ea74d920917684c11281d2b378937d1a4a89b39c44cb6b3404c4e54da0a1e",
+    "tests/native/gamewatch_clone_activation/ownership.c": "d09fa028edd2c93269218d35ba9aa6058ccc65fa4d75c02fa1ef27450da39ef4",
+    "tests/native/gamewatch_clone_activation/plan_gameplay.py": "249895c0bb352a86b067239690cd8675a527808d58334c03f9a9f69b2f17e66c",
+    "tests/native/gamewatch_clone_activation/prepare.py": "ff77158cc460550384f98a122daab6ab033f205ba87602d32fd686f0e1592670",
+    "tests/native/gamewatch_clone_activation/README.md": "54b9c089a7864501c50c07c24f8c0eed3ca29ee8b5e77d866b766a02ab9754ab",
+    "tests/native/gamewatch_clone_activation/source_manifest.json": "3358e88c3f208049b8ad8e3cbf3bd0e727dca5b730fbe534d40592d440dc1e64",
+    "tests/native/gamewatch_clone_activation/template_corrections.patch": "967fe3aea02daf3dcb96398fbfbc291cd4a3c7b5797e33e7d738871140baabd7"
+  },
+  "receipts": {
+    "A:\\FreakMelee-test-archives\\gamewatch-gameplay65-final-plan\\receipt.json": "fbb6ce5ffbbbd665cb1af3177618063c3fee2db1fdd342fe8d5be17ab3390c33",
+    "A:\\FreakMelee-test-archives\\gamewatch-gameplay65-final-plan\\clip-trace-evidence.json": "97f4c79a11a72d4e83cb16da845df5eda0e07ae6175fe2397aa8838a038a6470",
+    "A:\\FreakMelee-test-archives\\gamewatch-activation65-root-final\\receipt.json": "0b80ce85c74767e80828ca579912fba0904778e4546e298400a3269b88e2ea73",
+    "A:\\FreakMelee-test-archives\\gamewatch-panic65-fixed\\receipt.json": "0da360318d83138c72ef435040ad9665833f4a920c914368dea67e9d4f7b5693",
+    "A:\\FreakMelee-test-archives\\gamewatch-bucket-source65-fixed\\receipt.json": "9eb738b27c3498f71d4b6f2a26a11e4a907851cdd5e75f881071447cac218fbb",
+    "A:\\FreakMelee-test-archives\\gamewatch-activation65-bucket-fixed\\receipt.json": "33e93b2f0ca774056d2dfe9cc1b762bdf11c6039fef7a3c315d9e8407370eb3e"
+  },
+  "production_changes": "Root corrected BucketModels to current groups; this namespace links actual original group bodies only in bucket-only source mode. No SDK/comparer/template changes by fixture.",
+  "bucket_correction": {
+    "receipt": "A:\\FreakMelee-test-archives\\gamewatch-panic65-fixed\\receipt.json",
+    "sha256": "0da360318d83138c72ef435040ad9665833f4a920c914368dea67e9d4f7b5693",
+    "source_receipt": "A:\\FreakMelee-test-archives\\gamewatch-bucket-source65-fixed\\receipt.json",
+    "source_receipt_sha256": "9eb738b27c3498f71d4b6f2a26a11e4a907851cdd5e75f881071447cac218fbb",
+    "candidate_sha256": "433ab2aabf26912cdc6b4e60aeb26c4d6aec39aedcd500d9a0ce4232b530d597",
+    "package_id": "d4d78db7f079867881bb410d9c3d700b6cfd42e90972b16fca6cb28fb954ec76"
+  }
+}

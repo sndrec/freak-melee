@@ -1,0 +1,11 @@
+# ftPe_Init_8011B93C reads the saved group (.prev), then writes that same channel.
+# ftCo_800DEBD0 enables this cosmetic toggle only in DebugRom and higher levels.
+move DebugTauntPolicy:
+    on taunt:
+        if engine.debug_level >= DebugLevel.debug_rom:
+            if visuals.previous_group(2) == -1:
+                visuals.set_group(2, 0)
+            else:
+                visuals.set_group(2, -1)
+        # Actual ftCo_MS_AppealSR/SL; source fixture asserts both enum values.
+        state.taunt(264, 265)

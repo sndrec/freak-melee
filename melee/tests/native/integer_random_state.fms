@@ -1,0 +1,43 @@
+state int current
+state int previous
+
+func install_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+func choose(int base_count, bool exclude_previous, float adjustment):
+    let count = base_count + adjustment
+    if state.current < 9: count = count - 1
+    if exclude_previous and state.previous < 9 and state.previous != state.current: count = count - 1
+    let choice = random.int(count)
+    let lower = state.current
+    let higher = state.previous
+    if lower > higher:
+        let temporary = lower
+        lower = higher
+        higher = temporary
+    if choice >= lower: choice = choice + 1
+    if choice >= higher: choice = choice + 1
+    state.previous = state.current
+    state.current = choice
+    install_callbacks()
+
+func increase(bool previous_value, int amount):
+    # Exercise an integer parameter, a loop and function-local assignment.
+    while amount > 10: amount = amount - 1
+    if previous_value: state.previous = state.previous + amount
+    else: state.current = state.current + amount
+
+move BoundedChoice:
+    on load:
+        state.current = 9
+        state.previous = 9
+        install_callbacks()
+    on tick:
+        choose(9, true, 0)
+    on damage:
+        increase(false, 13)
+    on death2:
+        increase(true, 10)
+    on item_pickup:
+        if event.flag: state.current = state.current + 1

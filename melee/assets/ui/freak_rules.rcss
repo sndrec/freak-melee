@@ -1,0 +1,48 @@
+#rules-panel {
+  position: absolute; left: 0; top: 0; width: 100vw; height: 100vh;
+  display: flex; flex-direction: column; padding: 32dp 40dp;
+  background-color: #10111b; z-index: 11; pointer-events: none; visibility: hidden;
+  transform: translateX(-100%); transition: transform 0.24s cubic-out;
+}
+#rules-panel.open { transform: translateX(0%); pointer-events: auto; }
+#rules-close { padding: 13dp 20dp; margin-right: 35dp; font-size: 21dp; font-weight: bold; color: #fff1e7; border: 1dp #7e5456; border-radius: 4dp; background-color: #33242e; }
+#rules-close:hover, #rules-close:focus { background-color: #61353e; border-color: #fa8a75; }
+.rules-content { display: flex; flex: 1; min-height: 0; margin-top: 22dp; }
+.rules-mode-column { display: flex; flex-direction: column; flex: 0 0 300dp; padding-right: 30dp; border-right: 1dp #39303c; }
+.rules-mode-column .eyebrow { margin-bottom: 16dp; }
+.rules-mode { display: flex; flex-direction: column; width: 100%; padding: 16dp; margin-bottom: 10dp; text-align: left; color: #e4d8e1; background-color: #1c1b27; border: 1dp #3b3442; border-left: 3dp #62505e; border-radius: 3dp; }
+.rules-mode:hover, .rules-mode:focus { background-color: #302530; border-color: #ba7668; }
+.rules-mode.selected { background-color: #392733; border-color: #f28b73; border-left-color: #fa6456; }
+.rules-mode strong { font-size: 20dp; margin-bottom: 5dp; }
+.rules-mode span { font-size: 12dp; color: #a99baa; }
+.rules-mode-note { margin-top: auto; padding: 18dp; color: #b6a7b3; background-color: #191923; border-left: 3dp #64505f; font-size: 13dp; line-height: 1.6; }
+.rules-fields { flex: 1; min-width: 0; overflow-y: auto; padding: 0 4dp 16dp 32dp; }
+.rules-field-grid { display: flex; flex-wrap: wrap; margin-top: 10dp; }
+.rules-field { flex: 0 0 48%; margin: 0 2% 8dp 0; padding: 11dp 16dp; background-color: #191923; border: 1dp #35303e; border-radius: 4dp; }
+.rules-field label { display: block; margin-bottom: 6dp; font-size: 16dp; font-weight: bold; }
+.rules-field p, .rules-toggle-row p { margin-top: 4dp; color: #a89cab; font-size: 12dp; }
+.rules-input-row { display: flex; align-items: center; }
+.rules-input-row input { width: 96dp; height: 38dp; padding: 7dp 12dp; color: #fff1e7; background-color: #28212e; border: 1dp #71505e; border-radius: 3dp; font-size: 20dp; font-weight: bold; }
+.rules-input-row input:focus { border-color: #f5907b; }
+.rules-input-row span { margin-left: 10dp; color: #d2b9bc; font-size: 13dp; }
+.rules-secondary-heading { margin: 7dp 0 4dp; }
+.rules-toggle-row { display: flex; align-items: center; min-height: 55dp; border-bottom: 1dp #31303d; }
+.rules-toggle-row > div { flex: 1; }
+.rules-toggle-row strong { font-size: 16dp; }
+.rules-toggle-row button { width: 135dp; padding: 11dp; color: #ffdacb; background-color: #352831; border: 1dp #6e4b4a; border-radius: 3dp; font-size: 14dp; }
+.rules-toggle-row button:hover, .rules-toggle-row button:focus { background-color: #50333c; border-color: #f5907b; }
+.rules-item-heading { display: flex; align-items: center; justify-content: space-between; margin: 16dp 0 10dp; }
+.rules-item-heading > div:first-child { display: flex; align-items: baseline; }
+.rules-item-heading strong { font-size: 16dp; }
+#rules-item-count { margin-left: 12dp; color: #a89cab; font-size: 12dp; }
+.rules-item-actions { display: flex; }
+.rules-item-actions button { margin-left: 8dp; padding: 6dp 16dp; color: #e7c8c1; background-color: #25232f; border: 1dp #5a4655; border-radius: 3dp; }
+.rules-item-actions button:hover, .rules-item-actions button:focus { border-color: #f5907b; background-color: #49313d; }
+.rules-item-grid { display: flex; flex-wrap: wrap; margin-bottom: 17dp; }
+.rules-item-grid button { width: 24%; margin: 0 1% 7dp 0; padding: 8dp 5dp; color: #aaa1ac; text-align: center; background-color: #1b1c28; border: 1dp #3b3542; border-radius: 3dp; font-size: 12dp; }
+.rules-item-grid button:hover, .rules-item-grid button:focus { border-color: #e98c78; color: #fff1e7; }
+.rules-item-grid button.selected { color: #fff1e7; background-color: #56343d; border-color: #da7b6b; }
+.rules-footer { display: flex; align-items: center; flex-shrink: 0; padding-top: 17dp; border-top: 1dp #39303c; }
+#rules-status { flex: 1; color: #f0ad8b; font-size: 14dp; }
+#rules-save { width: 170dp; padding: 14dp; color: #fff1e7; background-color: #a84d43; border: 1dp #dc7768; border-radius: 3dp; font-size: 15dp; font-weight: bold; }
+#rules-save:hover, #rules-save:focus { background-color: #c45b4d; }

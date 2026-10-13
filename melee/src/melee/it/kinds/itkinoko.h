@@ -1,0 +1,32 @@
+#ifndef GALE01_293660
+#define GALE01_293660
+
+#include <Runtime/platform.h>
+
+#include <melee/it/forward.h>
+
+#include <melee/it/kinds/types.h>
+
+typedef struct KinokoAttrs {
+    f32 ground_speed;
+    f32 deceleration;
+    HSD_AnimJoint* animation_joints[2];
+} KinokoAttrs;
+
+HSD_AnimJoint* it_80293660(int idx);
+void itKinoko_Logic26_Spawned(Item_GObj*);
+void it_802936E4(Item_GObj*);
+bool itKinoko_UnkMotion0_Anim(Item_GObj*);
+void itKinoko_UnkMotion0_Phys(Item_GObj*);
+bool itKinoko_UnkMotion0_Coll(Item_GObj*);
+void it_8029385C(Item_GObj*);
+void it_80293884(Item_GObj*);
+bool itKinoko_UnkMotion1_Anim(Item_GObj*);
+void itKinoko_UnkMotion1_Phys(Item_GObj*);
+bool itKinoko_UnkMotion1_Coll(Item_GObj*);
+bool itKinoko_Logic26_DmgDealt(Item_GObj*);
+void itKinoko_Logic26_EvtUnk(Item_GObj*, HSD_GObj*);
+
+extern ItemStateTable it_803F6110[];
+
+#endif

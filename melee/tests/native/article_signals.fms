@@ -1,0 +1,97 @@
+state int spawn_kind
+func receive_article(float speed, int marker):
+    velocity.x = speed
+    velocity.y = marker
+    state.enter_at_speed(341, Transition.skip_model | Transition.skip_hitboxes, 0, 1)
+action Send:
+    on state_341_animation:
+        articles.signal_owned(17, "impulse", facing.direction * 2.5)
+        state.spawn_kind = It_Kind_Fox_Blaster
+        let created = articles.spawn_bone_attached(state.spawn_kind, RightThumb)
+article It_Kind_Fox_Blaster states 4:
+    state float received
+    state int index
+    state float x
+    state float y
+    state float z
+    state bool found
+    state float angle
+    table float values = [3.25, -7, 0.0625]
+    on signal impulse:
+            item.state.received = signal.value
+    on signal choose:
+            if signal.value < 0:
+                if signal.value < -1:
+                    item.state.index = -2
+                else:
+                    item.state.index = -1
+            elif signal.value < 3:
+                item.state.index = int(signal.value)
+            else:
+                item.state.index = 3
+    on signal change:
+            item.change_state(int(signal.value))
+    on signal attach:
+            item.attach_to_owner(int(signal.value))
+    on signal release_preserve:
+            item.release_attachment(1, 2, 3, true)
+            item.throw_speed_damage = false
+    on signal release:
+            item.release_attachment(1, 2, 3)
+    on signal joint_effect:
+            item.spawn_effect_on_joint(1151, "0/0")
+    on signal collision:
+            item.stage_collision(signal.value != 0)
+    on signal cycle:
+            item.state.index = (item.state.index + 1) % 3
+    on signal fighter_target:
+            targets.fighter_ahead(item.state.x, item.state.y, item.state.z, item.state.found)
+            position.x = item.state.x
+            position.y = item.state.y
+            position.z = item.state.z
+            item.physics_disabled = item.state.found
+    on signal item_target:
+            targets.item_ahead(item.state.x, item.state.y, item.state.z, item.state.found)
+            position.x = item.state.x
+            position.y = item.state.y
+            position.z = item.state.z
+            item.physics_disabled = item.state.found
+    on signal steering:
+            item.state.x = 3
+            item.state.y = 4
+            item.state.z = 7
+            vectors.normalize_xy(item.state.x, item.state.y, item.state.z)
+            item.state.angle = vectors.angle_xy(item.state.x, item.state.y, 0, 1)
+            vectors.rotate_z(item.state.x, item.state.y, item.state.z, item.state.angle)
+            velocity.x = item.state.x
+            velocity.y = item.state.y
+            velocity.z = item.state.z
+    on signal contact:
+            item.signal("impulse", 7)
+    on signal response:
+            if signal.value == 0:
+                item.respond_to_stage()
+            elif signal.value == 1:
+                item.follow_ground()
+            elif signal.value == 2:
+                item.bounce_to_ground()
+            else:
+                item.slide_on_ground()
+    on signal owner_update:
+            if item.overlaps_owner(0):
+                owner.call(receive_article, signal.value, 7)
+    on stage_left:
+            item.state.received = -1
+    on stage_landed:
+            item.state.received = 1
+    on signal wrap:
+            item.state.index = uint(item.state.index) + 1
+            item.physics_disabled = uint(item.state.index) - uint(-1) >= 2
+    on stage_contact:
+            item.signal("contact", 0)
+    state 3 anim 7:
+        on physics:
+            position.x = table.values[item.state.index]
+    state 0 anim 4 use 3:
+    state 1 anim 5 use 0:
+    state 2 anim 6 use 1:

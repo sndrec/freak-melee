@@ -1,0 +1,49 @@
+# Bind the dealt-damage event, matching the original native Side-B.
+# The old C emitter incorrectly added an animation restart here.
+func SideHit():
+    state.enter(344)
+
+move SideSpecial:
+    on special_s:
+        state.enter(345)
+        callbacks.deal_damage(SideHit)
+        state.side_started_grounded = 1
+        state.side_grab_flip = 0
+        state.side_started_turned = 0
+    on special_air_s:
+        state.enter(345)
+        callbacks.deal_damage(SideHit)
+        state.side_started_grounded = 0
+        state.side_grab_flip = 0
+        state.side_started_turned = 0
+    on state_344_animation:
+        if frame == 10 and state.side_grab_flip == 0:
+            facing.direction = -facing.direction
+    on state_344_interrupt:
+        if command(0) == 2:
+            collision.cliff_catch()
+            controls.try_aerial_jump()
+        elif command(0) == 3:
+            state.fall()
+    on state_344_physics:
+        physics.animation_velocity()
+        if command(0) == 2:
+            physics.fall(1, 1)
+            physics.air_accel(0.6, 1.5)
+    on state_344_collision:
+        if collision.check_ground_ledge(0) and command(0) == 3:
+            state.basic_landing()
+    on state_345_interrupt:
+        if command(0) == 1:
+            collision.cliff_catch()
+        elif command(0) == 3:
+            state.freefall(1, 0, false, 1, 12)
+    on state_345_physics:
+        physics.animation_velocity()
+        if state.side_started_grounded == 1 and frame < 11:
+            velocity.y = 0.5
+        if command(0) == 2:
+            physics.air_accel(0.6, 1.5)
+    on state_345_collision:
+        if collision.check_ground_ledge(0) and command(0) == 2:
+            state.landing_special(false, 20)

@@ -1,0 +1,113 @@
+# Unregistered complete Transform component. SDK67 generic partner transfer.
+# Named per-form parameters/state persist when the dormant member activates.
+# DECLARATIONS
+attribute float transform_horizontal_divisor 112
+attribute float transform_vertical_divisor 116
+attribute float transform_gravity 120
+attribute float transform_terminal 124
+attribute float transform_finish_frame 128
+parameter int transform_origin_joint = 0
+parameter int transform_start_joint = 104
+parameter int transform_finish_joint = 4
+parameter int transform_start_effect = 1276
+parameter int transform_finish_effect = 1277
+parameter int transform_wind_frames = 120
+parameter float transform_wind_strength = 0.4
+parameter float transform_wind_decay = 0.003
+parameter float transform_wind_frequency = 1.0471975511965976
+
+# FUNCTIONS
+func transform_start_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_start_effect, attrs.transform_start_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_finish_effect():
+    if not effects.active:
+        effects.spawn_on_part(attrs.transform_finish_effect, attrs.transform_finish_joint)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func transform_transfer():
+    callbacks.accessory(None)
+    # The destination invokes its own form_activated policy. Do not write the
+    # source after activation: it normally survives, but is now dormant.
+    forms.activate_partner()
+    return
+
+func transform_start():
+    command(0) = 0
+    velocity.x = velocity.x / attrs.transform_horizontal_divisor
+    velocity.y = velocity.y / attrs.transform_vertical_divisor
+    ground.velocity = ground.velocity / attrs.transform_horizontal_divisor
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.transform_origin_joint, x, y, z)
+    effects.wind_at_position(x, y, z, attrs.transform_wind_frames, attrs.transform_wind_strength, attrs.transform_wind_decay, attrs.transform_wind_frequency)
+    callbacks.accessory(transform_start_effect)
+
+# CALLBACKS
+move Down:
+    on special_lw:
+        state.enter_at_speed(355, 0, 0, 1)
+        animation.start()
+        transform_start()
+    on special_air_lw:
+        state.enter_at_speed(357, 0, 0, 1)
+        animation.start()
+        transform_start()
+    on form_activated:
+        if airborne: state.enter_at_speed(358, 0, attrs.transform_finish_frame, 1)
+        else: state.enter_at_speed(356, 0, attrs.transform_finish_frame, 1)
+        # Stock finish does not restart/reset the animation after this entry.
+        callbacks.accessory(transform_finish_effect)
+    on state_355_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_356_animation:
+        if animation.finished:
+            state.wait()
+    on state_357_animation:
+        if animation.finished:
+            callbacks.accessory(transform_transfer)
+    on state_358_animation:
+        if animation.finished:
+            state.fall()
+    on state_355_interrupt:
+        pass
+    on state_356_interrupt:
+        pass
+    on state_357_interrupt:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_355_physics:
+        physics.ground_friction()
+    on state_356_physics:
+        physics.ground_friction()
+    on state_357_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_358_physics:
+        physics.fall(attrs.transform_gravity, attrs.transform_terminal)
+        physics.air_decel_normal()
+    on state_355_collision:
+        if collision.left_ground:
+            state.switch_to_air(357, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_356_collision:
+        if collision.left_ground:
+            state.switch_to_air(358, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)
+    on state_357_collision:
+        if collision.landed:
+            state.switch_to_ground(355, 0x0c4c508e)
+            callbacks.accessory(transform_start_effect)
+    on state_358_collision:
+        if collision.landed:
+            state.switch_to_ground(356, 0x0c4c508e)
+            callbacks.accessory(transform_finish_effect)

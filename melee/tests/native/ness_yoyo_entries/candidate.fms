@@ -1,0 +1,195 @@
+# UNREGISTERED article entry/animation candidate. No smash phases or activation.
+parameter int resource_attachment_joint = 42
+parameter int yoyo_reverse_motion = 345
+parameter int yoyo_ecb_category = 5
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+parameter int yoyo_first_motion = 342
+parameter int yoyo_last_motion = 347
+parameter float yoyo_retract_fraction = 0.1
+parameter int bat_smash_motion = 341
+state float yoyo_spin_rate
+state int yoyo_handle
+state int bat_handle
+export func yoyo_forget():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "resume", 0)
+    state.yoyo_handle = -1
+export func bat_forget():
+    state.bat_handle = -1
+action Probe:
+    on load:
+        pass
+article It_Kind_Ness_Yoyo states 4:
+    attribute int link_count 0
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state float matrix[12]
+    state float input_x
+    state float input_y
+    state float input_z
+    state float retract_step
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.params.link_count - 1
+            item.state.allocated = item.resources.begin(item.params.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.params.link_count:
+                let float radius = attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = attrs.yoyo_tip_radius * creator.instance_scale_y
+                let bool constructed = item.resource(node).create(attrs.resource_attachment_joint, radius, attrs.yoyo_ecb_category, position.x, position.y, position.z)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                # Original it_80275328 initializes the remembered surface to0.
+                item.resource(node).surface_line = 0
+                item.state.pinned[node] = node == item.state.tip
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                # Original string draw checks x2C_b0(false); tip draws directly.
+                let bool drawing = item.resource(node).set_draw(node == item.state.tip)
+                node = node + 1
+            item.attach_to_owner(attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+
+
+    func Held():
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.tip).position.x = item.state.matrix[3]
+        item.resource(item.state.tip).position.y = item.state.matrix[7]
+        item.resource(item.state.tip).position.z = item.state.matrix[11]
+        item.resource(item.state.tip).collision.position.x = item.resource(item.state.tip).position.x
+        item.resource(item.state.tip).collision.position.y = item.resource(item.state.tip).position.y
+        item.resource(item.state.tip).collision.position.z = item.resource(item.state.tip).position.z
+        item.resource(item.state.tip).collision.previous.x = item.resource(item.state.tip).collision.position.x
+        item.resource(item.state.tip).collision.previous.y = item.resource(item.state.tip).collision.position.y
+        item.resource(item.state.tip).collision.previous.z = item.resource(item.state.tip).collision.position.z
+        item.state.pinned[item.state.tip] = true
+        let bool drawing = item.resource(item.state.tip).set_draw(true)
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.change_state_flags(1, 2)
+    func Released():
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.resource(item.state.tip).velocity.x = facing * abs(item.resource(item.state.tip).velocity.x)
+        item.change_state_flags(2, 2)
+    func Retract():
+        item.resource(0).read_attachment_matrix(item.state.matrix)
+        let float dx = item.resource(item.state.tip).position.x - item.state.matrix[3]
+        let float dy = item.resource(item.state.tip).position.y - item.state.matrix[7]
+        item.state.retract_step = sqrt(dx * dx + dy * dy)
+        item.state.retract_step = item.state.retract_step * attrs.yoyo_retract_fraction
+        item.change_state_flags(3, 2)
+    func Material(float frame):
+        item.resource(item.state.tip).joint("").remove_animation()
+        item.resource(item.state.tip).joint("").add_animation(Spin)
+        item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+        item.resource(item.state.tip).joint("").request_animation(frame)
+        item.resource(item.state.tip).joint("").advance_animation()
+    func ReleaseOwner():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "yoyo_forget")
+        item.clear_current_owner()
+        item.resources.release()
+    func Animate():
+        if item.resource(item.state.tip).joint("0").exists:
+            item.resource(item.state.tip).joint("0").rotation.x = item.resource(item.state.tip).joint("0").rotation.x + creator.state.yoyo_spin_rate
+    on interaction:
+            item.interact(other)
+    on signal held:
+            Held()
+    on signal released:
+            Released()
+    on signal retract:
+            Retract()
+    on signal material:
+            Material(signal.value)
+    on signal resume:
+            item.resume()
+    state 0 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+    state 1 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+    state 2 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+    state 3 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+
+article It_Kind_Ness_Bat states 2:
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.joint(0, "0").visible = item.command0 == 0
+            if creator.exists:
+                if creator.motion == attrs.bat_smash_motion and creator.state.bat_handle != -1:
+                    return false
+                if item.attachment_active: creator.call(bat_forget)
+            item.detach_owner()
+            return true
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim -1:
+        on animation:
+            # Existing creator.incapacitated is ftCo_800BF228, and root_scale_y
+            # is actual HSD root Y, not fighter model/instance scale.
+            if creator.exists and creator.incapacitated:
+                item.joint(0, "").scale.x = creator.root_scale_y
+                item.joint(0, "").scale.y = creator.root_scale_y
+                item.joint(0, "").scale.z = creator.root_scale_y
+            return false
+        on physics:
+            pass
+        on collision:
+            return false
+
+
+

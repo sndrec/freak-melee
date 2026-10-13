@@ -1,0 +1,45 @@
+# UNREGISTERED source-only load presentation policy. No full-fighter claim.
+# Values import from actual special-attribute bytes, never host word-punned GXColor.
+attribute float model_width 0
+attribute byte body_0_r 4
+attribute byte body_0_g 5
+attribute byte body_0_b 6
+attribute byte body_0_a 7
+attribute byte body_1_r 8
+attribute byte body_1_g 9
+attribute byte body_1_b 10
+attribute byte body_1_a 11
+attribute byte body_2_r 12
+attribute byte body_2_g 13
+attribute byte body_2_b 14
+attribute byte body_2_a 15
+attribute byte body_3_r 16
+attribute byte body_3_g 17
+attribute byte body_3_b 18
+attribute byte body_3_a 19
+attribute byte outline_r 20
+attribute byte outline_g 21
+attribute byte outline_b 22
+attribute byte outline_a 23
+visibility_asset 10
+state int panic_charge
+action PaperLoad:
+    on load:
+        # Common initialization already cleared x2222_b6. The native x2223_b1
+        # write has no readers; neither is a material policy.
+        visuals.preserve_secondary_material = true
+        state.panic_charge = 0
+        model.instance_scale_z = attrs.model_width
+        visuals.outline_color = color.rgba(attrs.outline_r, attrs.outline_g, attrs.outline_b, attrs.outline_a)
+        # Stock x619_costume_id selects the four raw palettes. An unsupported
+        # custom index uses explicit palette0 rather than reading past the array.
+        let int body = color.rgba(attrs.body_0_r, attrs.body_0_g, attrs.body_0_b, attrs.body_0_a)
+        if costume.index == 1:
+            body = color.rgba(attrs.body_1_r, attrs.body_1_g, attrs.body_1_b, attrs.body_1_a)
+        if costume.index == 2:
+            body = color.rgba(attrs.body_2_r, attrs.body_2_g, attrs.body_2_b, attrs.body_2_a)
+        if costume.index == 3:
+            body = color.rgba(attrs.body_3_r, attrs.body_3_g, attrs.body_3_b, attrs.body_3_a)
+        visuals.set_diffuse_color(body)
+        visuals.install_outline_visibility(10)
+# Article registration is immutable package binding, not an authored stock handler.

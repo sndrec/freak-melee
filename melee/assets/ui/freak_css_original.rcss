@@ -1,0 +1,29 @@
+#css-original-edit { display: none; }
+#css-original-edit.active { color: #ffe1c5; background-color: #58353e; }
+#css-original-sidebar-normal { display: block; opacity: 1; transition: opacity 0.18s; }
+#css-original-editor-header { display: none; padding: 3dp 12dp 18dp; border-bottom: 1dp #5b4754; }
+#css-original-back { display: block; padding: 9dp 3dp; margin-bottom: 22dp; color: #f1c3ad; background-color: transparent; border: 0dp; font-size: 15dp; font-weight: bold; text-align: left; }
+#css-original-back:hover { color: #fff; }
+.css-editor-title { margin-top: 8dp; font-family: Arial; font-size: 29dp; font-style: italic; font-weight: bold; }
+#css-original-tools { display: none; padding: 13dp 12dp; }
+#css-original-tools p { margin: 7dp 0 17dp; color: #b2a4b3; font-size: 12dp; line-height: 1.5; }
+#css-original-tools .room-button { margin: 8dp 0; min-height: 39dp; font-size: 12dp; }
+#css-original-remove { display: none; }
+#css-original-stock { display: none; max-height: 300dp; overflow: auto; margin: 8dp 0; }
+#css-original-stock button { display: inline-block; width: 47%; margin: 1%; padding: 7dp 4dp; color: #f1daca; background-color: #41303d; border: 1dp #83606b; font-size: 11dp; }
+#css-original-stock button:hover { background-color: #79505a; }
+#css-original-status { min-height: 25dp; }
+#left-rail.css-editing { padding: 20dp 8dp 12dp; background-color: #151520; }
+#left-rail.css-editing #css-original-sidebar-normal { position: absolute; top: 20dp; left: 8dp; right: 8dp; opacity: 0; pointer-events: none; }
+#left-rail.css-editing #css-original-editor-header { display: block; }
+#css-original-overlay { display: none; position: absolute; top: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+#css-original-portraits { display: none; position: absolute; top: 0; overflow: hidden; pointer-events: none; z-index: 3; }
+.css-original-portrait { position: absolute; pointer-events: none; }
+.css-original-portrait.selected-p1 { border: 3dp #ff5a5a; }
+.css-original-portrait.selected-p2 { border: 3dp #5aa4ff; }
+.css-original-portrait.selected-p3 { border: 3dp #ffd35a; }
+.css-original-portrait.selected-p4 { border: 3dp #69d27c; }
+#css-original-handles { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.css-original-handle { position: absolute; background-color: transparent; border: 2dp #f7d899; pointer-events: auto; drag: drag; }
+.css-original-handle:hover, .css-original-handle.selected { border-color: #fff; }
+.css-original-resize { position: absolute; width: 14dp; height: 14dp; background-color: #f5c77e; border: 1dp #573a42; pointer-events: auto; drag: drag; }

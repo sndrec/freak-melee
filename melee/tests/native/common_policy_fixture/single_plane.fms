@@ -1,0 +1,28 @@
+func enter_state():
+    state.enter_at_speed(341, 0, 0, 1)
+
+move GroundOnly:
+    entry explicit
+    on special_lw:
+        enter_state()
+    on ground_animation:
+        pass
+    on ground_interrupt:
+        pass
+    on ground_physics:
+        pass
+    on ground_collision:
+        pass
+
+move AirOnly:
+    entry explicit
+    on special_air_s:
+        enter_state()
+    on air_animation:
+        pass
+    on air_interrupt:
+        pass
+    on air_physics:
+        pass
+    on air_collision:
+        pass

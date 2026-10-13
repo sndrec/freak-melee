@@ -1,0 +1,13 @@
+# Fixture-only ordered-argument/lifetime check; not part of the follower fragment.
+state int query_evaluations
+state int query_after
+state bool query_retire
+state bool query_result
+func query_fixture_id() -> int:
+    state.query_evaluations = state.query_evaluations + 1
+    if state.query_retire:
+        state.basic_landing()
+    return state.history_target
+func query_fixture_run():
+    state.query_result = targets.is_fighter(query_fixture_id())
+    state.query_after = 1

@@ -1,0 +1,165 @@
+# Freak Melee signaling service
+
+This Worker is the low-frequency rendezvous path for native rooms. One
+Cloudflare Durable Object coordinates each room ID. It keeps hibernatable
+WebSockets for presence and directed connection-setup messages; gameplay input
+continues over the native client's UDP data plane and does not depend on this
+service after peers establish a direct or relayed route.
+
+Repository builds do not deploy the service automatically. The current private
+deployment is `https://freak-melee-signaling.sndrec32exe.workers.dev`; deployment
+version `b11bb19c-ccc4-487d-8794-4b8302c502df` was published on 2026-09-23.
+It accepts protocol v3 per-seat assignments and owner overrides. The native
+3+3 probe passed against this deployment, including a host override followed
+by that player's own reassignment and a directed signaling exchange. The
+health route and two-peer ICE/rollback probe also passed against this version.
+The same Worker now routes `/chat/connect?peer=<32 hex digits>` to a separate
+`GlobalChat` object for the one shared friends' conversation. Its independent
+WebSocket carries bounded binary chat messages, 64 persisted recent entries,
+and online counts. Room joins/leaves never switch the chat. See
+`../../docs/native_chat.md` for the client, delivery semantics, and test evidence.
+Local checks:
+
+```powershell
+cd services/signaling
+npm install
+npm run check
+npm run deploy:dry
+```
+
+`npm run types` regenerates `src/worker-configuration.d.ts` from
+`wrangler.jsonc`; this generated runtime file is intentionally ignored. The
+Worker uses Cloudflare's current hibernation API so idle room connections do not
+keep the Durable Object active.
+
+## NAT traversal
+
+Before opening a room WebSocket, the native client requests
+`GET /v1/turn-credentials`. The response is a bounded binary configuration
+containing the public STUN endpoint and, when configured, one short-lived UDP
+TURN credential. The long-lived Cloudflare key remains in Worker secrets and
+is never shipped in the game.
+
+Local development deliberately returns STUN-only configuration when the TURN
+secrets are absent. For a deployed Worker, create a Cloudflare TURN key and set
+both secrets interactively:
+
+```powershell
+npx wrangler secret put TURN_KEY_ID
+npx wrangler secret put TURN_KEY_API_TOKEN
+```
+
+The Worker requests credentials with a 24-hour lifetime. Every room startup
+fetches a fresh configuration, and clients reject malformed or oversized
+responses before starting ICE. Direct candidates remain preferred by ICE; TURN
+is available when the peers cannot establish a direct route.
+
+The current private deployment has no TURN secrets and therefore returns the
+same bounded STUN-only configuration. Its health and credential routes both
+respond successfully. A live two-client `native_connection_probe` against the
+deployed origin joined a Durable Object room, agreed on an owner proposal,
+closed both signaling sockets, and exchanged validated shared-PC rollback input
+over ICE. Forced-relay validation remains pending TURN provisioning.
+
+## Connection
+
+The native client generates a private uppercase room code and connects to:
+
+```text
+wss://<deployment>/v1/rooms/<ROOM>/connect
+  ?peer=<stable-session-peer-id>
+  &name=<display-name>
+  &build=<exact-client-build-id>
+  &players=0..4
+  [&active=<seat-bit-mask>&waiting=<seat-bit-mask>]
+```
+
+Room IDs contain 6–12 uppercase letters or digits. Peer IDs contain 8–64
+letters, digits, `_`, or `-`. A later connection with the same peer ID replaces
+the earlier socket, which provides a simple reconnect path. Each bit in the
+optional masks identifies a local player seat (bit 0 is seat 0); omitted masks
+fill available fighter spots up to four and place overflow seats in waiting.
+Seats in neither mask spectate. The room code is
+the current access boundary; account authentication is outside the private
+friends scope.
+
+The server sends:
+
+- `welcome`: connection ID, peer ID, and current room revision;
+- `presence`: ordered participant snapshot, current owner, build IDs, active
+  and waiting seat masks,
+  local-player counts, bounded opaque per-PC selections, ready state, and the
+  current match-proposal epoch and opaque payload;
+- `signal`: opaque connection candidate or negotiation payload from a named
+  peer;
+- `signal_sent`: acknowledgement that the target was connected; and
+- `error`: rejected client message with a human-readable reason.
+
+Clients send:
+
+- `update` with any of `name`, `activeMask`, `waitingMask`, `localPlayers`,
+  `selection`, and `ready`;
+- `signal` with a connected `to` peer ID and bounded opaque payload;
+- `request_presence` for a fresh snapshot; or
+- `set_match` from the current room owner with a 1–4096-byte opaque proposal,
+  or an empty payload to clear it; or
+- `assign_seats` from the current room owner, naming a connected peer and its
+  new active and waiting seat masks. The named peer may subsequently send its
+  own `update`; the last accepted assignment wins.
+
+A PC with an active seat can become ready only while a proposal exists. Publishing,
+replacing, or clearing the proposal resets every participant's ready state.
+Before publication, changing active-player topology or an active participant's
+selection clears readiness. Once a proposal exists, those changes are rejected
+until the owner clears it. Waiting-only changes preserve the proposal. An
+assignment cannot exceed four active fighters across the room. An owner's
+active-seat override clears readiness just like the peer's own update. An
+active PC disconnect clears the proposal; a spectator-only owner can leave
+without ending the match. Replacing a connection with the same peer ID retains
+its assignment.
+
+WebSocket messages use a versioned binary protocol with a fixed eight-byte
+header: ASCII `FMS1`, protocol version 3, message type, and a big-endian payload
+length. Strings use length-prefixed UTF-8, revisions and join order use
+big-endian 64-bit integers, and signaling and selection payloads remain opaque
+bytes. Per-PC selections are limited to 512 bytes. The protocol has no legacy
+JSON path; both sides change together while the client is pre-release.
+
+Messages are bounded to 16 KiB and rooms to 32 connected PCs. The service
+forwards negotiation data only to
+the requested room peer and never relays gameplay packets, content packages,
+or replays. Presence lives in serialized WebSocket attachments so it survives
+Durable Object hibernation. SQLite stores the monotonically increasing room
+revision and join order used for deterministic ownership transfer, plus the
+proposal epoch and bytes that must survive hibernation independently of any
+one connection.
+
+Current tests run in the Workers runtime and cover route validation, TURN
+credential exchange and binary encoding, binary room protocol exchange, two-client
+presence, owner selection, seat-mask/ready/selection updates, directed candidate delivery,
+owner-only match publication, readiness invalidation, and proposal cleanup on
+ownership transfer. A separate eviction test hibernates the room object with a
+live socket and verifies that its serialized participant state and stored
+proposal are restored. The server deliberately does not interpret either
+gameplay payload; the native client owns their bounded codecs and agreement.
+External relay validation, automated waiting-order policy, and explicit lobby
+recovery after an active disconnect
+remain separate work.
+
+The native end-to-end probe uses the same room route to exchange one complete,
+versioned ICE description per compatible active peer. It locks the selected
+topology, closes both signaling WebSockets, and only then transfers real
+rollback input packets over ICE, demonstrating that established match traffic
+does not rely on the Worker:
+
+```powershell
+# Run from this directory in one terminal.
+npx wrangler dev --port 8799
+
+# Run from the melee repository root in another terminal.
+cmake --build build/native --target native_connection_probe -j 8
+.\build\native\native_connection_probe.exe http://127.0.0.1:8799
+
+# Or use the current private deployment.
+.\build\native\native_connection_probe.exe https://freak-melee-signaling.sndrec32exe.workers.dev
+```

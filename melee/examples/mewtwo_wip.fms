@@ -1,0 +1,1123 @@
+# Independent Mewtwo assets. All four specials and both articles are authored here.
+# Forward throw, CPU charge decisions and ordinary policies are authored.
+# Root animation, dynamics interaction threshold and aerial jump are authored.
+# Attribute offsets are import inputs; projects own named immutable parameters.
+fighter:
+    behavior independent
+
+attribute float shadow_max_charge 0
+attribute float shadow_ground_recoil 4
+attribute float shadow_air_recoil 8
+attribute int shadow_charge_interval 12
+attribute int shadow_initial_release_lag 16
+attribute float shadow_landing_lag 20
+attribute float confusion_air_boost 24
+attribute int confusion_reflect_joint 28
+attribute int confusion_reflect_max_damage 32
+attribute float confusion_reflect_offset_x 36
+attribute float confusion_reflect_offset_y 40
+attribute float confusion_reflect_offset_z 44
+attribute float confusion_reflect_radius 48
+attribute float confusion_reflect_damage_multiplier 52
+attribute float confusion_reflect_speed_multiplier 56
+attribute byte confusion_reflect_behavior 60
+attribute float teleport_start_divisor_x 64
+attribute float teleport_start_divisor_y 68
+attribute float teleport_start_gravity 72
+attribute float teleport_start_terminal_speed 76
+attribute int teleport_travel_frames 80
+attribute float teleport_platform_grace 84
+attribute float teleport_stick_minimum 88
+attribute float teleport_speed_multiplier 92
+attribute float teleport_speed_addition 96
+attribute float teleport_end_drift 100
+attribute int teleport_surface_angle 104
+attribute float teleport_end_momentum 108
+attribute float teleport_freefall_mobility 112
+attribute float teleport_landing_lag 116
+attribute float disable_gravity 120
+attribute float disable_terminal_speed 124
+attribute float disable_offset_x 128
+attribute float disable_offset_y 132
+parameter int shadow_joint = 35
+parameter int disable_joint = 27
+parameter int teleport_joint = 5
+parameter int throw_shoulder_joint = 35
+parameter int throw_hand_joint = 32
+parameter int root_direct_copy_joint = 1
+state bool confusion_boost_used
+state bool confusion_reflect_active
+state bool article_state_initialized
+state int shadow_handle
+state int shadow_charge
+state int shadow_timer
+state int shadow_release_lag
+state bool shadow_release_requested
+state bool shadow_charge_stopped
+state float shadow_sound_fraction
+state float shadow_x
+state float shadow_y
+state float shadow_z
+state int disable_handle
+state float disable_x
+state float disable_y
+state float disable_z
+state int teleport_remaining
+state int teleport_collision_age
+state float teleport_stick_x
+state float teleport_stick_y
+state float teleport_angle
+state float teleport_saved_x
+state float teleport_saved_y
+state float teleport_saved_ground
+state float teleport_effect_x
+state float teleport_effect_y
+state float teleport_effect_z
+
+state bool shadow_throw_creating
+state float throw_shoulder_x
+state float throw_shoulder_y
+state float throw_shoulder_z
+state float throw_hand_x
+state float throw_hand_y
+state float throw_hand_z
+
+func cpu_tap_r():
+    cpu.queue(Cpu.press_r)
+    cpu.queue(Cpu.wait, 1)
+    cpu.queue(Cpu.release_r)
+
+
+func confusion_grab_setup():
+    if not capture.has_victim: capture.arm(64)
+    else: capture.mask(511)
+
+func confusion_restore_reflector():
+    if state.confusion_reflect_active:
+        reflector.retain()
+        reflector.keep_owner = true
+        callbacks.track_reflect_hit()
+
+func confusion_enter(bool air_started):
+    cue.throw.reset()
+    command(0) = 0
+    command(1) = 0
+    state.confusion_reflect_active = false
+    if air_started:
+        if not state.confusion_boost_used:
+            velocity.y = attrs.confusion_air_boost
+            state.confusion_boost_used = true
+        state.enter_at_speed(352, 0, 0, 1)
+    else: state.enter_at_speed(351, 0, 0, 1)
+    animation.start()
+    confusion_grab_setup()
+    callbacks.accessory(confusion_reflector_tick)
+
+func confusion_release():
+    if command(0) != 0 and capture.has_victim:
+        capture.mask(0)
+        capture.release_damage_fall()
+        command(0) = 0
+
+func article_state_init():
+    if not state.article_state_initialized:
+        state.shadow_handle = -1
+        state.disable_handle = -1
+        state.article_state_initialized = true
+
+func shadow_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+    callbacks.track_death3()
+
+func shadow_remove():
+    if articles.owned(state.shadow_handle): articles.remove_owned(state.shadow_handle)
+    state.shadow_handle = -1
+
+func disable_remove():
+    if articles.owned(state.disable_handle): articles.remove_owned(state.disable_handle)
+    state.disable_handle = -1
+
+func shadow_position():
+    bones.world_position(attrs.shadow_joint, state.shadow_x, state.shadow_y, state.shadow_z, 0, 0, 2)
+    state.shadow_z = 0
+
+func shadow_create():
+    if command(3) == 1 and not articles.owned(state.shadow_handle):
+        shadow_position()
+        state.shadow_handle = articles.create_at_position(It_Kind_Mewtwo_ShadowBall, state.shadow_x, state.shadow_y, 0, facing.direction, true)
+        if articles.owned(state.shadow_handle): shadow_callbacks()
+
+func shadow_enter(bool air_started):
+    article_state_init()
+    let target = 341
+    if air_started: target = 346
+    state.enter_at_speed(target, 0, 0, 1)
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    if not air_started:
+        physics.switch_to_ground()
+        velocity.y = 0
+    else: velocity.y = velocity.y * 0.5
+    shadow_callbacks()
+    state.shadow_release_requested = false
+    state.shadow_timer = 0
+    state.shadow_release_lag = 0
+    if state.shadow_charge == 0: state.shadow_release_lag = attrs.shadow_initial_release_lag
+    state.shadow_sound_fraction = 0
+    animation.start()
+
+func shadow_start_animation(bool air_started):
+    shadow_create()
+    if air_started: state.shadow_release_requested = false
+    if animation.finished:
+        let target = 342
+        if state.shadow_release_requested or state.shadow_charge == attrs.shadow_max_charge: target = 345
+        else: state.shadow_charge_stopped = false
+        if air_started: target = target + 5
+        state.enter_at_speed(target, 0, 0, 1)
+        shadow_callbacks()
+
+func shadow_charge_sound():
+    if command(2):
+        let float fraction = 0
+        if state.shadow_charge: fraction = float(state.shadow_charge) / attrs.shadow_max_charge
+        if state.shadow_sound_fraction > 0:
+            if fraction > 0.75 and state.shadow_sound_fraction <= 0.75:
+                state.shadow_sound_fraction = fraction
+                sound.loop(200130, 127, 64)
+            elif fraction > 0.5 and state.shadow_sound_fraction <= 0.5:
+                state.shadow_sound_fraction = fraction
+                sound.loop(200127, 127, 64)
+            elif fraction > 0.25 and state.shadow_sound_fraction <= 0.25:
+                state.shadow_sound_fraction = fraction
+                sound.loop(200124, 127, 64)
+            elif fraction > 0 and state.shadow_sound_fraction <= 0:
+                state.shadow_sound_fraction = fraction
+                sound.loop(200121, 127, 64)
+        else:
+            state.shadow_sound_fraction = 0.00009999999747378752
+            sound.loop(200121, 127, 64)
+
+func shadow_charge_animation(bool air_started):
+    state.shadow_release_lag = state.shadow_release_lag - 1
+    if state.shadow_release_lag > 0: return
+    state.shadow_release_lag = 0
+    shadow_create()
+    shadow_charge_sound()
+    if state.shadow_charge_stopped: return
+    state.shadow_timer = state.shadow_timer + 1
+    if state.shadow_timer <= attrs.shadow_charge_interval: return
+    state.shadow_timer = 0
+    state.shadow_charge = state.shadow_charge + 1
+    if state.shadow_charge < attrs.shadow_max_charge: return
+    let target = 343
+    if air_started: target = 348
+    state.enter_at_speed(target, 0x000c4280, frame, 1)
+    state.shadow_charge = int(attrs.shadow_max_charge)
+    state.shadow_charge_stopped = true
+    controller.rumble(12, 0)
+    bones.world_position(bones.index(Top), state.shadow_x, state.shadow_y, state.shadow_z, 0, 7, 0)
+    effects.spawn_at_position(27, state.shadow_x, state.shadow_y, state.shadow_z)
+    color.start(92, false)
+
+func shadow_hold_interrupt(bool air_started, bool full):
+    let target = 345
+    if air_started: target = 350
+    if not air_started and controls.try_roll():
+        shadow_remove()
+        return
+    if input.attack_pressed and (full or state.shadow_release_lag <= 0):
+        state.enter_at_speed(target, 0, 0, 1)
+        shadow_callbacks()
+        return
+    if input.special_pressed:
+        if full or state.shadow_release_lag <= 0:
+            state.enter_at_speed(target, 0, 0, 1)
+            shadow_callbacks()
+    elif input.shield_pressed:
+        state.enter_at_speed(target - 1, 0, 0, 1)
+        shadow_remove()
+        shadow_callbacks()
+
+func shadow_release():
+    if command(1) == 1 and articles.owned(state.shadow_handle):
+        command(1) = 2
+        shadow_position()
+        let float angle = 0
+        if facing.direction != 1: angle = pi
+        articles.signal_owned(state.shadow_handle, It_Kind_Mewtwo_ShadowBall, "release", angle)
+        if motion.id == 350 or airborne:
+            velocity.x = facing.direction * (attrs.shadow_air_recoil * float(state.shadow_charge))
+        if motion.id == 345 or grounded:
+            ground.velocity = facing.direction * (attrs.shadow_ground_recoil * float(state.shadow_charge))
+        state.shadow_charge = 0
+        state.shadow_handle = -1
+        # Stock tests charge after clearing it, so ordinary release uses this SFX.
+        if float(state.shadow_charge) == attrs.shadow_max_charge: sound.play(200118, 127, 64)
+        else: sound.play(200115, 127, 64)
+
+func shadow_ground_collision(int target, bool hold):
+    if collision.left_ground:
+        physics.ground_to_air()
+        if hold: state.enter_at_speed(target, Transition.common_ground_air | 0x200, frame, 1)
+        else: state.enter_at_speed(target, Transition.common_ground_air, frame, 1)
+        shadow_callbacks()
+
+func shadow_air_collision(int target, bool hold):
+    if collision.landed:
+        physics.switch_to_ground()
+        if hold: state.enter_at_speed(target, Transition.common_ground_air | 0x200, frame, 1)
+        else: state.enter_at_speed(target, Transition.common_ground_air, frame, 1)
+        shadow_callbacks()
+
+move ShadowBall:
+    entry explicit
+    on special_n:
+        shadow_enter(false)
+    on special_air_n:
+        shadow_enter(true)
+    on ground_animation:
+        shadow_start_animation(false)
+    on air_animation:
+        shadow_start_animation(true)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        shadow_ground_collision(346, false)
+    on air_collision:
+        shadow_air_collision(341, false)
+
+func disable_callbacks():
+    if articles.owned(state.disable_handle):
+        callbacks.track_damage()
+        callbacks.track_death2()
+
+func disable_enter(bool air_started):
+    article_state_init()
+    cue.throw.reset()
+    command(0) = 0
+    state.disable_handle = -1
+    let target = 359
+    if air_started:
+        target = 360
+        velocity.y = 0
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(disable_spawn_tick)
+
+func disable_spawn_tick():
+    if command(0):
+        bones.world_position(attrs.disable_joint, state.disable_x, state.disable_y, state.disable_z)
+        state.disable_x = state.disable_x + attrs.disable_offset_x * model.instance_scale_y * facing.direction
+        state.disable_y = state.disable_y + attrs.disable_offset_y * model.instance_scale_y
+        state.disable_handle = articles.create_at_position(It_Kind_Mewtwo_Disable, state.disable_x, state.disable_y, state.disable_z, facing.direction, true)
+        disable_callbacks()
+        command(0) = 0
+
+move Disable:
+    entry explicit
+    on special_lw:
+        disable_enter(false)
+    on special_air_lw:
+        disable_enter(true)
+    on accessory:
+        disable_spawn_tick()
+    on ground_animation:
+        if animation.finished:
+            disable_remove()
+            state.wait()
+    on air_animation:
+        if animation.finished:
+            disable_remove()
+            state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.fall(attrs.disable_gravity, attrs.disable_terminal_speed)
+        physics.air_decel_normal()
+    on ground_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            velocity.y = 0
+            state.enter_at_speed(360, 0x0c4c5082, frame, 1)
+            callbacks.accessory(disable_spawn_tick)
+            disable_callbacks()
+            physics.clamp_air_drift()
+    on air_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(359, 0x0c4c5082, frame, 1)
+            callbacks.accessory(disable_spawn_tick)
+            disable_callbacks()
+
+func teleport_enter(bool air_started):
+    if air_started:
+        velocity.x = velocity.x / attrs.teleport_start_divisor_x
+        velocity.y = velocity.y / attrs.teleport_start_divisor_y
+        state.enter_at_speed(356, 0, 0, 1)
+    else:
+        ground.velocity = 0
+        velocity.y = 0
+        velocity.x = 0
+        state.enter_at_speed(353, 0, 0, 1)
+    animation.start()
+    command(0) = 0
+    state.teleport_collision_age = 0
+    callbacks.accessory(teleport_effect)
+
+func teleport_travel_setup():
+    state.teleport_remaining = attrs.teleport_travel_frames
+    jumps.used = jumps.max
+    items.block_ground_pickup = true
+    hurtboxes.set_body_status(Hurt.intangible)
+    visuals.set_visible(false)
+    sound.play(200097, 127, 64)
+
+func teleport_air_launch():
+    let strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    if strength > attrs.teleport_stick_minimum:
+        if abs(input.x) > 0.001: facing.from_input()
+        state.teleport_angle = atan2_float(input.y, input.x * facing.direction)
+        state.teleport_stick_x = input.x
+        state.teleport_stick_y = input.y
+    else:
+        facing.from_input_threshold()
+        state.teleport_angle = float(pi / 2)
+        state.teleport_stick_x = 0
+        strength = 1
+        state.teleport_stick_y = 1
+    velocity.x = facing.direction * ((attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * cos(state.teleport_angle))
+    velocity.y = (attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * sin(state.teleport_angle)
+    state.enter_at_speed(357, 0, 35, 1)
+    animation.start()
+    animation.set_rate(0)
+    teleport_travel_setup()
+
+func teleport_ground_launch():
+    let strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    # The ground branch includes equality; the air branch uses strict >.
+    if not (strength < attrs.teleport_stick_minimum):
+        let floor_angle = vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y)
+        if not (floor_angle < float(pi / 2)) and not collision.skip_soft_floor():
+            facing.from_input()
+            state.teleport_angle = atan2_float(input.y, input.x * facing.direction)
+            state.teleport_stick_x = input.x
+            state.teleport_stick_y = input.y
+            ground.velocity = facing.direction * ((attrs.teleport_speed_multiplier * strength + attrs.teleport_speed_addition) * cos(state.teleport_angle))
+            state.enter_at_speed(354, 0, 35, 1)
+            animation.start()
+            animation.set_rate(0)
+            teleport_travel_setup()
+            return
+    physics.ground_to_air()
+    teleport_air_launch()
+
+func teleport_end(bool air_started):
+    if air_started: state.enter_at_speed(358, 0, 0, 1)
+    else: state.enter_at_speed(355, 0, 0, 1)
+    animation.start()
+    # Stock captures the momentum after the motion transition/animation start.
+    state.teleport_saved_x = velocity.x
+    state.teleport_saved_y = velocity.y
+    state.teleport_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    visuals.set_visible(true)
+    callbacks.accessory(teleport_effect)
+    if air_started:
+        velocity.x = state.teleport_saved_x * attrs.teleport_end_momentum
+        velocity.y = state.teleport_saved_y * attrs.teleport_end_momentum
+    else: ground.velocity = state.teleport_saved_ground * attrs.teleport_end_momentum
+
+func teleport_air_travel_collision():
+    state.teleport_collision_age = state.teleport_collision_age + 1
+    if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+        let can_land = true
+        if state.teleport_collision_age < attrs.teleport_platform_grace:
+            can_land = not collision.skip_soft_floor()
+        if can_land:
+            physics.switch_to_ground()
+            state.enter_at_speed(354, 0x0c4c508e, frame, 0)
+            visuals.set_visible(false)
+            return
+    if collision.cliff_catch(): return
+    let clamp_angle = radians(90.0 + attrs.teleport_surface_angle)
+    # Independent checks preserve the native callback's ordering even when
+    # the first surface ends travel and changes the remaining velocity.
+    if collision.ceiling_contact and vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y) > clamp_angle:
+        teleport_end(true)
+    if collision.left_wall and vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y) > clamp_angle:
+        teleport_end(true)
+    if collision.right_wall and vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y) > clamp_angle:
+        teleport_end(true)
+
+func confusion_reflector_tick():
+    if command(1) == 1:
+        reflector.create(attrs.confusion_reflect_joint, attrs.confusion_reflect_max_damage, attrs.confusion_reflect_offset_x, attrs.confusion_reflect_offset_y, attrs.confusion_reflect_offset_z, attrs.confusion_reflect_radius, attrs.confusion_reflect_damage_multiplier, attrs.confusion_reflect_speed_multiplier, attrs.confusion_reflect_behavior != 0)
+        callbacks.track_reflect_hit()
+        reflector.keep_owner = true
+        state.confusion_reflect_active = true
+        command(1) = 0
+        return
+    if command(1) == 2:
+        if state.confusion_reflect_active:
+            reflector.disable()
+            reflector.keep_owner = false
+            callbacks.reflect_hit(None)
+            state.confusion_reflect_active = false
+        command(1) = 0
+        return
+
+move Confusion:
+    entry explicit
+    on special_s:
+        confusion_enter(false)
+    on special_air_s:
+        confusion_enter(true)
+    on accessory:
+        confusion_reflector_tick()
+    on ground_animation:
+        confusion_release()
+        if animation.finished: state.wait()
+    on air_animation:
+        confusion_release()
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+        reflector.update()
+    on air_physics:
+        physics.air_gravity_and_friction()
+        reflector.update()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(352, 0x0c4c5082)
+            physics.clamp_air_drift()
+            confusion_grab_setup()
+            callbacks.accessory(confusion_reflector_tick)
+            confusion_restore_reflector()
+    on air_collision:
+        if collision.landed:
+            state.switch_to_ground(351, 0x0c4c5082)
+            confusion_grab_setup()
+            callbacks.accessory(confusion_reflector_tick)
+            state.confusion_boost_used = false
+            confusion_restore_reflector()
+
+func teleport_effect():
+    if not effects.active:
+        bones.world_position(attrs.teleport_joint, state.teleport_effect_x, state.teleport_effect_y, state.teleport_effect_z)
+        if motion.id == 353 or motion.id == 356:
+            effects.spawn_at_position(1256, state.teleport_effect_x, state.teleport_effect_y, state.teleport_effect_z)
+        # Native recovery samples the same joint and marks the flag but
+        # does not actually spawn an end effect.
+        effects.active = true
+    effects.pause_during_hitlag()
+    articles.stop_cue()
+
+move Teleport:
+    entry explicit
+    on special_hi:
+        teleport_enter(false)
+    on special_air_hi:
+        teleport_enter(true)
+    on accessory:
+        teleport_effect()
+    on ground_animation:
+        if animation.finished: teleport_ground_launch()
+    on air_animation:
+        if animation.finished: teleport_air_launch()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.fall(attrs.teleport_start_gravity, attrs.teleport_start_terminal_speed)
+        physics.air_decel_normal()
+    on ground_collision:
+        if collision.left_ground:
+            physics.ground_to_air()
+            state.enter_at_speed(356, 0x0c4c508e, frame, 1)
+            callbacks.accessory(teleport_effect)
+    on air_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            physics.switch_to_ground()
+            state.enter_at_speed(353, 0x0c4c508e, frame, 1)
+            callbacks.accessory(teleport_effect)
+            return
+        collision.cliff_catch()
+
+action TeleportPhases:
+    on state_354_animation:
+        state.teleport_remaining = state.teleport_remaining - 1
+        if state.teleport_remaining <= 0: teleport_end(false)
+    on state_354_interrupt:
+        pass
+    on state_354_physics:
+        physics.ground_to_self()
+    on state_354_collision:
+        if collision.left_ground:
+            if collision.left_wall or collision.right_wall:
+                physics.ground_to_air()
+                teleport_end(true)
+                return
+            physics.ground_to_air()
+            state.enter_at_speed(357, 0x0c4c508e, frame, 0)
+            items.block_ground_pickup = true
+            visuals.set_visible(false)
+        elif collision.left_wall or collision.right_wall:
+            teleport_end(false)
+    on state_355_animation:
+        if animation.finished: state.wait()
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        physics.ground_friction()
+    on state_355_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            state.enter_at_speed(358, 0x0c4c508a, frame, 1)
+    on state_357_animation:
+        state.teleport_remaining = state.teleport_remaining - 1
+        if state.teleport_remaining <= 0: teleport_end(true)
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        pass
+    on state_357_collision:
+        teleport_air_travel_collision()
+    on state_358_animation:
+        if animation.finished:
+            state.freefall(1, 0, true, attrs.teleport_freefall_mobility, attrs.teleport_landing_lag)
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        if command(0):
+            physics.fall_basic()
+            physics.clamp_horizontal_speed(attrs.teleport_end_drift * air.drift_max)
+        else:
+            let previous_y = velocity.y
+            velocity.y = previous_y - previous_y / 10
+            physics.air_decel_normal()
+    on state_358_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.landing_special(false, attrs.teleport_landing_lag)
+            return
+        collision.cliff_catch()
+
+action ShadowPhases:
+    on state_342_animation:
+        shadow_charge_animation(false)
+    on state_342_interrupt:
+        shadow_hold_interrupt(false, false)
+    on state_342_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        shadow_ground_collision(347, true)
+    on state_343_animation:
+        state.shadow_charge_stopped = true
+        state.shadow_charge = int(attrs.shadow_max_charge)
+    on state_343_interrupt:
+        shadow_hold_interrupt(false, true)
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        shadow_ground_collision(348, true)
+    on state_344_animation:
+        shadow_remove()
+        if animation.finished: state.wait()
+    on state_344_interrupt:
+        pass
+    on state_344_physics:
+        physics.ground_friction()
+    on state_344_collision:
+        shadow_ground_collision(349, false)
+    on state_345_animation:
+        shadow_release()
+        if animation.finished: state.wait()
+    on state_345_interrupt:
+        pass
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        shadow_ground_collision(350, false)
+    on state_347_animation:
+        shadow_charge_animation(true)
+    on state_347_interrupt:
+        shadow_hold_interrupt(true, false)
+    on state_347_physics:
+        physics.air_drift()
+    on state_347_collision:
+        shadow_air_collision(342, true)
+    on state_348_animation:
+        # Stock's air full-loop latch is false while the ground latch is true.
+        state.shadow_charge_stopped = false
+        state.shadow_charge = int(attrs.shadow_max_charge)
+    on state_348_interrupt:
+        shadow_hold_interrupt(true, true)
+    on state_348_physics:
+        physics.air_drift()
+    on state_348_collision:
+        shadow_air_collision(343, true)
+    on state_349_animation:
+        shadow_remove()
+        if animation.finished: state.fall()
+    on state_349_interrupt:
+        pass
+    on state_349_physics:
+        physics.air_drift()
+    on state_349_collision:
+        shadow_air_collision(344, false)
+    on state_350_animation:
+        shadow_release()
+        if animation.finished:
+            if attrs.shadow_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.shadow_landing_lag)
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.air_drift()
+    on state_350_collision:
+        shadow_air_collision(345, false)
+
+action ConfusionCapture:
+    on grab_catch:
+        capture.mask(511)
+        capture.clear_movement()
+        capture.armed = false
+        damage.song_immune = true
+    on grabbed:
+        let captured_motion = 301
+        let thrown_motion = 303
+        if airborne:
+            captured_motion = 302
+            thrown_motion = 304
+        # Capture policy arguments: same facing, force air, track position.
+        # Force-air executes after first pose and before mask/start/clear.
+        capture.begin(captured_motion, true, true, false, true)
+        let thrown_flags = 0
+        if capture.victim_freeze_state: thrown_flags = 0x00200000
+        capture.set_victim_attached_throw(thrown_motion, thrown_flags, 0, true)
+    on reflect_hit:
+        pass
+    on landing_action:
+        state.confusion_boost_used = false
+
+action ThrowShadowBall:
+    on throw_animation:
+        if motion.id != 219: return
+        if command(3) == 1:
+            command(3) = 0
+            bones.world_position(attrs.throw_shoulder_joint, state.throw_shoulder_x, state.throw_shoulder_y, state.throw_shoulder_z)
+            bones.world_position(attrs.throw_hand_joint, state.throw_hand_x, state.throw_hand_y, state.throw_hand_z)
+            state.throw_shoulder_z = 0
+            state.throw_hand_z = 0
+            let angle = atan2_float(state.throw_shoulder_y - state.throw_hand_y, state.throw_shoulder_x - state.throw_hand_x)
+            # The ordinary flag spans this synchronous on_created callback.
+            # Group stays zero, and angle zero remains valid in either mode.
+            state.shadow_throw_creating = true
+            let created = articles.create_at_position(It_Kind_Mewtwo_ShadowBall, state.throw_shoulder_x, state.throw_shoulder_y, 0, facing.direction, true, 0, angle)
+            state.shadow_throw_creating = false
+            sound.play(200115, 127, 64)
+
+
+action ChargeCPU:
+    on cpu_charge_decision:
+        if float(state.shadow_charge) == attrs.shadow_max_charge:
+            if motion.id == 342 or motion.id == 343:
+                cpu_tap_r()
+                cpu.queue(Cpu.done)
+                return true
+        elif motion.id != 342 and state.shadow_charge == 0:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.press_b)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            return true
+        return false
+    on cpu_charge_cancel:
+        if motion.id == 342 or motion.id == 343:
+            cpu_tap_r()
+            cpu.queue(Cpu.wait, 1)
+
+action CommonPolicies:
+    on load:
+        fighter.copy_ext_attributes()
+        bones.set_direct_animation_copy(attrs.root_direct_copy_joint, true)
+        animation.hip_root_compensation = true
+    on load_special_attrs:
+        # Disable's immutable owned offsets already scale at spawn. Legacy
+        # raw special attributes no longer supply authored move parameters.
+        fighter.reload_ext_attributes()
+    on item_pickup:
+        pass
+    on item_drop:
+        pass
+    on item_invisible:
+        pass
+    on item_visible:
+        pass
+    on knockback_enter:
+        fighter.knockback_enter(2)
+    on knockback_exit:
+        fighter.knockback_exit(2)
+    on idle_variants:
+        return true
+    on motion_is_angled:
+        return event.motion >= 51 and event.motion <= 61 and event.motion != 53
+    on dynamics_ground_collision:
+        if model.instance_scale_y != 1: return false
+        if motion.id >= 223 and motion.id <= 232: return true
+        return grounded
+    on dynamics_interaction_start:
+        return 8
+    on worn_item_jump_sound:
+        return false
+    on animation_driven_jump_physics:
+        physics.air_accel_normal()
+        physics.animation_vertical_velocity_adjusted()
+    on aerial_jump:
+        physics.ground_to_air()
+        command(0) = 1
+        let motion = 28
+        if input.x * facing.direction > -controls.aerial_jump_reverse_threshold: motion = 27
+        jump.begin(motion, input.x * air.jump_horizontal_multiplier, 0, 0, true, true, false)
+
+action ArticleLifecycle:
+    on death:
+        state.confusion_boost_used = false
+        visuals.hide_group(0)
+        state.shadow_handle = -1
+        state.disable_handle = -1
+        state.shadow_charge = 0
+        state.article_state_initialized = true
+    on color_animation_reset:
+        if float(state.shadow_charge) == attrs.shadow_max_charge: color.start(92, false)
+    on damage:
+        disable_remove()
+        shadow_remove()
+        if float(state.shadow_charge) != attrs.shadow_max_charge:
+            state.shadow_charge = 0
+            color.clear_attack()
+            effects.destroy_all()
+    on death2:
+        disable_remove()
+        shadow_remove()
+        state.shadow_charge = 0
+        color.clear_attack()
+        effects.destroy_all()
+
+article It_Kind_Mewtwo_Disable states 1:
+    attribute float lifetime 0
+    attribute float speed 4
+    on created:
+            velocity.x = item.attr.speed * facing * owner.model.instance_scale_y
+            velocity.y = 0
+            velocity.z = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.change_state(0)
+            if hitbox.enabled(0): hitbox.set_radius(0, hitbox.radius(0) * owner.model.instance_scale_y)
+            if hitbox.enabled(1): hitbox.set_radius(1, hitbox.radius(1) * owner.model.instance_scale_y)
+            if hitbox.enabled(2): hitbox.set_radius(2, hitbox.radius(2) * owner.model.instance_scale_y)
+            if hitbox.enabled(3): hitbox.set_radius(3, hitbox.radius(3) * owner.model.instance_scale_y)
+            item.use_manual_lifetime()
+            item.inherit_owner_debug_display()
+            item.remove_at_bounds = true
+    on destroyed:
+            if item.attachment_active: owner.state.disable_handle = -1
+            item.detach_owner()
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on hit_shield:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on reflected:
+            return item.reflect()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.life <= 0: return true
+            item.life = item.life - 1
+            return false
+        on collision:
+            item.stage_collision(true)
+            return collision.left_wall or collision.right_wall or collision.ceiling_contact
+
+article It_Kind_Mewtwo_ShadowBall states 18:
+    attribute float lifetime 0
+    attribute float speed_min 8
+    attribute float speed_max 12
+    attribute float damage_min 16
+    attribute float damage_max 20
+    attribute float scale_min 24
+    attribute float scale_max 28
+    attribute int wobble_period 32
+    attribute float explosion_radius_multiplier 36
+    attribute float explosion_lifetime 40
+    attribute float throw_speed 44
+    state bool fired
+    state int charge
+    state int maximum
+    state int damage
+    state float angle
+    state float speed
+    state float size
+    state float charge_fraction
+    state float wobble_angle
+    state float wobble_speed
+    state float wobble_acceleration
+    state int wobble_timer
+    state int wobble_steps
+    state float wobble_y
+    state float wobble_z
+    state float base_scale
+    state float rest_x
+    state float rest_y
+    state float rest_z
+    state int accessory_step
+    state float explosion_radius
+    on created:
+            if owner.state.shadow_throw_creating:
+                item.change_state(9)
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.state.wobble_timer = item.attr.wobble_period
+            if owner.state.shadow_throw_creating:
+                item.state.fired = true
+                item.state.charge_fraction = 1
+                item.state.wobble_y = 0
+                item.state.wobble_z = 0
+                item.state.angle = item.creation_value
+                item.state.wobble_angle = item.creation_value
+                item.state.speed = item.attr.throw_speed
+                item.state.wobble_speed = item.attr.throw_speed
+                item.state.wobble_acceleration = 0
+                item.state.wobble_steps = 0
+                item.state.base_scale = owner.model.scale
+                item.state.rest_x = 0
+                item.state.rest_y = 0
+                item.state.rest_z = 0
+                item.state.charge = 0
+                item.state.maximum = int(owner.params.shadow_max_charge)
+                item.state.accessory_step = 0
+                # Preserve arithmetic order even though charge is zero.
+                item.state.size = item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min
+                item.state.damage = int(item.state.charge * ((item.attr.damage_max - item.attr.damage_min) / item.state.maximum) + item.attr.damage_min)
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+                velocity.z = 0
+                item.use_manual_lifetime()
+            else:
+                item.state.wobble_angle = tau * random.float()
+                item.state.wobble_speed = 2.5 + (random.float() - 0.5)
+                item.state.wobble_acceleration = -item.state.wobble_speed / (0.5 * item.attr.wobble_period)
+                item.state.base_scale = owner.model.scale
+                item.attach_to_owner(owner.params.shadow_joint)
+
+    on picked_up:
+            item.change_state(0)
+            item.state.charge_fraction = 0
+    on destroyed:
+            item.destroy_effects()
+            if not item.state.fired and item.attachment_active: owner.state.shadow_handle = -1
+            item.detach_owner()
+            item.owner_bound = false
+    on signal release:
+            let float maximum_charge = owner.params.shadow_max_charge
+            item.state.angle = signal.value
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = int(max(0.0, min(float(owner.state.shadow_charge), maximum_charge)))
+            item.state.maximum = int(maximum_charge)
+            if not item.attachment_active: return
+            item.destroy_effects()
+            item.change_state(item.state.charge + 1)
+            item.track_accessory()
+            item.state.charge_fraction = float(0.5 * (float(item.state.charge) / item.state.maximum) + 0.5)
+            item.release_attachment(0, 0, 0, true)
+            item.throw_speed_damage = false
+            item.use_manual_lifetime()
+            item.state.speed = float(item.attr.speed_min + (item.state.charge * ((item.attr.speed_max - item.attr.speed_min) / maximum_charge)))
+            item.state.damage = int(uint((item.state.charge * ((item.attr.damage_max - item.attr.damage_min) / maximum_charge)) + item.attr.damage_min))
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            facing = owner.facing
+            position.x = owner.state.shadow_x
+            position.y = owner.state.shadow_y
+            position.z = 0
+            velocity.x = item.state.speed * item.state.charge_fraction * cos(item.state.angle)
+            velocity.y = item.state.speed * item.state.charge_fraction * sin(item.state.angle)
+            velocity.z = 0
+            item.state.fired = true
+            item.state.wobble_steps = 0
+            item.joint("0").scale.x = 1
+            item.joint("0").scale.y = 1
+            item.joint("0").scale.z = 1
+    on signal wobble:
+            if item.state.wobble_steps > 0:
+                item.state.wobble_timer = item.state.wobble_timer + 1
+                if item.state.wobble_timer >= item.attr.wobble_period:
+                    item.state.wobble_timer = 0
+                    item.state.wobble_angle = item.state.wobble_angle + (pi / 4) * (2 * (random.float() - 0.5))
+                    item.state.wobble_acceleration = -item.state.wobble_speed / (0.5 * item.attr.wobble_period)
+                    item.loop_sound(200106 + 3 * random.int(3), 127, 64)
+                item.state.wobble_speed = item.state.wobble_speed + item.state.wobble_acceleration
+                item.state.wobble_y = item.state.wobble_y + item.state.wobble_speed * item.state.charge_fraction * sin(item.state.wobble_angle)
+                item.state.wobble_z = item.state.wobble_z + item.state.wobble_speed * item.state.charge_fraction * cos(item.state.wobble_angle)
+            else:
+                item.state.wobble_y = 0
+                item.state.wobble_z = 0
+            item.joint("0/0").translation.x = 0
+            item.joint("0/0").translation.y = item.state.wobble_y
+            item.joint("0/0").translation.z = item.state.wobble_z
+            item.state.wobble_steps = item.state.wobble_steps + 1
+    on signal explode:
+            item.hide_model()
+            item.set_lifetime(item.attr.explosion_lifetime)
+            item.destroy_effects()
+            if item.state.charge < 0: item.state.charge = 0
+            if item.state.charge >= item.state.maximum: item.state.charge = item.state.maximum
+            item.change_state(item.state.charge + 10)
+            item.clear_accessory()
+            item.state.explosion_radius = hitbox.radius(0) * item.attr.explosion_radius_multiplier
+            # Stock samples the grandchild's world position; this is a positional
+            # explosion effect, not an effect attached to the joint itself.
+            let float effect_x = 0
+            let float effect_y = 0
+            let float effect_z = 0
+            item.joint_world_position(0, "0/0", effect_x, effect_y, effect_z)
+            item.spawn_effect_at_position(1038, effect_x, effect_y, effect_z)
+            item.play_sound(116, 127, 64)
+    on accessory:
+            item.state.accessory_step = (item.state.accessory_step + 1) % 3
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on reflected:
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.attachment_active:
+                if owner.motion.id < 341 or owner.motion.id > 350 or owner.fighter.action_detaches_items: return true
+                if owner.motion.id == 344 or owner.motion.id == 349 or owner.state.shadow_handle < 0: return true
+                item.state.charge = owner.state.shadow_charge
+                item.state.maximum = int(owner.params.shadow_max_charge)
+            item.state.size = float(item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.state.maximum) + item.attr.scale_min)
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            if item.state.rest_x == 0 and item.state.rest_y == 0 and item.state.rest_z == 0:
+                item.state.rest_x = item.joint("0/0").translation.x
+                item.state.rest_y = item.joint("0/0").translation.y
+                item.state.rest_z = item.joint("0/0").translation.z
+            item.joint("0/0").translation.x = -item.state.rest_x * item.state.base_scale
+            item.joint("0/0").translation.y = -item.state.rest_y * item.state.base_scale
+            item.joint("0/0").translation.z = -item.state.rest_z * item.state.base_scale
+            return false
+        on collision:
+            return false
+    state 1 anim 1:
+        on animation:
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            return item.expire_tick()
+        on physics:
+            if item.state.wobble_steps > 0:
+                velocity.x = item.state.speed * cos(item.state.angle)
+                velocity.y = item.state.speed * sin(item.state.angle)
+            item.signal("wobble", 0)
+        on collision:
+            item.stage_collision(false)
+            if velocity.y > 0 and collision.ceiling_contact:
+                item.signal("explode", 0)
+            elif velocity.y <= 0 and collision.floor_contact:
+                item.signal("explode", 0)
+            elif velocity.x > 0 and collision.left_wall:
+                item.signal("explode", 0)
+            elif velocity.x <= 0 and collision.right_wall:
+                item.signal("explode", 0)
+            return false
+    state 2 anim 2 use 1:
+    state 3 anim 3 use 1:
+    state 4 anim 4 use 1:
+    state 5 anim 5 use 1:
+    state 6 anim 6 use 1:
+    state 7 anim 7 use 1:
+    state 8 anim 8 use 1:
+    state 9 anim 9:
+        on animation:
+            return item.expire_tick()
+        on collision:
+            item.stage_collision(false)
+            if velocity.y > 0 and collision.ceiling_contact:
+                item.signal("explode", 0)
+            elif velocity.y <= 0 and collision.floor_contact:
+                item.signal("explode", 0)
+            elif velocity.x > 0 and collision.left_wall:
+                item.signal("explode", 0)
+            elif velocity.x <= 0 and collision.right_wall:
+                item.signal("explode", 0)
+            return false
+    state 10 anim 1:
+        on animation:
+            item.joint("0/0").scale.x = item.state.size
+            item.joint("0/0").scale.y = item.state.size
+            item.joint("0/0").scale.z = item.state.size
+            if hitbox.enabled(0): hitbox.set_radius(0, item.state.explosion_radius)
+            return item.expire_tick()
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+    state 11 anim 2 use 10:
+    state 12 anim 3 use 10:
+    state 13 anim 4 use 10:
+    state 14 anim 5 use 10:
+    state 15 anim 6 use 10:
+    state 16 anim 7 use 10:
+    state 17 anim 8 use 10:

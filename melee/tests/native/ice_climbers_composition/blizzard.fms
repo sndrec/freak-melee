@@ -1,0 +1,56 @@
+article It_Kind_IceClimber_Blizzard states 1:
+    parameter float lifetime = 1
+    parameter float speed = 1
+    parameter float vertical_acceleration = 0
+    parameter float angle_min = 0
+    parameter float angle_max = 0
+    state bool launched
+    state float initial_scale
+    on created:
+            item.state.launched = false
+            item.state.initial_scale = item.base_scale
+            let float random_value = random.float()
+            let float angle = (item.params.angle_max - item.params.angle_min) * random_value + item.params.angle_min
+            if facing != 1:
+                angle = -angle
+            angle = angle - (pi / 2)
+            while angle < 0:
+                angle = angle + tau
+            while angle > tau:
+                angle = angle - tau
+            velocity.x = item.params.speed * cos(angle)
+            velocity.y = item.params.speed * sin(angle)
+            velocity.z = 0
+            item.set_lifetime(item.params.lifetime)
+            item.state.launched = true
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+            item.use_manual_lifetime()
+            item.refresh_physics()
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            velocity.y = velocity.y + item.params.vertical_acceleration
+        on collision:
+            item.stage_collision()
+            let int flags = item.wall_contact_flags()
+            flags = flags | item.ceiling_contact_flags()
+            return flags != 0

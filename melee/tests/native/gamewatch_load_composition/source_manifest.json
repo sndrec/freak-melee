@@ -1,0 +1,31 @@
+{
+  "status": "frozen scoped source acceptance; unregistered",
+  "receipt": "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\receipt.json",
+  "receipt_sha256": "825a7e9ae8faee3e9044035da1ff0bb1a001f9f4fb119692a519572d1f4436b2",
+  "result": {
+    "checks": 216645,
+    "failures": 0,
+    "pairs": 4608,
+    "edited_pairs": 4096
+  },
+  "source_inputs": {
+    "A:\\FreakMelee-test-archives\\baseline61\\sdk\\src\\melee\\ft\\kinds\\ftGameWatch\\ftgamewatch.c": "836626fe34ba1bf245b8e60c35c423e540e47b41a054978cbd5f26660f8a6cf5",
+    "A:\\FreakMelee-test-archives\\baseline61\\sdk\\src\\melee\\ft\\ftmaterial.c": "f83ca8fb6d9259f09725ad493f05712401177a5507b99718514ae5a46f734066",
+    "A:\\FreakMelee-test-archives\\baseline61\\sdk\\src\\sysdolphin\\baselib\\jobj.c": "752a648fafb23849d1994844cde227c816b4c4cdd0e9b8d23d2dca96fbe86369",
+    "C:\\gayms\\freak-melee\\melee\\tests\\native\\gamewatch_load_composition\\candidate.fms": "5d1a058510633c6fd98aa053ce1f4d944eee80da0d1668de2654fbaad8ee63af",
+    "C:\\gayms\\freak-melee\\melee\\tests\\native\\gamewatch_load_composition\\compare.c": "9d33a6a3fbb70af3009612b288b819b37c0e3ac787e8db7a74c6a64ddbe7c6eb",
+    "C:\\gayms\\freak-melee\\melee\\tests\\native\\gamewatch_load_composition\\run.py": "5f5c7fb2d3cb86f87259c703f8077bb94da1f71cb887df9242b0dee8b8632cdd",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\candidate.fms": "05b0d0cecf57b4e318f7eb7bc71f40f7742c5d579a58b425273964e20e73a084",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\behavior.generated.h": "0cd06027ad285ad7f385f35e469669f15448560763b0de896c2538553edafd90",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\fighter_parameters.fmp": "2c8c3a7bfdf67a7302a0231aafbbcd840e5159687dd67a12b77ed3efc9e88a5a",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\parameters.h": "54f31d5249ea6b82ba762b2299fe57f323867eb84eaef21d12a4e05763317d0f",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\original_load.h": "95c0f5708b76d86fca4960bf990cbe409f20bba1e90e31082f104f288ed692f6",
+    "A:\\FreakMelee-test-archives\\gamewatch-load61-final\\material_body.h": "63fb5e9119312f66477ca4d5bf672da59c13212a54262f903acac07e5dcc73b5"
+  },
+  "namespace": {
+    "candidate.fms": "5d1a058510633c6fd98aa053ce1f4d944eee80da0d1668de2654fbaad8ee63af",
+    "compare.c": "9d33a6a3fbb70af3009612b288b819b37c0e3ac787e8db7a74c6a64ddbe7c6eb",
+    "run.py": "5f5c7fb2d3cb86f87259c703f8077bb94da1f71cb887df9242b0dee8b8632cdd",
+    "README.md": "3e7126b9c18475bf8f8d8f954457697e2680b26b860a2aa348f36e4cc280d461"
+  }
+}

@@ -1,0 +1,279 @@
+# Primary Belay ownership. Compose with immutable paired68 components.
+parameter float rope_recruit_range = 1
+parameter float rope_facing_threshold = 1
+parameter float rope_horizontal_divisor = 1
+parameter float rope_vertical_divisor = 1
+parameter float rope_start_gravity = 1
+parameter float rope_start_terminal = 1
+parameter float rope_launch_speed = 1
+parameter float rope_distance_divisor = 1
+parameter float rope_launch_gravity = 1
+parameter float rope_launch_terminal = 1
+parameter float rope_drift_multiplier = 1
+parameter float rope_drift_max_multiplier = 1
+parameter float rope_launch_offset_x = 3
+parameter float rope_launch_offset_y = 5
+parameter int rope_spawn_command = 8
+parameter int rope_removal_command = 83
+parameter float rope_quarter_turn = 1.5707963267948966
+state int rope_counter
+state int rope_marker
+
+func rope_update_endpoint():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let int motion = targets.motion(companion)
+        if motion >= 361 and motion <= 366:
+            let bool observed = targets.read_bone_position(companion, attrs.linked_rope_endpoint_part, x, y, z)
+    state.linked_rope_endpoint_x = x
+    state.linked_rope_endpoint_y = y
+    state.linked_rope_endpoint_z = z
+
+func rope_spawn():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if targets.read_bone_position(fighter.creation_id, attrs.linked_rope_endpoint_part, x, y, z):
+        state.linked_rope_handle = articles.create_with_velocity(It_Kind_IceClimber_GumStrings, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, false)
+    else:
+        state.linked_rope_handle = -1
+    # An owned constructor may retire itself after atomic resource failure.
+    if state.linked_rope_handle != -1 and not(articles.ref(state.linked_rope_handle, It_Kind_IceClimber_GumStrings).exists):
+        state.linked_rope_handle = -1
+    if state.linked_rope_handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool bound = articles.bind_auxiliary(state.linked_rope_handle)
+    if state.linked_rope_handle != -1:
+        callbacks.death3(linked_full_cleanup)
+        callbacks.damage(linked_full_cleanup)
+
+func rope_schedule():
+    if state.rope_counter > attrs.rope_spawn_command and state.rope_counter <= attrs.rope_removal_command:
+        if state.linked_rope_handle != -1:
+            # Article owns schedule attrs18/1C/20 and if/elif command priority.
+            articles.signal(state.linked_rope_handle, It_Kind_IceClimber_GumStrings, "schedule", state.rope_counter)
+    elif state.rope_counter == attrs.rope_spawn_command:
+        rope_spawn()
+        if state.linked_rope_handle == -1:
+            state.wait()
+    # Original missing-rope path has no defined Bool result; callers discard it.
+
+func rope_increment():
+    state.rope_counter = state.rope_counter + 1
+    rope_schedule()
+
+func rope_recruit() -> bool:
+    let int companion = family.member_id(1)
+    if companion == 0:
+        return false
+    let float x = targets.call_float(companion, "linked_position_x")
+    let float y = targets.call_float(companion, "linked_position_y")
+    let float dx = position.x - x
+    let float dy = position.y - y
+    if sqrt(dx * dx + dy * dy) < attrs.rope_recruit_range:
+        return targets.call_bool(companion, "linked_belay_offer")
+    return false
+
+func rope_launch():
+    if grounded:
+        physics.force_air_and_use_jumps()
+    else:
+        jumps.used = jumps.max
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let float x = targets.call_float(companion, "linked_position_x")
+        let float y = targets.call_float(companion, "linked_position_y")
+        let float facing = targets.call_float(companion, "linked_facing")
+        velocity.x = x - position.x
+        velocity.y = y - position.y
+        velocity.z = 0
+        velocity.x = -(attrs.rope_launch_offset_x * facing - velocity.x)
+        velocity.y = velocity.y + attrs.rope_launch_offset_y
+        let float length = sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
+        if length != 0:
+            let float inverse = 1 / length
+            velocity.x = velocity.x * inverse
+            velocity.y = velocity.y * inverse
+            velocity.z = velocity.z * inverse
+        let float dx = position.x - x
+        let float dy = position.y - y
+        # Numeric fidelity of source's double reciprocal-sqrt refinements is
+        # pending direct comparison; no claim of exact launch parity yet.
+        let float distance = sqrt(dx * dx + dy * dy) / attrs.rope_distance_divisor
+        velocity.x = velocity.x * (attrs.rope_launch_speed + distance)
+        velocity.y = velocity.y * (attrs.rope_launch_speed + distance)
+        if velocity.x > 0:
+            facing.direction = 1
+        else:
+            facing.direction = -1
+    state.enter_at_speed(354, 0, 0, 1)
+    callbacks.align_velocity_to_facing()
+
+func rope_start_animation(bool air):
+    if command(2) != 0:
+        command(2) = 0
+        if not(rope_recruit()):
+            if air:
+                state.enter_at_speed(355, 0, frame, 1)
+            else:
+                state.enter_at_speed(350, 0, frame, 1)
+            return
+        damage.song_immune = true
+    if animation.finished:
+        if air:
+            state.enter_at_speed(353, 0, 0, 1)
+        else:
+            state.enter_at_speed(348, 0, 0, 1)
+    else:
+        rope_increment()
+
+func rope_throw_animation(bool air):
+    if animation.finished:
+        if air:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+        else:
+            state.wait()
+        # Original deliberately continues command handling after common entry.
+    if command(1) != 0:
+        command(1) = 0
+        let int companion = family.member_id(1)
+        if companion != 0:
+            if targets.call_bool(companion, "linked_belay_can_throw"):
+                rope_launch()
+                return
+    rope_increment()
+
+func rope_facing_input():
+    if command(0) != 0:
+        command(0) = 0
+        if abs(input.x) > attrs.rope_facing_threshold:
+            if input.x >= 0:
+                facing.direction = 1
+            else:
+                facing.direction = -1
+            bones.root.rotate_y(0, attrs.rope_quarter_turn * facing.direction)
+
+func rope_air_collision(int ground_motion, bool landing):
+    if collision.check_ground_ledge(int(facing.direction)):
+        if landing:
+            state.landing_fall_special(attrs.belay_landing_lag)
+        else:
+            if ground_motion == 347:
+                state.switch_to_ground(347, 0x0C4C508A)
+            else:
+                state.switch_to_ground(348, 0x0C4C508A)
+        return
+    if collision.cliff_catch():
+        return
+    if ground_motion == 349:
+        if collision.left_wall and velocity.x > 0:
+            velocity.x = 0
+        elif collision.right_wall and velocity.x < 0:
+            velocity.x = 0
+        elif collision.ceiling_contact:
+            velocity.y = 0
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+
+move PrimaryRope:
+    on special_hi:
+        ground.velocity = ground.velocity / attrs.rope_horizontal_divisor
+        state.enter_at_speed(347, 0, 0, 1)
+        animation.start()
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.rope_counter = 1
+        state.rope_marker = 0
+        state.linked_rope_endpoint_z = 0
+        state.linked_rope_endpoint_y = 0
+        state.linked_rope_endpoint_x = 0
+    on special_air_hi:
+        velocity.x = velocity.x / attrs.rope_horizontal_divisor
+        velocity.y = velocity.y / attrs.rope_vertical_divisor
+        state.enter_at_speed(352, 0, 0, 1)
+        animation.start()
+        jumps.used = jumps.max
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.rope_counter = 1
+        state.rope_marker = 0
+        state.linked_rope_endpoint_z = 0
+        state.linked_rope_endpoint_y = 0
+        state.linked_rope_endpoint_x = 0
+    on state_347_animation:
+        rope_start_animation(false)
+    on state_352_animation:
+        rope_start_animation(true)
+    on state_347_interrupt:
+        rope_facing_input()
+    on state_352_interrupt:
+        rope_facing_input()
+    on state_347_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_352_physics:
+        physics.fall(attrs.rope_start_gravity, attrs.rope_start_terminal)
+        physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_347_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(352, 0x0C4C508A, frame, 1)
+    on state_352_collision:
+        rope_air_collision(347, false)
+    on state_348_animation:
+        rope_throw_animation(false)
+    on state_353_animation:
+        rope_throw_animation(true)
+    on state_348_interrupt:
+        pass
+    on state_353_interrupt:
+        pass
+    on state_348_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_353_physics:
+        physics.fall(attrs.rope_start_gravity, attrs.rope_start_terminal)
+        physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_348_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(353, 0x0C4C508A, frame, 1)
+    on state_353_collision:
+        rope_air_collision(348, false)
+    on state_349_animation:
+        if animation.finished:
+            state.wait()
+        else:
+            rope_increment()
+    on state_354_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+        else:
+            rope_increment()
+    on state_349_interrupt:
+        pass
+    on state_354_interrupt:
+        pass
+    on state_349_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_354_physics:
+        physics.fall(attrs.rope_launch_gravity, attrs.rope_launch_terminal)
+        if abs(input.x) > attrs.rope_facing_threshold:
+            physics.air_accel(air.drift_stick_mul * attrs.rope_drift_multiplier, air.drift_max * attrs.rope_drift_max_multiplier)
+        elif velocity.y < 0:
+            physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_349_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(354, 0x0C4C508A, frame, 1)
+    on state_354_collision:
+        rope_air_collision(349, true)

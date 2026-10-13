@@ -1,0 +1,159 @@
+# Companion Belay (361/362/364/365); 363/366 stay NULL.
+# Pending coordinated native observations and target bone outputs.
+parameter float linked_belay_mobility = 1
+parameter float linked_belay_landing_lag = 1
+parameter float linked_belay_input_threshold = 1
+parameter float linked_belay_launch_speed = 1
+parameter float linked_belay_launch_angle = 1
+parameter float linked_belay_gravity = 1
+parameter float linked_belay_terminal = 1
+parameter float linked_belay_drift_multiplier = 1
+parameter float linked_belay_speed_multiplier = 1
+parameter float linked_belay_wall_restitution = 1
+parameter float linked_belay_release_offset = 8
+parameter float linked_belay_launch_offset_x = 4
+parameter float linked_belay_launch_offset_y = 7
+parameter int linked_belay_primary_hand = 47
+parameter int linked_belay_secondary_anchor = 2
+
+func linked_endpoint_accessory():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        targets.call(primary, "linked_push_rope_endpoint")
+
+func linked_secondary_belay_catch():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        facing.direction = targets.call_float(primary, "linked_facing")
+    if grounded:
+        physics.force_air_and_use_jumps()
+    else:
+        jumps.used = jumps.max
+    state.enter_at_speed(361, 0, 0, 1)
+    callbacks.accessory(linked_endpoint_accessory)
+    command(0) = 0
+    damage.song_immune = true
+
+export func linked_belay_offer() -> bool:
+    if fighter.incapacitated or hitlag.active:
+        return false
+    let int category = int(action.category)
+    if category == 1 or (category >= 3 and category <= 8) or (category >= 10 and category <= 13):
+        return false
+    linked_secondary_belay_catch()
+    return true
+
+export func linked_belay_can_throw() -> bool:
+    return not fighter.incapacitated and motion.id >= 362 and motion.id <= 366
+
+func linked_secondary_follow() -> bool:
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return true
+    let int motion = targets.motion(primary)
+    if motion < 347 or motion > 352:
+        return false
+    let float primary_facing = targets.call_float(primary, "linked_facing")
+    if facing.direction != primary_facing:
+        facing.direction = primary_facing
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+    let float px = 0
+    let float py = 0
+    let float pz = 0
+    if not targets.read_bone_position(primary, attrs.linked_belay_primary_hand, px, py, pz):
+        return true
+    let float nx = 0
+    let float ny = 0
+    let float nz = 0
+    bones.world_position(attrs.linked_belay_secondary_anchor, nx, ny, nz)
+    let float x = position.x - nx
+    let float y = position.y - ny
+    let float z = position.z - nz
+    position.x = px + x
+    position.y = py + y
+    position.z = pz + z
+    if targets.call_bool(primary, "linked_hitlag_active"):
+        animation.set_rate(0)
+    else:
+        let float rate = targets.call_float(primary, "linked_animation_rate")
+        if animation.rate != rate:
+            animation.set_rate(rate)
+    return true
+
+func linked_secondary_belay_launch():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        collision.copy_from(primary)
+    velocity.x = facing.direction * (attrs.linked_belay_launch_speed * cos(attrs.linked_belay_launch_angle))
+    velocity.y = attrs.linked_belay_launch_speed * sin(attrs.linked_belay_launch_angle)
+    position.x = position.x + attrs.linked_belay_launch_offset_x * facing.direction * model.instance_scale_y
+    position.y = position.y + attrs.linked_belay_launch_offset_y * model.instance_scale_y
+    state.enter_at_speed(365, 0, 0, 1)
+    callbacks.accessory(linked_endpoint_accessory)
+
+func linked_secondary_belay_air():
+    physics.fall(attrs.linked_belay_gravity, attrs.linked_belay_terminal)
+    if abs(input.x) > attrs.linked_belay_input_threshold:
+        physics.air_accel(air.drift_stick_mul * attrs.linked_belay_drift_multiplier, air.drift_max * attrs.linked_belay_speed_multiplier)
+    elif velocity.y < 0:
+        physics.air_decel_normal()
+
+func linked_secondary_belay_coll():
+    if collision.landed:
+        state.switch_to_ground(362, 0x0C4C508A)
+        callbacks.accessory(linked_endpoint_accessory)
+        return
+    if collision.left_wall and velocity.x > 0:
+        velocity.x = velocity.x * (-1 * attrs.linked_belay_wall_restitution)
+        facing.direction = facing.direction * -1
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+        return
+    if collision.right_wall and velocity.x < 0:
+        velocity.x = velocity.x * (-1 * attrs.linked_belay_wall_restitution)
+        facing.direction = facing.direction * -1
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+        return
+    if collision.ceiling_contact:
+        velocity.y = 0
+
+move CompanionBelay:
+    on state_361_animation:
+        if animation.finished:
+            linked_secondary_belay_launch()
+    on state_361_interrupt:
+        return
+    on state_361_physics:
+        if not linked_secondary_follow():
+            position.x = -(attrs.linked_belay_release_offset * facing.direction - position.x)
+            state.fall()
+    on state_361_collision:
+        return
+    on state_362_animation:
+        if animation.finished:
+            state.wait()
+    on state_362_interrupt:
+        return
+    on state_362_physics:
+        physics.ground_friction()
+    on state_362_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(365, 0x0C4C508A, frame, 1)
+            callbacks.accessory(linked_endpoint_accessory)
+    on state_364_animation:
+        return
+    on state_364_interrupt:
+        return
+    on state_364_physics:
+        return
+    on state_364_collision:
+        return
+    on state_365_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.linked_belay_mobility, attrs.linked_belay_landing_lag)
+    on state_365_interrupt:
+        return
+    on state_365_physics:
+        linked_secondary_belay_air()
+    on state_365_collision:
+        linked_secondary_belay_coll()

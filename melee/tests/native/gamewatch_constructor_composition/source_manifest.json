@@ -1,0 +1,49 @@
+{
+  "status": "Source frozen; all-ten actual DLL constructor matrix and independent root reproduction accepted. Unregistered.",
+  "sdk": ".local/baseline62",
+  "freeze_manifest_sha256": "440b27db0595cc12a730a5e390c6cc9a74d00ed17b7f1ec14117ae6338f9dc4b",
+  "acceptance": {
+    "receipt": "A:\\FreakMelee-test-archives\\gamewatch-constructor62-final\\receipt.json",
+    "sha256": "7ff262079fdfe6992a21a0dfea02c09ea4ade5f5ff6804f4f222cc6d9ca30f27",
+    "result": {
+      "checks": 22731448,
+      "failures": 0,
+      "constructor_pairs": 123648,
+      "presentation_transfer_pairs": 18816,
+      "authored_safety_cases": 11,
+      "full_article_imports": 10,
+      "actual_dll": true
+    }
+  },
+  "independent_reproduction": {
+    "receipt": "A:\\FreakMelee-test-archives\\gamewatch-constructor62-root\\receipt.json",
+    "sha256": "6bb9a2f634b70b8b5e31bb8a5a7fc6f88c63b3a5594cb038d8531c417ca017a9",
+    "result": {
+      "checks": 22731448,
+      "failures": 0,
+      "constructor_pairs": 123648,
+      "presentation_transfer_pairs": 18816,
+      "authored_safety_cases": 11,
+      "full_article_imports": 10,
+      "actual_dll": true
+    }
+  },
+  "read_only_foundation_census": {
+    "receipt": "A:/FreakMelee-test-archives/gamewatch-constructor61-audit-final/inventory.json",
+    "sha256": "8784f946274c03b89dfb37d1448861763afade54e77a8e46534fe4dbd810627c"
+  },
+  "receipt_instrumentation_note": "Both accepted executions used the pre-census runner hash recorded in their receipts. Final runner changes add hashes/body locations to receipts only; executable FMS/C unchanged. README and source ledger completed after execution.",
+  "tracked_sources": {
+    "audit.py": "ed7aea2fcceeafd4e4a7e5871a534e4abd669fb5b9109fbb00ccfe608906145a",
+    "compare.c": "96fcb11fe6f7c8bae438099eea49a7782a3a2c340b410d81f858201bcd0f9e82",
+    "constructors.pending.fms": "ac51a9edc013239e4d2a7372893a2a2e51ab736ad2f4b5a866fa6aff51eb0661",
+    "palette_helpers.fms": "9a8b0ab0ebed61e661e542b5004d01d91a93c0bf3112facee45c0c1580822112",
+    "README.md": "30f3b2f6283aabe6b022b270fb71c13afd7103ccd4d9abd8dfee33d4eb6a2d9c",
+    "run.py": "d3710b477c074f5f7ed0122d19faa6738d1599b6ad9e4877584e0a7ce8635445"
+  },
+  "scope_limits": [
+    "Synthetic inherited base; no copied stock GameWatch clone/module package or complete fighter activation gate.",
+    "Controlled allocation, HSD pose/commands/attachment geometry and debug inputs; actual common policies execute as documented.",
+    "No game, pixels, installation, shared/default edits or commit."
+  ]
+}

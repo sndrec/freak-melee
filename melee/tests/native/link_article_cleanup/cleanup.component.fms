@@ -1,0 +1,22 @@
+# New test-only composition. No default activation.
+func Cleanup_AllArticles():
+    boomerang_remove()
+    if state.tether_handle != -1:
+        Tether_Remove()
+        state.tether_handle = -1
+    if state.bow_arrow_handle != -1:
+        if articles.ref(state.bow_arrow_handle, It_Kind_Link_Arrow).exists:
+            articles.signal(state.bow_arrow_handle, It_Kind_Link_Arrow, "remove", 0)
+        state.bow_arrow_handle = -1
+    if state.bow_handle != -1:
+        if articles.ref(state.bow_handle, It_Kind_Link_Bow).exists:
+            articles.signal(state.bow_handle, It_Kind_Link_Bow, "remove", 0)
+        state.bow_handle = -1
+    if state.milk_handle != -1:
+        if articles.ref(state.milk_handle, It_Kind_CLink_Milk).exists:
+            articles.signal(state.milk_handle, It_Kind_CLink_Milk, "remove", 0)
+        state.milk_handle = -1
+
+action CleanupHarness:
+    on tick:
+        pass

@@ -1,0 +1,29 @@
+{
+  "status": "live source proposal only; no generated module/test claim",
+  "inputs": {
+    "src/melee/ft/native_fighter_runtime.h": "ff8a38fbb119884c87d12b48bc6d585f65318868e2f2f7b4865b42c6105671af",
+    "src/melee/ft/native_fighter_module.h": "88b54d35dd9ee096ae5757bfa49a20513098fa63985d0d2231080fcdc0e40a7a",
+    "src/melee/ft/native_fighter_target.h": "2d75e000898cc3c893bf7d744ad20172b86d8344481a6af37d97820e067d8b77",
+    "src/melee/ft/native_fighter_target.c": "7adf2883b4facd6abde8f1936d35d6ac3e98feb3c5d9e6fa18f2f035f4f80e42",
+    "src/melee/ft/ftcommon.c": "01fc801324b903720e7a9eaa84016f5ae926ab0b2bc04ef1a87df2c33fb8c22f",
+    "src/melee/ft/fighter.c": "a282f8794d14d38ad10e86c06076fba2406e6f6dd6d5c1f6316affb258a59f8b",
+    "src/melee/ft/ftaction.c": "b2ee5a6465fff4529fc28af970bd0511c7b9e48ce960da5f3ef9a069ec0d4c9e",
+    "src/melee/ft/ft_0877.c": "91f433807fafb210ef9cc1938f61ab472ec5e4b24ff08e00c44812724887a824",
+    "src/melee/ft/ft_08A1.c": "31061c51b43b8dfaf697acf7c2b43c341ba510b68f7a8a43400c16dc21d3d243",
+    "src/melee/ft/ft_0D27.c": "e18b798f9ddd615df8c51e8050b2a5d13be0ad8a52901485e2385e807b20027f",
+    "src/melee/ft/kinds/ftCommon/inlines.h": "30135b8b8b91347f2119ac6eaff5476ecd48e8725e4084be4bbd68c90243753e",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c": "3ab6fd83d3932435881b909c58c7c84ef79f9f626c5a62e916774983aa2fd94b",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c": "fb43737a010f8465e16830b0cba5243ea17c22bdf765e9129d9c9815126837eb",
+    "src/melee/ft/kinds/ftCommon/ftCo_FallSpecial.c": "737c8457b3ec73310bab7a6256425bea0418e70fbf356fa260886ad0d34881b1",
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": "2eb2a869336452adc2b35cb2b12b4c91134d9eeef6bf6dbf9810af5de53de7ed",
+    "src/melee/ft/kinds/ftCommon/ftCo_DamageFall.c": "8981469a73c1bd525cf294f7174dcb764f823571aaab70005aca43c355f2a434",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemThrow.c": "2fd991a75d5f210a64c95a353fe18b12cadac1f624dcdaa827fad105303204a1",
+    "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c": "d6c81e6cd27c6791c846b260fa7d048ba78bf7a29382df7f7c59d5f9503b746d",
+    "src/melee/it/kinds/itpeachparasol.c": "4ab2510baccbd35b68f53653831cf712bc9ab97068780a13c7c659b37582ca85",
+    "tools/native_fighter_script_code.c": "2a00fb12c27a124911d10ebb5b86e1129832ca3ed0171b5cecea635629466a46",
+    "tools/native_fighter_script_primitives.c": "287676381c316ac2df35e04e1e82a1633c854ec5c62836abf82374266e5b8898",
+    "tools/native_fighter_item_script.c": "212ef777bcf8237b33996aeb85b695d8820cdd17a03087268a58e40cf41a6b92",
+    "src/melee/ft/native_fighter_module.c": "1e656a485689ac5567a4778887200aa26d3db03b80086495c208e0e5ccb52b51"
+  },
+  "proposal_sha256": "845188226d441d8d636544ad979495a50eeb3c2e1c0303dd69094c0e4177083a"
+}

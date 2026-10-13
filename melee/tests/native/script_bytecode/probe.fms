@@ -1,0 +1,85 @@
+func Boost(float value) -> float:
+    return value + 0.25
+
+func Evaluate() -> float:
+    let int index = 0
+    let float total = 0
+    while index < 8:
+        index = index + 1
+        if index == 2: continue
+        if index == 7: break
+        total = Boost(total)
+    if false and native.retire(): return 0
+    if true or native.retire(): total = total + 1
+    if total < 0:
+        total = 100
+    elif total < 3:
+        total = total + 2
+    else:
+        total = 200
+    let float x = 40
+    let float y = 50
+    let bool found = native.point(0, x, y)
+    if found: total = 1000
+    total = total + x + y
+    found = native.point(1, x, y)
+    if found: total = total + x + y
+    state.values[native.next_index()] = native.value()
+    total = total + resource(3).joint("0").x
+    total = total + attrs.gain
+    state.value = total
+    state.owned = total
+    return native.echo(total)
+
+func Retire() -> float:
+    let float x = 40
+    let float y = 50
+    let bool found = native.retiring_point(x, y)
+    state.value = x + y
+    return 999
+
+func RetireHelper() -> float:
+    return Retire() + native.value()
+
+func InputRounding(float value) -> float:
+    return value
+
+func NumericProbe(float left, float right) -> float:
+    return (left + right) * 0.5 + 0.25
+
+func CallerRounding() -> float:
+    return InputRounding(16777217.0)
+
+func BranchReturn(int mode) -> int:
+    if mode < 0:
+        return 1
+    elif mode == 0:
+        return 2
+    else:
+        return 3
+
+func BranchThenReturn(int mode) -> int:
+    if mode < 0: return 1
+    let int answer = 2
+    return answer
+
+func Reentrant() -> float:
+    return native.reenter() + 1
+
+func BadDivide() -> int:
+    return 10 / 0
+
+func ReturnNested() -> int:
+    let int outer = 0
+    let int total = 0
+    while outer < 3:
+        outer = outer + 1
+        let int inner = 0
+        while inner < 4:
+            inner = inner + 1
+            if inner == 2: continue
+            if inner == 4: break
+            total = total + 1
+    return total
+state float owned
+parameter float gain = 2

@@ -1,0 +1,23 @@
+move Lifecycle:
+    on load:
+        fighter.copy_ext_attributes()
+        fighter.enable_multi_jump()
+        state.crimes = 3
+        state.snack_charges = 3
+        state.snack_recharge_frames = 0
+        state.snack_choice = -1
+    on tick:
+        if state.snack_charges < 3:
+            state.snack_recharge_frames = state.snack_recharge_frames + 1
+            if state.snack_recharge_frames >= 240:
+                state.snack_charges = state.snack_charges + 1
+                state.snack_recharge_frames = 0
+    on death:
+        visuals.hide_group(0)
+        visuals.hide_group(1)
+        state.crimes = 3
+        state.snack_charges = 3
+        state.snack_recharge_frames = 0
+        state.snack_choice = -1
+    on landing:
+        state.crimes = 3

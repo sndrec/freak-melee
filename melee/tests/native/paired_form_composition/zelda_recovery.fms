@@ -1,0 +1,25 @@
+# DECLARATIONS
+parameter float cpu_recovery_diagonal_distance = 30
+parameter int cpu_recovery_stick_strength = 127
+parameter int cpu_recovery_press_frames = 40
+parameter int cpu_recovery_wait_frames = 1
+# FUNCTIONS
+# CALLBACKS
+move ZeldaRecovery:
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.wait, attrs.cpu_recovery_wait_frames)
+        cpu.queue(Cpu.stick_y, attrs.cpu_recovery_stick_strength)
+        if abs(cpu.destination.x - position.x) > attrs.cpu_recovery_diagonal_distance:
+            cpu.queue(Cpu.x_toward_destination, attrs.cpu_recovery_stick_strength)
+            cpu.queue(Cpu.press_b_for, attrs.cpu_recovery_press_frames)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.stick_x, 0)
+        else:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.press_b_for, attrs.cpu_recovery_press_frames)
+            cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.wait, attrs.cpu_recovery_wait_frames)
+        cpu.queue(Cpu.done)

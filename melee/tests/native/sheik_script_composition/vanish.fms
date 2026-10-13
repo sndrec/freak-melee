@@ -1,0 +1,254 @@
+# Complete standalone Vanish355..360 and Vanish article. Transform excluded.
+base ftDataSeak 341 24
+attribute float vanish_initial_y 44
+attribute float vanish_start_gravity 48
+attribute float vanish_start_terminal 52
+attribute int vanish_travel_frames 56
+attribute float vanish_platform_grace 60
+attribute float vanish_stick_minimum 64
+attribute float vanish_speed_multiplier 68
+attribute float vanish_speed_addition 72
+attribute float vanish_end_drift_multiplier 76
+attribute int vanish_surface_angle 80
+attribute float vanish_end_momentum 84
+attribute float vanish_freefall_mobility 88
+attribute float vanish_landing_lag 92
+state int vanish_remaining
+state int vanish_collision_age
+state float vanish_stick_x
+state float vanish_stick_y
+state float vanish_saved_x
+state float vanish_saved_y
+state float vanish_saved_ground
+
+func vanish_start_effect():
+    if not effects.active:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(4, x, y, z)
+        # Stock flattens the supplied point before Item_InitSpawn; current and
+        # previous positions agree. The constructor result is discarded.
+        let int blast = articles.create_at_position(It_Kind_Seak_Vanish, x, y, 0, facing.direction, false)
+        bones.world_position(4, x, y, z)
+        if not effects.active:
+            effects.spawn_at_position(1284, x, y, z)
+            effects.active = true
+        effects.pause_during_hitlag()
+        sound.play(115, 127, 64)
+    callbacks.accessory(None)
+
+func vanish_end_effect():
+    if not effects.active:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(4, x, y, z)
+        effects.spawn_at_position(1285, x, y, z)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func vanish_travel_setup():
+    state.vanish_remaining = attrs.vanish_travel_frames
+    jumps.used = jumps.max
+    items.block_ground_pickup = true
+    hurtboxes.set_body_status(Hurt.intangible)
+    visuals.set_visible(false)
+    callbacks.accessory(vanish_start_effect)
+
+func vanish_air_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    if strength > attrs.vanish_stick_minimum:
+        if abs(input.x) > 0.001: facing.from_input()
+        let float angle = atan2_float(input.y, input.x * facing.direction)
+        state.vanish_stick_x = input.x
+        state.vanish_stick_y = input.y
+        velocity.x = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+        velocity.y = (attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * sin(angle)
+    else:
+        facing.from_input_threshold()
+        state.vanish_stick_x = 0
+        strength = 1
+        state.vanish_stick_y = 1
+        let float angle = float(pi / 2)
+        velocity.x = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+        velocity.y = (attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * sin(angle)
+    state.enter_at_speed(359, 0, 35, 1)
+    animation.start()
+    animation.set_rate(0)
+    vanish_travel_setup()
+
+func vanish_ground_launch():
+    let float strength = sqrt(input.x * input.x + input.y * input.y)
+    if strength > 1: strength = 1
+    # Ground retains equality; air requires strict greater-than.
+    if not (strength < attrs.vanish_stick_minimum):
+        let float floor_angle = vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y)
+        if not (floor_angle < float(pi / 2)):
+            if not collision.skip_soft_floor():
+                facing.from_input()
+                let float angle = atan2_float(input.y, input.x * facing.direction)
+                state.vanish_stick_x = input.x
+                state.vanish_stick_y = input.y
+                ground.velocity = facing.direction * ((attrs.vanish_speed_multiplier * strength + attrs.vanish_speed_addition) * cos(angle))
+                state.enter_at_speed(356, 0, 35, 1)
+                animation.start()
+                animation.set_rate(0)
+                vanish_travel_setup()
+                return
+    physics.force_air_and_use_jumps()
+    vanish_air_launch()
+
+func vanish_end(bool air_started):
+    if air_started: state.enter_at_speed(360, 0, 0, 1)
+    else: state.enter_at_speed(357, 0, 0, 1)
+    animation.start()
+    state.vanish_saved_x = velocity.x
+    state.vanish_saved_y = velocity.y
+    state.vanish_saved_ground = ground.velocity
+    velocity.y = 0
+    velocity.x = 0
+    ground.velocity = 0
+    visuals.set_visible(true)
+    callbacks.accessory(vanish_end_effect)
+    if air_started:
+        velocity.x = state.vanish_saved_x * attrs.vanish_end_momentum
+        velocity.y = state.vanish_saved_y * attrs.vanish_end_momentum
+    else:
+        ground.velocity = state.vanish_saved_ground * attrs.vanish_end_momentum
+
+func vanish_air_travel_collision():
+    state.vanish_collision_age = state.vanish_collision_age + 1
+    if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+        let bool land = true
+        if state.vanish_collision_age < attrs.vanish_platform_grace:
+            land = not collision.skip_soft_floor()
+        if land:
+            physics.switch_to_ground()
+            state.enter_at_speed(356, 0x0c4c508e, frame, 0)
+            visuals.set_visible(false)
+            return
+    if collision.cliff_catch(): return
+    let float limit = radians(90.0 + attrs.vanish_surface_angle)
+    # Independent probes preserve changed velocity after an earlier end.
+    if collision.ceiling_contact and vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+    if collision.left_wall and vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+    if collision.right_wall and vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y) > limit:
+        vanish_end(true)
+
+move Vanish:
+    on special_hi:
+        command(0) = 0
+        state.vanish_collision_age = 0
+        state.enter_at_speed(355, 0, 0, 1)
+        animation.start()
+    on special_air_hi:
+        command(0) = 0
+        state.vanish_collision_age = 0
+        velocity.y = attrs.vanish_initial_y
+        state.enter_at_speed(358, 0, 0, 1)
+        animation.start()
+    on state_355_animation:
+        if animation.finished: vanish_ground_launch()
+    on state_358_animation:
+        if animation.finished: vanish_air_launch()
+    on state_356_animation:
+        state.vanish_remaining = state.vanish_remaining - 1
+        if state.vanish_remaining <= 0: vanish_end(false)
+    on state_359_animation:
+        state.vanish_remaining = state.vanish_remaining - 1
+        if state.vanish_remaining <= 0: vanish_end(true)
+    on state_357_animation:
+        if animation.finished: state.wait()
+    on state_360_animation:
+        if animation.finished: state.freefall(1, 0, true, attrs.vanish_freefall_mobility, attrs.vanish_landing_lag)
+    on state_355_interrupt:
+        return
+    on state_356_interrupt:
+        return
+    on state_357_interrupt:
+        return
+    on state_358_interrupt:
+        return
+    on state_359_interrupt:
+        return
+    on state_360_interrupt:
+        return
+    on state_355_physics:
+        physics.ground_friction()
+    on state_358_physics:
+        physics.fall(attrs.vanish_start_gravity, attrs.vanish_start_terminal)
+        physics.air_accel_normal()
+    on state_356_physics:
+        physics.ground_to_self()
+    on state_359_physics:
+        return
+    on state_357_physics:
+        physics.ground_friction()
+    on state_360_physics:
+        if command(0) != 0:
+            physics.fall_basic()
+            let float maximum = attrs.vanish_end_drift_multiplier * air.drift_max
+            if velocity.x < -maximum: velocity.x = -maximum
+            elif velocity.x > maximum: velocity.x = maximum
+            return
+        velocity.y = velocity.y - velocity.y / 10
+        physics.air_decel_normal()
+    on state_355_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(358, 0x0c4c508e, frame, 1)
+            callbacks.accessory(vanish_start_effect)
+    on state_358_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.switch_to_ground(355, 0x0c4c508e)
+            callbacks.accessory(vanish_start_effect)
+        else:
+            collision.cliff_catch()
+    on state_356_collision:
+        if collision.left_ground:
+            if collision.left_wall or collision.right_wall:
+                physics.force_air_and_use_jumps()
+                vanish_end(true)
+                return
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(359, 0x0c4c508e, frame, 0)
+            items.block_ground_pickup = true
+            visuals.set_visible(false)
+        elif collision.left_wall or collision.right_wall:
+            vanish_end(false)
+    on state_359_collision:
+        vanish_air_travel_collision()
+    on state_357_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(360, 0x0c4c508a, frame, 1)
+            callbacks.accessory(vanish_end_effect)
+    on state_360_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.landing_special(false, attrs.vanish_landing_lag)
+            return
+        collision.cliff_catch()
+
+article It_Kind_Seak_Vanish states 1:
+    on created:
+            # This first life assignment is overwritten by common expiry setup.
+            item.life = 60
+            item.command0 = 0
+            item.hide_model()
+            item.use_manual_lifetime()
+            item.physics_disabled = true
+            item.begin_expiry()
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+    on damage_dealt:
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            return item.expire_tick()

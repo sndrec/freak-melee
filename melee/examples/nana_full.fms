@@ -1,0 +1,2182 @@
+# Nana owned source template, promoted from accepted composed source.
+# Fighter and article decisions are authored here; no borrowed stock handlers.
+# Declarative attributes require normal import; paired play requires its owned family package.
+# Component comments below retain their original source-comparison provenance.
+
+# Complete authored decisions; independent package request, pending normal pipeline/runtime acceptance.
+parameter int common_wait = 14
+parameter int common_motion_count = 341
+parameter int common_cliff_catch = 252
+parameter int common_cliff_wait = 253
+parameter int common_capture_wait_hi = 224
+parameter int common_capture_wait_lw = 227
+parameter int common_shouldered_wait = 266
+parameter int common_shouldered_turn = 270
+parameter int common_teeter = 245
+parameter int common_teeter_wait = 246
+parameter int common_capture_kirby = 288
+parameter int common_capture_wait_kirby = 289
+parameter int common_rebirth = 12
+parameter int common_rebirth_wait = 13
+parameter int common_warp_jump = 305
+parameter int common_warp_fall = 306
+parameter int common_parasol_fall = 145
+parameter int common_parasol_damage_fall = 147
+parameter int common_squat = 39
+parameter int common_squat_wait = 40
+parameter int common_landing = 42
+parameter int common_landing_special = 43
+parameter int common_landing_air_n = 70
+parameter int common_landing_air_lw = 74
+parameter int common_flower_ground = 152
+parameter int common_flower_air = 153
+parameter int follower_blizzard_ground = 357
+parameter int follower_blizzard_air = 358
+parameter int follower_belay_first = 361
+parameter int follower_belay_last = 366
+parameter int follower_target_member = 0
+
+fighter:
+    behavior independent
+
+# Immutable owned presentation and ground policy; the generic engine retains
+# dispatch/stops, canonical bank decoding, KO timing and ground projection.
+sound_mute_channels 0x44
+surface_friction ignore
+sound_remap 0xFFFFFFFC 13 0x1FBFD 0x1FC62 0x66
+sound_remap 0x3 13 0x1FC63 0x1FCC8 -0x66
+sound_ko_cue 0xFFFFFFFC 0x1FBD1
+
+# Unregistered Ice Shot / Blizzard source composition; paired fighter setup,
+# Squall and Belay are deliberately outside this component.
+attribute float ice_air_boost 4
+attribute float ice_landing_lag 8
+attribute float ice_spawn_x 12
+attribute float ice_spawn_y 16
+parameter float ice_repeat_air_offset = -10
+attribute float blizzard_interval 184
+attribute float blizzard_spawn_x 188
+attribute float blizzard_spawn_y 192
+parameter int ice_launch_voice = 130090
+parameter int blizzard_voice = 130063
+parameter int blizzard_loop = 130030
+
+state int ice_handle
+state bool ice_air_boost_used
+state float ice_spawn_height
+state bool blizzard_effect_active
+state int blizzard_countdown
+state bool blizzard_emitting
+state float squall_input_accel
+state int squall_pending_pumps
+state int squall_pump_timer
+state int squall_elapsed
+state int linked_rope_handle
+state float linked_rope_endpoint_x
+state float linked_rope_endpoint_y
+state float linked_rope_endpoint_z
+state bool linked_squall_on_floor
+state int rope_counter
+state int rope_marker
+state int linked_follow_delay
+state bool copy_controls
+state bool recovery_lock
+state int history_target
+
+func forget_ice(int removed_id):
+    if state.ice_handle == removed_id:
+        state.ice_handle = -1
+        callbacks.death2(None)
+        callbacks.damage(None)
+
+func cleanup_ice():
+    if state.ice_handle != -1:
+        let int previous = state.ice_handle
+        articles.signal(previous, It_Kind_IceClimber_Ice, "remove", 0)
+        forget_ice(previous)
+
+func cleanup_blizzard():
+    if state.blizzard_effect_active:
+        effects.destroy_all()
+        state.blizzard_effect_active = false
+        callbacks.death2(None)
+        callbacks.damage(None)
+        bones.root.rotate_x(0, 0)
+
+# This component owns Ice/Blizzard cleanup only. Full stock Init_8011F060 also
+# cleans Squall and Belay. No independent or installed callback claim is made.
+func blizzard_callbacks():
+    callbacks.death2(linked_full_cleanup)
+    callbacks.damage(linked_full_cleanup)
+
+func ice_cue():
+    if command(0) == 1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(0, x, y, z)
+        x = attrs.ice_spawn_x * facing.direction + x
+        y = y + (attrs.ice_spawn_y + state.ice_spawn_height)
+        state.ice_handle = articles.create_at_position(It_Kind_IceClimber_Ice, x, y, 0, facing.direction, true, 0, 0)
+        sound.play(130021, 127, 64)
+        if state.ice_handle != -1:
+            blizzard_callbacks()
+        command(0) = 0
+    elif command(0) == 2:
+        if state.ice_handle != -1:
+            let int previous = state.ice_handle
+            articles.signal(previous, It_Kind_IceClimber_Ice, "launch", 0)
+            command(0) = 0
+            sound.channel(2, attrs.ice_launch_voice, 127, 64)
+            sound.play(130024, 127, 64)
+            forget_ice(previous)
+
+func blizzard_tilt():
+    if command(3) != 0:
+        bones.root.rotate_x(0, facing.direction * atan2_float(floor.normal.x, floor.normal.y))
+    else:
+        bones.root.rotate_x(0, 0)
+
+func blizzard_land():
+    state.switch_to_ground(357, 0x0C4C5282)
+    blizzard_callbacks()
+    blizzard_tilt()
+    callbacks.accessory(blizzard_cue)
+
+func blizzard_cue():
+    # Stock emits/decrements before processing the start/stop cue this tick.
+    if state.blizzard_emitting:
+        if state.blizzard_countdown == 0:
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            bones.world_position(26, x, y, z)
+            x = x + attrs.blizzard_spawn_x * facing.direction
+            y = y + attrs.blizzard_spawn_y
+            articles.create_at_position(It_Kind_IceClimber_Blizzard, x, y, 0, facing.direction, true, 0, 0)
+            state.blizzard_countdown = int(attrs.blizzard_interval)
+        state.blizzard_countdown = state.blizzard_countdown - 1
+    if command(0) == 1:
+        effects.spawn_on_part(0x4EC, 29)
+        state.blizzard_emitting = true
+        state.blizzard_effect_active = true
+        blizzard_callbacks()
+        command(0) = 0
+        sound.channel(2, attrs.blizzard_voice, 127, 64)
+        sound.loop(attrs.blizzard_loop, 127, 64)
+    elif command(0) == 2:
+        state.blizzard_emitting = false
+        command(0) = 0
+
+move IceShot:
+    on special_n:
+        cue.throw.reset()
+        command(0) = 0
+        state.ice_handle = -1
+        state.enter_at_speed(341, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ice_cue)
+    on special_air_n:
+        cue.throw.reset()
+        command(0) = 0
+        state.ice_handle = -1
+        if not state.ice_air_boost_used:
+            velocity.y = attrs.ice_air_boost
+            state.ice_air_boost_used = true
+            state.ice_spawn_height = 0
+        else:
+            state.ice_spawn_height = attrs.ice_repeat_air_offset
+        state.enter_at_speed(342, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ice_cue)
+    on state_341_animation:
+        if animation.finished: state.wait()
+    on state_342_animation:
+        if animation.finished: state.fall()
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+    on state_342_physics:
+        physics.air_gravity_and_friction()
+    on state_341_collision:
+        if collision.left_ground:
+            cleanup_ice()
+            state.fall()
+    on state_342_collision:
+        if collision.landed:
+            cleanup_ice()
+            state.ice_air_boost_used = false
+            state.ice_spawn_height = 0
+            state.landing_special(false, attrs.ice_landing_lag)
+move Blizzard:
+    on special_lw:
+        cue.throw.reset()
+        command(0) = 0
+        command(3) = 0
+        state.blizzard_countdown = 0
+        state.blizzard_emitting = false
+        state.enter_at_speed(357, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(blizzard_cue)
+    on special_air_lw:
+        cue.throw.reset()
+        command(0) = 0
+        command(3) = 0
+        state.blizzard_countdown = 0
+        state.blizzard_emitting = false
+        state.enter_at_speed(358, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(blizzard_cue)
+    on state_357_animation:
+        if animation.finished:
+            cleanup_blizzard()
+            state.wait()
+    on state_358_animation:
+        if animation.finished:
+            cleanup_blizzard()
+            state.fall()
+    on state_357_interrupt:
+        return
+    on state_358_interrupt:
+        return
+    on state_357_physics:
+        physics.ground_friction()
+    on state_358_physics:
+        physics.air_gravity_and_friction()
+    on state_357_collision:
+        if collision.left_ground:
+            bones.root.rotate_x(0, 0)
+            state.switch_to_air(358, 0x0C4C5282)
+            blizzard_callbacks()
+            callbacks.accessory(blizzard_cue)
+            physics.clamp_air_drift()
+        else:
+            blizzard_tilt()
+    on state_358_collision:
+        collision.air_aerial_landing_callback(blizzard_land)
+    on landing_action:
+        state.ice_air_boost_used = false
+
+# Unregistered SDK66 scalar slice. No special entry override or paired claim.
+attribute float squall_input_threshold 64
+attribute float squall_ground_input_accel 48
+attribute float squall_air_input_accel 52
+attribute float squall_air_max 60
+attribute float squall_solo_gravity 76
+attribute float squall_pair_gravity 80
+attribute float squall_solo_terminal 84
+attribute float squall_pair_terminal 88
+attribute float squall_gravity_duration 92
+attribute float squall_solo_pump_speed 96
+attribute float squall_pair_pump_speed 100
+attribute int squall_pump_interval 104
+attribute float belay_mobility 116
+attribute float belay_landing_lag 120
+attribute float belay_solo_launch_speed 164
+attribute float belay_solo_gravity 168
+attribute float belay_solo_terminal 172
+
+func squall_input(float multiplier):
+    if abs(input.x) >= attrs.squall_input_threshold:
+        state.squall_input_accel = input.x * multiplier
+    else:
+        state.squall_input_accel = 0
+
+# This is the source AccelToVel rule, not the generic stick-based drift helper.
+func squall_accel(float accel, float target):
+    if target == 0:
+        accel = -velocity.x
+    elif not(velocity.x * accel < 0):
+        if accel > 0:
+            if velocity.x + accel > target:
+                accel = target - velocity.x
+        elif velocity.x + accel < target:
+            accel = target - velocity.x
+    acceleration.x = accel
+
+func squall_air_physics(float pump, float gravity, float terminal):
+    state.squall_pump_timer = state.squall_pump_timer + 1
+    if command(2) != 0 and input.special_pressed:
+        state.squall_pending_pumps = state.squall_pending_pumps + 1
+    if state.squall_pending_pumps != 0 and state.squall_pump_timer > attrs.squall_pump_interval:
+        velocity.y = velocity.y + pump
+        state.squall_pending_pumps = 0
+        state.squall_pump_timer = 0
+    state.squall_elapsed = state.squall_elapsed + 1
+    if state.squall_elapsed < attrs.squall_gravity_duration:
+        physics.fall(gravity, terminal)
+    else:
+        physics.fall_basic()
+    if command(0) == 0 and state.squall_input_accel != 0:
+        let float target = -attrs.squall_air_max
+        if state.squall_input_accel > 0:
+            target = attrs.squall_air_max
+        squall_accel(state.squall_input_accel, target)
+    else:
+        physics.air_decel_normal()
+
+func belay_solo_air_physics():
+    physics.fall(attrs.belay_solo_gravity, attrs.belay_solo_terminal)
+    if velocity.y < 0:
+        physics.air_decel_normal()
+
+func belay_solo_leave_ground(int motion):
+    physics.force_air_and_use_jumps()
+    state.enter_at_speed(motion, 0x0C4C508A, frame, 1)
+
+move LinkedScalarSlice:
+    on state_343_interrupt:
+        squall_input(attrs.squall_ground_input_accel)
+    on state_344_interrupt:
+        squall_input(attrs.squall_ground_input_accel)
+    on state_345_interrupt:
+        squall_input(attrs.squall_air_input_accel)
+    on state_346_interrupt:
+        squall_input(attrs.squall_air_input_accel)
+    on state_345_physics:
+        squall_air_physics(attrs.squall_solo_pump_speed, attrs.squall_solo_gravity, attrs.squall_solo_terminal)
+    on state_346_physics:
+        squall_air_physics(attrs.squall_pair_pump_speed, attrs.squall_pair_gravity, attrs.squall_pair_terminal)
+    on state_350_animation:
+        if animation.finished:
+            state.enter_at_speed(351, 0, 0, 1)
+    on state_350_interrupt:
+        return
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        if collision.special_ground_lost:
+            belay_solo_leave_ground(355)
+    on state_351_animation:
+        if animation.finished:
+            state.wait()
+    on state_351_interrupt:
+        return
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        if collision.special_ground_lost:
+            belay_solo_leave_ground(356)
+    on state_355_animation:
+        if command(2) != 0:
+            command(2) = 0
+            velocity.y = attrs.belay_solo_launch_speed
+        if animation.finished:
+            state.enter_at_speed(356, 0, 0, 1)
+    on state_355_interrupt:
+        return
+    on state_355_physics:
+        belay_solo_air_physics()
+    on state_355_collision:
+        if collision.check_ground_ledge(int(facing.direction)):
+            state.switch_to_ground(350, 0x0C4C508A)
+            return
+        if collision.cliff_catch():
+            return
+    on state_356_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+    on state_356_interrupt:
+        return
+    on state_356_physics:
+        belay_solo_air_physics()
+    on state_356_collision:
+        if collision.check_ground_ledge(int(facing.direction)):
+            state.landing_special(false, attrs.belay_landing_lag)
+            return
+        if collision.cliff_catch():
+            return
+
+# Shared owned scalar observations. No retained native pointers.
+export func linked_position_x() -> float:
+    return position.x
+
+export func linked_position_y() -> float:
+    return position.y
+
+export func linked_position_z() -> float:
+    return position.z
+
+export func linked_velocity_x() -> float:
+    return velocity.x
+
+export func linked_velocity_y() -> float:
+    return velocity.y
+
+export func linked_velocity_z() -> float:
+    return velocity.z
+
+export func linked_accel_x() -> float:
+    return acceleration.x
+
+export func linked_accel_y() -> float:
+    return acceleration.y
+
+export func linked_accel_z() -> float:
+    return acceleration.z
+
+export func linked_ground_velocity() -> float:
+    return ground.velocity
+
+export func linked_ground_accel() -> float:
+    return ground.acceleration
+
+export func linked_facing() -> float:
+    return facing.direction
+
+export func linked_frame() -> float:
+    return frame
+
+export func linked_animation_rate() -> float:
+    return animation.rate
+
+export func linked_root_x() -> float:
+    return bones.root.rotation_x
+
+export func linked_scale_y() -> float:
+    return model.instance_scale_y
+
+export func linked_squall_released() -> bool:
+    return command(1) != 0
+
+
+export func linked_hitlag_active() -> bool:
+    return hitlag.active
+
+# Pending coordinated SDK: current-link and lifetime-stamped operations.
+# Each form composes this real policy; it is not an engine callback delegate.
+export func linked_release_and_unlink():
+    hitlag.request_release()
+    hitlag.unlink()
+
+func linked_cleanup_hitlag():
+    bones.root.rotate_x(0, 0)
+    hitlag.request_release()
+    let int peer = hitlag.linked_id
+    if peer != 0:
+        targets.call(peer, "linked_release_and_unlink")
+    hitlag.unlink()
+
+func linked_clear_callbacks():
+    callbacks.damage(None)
+    callbacks.death2(None)
+    callbacks.pre_hitlag(None)
+    callbacks.post_hitlag(None)
+    hitlag.unlink()
+
+func linked_secondary_callbacks():
+    callbacks.damage(linked_cleanup_hitlag)
+    callbacks.death2(linked_cleanup_hitlag)
+    effects.pause_during_hitlag()
+
+# Compose accepted Ice/Blizzard cleanup unchanged. Rope signals await the
+# substantive resource article port; this file is source preparation only.
+parameter int linked_rope_endpoint_part = 29
+
+export func linked_forget_rope():
+    state.linked_rope_handle = -1
+    callbacks.death3(None)
+    callbacks.damage(None)
+
+func linked_cleanup_rope():
+    if state.linked_rope_handle != -1:
+        articles.signal(state.linked_rope_handle, It_Kind_IceClimber_GumStrings, "remove", 0)
+        linked_forget_rope()
+
+func linked_full_cleanup():
+    cleanup_ice()
+    cleanup_blizzard()
+    linked_cleanup_rope()
+    linked_cleanup_hitlag()
+
+export func linked_push_rope_endpoint():
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        if targets.read_bone_position(companion, attrs.linked_rope_endpoint_part, x, y, z):
+            state.linked_rope_endpoint_x = x
+            state.linked_rope_endpoint_y = y
+            state.linked_rope_endpoint_z = z
+
+# Primary Squall entries/animation/ground physics. Uses accepted solo.fms
+# IASAs and air physics unchanged. No private effect transport override.
+attribute float linked_squall_ground_launch 40
+attribute float linked_squall_air_launch 44
+attribute float linked_squall_solo_lift 32
+attribute float linked_squall_pair_lift 36
+attribute float linked_squall_ground_max 56
+attribute float linked_squall_slope_accel 108
+attribute float linked_squall_fall_lag 112
+
+func linked_primary_callbacks():
+    callbacks.damage(linked_full_cleanup)
+    callbacks.death2(linked_full_cleanup)
+    effects.pause_during_hitlag()
+
+func linked_primary_squall_enter(bool air):
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    state.linked_squall_on_floor = false
+    state.squall_pending_pumps = 0
+    state.squall_pump_timer = attrs.squall_pump_interval
+    state.squall_elapsed = 0
+    state.squall_input_accel = 0
+    let int companion = family.member_id(1)
+    let bool paired = false
+    if companion != 0:
+        if air:
+            paired = targets.call_bool(companion, "linked_join_squall_air")
+        else:
+            paired = targets.call_bool(companion, "linked_join_squall_ground")
+    if air:
+        if paired:
+            state.enter_at_speed(346, 0, 0, 1)
+            hitlag.link(companion)
+            velocity.y = attrs.linked_squall_pair_lift
+        else:
+            state.enter_at_speed(345, 0, 0, 1)
+            hitlag.unlink()
+            velocity.y = attrs.linked_squall_solo_lift
+        velocity.x = attrs.linked_squall_air_launch * facing.direction
+    else:
+        if paired:
+            state.enter_at_speed(344, 0, 0, 1)
+            hitlag.link(companion)
+        else:
+            state.enter_at_speed(343, 0, 0, 1)
+            hitlag.unlink()
+        velocity.y = 0
+        let float speed = attrs.linked_squall_ground_launch * facing.direction
+        velocity.x = speed
+        ground.velocity = speed
+    linked_primary_callbacks()
+    animation.start()
+    # Source repeats marker/hitlag and damage bindings after animation entry.
+    effects.active = true
+    effects.pause_during_hitlag()
+    linked_primary_callbacks()
+
+func linked_primary_squall_finish(bool air, bool paired):
+    if paired:
+        linked_cleanup_hitlag()
+    linked_clear_callbacks()
+    if not air:
+        state.wait()
+    elif attrs.linked_squall_fall_lag == 0:
+        state.fall()
+    else:
+        physics.force_air_and_use_jumps()
+        state.freefall(1, 0, true, 1, attrs.linked_squall_fall_lag)
+
+func linked_calc_ground_accel(float accel, float target):
+    if target == 0:
+        accel = -ground.velocity
+    elif not(ground.velocity * accel < 0):
+        if accel > 0:
+            if ground.velocity + accel > target:
+                accel = target - ground.velocity
+        elif ground.velocity + accel < target:
+            accel = target - ground.velocity
+    ground.acceleration = accel
+
+func linked_primary_ground_physics(bool paired):
+    if command(0) == 0 and state.squall_input_accel != 0:
+        let float target = -attrs.linked_squall_ground_max
+        if state.squall_input_accel > 0:
+            target = attrs.linked_squall_ground_max
+        linked_calc_ground_accel(state.squall_input_accel, target)
+        ground.acceleration = ground.acceleration + attrs.linked_squall_slope_accel * floor.normal.x
+    else:
+        physics.ground_decelerate(ground.friction)
+    physics.clamp_ground_speed(attrs.linked_squall_ground_max)
+    physics.ground_to_self()
+    state.squall_pump_timer = state.squall_pump_timer + 1
+    if command(2) != 0 and input.special_pressed:
+        state.squall_pending_pumps = state.squall_pending_pumps + 1
+    if state.squall_pending_pumps != 0 and state.squall_pump_timer > attrs.squall_pump_interval:
+        physics.ground_to_air()
+        acceleration.x = ground.acceleration
+        if paired:
+            state.enter_at_speed(346, 0x0C4C528A, frame, 1)
+        else:
+            state.enter_at_speed(345, 0x0C4C528A, frame, 1)
+        linked_primary_callbacks()
+        physics.clamp_horizontal_speed(attrs.squall_air_max)
+        if paired:
+            velocity.y = velocity.y + attrs.squall_pair_pump_speed
+        else:
+            velocity.y = velocity.y + attrs.squall_solo_pump_speed
+        state.squall_pending_pumps = 0
+        state.squall_pump_timer = 0
+    state.squall_elapsed = state.squall_elapsed + 1
+
+move PrimarySquall:
+    on state_343_animation:
+        if animation.finished:
+            linked_primary_squall_finish(false, false)
+    on state_345_animation:
+        if animation.finished:
+            linked_primary_squall_finish(true, false)
+    on state_344_animation:
+        let int companion = family.member_id(1)
+        let bool finished = animation.finished
+        if not finished and companion != 0:
+            finished = targets.call_bool(companion, "linked_secondary_finished")
+        if finished or companion == 0:
+            linked_primary_squall_finish(false, true)
+    on state_346_animation:
+        let int companion = family.member_id(1)
+        let bool finished = animation.finished
+        if not finished and companion != 0:
+            finished = targets.call_bool(companion, "linked_secondary_finished")
+        if finished or companion == 0:
+            linked_primary_squall_finish(true, true)
+    on state_343_physics:
+        linked_primary_ground_physics(false)
+    on state_344_physics:
+        linked_primary_ground_physics(true)
+
+# Primary Belay ownership. Compose with immutable paired68 components.
+attribute float rope_recruit_range 124
+attribute float rope_facing_threshold 128
+attribute float rope_horizontal_divisor 132
+attribute float rope_vertical_divisor 136
+attribute float rope_start_gravity 140
+attribute float rope_start_terminal 144
+attribute float rope_launch_speed 148
+attribute float rope_distance_divisor 152
+attribute float rope_launch_gravity 156
+attribute float rope_launch_terminal 160
+attribute float rope_drift_multiplier 176
+attribute float rope_drift_max_multiplier 180
+parameter float rope_launch_offset_x = 3
+parameter float rope_launch_offset_y = 5
+parameter int rope_spawn_command = 8
+parameter int rope_removal_command = 83
+parameter float rope_quarter_turn = 1.5707963267948966
+
+func rope_update_endpoint():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let int motion = targets.motion(companion)
+        if motion >= 361 and motion <= 366:
+            let bool observed = targets.read_bone_position(companion, attrs.linked_rope_endpoint_part, x, y, z)
+    state.linked_rope_endpoint_x = x
+    state.linked_rope_endpoint_y = y
+    state.linked_rope_endpoint_z = z
+
+func rope_spawn():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if targets.read_bone_position(fighter.creation_id, attrs.linked_rope_endpoint_part, x, y, z):
+        state.linked_rope_handle = articles.create_with_velocity(It_Kind_IceClimber_GumStrings, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, false)
+    else:
+        state.linked_rope_handle = -1
+    # An owned constructor may retire itself after atomic resource failure.
+    if state.linked_rope_handle != -1 and not(articles.ref(state.linked_rope_handle, It_Kind_IceClimber_GumStrings).exists):
+        state.linked_rope_handle = -1
+    if state.linked_rope_handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool bound = articles.bind_auxiliary(state.linked_rope_handle)
+    if state.linked_rope_handle != -1:
+        callbacks.death3(linked_full_cleanup)
+        callbacks.damage(linked_full_cleanup)
+
+func rope_schedule():
+    if state.rope_counter > attrs.rope_spawn_command and state.rope_counter <= attrs.rope_removal_command:
+        if state.linked_rope_handle != -1:
+            # Article owns schedule attrs18/1C/20 and if/elif command priority.
+            articles.signal(state.linked_rope_handle, It_Kind_IceClimber_GumStrings, "schedule", state.rope_counter)
+    elif state.rope_counter == attrs.rope_spawn_command:
+        rope_spawn()
+        if state.linked_rope_handle == -1:
+            state.wait()
+    # Original missing-rope path has no defined Bool result; callers discard it.
+
+func rope_increment():
+    state.rope_counter = state.rope_counter + 1
+    rope_schedule()
+
+func rope_recruit() -> bool:
+    let int companion = family.member_id(1)
+    if companion == 0:
+        return false
+    let float x = targets.call_float(companion, "linked_position_x")
+    let float y = targets.call_float(companion, "linked_position_y")
+    let float dx = position.x - x
+    let float dy = position.y - y
+    if sqrt(dx * dx + dy * dy) < attrs.rope_recruit_range:
+        return targets.call_bool(companion, "linked_belay_offer")
+    return false
+
+func rope_launch():
+    if grounded:
+        physics.force_air_and_use_jumps()
+    else:
+        jumps.used = jumps.max
+    let int companion = family.member_id(1)
+    if companion != 0:
+        let float x = targets.call_float(companion, "linked_position_x")
+        let float y = targets.call_float(companion, "linked_position_y")
+        let float companion_facing = targets.call_float(companion, "linked_facing")
+        velocity.x = x - position.x
+        velocity.y = y - position.y
+        velocity.z = 0
+        velocity.x = -(attrs.rope_launch_offset_x * companion_facing - velocity.x)
+        velocity.y = velocity.y + attrs.rope_launch_offset_y
+        let float length = sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
+        if length != 0:
+            let float inverse = 1 / length
+            velocity.x = velocity.x * inverse
+            velocity.y = velocity.y * inverse
+            velocity.z = velocity.z * inverse
+        let float dx = position.x - x
+        let float dy = position.y - y
+        # Numeric fidelity of source's double reciprocal-sqrt refinements is
+        # pending direct comparison; no claim of exact launch parity yet.
+        let float distance = sqrt(dx * dx + dy * dy) / attrs.rope_distance_divisor
+        velocity.x = velocity.x * (attrs.rope_launch_speed + distance)
+        velocity.y = velocity.y * (attrs.rope_launch_speed + distance)
+        if velocity.x > 0:
+            facing.direction = 1
+        else:
+            facing.direction = -1
+    state.enter_at_speed(354, 0, 0, 1)
+    callbacks.align_velocity_to_facing()
+
+func rope_start_animation(bool air):
+    if command(2) != 0:
+        command(2) = 0
+        if not(rope_recruit()):
+            if air:
+                state.enter_at_speed(355, 0, frame, 1)
+            else:
+                state.enter_at_speed(350, 0, frame, 1)
+            return
+        damage.song_immune = true
+    if animation.finished:
+        if air:
+            state.enter_at_speed(353, 0, 0, 1)
+        else:
+            state.enter_at_speed(348, 0, 0, 1)
+    else:
+        rope_increment()
+
+func rope_throw_animation(bool air):
+    if animation.finished:
+        if air:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+        else:
+            state.wait()
+        # Original deliberately continues command handling after common entry.
+    if command(1) != 0:
+        command(1) = 0
+        let int companion = family.member_id(1)
+        if companion != 0:
+            if targets.call_bool(companion, "linked_belay_can_throw"):
+                rope_launch()
+                return
+    rope_increment()
+
+func rope_facing_input():
+    if command(0) != 0:
+        command(0) = 0
+        if abs(input.x) > attrs.rope_facing_threshold:
+            if input.x >= 0:
+                facing.direction = 1
+            else:
+                facing.direction = -1
+            bones.root.rotate_y(0, attrs.rope_quarter_turn * facing.direction)
+
+func rope_air_collision(int ground_motion, bool landing):
+    if collision.check_ground_ledge(int(facing.direction)):
+        if landing:
+            state.landing_special(false, attrs.belay_landing_lag)
+        else:
+            if ground_motion == 347:
+                state.switch_to_ground(347, 0x0C4C508A)
+            else:
+                state.switch_to_ground(348, 0x0C4C508A)
+        return
+    if collision.cliff_catch():
+        return
+    if ground_motion == 349:
+        if collision.left_wall and velocity.x > 0:
+            velocity.x = 0
+        elif collision.right_wall and velocity.x < 0:
+            velocity.x = 0
+        elif collision.ceiling_contact:
+            velocity.y = 0
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+
+move PrimaryRope:
+    on state_347_animation:
+        rope_start_animation(false)
+    on state_352_animation:
+        rope_start_animation(true)
+    on state_347_interrupt:
+        rope_facing_input()
+    on state_352_interrupt:
+        rope_facing_input()
+    on state_347_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_352_physics:
+        physics.fall(attrs.rope_start_gravity, attrs.rope_start_terminal)
+        physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_347_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(352, 0x0C4C508A, frame, 1)
+    on state_352_collision:
+        rope_air_collision(347, false)
+    on state_348_animation:
+        rope_throw_animation(false)
+    on state_353_animation:
+        rope_throw_animation(true)
+    on state_348_interrupt:
+        pass
+    on state_353_interrupt:
+        pass
+    on state_348_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_353_physics:
+        physics.fall(attrs.rope_start_gravity, attrs.rope_start_terminal)
+        physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_348_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(353, 0x0C4C508A, frame, 1)
+    on state_353_collision:
+        rope_air_collision(348, false)
+    on state_349_animation:
+        if animation.finished:
+            state.wait()
+        else:
+            rope_increment()
+    on state_354_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.belay_mobility, attrs.belay_landing_lag)
+        else:
+            rope_increment()
+    on state_349_interrupt:
+        pass
+    on state_354_interrupt:
+        pass
+    on state_349_physics:
+        physics.ground_friction()
+        rope_update_endpoint()
+    on state_354_physics:
+        physics.fall(attrs.rope_launch_gravity, attrs.rope_launch_terminal)
+        if abs(input.x) > attrs.rope_facing_threshold:
+            physics.air_accel(air.drift_stick_mul * attrs.rope_drift_multiplier, air.drift_max * attrs.rope_drift_max_multiplier)
+        elif velocity.y < 0:
+            physics.air_decel_normal()
+        rope_update_endpoint()
+    on state_349_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(354, 0x0C4C508A, frame, 1)
+    on state_354_collision:
+        rope_air_collision(349, true)
+
+# Four primary Squall collisions. Private model-pointer transport is separately
+# inventoried; no substitute pointer/state is written into the fighter union.
+attribute float squall_wall_restitution 68
+attribute float squall_wall_minimum_speed 72
+
+func owned_squall_wall_bounce(float speed) -> float:
+    let bool wall = false
+    if speed > 0:
+        wall = collision.left_wall
+    elif speed < 0:
+        wall = collision.right_wall
+    if wall:
+        if abs(speed) < attrs.squall_wall_minimum_speed:
+            if speed > 0:
+                speed = -attrs.squall_wall_minimum_speed
+            else:
+                speed = attrs.squall_wall_minimum_speed
+        else:
+            speed = speed * -attrs.squall_wall_restitution
+    return speed
+
+func owned_squall_root_tilt():
+    let float angle = 0
+    if command(3) != 0 and state.linked_squall_on_floor:
+        angle = facing.direction * atan2_float(floor.normal.x, floor.normal.y)
+    bones.root.rotate_x(0, angle)
+
+func owned_squall_leave_ground(bool paired):
+    physics.ground_to_air()
+    acceleration.x = ground.acceleration
+    if paired:
+        state.enter_at_speed(346, 0x0C4C528A, frame, 1)
+    else:
+        state.enter_at_speed(345, 0x0C4C528A, frame, 1)
+    linked_primary_callbacks()
+    physics.clamp_horizontal_speed(attrs.squall_air_max)
+
+func owned_squall_land(bool paired):
+    physics.switch_to_ground()
+    if paired:
+        state.enter_at_speed(344, 0x0C4C528A, frame, 1)
+    else:
+        state.enter_at_speed(343, 0x0C4C528A, frame, 1)
+    linked_primary_callbacks()
+    acceleration.y = 0
+    velocity.y = 0
+    physics.clamp_ground_speed(attrs.linked_squall_ground_max)
+
+func owned_squall_collision(bool air, bool paired):
+    let bool contact = false
+    if air:
+        contact = collision.air_box(12, 0, -6, 6, 6, 6)
+        # Preserve the literal original mask comparison: the ceiling mask cannot
+        # equal1. Do not reinterpret it as a normalized contact query.
+        # (flags & 0x6000) == 1 is always false, so there is no ceiling write.
+        velocity.x = owned_squall_wall_bounce(velocity.x)
+        if contact:
+            owned_squall_land(paired)
+        state.linked_squall_on_floor = contact
+    else:
+        contact = collision.ground_box(12, 0, -6, 6, 6, 6)
+        ground.velocity = owned_squall_wall_bounce(ground.velocity)
+        if not contact:
+            owned_squall_leave_ground(paired)
+        state.linked_squall_on_floor = contact
+    owned_squall_root_tilt()
+    # Stock calls the retained model transport here. The zero-pointer source
+    # branch has no effect; named model policy/timing acceptance is separate.
+    linked_primary_callbacks()
+
+move OwnedPrimarySquallCollision:
+    on state_343_collision:
+        owned_squall_collision(false, false)
+    on state_344_collision:
+        owned_squall_collision(false, true)
+    on state_345_collision:
+        owned_squall_collision(true, false)
+    on state_346_collision:
+        owned_squall_collision(true, true)
+
+# Companion Squall policy; paired foundation operations are pending SDK.
+# Compose scalar exports/hitlag helpers. No Ice/Blizzard or Belay override here.
+attribute float linked_squall_radius 208
+attribute float linked_secondary_squall_fall_lag 300
+parameter int linked_squall_delay_limit = 5
+parameter float linked_squall_delay_spacing = 1.5
+parameter float linked_root_quarter_turn = 1.5707963267948966
+
+func linked_begin_secondary_squall(bool air):
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    if air:
+        state.enter_at_speed(360, 0, 0, 1)
+    else:
+        state.enter_at_speed(359, 0, 0, 1)
+    linked_secondary_callbacks()
+    animation.start()
+    acceleration.y = 0
+    velocity.y = 0
+
+func linked_join_squall(bool requested_air) -> bool:
+    let int primary = family.member_id(0)
+    if primary == 0:
+        hitlag.unlink()
+        return false
+    if action.category >= 1 and action.category <= 13:
+        hitlag.unlink()
+        return false
+    let float primary_x = targets.call_float(primary, "linked_position_x")
+    let float primary_y = targets.call_float(primary, "linked_position_y")
+    let float dx = position.x - primary_x
+    let float dy = position.y - primary_y
+    let float scale = targets.call_float(primary, "linked_scale_y")
+    let float radius = attrs.linked_squall_radius
+    # Source truncates the squared scaled threshold to Int before comparison.
+    if not(dx * dx + dy * dy < int(scale * (radius * radius))):
+        hitlag.unlink()
+        return false
+    if requested_air:
+        if not airborne:
+            physics.ground_to_air()
+    elif airborne:
+        collision.copy_from(primary)
+        physics.switch_to_ground()
+    linked_begin_secondary_squall(requested_air)
+    state.linked_follow_delay = 0
+    position.x = targets.call_float(primary, "linked_position_x")
+    position.y = targets.call_float(primary, "linked_position_y")
+    position.z = targets.call_float(primary, "linked_position_z")
+    velocity.x = targets.call_float(primary, "linked_velocity_x")
+    velocity.y = targets.call_float(primary, "linked_velocity_y")
+    velocity.z = targets.call_float(primary, "linked_velocity_z")
+    ground.velocity = targets.call_float(primary, "linked_ground_velocity")
+    facing.direction = targets.call_float(primary, "linked_facing")
+    bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+    hitlag.link(primary)
+    # Authored exported result is positive accepted; the original helper
+    # returns the inverse (true means solo/rejected). The primary caller owns
+    # this inversion, so a failed/missing typed recipient returns safely false.
+    return true
+
+export func linked_join_squall_ground() -> bool:
+    return linked_join_squall(false)
+
+export func linked_join_squall_air() -> bool:
+    return linked_join_squall(true)
+
+export func linked_secondary_finished() -> bool:
+    return motion.id != 359 and motion.id != 360
+
+func linked_primary_squall_active(int primary) -> bool:
+    let int motion = targets.motion(primary)
+    return motion == 344 or motion == 346
+
+func linked_secondary_animation(bool air):
+    let int primary = family.member_id(0)
+    if primary != 0 and linked_primary_squall_active(primary):
+        let float primary_frame = targets.call_float(primary, "linked_frame")
+        animation.set_timer(primary_frame)
+        return
+    linked_cleanup_hitlag()
+    linked_clear_callbacks()
+    if not air:
+        state.wait()
+    elif attrs.linked_secondary_squall_fall_lag == 0:
+        state.fall()
+    else:
+        physics.force_air_and_use_jumps()
+        state.freefall(1, 0, true, 1, attrs.linked_secondary_squall_fall_lag)
+
+func linked_secondary_squall_physics():
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return
+    velocity.x = targets.call_float(primary, "linked_velocity_x")
+    velocity.y = targets.call_float(primary, "linked_velocity_y")
+    velocity.z = targets.call_float(primary, "linked_velocity_z")
+    acceleration.x = targets.call_float(primary, "linked_accel_x")
+    acceleration.y = targets.call_float(primary, "linked_accel_y")
+    acceleration.z = targets.call_float(primary, "linked_accel_z")
+    ground.velocity = targets.call_float(primary, "linked_ground_velocity")
+    ground.acceleration = targets.call_float(primary, "linked_ground_accel")
+    facing.direction = targets.call_float(primary, "linked_facing")
+    bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+
+func linked_secondary_separate():
+    state.linked_follow_delay = state.linked_follow_delay + 1
+    if state.linked_follow_delay > attrs.linked_squall_delay_limit:
+        state.linked_follow_delay = attrs.linked_squall_delay_limit
+    let int primary = family.member_id(0)
+    let float primary_x = targets.call_float(primary, "linked_position_x")
+    position.x = -(attrs.linked_squall_delay_spacing * (state.linked_follow_delay * facing.direction) - primary_x)
+
+func linked_secondary_box_air():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    physics.ground_to_air()
+    state.enter_at_speed(360, 0x0C4C528A, frame, 1)
+    linked_secondary_callbacks()
+
+func linked_secondary_box_ground():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    physics.switch_to_ground()
+    velocity.y = 0
+    state.enter_at_speed(359, 0x0C4C528A, frame, 1)
+    linked_secondary_callbacks()
+
+func linked_secondary_collision(bool air):
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return
+    let bool active = linked_primary_squall_active(primary)
+    let bool released = true
+    if active:
+        released = targets.call_bool(primary, "linked_squall_released")
+    if active and not released:
+        position.x = targets.call_float(primary, "linked_position_x")
+        position.y = targets.call_float(primary, "linked_position_y")
+        position.z = targets.call_float(primary, "linked_position_z")
+        collision.copy_from(primary)
+        let bool primary_air = targets.airborne(primary)
+        if airborne != primary_air:
+            if air:
+                state.enter_at_speed(359, 0x0C4C528A, frame, 1)
+            else:
+                state.enter_at_speed(360, 0x0C4C528A, frame, 1)
+        # Direct publication follows motion and collision-history copy.
+        # Ground/air transition helpers would introduce extra side effects.
+        airborne = primary_air
+    else:
+        linked_secondary_separate()
+        if air:
+            if collision.air_box(12, 0, -6, 6, 6, 6):
+                linked_secondary_box_ground()
+        elif not collision.ground_box(12, 0, -6, 6, 6, 6):
+            linked_secondary_box_air()
+    let float primary_root_x = targets.call_float(primary, "linked_root_x")
+    bones.root.rotate_x(0, primary_root_x)
+    linked_secondary_callbacks()
+
+move CompanionSquall:
+    on state_359_animation:
+        linked_secondary_animation(false)
+    on state_360_animation:
+        linked_secondary_animation(true)
+    on state_359_interrupt:
+        return
+    on state_360_interrupt:
+        return
+    on state_359_physics:
+        linked_secondary_squall_physics()
+    on state_360_physics:
+        linked_secondary_squall_physics()
+    on state_359_collision:
+        linked_secondary_collision(false)
+    on state_360_collision:
+        linked_secondary_collision(true)
+
+# Companion Belay (361/362/364/365); 363/366 stay NULL.
+# Pending coordinated native observations and target bone outputs.
+attribute float linked_belay_mobility 304
+attribute float linked_belay_landing_lag 308
+attribute float linked_belay_input_threshold 312
+attribute float linked_belay_launch_speed 316
+attribute float linked_belay_launch_angle 320
+attribute float linked_belay_gravity 324
+attribute float linked_belay_terminal 328
+attribute float linked_belay_drift_multiplier 176
+attribute float linked_belay_speed_multiplier 180
+attribute float linked_belay_wall_restitution 332
+parameter float linked_belay_release_offset = 8
+parameter float linked_belay_launch_offset_x = 4
+parameter float linked_belay_launch_offset_y = 7
+parameter int linked_belay_primary_hand = 47
+parameter int linked_belay_secondary_anchor = 2
+
+func linked_endpoint_accessory():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        targets.call(primary, "linked_push_rope_endpoint")
+
+func linked_secondary_belay_catch():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        facing.direction = targets.call_float(primary, "linked_facing")
+    if grounded:
+        physics.force_air_and_use_jumps()
+    else:
+        jumps.used = jumps.max
+    state.enter_at_speed(361, 0, 0, 1)
+    callbacks.accessory(linked_endpoint_accessory)
+    command(0) = 0
+    damage.song_immune = true
+
+export func linked_belay_offer() -> bool:
+    if fighter.incapacitated or hitlag.active:
+        return false
+    let int category = int(action.category)
+    if category == 1 or (category >= 3 and category <= 8) or (category >= 10 and category <= 13):
+        return false
+    linked_secondary_belay_catch()
+    return true
+
+export func linked_belay_can_throw() -> bool:
+    return not fighter.incapacitated and motion.id >= 362 and motion.id <= 366
+
+func linked_secondary_follow() -> bool:
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return true
+    let int motion = targets.motion(primary)
+    if motion < 347 or motion > 352:
+        return false
+    let float primary_facing = targets.call_float(primary, "linked_facing")
+    if facing.direction != primary_facing:
+        facing.direction = primary_facing
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+    let float px = 0
+    let float py = 0
+    let float pz = 0
+    if not targets.read_bone_position(primary, attrs.linked_belay_primary_hand, px, py, pz):
+        return true
+    let float nx = 0
+    let float ny = 0
+    let float nz = 0
+    bones.world_position(attrs.linked_belay_secondary_anchor, nx, ny, nz)
+    let float x = position.x - nx
+    let float y = position.y - ny
+    let float z = position.z - nz
+    position.x = px + x
+    position.y = py + y
+    position.z = pz + z
+    if targets.call_bool(primary, "linked_hitlag_active"):
+        animation.set_rate(0)
+    else:
+        let float rate = targets.call_float(primary, "linked_animation_rate")
+        if animation.rate != rate:
+            animation.set_rate(rate)
+    return true
+
+func linked_secondary_belay_launch():
+    let int primary = family.member_id(0)
+    if primary != 0:
+        collision.copy_from(primary)
+    velocity.x = facing.direction * (attrs.linked_belay_launch_speed * cos(attrs.linked_belay_launch_angle))
+    velocity.y = attrs.linked_belay_launch_speed * sin(attrs.linked_belay_launch_angle)
+    position.x = position.x + attrs.linked_belay_launch_offset_x * facing.direction * model.instance_scale_y
+    position.y = position.y + attrs.linked_belay_launch_offset_y * model.instance_scale_y
+    state.enter_at_speed(365, 0, 0, 1)
+    callbacks.accessory(linked_endpoint_accessory)
+
+func linked_secondary_belay_air():
+    physics.fall(attrs.linked_belay_gravity, attrs.linked_belay_terminal)
+    if abs(input.x) > attrs.linked_belay_input_threshold:
+        physics.air_accel(air.drift_stick_mul * attrs.linked_belay_drift_multiplier, air.drift_max * attrs.linked_belay_speed_multiplier)
+    elif velocity.y < 0:
+        physics.air_decel_normal()
+
+func linked_secondary_belay_coll():
+    if collision.landed:
+        state.switch_to_ground(362, 0x0C4C508A)
+        callbacks.accessory(linked_endpoint_accessory)
+        return
+    if collision.left_wall and velocity.x > 0:
+        velocity.x = velocity.x * (-1 * attrs.linked_belay_wall_restitution)
+        facing.direction = facing.direction * -1
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+        return
+    if collision.right_wall and velocity.x < 0:
+        velocity.x = velocity.x * (-1 * attrs.linked_belay_wall_restitution)
+        facing.direction = facing.direction * -1
+        bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+        return
+    if collision.ceiling_contact:
+        velocity.y = 0
+
+move CompanionBelay:
+    on state_361_animation:
+        if animation.finished:
+            linked_secondary_belay_launch()
+    on state_361_interrupt:
+        return
+    on state_361_physics:
+        if not linked_secondary_follow():
+            position.x = -(attrs.linked_belay_release_offset * facing.direction - position.x)
+            state.fall()
+    on state_361_collision:
+        return
+    on state_362_animation:
+        if animation.finished:
+            state.wait()
+    on state_362_interrupt:
+        return
+    on state_362_physics:
+        physics.ground_friction()
+    on state_362_collision:
+        if collision.special_ground_lost:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(365, 0x0C4C508A, frame, 1)
+            callbacks.accessory(linked_endpoint_accessory)
+    on state_364_animation:
+        return
+    on state_364_interrupt:
+        return
+    on state_364_physics:
+        return
+    on state_364_collision:
+        return
+    on state_365_animation:
+        if animation.finished:
+            state.freefall(0, 1, false, attrs.linked_belay_mobility, attrs.linked_belay_landing_lag)
+    on state_365_interrupt:
+        return
+    on state_365_physics:
+        linked_secondary_belay_air()
+    on state_365_collision:
+        linked_secondary_belay_coll()
+
+# Exact load policy uses generic shared flags; article registration is owned metadata.
+attribute float primary_spawn_offset 0
+attribute float secondary_spawn_offset 196
+attribute float secondary_death_armor 200
+
+# Standalone authored follower decisions. Compose beside accepted Blizzard helpers.
+
+func follower_in_final_belay() -> bool:
+    return motion.id >= attrs.follower_belay_first and motion.id <= attrs.follower_belay_last
+
+func follower_copy_allowed(int target) -> bool:
+    let int target_motion = targets.motion(target)
+    if target_motion == attrs.common_cliff_catch or target_motion == attrs.common_cliff_wait:
+        return false
+    if target_motion == attrs.common_capture_wait_hi or target_motion == attrs.common_capture_wait_lw:
+        return false
+    if target_motion >= attrs.common_shouldered_wait and target_motion <= attrs.common_shouldered_turn:
+        return false
+    if target_motion == attrs.common_teeter or target_motion == attrs.common_teeter_wait:
+        return false
+    if target_motion >= attrs.common_capture_kirby and target_motion <= attrs.common_capture_wait_kirby:
+        return false
+    if target_motion >= attrs.common_rebirth and target_motion <= attrs.common_rebirth_wait:
+        return false
+    if target_motion >= attrs.common_warp_jump and target_motion <= attrs.common_warp_fall:
+        return false
+    if target_motion >= attrs.common_parasol_fall and target_motion <= attrs.common_parasol_damage_fall:
+        return false
+    if items.held_kind == It_Kind_Box or items.held_kind == It_Kind_Taru or items.held_kind == It_Kind_Kusudama or items.held_kind == It_Kind_TaruCann:
+        return false
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return false
+    if not targets.airborne(target) and airborne and y > position.y and position.delta.y < 0:
+        return false
+    if motion.allows_controller_sync:
+        return true
+    return motion.id == attrs.common_squat or motion.id == attrs.common_squat_wait or motion.id == attrs.common_landing or motion.id == attrs.common_landing_special or (motion.id >= attrs.common_landing_air_n and motion.id <= attrs.common_landing_air_lw)
+
+func follower_can_start_copy(int target) -> bool:
+    if not follower_copy_allowed(target):
+        return false
+    if targets.airborne(target) or airborne or state.recovery_lock or follower_in_final_belay():
+        return false
+    if not cpu.prepare_destination_update() and motion.id != attrs.common_wait:
+        return false
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position_delta(target, x, y, z):
+        return false
+    x = position.delta.x - x
+    y = position.delta.y - y
+    if x * x + y * y > ground.mid_walk_point * ground.mid_walk_point:
+        return false
+    if not targets.read_position(target, x, y, z):
+        return false
+    x = position.x - x
+    y = y - position.y
+    return x * x + y * y < 25.0 * 25.0
+
+# A7AAC owns destination choices. Split the source's innermost edge decision
+# into an authored helper to stay within the grammar's three nesting levels.
+func follower_air_island_margin(int line, float spacing):
+    let float left_x = 0
+    let float left_y = 0
+    let float right_x = 0
+    let float right_y = 0
+    if stage.read_line_island_bounds(line, left_x, left_y, right_x, right_y):
+        if abs(right_x - cpu.destination.x) < 5.0:
+            cpu.set_destination(right_x - 5.0, right_y, spacing)
+        elif abs(left_x - cpu.destination.x) < 5.0:
+            cpu.set_destination(5.0 + left_x, left_y, spacing)
+
+func follower_destination(int target):
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return
+    let float spacing = cpu.approach_spacing + targets.cpu_body_half_width(target)
+    let float floor_x = 0
+    let float floor_y = 0
+    let int line = -1
+    let float left_x = 0
+    let float left_y = 0
+    let float right_x = 0
+    let float right_y = 0
+    if targets.airborne(target):
+        if stage.read_floor(x, 10 + y, x, y - 1000, floor_x, floor_y, line) and not stage.cpu_floor_excluded(line):
+            if not stage.cpu_island_blocked(line):
+                cpu.set_destination(floor_x, floor_y, spacing)
+                follower_air_island_margin(line, spacing)
+        return
+    let int target_line = targets.floor_line(target)
+    if stage.cpu_island_blocked(target_line):
+        return
+    # Ground source queries floor but both defined branches request current target
+    # position; no floor-hit or delayed-history position is substituted here.
+    let bool floor_found = stage.read_floor(x, 2.0 + y, x, y - 2.0, floor_x, floor_y, line)
+    if floor_found and stage.cpu_floor_excluded(line):
+        floor_found = false
+    cpu.set_destination(x, y, spacing)
+    let bool same_island = false
+    if grounded:
+        same_island = stage.same_line_island(floor.line, target_line)
+    if same_island or motion.id == attrs.common_cliff_catch or motion.id == attrs.common_cliff_wait:
+        return
+    if not stage.read_line_island_bounds(target_line, left_x, left_y, right_x, right_y) or cpu.destination.y - position.y <= 0.0:
+        return
+    if cpu.destination.x - position.x > 0.0:
+        if position.x < left_x:
+            cpu.set_destination(5.0 + left_x, left_y, spacing)
+    elif position.x > right_x:
+        cpu.set_destination(right_x - 5.0, right_y, spacing)
+
+func follower_should_stop_copy(int target) -> bool:
+    if follower_in_final_belay():
+        state.recovery_lock = true
+        return true
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return true
+    x = position.x - x
+    y = y - position.y
+    if x * x + y * y > 25.0 * 25.0:
+        return true
+    return not follower_copy_allowed(target)
+
+# Same owned entry as the accepted fighter's special_lw callback. The accessory
+# is the real accepted authored helper; no stock special entry is called.
+func follower_start_blizzard():
+    cue.throw.reset()
+    command(0) = 0
+    command(3) = 0
+    state.blizzard_countdown = 0
+    state.blizzard_emitting = false
+    state.enter_at_speed(357, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(blizzard_cue)
+
+
+move OwnedLifecycle:
+    on load:
+        items.reject_healing_pickup = true
+        # attrs are immutable owned parameters; stock attribute scratch is unused.
+        spawn.horizontal_offset = attrs.secondary_spawn_offset
+    on load_special_attrs:
+        # No stock attribute reload: specials read the owned attrs declarations.
+        pass
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+# Nana's armor write precedes the same model/owned-handle reset.
+
+    on cpu_prepare:
+        state.copy_controls = false
+        state.recovery_lock = false
+        state.history_target = event.history_source
+        cpu.mode = 6
+        cpu.follow_distance = 15
+        cpu.combat_candidates_enabled = true
+        return event.history_source
+    on cpu_initialize:
+        cpu.set_approach_spacing(1)
+    on cpu_spacing_update:
+        let float spacing = 1.0 * event.value
+        cpu.set_approach_spacing(spacing)
+    on cpu_stick_step:
+        return 64
+    on cpu_stick_limit:
+        return 127
+    on cpu_drop_command:
+        cpu.queue(Cpu.wait, 1)
+        cpu.queue(Cpu.stick_y, -127)
+        cpu.queue(Cpu.wait, 5)
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.wait, 1)
+        cpu.queue(Cpu.done)
+        return true
+    on cpu_mode_update:
+        if cpu.mode != 6:
+            return false
+        cpu.combat_candidates_enabled = true
+        cpu.ranged_gate_enabled = true
+        state.history_target = family.member_id(attrs.follower_target_member)
+        let int target = state.history_target
+        if not targets.is_fighter(target) or targets.sleeping(target):
+            cpu.plan_without_target()
+            return true
+        if not cpu.record_input(target):
+            return true
+        let int level = int(targets.damage(target) / 20)
+        if level > 9:
+            level = 9
+        cpu.level = level
+        if state.copy_controls:
+            follower_destination(target)
+            if follower_should_stop_copy(target):
+                state.copy_controls = false
+                cpu.behavior = cpu.previous_behavior
+                cpu.output.left_x = 0
+                cpu.output.left_y = 0
+                cpu.output.buttons = 0
+                cpu.output.left_trigger = 0
+                cpu.output.right_trigger = 0
+        else:
+            cpu.prepare_combat_plan()
+            if cpu.prepare_destination_update():
+                if state.recovery_lock:
+                    cpu.update_recovery_destination()
+                else:
+                    follower_destination(target)
+            cpu.plan_attack()
+            if follower_can_start_copy(target):
+                cpu.behavior = 0
+                state.copy_controls = true
+                cpu.combat_candidates_enabled = false
+                cpu.ranged_gate_enabled = false
+        if grounded:
+            state.recovery_lock = false
+        return true
+    on cpu_output:
+        let int target = state.history_target
+        if not targets.is_fighter(target) or targets.sleeping(target) or not state.copy_controls:
+            return true
+        if motion.id != attrs.common_flower_ground and motion.id != attrs.common_flower_air:
+            if targets.motion(target) == attrs.follower_blizzard_ground and motion.id < attrs.common_motion_count:
+                facing.direction = -targets.facing(target)
+                follower_start_blizzard()
+                return true
+        if not cpu.apply_recorded_input():
+            return true
+        if motion.allows_controller_sync:
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            let float direction = 0
+            if cpu.read_history_pose(x, y, z, direction):
+                position.x = 0.95 * position.x + 0.05 * x
+                position.y = 0.95 * position.y + 0.05 * y
+                if motion.id != attrs.follower_blizzard_ground and motion.id != attrs.follower_blizzard_air:
+                    facing.direction = direction
+        return true
+
+move SecondaryDeath:
+    on death:
+        damage.armor = attrs.secondary_death_armor
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.ice_handle = -1
+        state.ice_air_boost_used = false
+        state.ice_spawn_height = 0
+        state.blizzard_effect_active = false
+        state.linked_rope_handle = -1
+
+article It_Kind_IceClimber_Ice states 4:
+    attribute float lifetime 0
+    attribute float bounce_lifetime_loss 4
+    attribute float shield_expiry_threshold 8
+    attribute float impact_speed_limit 12
+    attribute float launch_speed 16
+    attribute float slope_scale 20
+    attribute float slope_with_velocity 24
+    attribute float slope_against_velocity 28
+    attribute float stop_speed 36
+    attribute float shrink_factor 40
+    attribute int base_damage 44
+    attribute int speed_damage_multiplier 48
+    parameter float minimum_scale = 0.01
+    state bool launched
+    state float shrink_scale
+    state int saved_creator
+    on created:
+            item.state.saved_creator = item.current_owner
+            item.state.launched = false
+            item.state.shrink_scale = item.base_scale
+            item.spawn_async_joint_effect(0x4E9, "0", 0)
+            item.change_state_flags(1, 2)
+            item.inherit_owner_debug_display()
+            item.use_manual_lifetime()
+            item.refresh_physics()
+    on signal remove:
+            item.remove()
+    on signal launch:
+            velocity.x = item.params.launch_speed * facing
+            velocity.z = 0
+            velocity.y = 0
+            item.set_lifetime(item.params.lifetime)
+            item.state.launched = true
+            item.align_facing_to_velocity()
+            item.spawn_async_joint_effect(0x4EA, "0", 3)
+            item.spawn_async_joint_effect(0x4EB, "0", 3)
+            item.change_state_flags(2, 2)
+    on destroyed:
+            if item.state.saved_creator != 0:
+                if creator.exists:
+                    creator.helpers.forget_ice(item.creation_id)
+            item.state.saved_creator = 0
+    on stage_left:
+            if item.motion_state == 0:
+                item.change_state_flags(1, 2)
+            elif item.motion_state == 2:
+                item.change_state_flags(3, 2)
+                item.destroy_effects()
+    on stage_landed:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.change_state_flags(0, 2)
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            if abs(velocity.x) <= item.params.impact_speed_limit:
+                item.bounce()
+                item.align_facing_to_velocity()
+                velocity.x = velocity.x * item.surface_restitution
+                velocity.y = velocity.y * item.surface_restitution
+                velocity.z = velocity.z * item.surface_restitution
+                item.life = item.life - item.params.bounce_lifetime_loss
+                if item.life < item.params.shield_expiry_threshold:
+                    return true
+            else:
+                return true
+            return false
+    on absorbed:
+            return true
+    on shield_bounced:
+            return item.shield_bounce()
+    on interaction:
+            if item.state.saved_creator != 0 and item.attachment_owner_is(other):
+                item.state.saved_creator = 0
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            if item.state.launched:
+                item.state.shrink_scale = item.state.shrink_scale * item.params.shrink_factor
+                item.joint("0").scale.x = item.state.shrink_scale
+                item.joint("0").scale.y = item.state.shrink_scale
+                item.joint("0").scale.z = item.state.shrink_scale
+                if item.state.shrink_scale < item.params.minimum_scale:
+                    return true
+            return false
+        on physics:
+            pass
+        on collision:
+            item.follow_ground()
+            item.align_to_floor()
+            return false
+    state 1 anim -1:
+        on animation:
+            return false
+        on physics:
+            item.gravity(false)
+        on collision:
+            item.bounce_to_ground(true)
+            return false
+    state 2 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            if collision.floor_contact:
+                let int normal_sign = 1
+                let int velocity_sign = 1
+                if floor.normal.x < 0:
+                    normal_sign = -1
+                if velocity.x < 0:
+                    velocity_sign = -1
+                let float delta = item.params.slope_with_velocity * (floor.normal.x * item.params.slope_scale)
+                if velocity_sign != normal_sign:
+                    delta = item.params.slope_against_velocity * (floor.normal.x * item.params.slope_scale)
+                velocity.x = velocity.x + delta
+                if abs(velocity.x) < item.params.stop_speed:
+                    item.stop_on_surface = true
+                    item.custom_floor_motion = true
+                    velocity.x = 0
+                    velocity.y = 0
+                    velocity.z = 0
+                    item.change_state_flags(0, 2)
+                    item.destroy_effects()
+                    let int damage = uint(abs(velocity.x * item.params.speed_damage_multiplier))
+                    damage = uint(damage) + uint(item.params.base_damage)
+                    hitbox.set_damage(0, damage)
+        on collision:
+            item.follow_ground()
+            item.align_to_floor()
+            let int flags = item.wall_contact_flags()
+            if flags != 0:
+                if abs(velocity.x) <= item.params.impact_speed_limit:
+                    let bool bounced = item.reflect_from_wall()
+                    item.align_facing_to_velocity()
+                    item.life = item.life - item.params.bounce_lifetime_loss
+                else:
+                    return true
+            return false
+    state 3 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            item.gravity()
+            let int damage = uint(abs(velocity.x * item.params.speed_damage_multiplier))
+            damage = uint(damage) + uint(item.params.base_damage)
+            hitbox.set_damage(0, damage)
+        on collision:
+            let int flags = item.sweep_stage_flags()
+            if (flags & 1) != 0:
+                item.spawn_async_joint_effect(0x4EB, "0", 3)
+                item.change_state_flags(2, 2)
+            let int walls = item.wall_contact_flags()
+            if walls != 0:
+                if abs(velocity.x) <= item.params.impact_speed_limit:
+                    let bool bounced = item.reflect_from_wall()
+                    item.align_facing_to_velocity()
+                    item.life = item.life - item.params.bounce_lifetime_loss
+                else:
+                    return true
+            return false
+
+article It_Kind_IceClimber_Blizzard states 1:
+    attribute float lifetime 0
+    attribute float speed 4
+    attribute float vertical_acceleration 8
+    attribute float angle_min 12
+    attribute float angle_max 16
+    state bool launched
+    state float initial_scale
+    on created:
+            item.state.launched = false
+            item.state.initial_scale = item.base_scale
+            let float random_value = random.float()
+            let float angle = (item.params.angle_max - item.params.angle_min) * random_value + item.params.angle_min
+            if facing != 1:
+                angle = -angle
+            angle = angle - (pi / 2)
+            while angle < 0:
+                angle = angle + tau
+            while angle > tau:
+                angle = angle - tau
+            velocity.x = item.params.speed * cos(angle)
+            velocity.y = item.params.speed * sin(angle)
+            velocity.z = 0
+            item.set_lifetime(item.params.lifetime)
+            item.state.launched = true
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+            item.use_manual_lifetime()
+            item.refresh_physics()
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            velocity.y = velocity.y + item.params.vertical_acceleration
+        on collision:
+            item.stage_collision()
+            let int flags = item.wall_contact_flags()
+            flags = flags | item.ceiling_contact_flags()
+            return flags != 0
+
+# Unregistered Gumstrings policy. No native solver, linked-list or union access.
+# Resource index0 is original head(x8); count-1 is original tail(x4).
+article It_Kind_IceClimber_GumStrings states 4:
+    attribute int link_count 0
+    attribute int inactive_limit 4
+    attribute float maximum_length 8
+    attribute float minimum_length 12
+    attribute float gravity 20
+    attribute int extend_command 24
+    attribute int fall_command 28
+    attribute int retract_command 32
+    parameter float gravity_tail_multiplier = 0.9
+    parameter float horizontal_decay = 0.9
+    parameter float activation_distance = 0.1
+    parameter float retract_distance = 2.25
+    parameter float vertical_basis_limit = 0.9999
+    parameter float collision_radius = 1
+    parameter int collision_category = 5
+    parameter int attachment_part = 29
+    parameter int removal_command = 83
+    resources capacity 40
+    model_root Segment 36
+    model_root Tail 40
+    state bool active[40]
+    state float matrix[12]
+    state float direction_x
+    state float direction_y
+    state float direction_z
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float retract_distance
+    state int tail
+
+    func Place(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func Advance(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    # Original it_802A3C98: subtract, sqrt, zero reciprocal, then three products.
+    func Measure(float ax, float ay, float az, float bx, float by, float bz) -> float:
+        item.state.direction_x = ax - bx
+        item.state.direction_y = ay - by
+        item.state.direction_z = az - bz
+        let float length = sqrt(item.state.direction_x * item.state.direction_x + item.state.direction_y * item.state.direction_y + item.state.direction_z * item.state.direction_z)
+        let float inverse = 0
+        if length != 0:
+            inverse = 1 / length
+        item.state.direction_x = item.state.direction_x * inverse
+        item.state.direction_y = item.state.direction_y * inverse
+        item.state.direction_z = item.state.direction_z * inverse
+        return length
+
+    func PlaceMeasured(int node, float x, float y, float z, float length):
+        Place(node, item.state.direction_x * length + x, item.state.direction_y * length + y, item.state.direction_z * length + z)
+
+    func Draw(int node, bool active):
+        item.state.active[node] = active
+        # Tail has unconditional original GX callback even when solver-inactive.
+        let bool drawing = item.resource(node).set_draw(active or node == item.state.tail)
+
+    func Anchor(int node):
+        item.resource(node).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+
+    func ConstrainForward(int node, float length, bool falling):
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, length)
+        let int next = node + 1
+        while next <= item.state.tail:
+            if falling:
+                item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.gravity
+                Advance(next)
+            if falling or item.state.active[next]:
+                measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.maximum_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+            node = next
+            next = next + 1
+
+    func PullMinimum(int node, int next):
+        let float first_x = item.state.direction_x
+        let float first_y = item.state.direction_y
+        let float first_z = item.state.direction_z
+        let float measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if measured <= item.params.activation_distance:
+            Draw(next, false)
+        else:
+            # The second measurement writes dir2; placement uses dir.
+            item.state.direction_x = first_x
+            item.state.direction_y = first_y
+            item.state.direction_z = first_z
+            PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.minimum_length)
+
+    func Extend(bool falling) -> int:
+        let int node = item.state.tail
+        if falling:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity_tail_multiplier * item.params.gravity
+        let float endpoint_x = 0
+        let float endpoint_y = 0
+        if attachment_owner.exists:
+            endpoint_x = attachment_owner.state.linked_rope_endpoint_x
+            endpoint_y = attachment_owner.state.linked_rope_endpoint_y
+        if endpoint_x != 0 or endpoint_y != 0:
+            let float endpoint_z = 0
+            if attachment_owner.exists:
+                endpoint_z = attachment_owner.state.linked_rope_endpoint_z
+            Place(node, endpoint_x, endpoint_y, endpoint_z)
+        elif falling:
+            Advance(node)
+        if not falling:
+            item.resource(node).velocity.x = 0
+            item.resource(node).velocity.y = 0
+            item.resource(node).velocity.z = 0
+        let int next = node - 1
+        let int counter = 0
+        while next >= 0:
+            counter = counter + 1
+            if item.state.active[next]:
+                if falling:
+                    item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.gravity
+                    Advance(next)
+                else:
+                    Place(next, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+                let float measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.maximum_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+                elif not falling and measured < item.params.minimum_length:
+                    PullMinimum(node, next)
+            else:
+                if falling and counter > item.params.inactive_limit:
+                    Place(next, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+                else:
+                    let float measured = Measure(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    if measured > item.params.maximum_length:
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+                        Draw(next, true)
+                    else:
+                        return 0
+            node = next
+            next = next - 1
+        if falling:
+            ConstrainForward(node, item.params.maximum_length, false)
+            item.resource(item.state.tail).velocity.x = item.resource(item.state.tail).velocity.x * item.params.horizontal_decay
+        return 2
+
+    func Retract() -> bool:
+        let int node = 0
+        let int next = 1
+        while next <= item.state.tail and not item.state.active[node]:
+            node = next
+            next = next + 1
+        let float distance = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        while next <= item.state.tail and item.state.retract_distance > distance:
+            Draw(node, false)
+            distance = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            node = next
+            next = next + 1
+        let float remaining = distance - item.state.retract_distance
+        if remaining > item.params.maximum_length:
+            remaining = item.params.maximum_length
+        ConstrainForward(node, remaining, true)
+        return next > item.state.tail
+
+    func Change(int motion):
+        item.change_state_flags(motion, 2)
+        item.joint("").visible = true
+        item.track_accessory()
+
+    func Fold():
+        Draw(item.state.tail, false)
+        item.resource(item.state.tail).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.tail).set_world_matrix(item.state.matrix)
+
+    func StartExtend():
+        Anchor(item.state.tail)
+        Place(item.state.tail, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        item.resource(item.state.tail).collision.position.x = item.state.anchor_x
+        item.resource(item.state.tail).collision.position.y = item.state.anchor_y
+        item.resource(item.state.tail).collision.position.z = item.state.anchor_z
+        item.resource(item.state.tail).collision.previous.x = item.state.anchor_x
+        item.resource(item.state.tail).collision.previous.y = item.state.anchor_y
+        item.resource(item.state.tail).collision.previous.z = item.state.anchor_z
+        Draw(item.state.tail, true)
+        Change(1)
+
+    func Orient(int node, float x, float y, float z):
+        let float measured = Measure(x, y, z, 0, 0, 0)
+        let float forward_x = item.state.direction_x
+        let float forward_y = item.state.direction_y
+        let float forward_z = item.state.direction_z
+        # BCB88 normalizes once;6DC8 normalizes a second time before the crosses.
+        measured = Measure(forward_x, forward_y, forward_z, 0, 0, 0)
+        forward_x = item.state.direction_x
+        forward_y = item.state.direction_y
+        forward_z = item.state.direction_z
+        let float basis_x = 0
+        let float basis_y = 1
+        if forward_y > item.params.vertical_basis_limit:
+            basis_x = -1
+            basis_y = 0
+        elif forward_y < -item.params.vertical_basis_limit:
+            basis_x = 1
+            basis_y = 0
+        let float right_x = basis_y * forward_z - 0 * forward_y
+        let float right_y = 0 * forward_x - basis_x * forward_z
+        let float right_z = basis_x * forward_y - basis_y * forward_x
+        let float up_x = forward_y * right_z - forward_z * right_y
+        let float up_y = forward_z * right_x - forward_x * right_z
+        let float up_z = forward_x * right_y - forward_y * right_x
+        measured = Measure(right_x, right_y, right_z, 0, 0, 0)
+        right_x = item.state.direction_x
+        right_y = item.state.direction_y
+        right_z = item.state.direction_z
+        measured = Measure(up_x, up_y, up_z, 0, 0, 0)
+        up_x = item.state.direction_x
+        up_y = item.state.direction_y
+        up_z = item.state.direction_z
+        item.state.matrix[0] = right_x * item.params.maximum_length
+        item.state.matrix[4] = right_y * item.params.maximum_length
+        item.state.matrix[8] = right_z * item.params.maximum_length
+        item.state.matrix[1] = up_x * item.params.maximum_length
+        item.state.matrix[5] = up_y * item.params.maximum_length
+        item.state.matrix[9] = up_z * item.params.maximum_length
+        item.state.matrix[2] = forward_x * item.params.maximum_length
+        item.state.matrix[6] = forward_y * item.params.maximum_length
+        item.state.matrix[10] = forward_z * item.params.maximum_length
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func Render():
+        let int node = 0
+        while node <= item.state.tail and not item.state.active[node]:
+            node = node + 1
+        while node <= item.state.tail:
+            let float next_x = item.state.anchor_x
+            let float next_y = item.state.anchor_y
+            let float next_z = item.state.anchor_z
+            if node > 0 and item.state.active[node - 1]:
+                next_x = item.resource(node - 1).position.x
+                next_y = item.resource(node - 1).position.y
+                next_z = item.resource(node - 1).position.z
+            let float previous_x = item.resource(node).position.x
+            let float previous_y = item.resource(node).position.y
+            let float previous_z = item.resource(node).position.z
+            if node < item.state.tail:
+                previous_x = item.resource(node + 1).position.x
+                previous_y = item.resource(node + 1).position.y
+                previous_z = item.resource(node + 1).position.z
+            item.resource(node).joint("").translation.x = item.resource(node).position.x
+            item.resource(node).joint("").translation.y = item.resource(node).position.y
+            item.resource(node).joint("").translation.z = item.resource(node).position.z
+            Orient(node, previous_x - next_x, previous_y - next_y, previous_z - next_z)
+            node = node + 1
+
+    func Cleanup():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "linked_forget_rope")
+        item.detach_owner()
+        item.clear_attachment_owner()
+        item.resources.release()
+
+    on created:
+            item.state.tail = item.params.link_count - 1
+            # Fixed collection failure is atomic; original uninitialized/free-after-
+            # free cleanup is not a valid stock outcome to emulate.
+            if item.params.link_count < 2 or item.params.link_count > 40:
+                item.remove()
+            let bool allocated = item.resources.begin(item.params.link_count)
+            if not allocated:
+                item.remove()
+            let int node = 0
+            while node <= item.state.tail:
+                let bool created = item.resource(node).create(item.params.attachment_part, item.params.collision_radius, item.params.collision_category, position.x, position.y, position.z)
+                if not created:
+                    item.resources.release()
+                    item.remove()
+                item.state.active[node] = node == item.state.tail
+                let bool loaded = false
+                if node == item.state.tail:
+                    loaded = item.resource(node).load_model(Tail)
+                else:
+                    loaded = item.resource(node).load_model(Segment)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                let bool drawing = item.resource(node).set_draw(node == item.state.tail)
+                node = node + 1
+            item.attach_to_owner(item.params.attachment_part)
+    on picked_up:
+            item.change_state_flags(0, 2)
+            item.joint("").visible = false
+            item.track_accessory()
+    on accessory:
+            if item.motion_state == 0:
+                Fold()
+            else:
+                if item.motion_state == 3:
+                    Anchor(0)
+                    let bool completed = Retract()
+                    if completed:
+                        item.change_state_flags(0, 2)
+                        item.joint("").visible = false
+                        item.track_accessory()
+                else:
+                    Draw(item.state.tail, true)
+                    Anchor(item.state.tail)
+                    let int outcome = Extend(item.motion_state == 2)
+                Render()
+    on signal schedule:
+            let int command = int(signal.value)
+            if command == item.params.extend_command:
+                StartExtend()
+            elif command == item.params.fall_command:
+                Change(2)
+            elif command == item.params.retract_command:
+                Anchor(0)
+                item.state.retract_distance = item.params.retract_distance
+                Change(3)
+            if command == item.params.removal_command:
+                Cleanup()
+                item.remove()
+    on signal remove:
+            Cleanup()
+            item.remove()
+    on destroyed:
+            Cleanup()
+    on interaction:
+            let bool source_removed = item.attachment_owner_is(other)
+            item.interact(other)
+            if source_removed:
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            # Gumstrings is an accessory, not the fighter's held item. Retail
+            # checks ip->owner even when the fighter holds something else.
+            if not current_owner.exists:
+                Cleanup()
+                return true
+            let int motion = current_owner.motion
+            if motion < 347 or motion > 356:
+                Cleanup()
+                return true
+            return false
+    state 1 anim -1 use 0:
+    state 2 anim -1 use 0:
+    state 3 anim -1 use 0:

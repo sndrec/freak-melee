@@ -1,0 +1,17 @@
+{
+  "namespace": "tests/native/ice_climbers_cpu_owned",
+  "files": {
+    "follower.fms": "0cce7787e1639c08d73ac0566b548c8a026de67fc3ddc4871389b3760ad70b4e",
+    "capture.fms": "0c51c1a1ab8b3afe8ba9c2d44a27a1ae00f10cf3bd74de6debc6aa18a76d139f",
+    "parameters.fms": "9af6a978b095b362e3691b765f74c74c8979fd17536fad570373eb87c11a0fca"
+  },
+  "receipt": "A:/FreakMelee-test-archives/ice-climbers-cpu72-eleventh/receipt.json",
+  "selection": {
+    "popo": "capture.fms",
+    "nana": "follower.fms + parameters.fms"
+  },
+  "excluded": [
+    "query_fixture.fms"
+  ],
+  "comparison": "Both generation forms:506488+551300+504 pairs,21580064 checks/17 safety,max error0"
+}

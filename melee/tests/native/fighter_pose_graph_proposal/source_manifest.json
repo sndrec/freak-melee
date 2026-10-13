@@ -1,0 +1,102 @@
+{
+  "status": "Source-only pending integration; no build or gameplay",
+  "head": "45aae57950aab1fc44e9f20c7b975282497bfb70",
+  "inputs": {
+    "src/melee/ft/ftanim.h": "c61084abc5eaf10dfb289891745d4f656f9cd1b4006477779aece111cd1d0d81",
+    "src/melee/ft/ftanim.c": "696bb6e3d93b2c6547f44e9f8113dbc31bc1fa52bc8482085c8037652420be28",
+    "src/melee/ft/ftanim_tracks.c": "ed8e5fa0ae9db7fecbdad40216a928a21b28fb0bab8f2373e444a1b7e04d13d6",
+    "src/melee/ft/ftanim_transition.c": "86baa17a7ce13f19102beadcb8534e8e46bac5a5369f60f422ff2cbc0d4ff750",
+    "src/melee/ft/ftanim_skeleton.c": "a0cbee74003928828f82599e876f6d9f322ba3b09f57390bcc07b667d1813b93",
+    "src/melee/ft/ftanim_tree.c": "8a17497e80d3fb80cda5aad5906804fe6aed8a698e281c44ec8aab14ab5baa83",
+    "src/melee/ft/ftparts_table.c": "f57db2c44981c546b38e203ce9e937bdd3a766e208e3da40cd93d88ef34a1635",
+    "src/melee/ft/ftparts_bind.c": "91820bea36cb44a91917e75442fa1927fcb896e9953ee07d06ea05c238b6f9f7",
+    "src/melee/ft/ftcommon_data.c": "d0456d21ddb53e6915f66ac46c2262d22966b76e37d944f0ceb705e9e057755d",
+    "src/melee/ft/ftcharacter_assets.c": "8329b07f08461c8cc3249a2866b34621d3b1b6102c0da7d49e9a2fd5c4557252",
+    "src/melee/ft/ftcharacter_assets.h": "1e3c7186e1557d70aa7834afb0cd137b6412709ccb592aa0cc5e0437785b077f",
+    "src/melee/ft/ftcharacter_asset_layout.h": "80181953376b3b645de6b9c9ddb967c5a0c0aa8431bf8f0d6de77dd318aaa344",
+    "src/melee/ft/native_fighter_model_graph.c": "184c299a8e915cae7ed9b0ca96e178e33d8a6cf3869eaf849af6679f45431309",
+    "src/melee/ft/native_fighter_runtime.c": "e24ead4b1efa3fc81c18a0fe9f858e3ae419610fb9961ab2cc66947e78310aff",
+    "src/melee/ft/native_fighter_module.c": "25c7ef5415efdf0a513424aac6c6e100009d6c3de1f2252a1c11c2c87e4e4ca6",
+    "src/melee/ft/native_fighter_module.h": "885fede7ed10c5b001dbaeebbd0ac6947e4dc2f3def3b5a268309def10701eb4",
+    "src/melee/ft/kinds/ftSeak/ftseakspecials.c": "52ced7c4dfe873169210678168aa109ee4c5b799fcf3b40fe949d29ff54720d4",
+    "src/melee/lb/lb_00B0.c": "e61ef6e69ccef239f734ddce9b807e9a8d8c8703dfaab4e037024fe29e58b3cf",
+    "src/melee/lb/lb_00B0.h": "50a81a1b9a079f0f91f86732514eef916ca90164ed8f67399bf2da54d6d5c638",
+    "src/melee/lb/lbanim.c": "7a2141ce32238ff4a306fdb593db8f6f7cfdb69ce5147efe0fe5f600212e2f5e",
+    "src/sysdolphin/baselib/jobj.c": "752a648fafb23849d1994844cde227c816b4c4cdd0e9b8d23d2dca96fbe86369",
+    "tools/native_fighter_script_guard.c": "4c1009892aba93fa745d2edf4b74d84946282f3f2e3abcab0d9505b7c4728481",
+    "tools/native_fighter_script_primitives.c": "762ae82b1fe9b8cf10d1f476d70f5ca59b6fdfe7fb064ce69504802db39e7ea8",
+    "tests/native/sheik_script_composition/pose_contract.md": "82ed363728890b1ef71db2aca9ac51ce235ffad8fb263b656bdf395c22dc1d1a",
+    ".local/zelda-sheik-closure-next-batch/owned-rigs.json": "bcd41a42dbbfae3ac15d4eebd9e71a818915ea910887e2827c827f769d216b53",
+    ".local/zelda-sheik-closure-next-batch/README.md": "80788dcff08be73fe978564933b7de8ef315e2e163f1de408faa3f8bfaef0fce"
+  },
+  "functions": {
+    "ftAnim_8006F4C8": {
+      "source": "src/melee/ft/ftanim_tracks.c",
+      "line": 10,
+      "signature": "void ftAnim_8006F4C8(Fighter* fp, bool do_blending, FigaTree* tree)",
+      "body_sha256_lf": "71b01d3faa2e2e7bd3967347a08f4e836115687855273a7e56ec63c0d51851bb"
+    },
+    "ftAnim_80070710": {
+      "source": "src/melee/ft/ftanim_tracks.c",
+      "line": 159,
+      "signature": "void ftAnim_80070710(HSD_JObj* jobj, float frame)",
+      "body_sha256_lf": "0d228223c40034e4cbb9151eb5b26ed40607da9ef4deecf37c03f8e274f7dc50"
+    },
+    "ftAnim_8006FA58": {
+      "source": "src/melee/ft/ftanim_transition.c",
+      "line": 54,
+      "signature": "void ftAnim_8006FA58(Fighter* fp, Fighter_Part part, HSD_Joint* joint)",
+      "body_sha256_lf": "85581c1730952017fc136d4f43d789619ab7814cbc2e2de449c3ac97399e4258"
+    },
+    "ftAnim_8006FB88": {
+      "source": "src/melee/ft/ftanim_transition.c",
+      "line": 82,
+      "signature": "void ftAnim_8006FB88(Fighter* fp, Fighter_Part part, HSD_Joint* joint)",
+      "body_sha256_lf": "905036f7c7348663829298545202063f86434ac261224a18a37090fe27dc0b96"
+    },
+    "ftAnim_8006FE9C": {
+      "source": "src/melee/ft/ftanim_skeleton.c",
+      "line": 18,
+      "signature": "void ftAnim_8006FE9C(Fighter* fp, Fighter_Part start, float t, float t_inv)",
+      "body_sha256_lf": "ad5ce004dc830ce42a92d43cc98b86bab5730b276b83d1940bd8626b7f221a8a"
+    },
+    "ftAnim_8006FF74": {
+      "source": "src/melee/ft/ftanim_skeleton.c",
+      "line": 35,
+      "signature": "void ftAnim_8006FF74(Fighter* fp, Fighter_Part start)",
+      "body_sha256_lf": "8abedc94479961ae7a89a7a8ba9a3cd497a32b6dbe18958469ff4b661137c2fe"
+    },
+    "ftAnim_80070010": {
+      "source": "src/melee/ft/ftanim.c",
+      "line": 361,
+      "signature": "void ftAnim_80070010(Fighter* fp, Fighter_Part start, float t, float t_inv, HSD_Joint* joint)",
+      "body_sha256_lf": "c31739ad0ff8d681bc91fe91d941d6e9587b1f1ecb7b8946c921d25cc20b6e58"
+    },
+    "ftAnim_80070108": {
+      "source": "src/melee/ft/ftanim.c",
+      "line": 384,
+      "signature": "void ftAnim_80070108(Fighter* fp, Fighter_Part start, float t, float t_inv, HSD_Joint* joint)",
+      "body_sha256_lf": "709b10793d09d5b688810fab865e6d24df90a26606640fa962ef71690539cc73"
+    },
+    "ftAnim_8006F994": {
+      "source": "src/melee/ft/ftanim.c",
+      "line": 342,
+      "signature": "HSD_Joint* ftAnim_8006F994(Fighter* fp, HSD_JObj* jobj, HSD_Joint* joint)",
+      "body_sha256_lf": "9e7f6000c9a972c1b02087a8e4af88d914df7a8d67170f527f7769ceac903e2e"
+    },
+    "ftSk_SpecialS_80110610": {
+      "source": "src/melee/ft/kinds/ftSeak/ftseakspecials.c",
+      "line": 83,
+      "signature": "void ftSk_SpecialS_80110610(HSD_GObj* gobj, s32 arg1, float arg2)",
+      "body_sha256_lf": "6dac29d545999d46776059fef9dac8c5c5bfccc5e9deaa7b4b64320cbf40e81c"
+    }
+  },
+  "rig_receipt": {
+    "physical_joints_nr": 58,
+    "runtime_parts": 58,
+    "semantic_pairs": 52,
+    "omissions": [],
+    "scope": "Existing ISO Nr graph traversal; not fresh all-costume verification"
+  },
+  "proposal_sha256": "abd0c8f7011831d82c7f9d052dc506b49c1b5dfbe2a035d27670c19027d39528"
+}

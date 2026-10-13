@@ -1,0 +1,101 @@
+article It_Kind_Peach_Parasol states 3:
+    parameter int animation_update_flags = 2
+    parameter int open_length = 15
+    parameter int close_length = 16
+    parameter int open_sound = 247
+    parameter int sound_pan = 127
+    parameter int sound_volume = 64
+    parameter int owned_hi_start = 361
+    parameter int owned_hi_end = 364
+    parameter int owned_open = 369
+    parameter int owned_fall = 370
+    parameter int common_open = 144
+    parameter int common_fall_special = 146
+    parameter int common_special_fall = 35
+    parameter int common_special_fall_backward = 37
+    parameter int common_special_landing = 43
+    state bool retire
+
+    func decide_expiration():
+        item.state.retire = true
+        if item.current_owner != 0:
+            let int current_motion = holder.motion
+            if current_motion >= item.attr.owned_hi_start and current_motion <= item.attr.owned_hi_end:
+                item.state.retire = false
+            elif current_motion >= item.attr.owned_open and current_motion <= item.attr.owned_fall:
+                item.state.retire = false
+            elif current_motion >= item.attr.common_open and current_motion <= item.attr.common_fall_special:
+                item.state.retire = false
+            elif current_motion >= item.attr.common_special_fall and current_motion <= item.attr.common_special_fall_backward:
+                item.state.retire = false
+            elif current_motion == item.attr.common_special_landing:
+                # Actual current holder item drives this check, including a different held instance.
+                item.state.retire = holder.held_motion == 2 and holder.held_frame >= item.attr.close_length
+        if item.state.retire:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+
+    on signal discard_unattached:
+            item.clear_current_owner()
+            item.remove()
+    on picked_up:
+            item.animation_rate = item.attr.close_length
+            item.change_state_flags(2, item.attr.animation_update_flags)
+            item.track_accessory()
+            item.advance_animation()
+            item.animation_rate = 1
+    on accessory:
+            pass
+    on held_status:
+            if item.motion_state == 1:
+                return int(4)
+            if item.motion_state == 0 or item.motion_state == 2:
+                return int(6)
+            return int(-1)
+    on held_request:
+            let float rate = event.frame_rate
+            if event.action == 4:
+                if event.duration != 0:
+                    rate = rate * (item.attr.open_length / event.duration)
+                item.play_sound(item.attr.open_sound, item.attr.sound_pan, item.attr.sound_volume)
+                item.animation_rate = rate
+                item.change_state_flags(1, item.attr.animation_update_flags)
+                item.track_accessory()
+                return true
+            if event.action == 6:
+                if event.duration != 0:
+                    rate = rate * (item.attr.close_length / event.duration)
+                item.animation_rate = rate
+                item.change_state_flags(2, item.attr.animation_update_flags)
+                item.track_accessory()
+                return true
+            return false
+    on holder_neutral:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+            item.remove()
+    on signal remove_cleanup:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+            item.remove()
+    on destroyed:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+    on interaction:
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            decide_expiration()
+            return item.state.retire
+    state 1 anim 0:
+        on animation:
+            decide_expiration()
+            return item.state.retire
+    state 2 anim 1:
+        on animation:
+            decide_expiration()
+            return item.state.retire

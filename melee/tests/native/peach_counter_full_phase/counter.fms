@@ -1,0 +1,291 @@
+# Complete neutral-special policy, assembled with immutable cleanup/setup input.
+attribute float toad_air_horizontal_divisor 148
+attribute float toad_air_deceleration 152
+attribute float toad_air_initial_vertical_speed 156
+attribute float toad_gravity 160
+attribute float toad_terminal_velocity 164
+attribute float toad_guard_hitlag 168
+attribute int toad_guard_joint 172
+attribute float toad_guard_x 176
+attribute float toad_guard_y 180
+attribute float toad_guard_z 184
+attribute float toad_guard_radius 188
+parameter int toad_attachment_joint = 109
+parameter int toad_ground_motion = 365
+parameter int toad_ground_hit_motion = 366
+parameter int toad_air_motion = 367
+parameter int toad_air_hit_motion = 368
+parameter int toad_collision_flags = 0x0c4c508c
+parameter float toad_hit_start_frame = 9
+parameter float spore_height = 2.5
+state int toad_saved_facing
+
+func pause_toad():
+    if state.toad_handle != -1:
+        let bool paused = items.set_paused(state.toad_handle, true)
+
+func resume_toad():
+    if state.toad_handle != -1:
+        let bool resumed = items.set_paused(state.toad_handle, false)
+
+func install_toad_guard():
+    guard.create(attrs.toad_guard_joint, attrs.toad_guard_x, attrs.toad_guard_y, attrs.toad_guard_z, attrs.toad_guard_radius, GuardHit)
+    guard.front_only = true
+
+func create_toad():
+    if command(2) != 0: return
+    command(2) = 1
+    bones.world_position(attrs.toad_attachment_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+    let int created = articles.create_at_position(It_Kind_Peach_Toad, state.spawn_x, state.spawn_y, state.spawn_z, facing.direction, false)
+    if created != -1:
+        let bool attached = items.attach(created, attrs.toad_attachment_joint, true)
+        if not attached:
+            # Outside retail fixed-rig behavior: do not strand an unattached item.
+            articles.signal(created, It_Kind_Peach_Toad, "discard_unattached", 0)
+            created = -1
+    state.toad_handle = created
+    items.clear_auxiliary()
+    if created != -1:
+        let bool bound = items.bind_auxiliary(created)
+        if bound:
+            callbacks.death2(cleanup_resources)
+            callbacks.damage(cleanup_resources)
+    callbacks.accessory(None)
+    callbacks.pre_hitlag(pause_toad)
+    callbacks.post_hitlag(resume_toad)
+
+func create_spore():
+    bones.world_position(attrs.toad_attachment_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+    articles.create_at_position(It_Kind_Peach_ToadSpore, state.spawn_x, state.spawn_y + attrs.spore_height, 0, facing.direction, false)
+    callbacks.accessory(None)
+
+func reset_toad():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    state.toad_saved_facing = int(facing.direction)
+    callbacks.accessory(create_toad)
+
+func toad_setup_hit():
+    if state.toad_handle != -1:
+        callbacks.death2(cleanup_resources)
+        callbacks.damage(cleanup_resources)
+    callbacks.pre_hitlag(pause_toad)
+    callbacks.post_hitlag(resume_toad)
+
+func toad_setup_normal():
+    if state.toad_handle != -1:
+        callbacks.death2(cleanup_resources)
+        callbacks.damage(cleanup_resources)
+    # Source installs accessory before hitlag callbacks and guard recreation.
+    callbacks.accessory(create_toad)
+    callbacks.pre_hitlag(pause_toad)
+    callbacks.post_hitlag(resume_toad)
+    if command(1) == 2: install_toad_guard()
+
+func toad_animation(bool air_started):
+    if command(1) == 1:
+        command(1) = 2
+        install_toad_guard()
+        guard.melee_hitlag = attrs.toad_guard_hitlag
+        guard.article_hitlag = attrs.toad_guard_hitlag
+    elif command(1) == 0:
+        guard.active = false
+    if animation.finished:
+        if air_started: state.fall()
+        else: state.wait()
+
+func toad_hit_animation(bool air_started):
+    if command(3) != 0:
+        command(3) = 0
+        callbacks.accessory(create_spore)
+    if animation.finished:
+        if air_started: state.fall()
+        else: state.wait()
+
+func toad_air_physics(bool hit_state):
+    if hit_state:
+        physics.fall(attrs.toad_gravity, attrs.toad_terminal_velocity)
+    elif command(0) >= 1:
+        if command(0) == 1:
+            command(0) = 2
+            if not state.toad_air_boost_used:
+                state.toad_air_boost_used = true
+                velocity.y = attrs.toad_air_initial_vertical_speed
+            else:
+                velocity.y = 0
+        physics.fall(attrs.toad_gravity, attrs.toad_terminal_velocity)
+    else:
+        physics.fall_basic()
+    physics.air_decel(attrs.toad_air_deceleration)
+    if not hit_state: guard.update_position()
+
+func GuardHit():
+    state.toad_saved_facing = int(guard.hit_facing)
+    let int hit_motion = attrs.toad_ground_hit_motion
+    if airborne: hit_motion = attrs.toad_air_hit_motion
+    state.enter_at_speed(hit_motion, 0, attrs.toad_hit_start_frame, 1)
+    animation.start()
+    if state.toad_handle != -1:
+        articles.signal(state.toad_handle, It_Kind_Peach_Toad, "respond", 0)
+    toad_setup_hit()
+
+move Counter:
+    on special_n:
+        velocity.y = 0
+        state.enter_at_speed(attrs.toad_ground_motion, 0, 0, 1)
+        animation.start()
+        reset_toad()
+    on special_air_n:
+        velocity.x = velocity.x / attrs.toad_air_horizontal_divisor
+        state.enter_at_speed(attrs.toad_air_motion, 0, 0, 1)
+        animation.start()
+        reset_toad()
+    on state_365_animation:
+        toad_animation(false)
+    on state_365_interrupt:
+        return
+    on state_365_physics:
+        physics.ground_friction()
+        guard.update_position()
+    on state_365_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.toad_air_motion, attrs.toad_collision_flags, frame, 1)
+            if command(0) == 1: command(0) = 2
+            toad_setup_normal()
+    on state_366_animation:
+        toad_hit_animation(false)
+    on state_366_interrupt:
+        return
+    on state_366_physics:
+        physics.ground_friction()
+    on state_366_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.toad_air_hit_motion, attrs.toad_collision_flags, frame, 1)
+            toad_setup_hit()
+    on state_367_animation:
+        toad_animation(true)
+    on state_367_interrupt:
+        return
+    on state_367_physics:
+        toad_air_physics(false)
+    on state_367_collision:
+        if collision.landed:
+            state.toad_air_boost_used = false
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.toad_ground_motion, attrs.toad_collision_flags, frame, 1)
+            toad_setup_normal()
+    on state_368_animation:
+        toad_hit_animation(true)
+    on state_368_interrupt:
+        return
+    on state_368_physics:
+        toad_air_physics(true)
+    on state_368_collision:
+        if collision.landed:
+            state.toad_air_boost_used = false
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.toad_ground_hit_motion, attrs.toad_collision_flags, frame, 1)
+            toad_setup_hit()
+
+article It_Kind_Peach_Toad states 2:
+    parameter int first_counter_motion = 365
+    parameter int last_counter_motion = 368
+    parameter float show_frame = 7
+    parameter float hide_frame = 53
+    parameter float hit_hide_frame = 60
+    parameter float response_animation_rate = 10
+    parameter float normal_animation_rate = 1
+    on signal discard_unattached:
+            item.clear_current_owner()
+            item.remove()
+    on signal remove_cleanup:
+            targets.call(item.current_owner, "forget_toad")
+            item.remove()
+    on destroyed:
+            targets.call(item.current_owner, "forget_toad")
+    on picked_up:
+            item.change_state(0)
+            item.advance_animation()
+            item.hide_model()
+            item.inherit_owner_scale()
+    on signal respond:
+            item.change_state(1)
+            item.set_model_animation_rate(item.attr.response_animation_rate)
+            item.advance_model_animation()
+            item.set_model_animation_rate(item.attr.normal_animation_rate)
+            item.inherit_owner_scale()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.animation_frame == item.attr.show_frame: item.show_model()
+            if item.animation_frame >= item.attr.hide_frame: item.hide_model()
+            if holder.motion < item.attr.first_counter_motion or holder.motion > item.attr.last_counter_motion:
+                targets.call(item.current_owner, "forget_toad")
+                return true
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.animation_frame >= item.attr.hit_hide_frame: item.hide_model()
+            # Stock hit-state expiry does not notify until destruction.
+            return holder.motion < item.attr.first_counter_motion or holder.motion > item.attr.last_counter_motion
+
+article It_Kind_Peach_ToadSpore states 1:
+    attribute float minimum_speed 0
+    attribute float speed_range 4
+    attribute float speed_decay 8
+    attribute float spread_angle 12
+    parameter float initial_lifetime = 60
+    parameter int root_effect = 1235
+    on created:
+            item.set_lifetime(item.attr.initial_lifetime)
+            item.command0 = 0
+            let float draw = random.float()
+            let float speed = item.attr.minimum_speed + item.attr.speed_range * draw
+            let float angle_draw = random.float()
+            let float double_angle = float(pi) - item.attr.spread_angle
+            let float angle_offset = item.attr.spread_angle * angle_draw
+            let float angle = 0.5 * double_angle + angle_offset
+            velocity.x = facing * (speed * sin(angle))
+            velocity.y = speed * cos(angle)
+            item.hide_model()
+            item.use_manual_lifetime()
+            item.spawn_root_effect(item.attr.root_effect)
+            item.change_state(0)
+            item.inherit_owner_debug_display()
+    on damage_dealt:
+            item.destroy_effects()
+            return true
+    on clanked:
+            item.destroy_effects()
+            return true
+    on hit_shield:
+            item.destroy_effects()
+            return true
+    on absorbed:
+            item.destroy_effects()
+            return true
+    on shield_bounced:
+            return item.shield_bounce()
+    on reflected:
+            let float saved_lifetime = item.life
+            item.reflect()
+            item.life = saved_lifetime
+            return false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0: return true
+            item.life = item.life - 1
+            if item.life <= 0:
+                item.life = 0
+                return true
+            return false
+        on physics:
+            velocity.x = velocity.x * item.attr.speed_decay
+            velocity.y = velocity.y * item.attr.speed_decay

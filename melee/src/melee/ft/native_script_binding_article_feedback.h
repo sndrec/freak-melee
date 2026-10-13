@@ -1,0 +1,6 @@
+#ifndef MELEE_FT_NATIVE_SCRIPT_BINDING_ARTICLE_FEEDBACK_H
+#define MELEE_FT_NATIVE_SCRIPT_BINDING_ARTICLE_FEEDBACK_H
+#include "native_script_vm.h"
+bool nativeScriptBindingArticleFeedback_Invoke(NativeScriptRuntimeContext*,uint32_t semantic,
+ const NativeScriptValue* arguments,uint32_t count,NativeScriptValue* result,NativeScriptDiagnostic*);
+#endif

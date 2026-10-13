@@ -1,0 +1,688 @@
+# ftLk_DatAttrs +0..+10; values are imported from the donor DAT, not defaults.
+attribute float bow_max_charge 0
+attribute float bow_start_rate 4
+attribute float bow_air_landing_lag 8
+attribute int bow_arrow_kind 12
+attribute int bow_kind 16
+
+state bool bow_initialized
+
+state bool bow_charge_enabled
+
+state float bow_charge
+
+state int bow_visible_timer
+
+state int bow_handle
+
+state int bow_arrow_handle
+
+state float bow_left_x
+
+state float bow_left_y
+
+state float bow_left_z
+
+state float bow_right_x
+
+state float bow_right_y
+
+state float bow_right_z
+
+state float bow_root_x
+
+state float bow_root_y
+
+state float bow_root_z
+
+state float bow_angle
+
+state float bow_offset_x
+
+state float bow_offset_y
+
+state float bow_extra_angle
+
+
+
+func bow_callbacks():
+    callbacks.damage(Cleanup_AllArticles)
+    callbacks.death2(Cleanup_AllArticles)
+
+
+func bow_unset_arrow():
+    state.bow_arrow_handle = -1
+
+
+export func bow_unset():
+    state.bow_handle = -1
+
+
+func bow_air_finish():
+    if attrs.bow_air_landing_lag == 0: state.fall()
+    else:
+        state.freefall(1, 0, true, 1, attrs.bow_air_landing_lag)
+
+
+func bow_failed(bool air_started):
+    # Stock only clears fighter references here; article callbacks remove later.
+    bow_unset_arrow()
+    bow_unset()
+    if air_started: bow_air_finish()
+    else:
+        state.wait()
+
+
+func bow_enter(bool air_started):
+    if not state.bow_initialized:
+        state.bow_initialized = true
+        state.bow_handle = -1
+        state.bow_arrow_handle = -1
+    state.bow_charge_enabled = false
+    state.bow_charge = 0
+    state.bow_visible_timer = 0
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    if not air_started:
+        physics.switch_to_ground()
+        velocity.y = 0
+        state.enter_at_speed(344, 0, 0, 1)
+    else:
+        state.enter_at_speed(347, 0, 0, 1)
+    bow_callbacks()
+    animation.set_rate(attrs.bow_start_rate)
+    animation.start()
+    if articles.owned(state.bow_handle):
+        bow_failed(air_started)
+    else:
+        # The reference remains absent during created/picked_up notifications.
+        state.bow_handle = -1
+        state.bow_handle = articles.spawn_bone_attached(attrs.bow_kind, RightThumb)
+        if articles.owned(state.bow_handle): bow_callbacks()
+        else:
+            bow_failed(air_started)
+
+
+func bow_positions():
+    bones.world_position(bones.index(LeftThumb), state.bow_left_x, state.bow_left_y, state.bow_left_z)
+    bones.world_position(bones.index(RightThumb), state.bow_right_x, state.bow_right_y, state.bow_right_z)
+    bones.world_position(0, state.bow_root_x, state.bow_root_y, state.bow_root_z)
+    state.bow_angle = atan2(state.bow_right_y - state.bow_left_y, state.bow_right_x - state.bow_left_x)
+    state.bow_offset_x = state.bow_right_x - state.bow_root_x
+    state.bow_offset_y = state.bow_right_y - state.bow_root_y
+    state.bow_extra_angle = 0
+    if articles.owned(state.bow_arrow_handle): articles.signal_owned(state.bow_arrow_handle, "held_positions", 0)
+
+
+func bow_start_animation(bool air_started):
+    if command(2) != 0 and not state.bow_charge_enabled:
+        state.bow_charge_enabled = true
+        command(2) = 0
+    if not air_started: animation.set_rate(attrs.bow_start_rate)
+    if command(0) == 1:
+        command(0) = 0
+        if not articles.owned(state.bow_arrow_handle):
+            state.bow_arrow_handle = -1
+            state.bow_arrow_handle = articles.spawn_bone_attached(attrs.bow_arrow_kind, LeftThumb)
+            if articles.owned(state.bow_arrow_handle): bow_callbacks()
+            else:
+                bow_failed(air_started)
+                return
+    bow_positions()
+    if animation.finished:
+        if air_started: state.enter_at_speed(348, 0x40010, 0, 1)
+        else:
+            state.enter_at_speed(345, 0x40010, 0, 1)
+        bow_callbacks()
+        animation.start()
+
+
+func bow_start_interrupt(bool air_started):
+    if state.bow_charge_enabled:
+        state.bow_charge = state.bow_charge + 1
+        if state.bow_charge > attrs.bow_max_charge: state.bow_charge = attrs.bow_max_charge
+        if not input.special_held:
+            if air_started: state.enter_at_speed(349, 0x40010, 0, 1)
+            else:
+                state.enter_at_speed(346, 0x40010, 0, 1)
+            bow_callbacks()
+
+
+func bow_loop_interrupt(bool air_started):
+    state.bow_charge = attrs.bow_max_charge
+    if not input.special_held:
+        if air_started: state.enter_at_speed(349, 0x40010, 0, 1)
+        else:
+            state.enter_at_speed(346, 0x40010, 0, 1)
+        bow_callbacks()
+
+
+func bow_end_parts():
+    if visuals.held_item_visible and state.bow_visible_timer == 0:
+        state.bow_visible_timer = state.bow_visible_timer + 1
+        if items.held:
+            visuals.set_group(2, 1)
+            visuals.set_current_group(2, 1)
+        else:
+            visuals.set_group(2, 0)
+            visuals.set_current_group(2, 0)
+
+
+func bow_end_animation(bool air_started):
+    if animation.finished:
+        if air_started: bow_unset_arrow()
+        bow_unset()
+        bow_end_parts()
+        if air_started: bow_air_finish()
+        else:
+            state.wait()
+    else:
+        bow_end_parts()
+
+
+func bow_launch():
+    if command(1) == 1 and articles.owned(state.bow_arrow_handle):
+        command(1) = 0
+        bones.world_position(bones.index(RightThumb), state.bow_right_x, state.bow_right_y, state.bow_right_z)
+        bones.world_position(bones.index(LeftThumb), state.bow_left_x, state.bow_left_y, state.bow_left_z)
+        state.bow_right_z = 0
+        state.bow_left_z = 0
+        articles.signal_owned(state.bow_arrow_handle, "launch", attrs.bow_max_charge)
+        bow_unset_arrow()
+        items.notify_pickup(false)
+
+
+func bow_ground_collision(int air_motion, bool end_phase):
+    if end_phase: bow_launch()
+    if collision.left_ground:
+        physics.ground_to_air()
+        state.enter_at_speed(air_motion, 0x0C4C5090, frame, 1)
+        bow_callbacks()
+        animation.start()
+
+
+func bow_air_collision(int ground_motion, bool end_phase):
+    if end_phase: bow_launch()
+    if collision.landed:
+        physics.switch_to_ground()
+        state.enter_at_speed(ground_motion, 0x0C4C5090, frame, 1)
+        bow_callbacks()
+        animation.start()
+
+
+article It_Kind_Link_Arrow states 5:
+    attachment origin bone plane on initial_collision on held off
+    render standard
+    # itLinkArrowAttributes +0..+20; immutable model roots follow at +24/+28.
+    attribute float flight_lifetime 0
+    attribute float minimum_speed 4
+    attribute float maximum_speed 8
+    attribute float minimum_damage 12
+    attribute float maximum_damage 16
+    attribute float contact_velocity_multiplier 20
+    attribute float embedded_lifetime 24
+    attribute float gravity 28
+    attribute float flight_angle_limit 32
+    model_root trail_first 36
+    model_root trail_second 40
+    state bool launched
+    state float creator_scale
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float angle
+    state float speed
+    state float charge
+    state int damage
+    state int vibration_index
+    state int trail_age
+    state int tail_age
+    state int line
+    state int sweep_flags
+    state bool sweep_hit
+    state float normal_x
+    state float normal_y
+    state float normal_z
+    state float normal_angle
+    state float previous_normal_angle
+    state int shield_target
+    state float shield_x
+    state float shield_y
+    state float shield_z
+    state float shield_radius
+    state float shield_angle
+    state float vibration_offset
+    state float history0_x
+    state float history0_y
+    state float history0_z
+    state float history0_rx
+    state float history0_ry
+    state float history0_rz
+    state float history0_rw
+    state float history1_x
+    state float history1_y
+    state float history1_z
+    state float history1_rx
+    state float history1_ry
+    state float history1_rz
+    state float history1_rw
+    state float history2_x
+    state float history2_y
+    state float history2_z
+    state float history2_rx
+    state float history2_ry
+    state float history2_rz
+    state float history2_rw
+    state float history3_x
+    state float history3_y
+    state float history3_z
+    state float history3_rx
+    state float history3_ry
+    state float history3_rz
+    state float history3_rw
+    on signal destroy_trails:
+            item.destroy_model(1)
+            item.destroy_model(2)
+    on signal remove:
+            item.signal("destroy_trails", 0)
+            item.remove()
+    on signal history:
+            item.state.history3_x = item.state.history2_x
+            item.state.history3_y = item.state.history2_y
+            item.state.history3_z = item.state.history2_z
+            item.state.history3_rx = item.state.history2_rx
+            item.state.history3_ry = item.state.history2_ry
+            item.state.history3_rz = item.state.history2_rz
+            item.state.history3_rw = item.state.history2_rw
+            item.state.history2_x = item.state.history1_x
+            item.state.history2_y = item.state.history1_y
+            item.state.history2_z = item.state.history1_z
+            item.state.history2_rx = item.state.history1_rx
+            item.state.history2_ry = item.state.history1_ry
+            item.state.history2_rz = item.state.history1_rz
+            item.state.history2_rw = item.state.history1_rw
+            item.state.history1_x = item.state.history0_x
+            item.state.history1_y = item.state.history0_y
+            item.state.history1_z = item.state.history0_z
+            item.state.history1_rx = item.state.history0_rx
+            item.state.history1_ry = item.state.history0_ry
+            item.state.history1_rz = item.state.history0_rz
+            item.state.history1_rw = item.state.history0_rw
+            item.state.history0_x = item.state.previous_x
+            item.state.history0_y = item.state.previous_y
+            item.state.history0_z = item.state.previous_z - 0.02
+            item.state.history0_rx = item.joint("").quaternion.x
+            item.state.history0_ry = item.joint("").quaternion.y
+            item.state.history0_rz = item.joint("").quaternion.z
+            item.state.history0_rw = item.joint("").quaternion.w
+            if item.joint(1, "").exists:
+                item.set_joint_transform(1, "", item.state.history0_x, item.state.history0_y, item.state.history0_z, item.state.history0_rx, item.state.history0_ry, item.state.history0_rz, item.state.history0_rw, item.joint("").scale.x, item.joint("").scale.y, item.joint("").scale.z, false)
+            if item.joint(2, "").exists:
+                item.set_joint_transform(2, "", item.state.history1_x, item.state.history1_y, item.state.history1_z, item.state.history1_rx, item.state.history1_ry, item.state.history1_rz, item.state.history1_rw, item.joint("").scale.x, item.joint("").scale.y, item.joint("").scale.z, false)
+    on signal initialize_history:
+            item.state.history0_x = item.state.previous_x
+            item.state.history0_y = item.state.previous_y
+            item.state.history0_z = item.state.previous_z - 0.02
+            item.state.history0_rx = item.joint("").quaternion.x
+            item.state.history0_ry = item.joint("").quaternion.y
+            item.state.history0_rz = item.joint("").quaternion.z
+            item.state.history0_rw = item.joint("").quaternion.w
+            item.state.history1_x = item.state.previous_x
+            item.state.history1_y = item.state.previous_y
+            item.state.history1_z = item.state.previous_z - 0.02
+            item.state.history1_rx = item.joint("").quaternion.x
+            item.state.history1_ry = item.joint("").quaternion.y
+            item.state.history1_rz = item.joint("").quaternion.z
+            item.state.history1_rw = item.joint("").quaternion.w
+            item.state.history2_x = item.state.previous_x
+            item.state.history2_y = item.state.previous_y
+            item.state.history2_z = item.state.previous_z - 0.02
+            item.state.history2_rx = item.joint("").quaternion.x
+            item.state.history2_ry = item.joint("").quaternion.y
+            item.state.history2_rz = item.joint("").quaternion.z
+            item.state.history2_rw = item.joint("").quaternion.w
+            item.state.history3_x = item.state.previous_x
+            item.state.history3_y = item.state.previous_y
+            item.state.history3_z = item.state.previous_z - 0.02
+            item.state.history3_rx = item.joint("").quaternion.x
+            item.state.history3_ry = item.joint("").quaternion.y
+            item.state.history3_rz = item.joint("").quaternion.z
+            item.state.history3_rw = item.joint("").quaternion.w
+    on signal held_positions:
+            position.x = owner.state.bow_right_x
+            position.y = owner.state.bow_right_y
+            position.z = owner.state.bow_right_z
+            item.state.previous_x = owner.state.bow_left_x
+            item.state.previous_y = owner.state.bow_left_y
+            item.state.previous_z = owner.state.bow_left_z
+    on signal sweep:
+            item.sweep_segment(item.state.previous_x, item.state.previous_y, item.state.previous_z, item.state.normal_x, item.state.normal_y, item.state.normal_z, item.state.line, item.state.sweep_flags, item.state.sweep_hit)
+    on signal launch:
+            item.state.angle = 0.0872664601
+            item.set_lifetime(item.params.flight_lifetime + item.params.embedded_lifetime)
+            item.state.charge = owner.state.bow_charge
+            if item.attachment_active:
+                item.set_lifetime(item.params.flight_lifetime)
+                item.change_state_flags(1, 2)
+                # Stock queries the attachment-bone matrix rotation here, but never uses it.
+                item.release_attachment(0, 0, 0, true)
+                item.throw_speed_damage = false
+                item.use_manual_lifetime()
+                item.state.speed = item.state.charge * ((item.params.maximum_speed - item.params.minimum_speed) / signal.value) + item.params.minimum_speed
+                item.state.damage = int(uint(item.state.charge * ((item.params.maximum_damage - item.params.minimum_damage) / signal.value) + item.params.minimum_damage))
+                facing = owner.facing
+                item.joint("").rotation.y = (pi * 0.5) * facing
+                item.signal("held_positions", 0)
+                velocity.x = facing * (item.state.speed * cos(item.state.angle))
+                velocity.y = item.state.speed * sin(item.state.angle)
+                velocity.z = 0
+                item.joint("").rotation.z = item.state.angle
+                item.state.launched = true
+                item.signal("initialize_history", 0)
+                item.load_model(1, trail_first)
+                item.load_model(2, trail_second)
+                item.set_model_draw_enabled(1, false)
+                item.set_model_draw_enabled(2, false)
+                item.state.trail_age = 0
+                item.signal("sweep", 0)
+    on signal stage_embed:
+            item.set_scale(item.state.creator_scale)
+            item.set_lifetime(item.params.embedded_lifetime)
+            item.state.vibration_index = random.int(4) + 3
+            item.state.tail_age = 0
+            item.change_state_flags(4, 2)
+            item.joint("").rotation.z = item.state.angle
+            item.signal("destroy_trails", 0)
+            item.play_sound(160082, 127, 64)
+    on signal shield_position:
+            targets.shield(item.state.shield_target, item.state.shield_x, item.state.shield_y, item.state.shield_z, item.state.shield_radius)
+            item.state.shield_radius = targets.model_scale(item.state.shield_target) * item.state.shield_radius
+            position.x = item.state.shield_radius * cos(item.state.shield_angle) + item.state.shield_x
+            position.y = item.state.shield_radius * sin(item.state.shield_angle) + item.state.shield_y
+            position.z = 0
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.params.flight_lifetime)
+            item.state.launched = false
+            item.state.trail_age = 0
+            item.state.creator_scale = owner.model_scale
+            item.state.line = -1
+            item.state.normal_angle = 0
+            item.state.previous_normal_angle = 0
+    on picked_up:
+            item.change_state_flags(0, 2)
+    on destroyed:
+            if not item.state.launched and item.attachment_active: owner.call(bow_unset_arrow)
+            item.signal("destroy_trails", 0)
+            item.detach_owner()
+            item.owner_bound = false
+    on interaction:
+            item.interact(other)
+    on damage_dealt:
+            velocity.x = velocity.x * item.params.contact_velocity_multiplier
+            item.signal("destroy_trails", 0)
+            return true
+    on clanked:
+            item.signal("destroy_trails", 0)
+            return true
+    on reflected:
+            item.signal("destroy_trails", 0)
+            facing = -facing
+            item.joint("").rotation.y = (pi * 0.5) * facing
+            velocity.x = -velocity.x
+            velocity.y = -velocity.y
+            velocity.z = 0
+            position.x = position.x + velocity.x
+            position.y = position.y + velocity.y
+            position.z = 0
+            item.state.angle = pi + item.state.angle
+            # Stored flight angle is bounded by the imported limit. Stock's
+            # unusual period is pi. A general while statement is needed if
+            # customized angle limits can require more than two subtractions.
+            while item.state.angle > pi:
+                item.state.angle = item.state.angle - pi
+            while item.state.angle < -pi:
+                item.state.angle = item.state.angle + pi
+            item.joint("").rotation.z = item.state.angle
+            item.joint("").translation.x = position.x
+            item.joint("").translation.y = position.y
+            item.joint("").translation.z = position.z
+            return false
+    on hit_shield:
+            if targets.is_fighter(item.contact_fighter):
+                item.set_scale(item.state.creator_scale)
+                item.set_lifetime(item.params.embedded_lifetime)
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+                item.change_state_flags(2, 2)
+                item.signal("destroy_trails", 0)
+                item.state.shield_target = item.contact_fighter
+                targets.shield(item.state.shield_target, item.state.shield_x, item.state.shield_y, item.state.shield_z, item.state.shield_radius)
+                item.state.shield_radius = targets.model_scale(item.state.shield_target) * item.state.shield_radius
+                item.state.shield_angle = atan2(0.5 * (position.y + item.state.previous_y) - item.state.shield_y, 0.5 * (position.x + item.state.previous_x) - item.state.shield_x)
+                position.x = item.state.shield_radius * cos(item.state.shield_angle) + item.state.shield_x
+                position.y = item.state.shield_radius * sin(item.state.shield_angle) + item.state.shield_y
+                position.z = 0
+                return false
+            return true
+    state 0 anim -1:
+        on animation:
+            item.set_scale(item.state.creator_scale)
+            if item.creator_present:
+                if item.attachment_active:
+                    if owner.motion < 344 or owner.motion > 349 or owner.action_detaches_items:
+                        item.clear_attachment_owner()
+                        return true
+            else:
+                return true
+            return false
+        on physics:
+            return
+        on collision:
+            return false
+    state 1 anim 0:
+        on animation:
+            item.set_scale(item.state.creator_scale)
+            if item.command2 == 0:
+                hitbox.set_damage(0, uint(item.state.damage))
+                item.command2 = 1
+            if item.state.trail_age > 0: item.command0 = 1
+            if item.state.trail_age > 1: item.command1 = 1
+            if item.command0 == 1 and item.joint(1, "").exists:
+                item.set_model_draw_enabled(1, true)
+                item.joint(1, "").visible = true
+                item.set_joint_transform(1, "", item.state.history1_x, item.state.history1_y, item.state.history1_z, item.state.history1_rx, item.state.history1_ry, item.state.history1_rz, item.state.history1_rw, item.joint("").scale.x, item.joint("").scale.y, item.joint("").scale.z, true)
+            if item.command1 == 1 and item.joint(2, "").exists:
+                item.set_model_draw_enabled(2, true)
+                item.joint(2, "").visible = true
+                item.set_joint_transform(2, "", item.state.history2_x, item.state.history2_y, item.state.history2_z, item.state.history2_rx, item.state.history2_ry, item.state.history2_rz, item.state.history2_rw, item.joint("").scale.x, item.joint("").scale.y, item.joint("").scale.z, true)
+            item.state.trail_age = item.state.trail_age + 1
+            if item.expire_tick():
+                item.signal("destroy_trails", 0)
+                return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+            if item.params.gravity < 0:
+                velocity.y = velocity.y + item.params.gravity
+            else:
+                velocity.y = velocity.y - item.params.gravity
+        on collision:
+            if facing == 1:
+                item.state.angle = atan2(position.y - item.state.previous_y, position.x - item.state.previous_x)
+            else:
+                item.state.angle = -atan2(position.y - item.state.previous_y, item.state.previous_x - position.x)
+            if abs(item.state.angle) > item.params.flight_angle_limit:
+                if item.state.angle < 0:
+                    item.state.angle = -item.params.flight_angle_limit
+                else:
+                    item.state.angle = item.params.flight_angle_limit
+            item.joint("").rotation.z = item.state.angle
+            item.signal("sweep", 0)
+            if item.state.sweep_hit and stage.line_exists(item.state.line):
+                item.bind_stage_line(item.state.line)
+                item.read_stage_line_speed(item.state.line)
+                item.state.normal_angle = atan2(item.state.normal_y, item.state.normal_x)
+                item.state.previous_normal_angle = item.state.normal_angle
+                item.signal("stage_embed", 0)
+            item.signal("history", 0)
+            return false
+    state 2 anim -1:
+        on animation:
+            if not targets.guard_active(item.state.shield_target): return true
+            if item.expire_tick():
+                item.signal("destroy_trails", 0)
+                return true
+            return false
+        on physics:
+            item.signal("shield_position", 0)
+        on collision:
+            return false
+    state 3 anim -1:
+        on animation:
+            return false
+        on physics:
+            return
+        on collision:
+            return false
+    state 4 anim -1:
+        on animation:
+            if item.state.vibration_index >= 0 and item.state.vibration_index <= 6:
+                item.state.vibration_offset = (float(item.state.vibration_index + 2) * random.float() + float(2 * (item.state.vibration_index + 1))) * 0.01745329252
+                if item.state.vibration_index & 1:
+                    item.joint("").rotation.z = item.state.angle - item.state.vibration_offset
+                else:
+                    item.joint("").rotation.z = item.state.angle + item.state.vibration_offset
+            else:
+                item.joint("").rotation.z = item.state.angle
+            item.state.vibration_index = int(uint(item.state.vibration_index) - 1)
+            if item.expire_tick():
+                item.signal("destroy_trails", 0)
+                if item.state.tail_age == 0:
+                    item.spawn_effect(1057, 0, 0, 0, 0, 0, 0, 0, true, 0)
+                    item.collision_mode = 2
+                item.hide_model()
+                item.suppress_destruction_effects = true
+                item.state.tail_age = item.state.tail_age + 1
+                if item.state.tail_age > 300: return true
+            return false
+        on physics:
+            return
+        on collision:
+            item.signal("history", 0)
+            item.state.previous_normal_angle = item.state.normal_angle
+            if item.state.line != -1:
+                if stage.line_exists(item.state.line):
+                    item.bind_stage_line(item.state.line)
+                    item.read_stage_line_speed(item.state.line)
+                    stage.line_normal(item.state.line, item.state.normal_x, item.state.normal_y, item.state.normal_z)
+                    item.state.normal_angle = atan2(item.state.normal_y, item.state.normal_x)
+                    if item.state.normal_angle != item.state.previous_normal_angle:
+                        item.state.angle = item.state.angle + (item.state.normal_angle - item.state.previous_normal_angle)
+                        item.joint("").rotation.z = item.state.angle
+                    return false
+            else:
+                velocity.x = 0
+                velocity.y = 0
+                velocity.z = 0
+            return true
+
+# UNREGISTERED complete Arrow policy draft; proposed generic operations pending.
+# UNREGISTERED Bow article; full fighter lifecycle remains gated.
+
+article It_Kind_Link_Bow states 7:
+    attachment origin bone plane on initial_collision on held off
+    state float creator_scale
+    state int owner_phase
+    state int paired_phase
+    state float saved_frame
+    state bool cleanup_supported
+    on signal remove:
+            item.remove()
+    on signal owner_phase:
+            item.state.owner_phase = 6
+            if owner.motion >= 344 and owner.motion <= 349 and owner.state.bow_handle >= 0:
+                item.state.owner_phase = owner.motion - 344
+            if item.state.owner_phase < 3:
+                item.state.paired_phase = item.state.owner_phase + 3
+            elif item.state.owner_phase < 6:
+                item.state.paired_phase = item.state.owner_phase - 3
+            else:
+                item.state.paired_phase = 6
+    on signal synchronize:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.motion_state != item.state.owner_phase:
+                    if item.motion_state == item.state.paired_phase:
+                        item.state.saved_frame = item.animation_frame
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+                        item.set_animation_frame(item.state.saved_frame)
+                    else:
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+    on signal cleanup:
+            item.state.cleanup_supported = true
+            let int recipient = item.current_owner
+            if recipient != 0:
+                item.state.cleanup_supported = targets.call(recipient, "bow_unset")
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+            item.state.creator_scale = owner.model_scale
+    on picked_up:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.state.owner_phase == 0:
+                    item.change_state_flags(0, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+                elif item.state.owner_phase == 3 or item.state.owner_phase == 6:
+                    item.change_state_flags(3, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+    on destroyed:
+            item.signal("cleanup", 0)
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.set_scale(item.state.creator_scale)
+            if item.motion_state == 2 or item.motion_state == 5:
+                if item.animation_frame == 0 or item.animation_frame >= 24:
+                    item.signal("cleanup", 0)
+                    # Terminal removal still occurs when the recipient has no export.
+                    return true
+            else:
+                item.signal("synchronize", 0)
+            if not item.attachment_active: return true
+            if owner.motion < 344 or owner.motion > 349 or owner.action_detaches_items: return true
+            return false
+        on physics:
+            return
+        on collision:
+            item.set_scale(item.state.creator_scale)
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim -1:
+        on animation:
+            return true
+        on physics:
+            return
+        on collision:
+            return true

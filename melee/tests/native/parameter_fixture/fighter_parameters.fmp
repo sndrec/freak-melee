@@ -1,0 +1,7 @@
+float lift = 1.25
+int uses = -2
+bool ready = true
+float It_Kind_Fox_Laser.speed = 5.5
+float It_Kind_Fox_Laser.lifetime = 35
+bool It_Kind_Fox_Laser.enabled = true
+int It_Kind_Fox_Laser.limit = 3

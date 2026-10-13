@@ -1,0 +1,8 @@
+# Independent recipient package: private state layout and parameter storage.
+parameter int cleanup_marker = 37
+state int unrelated
+state int bow_handle
+state int last_marker
+export func bow_unset():
+    state.bow_handle = -1
+    state.last_marker = attrs.cleanup_marker

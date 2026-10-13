@@ -1,0 +1,27 @@
+fighter:
+    behavior independent
+
+# These values belong to each Rook, including during rollback.
+state float crimes
+state float side_started_grounded
+state float side_grab_flip
+state float side_started_turned
+state float down_random_x
+state float down_random_y
+state float up_turn_frame
+state float up_start_direction
+state float up_turned
+state float snack_charges
+state float snack_recharge_frames
+state float snack_choice
+
+# Own the actual source DAT values. The turn word is an Int in the native
+# schema (0x40000000), not Float 2; preserve it rather than rewriting the data.
+attribute int multi_jump_turn_frames 0
+attribute float multi_jump_reverse_threshold 4
+attribute float multi_jump_horizontal_impulse 8
+attribute float multi_jump_vertical_impulse 20
+attribute int multi_jump_first_motion 44
+state int multi_jump_turn_remaining
+
+# Neutral-B snacks recharge independently of the down-B crime counter.

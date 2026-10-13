@@ -1,0 +1,177 @@
+#workshop-model-pane { display: none; position: absolute; left: 0; right: 0;
+  top: 114dp; bottom: 29dp; pointer-events: none; color: #dce0e9;
+  background-color: transparent; }
+#workshop-panel.testing #workshop-model-pane { display: none; }
+#workshop-model-context-tabs { position: absolute; left: 0; right: 0; top: 0;
+  height: 43dp; display: flex; padding: 4dp 10dp; pointer-events: auto;
+  border-bottom: 1dp #393d48; background-color: #1b1e27; }
+#workshop-model-context-tabs button { min-width: 93dp; margin-right: 3dp;
+  padding: 8dp 13dp; border: 0; background-color: transparent;
+  color: #cbd0da; font-size: 12dp; }
+#workshop-model-context-tabs button:hover,
+#workshop-model-context-tabs button.selected { color: #ffa68c;
+  background-color: #44312e; border-bottom: 2dp #f09477; }
+#workshop-model-context-tabs #workshop-model-import { margin-left: auto;
+  min-width: 122dp; border: 1dp #63535b; background-color: #29252c;
+  color: #f1ddd7; }
+#workshop-model-outliner, #workshop-model-inspector { position: absolute;
+  top: 43dp; bottom: 28dp; overflow-y: auto; pointer-events: auto;
+  background-color: #1b1e27; }
+#workshop-model-outliner { left: 0; width: 232dp;
+  border-right: 1dp #383c48; }
+#workshop-model-inspector { right: 0; width: 267dp; padding: 12dp 13dp;
+  border-left: 1dp #383c48; }
+.workshop-model-section { padding: 13dp 12dp;
+  border-bottom: 1dp #353945; }
+.workshop-model-section .eyebrow { margin-bottom: 8dp; }
+#workshop-model-tree { padding: 9dp 7dp; }
+.workshop-model-tree-heading { margin: 13dp 6dp 6dp; color: #969eae;
+  font-size: 10dp; letter-spacing: 1dp; }
+.workshop-model-tree-row { width: 100%; display: flex; min-height: 28dp;
+  align-items: center; padding: 4dp 8dp; text-align: left; border: 0;
+  background-color: transparent; color: #d8dbe4; font-size: 11dp; }
+.workshop-model-tree-row:hover { background-color: #30343f; }
+.workshop-model-tree-row.selected { border-left: 2dp #f49c80;
+  background-color: #44332f; color: #ffe8df; }
+.workshop-model-tree-row small { margin-left: auto; color: #9ba5b5; }
+.workshop-model-tree-row span { display: inline-block; min-width: 0; }
+#workshop-model-tree-actions { padding: 12dp; border-top: 1dp #353945; }
+#workshop-model-tree-actions button { width: 100%; margin: 4dp 0; }
+#workshop-model-center { position: absolute; left: 232dp; right: 267dp;
+  top: 43dp; bottom: 28dp; pointer-events: none; }
+#workshop-model-view-tools { position: absolute; left: 0; right: 0;
+  top: 0; height: 39dp; display: flex; align-items: center;
+  padding: 4dp 9dp; pointer-events: auto; background-color: #20232c;
+  border-bottom: 1dp #383c48; }
+#workshop-model-context-hint { flex: 1; color: #acb3bf; font-size: 11dp; }
+#workshop-model-view-tools button, .workshop-model-view-corner button,
+#workshop-model-rig-strip button { padding: 6dp 9dp; margin-left: 3dp;
+  border: 1dp #454a57; background-color: #272b35;
+  color: #d8dce4; font-size: 11dp; }
+#workshop-model-view-tools button.selected,
+#workshop-model-rig-modes button.selected { color: #ffa88d;
+  background-color: #4a3531; border-color: #b37461; }
+#workshop-model-viewport { position: absolute; left: 0; right: 0;
+  top: 39dp; bottom: 125dp; pointer-events: auto;
+  background-color: transparent; }
+.workshop-model-view-label { position: absolute; top: 9dp; left: 11dp;
+  padding: 5dp 8dp; background-color: #20232c; }
+.workshop-model-view-label strong { display: block; font-size: 11dp; }
+.workshop-model-view-label small { display: block; margin-top: 3dp;
+  color: #adb7c4; font-size: 10dp; }
+.workshop-model-view-corner { position: absolute; top: 9dp; right: 10dp;
+  display: flex; }
+#workshop-model-view-footer { position: absolute; bottom: 10dp; right: 11dp;
+  padding: 4dp 6dp; color: #c0c6d0; font-size: 10dp;
+  background-color: #20232c; }
+#workshop-model-rig-strip { position: absolute; bottom: 0; left: 0;
+  right: 0; height: 125dp; padding: 10dp 11dp; pointer-events: auto;
+  border-top: 1dp #414550; background-color: #1c1f28; }
+#workshop-model-rig-modes { display: inline-block; }
+#workshop-model-rig-modes button { margin-left: 0; margin-right: 3dp; }
+#workshop-model-edit-animation { float: right; }
+#workshop-model-mode-note { display: inline-block; margin-top: 12dp;
+  color: #aeb6c2; font-size: 11dp; }
+#workshop-model-reset-pose { float: right; margin-top: 7dp; }
+#workshop-model-clip-controls { display: none; margin-top: 8dp;
+  align-items: center; gap: 7dp; font-size: 11dp; }
+#workshop-model-clip { width: 200dp; }
+#workshop-model-frame { width: 90%; margin-top: 8dp; }
+#workshop-model-summary { position: absolute; left: 0; right: 0;
+  bottom: 0; height: 28dp; padding: 6dp 12dp;
+  border-top: 1dp #3a3e49; background-color: #1b1e27;
+  color: #aeb7c3; font-size: 10dp; pointer-events: auto; }
+#workshop-model-mesh-summary { float: right; }
+.workshop-model-inspector-section { margin-bottom: 16dp; padding-bottom: 14dp;
+  border-bottom: 1dp #3c404c; }
+.workshop-model-inspector-section h3 { margin: 0 0 9dp; color: #f1f2f5;
+  font-size: 15dp; }
+.workshop-model-inspector-section p { color: #aeb5c3;
+  font-size: 11dp; line-height: 1.5; }
+.workshop-model-inspector-section label { display: block; margin: 8dp 0 4dp;
+  color: #b8bfcc; font-size: 11dp; }
+.workshop-model-inspector-section input,
+.workshop-model-inspector-section select { width: 100%; }
+.workshop-model-inspector-section button { width: 100%; margin-top: 7dp; }
+.workshop-model-axis { display: flex; gap: 5dp; }
+.workshop-model-axis input { width: 33%; }
+.workshop-model-axis-labels { display: flex; gap: 5dp;
+  color: #9ca5b4; font-size: 10dp; }
+.workshop-model-axis-labels span { width: 33%; text-align: center; }
+#workshop-model-import-overlay { display: none; position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0; z-index: 5;
+  background-color: #080a0dbb; pointer-events: auto; }
+#workshop-model-import-dialog { position: absolute; width: 610dp;
+  height: 490dp; left: 50%; top: 50%; margin-left: -305dp;
+  margin-top: -245dp; padding: 0; border: 1dp #66606a;
+  background-color: #20232c; color: #e7e8ee; }
+#workshop-model-import-dialog header { display: flex; height: 50dp;
+  padding: 13dp 18dp; border-bottom: 1dp #414550; font-size: 16dp; }
+#workshop-model-import-close { margin-left: auto; border: 0;
+  background-color: transparent; color: #e7e8ee; font-size: 19dp; }
+#workshop-model-import-steps { display: flex; height: 43dp;
+  padding: 10dp 18dp; gap: 25dp; color: #b3b9c5;
+  border-bottom: 1dp #414550; font-size: 11dp; }
+#workshop-model-import-steps .selected { color: #ffa88d; }
+#workshop-model-import-body { height: 336dp; overflow-y: auto;
+  padding: 17dp 20dp; font-size: 12dp; }
+#workshop-model-import-body p { color: #abb3bf; line-height: 1.5; }
+#workshop-model-import-body label { display: block; margin: 18dp 0 6dp;
+  color: #d3d8e2; font-size: 11dp; }
+#workshop-model-import-body .eyebrow { margin: 4dp 0 10dp; }
+#workshop-model-import-body .room-input { width: 100%; }
+.workshop-model-import-row { display: block; width: 100%; padding: 9dp 12dp;
+  margin: 4dp 0; text-align: left; color: #e2e6ee;
+  border: 1dp #444956; background-color: #282c36; }
+.workshop-model-import-row.selected { border-color: #dc886f;
+  background-color: #44342f; }
+.workshop-model-import-row span, .workshop-model-import-row small {
+  display: block; }
+.workshop-model-import-row small { margin-top: 3dp; color: #aeb6c4; }
+#workshop-model-import-body .workshop-model-import-warning {
+  margin-top: 18dp; padding: 10dp; color: #e5c4a7;
+  background-color: #3a3030; border-left: 2dp #db9774; }
+#workshop-model-import-dialog footer { display: flex; align-items: center;
+  height: 58dp; padding: 10dp 18dp; border-top: 1dp #414550; }
+#workshop-model-import-note { flex: 1; min-width: 0; color: #adb5c1;
+  font-size: 10dp; white-space: nowrap; overflow: hidden; }
+#workshop-model-import-dialog footer button { width: 112dp; flex-shrink: 0;
+  margin-left: 7dp; }
+
+.workshop-model-mesh-row { display: flex; }
+.workshop-model-mesh-row .workshop-model-tree-row { flex: 1; width: auto; }
+.workshop-model-eye { width: 28dp; background-color: transparent; border: 0; padding: 8dp 5dp; }
+.workshop-model-eye span { display: block; width: 14dp; height: 9dp; border: 1dp #a9c8df; border-radius: 6dp; }
+.workshop-model-eye i { display: block; width: 5dp; height: 5dp; margin: 1dp auto; border-radius: 3dp; background-color: #a9c8df; }
+.workshop-model-eye.hidden span { background-color: transparent; border-color: #535764; }
+.workshop-model-eye.hidden i { height: 1dp; width: 12dp; margin-top: 3dp; background-color: #777985; transform: rotate(-35deg); }
+
+.workshop-material-check { display: block; padding: 4dp 0; font-size: 11dp; }
+.workshop-material-check input { margin-right: 5dp; }
+.workshop-transform-overlay {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    pointer-events: none; overflow: hidden;
+}
+.workshop-transform-tools {
+    position: absolute; left: 8dp; top: 30dp; display: flex; gap: 4dp;
+    pointer-events: auto; background-color: #191c25dc; padding: 3dp;
+}
+.workshop-transform-tools button, .workshop-transform-tools select {
+    background-color: #292d39; color: #dedee6; border-width: 0;
+    padding: 4dp 7dp; font-size: 10dp;
+}
+.workshop-transform-tools select { width: 130dp; }
+#workshop-animation-viewport .workshop-transform-tools { top: 76dp; }
+.workshop-transform-tools button.selected { background-color: #65453b; color: #ffb194; }
+.workshop-transform-axis {
+    position: absolute; height: 5px; padding: 0; margin: 0; border-width: 0;
+    transform-origin: 0px 2px; pointer-events: auto;
+}
+.workshop-transform-axis.axis-0 { background-color: #ef7373; }
+.workshop-transform-axis.axis-1 { background-color: #80d78c; }
+.workshop-transform-axis.axis-2 { background-color: #6eaaff; }
+.workshop-transform-axis:hover, .workshop-transform-axis.selected { background-color: #fff1a3; }
+.workshop-transform-hint {
+    position: absolute; left: 8dp; bottom: 8dp; padding: 4dp 6dp;
+    background-color: #191c25dc; color: #c3c8d5; font-size: 10dp;
+}

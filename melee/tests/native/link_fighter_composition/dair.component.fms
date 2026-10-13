@@ -1,0 +1,41 @@
+# Original ftlinkattackair.c bounce decisions, with ordinary owned timing storage.
+attribute float dair_bounce_y 76
+attribute float dair_hit_pause 80
+attribute int dair_damage0 88
+attribute int dair_damage1 92
+attribute int dair_damage2 96
+state float dair_timing[2]
+
+func Dair_Hit():
+    let length = state.dair_timing[1] - attrs.dair_hit_pause
+    hitbox.clear_all()
+    velocity.y = attrs.dair_bounce_y
+    movement.fastfall = false
+    state.dair_timing[0] = attrs.dair_hit_pause
+    if frame > length: state.enter_at_speed(69, 0, length, 1)
+
+func Dair_Animation():
+    if state.dair_timing[0] > 0:
+        state.dair_timing[0] = state.dair_timing[0] - animation.rate
+        if state.dair_timing[0] <= 0 and frame < state.dair_timing[1]:
+            hitbox.set_enabled(0, true)
+            hitbox.clear_victims(0)
+            hitbox.set_damage(0, attrs.dair_damage0)
+            hitbox.set_enabled(1, true)
+            hitbox.clear_victims(1)
+            hitbox.set_damage(1, attrs.dair_damage1)
+            hitbox.set_enabled(2, true)
+            hitbox.clear_victims(2)
+            hitbox.set_damage(2, attrs.dair_damage2)
+    # Actual shared ftCo_AttackAir_Anim body: consume bit3 then completion.
+    if cue.consume(3): facing.direction = -facing.direction
+    if animation.finished: state.fall()
+
+action DairBounce:
+    on aerial_attack_enter:
+        if motion.id == 69:
+            callbacks.track_deal_damage()
+            callbacks.animation(Dair_Animation)
+            state.dair_timing[0] = 0
+    on deal_damage:
+        Dair_Hit()

@@ -1,0 +1,37 @@
+# UNCOMPILED source recipe. Reuse the exact load61 owned DAT declarations.
+# These helpers compute values from the fighter's own immutable parameters;
+# they do not cache palette state or read a surrogate x610 diffuse field.
+attribute float model_width 0
+attribute byte body_0_r 4
+attribute byte body_0_g 5
+attribute byte body_0_b 6
+attribute byte body_0_a 7
+attribute byte body_1_r 8
+attribute byte body_1_g 9
+attribute byte body_1_b 10
+attribute byte body_1_a 11
+attribute byte body_2_r 12
+attribute byte body_2_g 13
+attribute byte body_2_b 14
+attribute byte body_2_a 15
+attribute byte body_3_r 16
+attribute byte body_3_g 17
+attribute byte body_3_b 18
+attribute byte body_3_a 19
+attribute byte outline_r 20
+attribute byte outline_g 21
+attribute byte outline_b 22
+attribute byte outline_a 23
+
+func PaperBodyColor() -> int:
+    if costume.index == 1:
+        return color.rgba(attrs.body_1_r, attrs.body_1_g, attrs.body_1_b, attrs.body_1_a)
+    if costume.index == 2:
+        return color.rgba(attrs.body_2_r, attrs.body_2_g, attrs.body_2_b, attrs.body_2_a)
+    if costume.index == 3:
+        return color.rgba(attrs.body_3_r, attrs.body_3_g, attrs.body_3_b, attrs.body_3_a)
+    # Defined retail domain is 0..3. Invalid custom costumes select palette0.
+    return color.rgba(attrs.body_0_r, attrs.body_0_g, attrs.body_0_b, attrs.body_0_a)
+
+func PaperOutlineColor() -> int:
+    return color.rgba(attrs.outline_r, attrs.outline_g, attrs.outline_b, attrs.outline_a)

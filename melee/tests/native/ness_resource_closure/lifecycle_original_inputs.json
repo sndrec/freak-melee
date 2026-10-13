@@ -1,0 +1,15 @@
+{
+  "src/melee/ft/kinds/ftNess/ftness.c": "4f99bce97309d37a5e96bce98ed01715f42b4f7a48dfbaa3e64812dce41f60f5",
+  "src/melee/ft/kinds/ftNess/ftnessattackhi4.c": "d624fe75cf5ab96767f05d6750690ac930692887f12d297844835481b69b19e6",
+  "src/melee/ft/kinds/ftNess/ftnessspecialn.c": "7ac4fd6f0e2398565bffcab141ae22405971576afc8859ddff0d7c251a71a48a",
+  "src/melee/ft/kinds/ftNess/ftnessspecialhi.c": "e0e013cd33e1a27f8538a627e9f9a5b041ec3a3c98f3417cc2ef73a12f6b808a",
+  "src/melee/ft/kinds/ftNess/ftnessattacks4.c": "050aaeabc4f7b27df6a83d0d8ea77ce7e9e429996783c45345308c1f4498ee61",
+  "src/melee/it/kinds/itnessyoyo.c": "7097f54999fb1bcbed86af49ae6021e41ec219c8d453efb3a4023da8abf7c995",
+  "src/melee/it/kinds/itnessbat.c": "f696e4102a927c750cc569546aedb50187dfc7590dff612ebf30b960f04b3655",
+  "src/melee/it/kinds/itnesspkflash.c": "b350178bbd0261da43ae1b14b3c9659fb43ff1f6e0f4886ff63bbfe4999d90e7",
+  "src/melee/it/kinds/itnesspkthunderball.c": "b858e1538b63a163ae08624519082a5aca0693c6b1f8e374db816fff57b04e37",
+  "src/melee/it/kinds/itnesspkthundertrail.c": "e9ff0aa79e7cbcdef0c2a0d9190b8c354cae5c4cd8bcde204d51f04d59f51dd4",
+  "src/melee/it/it_26B1.c": "e52996c8fcb6727366dc6f5ac5965a09a4f644fe0088ff3e1c3a30d3a1a6276e",
+  "candidate.fms": "a0e1d2c85136019d6689c59b5b72114f8b0d6a92f96ef89086af9ab55ec7e10c",
+  "accepted_thunder": "64128eb88d85b24bc3ef7c99de30b66422ff312916be0a7af905b4c896424fc5"
+}

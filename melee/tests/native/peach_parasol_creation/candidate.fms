@@ -1,0 +1,152 @@
+parameter int parasol_attachment_joint = 109
+base ftDataPeach 341 1
+# UNREGISTERED full Parasol producer and attachment source candidate.
+# Complete Peach special/lifecycle activation remains outside this fixture.
+state int parasol_request_kind
+state float spawn_x
+state float spawn_y
+state float spawn_z
+state int parasol_handle
+state int saved_handle
+state int toad_handle
+state int vegetable_handle
+
+export func save_held_for_parasol():
+    let int previous = items.held_id
+    if previous != -1:
+        state.saved_handle = previous
+        let bool hidden = items.set_visible(previous, false)
+        let bool paused = items.set_paused(previous, true)
+        let bool dropped = items.notify_drop(previous, true)
+
+export func restore_held() -> bool:
+    state.parasol_handle = -1
+    callbacks.death3(None)
+    callbacks.damage(None)
+    if state.saved_handle != -1:
+        let int previous = state.saved_handle
+        let bool bound = items.bind_existing_held(previous)
+        state.saved_handle = -1
+        if bound:
+            let bool shown = items.set_visible(previous, true)
+            let bool resumed = items.set_paused(previous, false)
+            if shown and resumed:
+                items.notify_pickup(true)
+                return true
+    return false
+
+export func forget_toad():
+    if state.toad_handle != -1:
+        let bool resumed = items.set_paused(state.toad_handle, false)
+    state.toad_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+export func forget_vegetable():
+    state.vegetable_handle = -1
+
+func cleanup_parasol():
+    if state.parasol_handle != -1:
+        articles.signal(state.parasol_handle, It_Kind_Peach_Parasol, "remove_cleanup", 0)
+        restore_held()
+
+func cleanup_toad():
+    if state.toad_handle != -1:
+        articles.signal(state.toad_handle, It_Kind_Peach_Toad, "remove_cleanup", 0)
+        forget_toad()
+
+func cleanup_vegetable():
+    if state.vegetable_handle != -1 and items.held_id == state.vegetable_handle and items.held_kind == It_Kind_Peach_Turnip:
+        articles.signal(state.vegetable_handle, It_Kind_Peach_Turnip, "remove_cleanup", 0)
+        forget_vegetable()
+
+export func cleanup_resources():
+    cleanup_parasol()
+    cleanup_toad()
+    cleanup_vegetable()
+
+export func create_parasol():
+    let bool requested = false
+    if state.parasol_request_kind == It_Kind_Capsule:
+        state.parasol_request_kind = It_Kind_Peach_Parasol
+        requested = state.parasol_handle == -1
+    if requested:
+        bones.world_position(attrs.parasol_attachment_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+        save_held_for_parasol()
+        let int created = articles.create_at_position(It_Kind_Peach_Parasol, state.spawn_x, state.spawn_y, state.spawn_z, facing.direction, false)
+        let int final_handle = -1
+        if created != -1:
+            let bool attached = items.attach(created, attrs.parasol_attachment_joint, true)
+            if attached:
+                final_handle = created
+            else:
+                # Invalid attachment is outside the retail fixed-rig contract.
+                # Discard only this creation, then restore the live saved item.
+                articles.signal(created, It_Kind_Peach_Parasol, "discard_unattached", 0)
+                let bool restored = restore_held()
+                callbacks.accessory(None)
+                callbacks.track_hitlag()
+                return
+        state.parasol_handle = final_handle
+        items.clear_held()
+        if final_handle != -1:
+            let bool bound = items.bind_held(final_handle)
+            if bound:
+                callbacks.death3(cleanup_resources)
+                callbacks.damage(cleanup_resources)
+    callbacks.accessory(None)
+    callbacks.track_hitlag()
+
+move ParasolProducer:
+    on pre_hitlag:
+        if state.parasol_handle != -1:
+            let bool paused = items.set_paused(state.parasol_handle, true)
+    on post_hitlag:
+        if state.parasol_handle != -1:
+            let bool resumed = items.set_paused(state.parasol_handle, false)
+
+article It_Kind_Peach_Parasol states 3:
+    on signal discard_unattached:
+            item.clear_current_owner()
+            item.remove()
+    on picked_up:
+            item.animation_rate = 16
+            item.change_state(2)
+            item.track_accessory()
+            item.advance_animation()
+            item.animation_rate = 1
+    on accessory:
+            return
+
+    on signal remove_cleanup:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+            item.remove()
+    on destroyed:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+    state 0 anim -1:
+    state 1 anim 0:
+    state 2 anim 1:
+
+article It_Kind_Peach_Toad states 2:
+    on signal remove_cleanup:
+            targets.call(item.current_owner, "forget_toad")
+            item.remove()
+    on destroyed:
+            targets.call(item.current_owner, "forget_toad")
+    state 0 anim 0:
+    state 1 anim 1:
+
+article It_Kind_Peach_Turnip states 5:
+    on signal remove_cleanup:
+            item.remove()
+    on destroyed:
+            creator.call(forget_vegetable)
+    state 0 anim 1:
+    state 1 anim -1:
+    state 2 anim 2:
+    state 3 anim 2:
+    state 4 anim -1:

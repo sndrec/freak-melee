@@ -1,0 +1,183 @@
+# Unregistered source fixture: Bow callbacks and recipient-owned cleanup only.
+state int bow_handle
+export func bow_unset():
+    state.bow_handle = -1
+action References:
+    on load:
+        state.bow_handle = -1
+
+# UNREGISTERED Bow article; full fighter lifecycle remains gated.
+article It_Kind_Link_Bow states 7:
+    attachment origin bone plane on initial_collision on held off
+    state float creator_scale
+    state int owner_phase
+    state int paired_phase
+    state float saved_frame
+    state bool cleanup_supported
+    on signal owner_phase:
+            item.state.owner_phase = 6
+            if owner.motion >= 344 and owner.motion <= 349 and owner.state.bow_handle >= 0:
+                item.state.owner_phase = owner.motion - 344
+            if item.state.owner_phase < 3:
+                item.state.paired_phase = item.state.owner_phase + 3
+            elif item.state.owner_phase < 6:
+                item.state.paired_phase = item.state.owner_phase - 3
+            else:
+                item.state.paired_phase = 6
+    on signal synchronize:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.motion_state != item.state.owner_phase:
+                    if item.motion_state == item.state.paired_phase:
+                        item.state.saved_frame = item.animation_frame
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+                        item.set_animation_frame(item.state.saved_frame)
+                    else:
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+    on signal cleanup:
+            item.state.cleanup_supported = true
+            let int recipient = item.current_owner
+            if recipient != 0:
+                item.state.cleanup_supported = targets.call(recipient, "bow_unset")
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+            item.state.creator_scale = owner.model_scale
+    on picked_up:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.state.owner_phase == 0:
+                    item.change_state_flags(0, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+                elif item.state.owner_phase == 3 or item.state.owner_phase == 6:
+                    item.change_state_flags(3, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+    on destroyed:
+            item.signal("cleanup", 0)
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.set_scale(item.state.creator_scale)
+            if item.motion_state == 2 or item.motion_state == 5:
+                if item.animation_frame == 0 or item.animation_frame >= 24:
+                    item.signal("cleanup", 0)
+                    # Terminal removal still occurs when the recipient has no export.
+                    return true
+            else:
+                item.signal("synchronize", 0)
+            if not item.attachment_active: return true
+            if owner.motion < 344 or owner.motion > 349 or owner.action_detaches_items: return true
+            return false
+        on physics:
+            return
+        on collision:
+            item.set_scale(item.state.creator_scale)
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim -1:
+        on animation:
+            return true
+        on physics:
+            return
+        on collision:
+            return true
+
+# UNREGISTERED Bow article; full fighter lifecycle remains gated.
+article It_Kind_CLink_Bow states 7:
+    attachment origin bone plane on initial_collision on held off
+    state float creator_scale
+    state int owner_phase
+    state int paired_phase
+    state float saved_frame
+    state bool cleanup_supported
+    on signal owner_phase:
+            item.state.owner_phase = 6
+            if owner.motion >= 344 and owner.motion <= 349 and owner.state.bow_handle >= 0:
+                item.state.owner_phase = owner.motion - 344
+            if item.state.owner_phase < 3:
+                item.state.paired_phase = item.state.owner_phase + 3
+            elif item.state.owner_phase < 6:
+                item.state.paired_phase = item.state.owner_phase - 3
+            else:
+                item.state.paired_phase = 6
+    on signal synchronize:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.motion_state != item.state.owner_phase:
+                    if item.motion_state == item.state.paired_phase:
+                        item.state.saved_frame = item.animation_frame
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+                        item.set_animation_frame(item.state.saved_frame)
+                    else:
+                        item.change_state_flags(item.state.owner_phase, 2)
+                        item.advance_animation()
+    on signal cleanup:
+            item.state.cleanup_supported = true
+            let int recipient = item.current_owner
+            if recipient != 0:
+                item.state.cleanup_supported = targets.call(recipient, "bow_unset")
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+            item.state.creator_scale = owner.model_scale
+    on picked_up:
+            if item.attachment_active:
+                item.signal("owner_phase", 0)
+                if item.state.owner_phase == 0:
+                    item.change_state_flags(0, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+                elif item.state.owner_phase == 3 or item.state.owner_phase == 6:
+                    item.change_state_flags(3, 2)
+                    item.advance_animation()
+                    item.set_scale(item.state.creator_scale)
+    on destroyed:
+            item.signal("cleanup", 0)
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.set_scale(item.state.creator_scale)
+            if item.motion_state == 2 or item.motion_state == 5:
+                if item.animation_frame == 0 or item.animation_frame >= 24:
+                    item.signal("cleanup", 0)
+                    # Terminal removal still occurs when the recipient has no export.
+                    return true
+            else:
+                item.signal("synchronize", 0)
+            if not item.attachment_active: return true
+            if owner.motion < 344 or owner.motion > 349 or owner.action_detaches_items: return true
+            return false
+        on physics:
+            return
+        on collision:
+            item.set_scale(item.state.creator_scale)
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim -1:
+        on animation:
+            return true
+        on physics:
+            return
+        on collision:
+            return true

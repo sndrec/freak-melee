@@ -1,0 +1,260 @@
+# Gun behavior is script-owned; the fighter firing callbacks must switch with it.
+# Also included in the WIP fighter; retained for focused stock comparisons.
+# Model tables preserve stock values, including rotation in radians.
+state int blaster_handle
+
+article It_Kind_Fox_Blaster states 11:
+    attachment origin owner plane on initial_collision off held off
+    state int recoil_step
+    state int open_step
+    state int open_direction
+    state bool opened_once
+    state int visibility
+    state bool open_moving
+    state int owner_action
+    state bool changing_action
+    state bool effect_pending
+    state bool cleanup
+    table float pickup_states = [0, 9, 9, 3, 9, 9, 6, 7, 8, 9, 10]
+    table float open_y = [-0.425, -0.595, -0.765, -0.935, -0.85]
+    table float recoil_z = [0, -0.51, -1.02, -1.53, -1.39, -1.251, -1.112, -0.973, -0.834, -0.695, -0.556, -0.417, -0.278, -0.139]
+    table float recoil_scale = [0.5, 0.5, 1.75, 3, 2.375, 1.75, 1.125, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    table float recoil_rotation = [0, -42, -20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    on spawned:
+            item.state.visibility = 1
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+    on picked_up:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.owner_action = int(table.pickup_states[item.state.owner_action])
+            if (item.command0 | item.command1 | item.command2 | item.command3) != 0: item.state.owner_action = 10
+            item.change_state(item.state.owner_action)
+            item.advance_animation()
+    on accessory:
+            if not item.attachment_active or not item.state.effect_pending: return
+            item.state.effect_pending = false
+            # Stock passes the same muzzle point twice to atan2, yielding zero.
+            item.spawn_directional_effect(1166, RightThumb, 0, 1.2325000762939453, 4.263599872589111, 0)
+    on interaction:
+            item.interact(other)
+    on signal scale:
+            item.scale_by_attribute(signal.value)
+    on signal cleanup:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            item.remove()
+    on signal open:
+            if item.state.open_step == 4: return
+            item.state.open_step = 1
+            item.state.open_direction = 1
+            if not item.state.opened_once: item.play_sound(110085, 127, 64)
+            item.state.opened_once = true
+    on signal close:
+            if item.state.open_step == 0: return
+            item.state.open_step = 3
+            item.state.open_direction = -1
+    on signal recoil:
+            item.state.recoil_step = 1
+            item.state.effect_pending = true
+            item.track_accessory()
+    on signal visibility:
+            if item.state.visibility != int(signal.value) and int(signal.value) == 2: item.play_sound(110100, 127, 64)
+            item.state.visibility = int(signal.value)
+            if item.state.visibility == 0 or item.state.visibility == 2: item.joint("0").visible = false
+            if item.state.visibility == 1: item.joint("0").visible = true
+    state 0 anim 0:
+        on animation:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.changing_action = item.motion_state != 2 and item.motion_state != 5 and item.motion_state != 6 and item.motion_state != 7 and item.motion_state != 8 and item.motion_state != item.state.owner_action
+            if item.state.changing_action: item.change_state(item.state.owner_action)
+            if item.state.changing_action: item.advance_animation()
+            item.state.cleanup = not item.attachment_active or item.state.owner_action == 9 or owner.state.blaster_handle < 0
+            if item.state.cleanup: owner.state.blaster_handle = -1
+            if item.state.cleanup: owner.clear_damage_death()
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.destroy_effects()
+            if item.state.cleanup: item.remove()
+            # Removal destroys effects. Avoid stock's effect cleanup after free.
+            item.state.cleanup = owner.action_detaches_items
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.remove()
+        on collision:
+            return false
+        on physics:
+            if item.joint("0/0/0/0").exists: item.joint("0/0/0/0").translation.y = table.open_y[item.state.open_step]
+            item.state.open_moving = item.joint("0/0/0/0").exists and item.state.open_step > 0 and item.state.open_step < 4
+            if item.state.open_moving: item.state.open_step = item.state.open_step + item.state.open_direction
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_step = 4
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_step = 0
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/1").translation.z = table.recoil_z[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.y = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.z = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/3").rotation.x = table.recoil_rotation[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists and item.state.recoil_step > 0 and item.state.recoil_step < 14: item.state.recoil_step = item.state.recoil_step + 1
+            if item.joint("0/0/0/1").exists and item.state.recoil_step >= 14: item.state.recoil_step = 0
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim 6 use 0:
+    state 7 anim 7 use 0:
+    state 8 anim 8 use 0:
+    state 9 anim -1:
+        on animation:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+        on collision:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+    state 10 anim -1:
+        on animation:
+            if item.attachment_active and owner.incapacitated: item.set_scale(owner.root_scale_y)
+            return false
+        on collision:
+            return false
+
+article It_Kind_Falco_Blaster states 11:
+    attachment origin owner plane on initial_collision off held off
+    state int recoil_step
+    state int open_step
+    state int open_direction
+    state bool opened_once
+    state int visibility
+    state bool open_moving
+    state int owner_action
+    state bool changing_action
+    state bool effect_pending
+    state bool cleanup
+    table float pickup_states = [0, 9, 9, 3, 9, 9, 6, 7, 8, 9, 10]
+    table float open_y = [-0.425, -0.595, -0.765, -0.935, -0.85]
+    table float recoil_z = [0, -0.51, -1.02, -1.53, -1.39, -1.251, -1.112, -0.973, -0.834, -0.695, -0.556, -0.417, -0.278, -0.139]
+    table float recoil_scale = [0.5, 0.5, 1.75, 3, 2.375, 1.75, 1.125, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    table float recoil_rotation = [0, -42, -20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    on spawned:
+            item.state.visibility = 1
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+    on picked_up:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.owner_action = int(table.pickup_states[item.state.owner_action])
+            if (item.command0 | item.command1 | item.command2 | item.command3) != 0: item.state.owner_action = 10
+            item.change_state(item.state.owner_action)
+            item.advance_animation()
+    on accessory:
+            if not item.attachment_active or not item.state.effect_pending: return
+            item.state.effect_pending = false
+            # Stock passes the same muzzle point twice to atan2, yielding zero.
+            item.spawn_directional_effect(1166, RightThumb, 0, 1.2325000762939453, 4.263599872589111, 0)
+    on interaction:
+            item.interact(other)
+    on signal scale:
+            item.scale_by_attribute(signal.value)
+    on signal cleanup:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            item.remove()
+    on signal open:
+            if item.state.open_step == 4: return
+            item.state.open_step = 1
+            item.state.open_direction = 1
+            if not item.state.opened_once: item.play_sound(100081, 127, 64)
+            item.state.opened_once = true
+    on signal close:
+            if item.state.open_step == 0: return
+            item.state.open_step = 3
+            item.state.open_direction = -1
+    on signal recoil:
+            item.state.recoil_step = 1
+            item.state.effect_pending = true
+            item.track_accessory()
+    on signal visibility:
+            if item.state.visibility != int(signal.value) and int(signal.value) == 2: item.play_sound(100096, 127, 64)
+            item.state.visibility = int(signal.value)
+            if item.state.visibility == 0 or item.state.visibility == 2: item.joint("0").visible = false
+            if item.state.visibility == 1: item.joint("0").visible = true
+    state 0 anim 0:
+        on animation:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.changing_action = item.motion_state != 2 and item.motion_state != 5 and item.motion_state != 6 and item.motion_state != 7 and item.motion_state != 8 and item.motion_state != item.state.owner_action
+            if item.state.changing_action: item.change_state(item.state.owner_action)
+            if item.state.changing_action: item.advance_animation()
+            item.state.cleanup = not item.attachment_active or item.state.owner_action == 9 or owner.state.blaster_handle < 0
+            if item.state.cleanup: owner.state.blaster_handle = -1
+            if item.state.cleanup: owner.clear_damage_death()
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.destroy_effects()
+            if item.state.cleanup: item.remove()
+            # Removal destroys effects. Avoid stock's effect cleanup after free.
+            item.state.cleanup = owner.action_detaches_items
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.remove()
+        on collision:
+            return false
+        on physics:
+            if item.joint("0/0/0/0").exists: item.joint("0/0/0/0").translation.y = table.open_y[item.state.open_step]
+            item.state.open_moving = item.joint("0/0/0/0").exists and item.state.open_step > 0 and item.state.open_step < 4
+            if item.state.open_moving: item.state.open_step = item.state.open_step + item.state.open_direction
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_step = 4
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_step = 0
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/1").translation.z = table.recoil_z[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.y = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.z = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/3").rotation.x = table.recoil_rotation[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists and item.state.recoil_step > 0 and item.state.recoil_step < 14: item.state.recoil_step = item.state.recoil_step + 1
+            if item.joint("0/0/0/1").exists and item.state.recoil_step >= 14: item.state.recoil_step = 0
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim 6 use 0:
+    state 7 anim 7 use 0:
+    state 8 anim 8 use 0:
+    state 9 anim -1:
+        on animation:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+        on collision:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+    state 10 anim -1:
+        on animation:
+            if item.attachment_active and owner.incapacitated: item.set_scale(owner.root_scale_y)
+            return false
+        on collision:
+            return false

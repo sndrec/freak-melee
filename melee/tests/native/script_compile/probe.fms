@@ -1,0 +1,21 @@
+fighter:
+    behavior independent
+
+state float total
+state int count
+parameter float gain = 0.25
+
+func Boost(float value) -> float:
+    return value + attrs.gain
+
+action Hooks:
+    on load:
+        pass
+    on load_special_attrs:
+        pass
+    on tick:
+        state.count = state.count + 1
+        state.total = Boost(state.total + velocity.x)
+        position.y = state.total
+    on cpu_prepare:
+        return event.history_source

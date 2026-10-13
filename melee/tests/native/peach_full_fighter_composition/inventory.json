@@ -1,0 +1,3364 @@
+{
+  "snapshot": "baseline48",
+  "status": "closure census, inherited candidate only",
+  "nonnull_motion_phases": 114,
+  "authored_motion_phases": 34,
+  "motion_rows": [
+    {
+      "motion": 341,
+      "name": "ftPe_MS_Float",
+      "phases": {
+        "anim": {
+          "original": "ftPe_Float_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_Float_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_Float_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_Float_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 342,
+      "name": "ftPe_MS_FloatFallF",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatFall_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatFall_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatFall_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatFall_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 343,
+      "name": "ftPe_MS_FloatFallB",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatFall_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatFall_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatFall_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatFall_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 344,
+      "name": "ftPe_MS_FloatAttackAirN",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatAttackAir_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatAttackAir_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatAttackAir_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatAttackAir_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 345,
+      "name": "ftPe_MS_FloatAttackAirF",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatAttackAir_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatAttackAir_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatAttackAir_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatAttackAir_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 346,
+      "name": "ftPe_MS_FloatAttackAirB",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatAttackAir_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatAttackAir_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatAttackAir_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatAttackAir_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 347,
+      "name": "ftPe_MS_FloatAttackAirHi",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatAttackAir_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatAttackAir_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatAttackAir_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatAttackAir_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 348,
+      "name": "ftPe_MS_FloatAttackAirLw",
+      "phases": {
+        "anim": {
+          "original": "ftPe_FloatAttackAir_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_FloatAttackAir_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_FloatAttackAir_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_FloatAttackAir_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 349,
+      "name": "ftPe_MS_AttackS4Club",
+      "phases": {
+        "anim": {
+          "original": "ftPe_AttackS4_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_AttackS4_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_AttackS4_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_AttackS4_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 350,
+      "name": "ftPe_MS_AttackS4Pan",
+      "phases": {
+        "anim": {
+          "original": "ftPe_AttackS4_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_AttackS4_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_AttackS4_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_AttackS4_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 351,
+      "name": "ftPe_MS_AttackS4Racket",
+      "phases": {
+        "anim": {
+          "original": "ftPe_AttackS4_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_AttackS4_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_AttackS4_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_AttackS4_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 352,
+      "name": "ftPe_MS_SpecialLw",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialLw_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "NULL",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialLw_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialLw_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 353,
+      "name": "ftPe_MS_SpecialAirLw",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirLw_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "NULL",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirLw_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirLw_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 354,
+      "name": "ftPe_MS_SpecialSStart",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialSStart_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialSStart_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialSStart_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialSStart_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 355,
+      "name": "ftPe_MS_SpecialSEnd",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialSEnd_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialSEnd_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialSEnd_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialSEnd_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 356,
+      "name": "ftPe_MS_SpecialSJump",
+      "phases": {
+        "anim": {
+          "original": "NULL",
+          "authored": false
+        },
+        "iasa": {
+          "original": "NULL",
+          "authored": false
+        },
+        "phys": {
+          "original": "NULL",
+          "authored": false
+        },
+        "coll": {
+          "original": "NULL",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 357,
+      "name": "ftPe_MS_SpecialAirSStart",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirSStart_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirSStart_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirSStart_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirSStart_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 358,
+      "name": "ftPe_MS_SpecialAirSEnd_0",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirSEnd_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirSEnd_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirSEnd_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirSEnd_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 359,
+      "name": "ftPe_MS_SpecialAirSEnd_1",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirSEnd_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirSEnd_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirSEnd_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirSEnd_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 360,
+      "name": "ftPe_MS_SpecialAirSJump",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirSJump_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirSJump_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirSJump_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirSJump_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 361,
+      "name": "ftPe_MS_SpecialHiStart",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialHiStart_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialHiStart_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialHiStart_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialHiStart_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 362,
+      "name": "ftPe_MS_SpecialHiEnd",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialHiEnd_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialHiEnd_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialHiEnd_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialHiEnd_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 363,
+      "name": "ftPe_MS_SpecialAirHiStart",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirHiStart_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirHiStart_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirHiStart_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirHiStart_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 364,
+      "name": "ftPe_MS_SpecialAirHiEnd",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirHiEnd_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirHiEnd_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirHiEnd_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirHiEnd_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 365,
+      "name": "ftPe_MS_SpecialN",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialN_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_SpecialN_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_SpecialN_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialN_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 366,
+      "name": "ftPe_MS_SpecialNHit",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialNHit_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_SpecialNHit_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_SpecialNHit_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialNHit_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 367,
+      "name": "ftPe_MS_SpecialAirN",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirN_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirN_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirN_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirN_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 368,
+      "name": "ftPe_MS_SpecialAirNHit",
+      "phases": {
+        "anim": {
+          "original": "ftPe_SpecialAirNHit_Anim",
+          "authored": true
+        },
+        "iasa": {
+          "original": "ftPe_SpecialAirNHit_IASA",
+          "authored": true
+        },
+        "phys": {
+          "original": "ftPe_SpecialAirNHit_Phys",
+          "authored": true
+        },
+        "coll": {
+          "original": "ftPe_SpecialAirNHit_Coll",
+          "authored": true
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 369,
+      "name": "ftPe_MS_ItemParasolOpen",
+      "phases": {
+        "anim": {
+          "original": "ftCo_ItemParasolOpen_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftCo_ItemParasolOpen_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftCo_ItemParasolOpen_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftCo_ItemParasolOpen_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    },
+    {
+      "motion": 370,
+      "name": "ftPe_MS_ItemParasolFall",
+      "phases": {
+        "anim": {
+          "original": "ftCo_ItemParasolFallSpecial_Anim",
+          "authored": false
+        },
+        "iasa": {
+          "original": "ftCo_ItemParasolFallSpecial_IASA",
+          "authored": false
+        },
+        "phys": {
+          "original": "ftCo_ItemParasolFallSpecial_Phys",
+          "authored": false
+        },
+        "coll": {
+          "original": "ftCo_ItemParasolFallSpecial_Coll",
+          "authored": false
+        }
+      },
+      "camera": "ftCamera_UpdateCameraBox"
+    }
+  ],
+  "article_states": {
+    "It_Kind_Peach_Explode": 2,
+    "It_Kind_Peach_Parasol": 3,
+    "It_Kind_Peach_Turnip": 5,
+    "It_Kind_Peach_Toad": 2,
+    "It_Kind_Peach_ToadSpore": 1
+  },
+  "fighter_state_fields": [
+    [
+      "int",
+      "toad_saved_facing"
+    ],
+    [
+      "int",
+      "parasol_request_kind"
+    ],
+    [
+      "int",
+      "parasol_handle"
+    ],
+    [
+      "int",
+      "saved_handle"
+    ],
+    [
+      "int",
+      "toad_handle"
+    ],
+    [
+      "int",
+      "vegetable_handle"
+    ],
+    [
+      "int",
+      "vegetable_kind"
+    ],
+    [
+      "float",
+      "spawn_x"
+    ],
+    [
+      "float",
+      "spawn_y"
+    ],
+    [
+      "float",
+      "spawn_z"
+    ],
+    [
+      "float",
+      "float_fall_forward_end"
+    ],
+    [
+      "float",
+      "float_fall_backward_end"
+    ],
+    [
+      "bool",
+      "has_float"
+    ],
+    [
+      "int",
+      "last_smash_motion"
+    ],
+    [
+      "bool",
+      "toad_air_boost_used"
+    ]
+  ],
+  "fighter_payload_bytes": 54,
+  "source_hashes": {
+    "src/melee/ft/fighter.c": "ff0448d911ef932ca5a77b96c5ca74c23226a38759603095aaeabf726f1074f9",
+    "src/melee/ft/ft_08A1.c": "31061c51b43b8dfaf697acf7c2b43c341ba510b68f7a8a43400c16dc21d3d243",
+    "src/melee/ft/ft_0D27.c": "e18b798f9ddd615df8c51e8050b2a5d13be0ad8a52901485e2385e807b20027f",
+    "src/melee/ft/ft_0DF1.c": "fdb4886da89b82cd8d9ccef8400769e354de04d6e02938cc2175dc83894d7e0c",
+    "src/melee/ft/ftcommon.c": "01fc801324b903720e7a9eaa84016f5ae926ab0b2bc04ef1a87df2c33fb8c22f",
+    "src/melee/ft/ftcpuattack.c": "1de1d6316df3ce6e79a19535002c511244def9c64846c2e5735c9d2433041ca1",
+    "src/melee/ft/ftdata.c": "39e51d211818e7a545c7a285d92a07b2cc1efeb6c7c1bc58364ad5222ff2dcba",
+    "src/melee/ft/ftdynamics.c": "d16c5d02e1dc734d940d9b8739757b61dd3c9525d211ae147b04308dc5aa121c",
+    "src/melee/ft/kinds/ftCommon/ftCo_AppealS.c": "c97bb91c0387bb029f7398a17b2bdc2520fed85e9bc0b0ae2e8b2afe2e6bdcbc",
+    "src/melee/ft/kinds/ftCommon/ftCo_AttackAir.c": "3844f9f90f27280e1d14c3922a835d800898acd9d403213781268ccbc1383de1",
+    "src/melee/ft/kinds/ftCommon/ftCo_Fall.c": "c2f63f0b5429a71bb3b3448d975cd0f59de75b5a5224c4fd7854b023e55f5387",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFall.c": "2104ac193ee18c03df3a076db0c5ffa045d809e747cb516ff1cf5449c2f043fd",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c": "fb43737a010f8465e16830b0cba5243ea17c22bdf765e9129d9c9815126837eb",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c": "3ab6fd83d3932435881b909c58c7c84ef79f9f626c5a62e916774983aa2fd94b",
+    "src/melee/ft/kinds/ftCommon/ftCo_Jump.c": "ab8165a077c555a3c36e849b527101548aaf3f27a55f2425303ff9e1d3423adc",
+    "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c": "becc28a6b6df854858e06c0d8753939c3a36117622c115f6b2dddfe854bea904",
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": "2eb2a869336452adc2b35cb2b12b4c91134d9eeef6bf6dbf9810af5de53de7ed",
+    "src/melee/ft/kinds/ftCommon/ftCo_LandingAir.c": "ae801e0209d226fa1f0e5ff29c70694c3c694dbd9e60d059cc0eacae55f18fc6",
+    "src/melee/ft/kinds/ftCommon/ftCo_Throw.c": "da0d50700ffa649ae62b1b792d87c1536cec1ba960acba86849ea4675a0d4394",
+    "src/melee/ft/kinds/ftCommon/inlines.h": "30135b8b8b91347f2119ac6eaff5476ecd48e8725e4084be4bbd68c90243753e",
+    "src/melee/ft/kinds/ftPeach/ftpeach.c": "56284b720544875175d30593cbbc91f60ee631417d17973b58f9dd55f9d1bec6",
+    "src/melee/ft/kinds/ftPeach/ftpeach_clone.c": "53d3611299e0d7a1f223107886b3d3cb120adca0d3b551f81751f76eb2349970",
+    "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c": "9a1c19d0453056eea7325856345eab4a32a1830b375439ee96128f33b8334e8e",
+    "src/melee/ft/kinds/ftPeach/ftpeachfloat.c": "3764ec024bfaa2af8a03509984fb0bdd6bec9a0356a956341e6eb1417d4ca076",
+    "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c": "212b638b1dc166626c299971743df5586831fe39863eb37fea3b4cd63b6e280d",
+    "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c": "72301a8f2b5fac5cb3d5c39b440f4ccfe7f26931ddd4990f9db262755fc34635",
+    "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c": "d6c81e6cd27c6791c846b260fa7d048ba78bf7a29382df7f7c59d5f9503b746d",
+    "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c": "c7b5c148daf2bb895df0c1aae1f4e5e87235e035c0c70d0b928175c925add4cf",
+    "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c": "d46f09db0b56f6d80c41b54321570a7a1f6328022d7b67bead8bb367385d870a",
+    "src/melee/ft/kinds/ftPeach/ftpeachspecials.c": "bfd5b84b6c42c76cb0774975bc6b148d61142e53c85173246a0f785905f12ca6",
+    "src/melee/ft/kinds/ftPeach/types.h": "e81a6e06e90eb332d0ed2c1e6fc1049c3c8b95ca8133908277bc19a419fe1c35",
+    "src/melee/ft/native_fighter_article_bindings.c": "dfc9c184c6ccbad925299f34df393581eabd4d4ab7a0f6d69952d827bc5f0a29",
+    "src/melee/ft/native_fighter_module.c": "90ef6ea13a50353909fc3b9decaf4a0892379ef438b45d118e47218ceb895f25",
+    "src/melee/ft/native_fighter_module.h": "038139f1fefc49b6c83fbe138c2db6f8bc50ddeb1aa0b12af8c74c3a89f98f03",
+    "src/melee/ft/native_fighter_runtime.h": "a29934070f7a1ac8196a5c5c66d13dd31e8139885e4e6528e44ae261cb4d5c7a",
+    "src/melee/it/kinds/itpeachexplode.c": "de35e35ec11b165f41adf2cf07642fb2c6658b27e5a20f078466559840986a18",
+    "src/melee/it/kinds/itpeachparasol.c": "4ab2510baccbd35b68f53653831cf712bc9ab97068780a13c7c659b37582ca85",
+    "src/melee/it/kinds/itpeachtoad.c": "c9ff55592ac68dffaac46238b6fc81d27ea710df77fba56a7d3ac52ee1089b4c",
+    "src/melee/it/kinds/itpeachtoadspore.c": "06b08ca4fddc021bf2ab53fa509de70890744e9ad427af2cf48706c815969998",
+    "src/melee/it/kinds/itpeachturnip.c": "a93e2222a34ff3d956416158705f2594bfa5636077d6bd54e14267cc904b56ca"
+  },
+  "references": [
+    {
+      "path": "src/melee/ft/fighter.c",
+      "line": 1213,
+      "source": "if (fp->kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/ft_08A1.c",
+      "line": 93,
+      "source": "if (fp->kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/ft_0D27.c",
+      "line": 73,
+      "source": "if (fp->kind == Ft_Kind_Peach && ms_id == 0x172) {"
+    },
+    {
+      "path": "src/melee/ft/ftcommon.c",
+      "line": 631,
+      "source": "NULL, NULL, NULL, NULL, it_802BDD40, NULL, it_802BDDB4,"
+    },
+    {
+      "path": "src/melee/ft/ftcommon.c",
+      "line": 656,
+      "source": "(it_802BDA40(fp->item_gobj, parasol_table_4[arg1]) / div);"
+    },
+    {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 839,
+      "source": "} else if (fp->kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 841,
+      "source": "if (fp->motion_id <= ftPe_MS_FloatFallB) {"
+    },
+    {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 1637,
+      "source": "case Ft_Kind_Peach:"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 220,
+      "source": "{ ftPe_CostumeList, ARRAY_SIZE(ftPe_CostumeList) },"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 294,
+      "source": "ftNs_Init_OnLoad, ftPe_Init_OnLoad, ftPp_Init_OnLoad, ftNn_Init_OnLoad,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 306,
+      "source": "ftNs_Init_OnDeath, ftPe_Init_OnDeath, ftPp_Init_OnDeath, ftNn_Init_OnDeath,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 337,
+      "source": "ftPe_Init_MotionStateTable,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 409,
+      "source": "ftPe_SpecialS_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 445,
+      "source": "ftPe_SpecialAirHi_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 481,
+      "source": "ftPe_SpecialAirLw_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 517,
+      "source": "ftPe_SpecialAirS_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 553,
+      "source": "ftPe_SpecialAirN_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 589,
+      "source": "ftPe_SpecialN_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 625,
+      "source": "ftPe_SpecialLw_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 661,
+      "source": "ftPe_SpecialHi_Enter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 733,
+      "source": "ftPe_Init_OnItemPickup,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 769,
+      "source": "ftPe_Init_OnItemInvisible,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 805,
+      "source": "ftPe_Init_OnItemVisible,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 841,
+      "source": "ftPe_Init_OnItemDrop,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 877,
+      "source": "ftPe_Init_OnItemPickup,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 913,
+      "source": "ftPe_Init_OnItemDrop,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1021,
+      "source": "ftPe_Init_OnKnockbackEnter,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1057,
+      "source": "ftPe_Init_OnKnockbackExit,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1160,
+      "source": "ftNs_Init_LoadSpecialAttrs, ftPe_Init_LoadSpecialAttrs,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1186,
+      "source": "{ ftPe_Init_DatFilename, ftPe_Init_DataName },"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1350,
+      "source": "ftNs_Init_CostumeStrings, ftPe_Init_CostumeStrings,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1371,
+      "source": "ftNs_Init_AnimDatFilename, ftPe_Init_AnimDatFilename,"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "line": 1397,
+      "source": "&ftPe_Init_DemoMotionFilenames,"
+    },
+    {
+      "path": "src/melee/ft/ftdynamics.c",
+      "line": 424,
+      "source": "if (fp->kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_AppealS.c",
+      "line": 105,
+      "source": "if (fp->behavior_kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_AppealS.c",
+      "line": 106,
+      "source": "ftPe_Init_8011B93C(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Fall.c",
+      "line": 136,
+      "source": "if (ftPe_8011BA54(gobj)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Fall.c",
+      "line": 142,
+      "source": "if (ftPe_8011BAD8(gobj)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c",
+      "line": 25,
+      "source": "ftCo_ItemParasolGetFallMotionId(gobj, ftPe_MS_ItemParasolFall,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c",
+      "line": 54,
+      "source": "ftCo_ItemParasolGetFallMotionId(gobj, ftPe_MS_ItemParasolOpen,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c",
+      "line": 68,
+      "source": "ftCo_ItemParasolGetFallMotionId(gobj, ftPe_MS_ItemParasolOpen,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Jump.c",
+      "line": 188,
+      "source": "RETURN_IF(fp->mv.co.jump.x4 && ftPe_8011BA54(gobj));"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Jump.c",
+      "line": 191,
+      "source": "RETURN_IF(ftPe_8011BAD8(gobj));"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c",
+      "line": 122,
+      "source": "case Ft_Kind_Peach:"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c",
+      "line": 123,
+      "source": "ftPe_JumpAerial_Enter(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c",
+      "line": 245,
+      "source": "void ftPe_JumpAerial_Enter(Fighter_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c",
+      "line": 346,
+      "source": "RETURN_IF(ftPe_8011BA54(gobj));"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c",
+      "line": 356,
+      "source": "RETURN_IF(fp->cmd_vars[0] && ftPe_8011BAD8(gobj));"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Landing.c",
+      "line": 59,
+      "source": "case Ft_Kind_Peach:"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Landing.c",
+      "line": 62,
+      "source": "ftPe_8011D598(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Throw.c",
+      "line": 194,
+      "source": "if (victim->kind == Ft_Kind_Peach || victim->kind == Ft_Kind_Zelda)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/inlines.h",
+      "line": 59,
+      "source": "if (fp->kind == Ft_Kind_Peach && fp->u.pe.parasol_gobj_0 != NULL) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 29,
+      "source": "/* 459DF0 */ UnkCostumeStruct ftPe_CostumeList[5];"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 31,
+      "source": "MotionState ftPe_Init_MotionStateTable[ftPe_MS_SelfCount] = {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 33,
+      "source": "// ftPe_MS_Float = 341"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 34,
+      "source": "ftPe_SM_Float,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 37,
+      "source": "ftPe_Float_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 38,
+      "source": "ftPe_Float_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 39,
+      "source": "ftPe_Float_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 40,
+      "source": "ftPe_Float_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 44,
+      "source": "// ftPe_MS_FloatFallF = 342"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 45,
+      "source": "ftPe_SM_FloatFallF,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 48,
+      "source": "ftPe_FloatFall_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 49,
+      "source": "ftPe_FloatFall_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 50,
+      "source": "ftPe_FloatFall_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 51,
+      "source": "ftPe_FloatFall_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 55,
+      "source": "// ftPe_MS_FloatFallB = 343"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 56,
+      "source": "ftPe_SM_FloatFallB,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 59,
+      "source": "ftPe_FloatFall_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 60,
+      "source": "ftPe_FloatFall_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 61,
+      "source": "ftPe_FloatFall_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 62,
+      "source": "ftPe_FloatFall_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 66,
+      "source": "// ftPe_MS_FloatAttackAirN = 344"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 68,
+      "source": "ftPe_MF_FloatAttackAirN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 70,
+      "source": "ftPe_FloatAttackAir_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 71,
+      "source": "ftPe_FloatAttackAir_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 72,
+      "source": "ftPe_FloatAttackAir_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 73,
+      "source": "ftPe_FloatAttackAir_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 77,
+      "source": "// ftPe_MS_FloatAttackAirF = 345"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 79,
+      "source": "ftPe_MF_Move_14,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 81,
+      "source": "ftPe_FloatAttackAir_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 82,
+      "source": "ftPe_FloatAttackAir_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 83,
+      "source": "ftPe_FloatAttackAir_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 84,
+      "source": "ftPe_FloatAttackAir_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 88,
+      "source": "// ftPe_MS_FloatAttackAirB = 346"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 90,
+      "source": "ftPe_MF_FloatAttackAirB,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 92,
+      "source": "ftPe_FloatAttackAir_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 93,
+      "source": "ftPe_FloatAttackAir_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 94,
+      "source": "ftPe_FloatAttackAir_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 95,
+      "source": "ftPe_FloatAttackAir_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 99,
+      "source": "// ftPe_MS_FloatAttackAirHi = 347"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 101,
+      "source": "ftPe_MF_FloatAttackAirHi,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 103,
+      "source": "ftPe_FloatAttackAir_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 104,
+      "source": "ftPe_FloatAttackAir_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 105,
+      "source": "ftPe_FloatAttackAir_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 106,
+      "source": "ftPe_FloatAttackAir_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 110,
+      "source": "// ftPe_MS_FloatAttackAirLw = 348"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 112,
+      "source": "ftPe_MF_Move_17,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 114,
+      "source": "ftPe_FloatAttackAir_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 115,
+      "source": "ftPe_FloatAttackAir_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 116,
+      "source": "ftPe_FloatAttackAir_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 117,
+      "source": "ftPe_FloatAttackAir_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 121,
+      "source": "// ftPe_MS_AttackS4Club = 349"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 122,
+      "source": "ftPe_SM_AttackS4_0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 123,
+      "source": "ftPe_MF_AttackS4,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 125,
+      "source": "ftPe_AttackS4_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 126,
+      "source": "ftPe_AttackS4_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 127,
+      "source": "ftPe_AttackS4_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 128,
+      "source": "ftPe_AttackS4_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 132,
+      "source": "// ftPe_MS_AttackS4Pan = 350"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 133,
+      "source": "ftPe_SM_AttackS4_1,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 134,
+      "source": "ftPe_MF_AttackS4,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 136,
+      "source": "ftPe_AttackS4_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 137,
+      "source": "ftPe_AttackS4_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 138,
+      "source": "ftPe_AttackS4_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 139,
+      "source": "ftPe_AttackS4_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 143,
+      "source": "// ftPe_MS_AttackS4Racket = 351"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 144,
+      "source": "ftPe_SM_AttackS4_2,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 145,
+      "source": "ftPe_MF_AttackS4,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 147,
+      "source": "ftPe_AttackS4_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 148,
+      "source": "ftPe_AttackS4_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 149,
+      "source": "ftPe_AttackS4_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 150,
+      "source": "ftPe_AttackS4_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 154,
+      "source": "// ftPe_MS_SpecialLw = 352"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 155,
+      "source": "ftPe_SM_SpecialLw,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 156,
+      "source": "ftPe_MF_SpecialLw,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 158,
+      "source": "ftPe_SpecialLw_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 160,
+      "source": "ftPe_SpecialLw_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 161,
+      "source": "ftPe_SpecialLw_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 165,
+      "source": "// ftPe_MS_SpecialAirLw = 353"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 166,
+      "source": "ftPe_SM_SpecialLw,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 167,
+      "source": "ftPe_MF_SpecialLw,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 169,
+      "source": "ftPe_SpecialAirLw_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 171,
+      "source": "ftPe_SpecialAirLw_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 172,
+      "source": "ftPe_SpecialAirLw_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 176,
+      "source": "// ftPe_MS_SpecialSStart = 354"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 177,
+      "source": "ftPe_SM_SpecialSStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 178,
+      "source": "ftPe_MF_SpecialS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 180,
+      "source": "ftPe_SpecialSStart_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 181,
+      "source": "ftPe_SpecialSStart_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 182,
+      "source": "ftPe_SpecialSStart_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 183,
+      "source": "ftPe_SpecialSStart_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 187,
+      "source": "// ftPe_MS_SpecialSEnd = 355"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 188,
+      "source": "ftPe_SM_SpecialSEnd,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 189,
+      "source": "ftPe_MF_SpecialS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 191,
+      "source": "ftPe_SpecialSEnd_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 192,
+      "source": "ftPe_SpecialSEnd_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 193,
+      "source": "ftPe_SpecialSEnd_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 194,
+      "source": "ftPe_SpecialSEnd_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 198,
+      "source": "// ftPe_MS_SpecialSJump = 356"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 199,
+      "source": "ftPe_SM_SpecialSJump,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 200,
+      "source": "ftPe_MF_SpecialS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 209,
+      "source": "// ftPe_MS_SpecialAirSStart = 357"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 210,
+      "source": "ftPe_SM_SpecialAirSStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 211,
+      "source": "ftPe_MF_SpecialAirS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 213,
+      "source": "ftPe_SpecialAirSStart_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 214,
+      "source": "ftPe_SpecialAirSStart_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 215,
+      "source": "ftPe_SpecialAirSStart_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 216,
+      "source": "ftPe_SpecialAirSStart_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 220,
+      "source": "// ftPe_MS_SpecialAirSEnd_0 = 358"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 221,
+      "source": "ftPe_SM_SpecialAirSEnd_0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 222,
+      "source": "ftPe_MF_SpecialAirS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 224,
+      "source": "ftPe_SpecialAirSEnd_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 225,
+      "source": "ftPe_SpecialAirSEnd_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 226,
+      "source": "ftPe_SpecialAirSEnd_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 227,
+      "source": "ftPe_SpecialAirSEnd_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 231,
+      "source": "// ftPe_MS_SpecialAirSEnd_1 = 359"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 232,
+      "source": "ftPe_SM_SpecialAirSEnd_1,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 233,
+      "source": "ftPe_MF_SpecialAirS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 235,
+      "source": "ftPe_SpecialAirSEnd_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 236,
+      "source": "ftPe_SpecialAirSEnd_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 237,
+      "source": "ftPe_SpecialAirSEnd_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 238,
+      "source": "ftPe_SpecialAirSEnd_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 242,
+      "source": "// ftPe_MS_SpecialAirSJump = 360"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 243,
+      "source": "ftPe_SM_SpecialSJump,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 244,
+      "source": "ftPe_MF_SpecialAirS,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 246,
+      "source": "ftPe_SpecialAirSJump_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 247,
+      "source": "ftPe_SpecialAirSJump_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 248,
+      "source": "ftPe_SpecialAirSJump_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 249,
+      "source": "ftPe_SpecialAirSJump_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 253,
+      "source": "// ftPe_MS_SpecialHiStart = 361"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 254,
+      "source": "ftPe_SM_SpecialHiStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 255,
+      "source": "ftPe_MF_SpecialHi,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 257,
+      "source": "ftPe_SpecialHiStart_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 258,
+      "source": "ftPe_SpecialHiStart_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 259,
+      "source": "ftPe_SpecialHiStart_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 260,
+      "source": "ftPe_SpecialHiStart_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 264,
+      "source": "// ftPe_MS_SpecialHiEnd = 362"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 265,
+      "source": "ftPe_SM_SpecialHiEnd,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 266,
+      "source": "ftPe_MF_SpecialHi,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 268,
+      "source": "ftPe_SpecialHiEnd_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 269,
+      "source": "ftPe_SpecialHiEnd_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 270,
+      "source": "ftPe_SpecialHiEnd_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 271,
+      "source": "ftPe_SpecialHiEnd_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 275,
+      "source": "// ftPe_MS_SpecialAirHiStart = 363"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 276,
+      "source": "ftPe_SM_SpecialAirHiStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 277,
+      "source": "ftPe_MF_SpecialAirHi,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 279,
+      "source": "ftPe_SpecialAirHiStart_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 280,
+      "source": "ftPe_SpecialAirHiStart_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 281,
+      "source": "ftPe_SpecialAirHiStart_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 282,
+      "source": "ftPe_SpecialAirHiStart_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 286,
+      "source": "// ftPe_MS_SpecialAirHiEnd = 364"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 287,
+      "source": "ftPe_SM_SpecialAirHiEnd,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 288,
+      "source": "ftPe_MF_SpecialAirHi,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 290,
+      "source": "ftPe_SpecialAirHiEnd_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 291,
+      "source": "ftPe_SpecialAirHiEnd_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 292,
+      "source": "ftPe_SpecialAirHiEnd_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 293,
+      "source": "ftPe_SpecialAirHiEnd_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 297,
+      "source": "// ftPe_MS_SpecialN = 365"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 298,
+      "source": "ftPe_SM_SpecialN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 299,
+      "source": "ftPe_MF_SpecialN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 301,
+      "source": "ftPe_SpecialN_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 302,
+      "source": "ftPe_SpecialN_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 303,
+      "source": "ftPe_SpecialN_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 304,
+      "source": "ftPe_SpecialN_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 308,
+      "source": "// ftPe_MS_SpecialNHit = 366"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 309,
+      "source": "ftPe_SM_SpecialNHit,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 310,
+      "source": "ftPe_MF_SpecialN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 312,
+      "source": "ftPe_SpecialNHit_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 313,
+      "source": "ftPe_SpecialNHit_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 314,
+      "source": "ftPe_SpecialNHit_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 315,
+      "source": "ftPe_SpecialNHit_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 319,
+      "source": "// ftPe_MS_SpecialAirN = 367"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 320,
+      "source": "ftPe_SM_SpecialAirN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 321,
+      "source": "ftPe_MF_SpecialAirN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 323,
+      "source": "ftPe_SpecialAirN_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 324,
+      "source": "ftPe_SpecialAirN_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 325,
+      "source": "ftPe_SpecialAirN_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 326,
+      "source": "ftPe_SpecialAirN_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 330,
+      "source": "// ftPe_MS_SpecialAirNHit = 368"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 331,
+      "source": "ftPe_SM_SpecialAirNHit,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 332,
+      "source": "ftPe_MF_SpecialAirN,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 334,
+      "source": "ftPe_SpecialAirNHit_Anim,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 335,
+      "source": "ftPe_SpecialAirNHit_IASA,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 336,
+      "source": "ftPe_SpecialAirNHit_Phys,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 337,
+      "source": "ftPe_SpecialAirNHit_Coll,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 341,
+      "source": "// ftPe_MS_ItemParasolOpen = 369"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 342,
+      "source": "ftPe_SM_ItemParasolOpen,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 343,
+      "source": "ftPe_MF_ParasolOpen,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 352,
+      "source": "// ftPe_MS_ItemParasolFall = 370"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 353,
+      "source": "ftPe_SM_ItemParasolFall,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 354,
+      "source": "ftPe_MF_ParasolFallSpecial,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 364,
+      "source": "char ftPe_Init_DatFilename[] = \"PlPe.dat\";"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 365,
+      "source": "char ftPe_Init_DataName[] = \"ftDataPeach\";"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 385,
+      "source": "char ftPe_Init_AnimDatFilename[] = \"PlPeAJ.dat\";"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 387,
+      "source": "Fighter_DemoStrings ftPe_Init_DemoMotionFilenames = {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 394,
+      "source": "Fighter_CostumeStrings ftPe_Init_CostumeStrings[] = {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 407,
+      "source": "void ftPe_Init_OnDeath(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 438,
+      "source": "void ftPe_Init_OnLoad(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 441,
+      "source": "ftPe_DatAttrs* extAtrrs = fp->ft_data->ext_attr;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 445,
+      "source": "PUSH_ATTRS(fp, ftPe_DatAttrs);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 453,
+      "source": "void ftPe_Init_OnDeath2(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 455,
+      "source": "ftPe_8011D598(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 456,
+      "source": "ftPe_SpecialN_OnDeath2(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 457,
+      "source": "ftPe_SpecialLw_8011CFA0(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 460,
+      "source": "void ftPe_Init_OnItemPickup(HSD_GObj* gobj, bool flag)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 465,
+      "source": "void ftPe_Init_OnItemInvisible(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 470,
+      "source": "void ftPe_Init_OnItemVisible(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 475,
+      "source": "void ftPe_Init_OnItemDrop(HSD_GObj* gobj, bool flag)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 480,
+      "source": "void ftPe_Init_LoadSpecialAttrs(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 482,
+      "source": "COPY_ATTRS(gobj, ftPe_DatAttrs);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 485,
+      "source": "void ftPe_Init_8011B93C(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 498,
+      "source": "void ftPe_Init_OnKnockbackEnter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach.c",
+      "line": 503,
+      "source": "void ftPe_Init_OnKnockbackExit(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 86,
+      "source": ".source_kind = Ft_Kind_Peach,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 87,
+      "source": ".animation_source_kind = Ft_Kind_Peach,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 101,
+      "source": ".motion_state_count = ftPe_MS_SelfCount,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 102,
+      "source": ".motion_states = ftPe_Init_MotionStateTable,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 103,
+      "source": ".special_ground_state = { ftPe_MS_SpecialN, ftPe_MS_SpecialSStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 104,
+      "source": "ftPe_MS_SpecialHiStart, ftPe_MS_SpecialLw },"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 105,
+      "source": ".special_air_state = { ftPe_MS_SpecialAirN, ftPe_MS_SpecialAirSStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 106,
+      "source": "ftPe_MS_SpecialAirHiStart, ftPe_MS_SpecialAirLw },"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 107,
+      "source": ".special_n = ftPe_SpecialN_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 108,
+      "source": ".special_air_n = ftPe_SpecialAirN_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 109,
+      "source": ".special_s = ftPe_SpecialS_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 110,
+      "source": ".special_air_s = ftPe_SpecialAirS_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 111,
+      "source": ".special_hi = ftPe_SpecialHi_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 112,
+      "source": ".special_air_hi = ftPe_SpecialAirHi_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 113,
+      "source": ".special_lw = ftPe_SpecialLw_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeach_clone.c",
+      "line": 114,
+      "source": ".special_air_lw = ftPe_SpecialAirLw_Enter,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 17,
+      "source": "void ftPe_AttackS4_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 25,
+      "source": "int const min = ftPe_MS_AttackS4Club;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 26,
+      "source": "int const max = ftPe_MS_AttackS4Racket;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 35,
+      "source": "void ftPe_AttackS4_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 42,
+      "source": "void ftPe_AttackS4_IASA(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 49,
+      "source": "void ftPe_AttackS4_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachattacks4.c",
+      "line": 54,
+      "source": "void ftPe_AttackS4_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 20,
+      "source": "bool ftPe_Float_CheckContinueInput(Fighter* fp)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 33,
+      "source": "bool ftPe_8011BA54(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 37,
+      "source": "if (fp->kind == Ft_Kind_Peach && fp->u.pe.has_float && float_input) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 38,
+      "source": "ftPe_8011BB6C(gobj, true);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 44,
+      "source": "bool ftPe_8011BAD8(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 47,
+      "source": "if (fp->kind == Ft_Kind_Peach) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 49,
+      "source": "if (ftPe_Float_CheckContinueInput(fp)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 50,
+      "source": "ftPe_8011BB6C(gobj, true);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 64,
+      "source": "void ftPe_8011BB6C(HSD_GObj* gobj, bool arg1)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 68,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 71,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_Float, 0, 0, 1, 0, NULL);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 82,
+      "source": "void ftPe_Float_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 89,
+      "source": "ftPe_UpdateFloatDir(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 93,
+      "source": "void ftPe_Float_IASA(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 96,
+      "source": "if (!ftCo_SpecialAir_CheckInput(gobj) && !ftPe_8011BE80(gobj)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 102,
+      "source": "ftPe_UpdateFloatDir(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 107,
+      "source": "void ftPe_Float_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloat.c",
+      "line": 112,
+      "source": "void ftPe_Float_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 22,
+      "source": "static void ftPe_8011BF34(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 24,
+      "source": "bool ftPe_8011BE80(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 36,
+      "source": "ftPe_8011BF34(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 43,
+      "source": "static void ftPe_8011BF34(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 51,
+      "source": "void ftPe_FloatAttackAir_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 64,
+      "source": "ftPe_8011BB6C(gobj, false);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 69,
+      "source": "void ftPe_FloatAttackAir_IASA(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 72,
+      "source": "if (!ftPe_Float_CheckContinueInput(fp)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 76,
+      "source": "if (!ftPe_8011BE80(gobj)) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 84,
+      "source": "void ftPe_FloatAttackAir_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 89,
+      "source": "ftPe_Float_Phys(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c",
+      "line": 93,
+      "source": "void ftPe_FloatAttackAir_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 19,
+      "source": "? ftPe_MS_FloatFallF"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 20,
+      "source": ": ftPe_MS_FloatFallB;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 23,
+      "source": "void ftPe_UpdateFloatDir(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 26,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 28,
+      "source": "float anim_start = msid == ftPe_MS_FloatFallF ? da->floatfallf_anim_start"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 35,
+      "source": "void ftPe_FloatFall_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 42,
+      "source": "void ftPe_FloatFall_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 44,
+      "source": "void ftPe_FloatFall_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c",
+      "line": 49,
+      "source": "void ftPe_FloatFall_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 30,
+      "source": "/* 11D424 */ static void ftPe_SpecialHi_8011D424(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 31,
+      "source": "/* 11D598 */ static void ftPe_SpecialHi_8011DD8C(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 32,
+      "source": "/* 11D620 */ static void ftPe_SpecialHi_8011D620(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 33,
+      "source": "/* 11D650 */ static void ftPe_SpecialHi_8011D650(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 34,
+      "source": "/* 11E064 */ static void ftPe_SpecialHi_8011E064(HSD_GObj* gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 36,
+      "source": "void ftPe_SpecialHi_8011D424(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 57,
+      "source": "fp->death3_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 58,
+      "source": "fp->take_dmg_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 63,
+      "source": "fp->pre_hitlag_cb = ftPe_SpecialHi_8011D620;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 64,
+      "source": "fp->post_hitlag_cb = ftPe_SpecialHi_8011D650;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 67,
+      "source": "bool ftPe_8011D518(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 88,
+      "source": "void ftPe_8011D598(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 93,
+      "source": "ftPe_8011D518(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 105,
+      "source": "void ftPe_SpecialHi_8011D620(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 110,
+      "source": "void ftPe_SpecialHi_8011D650(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 118,
+      "source": "if (msid >= ftPe_MS_ItemParasolOpen && msid <= ftPe_MS_ItemParasolFall) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 135,
+      "source": "bool ftPe_SpecialHi_NotActive(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 139,
+      "source": "if (msid >= ftPe_MS_SpecialHiStart && msid <= ftPe_MS_SpecialAirHiEnd) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 165,
+      "source": "fp->accessory4_cb = ftPe_SpecialHi_8011D424;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 168,
+      "source": "void ftPe_SpecialHi_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 171,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialHiStart, FtMoveId_None, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 177,
+      "source": "void ftPe_SpecialAirHi_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 181,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 184,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirHiStart, FtMoveId_None,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 200,
+      "source": "void ftPe_SpecialHiStart_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 205,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 216,
+      "source": "void ftPe_SpecialAirHiStart_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 219,
+      "source": "ftPe_SpecialHiStart_Anim(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 222,
+      "source": "void ftPe_SpecialHiStart_IASA(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 226,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 243,
+      "source": "void ftPe_SpecialAirHiStart_IASA(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 246,
+      "source": "ftPe_SpecialHiStart_IASA(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 249,
+      "source": "void ftPe_SpecialHiStart_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 258,
+      "source": "void ftPe_SpecialAirHiStart_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 262,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 275,
+      "source": "static void ftPe_SpecialHi_8011DD8C(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 277,
+      "source": "ftPe_DatAttrs* da = GET_FIGHTER(gobj)->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 295,
+      "source": "void ftPe_SpecialHiStart_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 297,
+      "source": "doColl(gobj, ftPe_SpecialHi_8011DD8C);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 300,
+      "source": "void ftPe_SpecialAirHiStart_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 302,
+      "source": "doColl(gobj, ftPe_SpecialHi_8011DD8C);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 305,
+      "source": "void ftPe_SpecialHiEnd_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 308,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 314,
+      "source": "void ftPe_SpecialAirHiEnd_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 317,
+      "source": "ftPe_SpecialHiEnd_Anim(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 320,
+      "source": "void ftPe_SpecialHiEnd_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 322,
+      "source": "void ftPe_SpecialAirHiEnd_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 324,
+      "source": "void ftPe_SpecialHiEnd_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 339,
+      "source": "void ftPe_SpecialAirHiEnd_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 344,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 354,
+      "source": "void ftPe_SpecialHi_8011E064(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 356,
+      "source": "ftPe_SpecialHi_8011DD8C(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 359,
+      "source": "void ftPe_SpecialHiEnd_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 361,
+      "source": "doColl(gobj, ftPe_SpecialHi_8011E064);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 364,
+      "source": "void ftPe_SpecialAirHiEnd_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c",
+      "line": 366,
+      "source": "doColl(gobj, ftPe_SpecialHi_8011E064);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 36,
+      "source": "ftPe_DatAttrs* a = GET_FIGHTER(gobj)->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 61,
+      "source": "void ftPe_SpecialLw_UnsetVeg(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 69,
+      "source": "void ftPe_SpecialLw_8011CFA0(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 79,
+      "source": "ftPe_SpecialLw_UnsetVeg(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 86,
+      "source": "ftPe_DatAttrs* da = GET_FIGHTER(gobj)->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 105,
+      "source": "fp->death2_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 106,
+      "source": "fp->take_dmg_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 139,
+      "source": "void ftPe_SpecialLw_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 144,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialLw, Ft_MF_None, 0, 1, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 151,
+      "source": "void ftPe_SpecialAirLw_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 164,
+      "source": "ftCommon_GroundToAirStateChange(gobj, fp, ftPe_MS_SpecialAirLw, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 172,
+      "source": "ftCommon_AirToGroundStateChange(gobj, fp, ftPe_MS_SpecialLw, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 180,
+      "source": "ftPe_SpecialLw_UnsetVeg(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 184,
+      "source": "void ftPe_SpecialLw_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 190,
+      "source": "void ftPe_SpecialAirLw_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 195,
+      "source": "void ftPe_SpecialLw_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 200,
+      "source": "void ftPe_SpecialAirLw_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 205,
+      "source": "void ftPe_SpecialLw_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspeciallw.c",
+      "line": 210,
+      "source": "void ftPe_SpecialAirLw_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 76,
+      "source": "fp->death2_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 77,
+      "source": "fp->take_dmg_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 102,
+      "source": "void ftPe_SpecialN_DoDeath2(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 111,
+      "source": "void ftPe_SpecialN_OnDeath2(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 116,
+      "source": "ftPe_SpecialN_DoDeath2(gobj);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 136,
+      "source": "bool ftPe_SpecialN_IsActive(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 139,
+      "source": "if (msid >= ftPe_MS_SpecialN && msid <= ftPe_MS_SpecialAirNHit) {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 155,
+      "source": "void ftPe_SpecialN_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 159,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialN, Ft_MF_None, 0, 1, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 165,
+      "source": "void ftPe_SpecialAirN_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 169,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 171,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirN, Ft_MF_None, 0, 1, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 180,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 195,
+      "source": "void ftPe_SpecialN_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 201,
+      "source": "void ftPe_SpecialAirN_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 207,
+      "source": "void ftPe_SpecialN_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 209,
+      "source": "void ftPe_SpecialAirN_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 211,
+      "source": "void ftPe_SpecialN_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 217,
+      "source": "void ftPe_SpecialAirN_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 221,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 240,
+      "source": "void ftPe_SpecialN_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 247,
+      "source": "void ftPe_SpecialAirN_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 257,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 259,
+      "source": "fp->death2_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 260,
+      "source": "fp->take_dmg_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 280,
+      "source": "ftCommon_GroundToAirStateChange(gobj, fp, ftPe_MS_SpecialAirN, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 292,
+      "source": "ftCommon_AirToGroundStateChange(gobj, fp, ftPe_MS_SpecialN, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 308,
+      "source": "void ftPe_SpecialNHit_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 313,
+      "source": "void ftPe_SpecialAirNHit_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 318,
+      "source": "void ftPe_SpecialNHit_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 320,
+      "source": "void ftPe_SpecialAirNHit_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 322,
+      "source": "void ftPe_SpecialNHit_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 327,
+      "source": "void ftPe_SpecialAirNHit_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 331,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 336,
+      "source": "void ftPe_SpecialNHit_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 343,
+      "source": "void ftPe_SpecialAirNHit_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 353,
+      "source": "ftCommon_GroundToAirStateChange(gobj, fp, ftPe_MS_SpecialAirNHit, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 362,
+      "source": "ftCommon_AirToGroundStateChange(gobj, fp, ftPe_MS_SpecialNHit, coll_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 370,
+      "source": "fp->death2_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 371,
+      "source": "fp->take_dmg_cb = ftPe_Init_OnDeath2;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 384,
+      "source": "msid = ftPe_MS_SpecialNHit;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecialn.c",
+      "line": 386,
+      "source": "msid = ftPe_MS_SpecialAirNHit;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 42,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 54,
+      "source": "void ftPe_SpecialS_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 58,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 62,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialSStart, Ft_MF_None, 0, 1, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 67,
+      "source": "void ftPe_SpecialAirS_Enter(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 71,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 74,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirSStart, Ft_MF_None, 0, 1,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 101,
+      "source": "case Ft_Kind_Peach: {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 121,
+      "source": "void ftPe_SpecialSStart_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 138,
+      "source": "void ftPe_SpecialAirSStart_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 150,
+      "source": "void ftPe_SpecialSStart_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 152,
+      "source": "void ftPe_SpecialAirSStart_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 154,
+      "source": "void ftPe_SpecialSStart_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 158,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 165,
+      "source": "void ftPe_SpecialAirSStart_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 170,
+      "source": "void ftPe_SpecialSStart_Coll(Fighter_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 190,
+      "source": "void ftPe_SpecialAirSStart_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 217,
+      "source": "ftCommon_GroundToAirStateChange(gobj, fp, ftPe_MS_SpecialAirSStart,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 224,
+      "source": "ftCommon_AirToGroundStateChange(gobj, fp, ftPe_MS_SpecialSStart, start_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 227,
+      "source": "void ftPe_SpecialAirSJump_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 236,
+      "source": "void ftPe_SpecialAirSJump_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 238,
+      "source": "void ftPe_SpecialAirSJump_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 242,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 250,
+      "source": "void ftPe_SpecialAirSJump_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 273,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 282,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirSJump, Ft_MF_None, 0, 1,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 289,
+      "source": "void ftPe_SpecialSEnd_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 296,
+      "source": "void ftPe_SpecialAirSEnd_Anim(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 303,
+      "source": "void ftPe_SpecialSEnd_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 305,
+      "source": "void ftPe_SpecialAirSEnd_IASA(HSD_GObj* gobj) {}"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 307,
+      "source": "void ftPe_SpecialSEnd_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 312,
+      "source": "void ftPe_SpecialAirSEnd_Phys(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 317,
+      "source": "void ftPe_SpecialSEnd_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 324,
+      "source": "void ftPe_SpecialAirSEnd_Coll(HSD_GObj* gobj)"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 334,
+      "source": "ftCommon_GroundToAirStateChange(gobj, fp, ftPe_MS_SpecialAirSEnd_0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 341,
+      "source": "ftCommon_AirToGroundStateChange(gobj, fp, ftPe_MS_SpecialSEnd, end_mf);"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 348,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 367,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 385,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialSEnd, Ft_MF_None, 0, 1, 0,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 393,
+      "source": "ftPe_DatAttrs* da = fp->dat_attrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 398,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirSEnd_1, 0, 0.0f,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/ftpeachspecials.c",
+      "line": 401,
+      "source": "Fighter_ChangeMotionState(gobj, ftPe_MS_SpecialAirSEnd_0, 0, 0.0f,"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 23,
+      "source": "typedef struct ftPe_DatAttrs {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 30,
+      "source": "/* +1C */ struct ftPe_ItemChance {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 66,
+      "source": "} ftPe_DatAttrs;"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 68,
+      "source": "union ftPe_MotionVars {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 69,
+      "source": "struct ftPe_FloatAttackVars {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 72,
+      "source": "struct ftPe_SpecialSVars {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 75,
+      "source": "struct ftPe_SpecialHiVars {"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftPeach/types.h",
+      "line": 78,
+      "source": "struct ftPe_SpecialNVars {"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_article_bindings.c",
+      "line": 27,
+      "source": "SLOT(Ft_Kind_Peach, It_Kind_Peach_Explode, 0, -1),"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_article_bindings.c",
+      "line": 28,
+      "source": "SLOT(Ft_Kind_Peach, It_Kind_Peach_Turnip, 1, -1),"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_article_bindings.c",
+      "line": 29,
+      "source": "SLOT(Ft_Kind_Peach, It_Kind_Peach_Parasol, 2, -1),"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_article_bindings.c",
+      "line": 30,
+      "source": "SLOT(Ft_Kind_Peach, It_Kind_Peach_Toad, 3, -1),"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_article_bindings.c",
+      "line": 31,
+      "source": "SLOT(Ft_Kind_Peach, It_Kind_Peach_ToadSpore, 4, -1),"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 30,
+      "source": "int it_802BDA40(Item_GObj* item_gobj, int i)"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 53,
+      "source": "if (item->owner != NULL && ftPe_8011D518(item->owner)) {"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 92,
+      "source": "it_802BDDB4(item_gobj, 16.0F);"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 104,
+      "source": "var_r3 = ftPe_SpecialHi_NotActive(item->owner);"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 117,
+      "source": "void it_802BDD40(Item_GObj* item_gobj, f32 arg8)"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachparasol.c",
+      "line": 126,
+      "source": "void it_802BDDB4(Item_GObj* item_gobj, f32 arg8)"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachtoad.c",
+      "line": 27,
+      "source": "ftPe_SpecialN_DoDeath2(hsd_gobj);"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachtoad.c",
+      "line": 42,
+      "source": "res = ftPe_SpecialN_IsActive(hsd_gobj);"
+    },
+    {
+      "path": "src/melee/it/kinds/itpeachturnip.c",
+      "line": 100,
+      "source": "ftPe_SpecialLw_UnsetVeg(item->xDD4_itemVar.peachturnip.xDE4_owner);"
+    }
+  ],
+  "accepted_components": {
+    "source_inputs": {
+      "tests/native/peach_pluck_smash/candidate.fms": "4c09a1023a204894cc9f03cffa4bff4fb823d2f20a168ae09544807249fcc758",
+      "tests/native/peach_counter_full_phase/counter.fms": "641e6038e6f04d5cb4704a9a922c48c7a0b543c9ccf8c84ddf46038b9b920bef",
+      "tests/native/peach_pluck_smash/test.c": "ce189fd7deaa20fee79f1f8f36bfa01b38c4d9f6f42bd5e07931bb571b3a0d40",
+      "tests/native/peach_pluck_smash/fixture.py": "f73f2e69fbbf29914a25073c34c9c338e5442bac78c3c05587e8436cc0b79a5f",
+      "tests/native/peach_counter_full_phase/test.c": "20b069f70157c7ff1afbd8548596959f2723dd5f31a315b5fd8fa007cc47a73d",
+      "tests/native/peach_counter_full_phase/fixture.py": "65d7a2690932d78d471956895ad54b21a45e5887b476a2a1d5b78bc2ff15e9be",
+      "tests/native/peach_fighter_composition/candidate.fms": "6c2476525e584e9461b6f99d457f68b08ad4e6a39338f06b62207ae38f970335"
+    },
+    "changes": [
+      "Accepted pluck/smash/setup/Turnip/cleanup/Parasol producer retained verbatim.",
+      "Partial Toad table replaced with complete counter/Toad/Spore component.",
+      "34 custom motion phases; all five article declarations coexist.",
+      "Float, Side-B, full Parasol flight/common routing remain inherited, not activated."
+    ]
+  }
+}

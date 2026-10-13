@@ -1,0 +1,1020 @@
+# UNREGISTERED smash source composition; no default activation.
+base ftDataNess 341 35
+parameter int resource_attachment_joint = 42
+parameter int yoyo_hit_joint = 61
+parameter int yoyo_slope_root_joint = 2
+parameter int bat_smash_motion = 341
+parameter int yoyo_first_motion = 342
+parameter int yoyo_last_motion = 347
+parameter int yoyo_up_start_motion = 342
+parameter int yoyo_up_charge_motion = 343
+parameter int yoyo_up_release_motion = 344
+parameter int yoyo_down_start_motion = 345
+parameter int yoyo_down_charge_motion = 346
+parameter int yoyo_down_release_motion = 347
+parameter int smash_skip_item_visibility = 262144
+parameter int yoyo_spawn_frame = 2
+parameter int yoyo_up_despawn_frame = 49
+parameter int yoyo_down_despawn_frame = 60
+parameter int yoyo_obstruction_frame = 13
+parameter int yoyo_release_counter = 14
+parameter float yoyo_charge_animation_frame = 12
+parameter float yoyo_release_animation_frame = 13
+parameter float yoyo_shared_charge_limit = 60
+parameter int yoyo_charge_color = 119
+parameter int smash_color_skip = 123
+parameter int yoyo_rumble = 36
+parameter int sound_volume = 127
+parameter int sound_pan = 64
+parameter int bat_reflect_sound = 224
+parameter int yoyo_charge_sound = 210087
+parameter int yoyo_release_sound = 210090
+parameter int yoyo_down_rotate_sound = 210093
+parameter int yoyo_material_stop_sound = 210096
+parameter int yoyo_up_rotate_sound = 210099
+parameter float yoyo_damage_fraction = 0.0039059999398887157
+parameter float yoyo_up_blend_step = 0.10000000149011612
+parameter float yoyo_down_blend_step = 0.20000000298023224
+parameter int yoyo_up_blend_end = 24
+parameter int yoyo_down_blend_end = 19
+parameter float yoyo_ecb_half_height = 0.5
+parameter float yoyo_obstruction_radius = 0.5
+parameter float yoyo_floor_check_radius = 1.5
+parameter int yoyo_ecb_category = 5
+parameter int yoyo_reverse_motion = 345
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+parameter float yoyo_pin_release_distance = 0.1
+parameter float yoyo_floor_separation = 0.001
+parameter float yoyo_sweep_height = 1.5
+parameter int yoyo_up_initial_motion = 342
+parameter float yoyo_horizontal_damping = 0.9
+parameter float yoyo_idle_depth = 1.8
+parameter float yoyo_vertical_basis_threshold = 0.9999
+parameter float yoyo_retract_fraction = 0.1
+parameter float bat_lifetime = 1200
+attribute float yoyo_charge_duration 172
+attribute float yoyo_damage_multiplier 176
+attribute float yoyo_rehit_rate 180
+attribute int bat_reflect_joint 184
+attribute int bat_reflect_max_damage 188
+attribute float bat_reflect_x 192
+attribute float bat_reflect_y 196
+attribute float bat_reflect_z 200
+attribute float bat_reflect_radius 204
+attribute float bat_reflect_damage_multiplier 208
+attribute float bat_reflect_speed_multiplier 212
+attribute byte bat_reflect_behavior 216
+# Unregistered seven-state fighter component. Generic43 complete entry hooks
+# and Float-local bone outputs are required by the source comparison.
+# Article-qualified attrs are owned immutable values after normal import.
+state int bat_handle
+state int yoyo_handle
+state int yoyo_frame
+state int yoyo_rehit_timer
+state bool yoyo_charge_disabled
+state bool yoyo_slope_correct
+state float yoyo_hitbox_x
+state float yoyo_hitbox_y
+state float yoyo_hitbox_z
+state float yoyo_spin_rate
+
+export func bat_forget():
+    state.bat_handle = -1
+func BatRemove():
+    if state.bat_handle != -1:
+        articles.signal(state.bat_handle, It_Kind_Ness_Bat, "remove", 0)
+        state.bat_handle = -1
+func YoyoPause():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "pause", 0)
+func YoyoResume():
+    if state.yoyo_handle != -1: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "resume", 0)
+export func yoyo_forget():
+    YoyoResume()
+    state.yoyo_handle = -1
+func YoyoRemove():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+        YoyoResume()
+        state.yoyo_handle = -1
+func SmashResourceDamage():
+    # This isolated namespace contains only these two resources. Complete Ness
+    # composition must insert Flash/Thunder between YoYo and Bat, unchanged.
+    YoyoRemove()
+    BatRemove()
+func BatCreate():
+    state.bat_handle = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, 0, false)
+    if state.bat_handle != -1:
+        callbacks.death2(SmashResourceDamage)
+        callbacks.damage(SmashResourceDamage)
+func YoyoCreate():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.resource_attachment_joint, x, y, z)
+    state.yoyo_handle = articles.create_at_position(It_Kind_Ness_Yoyo, x, y, z, facing.direction, true, 0, motion.id)
+    if state.yoyo_handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool published = articles.bind_auxiliary(state.yoyo_handle)
+        if callbacks.death2_is(None): callbacks.death2(SmashResourceDamage)
+        if callbacks.damage_is(None): callbacks.damage(SmashResourceDamage)
+    callbacks.track_hitlag()
+func YoyoInitialize():
+    command(1) = 0
+    command(0) = 0
+    state.yoyo_frame = 1
+    state.yoyo_rehit_timer = 0
+    state.yoyo_slope_correct = true
+    state.yoyo_hitbox_z = 0
+    state.yoyo_hitbox_y = 0
+    state.yoyo_hitbox_x = 0
+    state.yoyo_spin_rate = 0
+func YoyoBindCallbacks():
+    damage.song_immune = true
+    callbacks.track_deal_damage()
+    callbacks.accessory(YoyoUpdateHitPos)
+func YoyoStartTimedRehit():
+    state.yoyo_rehit_timer = int(attrs.yoyo_rehit_rate)
+func YoyoCheckTimedRehit():
+    if command(0) == 0 and state.yoyo_rehit_timer > 0:
+        state.yoyo_rehit_timer = state.yoyo_rehit_timer - 1
+        if state.yoyo_rehit_timer == 0:
+            # Stock clears victims, then enables the delayed YoYo hitbox without
+            # marking fighter hitbox cleanup. A later smash exit can therefore
+            # leave it active, causing stray hits and the lingering YoYo jacket.
+            # Generic enabling also maintains the normal motion-cleanup flag.
+            hitbox.clear_victims(0)
+            hitbox.set_enabled(0, true)
+func YoyoUpdateHitPos():
+    if hitbox.state(0) != Hitbox.disabled:
+        if state.yoyo_hitbox_x != 0 or state.yoyo_hitbox_y != 0:
+            hitbox.set_world_position(0, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z)
+func YoyoSetHitPos(float fraction, bool blend):
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.yoyo_hit_joint, x, y, z)
+    if state.yoyo_slope_correct:
+        let float root_x = 0
+        let float root_y = 0
+        let float root_z = 0
+        bones.world_position(attrs.yoyo_slope_root_joint, root_x, root_y, root_z)
+        let float dx = x - root_x
+        let float dy = y - root_y
+        let float dz = z - root_z
+        let float rx = 0
+        let float ry = 0
+        let float rz = 0
+        vectors.rotate(dx, dy, dz, 4, -atan2_float(floor.normal.x, floor.normal.y), rx, ry, rz)
+        x = rx + root_x
+        y = ry + root_y
+        z = rz + root_z
+    if not blend:
+        state.yoyo_hitbox_x = x
+        state.yoyo_hitbox_y = y
+        state.yoyo_hitbox_z = z
+    else:
+        let float retained = 1 - fraction
+        state.yoyo_hitbox_x = x * fraction + state.yoyo_hitbox_x * retained
+        state.yoyo_hitbox_y = y * fraction + state.yoyo_hitbox_y * retained
+        state.yoyo_hitbox_z = z * fraction + state.yoyo_hitbox_z * retained
+func YoyoCheckEnv(float ax, float ay, float az, float bx, float by, float bz, float radius) -> int:
+    let float size = radius * model.instance_scale_y
+    let int flags = stage.sweep_box(ax, ay, az, bx, by, bz, size, -size, -size, 0, size, 0, attrs.yoyo_ecb_category)
+    let int result = 0
+    if flags & Collision.floor_mask: result = result | 32768
+    if flags & Collision.left_wall_mask: result = result | 1
+    if flags & Collision.right_wall_mask: result = result | 64
+    if flags & Collision.ceiling_mask: result = result | 8192
+    return result
+func YoyoCheckNoObstruct() -> bool:
+    let float x = position.x
+    let float y = attrs.yoyo_ecb_half_height * (ecb.top.y + ecb.bottom.y)
+    y = y + position.y
+    let float z = position.z
+    let int first = YoyoCheckEnv(x, y, z, state.yoyo_hitbox_x, state.yoyo_hitbox_y, state.yoyo_hitbox_z, attrs.yoyo_obstruction_radius)
+    if first == 0:
+        let float upper = state.yoyo_hitbox_y + model.instance_scale_y
+        let float lower = state.yoyo_hitbox_y + -1 * model.instance_scale_y
+        let int second = YoyoCheckEnv(state.yoyo_hitbox_x, upper, state.yoyo_hitbox_z, state.yoyo_hitbox_x, lower, state.yoyo_hitbox_z, attrs.yoyo_floor_check_radius)
+        return (second & 32768) != 0
+    return false
+func YoyoApplyDamage():
+    if smash.charge_frames != 0 and hitbox.state(0) == Hitbox.enabled:
+        let float duration = smash.charge_frames / attrs.yoyo_charge_duration
+        let float multiplier = attrs.yoyo_damage_multiplier * attrs.yoyo_damage_fraction - 1
+        let float damage = hitbox.damage(0) * (multiplier * duration + 1)
+        hitbox.set_damage(0, damage)
+func YoyoApplySmash():
+    state.yoyo_frame = 0
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "charge_release", facing.direction)
+    smash.charge_mode = Smash.manual_charge
+    smash.saved_animation_rate = animation.rate
+    smash.charge_frames = 0
+    smash.charge_limit = attrs.yoyo_shared_charge_limit
+    smash.shake_index = 0
+    smash.shake_period = smash.shake_table_count
+    smash.charge_color = attrs.yoyo_charge_color
+    if smash.charge_color != attrs.smash_color_skip: color.start(smash.charge_color, false)
+    controller.rumble(attrs.yoyo_rumble, 0)
+    sound.loop(attrs.yoyo_charge_sound, attrs.sound_volume, attrs.sound_pan)
+func YoyoSetChargeDamage():
+    state.yoyo_frame = attrs.yoyo_release_counter
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+        state.yoyo_spin_rate = attrs.It_Kind_Ness_Yoyo.released_spin_rate
+    sound.loop(attrs.yoyo_release_sound, attrs.sound_volume, attrs.sound_pan)
+    YoyoApplyDamage()
+func YoyoSetChargeSpin():
+    if state.yoyo_handle != -1:
+        let float initial = attrs.It_Kind_Ness_Yoyo.initial_charge_spin_rate
+        let float difference = initial - attrs.It_Kind_Ness_Yoyo.charged_spin_rate
+        difference = difference * (float(state.yoyo_frame) / attrs.yoyo_charge_duration)
+        state.yoyo_spin_rate = initial - difference
+func YoyoThink() -> bool:
+    if command(0) != 0: state.yoyo_slope_correct = false
+    let bool up = motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion
+    let int despawn = attrs.yoyo_down_despawn_frame
+    if up: despawn = attrs.yoyo_up_despawn_frame
+    if state.yoyo_frame > attrs.yoyo_spawn_frame and state.yoyo_frame <= despawn:
+        if command(1) == 1:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 1)
+            state.yoyo_spin_rate = attrs.It_Kind_Ness_Yoyo.released_spin_rate
+        if command(1) == 2:
+            command(1) = 0
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "material", 0)
+            state.yoyo_spin_rate = 0
+            sound.loop(attrs.yoyo_material_stop_sound, attrs.sound_volume, attrs.sound_pan)
+        let int rotate_frame = attrs.It_Kind_Ness_Yoyo.down_smash_rotate_frame
+        let int retract_frame = attrs.It_Kind_Ness_Yoyo.down_smash_retract_frame
+        if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+            rotate_frame = attrs.It_Kind_Ness_Yoyo.up_smash_rotate_frame
+            retract_frame = attrs.It_Kind_Ness_Yoyo.up_smash_retract_frame
+        if state.yoyo_frame == rotate_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "held", 0)
+            if motion.id >= attrs.yoyo_up_start_motion and motion.id <= attrs.yoyo_up_release_motion:
+                sound.loop(attrs.yoyo_up_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+            else:
+                sound.loop(attrs.yoyo_down_rotate_sound, attrs.sound_volume, attrs.sound_pan)
+        elif state.yoyo_frame == retract_frame:
+            articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "retract", 0)
+        if state.yoyo_frame == despawn: articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+    elif state.yoyo_frame == attrs.yoyo_spawn_frame:
+        YoyoCreate()
+        if state.yoyo_handle == -1:
+            state.wait()
+            return true
+    return false
+func BatEnter():
+    controls.interrupt_allowed = false
+    command(0) = 0
+    state.enter_at_speed(attrs.bat_smash_motion, 0, 0, 1)
+    animation.start()
+    BatCreate()
+func BatReflect():
+    sound.play(attrs.bat_reflect_sound, attrs.sound_volume, attrs.sound_pan)
+func BatAnimation():
+    if not reflector.active:
+        if command(0) != 0:
+            reflector.create(attrs.bat_reflect_joint, attrs.bat_reflect_max_damage, attrs.bat_reflect_x, attrs.bat_reflect_y, attrs.bat_reflect_z, attrs.bat_reflect_radius, attrs.bat_reflect_damage_multiplier, attrs.bat_reflect_speed_multiplier, attrs.bat_reflect_behavior)
+            callbacks.track_reflect_hit()
+    elif command(0) == 0:
+        reflector.disable()
+    if animation.finished:
+        BatRemove()
+        state.wait()
+func BatInterrupt():
+    if controls.interrupt_allowed != 0:
+        BatRemove()
+        controls.ground_actions()
+func BatPhysics():
+    physics.ground_motion()
+    reflector.update()
+func YoyoEnter(bool up):
+    controls.interrupt_allowed = false
+    state.yoyo_charge_disabled = false
+    YoyoInitialize()
+    let int target = attrs.yoyo_down_start_motion
+    if up: target = attrs.yoyo_up_start_motion
+    state.enter_at_speed(target, 0, 0, 1)
+    animation.start()
+    YoyoBindCallbacks()
+func YoyoChargeEnter(bool up):
+    let int target = attrs.yoyo_down_charge_motion
+    if up: target = attrs.yoyo_up_charge_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_charge_animation_frame, 1)
+    animation.start()
+    animation.set_rate(0)
+    YoyoApplySmash()
+    YoyoBindCallbacks()
+func YoyoReleaseEnter(bool up):
+    let int target = attrs.yoyo_down_release_motion
+    if up: target = attrs.yoyo_up_release_motion
+    state.enter_at_speed(target, attrs.smash_skip_item_visibility, attrs.yoyo_release_animation_frame, 1)
+    animation.start()
+    YoyoSetChargeDamage()
+    YoyoBindCallbacks()
+func YoyoAnimation(bool up, bool release):
+    state.yoyo_frame = state.yoyo_frame + 1
+    if not YoyoThink():
+        YoyoCheckTimedRehit()
+        if not release:
+            if state.yoyo_frame == attrs.yoyo_obstruction_frame and not state.yoyo_charge_disabled:
+                if YoyoCheckNoObstruct(): YoyoChargeEnter(up)
+        if animation.finished: state.wait()
+func YoyoInterrupt(bool release):
+    if not release and not input.attack_held: state.yoyo_charge_disabled = true
+    if controls.interrupt_allowed != 0: controls.ground_actions()
+func YoyoChargeAnimation(bool up):
+    state.yoyo_frame = state.yoyo_frame + 1
+    YoyoSetChargeSpin()
+    YoyoCheckTimedRehit()
+    if float(state.yoyo_frame) >= attrs.yoyo_charge_duration: YoyoReleaseEnter(up)
+func YoyoChargeInterrupt(bool up):
+    if not input.attack_held: YoyoReleaseEnter(up)
+func YoyoPhysics(bool release, bool up):
+    physics.ground_friction()
+    let float fraction = 1
+    let bool blend = false
+    if release:
+        let int end = attrs.yoyo_down_blend_end
+        let float step = attrs.yoyo_down_blend_step
+        if up:
+            end = attrs.yoyo_up_blend_end
+            step = attrs.yoyo_up_blend_step
+        if state.yoyo_frame < end:
+            blend = true
+            fraction = step * (float(state.yoyo_frame) - float(attrs.yoyo_release_counter))
+            if fraction >= 1: fraction = 1
+            elif fraction <= 0: fraction = 0
+    YoyoSetHitPos(fraction, blend)
+func YoyoCollision():
+    collision.ground_standard()
+    if airborne: YoyoRemove()
+
+move Smashes:
+    on load:
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+    on pre_hitlag:
+        YoyoPause()
+    on post_hitlag:
+        YoyoResume()
+    on deal_damage:
+        YoyoStartTimedRehit()
+    on reflect_hit:
+        BatReflect()
+    on forward_smash_enter:
+        BatEnter()
+    on up_smash_enter:
+        YoyoEnter(true)
+    on down_smash_enter:
+        YoyoEnter(false)
+
+    on state_341_animation:
+        BatAnimation()
+    on state_341_interrupt:
+        BatInterrupt()
+    on state_341_physics:
+        BatPhysics()
+    on state_341_collision:
+        collision.ground_standard()
+    on state_342_animation:
+        YoyoAnimation(true, false)
+    on state_342_interrupt:
+        YoyoInterrupt(false)
+    on state_342_physics:
+        YoyoPhysics(false, true)
+    on state_342_collision:
+        YoyoCollision()
+    on state_343_animation:
+        YoyoChargeAnimation(true)
+    on state_343_interrupt:
+        YoyoChargeInterrupt(true)
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        YoyoCollision()
+    on state_344_animation:
+        YoyoAnimation(true, true)
+    on state_344_interrupt:
+        YoyoInterrupt(true)
+    on state_344_physics:
+        YoyoPhysics(true, true)
+    on state_344_collision:
+        YoyoCollision()
+    on state_345_animation:
+        YoyoAnimation(false, false)
+    on state_345_interrupt:
+        YoyoInterrupt(false)
+    on state_345_physics:
+        YoyoPhysics(false, false)
+    on state_345_collision:
+        YoyoCollision()
+    on state_346_animation:
+        YoyoChargeAnimation(false)
+    on state_346_interrupt:
+        YoyoChargeInterrupt(false)
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        YoyoCollision()
+    on state_347_animation:
+        YoyoAnimation(false, true)
+    on state_347_interrupt:
+        YoyoInterrupt(true)
+    on state_347_physics:
+        YoyoPhysics(true, false)
+    on state_347_collision:
+        YoyoCollision()
+
+article It_Kind_Ness_Yoyo states 4:
+    attribute int link_count 0
+    attribute int up_charge_count 4
+    attribute int down_charge_count 8
+    attribute float link_length 12
+    attribute float minimum_link_length 16
+    attribute float horizontal_acceleration 40
+    attribute float maximum_horizontal_speed 44
+    attribute float gravity 52
+    attribute float terminal_velocity 56
+    attribute float link_gravity 60
+    attribute float released_spin_rate 24
+    attribute float charged_spin_rate 28
+    attribute float initial_charge_spin_rate 32
+    attribute float release_velocity_x 36
+    attribute float release_velocity_y 48
+    attribute int up_smash_rotate_frame 64
+    attribute int up_smash_retract_frame 68
+    attribute int down_smash_rotate_frame 72
+    attribute int down_smash_retract_frame 76
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state float input_x
+    state float input_y
+    state float input_z
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state bool touching[90]
+    state bool contacted[90]
+    state float vector_x
+    state float vector_y
+    state float vector_z
+    state float length
+    state float basis_x
+    state float basis_y
+    state float basis_z
+    state float up_x
+    state float up_y
+    state float up_z
+    state float matrix[12]
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float retract_step
+    state bool retracted
+    state int sweep_flags
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.params.link_count - 1
+            item.state.allocated = item.resources.begin(item.params.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.params.link_count:
+                let float radius = attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = attrs.yoyo_tip_radius * creator.instance_scale_y
+                let bool constructed = item.resource(node).create(attrs.resource_attachment_joint, radius, attrs.yoyo_ecb_category, position.x, position.y, position.z)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                # Original it_80275328 initializes the remembered surface to0.
+                item.resource(node).surface_line = 0
+                item.state.pinned[node] = node == item.state.tip
+                item.state.touching[node] = false
+                item.state.contacted[node] = false
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                # Original string draw checks x2C_b0(false); tip draws directly.
+                let bool drawing = item.resource(node).set_draw(node == item.state.tip)
+                node = node + 1
+            item.attach_to_owner(attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+
+    func SetPosition(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func SetVelocity(int node, float x, float y, float z):
+        item.resource(node).velocity.x = x
+        item.resource(node).velocity.y = y
+        item.resource(node).velocity.z = z
+
+    func SetPinned(int node, bool pinned):
+        item.state.pinned[node] = pinned
+        item.resource(node).set_draw(pinned)
+
+    func AdvancePosition(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    func PrepareSweep(int node):
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+
+    func ResetHistory(int node):
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+
+    func AcceptSweep(int node):
+        item.resource(node).position.x = item.resource(node).collision.position.x
+        item.resource(node).position.y = item.resource(node).collision.position.y
+        item.resource(node).position.z = item.resource(node).collision.position.z
+
+    func SweepFree(int node):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepFromHeight(int node, float height):
+        PrepareSweep(node)
+        item.resource(node).collision.previous.y = height
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepReleased(int node, float size):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        item.state.sweep_flags = item.resource(node).collision.environment & 102399
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.x = item.resource(node).position.x
+        elif item.state.sweep_flags & 4095:
+            if node > 0 and node < item.state.tip:
+                if item.state.pinned[node - 1]:
+                    item.resource(node).collision.position.y = item.resource(node).collision.position.y + size
+        AcceptSweep(node)
+
+    func Measure(float ax, float ay, float az, float bx, float by, float bz):
+        item.state.vector_x = ax - bx
+        item.state.vector_y = ay - by
+        item.state.vector_z = az - bz
+        item.state.length = sqrt(item.state.vector_x * item.state.vector_x + item.state.vector_y * item.state.vector_y + item.state.vector_z * item.state.vector_z)
+        let float inverse = 0
+        if item.state.length != 0:
+            inverse = 1 / item.state.length
+        item.state.vector_x = item.state.vector_x * inverse
+        item.state.vector_y = item.state.vector_y * inverse
+        item.state.vector_z = item.state.vector_z * inverse
+
+    func PlaceMeasured(int node, float x, float y, float z, float size):
+        SetPosition(node, item.state.vector_x * size + x, item.state.vector_y * size + y, item.state.vector_z * size + z)
+
+    func ConstrainPrevious(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            item.resource(previous).velocity.y = 0
+            AdvancePosition(previous)
+            PrepareSweep(previous)
+            SweepFree(previous)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func AdjustTail(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func HeldChain(float x, float y, float z):
+        let float minimum = item.params.minimum_link_length * holder.instance_scale_y
+        let float maximum = item.params.link_length * holder.instance_scale_y
+        let int node = item.state.tip
+        let int next = node - 1
+        SetPosition(node, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+        SetVelocity(node, 0, 0, 0)
+        while next >= 0:
+            if item.state.pinned[next]:
+                SetPosition(next, x, y, z)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                elif item.state.length < minimum:
+                    let float saved_x = item.state.vector_x
+                    let float saved_y = item.state.vector_y
+                    let float saved_z = item.state.vector_z
+                    Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, x, y, z)
+                    if item.state.length <= attrs.yoyo_pin_release_distance:
+                        SetPinned(next, false)
+                    else:
+                        item.state.vector_x = saved_x
+                        item.state.vector_y = saved_y
+                        item.state.vector_z = saved_z
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, minimum)
+            else:
+                Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                    SetPinned(next, true)
+                else:
+                    return
+            node = next
+            next = next - 1
+
+    func AccelerateTip(float size):
+        let int node = item.state.tip
+        if abs(item.resource(node).velocity.x) < item.params.maximum_horizontal_speed:
+            item.resource(node).velocity.x = item.resource(node).velocity.x + item.params.horizontal_acceleration * facing
+        else:
+            item.resource(node).velocity.x = item.params.maximum_horizontal_speed * facing
+        if abs(item.resource(node).velocity.y) < item.params.terminal_velocity:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity
+        else:
+            item.resource(node).velocity.y = -item.params.terminal_velocity
+        AdvancePosition(node)
+        SweepReleased(node, size)
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.y = item.resource(node).collision.position.y + attrs.yoyo_floor_separation
+            item.resource(node).position.y = item.resource(node).collision.position.y
+            if item.resource(node).velocity.y < 0:
+                item.resource(node).velocity.y = 0
+        item.state.sweep_flags = item.state.sweep_flags & 4095
+
+    func ReleasedChain(float x, float y, float z):
+        let float size = item.params.link_length * holder.instance_scale_y
+        AccelerateTip(size)
+        let int node = item.state.tip
+        let int next = node - 1
+        let int count = 0
+        while next >= 0:
+            count = count + 1
+            if item.state.pinned[next]:
+                item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.link_gravity
+                AdvancePosition(next)
+                # The original repeats the CURRENT node sweep here.
+                SweepReleased(node, size)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > size:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                PrepareSweep(next)
+                SweepFromHeight(next, attrs.yoyo_sweep_height + y)
+            else:
+                let int charge_count = item.params.down_charge_count
+                if item.state.source_motion == attrs.yoyo_up_initial_motion:
+                    charge_count = item.params.up_charge_count
+                if count > charge_count:
+                    SetPosition(next, x, y, z)
+                else:
+                    Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    if item.state.length > size:
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                        SetPinned(next, true)
+                        ResetHistory(next)
+                    else:
+                        # Both original return values skip adjustment and damping.
+                        return
+            node = next
+            next = next - 1
+        AdjustTail(node, x, y, z, size)
+        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * attrs.yoyo_horizontal_damping
+
+    func RetractChain(float x, float y, float z):
+        let float size = item.params.link_length * holder.instance_scale_y
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.pinned[node]:
+            node = previous
+            previous = previous + 1
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        while previous <= item.state.tip and item.state.retract_step > item.state.length:
+            SetPinned(node, false)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, x, y, z)
+            node = previous
+            previous = previous + 1
+        let float step = item.state.length - item.state.retract_step
+        if step > size:
+            step = size
+        ConstrainPrevious(node, x, y, z, step)
+        item.state.retracted = previous > item.state.tip
+
+    func IdlePose():
+        let float scale = holder.instance_scale_y
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        let float offset = attrs.yoyo_idle_depth * scale
+        item.state.matrix[3] = item.state.matrix[0] * 0 + item.state.matrix[1] * 0 + item.state.matrix[2] * offset + item.state.matrix[3]
+        item.state.matrix[7] = item.state.matrix[4] * 0 + item.state.matrix[5] * 0 + item.state.matrix[6] * offset + item.state.matrix[7]
+        item.state.matrix[11] = item.state.matrix[8] * 0 + item.state.matrix[9] * 0 + item.state.matrix[10] * offset + item.state.matrix[11]
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(item.state.tip).set_world_matrix(item.state.matrix)
+
+    func OrientBasis():
+        vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+        item.state.up_x = 0
+        item.state.up_y = 1
+        item.state.up_z = 0
+        if item.state.vector_y > attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = -1
+            item.state.up_y = 0
+        elif item.state.vector_y < -attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = 1
+            item.state.up_y = 0
+        item.state.basis_x = item.state.up_y * item.state.vector_z - item.state.up_z * item.state.vector_y
+        item.state.basis_y = item.state.up_z * item.state.vector_x - item.state.up_x * item.state.vector_z
+        item.state.basis_z = item.state.up_x * item.state.vector_y - item.state.up_y * item.state.vector_x
+        item.state.up_x = item.state.vector_y * item.state.basis_z - item.state.vector_z * item.state.basis_y
+        item.state.up_y = item.state.vector_z * item.state.basis_x - item.state.vector_x * item.state.basis_z
+        item.state.up_z = item.state.vector_x * item.state.basis_y - item.state.vector_y * item.state.basis_x
+        vectors.normalize(item.state.basis_x, item.state.basis_y, item.state.basis_z)
+        vectors.normalize(item.state.up_x, item.state.up_y, item.state.up_z)
+
+    func WritePose(int node):
+        item.resource(node).joint("").translation.x = item.resource(node).position.x
+        item.resource(node).joint("").translation.y = item.resource(node).position.y
+        item.resource(node).joint("").translation.z = item.resource(node).position.z
+        OrientBasis()
+        item.state.matrix[0] = item.state.basis_x
+        item.state.matrix[4] = item.state.basis_y
+        item.state.matrix[8] = item.state.basis_z
+        item.state.matrix[1] = item.state.up_x
+        item.state.matrix[5] = item.state.up_y
+        item.state.matrix[9] = item.state.up_z
+        item.state.matrix[2] = item.state.vector_x
+        item.state.matrix[6] = item.state.vector_y
+        item.state.matrix[10] = item.state.vector_z
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+        let float scale = item.params.link_length
+        if node == item.state.tip:
+            scale = 1
+        scale = scale * holder.instance_scale_y
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func ChainPose(float x, float y, float z):
+        let int node = 0
+        while node <= item.state.tip and not item.state.pinned[node]:
+            node = node + 1
+        # Original walks beyond the list if no node is pinned. Stop the
+        # authored pose on that invalid state instead of reading past storage.
+        if node > item.state.tip:
+            return
+        while node <= item.state.tip:
+            let float next_x = x
+            let float next_y = y
+            let float next_z = z
+            if node > 0:
+                if item.state.pinned[node - 1]:
+                    next_x = item.resource(node - 1).position.x
+                    next_y = item.resource(node - 1).position.y
+                    next_z = item.resource(node - 1).position.z
+            let int previous = node + 1
+            if previous > item.state.tip:
+                previous = node
+            item.state.vector_x = item.resource(previous).position.x - next_x
+            item.state.vector_y = item.resource(previous).position.y - next_y
+            item.state.vector_z = item.resource(previous).position.z - next_z
+            vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+            if node == item.state.tip:
+                item.state.vector_x = -1
+                if facing == 1:
+                    item.state.vector_x = 1
+                item.state.vector_y = 0
+                item.state.vector_z = 0
+                creator.state.yoyo_hitbox_x = item.resource(node).position.x
+                creator.state.yoyo_hitbox_y = item.resource(node).position.y
+                creator.state.yoyo_hitbox_z = item.resource(node).position.z
+            WritePose(node)
+            node = node + 1
+
+    func RestoreHeld():
+        item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        SetPosition(item.state.tip, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        ResetHistory(item.state.tip)
+        SetPinned(item.state.tip, true)
+        SetVelocity(item.state.tip, 0, 0, 0)
+        item.change_state_flags(1, 2)
+        SetPosition(item.state.tip, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+
+    func Held():
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.tip).position.x = item.state.matrix[3]
+        item.resource(item.state.tip).position.y = item.state.matrix[7]
+        item.resource(item.state.tip).position.z = item.state.matrix[11]
+        item.resource(item.state.tip).collision.position.x = item.resource(item.state.tip).position.x
+        item.resource(item.state.tip).collision.position.y = item.resource(item.state.tip).position.y
+        item.resource(item.state.tip).collision.position.z = item.resource(item.state.tip).position.z
+        item.resource(item.state.tip).collision.previous.x = item.resource(item.state.tip).collision.position.x
+        item.resource(item.state.tip).collision.previous.y = item.resource(item.state.tip).collision.position.y
+        item.resource(item.state.tip).collision.previous.z = item.resource(item.state.tip).collision.position.z
+        item.state.pinned[item.state.tip] = true
+        let bool drawing = item.resource(item.state.tip).set_draw(true)
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.change_state_flags(1, 2)
+    func Released():
+        item.resource(item.state.tip).velocity.x = item.state.input_x
+        item.resource(item.state.tip).velocity.y = item.state.input_y
+        item.resource(item.state.tip).velocity.z = item.state.input_z
+        item.resource(item.state.tip).velocity.x = facing * abs(item.resource(item.state.tip).velocity.x)
+        item.change_state_flags(2, 2)
+    func Retract():
+        item.resource(0).read_attachment_matrix(item.state.matrix)
+        let float dx = item.resource(item.state.tip).position.x - item.state.matrix[3]
+        let float dy = item.resource(item.state.tip).position.y - item.state.matrix[7]
+        item.state.retract_step = sqrt(dx * dx + dy * dy)
+        item.state.retract_step = item.state.retract_step * attrs.yoyo_retract_fraction
+        item.change_state_flags(3, 2)
+    func Material(float frame):
+        item.resource(item.state.tip).joint("").remove_animation()
+        item.resource(item.state.tip).joint("").add_animation(Spin)
+        item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+        item.resource(item.state.tip).joint("").request_animation(frame)
+        item.resource(item.state.tip).joint("").advance_animation()
+    func ReleaseOwner():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "yoyo_forget")
+        item.clear_current_owner()
+        item.resources.release()
+    func Animate():
+        if item.resource(item.state.tip).joint("0").exists:
+            item.resource(item.state.tip).joint("0").rotation.x = item.resource(item.state.tip).joint("0").rotation.x + creator.state.yoyo_spin_rate
+    on interaction:
+            item.interact(other)
+    on signal held:
+            item.state.input_x = 0
+            item.state.input_y = 0
+            item.state.input_z = 0
+            Held()
+    on signal released:
+            Released()
+    on signal retract:
+            Retract()
+    on signal material:
+            Material(signal.value)
+    on signal resume:
+            item.resume()
+    on signal charge_release:
+            item.state.input_x = item.params.release_velocity_x * signal.value
+            item.state.input_y = item.params.release_velocity_y
+            item.state.input_z = 0
+            Released()
+    on signal pause:
+            item.pause()
+    on signal remove:
+            ReleaseOwner()
+            item.remove()
+    on destroyed:
+            item.resources.release()
+
+    state 0 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            IdlePose()
+    state 1 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            HeldChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 2 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ReleasedChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 3 anim -1:
+        on animation:
+            Animate()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                ReleaseOwner()
+                return true
+            return false
+        on physics:
+            item.resource(0).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            let float anchor_x = item.state.anchor_x
+            let float anchor_y = item.state.anchor_y
+            let float anchor_z = item.state.anchor_z
+            RetractChain(anchor_x, anchor_y, anchor_z)
+            if item.state.retracted:
+                RestoreHeld()
+            ChainPose(anchor_x, anchor_y, anchor_z)
+
+article It_Kind_Ness_Bat states 2:
+    on created:
+            let int mode = int(item.creation_value)
+            item.command3 = mode
+            item.command2 = mode
+            item.command1 = mode
+            item.command0 = mode
+            item.use_manual_lifetime()
+            if mode == 0: item.set_lifetime(attrs.bat_lifetime)
+            item.attach_to_owner(attrs.resource_attachment_joint)
+    on picked_up:
+            if item.command0 != 0 or item.command1 != 0 or item.command2 != 0 or item.command3 != 0:
+                item.change_state_flags(1, 2)
+            else:
+                item.change_state_flags(0, 2)
+            item.advance_animation()
+    on signal remove:
+            # Native direct remove clears private attachment AND owner before engine.
+            item.detach_owner()
+            item.remove()
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            item.joint(0, "0").visible = item.command0 == 0
+            if creator.exists:
+                if creator.motion == attrs.bat_smash_motion and creator.state.bat_handle != -1:
+                    return false
+                if item.attachment_active: creator.call(bat_forget)
+            item.detach_owner()
+            return true
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim -1:
+        on animation:
+            # Existing creator.incapacitated is ftCo_800BF228, and root_scale_y
+            # is actual HSD root Y, not fighter model/instance scale.
+            if creator.exists and creator.incapacitated:
+                item.joint(0, "").scale.x = creator.root_scale_y
+                item.joint(0, "").scale.y = creator.root_scale_y
+                item.joint(0, "").scale.z = creator.root_scale_y
+            return false
+        on physics:
+            pass
+        on collision:
+            return false

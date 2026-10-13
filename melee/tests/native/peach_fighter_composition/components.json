@@ -1,0 +1,18 @@
+{
+  "source_inputs": {
+    "tests/native/peach_turnip_composition.fms": "c73e805a53c1ab53702d03d9840d8924b0fda0b21e9fbff04b10a0bed98acf5e",
+    "tests/native/peach_turnip_full_phases.fms": "bccd81722477bf98345d1c457e49bf4a5f1cf9db9908fabcbb142c0836261d0b",
+    "tests/native/peach_resource_cleanup/candidate.fms": "db5a2a4542ea11e63d82f234a3944551084173dfc48e7d74eba38a4b6516ed49",
+    "tests/native/peach_parasol_creation/candidate.fms": "adac673f88a2af4d03668b2130aa577f1ec6821dfab738b6f202986a9c427386",
+    "docs/peach_activation_proposal.md": "ab3a006b2e40d44b1eeab7fbcc5f756ef9089a6ba945de55724d2c172ab81261",
+    ".local/peach-closure-next-batch/owned-rigs.json": "953a5af3c0bf321c69641032e33aebebbcd7b2eb3858b6d0c6500354f46c45b8",
+    ".local/peach-closure-next-batch/census.json": "514606848d2ef1932f7ce5c308cb957ff0cb5284676f6297d832ab1a6c5548a8"
+  },
+  "composition_changes": [
+    "One copy of shared handles, coordinates, helper bodies and article declarations.",
+    "Turnip constructor interruption binds complete ordered cleanup instead of its accepted Turnip-only subset.",
+    "Rare and Turnip lifetime/face tuning imports from actual fighter/article DAT offsets; literal article defaults are removed for SDK44.",
+    "ConstructorProbe tick surrogate is removed; real cue helper is unbound pending full down-B phases.",
+    "No independence declaration or installed/default behavior."
+  ]
+}

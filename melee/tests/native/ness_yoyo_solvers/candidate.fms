@@ -1,0 +1,454 @@
+# UNREGISTERED SOLVER CANDIDATE: four article physics phases; no smash activation.
+# Node construction supplies initial XYZ before collision history initialization.
+parameter int resource_attachment_joint = 42
+parameter int yoyo_reverse_motion = 345
+parameter int yoyo_ecb_category = 5
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+
+parameter float yoyo_pin_release_distance = 0.1
+parameter float yoyo_floor_separation = 0.001
+parameter float yoyo_sweep_height = 1.5
+parameter int yoyo_up_charge_motion = 342
+parameter float yoyo_horizontal_damping = 0.9
+parameter float yoyo_idle_depth = 1.8
+parameter float yoyo_vertical_basis_threshold = 0.9999
+
+state float yoyo_hitbox_x
+state float yoyo_hitbox_y
+state float yoyo_hitbox_z
+
+action Probe:
+    on load:
+        pass
+
+article It_Kind_Ness_Yoyo states 4:
+    attribute int link_count 0
+    attribute int up_charge_count 4
+    attribute int down_charge_count 8
+    attribute float link_length 12
+    attribute float minimum_link_length 16
+    attribute float horizontal_acceleration 40
+    attribute float maximum_horizontal_speed 44
+    attribute float gravity 52
+    attribute float terminal_velocity 56
+    attribute float link_gravity 60
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state bool touching[90]
+    state bool contacted[90]
+    state float vector_x
+    state float vector_y
+    state float vector_z
+    state float length
+    state float basis_x
+    state float basis_y
+    state float basis_z
+    state float up_x
+    state float up_y
+    state float up_z
+    state float matrix[12]
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float retract_step
+    state bool retracted
+    state int sweep_flags
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.params.link_count - 1
+            item.state.allocated = item.resources.begin(item.params.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.params.link_count:
+                let float radius = attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = attrs.yoyo_tip_radius * creator.instance_scale_y
+                let bool constructed = item.resource(node).create(attrs.resource_attachment_joint, radius, attrs.yoyo_ecb_category, position.x, position.y, position.z)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                # Original it_80275328 initializes the remembered surface to0.
+                item.resource(node).surface_line = 0
+                item.state.pinned[node] = node == item.state.tip
+                item.state.touching[node] = false
+                item.state.contacted[node] = false
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                # Original string draw checks x2C_b0(false); tip draws directly.
+                let bool drawing = item.resource(node).set_draw(node == item.state.tip)
+                node = node + 1
+            item.attach_to_owner(attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+
+    func SetPosition(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func SetVelocity(int node, float x, float y, float z):
+        item.resource(node).velocity.x = x
+        item.resource(node).velocity.y = y
+        item.resource(node).velocity.z = z
+
+    func SetPinned(int node, bool pinned):
+        item.state.pinned[node] = pinned
+        item.resource(node).set_draw(pinned)
+
+    func AdvancePosition(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    func PrepareSweep(int node):
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+
+    func ResetHistory(int node):
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+
+    func AcceptSweep(int node):
+        item.resource(node).position.x = item.resource(node).collision.position.x
+        item.resource(node).position.y = item.resource(node).collision.position.y
+        item.resource(node).position.z = item.resource(node).collision.position.z
+
+    func SweepFree(int node):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepFromHeight(int node, float height):
+        PrepareSweep(node)
+        item.resource(node).collision.previous.y = height
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        AcceptSweep(node)
+
+    func SweepReleased(int node, float size):
+        PrepareSweep(node)
+        item.state.touching[node] = item.resource(node).sweep_stage()
+        item.state.sweep_flags = item.resource(node).collision.environment & 102399
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.x = item.resource(node).position.x
+        elif item.state.sweep_flags & 4095:
+            if node > 0 and node < item.state.tip:
+                if item.state.pinned[node - 1]:
+                    item.resource(node).collision.position.y = item.resource(node).collision.position.y + size
+        AcceptSweep(node)
+
+    func Measure(float ax, float ay, float az, float bx, float by, float bz):
+        item.state.vector_x = ax - bx
+        item.state.vector_y = ay - by
+        item.state.vector_z = az - bz
+        item.state.length = sqrt(item.state.vector_x * item.state.vector_x + item.state.vector_y * item.state.vector_y + item.state.vector_z * item.state.vector_z)
+        let float inverse = 0
+        if item.state.length != 0:
+            inverse = 1 / item.state.length
+        item.state.vector_x = item.state.vector_x * inverse
+        item.state.vector_y = item.state.vector_y * inverse
+        item.state.vector_z = item.state.vector_z * inverse
+
+    func PlaceMeasured(int node, float x, float y, float z, float size):
+        SetPosition(node, item.state.vector_x * size + x, item.state.vector_y * size + y, item.state.vector_z * size + z)
+
+    func ConstrainPrevious(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            item.resource(previous).velocity.y = 0
+            AdvancePosition(previous)
+            PrepareSweep(previous)
+            SweepFree(previous)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func AdjustTail(int node, float x, float y, float z, float size):
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        PlaceMeasured(node, x, y, z, size)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if item.state.length > size:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+            node = previous
+            previous = previous + 1
+
+    func HeldChain(float x, float y, float z):
+        let float minimum = item.params.minimum_link_length * holder.instance_scale_y
+        let float maximum = item.params.link_length * holder.instance_scale_y
+        let int node = item.state.tip
+        let int next = node - 1
+        SetPosition(node, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+        SetVelocity(node, 0, 0, 0)
+        while next >= 0:
+            if item.state.pinned[next]:
+                SetPosition(next, x, y, z)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                elif item.state.length < minimum:
+                    let float saved_x = item.state.vector_x
+                    let float saved_y = item.state.vector_y
+                    let float saved_z = item.state.vector_z
+                    Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, x, y, z)
+                    if item.state.length <= attrs.yoyo_pin_release_distance:
+                        SetPinned(next, false)
+                    else:
+                        item.state.vector_x = saved_x
+                        item.state.vector_y = saved_y
+                        item.state.vector_z = saved_z
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, minimum)
+            else:
+                Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > maximum:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, maximum)
+                    SetPinned(next, true)
+                else:
+                    return
+            node = next
+            next = next - 1
+
+    func AccelerateTip(float size):
+        let int node = item.state.tip
+        if abs(item.resource(node).velocity.x) < item.params.maximum_horizontal_speed:
+            item.resource(node).velocity.x = item.resource(node).velocity.x + item.params.horizontal_acceleration * facing
+        else:
+            item.resource(node).velocity.x = item.params.maximum_horizontal_speed * facing
+        if abs(item.resource(node).velocity.y) < item.params.terminal_velocity:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity
+        else:
+            item.resource(node).velocity.y = -item.params.terminal_velocity
+        AdvancePosition(node)
+        SweepReleased(node, size)
+        if item.state.sweep_flags & 98304:
+            item.resource(node).collision.position.y = item.resource(node).collision.position.y + attrs.yoyo_floor_separation
+            item.resource(node).position.y = item.resource(node).collision.position.y
+            if item.resource(node).velocity.y < 0:
+                item.resource(node).velocity.y = 0
+        item.state.sweep_flags = item.state.sweep_flags & 4095
+
+    func ReleasedChain(float x, float y, float z):
+        let float size = item.params.link_length * holder.instance_scale_y
+        AccelerateTip(size)
+        let int node = item.state.tip
+        let int next = node - 1
+        let int count = 0
+        while next >= 0:
+            count = count + 1
+            if item.state.pinned[next]:
+                item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.link_gravity
+                AdvancePosition(next)
+                # The original repeats the CURRENT node sweep here.
+                SweepReleased(node, size)
+                Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if item.state.length > size:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                PrepareSweep(next)
+                SweepFromHeight(next, attrs.yoyo_sweep_height + y)
+            else:
+                let int charge_count = item.params.down_charge_count
+                if item.state.source_motion == attrs.yoyo_up_charge_motion:
+                    charge_count = item.params.up_charge_count
+                if count > charge_count:
+                    SetPosition(next, x, y, z)
+                else:
+                    Measure(x, y, z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    if item.state.length > size:
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, size)
+                        SetPinned(next, true)
+                        ResetHistory(next)
+                    else:
+                        # Both original return values skip adjustment and damping.
+                        return
+            node = next
+            next = next - 1
+        AdjustTail(node, x, y, z, size)
+        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * attrs.yoyo_horizontal_damping
+
+    func RetractChain(float x, float y, float z):
+        let float size = item.params.link_length * holder.instance_scale_y
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.pinned[node]:
+            node = previous
+            previous = previous + 1
+        Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, x, y, z)
+        while previous <= item.state.tip and item.state.retract_step > item.state.length:
+            SetPinned(node, false)
+            Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, x, y, z)
+            node = previous
+            previous = previous + 1
+        let float step = item.state.length - item.state.retract_step
+        if step > size:
+            step = size
+        ConstrainPrevious(node, x, y, z, step)
+        item.state.retracted = previous > item.state.tip
+
+    func IdlePose():
+        let float scale = holder.instance_scale_y
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        let float offset = attrs.yoyo_idle_depth * scale
+        item.state.matrix[3] = item.state.matrix[0] * 0 + item.state.matrix[1] * 0 + item.state.matrix[2] * offset + item.state.matrix[3]
+        item.state.matrix[7] = item.state.matrix[4] * 0 + item.state.matrix[5] * 0 + item.state.matrix[6] * offset + item.state.matrix[7]
+        item.state.matrix[11] = item.state.matrix[8] * 0 + item.state.matrix[9] * 0 + item.state.matrix[10] * offset + item.state.matrix[11]
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(item.state.tip).set_world_matrix(item.state.matrix)
+
+    func OrientBasis():
+        vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+        item.state.up_x = 0
+        item.state.up_y = 1
+        item.state.up_z = 0
+        if item.state.vector_y > attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = -1
+            item.state.up_y = 0
+        elif item.state.vector_y < -attrs.yoyo_vertical_basis_threshold:
+            item.state.up_x = 1
+            item.state.up_y = 0
+        item.state.basis_x = item.state.up_y * item.state.vector_z - item.state.up_z * item.state.vector_y
+        item.state.basis_y = item.state.up_z * item.state.vector_x - item.state.up_x * item.state.vector_z
+        item.state.basis_z = item.state.up_x * item.state.vector_y - item.state.up_y * item.state.vector_x
+        item.state.up_x = item.state.vector_y * item.state.basis_z - item.state.vector_z * item.state.basis_y
+        item.state.up_y = item.state.vector_z * item.state.basis_x - item.state.vector_x * item.state.basis_z
+        item.state.up_z = item.state.vector_x * item.state.basis_y - item.state.vector_y * item.state.basis_x
+        vectors.normalize(item.state.basis_x, item.state.basis_y, item.state.basis_z)
+        vectors.normalize(item.state.up_x, item.state.up_y, item.state.up_z)
+
+    func WritePose(int node):
+        item.resource(node).joint("").translation.x = item.resource(node).position.x
+        item.resource(node).joint("").translation.y = item.resource(node).position.y
+        item.resource(node).joint("").translation.z = item.resource(node).position.z
+        OrientBasis()
+        item.state.matrix[0] = item.state.basis_x
+        item.state.matrix[4] = item.state.basis_y
+        item.state.matrix[8] = item.state.basis_z
+        item.state.matrix[1] = item.state.up_x
+        item.state.matrix[5] = item.state.up_y
+        item.state.matrix[9] = item.state.up_z
+        item.state.matrix[2] = item.state.vector_x
+        item.state.matrix[6] = item.state.vector_y
+        item.state.matrix[10] = item.state.vector_z
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+        let float scale = item.params.link_length
+        if node == item.state.tip:
+            scale = 1
+        scale = scale * holder.instance_scale_y
+        let int row = 0
+        while row < 3:
+            let int column = 0
+            while column < 3:
+                item.state.matrix[row * 4 + column] = item.state.matrix[row * 4 + column] * scale
+                column = column + 1
+            row = row + 1
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func ChainPose(float x, float y, float z):
+        let int node = 0
+        while node <= item.state.tip and not item.state.pinned[node]:
+            node = node + 1
+        # Original walks beyond the list if no node is pinned. Stop the
+        # authored pose on that invalid state instead of reading past storage.
+        if node > item.state.tip:
+            return
+        while node <= item.state.tip:
+            let float next_x = x
+            let float next_y = y
+            let float next_z = z
+            if node > 0:
+                if item.state.pinned[node - 1]:
+                    next_x = item.resource(node - 1).position.x
+                    next_y = item.resource(node - 1).position.y
+                    next_z = item.resource(node - 1).position.z
+            let int previous = node + 1
+            if previous > item.state.tip:
+                previous = node
+            item.state.vector_x = item.resource(previous).position.x - next_x
+            item.state.vector_y = item.resource(previous).position.y - next_y
+            item.state.vector_z = item.resource(previous).position.z - next_z
+            vectors.normalize(item.state.vector_x, item.state.vector_y, item.state.vector_z)
+            if node == item.state.tip:
+                item.state.vector_x = -1
+                if facing == 1:
+                    item.state.vector_x = 1
+                item.state.vector_y = 0
+                item.state.vector_z = 0
+                creator.state.yoyo_hitbox_x = item.resource(node).position.x
+                creator.state.yoyo_hitbox_y = item.resource(node).position.y
+                creator.state.yoyo_hitbox_z = item.resource(node).position.z
+            WritePose(node)
+            node = node + 1
+
+    func RestoreHeld():
+        item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        SetPosition(item.state.tip, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        ResetHistory(item.state.tip)
+        SetPinned(item.state.tip, true)
+        SetVelocity(item.state.tip, 0, 0, 0)
+        item.change_state_flags(1, 2)
+        SetPosition(item.state.tip, creator.state.yoyo_hitbox_x, creator.state.yoyo_hitbox_y, creator.state.yoyo_hitbox_z)
+
+    state 0 anim -1:
+        on physics:
+            IdlePose()
+    state 1 anim -1:
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            HeldChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 2 anim -1:
+        on physics:
+            item.resource(item.state.tip).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ReleasedChain(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            ChainPose(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+    state 3 anim -1:
+        on physics:
+            item.resource(0).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            let float anchor_x = item.state.anchor_x
+            let float anchor_y = item.state.anchor_y
+            let float anchor_z = item.state.anchor_z
+            RetractChain(anchor_x, anchor_y, anchor_z)
+            if item.state.retracted:
+                RestoreHeld()
+            ChainPose(anchor_x, anchor_y, anchor_z)

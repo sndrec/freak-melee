@@ -1,0 +1,44 @@
+article It_Kind_Ness_PKFlush states 1:
+    state bool controller_enabled
+    on signal detach:
+            item.clear_current_owner()
+            item.state.controller_enabled = false
+            item.clear_attachment_owner()
+            item.owner_bound = false
+    state 0 anim -1:
+article It_Kind_Ness_PKThunder states 1:
+    state bool reflected
+    state int trail_handles[6]
+    on signal detach_damage_owner:
+            if not item.state.reflected:
+                item.clear_current_owner()
+                item.owner_bound = false
+                let int index = 0
+                while index < attrs.thunder_trail_count:
+                    if item.state.trail_handles[index] != -1:
+                        articles.signal(item.state.trail_handles[index], It_Kind_Ness_PKThunder1, "detach_damage_owner", 0)
+                    index = index + 1
+    state 0 anim -1:
+article It_Kind_Ness_Bat states 1:
+    on signal remove:
+            item.detach_owner()
+            item.remove()
+    state 0 anim -1:
+article It_Kind_Ness_Yoyo states 1:
+    resources capacity 20
+    on signal pause:
+            item.pause()
+    on signal resume:
+            item.resume()
+    on signal remove:
+            if item.current_owner != 0:
+                let bool forgotten = targets.call(item.current_owner, "yoyo_forget")
+            item.clear_current_owner()
+            item.resources.release()
+            item.remove()
+    state 0 anim -1:
+article It_Kind_Ness_PKThunder1 states 1:
+    on signal detach_damage_owner:
+            item.clear_current_owner()
+            item.owner_bound = false
+    state 0 anim -1:

@@ -1,0 +1,67 @@
+{
+  "snapshot": "C:\\gayms\\freak-melee\\melee\\.local\\baseline40",
+  "snapshot_manifest_sha256": "c94cf65617ad60a7212c659a535e8ed93c9c8b76e9d6c7313a9f828cdd7d633d",
+  "tool_sha256": "f63b994eb4e7604eda9daa10dc089c7e1d25218d70a3ac21ddabb75aca6268d8",
+  "commands": [
+    {
+      "stage": "link_clone",
+      "command": [
+        "C:\\gayms\\freak-melee\\melee\\.local\\baseline40\\bin\\native_content_tool.exe",
+        "clone-stock",
+        "C:\\gayms\\freak-melee\\Super Smash Bros. Melee (USA) (v1.02).iso",
+        "Link",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link",
+        "Link cleanup composition source fixture"
+      ],
+      "exit": 0
+    },
+    {
+      "stage": "link_import",
+      "command": [
+        "C:\\gayms\\freak-melee\\melee\\.local\\baseline40\\bin\\native_content_tool.exe",
+        "import-parameters",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link.candidate.fms",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link\\behavior.fms"
+      ],
+      "exit": 0
+    },
+    {
+      "stage": "link_generate",
+      "command": [
+        "C:\\gayms\\freak-melee\\melee\\.local\\baseline40\\bin\\native_content_tool.exe",
+        "script-c",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link\\behavior.fms",
+        "cleanup_link",
+        "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-signal-order\\link\\cleanup.generated.c"
+      ],
+      "exit": 1
+    }
+  ],
+  "failed_input_sha256": "56c9c7f0a41e7d40076a148f50369041c447f205d467ed4f0fe3b5a16669f471",
+  "failure_log_sha256": "50a6ef458572b4efb570fe80364d43e3e684901a7cc18746157ca13894b9ef87",
+  "namespace_inputs_sha256": {
+    "boomerang.component.fms": "3f93a75aabb44cd4f1b7bf1292828cfce6cdcdd2fd94579aa801cb9eae4409f2",
+    "bow.component.fms": "ba2639bcd01381bfdb337aac9122035d5a0df34c552ac6ab3720a234522e22b8",
+    "cleanup.component.fms": "305e6819275a88e3e366d58569bdf510131358dfd35ef250786ab903ccf5bcc8",
+    "milk.component.fms": "6d287cd62815d1d5f0188d539c85b191138928d556284d9aa6e9689c5e1abe87",
+    "tether.component.fms": "13bd3e85c4f3378a17672adbe9aca3a8c94c8a91afdbe8517799454a4c922f75"
+  },
+  "signal_correction": "Arrow remove signal declared after destroy_trails; identical callback statements retained",
+  "normal_link_import_completed": true,
+  "generation_completed": false,
+  "failure_line": 930,
+  "failure_statement": "item.set_lifetime(item.params.flight_lifetime + item.params.embedded_lifetime)",
+  "diagnosis": "Accepted Bow input is owned source with external fighter_parameters.fmp; extracted component omitted original DAT parameter declarations. Fresh importer cannot reconstruct Arrow/Bow fields not declared in assembled source. No SDK operation gap identified.",
+  "missing_parameter_evidence": [
+    "It_Kind_Link_Arrow.flight_lifetime",
+    "It_Kind_Link_Arrow.embedded_lifetime"
+  ],
+  "accepted_owned_parameter_source": "C:\\gayms\\freak-melee\\melee\\tests\\native\\link_bow_arrow\\link\\fighter_parameters.fmp",
+  "accepted_owned_parameter_source_sha256": "ede707139d976033ebceb71aa9a19cc3c858bae1070fd36feaf834cadbe76959",
+  "callback_comparison_ran": false,
+  "behavior_accepted": false,
+  "games": false,
+  "global_build": false,
+  "checkpoint": "Source-only incomplete composition; preserved all bodies; requires source DAT declaration reconstruction in a future bounded task."
+}

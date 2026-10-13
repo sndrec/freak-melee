@@ -1,0 +1,644 @@
+# Marth specials, lifecycle and weapon ribbons.
+# Move decisions use scripts and reusable engine primitives.
+# Import stock defaults once into owned fighter_parameters.fmp.
+fighter:
+    behavior independent
+
+parameter int charge_ground_effect = 1266
+parameter int charge_air_effect = 1267
+
+attribute int charge_seconds 0
+attribute int charge_base_damage 4
+attribute int charge_damage_per_second 8
+attribute float charge_momentum_divisor 12
+attribute float charge_start_deceleration 16
+attribute float rise_freefall_mobility 40
+attribute float rise_landing_lag 44
+attribute float rise_reverse_threshold 48
+attribute float rise_angle_threshold 52
+attribute float rise_max_angle 56
+attribute float rise_air_momentum_scale 60
+attribute float rise_air_motion_scale 64
+attribute float rise_fall_gravity 68
+attribute float rise_terminal_speed 72
+attribute float ribbon_inner_fade 120
+attribute float ribbon_outer_fade 124
+attribute byte ribbon_start_alpha 128
+attribute byte ribbon_end_alpha 129
+attribute byte ribbon_inner_red 130
+attribute byte ribbon_inner_green 131
+attribute byte ribbon_inner_blue 132
+attribute byte ribbon_outer_red 134
+attribute byte ribbon_outer_green 135
+attribute byte ribbon_outer_blue 136
+attribute int ribbon_bone 140
+attribute float ribbon_inner_distance 144
+attribute float ribbon_outer_distance 148
+
+attribute float chain_air_momentum_divisor 20
+attribute float chain_air_deceleration 24
+attribute float chain_air_boost 28
+attribute float chain_gravity 32
+attribute float chain_terminal_speed 36
+attribute float counter_air_momentum_divisor 76
+attribute float counter_air_deceleration 80
+attribute float counter_gravity 84
+attribute float counter_terminal_speed 88
+attribute float counter_damage_multiplier 92
+attribute float counter_hitlag 96
+attribute int counter_bone 100
+attribute float counter_offset_x 104
+attribute float counter_offset_y 108
+attribute float counter_offset_z 112
+attribute float counter_radius 116
+# Copied from PlCo.dat ftLoadCommonData +0x21C, not a donor attribute.
+parameter float chain_direction_threshold = 0.550000012
+
+state int charge_ticks
+state bool side_air_boost_used
+state bool side_transition
+state int counter_damage
+
+func side_finish():
+    if animation.finished:
+        if airborne: state.fall()
+        else: state.wait()
+
+func side_next(int next_phase):
+    command(1) = 0
+    command(0) = 0
+    state.side_transition = true
+    callbacks.track_state_change()
+    let next_motion = 350
+    if next_phase == 2:
+        if input.y <= attrs.chain_direction_threshold: next_motion = 351
+    elif next_phase == 3:
+        next_motion = 353
+        if input.y > attrs.chain_direction_threshold: next_motion = 352
+        elif input.y < -attrs.chain_direction_threshold: next_motion = 354
+    else:
+        next_motion = 356
+        if input.y > attrs.chain_direction_threshold: next_motion = 355
+        elif input.y < -attrs.chain_direction_threshold: next_motion = 357
+    if airborne: next_motion = next_motion + 9
+    state.enter_at_speed(next_motion, 33554432, 0, 1)
+
+func side_interrupt(int next_phase):
+    if command(0):
+        if not command(1) and (input.attack_pressed or input.special_pressed): side_next(next_phase)
+    elif input.attack_pressed or input.special_pressed: command(1) = 1
+
+func side_early_physics():
+    if airborne:
+        physics.fall(attrs.chain_gravity, attrs.chain_terminal_speed)
+        physics.air_decel(attrs.chain_air_deceleration)
+    else: physics.ground_friction()
+
+func side_late_physics():
+    if airborne:
+        physics.fall(attrs.chain_gravity, attrs.chain_terminal_speed)
+        velocity.x = animation.delta.z * facing.direction
+    else: physics.ground_motion()
+
+func side_collision():
+    if airborne:
+        if collision.landed:
+            state.side_air_boost_used = false
+            physics.switch_to_ground()
+            state.enter_at_speed(motion.id - 9, 206459020, frame, 1)
+    elif collision.special_ground_lost:
+        physics.ground_to_air()
+        state.enter_at_speed(motion.id + 9, 206459020, frame, 1)
+
+func counter_guard():
+    guard.create(attrs.counter_bone, attrs.counter_offset_x, attrs.counter_offset_y, attrs.counter_offset_z, attrs.counter_radius, GuardHit)
+    guard.reactive = true
+
+func counter_tick():
+    if command(1) == 1:
+        command(1) = 2
+        counter_guard()
+        guard.melee_hitlag = attrs.counter_hitlag
+        guard.article_hitlag = attrs.counter_hitlag
+    elif command(1) == 0: guard.active = false
+    side_finish()
+
+# Stock release installs an every-frame accessory callback, not a cue gate.
+# It spawns once and clears itself; startup/hold do not run this feedback.
+func charge_release_feedback():
+    if not effects.active:
+        if airborne: effects.spawn_on_part(attrs.charge_air_effect, 0)
+        else: effects.spawn_on_part(attrs.charge_ground_effect, 0)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func charge_release():
+    if airborne:
+        if command(0): state.enter_at_speed(348, 0, 1, 1)
+        else: state.enter_at_speed(347, 0, 1, 1)
+    else:
+        if command(0): state.enter_at_speed(344, 0, 1, 1)
+        else: state.enter_at_speed(343, 0, 1, 1)
+    callbacks.accessory(charge_release_feedback)
+
+func charge_tick():
+    if state.charge_ticks % 30 == 0: effects.wind(Hip, 0, 10, 0.5, 0.05, 1.0471975511965976)
+    state.charge_ticks = state.charge_ticks + 1
+    if state.charge_ticks > attrs.charge_seconds * 30:
+        command(0) = 1
+        charge_release()
+
+func charge_interrupt():
+    if not input.special_held:
+        command(0) = 0
+        charge_release()
+
+func charge_end_tick():
+    # Stock increments damage by whole charged seconds, not fractional seconds.
+    if not command(0):
+        if (hitbox.state(0) == Hitbox.enabled): hitbox.set_damage(0, attrs.charge_base_damage + state.charge_ticks / 30 * attrs.charge_damage_per_second)
+        if (hitbox.state(1) == Hitbox.enabled): hitbox.set_damage(1, attrs.charge_base_damage + state.charge_ticks / 30 * attrs.charge_damage_per_second)
+        if (hitbox.state(2) == Hitbox.enabled): hitbox.set_damage(2, attrs.charge_base_damage + state.charge_ticks / 30 * attrs.charge_damage_per_second)
+        if (hitbox.state(3) == Hitbox.enabled): hitbox.set_damage(3, attrs.charge_base_damage + state.charge_ticks / 30 * attrs.charge_damage_per_second)
+    if frame == 9: effects.wind(Hip, 0, 120, 0.9, 0.02, 1.0471975511965976)
+
+func rise_interrupt():
+    let stick = abs(input.x)
+    if not command(0) and stick > attrs.rise_angle_threshold:
+        let angle = attrs.rise_max_angle * ((stick - attrs.rise_angle_threshold) / (1.0 - attrs.rise_angle_threshold))
+        angle = float(0.017453292519943295) * angle
+        if input.x > 0: angle = -angle
+        if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+    if cue.reverse.consume():
+        if abs(input.x) > attrs.rise_reverse_threshold:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+
+func rise_fall():
+    physics.fall(attrs.rise_fall_gravity, attrs.rise_terminal_speed)
+    physics.air_accel_friction(0, air.drift_stick_mul * attrs.rise_freefall_mobility, air.drift_max * attrs.rise_freefall_mobility)
+
+func rise_motion(bool air_started):
+    physics.air_motion()
+    if air_started: motion.scale_velocity(attrs.rise_air_motion_scale)
+    let direction = 1
+    if velocity.x < 0: direction = -1
+    if facing.direction != direction: velocity.x = -velocity.x
+    if animation.delta.y < 0: command(2) = 1
+
+move ShieldBreaker:
+    entry explicit
+    on special_n:
+        state.side_transition = false
+        callbacks.track_state_change()
+        ground.velocity = ground.velocity / attrs.charge_momentum_divisor
+        state.enter_flags(341, 0)
+        animation.start()
+    on special_air_n:
+        state.side_transition = false
+        callbacks.track_state_change()
+        velocity.x = velocity.x / attrs.charge_momentum_divisor
+        if velocity.y <= 0: velocity.y = 0
+        state.enter_flags(345, 0)
+        animation.start()
+    on ground_animation:
+        if animation.finished:
+            state.enter_at_speed(342, 4608, 0, 1)
+            color.start(99, false)
+    on air_animation:
+        if animation.finished:
+            state.enter_at_speed(346, 4608, 0, 1)
+            color.start(99, false)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_decelerate(attrs.charge_start_deceleration)
+        physics.ground_to_self()
+    on air_physics:
+        physics.fall_basic()
+        physics.air_decel(attrs.charge_start_deceleration)
+    on ground_collision:
+        if collision.left_ground: state.switch_to_air(345, 206327940)
+    on air_collision:
+        if collision.landed: state.switch_to_ground(341, 206327940)
+
+move RisingSlash:
+    entry explicit
+    on special_hi:
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        cue.throw.reset()
+        state.enter_flags(367, 0)
+        animation.start()
+    on special_air_hi:
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        cue.throw.reset()
+        velocity.y = 0
+        velocity.x = velocity.x * attrs.rise_air_momentum_scale
+        state.enter_flags(368, 0)
+        animation.start()
+    on ground_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.rise_freefall_mobility, attrs.rise_landing_lag)
+    on air_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.rise_freefall_mobility, attrs.rise_landing_lag)
+    on ground_interrupt:
+        rise_interrupt()
+    on air_interrupt:
+        rise_interrupt()
+    on ground_physics:
+        if airborne:
+            if not command(2): rise_motion(false)
+            else: rise_fall()
+        else: physics.ground_motion()
+    on air_physics:
+        if command(0):
+            if not command(2): rise_motion(true)
+            else: rise_fall()
+        else:
+            physics.fall(air.gravity, air.terminal_velocity)
+            physics.quick_air_decel()
+    on ground_collision:
+        if airborne:
+            if not command(0) or velocity.y >= 0: collision.air_standard()
+            elif not command(1):
+                command(1) = 1
+                collision.air_standard()
+            else: collision.air_special_landing(false, attrs.rise_landing_lag)
+        else: collision.ground_standard()
+    on air_collision:
+        if airborne:
+            if not command(0) or velocity.y >= 0: collision.air_standard()
+            elif not command(1):
+                command(1) = 1
+                collision.air_standard()
+            else: collision.air_special_landing(false, attrs.rise_landing_lag)
+        else: collision.ground_standard()
+
+move DancingBlade:
+    entry explicit
+    on special_s:
+        velocity.y = 0
+        command(1) = 0
+        command(0) = 0
+        if airborne: state.enter_flags(358, 0)
+        else: state.enter_flags(349, 0)
+        animation.start()
+    on special_air_s:
+        velocity.x = velocity.x / attrs.chain_air_momentum_divisor
+        if not state.side_air_boost_used:
+            state.side_air_boost_used = true
+            velocity.y = attrs.chain_air_boost
+        else: velocity.y = 0
+        command(1) = 0
+        command(0) = 0
+        if airborne: state.enter_flags(358, 0)
+        else: state.enter_flags(349, 0)
+        animation.start()
+    on ground_animation:
+        side_finish()
+    on air_animation:
+        side_finish()
+    on ground_interrupt:
+        side_interrupt(2)
+    on air_interrupt:
+        side_interrupt(2)
+    on ground_physics:
+        side_early_physics()
+    on air_physics:
+        side_early_physics()
+    on ground_collision:
+        side_collision()
+    on air_collision:
+        side_collision()
+
+move Counter:
+    entry explicit
+    on special_lw:
+        velocity.y = 0
+        state.enter_flags(369, 0)
+        animation.start()
+        command(1) = 0
+        state.counter_damage = 0
+    on special_air_lw:
+        velocity.x = velocity.x / attrs.counter_air_momentum_divisor
+        velocity.y = 0
+        state.enter_flags(371, 0)
+        animation.start()
+        command(1) = 0
+        state.counter_damage = 0
+    on ground_animation:
+        counter_tick()
+    on air_animation:
+        counter_tick()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+        guard.update_position()
+    on air_physics:
+        physics.fall(attrs.counter_gravity, attrs.counter_terminal_speed)
+        physics.air_decel(attrs.counter_air_deceleration)
+        guard.update_position()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(371, 206327948)
+            if command(1) == 2: counter_guard()
+    on air_collision:
+        if collision.landed:
+            state.switch_to_ground(369, 206327948)
+            if command(1) == 2: counter_guard()
+
+action ChainPhases:
+    on state_350_animation:
+        side_finish()
+    on state_350_interrupt:
+        side_interrupt(3)
+    on state_350_physics:
+        side_early_physics()
+    on state_350_collision:
+        side_collision()
+    on state_351_animation:
+        side_finish()
+    on state_351_interrupt:
+        side_interrupt(3)
+    on state_351_physics:
+        side_early_physics()
+    on state_351_collision:
+        side_collision()
+    on state_352_animation:
+        side_finish()
+    on state_352_interrupt:
+        side_interrupt(4)
+    on state_352_physics:
+        side_late_physics()
+    on state_352_collision:
+        side_collision()
+    on state_353_animation:
+        side_finish()
+    on state_353_interrupt:
+        side_interrupt(4)
+    on state_353_physics:
+        side_late_physics()
+    on state_353_collision:
+        side_collision()
+    on state_354_animation:
+        side_finish()
+    on state_354_interrupt:
+        side_interrupt(4)
+    on state_354_physics:
+        side_late_physics()
+    on state_354_collision:
+        side_collision()
+    on state_355_animation:
+        side_finish()
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        side_late_physics()
+    on state_355_collision:
+        side_collision()
+    on state_356_animation:
+        side_finish()
+    on state_356_interrupt:
+        pass
+    on state_356_physics:
+        side_late_physics()
+    on state_356_collision:
+        side_collision()
+    on state_357_animation:
+        side_finish()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        side_late_physics()
+    on state_357_collision:
+        side_collision()
+    on state_359_animation:
+        side_finish()
+    on state_359_interrupt:
+        side_interrupt(3)
+    on state_359_physics:
+        side_early_physics()
+    on state_359_collision:
+        side_collision()
+    on state_360_animation:
+        side_finish()
+    on state_360_interrupt:
+        side_interrupt(3)
+    on state_360_physics:
+        side_early_physics()
+    on state_360_collision:
+        side_collision()
+    on state_361_animation:
+        side_finish()
+    on state_361_interrupt:
+        side_interrupt(4)
+    on state_361_physics:
+        side_late_physics()
+    on state_361_collision:
+        side_collision()
+    on state_362_animation:
+        side_finish()
+    on state_362_interrupt:
+        side_interrupt(4)
+    on state_362_physics:
+        side_late_physics()
+    on state_362_collision:
+        side_collision()
+    on state_363_animation:
+        side_finish()
+    on state_363_interrupt:
+        side_interrupt(4)
+    on state_363_physics:
+        side_late_physics()
+    on state_363_collision:
+        side_collision()
+    on state_364_animation:
+        side_finish()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        side_late_physics()
+    on state_364_collision:
+        side_collision()
+    on state_365_animation:
+        side_finish()
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        side_late_physics()
+    on state_365_collision:
+        side_collision()
+    on state_366_animation:
+        side_finish()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        side_late_physics()
+    on state_366_collision:
+        side_collision()
+
+action ChargePhases:
+    on state_change:
+        if state.side_transition:
+            stats.refresh_attack()
+            stats.record_attack()
+        else:
+            command(0) = 0
+            state.charge_ticks = 0
+    on state_342_animation:
+        charge_tick()
+    on state_342_interrupt:
+        charge_interrupt()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        if collision.left_ground: state.switch_to_air(346, 206330502)
+    on state_346_animation:
+        charge_tick()
+    on state_346_interrupt:
+        charge_interrupt()
+    on state_346_physics:
+        physics.air_gravity_and_friction()
+    on state_346_collision:
+        if collision.landed: state.switch_to_ground(342, 206330502)
+    on state_343_animation:
+        charge_end_tick()
+        if animation.finished: state.wait()
+    on state_343_interrupt:
+        pass
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        if collision.left_ground:
+            if command(0): state.switch_to_air(348, 206327950)
+            else: state.switch_to_air(347, 206327950)
+            if effects.active: effects.pause_during_hitlag()
+    on state_344_animation:
+        charge_end_tick()
+        if animation.finished: state.wait()
+    on state_344_interrupt:
+        pass
+    on state_344_physics:
+        physics.ground_friction()
+    on state_344_collision:
+        if collision.left_ground:
+            if command(0): state.switch_to_air(348, 206327950)
+            else: state.switch_to_air(347, 206327950)
+            if effects.active: effects.pause_during_hitlag()
+    on state_347_animation:
+        charge_end_tick()
+        if animation.finished: state.fall()
+    on state_347_interrupt:
+        pass
+    on state_347_physics:
+        physics.air_gravity_and_friction()
+    on state_347_collision:
+        if collision.landed:
+            if command(0): state.switch_to_ground(344, 206327950)
+            else: state.switch_to_ground(343, 206327950)
+            if effects.active: effects.pause_during_hitlag()
+    on state_348_animation:
+        charge_end_tick()
+        if animation.finished: state.fall()
+    on state_348_interrupt:
+        pass
+    on state_348_physics:
+        physics.air_gravity_and_friction()
+    on state_348_collision:
+        if collision.landed:
+            if command(0): state.switch_to_ground(344, 206327950)
+            else: state.switch_to_ground(343, 206327950)
+            if effects.active: effects.pause_during_hitlag()
+
+func GuardHit():
+    facing.direction = guard.hit_facing
+    let damage = int(guard.hit_damage)
+    if damage > 0: state.counter_damage = int(damage * attrs.counter_damage_multiplier)
+    effects.wind(Hip, 0, 120, 0.9, 0.02, 1.0471975511965976)
+    if airborne: state.enter_at_speed(372, 0, 0, 1)
+    else: state.enter_at_speed(370, 0, 0, 1)
+    if not effects.active:
+        effects.spawn_on_joint_with_scalar(1265, bones.index(RightShoulder), facing.direction)
+        effects.active = true
+    callbacks.pre_hitlag(None)
+    callbacks.post_hitlag(None)
+    callbacks.accessory(None)
+
+action CounterResponse:
+    on state_370_animation:
+        if animation.finished: state.wait()
+    on state_372_animation:
+        if animation.finished: state.fall()
+    on state_370_interrupt:
+        pass
+    on state_372_interrupt:
+        pass
+    on state_370_physics:
+        physics.ground_friction()
+    on state_372_physics:
+        physics.air_gravity_and_friction()
+    on state_370_collision:
+        if collision.left_ground: state.switch_to_air(372, 206327950)
+    on state_372_collision:
+        if collision.landed: state.switch_to_ground(370, 206327950)
+
+action FighterEvents:
+    on body_rebound:
+        return motion.id == 369 or motion.id == 371
+    on jab_restart:
+        return event.motion == 46
+    on shield_start:
+        visuals.set_current_group(1, 1)
+        sound.play(190115, 127, 64)
+    on shield_reflect_start:
+        visuals.set_current_group(1, 1)
+        sound.play(190115, 127, 64)
+    on dynamics_wind:
+        return true
+    on load:
+        fighter.copy_ext_attributes()
+        state.side_air_boost_used = false
+    on landing_action:
+        state.side_air_boost_used = false
+    on death:
+        visuals.hide_group(0)
+        visuals.hide_group(1)
+        state.side_air_boost_used = false
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on item_pickup:
+        fighter.item_pickup(event.flag, 0, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 1)
+    on item_visible:
+        fighter.item_visible(0)
+    on item_invisible:
+        fighter.item_invisible(0)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on trail:
+        trail.bone = attrs.ribbon_bone
+        trail.axis = 0
+        trail.inner_distance = attrs.ribbon_inner_distance
+        trail.outer_distance = attrs.ribbon_outer_distance
+        trail.inner_fade = attrs.ribbon_inner_fade
+        trail.outer_fade = attrs.ribbon_outer_fade
+        trail.start_alpha = attrs.ribbon_start_alpha
+        trail.end_alpha = attrs.ribbon_end_alpha
+        trail.inner_red = attrs.ribbon_inner_red
+        trail.inner_green = attrs.ribbon_inner_green
+        trail.inner_blue = attrs.ribbon_inner_blue
+        trail.outer_red = attrs.ribbon_outer_red
+        trail.outer_green = attrs.ribbon_outer_green
+        trail.outer_blue = attrs.ribbon_outer_blue

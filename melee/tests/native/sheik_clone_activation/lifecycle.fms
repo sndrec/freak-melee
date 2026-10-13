@@ -1,0 +1,32 @@
+# Unregistered lifecycle component. Pair switching never resets this state.
+move SheikLifecycle:
+    on load:
+        fighter.enable_walljump()
+        fighter.copy_ext_attributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        state.needle_count = 0
+        state.needle_held = -1
+        state.chain_handle = -1
+        visuals.set_group(0, 0)
+        visuals.set_group(1, -1)
+    on color_animation_reset:
+        if state.needle_count == attrs.needle_limit:
+            color.start(attrs.needle_charge_color, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)

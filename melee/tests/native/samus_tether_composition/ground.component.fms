@@ -1,0 +1,72 @@
+# Samus common Catch schedule. Ground sparks are owned by the endpoint resource
+# so both the particle's origin and its lifetime follow the native segment GObj.
+attribute int tether_standing_create 156
+attribute int tether_standing_retract 164
+attribute int tether_standing_remove 168
+attribute int tether_dash_create 172
+attribute int tether_dash_retract 180
+attribute int tether_dash_remove 184
+state bool tether_ground_consumed
+
+func Tether_GroundSpark():
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "ground_spark", 0)
+
+func Tether_BlockGroundLaunch():
+    bones.world_position(attrs.tether_attachment_joint, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    if stage.segment_blocked(collision.position.x, state.tether_thumb_y, state.tether_thumb_x + 2 * facing.direction * model.instance_scale_y, state.tether_thumb_y):
+        Tether_Remove()
+        state.wait()
+        state.tether_ground_consumed = true
+
+func Tether_GroundFrame(int create_frame, int launch_frame, int retract_frame, int remove_frame, bool standing):
+    state.tether_ground_consumed = false
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == create_frame:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            state.wait()
+            state.tether_ground_consumed = true
+            return
+    elif state.tether_counter > create_frame and state.tether_counter <= remove_frame:
+        if state.tether_counter == 20 or state.tether_counter == 23 or state.tether_counter == 26 or state.tether_counter == 29:
+            Tether_GroundSpark()
+        if standing and (state.tether_counter == 32 or state.tether_counter == 35):
+            Tether_GroundSpark()
+        if state.tether_counter == launch_frame:
+            if standing:
+                Tether_BlockGroundLaunch()
+            if state.tether_ground_consumed:
+                return
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "extend_ground", 0)
+        elif state.tether_counter == retract_frame:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract", 0)
+        elif state.tether_counter == remove_frame:
+            Tether_Remove()
+
+action GroundCatchPolicy:
+    on catch_allowed:
+        return not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists
+    on catch_start:
+        state.tether_counter = 0
+    on catch_frame:
+        if motion.id == 212:
+            Tether_GroundFrame(attrs.tether_standing_create, attrs.tether_standing_launch, attrs.tether_standing_retract, attrs.tether_standing_remove, true)
+        else:
+            Tether_GroundFrame(attrs.tether_dash_create, attrs.tether_dash_launch, attrs.tether_dash_retract, attrs.tether_dash_remove, false)
+        return state.tether_ground_consumed
+    on catch_exit:
+        Tether_Remove()
+    on catch_wait_release:
+        Tether_Remove()
+    on catch_pull_anchor:
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            return false
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "bind_capture", 0)
+        return articles.ref(state.tether_handle, It_Kind_Samus_GBeam).state.capture_bound
+    on catch_pull_ready:
+        return not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists or articles.ref(state.tether_handle, It_Kind_Samus_GBeam).state.completed
+    on catch_pull_follow:
+        return false
+    on capture_wait_enter:
+        if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract_capture", 0)

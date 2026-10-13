@@ -1,0 +1,126 @@
+move NeutralSpecial:
+    on special_n:
+        if items.held: return
+        if state.snack_charges > 0:
+            state.snack_choice = random.float() * 8
+            if items.pull(uint(state.snack_choice)):
+                state.snack_charges = state.snack_charges - 1
+                state.enter(342)
+        else:
+            state.snack_choice = 8
+            if items.pull(8):
+                fighter.self_damage(2)
+                state.enter(342)
+    on special_air_n:
+        if items.held: return
+        if state.snack_charges > 0:
+            state.snack_choice = random.float() * 8
+            if items.pull(uint(state.snack_choice)):
+                state.snack_charges = state.snack_charges - 1
+                state.enter(343)
+        else:
+            state.snack_choice = 8
+            if items.pull(8):
+                fighter.self_damage(2)
+                state.enter(343)
+    on state_342_animation:
+        if animation.finished: state.wait()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        if collision.special_ground_lost: state.fall()
+    on state_343_animation:
+        if animation.finished: state.fall()
+    on state_343_physics:
+        physics.air_drift()
+    on state_343_collision:
+        if collision.check_ground_ledge(0): state.basic_landing()
+        collision.cliff_catch()
+
+item ChuftyCookie damage 3 angle 45 lifetime 180:
+    blueprint items/base.fib
+    icon items/snack0.png
+    billboard_size 8
+    on thrown:
+        velocity.x = velocity.x * 0.65
+        velocity.y = velocity.y + 1
+
+item MuscleMilk damage 4 angle 60 lifetime 160:
+    blueprint items/base.fib
+    icon items/snack1.png
+    billboard_size 8
+    on thrown:
+        velocity.x = velocity.x * 0.75
+        velocity.y = velocity.y + 2
+    on hit:
+        item.spawn_food()
+        return true
+    on ground_collision:
+        if item.ground_contact: item.spawn_food()
+        if item.ground_contact: return true
+        return false
+
+item FortuneCandy damage 4 angle 30 lifetime 90:
+    blueprint items/base.fib
+    icon items/snack2.png
+    billboard_size 8
+    on thrown:
+        velocity.x = velocity.x * 0.45
+        velocity.y = 0.6
+    on tick:
+        if item.grounded: velocity.x = facing * 1.4
+        if item.airborne: item.gravity()
+
+item SportsDrink damage 5 angle 50 lifetime 110:
+    blueprint items/base.fib
+    icon items/snack3.png
+    billboard_size 8
+    on thrown:
+        velocity.x = facing * 1.8
+        velocity.y = 0.1
+    on tick:
+        if item.age > 30: velocity.x = -facing * 1.6
+
+item MindBone damage 12 angle 45 lifetime 140:
+    blueprint items/base.fib
+    icon items/snack4.png
+    billboard_size 8
+    on thrown:
+        velocity.x = velocity.x * 0.7
+        velocity.y = velocity.y + 1.5
+
+item GummyShark damage 5 angle 75 lifetime 110:
+    blueprint items/base.fib
+    icon items/snack5.png
+    billboard_size 8
+    on thrown:
+        velocity.x = facing * 3
+        velocity.y = 0.5
+    on tick:
+        if item.age > 12: velocity.y = velocity.y + 0.18
+        velocity.x = velocity.x * 0.99
+
+item BirdSeed damage 6 angle 45 lifetime 140:
+    blueprint items/base.fib
+    icon items/snack6.png
+    billboard_size 8
+    on thrown:
+        velocity.x = facing * 3
+        velocity.y = 0
+
+item PHYSICS_OBJECT damage 6 angle 90 lifetime 140:
+    blueprint items/base.fib
+    icon items/snack7.png
+    billboard_size 8
+    on thrown:
+        velocity.x = facing * 2
+        velocity.y = 2
+    on tick:
+        velocity.x = velocity.x + sin(item.age * 0.47) * 0.24
+        velocity.y = velocity.y + cos(item.age * 0.41) * 0.1
+
+item CrimeShard damage 1 angle 45 lifetime 100:
+    blueprint items/base.fib
+    on thrown:
+        velocity.x = velocity.x * 0.55
+        velocity.y = velocity.y + 0.3

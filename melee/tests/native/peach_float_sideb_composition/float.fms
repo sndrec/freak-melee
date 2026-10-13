@@ -1,0 +1,181 @@
+# Complete Float/FloatFall/FloatAttack decisions; matching generic50 policies.
+attribute float float_fall_start_offset 8
+attribute float float_duration 12
+parameter int float_motion = 341
+parameter int float_fall_forward_motion = 342
+parameter int float_fall_backward_motion = 343
+parameter int float_attack_motion_offset = 279
+parameter int float_gun_neutral_motion = 65
+parameter int float_gun_forward_motion = 66
+parameter int float_gun_use_category = 3
+parameter int float_keep_graphics_flags = 2
+parameter int float_attack_transition_flags = 1
+parameter int float_particle = 1236
+state float float_timer
+state bool float_attack_released
+
+func continue_float_input() -> bool:
+    return input.y >= controls.tap_jump_threshold or input.jump_held
+
+func enter_float(bool reset_timer):
+    # Original has no animation.start call at Float entry.
+    state.enter_at_speed(attrs.float_motion, 0, 0, 1)
+    state.has_float = false
+    if reset_timer:
+        state.float_timer = attrs.float_duration
+    velocity.y = 0
+    effects.active = true
+    effects.spawn_async_attached(attrs.float_particle, TransN)
+
+func leave_float_direction():
+    let int destination = attrs.float_fall_backward_motion
+    let float start = state.float_fall_backward_end
+    if input.x * facing.direction > -controls.aerial_jump_reverse_threshold:
+        destination = attrs.float_fall_forward_motion
+        start = state.float_fall_forward_end
+    state.enter_at_speed(destination, attrs.float_keep_graphics_flags, start - attrs.float_fall_start_offset, 1)
+
+func begin_float_attack():
+    # Called a second time after the gun test, matching original call order.
+    let int selected = controls.aerial_attack_motion()
+    state.float_attack_released = false
+    controls.interrupt_allowed = false
+    command(0) = 0
+    cue.throw.reset()
+    state.enter_at_speed(selected + attrs.float_attack_motion_offset, attrs.float_attack_transition_flags, 0, 1)
+    animation.start()
+
+func try_float_attack() -> bool:
+    if input.attack_pressed or input.cstick_attack_edge():
+        if state.float_timer > 0:
+            let int selected = controls.aerial_attack_motion()
+            if (selected == attrs.float_gun_forward_motion or selected == attrs.float_gun_neutral_motion) and items.held_id != -1 and items.held_use_category == attrs.float_gun_use_category:
+                state.air_gun()
+                return true
+            begin_float_attack()
+            return true
+    return false
+
+func float_landing():
+    if velocity.y > collision.basic_landing_velocity_threshold:
+        state.wait()
+    else:
+        state.basic_landing()
+
+func float_attack_animation():
+    if state.float_timer > 0:
+        state.float_timer = state.float_timer - 1
+    if cue.reverse.consume():
+        facing.direction = -facing.direction
+    if animation.finished:
+        if state.float_attack_released:
+            state.fall()
+        else:
+            enter_float(false)
+
+func float_attack_interrupt():
+    if not continue_float_input():
+        state.float_attack_released = true
+    if controls.interrupt_allowed and not controls.try_air_item_throw():
+        if not try_float_attack():
+            controls.try_aerial_jump()
+
+func float_attack_physics():
+    if state.float_attack_released:
+        physics.air_drift()
+    else:
+        physics.air_accel_normal()
+
+move FloatPolicies:
+    on grounded_motion_setup:
+        state.has_float = true
+    on aerial_action_manual:
+        if input.y <= -controls.aerial_action_down_threshold and input.jump_held and state.has_float:
+            enter_float(true)
+            return true
+        return false
+    on aerial_action_automatic:
+        if velocity.y <= 0 and state.has_float and continue_float_input():
+            enter_float(true)
+            return true
+        return false
+    on state_341_animation:
+        if state.float_timer > 0:
+            state.float_timer = state.float_timer - 1
+        if state.float_timer <= 0:
+            leave_float_direction()
+    on state_341_interrupt:
+        if not controls.try_air_special() and not try_float_attack():
+            if not continue_float_input():
+                leave_float_direction()
+    on state_341_physics:
+        physics.air_accel_normal()
+    on state_341_collision:
+        collision.air_landing_callback(float_landing)
+    on state_342_animation:
+        if animation.finished:
+            state.fall_aerial()
+    on state_342_interrupt:
+        return
+    on state_342_physics:
+        physics.air_accel_normal()
+        physics.animation_vertical_velocity_adjusted()
+    on state_342_collision:
+        collision.air_landing_callback(float_landing)
+    on state_343_animation:
+        if animation.finished:
+            state.fall_aerial()
+    on state_343_interrupt:
+        return
+    on state_343_physics:
+        physics.air_accel_normal()
+        physics.animation_vertical_velocity_adjusted()
+    on state_343_collision:
+        collision.air_landing_callback(float_landing)
+    on state_344_animation:
+        float_attack_animation()
+    on state_344_interrupt:
+        float_attack_interrupt()
+    on state_344_physics:
+        float_attack_physics()
+    on state_344_collision:
+        # LandingAir_EnterWithLag's nonstandard-motion fallback is basic landing.
+        if collision.landed:
+            state.basic_landing()
+    on state_345_animation:
+        float_attack_animation()
+    on state_345_interrupt:
+        float_attack_interrupt()
+    on state_345_physics:
+        float_attack_physics()
+    on state_345_collision:
+        if collision.landed:
+            state.basic_landing()
+    on state_346_animation:
+        float_attack_animation()
+    on state_346_interrupt:
+        float_attack_interrupt()
+    on state_346_physics:
+        float_attack_physics()
+    on state_346_collision:
+        if collision.landed:
+            state.basic_landing()
+    on state_347_animation:
+        float_attack_animation()
+    on state_347_interrupt:
+        float_attack_interrupt()
+    on state_347_physics:
+        float_attack_physics()
+    on state_347_collision:
+        if collision.landed:
+            state.basic_landing()
+    on state_348_animation:
+        float_attack_animation()
+    on state_348_interrupt:
+        float_attack_interrupt()
+    on state_348_physics:
+        float_attack_physics()
+    on state_348_collision:
+        if collision.landed:
+            state.basic_landing()
+

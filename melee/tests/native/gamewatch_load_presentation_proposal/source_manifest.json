@@ -1,0 +1,186 @@
+{
+  "scope": "Read-only source/design inputs. No build, DAT import execution, shader execution or game. Retail values inherited from the explicitly hashed prior census.",
+  "head": "45aae57950aab1fc44e9f20c7b975282497bfb70",
+  "inputs": [
+    {
+      "path": "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c",
+      "bytes": 18783,
+      "sha256": "836626fe34ba1bf245b8e60c35c423e540e47b41a054978cbd5f26660f8a6cf5"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftGameWatch/types.h",
+      "bytes": 4137,
+      "sha256": "20234336a708c9df7be41c07f92c6622015b22bede500f9f868dc55fd0308692"
+    },
+    {
+      "path": "src/melee/ft/fighter.c",
+      "bytes": 99383,
+      "sha256": "889627241a6202e1c717c72a04b4be5174a59e1309147eb3106070ef39cb63e0"
+    },
+    {
+      "path": "src/melee/ft/types.h",
+      "bytes": 65314,
+      "sha256": "7a78a32a66dfea5a7f9606ca91e7f0a9213e7ed1663ff76ecddf87f8b957d013"
+    },
+    {
+      "path": "src/melee/ft/ftparts.c",
+      "bytes": 14197,
+      "sha256": "c83b23b870bb5f5872e38d058abd4b4b595e196c2b032ecde13c1bd324906d84"
+    },
+    {
+      "path": "src/melee/ft/ftparts_render.c",
+      "bytes": 10675,
+      "sha256": "564d8afd86e77d75a1affcbff9a7b6173772db156be3e3c69c72129a59ae65e1"
+    },
+    {
+      "path": "src/melee/ft/dobjlist.h",
+      "bytes": 755,
+      "sha256": "183171aca18eaf1ba4e939e825a8e5600fe120649858f17aee0970edc89a4267"
+    },
+    {
+      "path": "src/melee/ft/ftmaterial.c",
+      "bytes": 8017,
+      "sha256": "f83ca8fb6d9259f09725ad493f05712401177a5507b99718514ae5a46f734066"
+    },
+    {
+      "path": "src/melee/ft/ftmaterial_tev.c",
+      "bytes": 8714,
+      "sha256": "73d014b3c967eb8e142ad48490a09070080fb722c989441f05b5ad4d25a9c9bf"
+    },
+    {
+      "path": "src/melee/ft/ftdrawcommon.c",
+      "bytes": 15061,
+      "sha256": "bf1a434906af950302380b49e748a8dc64714238e3212d2298d94f98b4b4e177"
+    },
+    {
+      "path": "src/melee/ft/ftcommon.c",
+      "bytes": 38764,
+      "sha256": "7d2baf872ba133baf7b4eb56183a911ebae273bf0549057b785e12a59ef01588"
+    },
+    {
+      "path": "src/melee/ft/ftlib.c",
+      "bytes": 23062,
+      "sha256": "cd1f7263d39686c2e28d7f69fd0139d9e19bbe1f95fc00a497dd358e2d2a2148"
+    },
+    {
+      "path": "src/melee/ft/ftdata.c",
+      "bytes": 56276,
+      "sha256": "39e51d211818e7a545c7a285d92a07b2cc1efeb6c7c1bc58364ad5222ff2dcba"
+    },
+    {
+      "path": "src/melee/ft/ftmovement_integrate.c",
+      "bytes": 8092,
+      "sha256": "a0d0afc57e76405250542e7c6eb9df0c6f57833f0484933a734137db146506b1"
+    },
+    {
+      "path": "src/melee/ft/ft_0D31.c",
+      "bytes": 26503,
+      "sha256": "bbb16f61d6a941782689d70f113f20dd50a1e7a4fe58e9b55df300ed3345f911"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_CaptureDamageKoopa.c",
+      "bytes": 1847,
+      "sha256": "aa62d113ed785fc7549dec0951226655a6ec2bba3d5b2682c71ffcb16e8e4ea5"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Shouldered.c",
+      "bytes": 4274,
+      "sha256": "302eb60e96580bdaa372aa3848069d62785f93362b2ecde9a881a22bf3fee519"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_ThrownMewtwo.c",
+      "bytes": 1204,
+      "sha256": "06d2868fe088e4ab71c60d5d690241f7a1627cf0bb67a22c53b5a7ff3b342abf"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_HammerTurn.c",
+      "bytes": 1878,
+      "sha256": "8055039266b61ef169cca168c4551f6765bf3427380fe22e8d891f70bd292970"
+    },
+    {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_Lift.c",
+      "bytes": 5112,
+      "sha256": "108e52a7818008885897a9087dd4f1ed83aa50da3713893ce471c3b0b4a256fe"
+    },
+    {
+      "path": "src/melee/ft/ftcharacter_assets.c",
+      "bytes": 67141,
+      "sha256": "d3ed9692359ea695fc31d4e2097858ff63ed9f5663c5d393f8434c5db59d31cf"
+    },
+    {
+      "path": "src/melee/ft/ftcharacter_assets.h",
+      "bytes": 2002,
+      "sha256": "436cc522b8e71e2f26db2272f371c87a47ec2b65c98871b963ad4c2df3059db0"
+    },
+    {
+      "path": "src/melee/ft/ftcharacter_asset_layout.h",
+      "bytes": 1294,
+      "sha256": "0edaa70b0c5f8e0875eda7b3f54563c9c3f7c23313c41d5feacb47424ce5ada9"
+    },
+    {
+      "path": "src/melee/ft/ftcostume_assets.c",
+      "bytes": 1932,
+      "sha256": "ec213c6741b8e38e155760bbbafcaa052268690d5ba8d10a2c87612cf0d98323"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_runtime.h",
+      "bytes": 24021,
+      "sha256": "e1f43588528212887f3d4ee083e053008fd0c064a3b795618b87f3a4cc8a8501"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_runtime.c",
+      "bytes": 44380,
+      "sha256": "92a49ee1613da149334232381d395b6143f87b37912562143da1f44e04b77fe4"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_visuals.c",
+      "bytes": 3077,
+      "sha256": "212ab07ef61daafa0c89d7bcc9988529832c61d1c5f33ae85336d8610574b600"
+    },
+    {
+      "path": "src/melee/ft/native_fighter_parameter_import.c",
+      "bytes": 12480,
+      "sha256": "151bcecef95a07861dc5b40b747c9176cb798018be107aba8ca2cb711440f759"
+    },
+    {
+      "path": "src/melee/it/itzako.c",
+      "bytes": 19326,
+      "sha256": "11ba2949ee9f016a672ece6926adad5a4e5f3ac5f821c53a76c31c754ba093db"
+    },
+    {
+      "path": "tools/native_fighter_script_primitives.c",
+      "bytes": 84252,
+      "sha256": "e664567f3b97e131e97d973d5b704db5e7c94088b90438eea7fa3d28f3c0c8f5"
+    },
+    {
+      "path": "tools/native_fighter_script_kinetics.c",
+      "bytes": 4676,
+      "sha256": "94697fcbb8c213ea1a2940b17865eaada1f29f86f3c1687f557a98c5edd41e03"
+    },
+    {
+      "path": "tests/native/article_layered_render_proposal/proposal.md",
+      "bytes": 16461,
+      "sha256": "7a740dc5ef6e7e85ee03de2c744dc8e100416eaf33b98a93c0709a889f1d1a4b"
+    },
+    {
+      "path": "tests/native/article_layered_render_proposal/retail_census.json",
+      "bytes": 6661,
+      "sha256": "38edb5f7bf07dc80e19e0e7824f737a3933b4195a21ed6a32e48a3c839652d29"
+    },
+    {
+      "path": "tests/native/article_layered_render_proposal/source_manifest.json",
+      "bytes": 12192,
+      "sha256": "5f830ecb468a17ee024ee13f21be3195535ed485ff05864e9971931a9f20270f"
+    },
+    {
+      "path": "tests/native/gamewatch_normals_composition/fighter.fms",
+      "bytes": 8373,
+      "sha256": "90bdcbde6291a5ff05a136f55f350e39aa39cdd63b0b3be6d5d53ef9bdc26c09"
+    },
+    {
+      "path": "src/melee/ft/native_costume_runtime.c",
+      "bytes": 7607,
+      "sha256": "262ffe7ea8e35b7e4b7b1a1ef2af8fc3ddf31cf5495c81bf4a7a67dfe807eef4"
+    }
+  ]
+}

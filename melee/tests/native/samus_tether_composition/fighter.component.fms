@@ -1,0 +1,244 @@
+# Samus fighter tether policies; composed with the real owned GBeam article.
+attribute int tether_standing_launch 160
+attribute int tether_dash_launch 176
+attribute int tether_air_launch 192
+state int tether_handle
+state int tether_attachment_part
+state float tether_counter
+state bool tether_before_launch
+state bool tether_create_requested
+
+func Tether_Create():
+    if motion.id != 357 and motion.id != 358 and motion.id != 212 and motion.id != 214:
+        return
+    Tether_ReadInputs()
+    state.tether_attachment_part = attrs.tether_attachment_joint
+    bones.world_position(state.tether_attachment_part, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    state.tether_handle = articles.create_at_position(It_Kind_Samus_GBeam, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z, facing.direction, false)
+    if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        return
+    # Constructor/pickup is a controlled boundary in this fighter-phase fixture.
+    callbacks.accessory_before(Tether_Update)
+    callbacks.death1(Tether_Remove)
+    callbacks.accessory_hitlag(Tether_Hitlag)
+
+func Tether_Unbind(int expected):
+    if state.tether_handle != expected:
+        return
+    state.tether_handle = -1
+    if callbacks.matches(Callback.accessory_before, Tether_Update):
+        callbacks.accessory_before(None)
+    if callbacks.matches(Callback.accessory_hitlag, Tether_Hitlag):
+        callbacks.accessory_hitlag(None)
+    if callbacks.matches(Callback.death1, Tether_Remove):
+        callbacks.death1(None)
+
+func Tether_Remove():
+    if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "remove", 0)
+    else:
+        Tether_Unbind(state.tether_handle)
+
+func Tether_Update():
+    if articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "normal_update", 0)
+    else:
+        Tether_Unbind(state.tether_handle)
+
+func Tether_Hitlag():
+    if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+        Tether_Unbind(state.tether_handle)
+        return
+    state.tether_before_launch = false
+    if motion.id == 212 and state.tether_counter < attrs.tether_standing_launch:
+        state.tether_before_launch = true
+    if motion.id == 214 and state.tether_counter < attrs.tether_dash_launch:
+        state.tether_before_launch = true
+    if motion.id == 357 and state.tether_counter < attrs.tether_air_launch:
+        state.tether_before_launch = true
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "hitlag_update", 0)
+
+attribute int tether_air_create 188
+attribute int tether_air_retract 196
+attribute int tether_air_remove 200
+attribute float tether_pull_jump_multiplier 204
+attribute int tether_hang_frames 208
+parameter int tether_attachment_joint = 51
+state bool tether_launch_blocked
+state bool tether_launch_now
+state bool tether_allowed_motion
+state bool tether_grounded
+state bool tether_attack_pressed
+state bool tether_hang_expired
+state float tether_hang_timer
+state float tether_facing
+state float tether_position_x
+state float tether_position_y
+state float tether_target_x
+state float tether_target_y
+state float tether_old_x
+state float tether_old_y
+state float tether_thumb_x
+state float tether_thumb_y
+state float tether_thumb_z
+state float tether_hit_x
+state float tether_hit_y
+state float tether_hit_z
+state int tether_hit_timer
+state int tether_hit_aux
+
+func Tether_ReadInputs():
+    state.tether_launch_now = (motion.id == 212 and state.tether_counter == attrs.tether_standing_launch) or (motion.id == 214 and state.tether_counter == attrs.tether_dash_launch) or (motion.id == 357 and state.tether_counter == attrs.tether_air_launch)
+    state.tether_allowed_motion = motion.id == 212 or motion.id == 214 or motion.id == 357 or motion.id == 358
+    state.tether_grounded = grounded
+    state.tether_attack_pressed = input.attack_pressed
+    state.tether_facing = facing.direction
+
+func Tether_ReadPosition():
+    state.tether_old_x = position.x
+    state.tether_old_y = position.y
+    state.tether_position_x = position.x
+    state.tether_position_y = position.y
+
+func Tether_ApplyPosition():
+    position.x = state.tether_target_x
+    position.y = state.tether_target_y
+
+func Tether_AddDisplacement():
+    # fn_802B8D38 adds the completed displacement, not (velocity + position)
+    # followed by subtraction. Preserve its F32 evaluation order while hanging.
+    velocity.x = velocity.x + (position.x - state.tether_old_x)
+    velocity.y = velocity.y + (position.y - state.tether_old_y)
+    position.delta.x = velocity.x
+    position.delta.y = velocity.y
+
+func Tether_HitEffect():
+    effects.spawn_with_scalar_at_position(1009, state.tether_hit_x, state.tether_hit_y, state.tether_hit_z, facing.direction)
+
+func Tether_ClearAttack():
+    hitbox.clear_all()
+
+func Tether_ClearCaptureMask():
+    capture.mask(0)
+
+func Tether_StartHangTimer():
+    state.tether_hang_timer = attrs.tether_hang_frames
+
+func Tether_HangCountdown():
+    state.tether_hang_expired = state.tether_hang_timer <= 0
+    state.tether_hang_timer = state.tether_hang_timer - 1
+
+func Tether_DamageFall():
+    state.damage_fall()
+
+func Tether_PullComplete():
+    let bool ledge = collision.probe_ledge(5, 5)
+    if ledge:
+        velocity.x = 0
+        velocity.y = 0
+    if ledge and collision.ledge_available():
+        state.catch_ledge()
+    else:
+        velocity.x = 0
+        state.cliff_jump_phase2(attrs.tether_pull_jump_multiplier)
+
+func Tether_EnterAir():
+    state.tether_counter = 0
+    acceleration.x = 0
+    acceleration.y = 0
+    acceleration.z = 0
+    state.enter_at(357, 0, 0)
+    capture.mask(511)
+
+func Tether_EnterHit():
+    state.enter_flags(358, 1)
+    physics.clamp_horizontal_speed(air.drift_max)
+    state.tether_hit_timer = 20
+    state.tether_hit_aux = 0
+    if grounded:
+        physics.ground_to_air()
+
+func Tether_FinishAir():
+    state.freefall(1, 0, true, 1, movement.special_landing_lag)
+
+func Tether_LaunchAir():
+    bones.world_position(state.tether_attachment_part, state.tether_thumb_x, state.tether_thumb_y, state.tether_thumb_z)
+    state.tether_launch_blocked = stage.segment_blocked(collision.position.x, state.tether_thumb_y, state.tether_thumb_x + 1.8 * facing.direction * model.instance_scale_y, state.tether_thumb_y)
+    if state.tether_launch_blocked:
+        Tether_Remove()
+        Tether_FinishAir()
+        return
+    articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "extend_air", position.delta.x)
+
+
+func Tether_AirAnimation():
+    state.tether_counter = state.tether_counter + 1
+    if state.tether_counter == attrs.tether_air_create:
+        Tether_Create()
+        if not articles.ref(state.tether_handle, It_Kind_Samus_GBeam).exists:
+            Tether_FinishAir()
+    elif state.tether_counter > attrs.tether_air_create and state.tether_counter <= attrs.tether_air_remove:
+        if state.tether_counter == attrs.tether_air_launch:
+            Tether_LaunchAir()
+            if state.tether_launch_blocked:
+                return
+        elif state.tether_counter == attrs.tether_air_retract:
+            articles.signal(state.tether_handle, It_Kind_Samus_GBeam, "retract", 0)
+
+        elif state.tether_counter == attrs.tether_air_remove:
+            Tether_Remove()
+    if animation.finished:
+        Tether_FinishAir()
+
+func Tether_AirPhysics():
+    physics.check_fastfall()
+    if movement.fastfall:
+        physics.fastfall()
+    else:
+        if state.tether_counter < 20 and position.delta.y < 0:
+            physics.fall(air.gravity * 0.2, air.terminal_velocity)
+        else:
+            physics.fall(air.gravity, air.terminal_velocity)
+    physics.air_accel_normal()
+
+func Tether_HitPhysics():
+    velocity.x = position.delta.x
+    velocity.y = position.delta.y
+    velocity.z = position.delta.z
+    physics.fall(air.gravity, air.terminal_velocity)
+
+# Proposed exact engine-policy hook, replacing stock kind gate only here.
+action TetherInput:
+    on air_tether_input:
+        if movement.used_tether:
+            return false
+        if not callbacks.matches(Callback.accessory_before, None) or not callbacks.matches(Callback.death1, None) or not callbacks.matches(Callback.accessory_hitlag, None):
+            return false
+        if items.held:
+            return false
+        if input.shield_held and input.attack_pressed:
+            if airborne:
+                Tether_EnterAir()
+            movement.used_tether = true
+            return true
+        return false
+
+action TetherAirPhases:
+    on state_357_animation:
+        Tether_AirAnimation()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        Tether_AirPhysics()
+    on state_357_collision:
+        # Uses the same ft_80081D0C contact test as ftCo_AirCatch_Coll.
+        if collision.landed:
+            state.landing(int(42), false, int(0), 0, 1)
+    on state_358_animation:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        Tether_HitPhysics()
+    on state_358_collision:
+        collision.air_catch_hit()

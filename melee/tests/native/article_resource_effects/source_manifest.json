@@ -1,0 +1,51 @@
+{
+  "status": "source frozen for root integration",
+  "receipt": "A:\\FreakMelee-test-archives\\article-resource-effects-handoff\\receipt.json",
+  "receipt_sha256": "802f2a0512fa43489f917917930f0d1c34622f1a47ea97e115ca68ee77754dbf",
+  "results": {
+    "compiler": {
+      "compiler_programs": 29
+    },
+    "action": {
+      "generated_checks": 881,
+      "lifetime_cases": 28
+    },
+    "callback": {
+      "generated_checks": 881,
+      "lifetime_cases": 28
+    },
+    "geometry": {
+      "checks": 3276,
+      "stock_source_cases": 56,
+      "probe_cases": 32,
+      "attachment_cases": 16,
+      "animation_cases": 8
+    }
+  },
+  "inputs": {
+    "src/melee/it/native_article_resource.c": "fc4651ac5e0940c2b0b8ee2928ee09361f5fbff0bd0c7b2b3c3df131dacb4093",
+    "src/melee/it/native_article_resource.h": "6a5e582ec077c0bb149ce085b06a2b5c1def4603f7c902c8ef753b16a15e60e4",
+    "tools/native_fighter_article_resources.c": "a5f90dca5b97ff37111aa326135fe0e47a1fb5c55c931a0c376aa249e837608e",
+    "tools/native_fighter_item_script.c": "7b8f69be365d7144f08a64ccd6050b31e0b8cfb7ad82428dc6e9feafe82506b7",
+    "tools/native_fighter_script_lifetime.c": "77eea6b6dce56257367d924b3b0b3057b4a79b25d1205904aeff7b6cbf89378c",
+    "src/melee/ft/native_fighter_module.h": "bb65ffff7dcfb587b468948dc0a2018b4d31a98ddfdfa3af679921237ad55aa8",
+    "src/melee/ft/native_fighter_module.c": "a75832ba959052d687c8f88161c0f336f0bfcfb8105650dc0171429a8d733dca",
+    "tests/native/article_resource_geometry_source_fixture.py": "90ecb324e4653a15d840c566556ea34df7c888ab5bb61832d6c711dfe664683d",
+    "tests/native/article_resource_geometry_test.c": "ddeeed769657e84cfd0d10d65bef9b35425386e8cac73768a1f7d8bf126aa94d",
+    "tests/native/article_resource_test.c": "12b9ea7216700a99cfbfd6dafe3b56f4c0ab0a0f675f207a2e670a4bc7137bca",
+    "tests/native/article_resource_point_collision/test.c": "2f3d788a48d0321b00919ec7e29f13d4a60f31849229c5cac063734706bf479f",
+    "tests/native/article_resource_compiler_test.c": "1f485af57580bbdc1ead49b9d52a236649475b5d48e0ffea3f015465cec50ad8",
+    "docs/scripting/article_resources.md": "7ad5313ff676bb3f5ddc819350a76c5b32854edd200fef6d5cc03bd3f5e0d7a7",
+    "tests/native/article_resource_effects/compiler.c": "94e1159bb64ee513d3e542743d7055d6035038f8edfd8db361e9b28ebd0f5587",
+    "tests/native/article_resource_effects/module.c": "511a0cbe9d4c2b6066c1cd8ed1b4f111142fa8305cc927ccac65a449f9ed1160",
+    "tests/native/article_resource_effects/README.md": "c626b66a723d1d294f62837480c2cea06be0332ecf343271a244212c36749e9c",
+    "tests/native/article_resource_effects/run.py": "fcbc4a32238880e7ef725d8c086e6ad29c4f0c167c6760e0f41afc10c02446df"
+  },
+  "shared_files_note": "module.h/c and lifetime.c contain coordinated root/Mewtwo hunks outside resource effects; only resource Host fields/offsetof/initializer/hazard entries owned here.",
+  "abi": "two Host function pointers; automatic fingerprint offsets; resource pool byte layout unchanged",
+  "limits": [
+    "Console only; live SDK headers/new parser over immutable72 compiler/original source inputs.",
+    "HSD/particle allocation, ECB responses, material/renderer evaluation remain controlled.",
+    "No whole Samus constructor/solver/fighter/rendered gameplay acceptance."
+  ]
+}

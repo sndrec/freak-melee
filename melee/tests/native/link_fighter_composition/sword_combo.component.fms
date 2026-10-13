@@ -1,0 +1,48 @@
+# Exact common first-S4 priority around authored Link second-swing input.
+func SwordCombo_Interrupt():
+    if controls.interrupt_allowed:
+        if controls.try_side_special(): return
+        if controls.try_up_special(): return
+        if controls.try_neutral_special(): return
+        if controls.try_down_special(): return
+        if controls.try_catch(): return
+    if command(0) != 0 and input.attack_pressed:
+        controls.interrupt_allowed = false
+        state.enter_at_speed(341, 0, 0, 1)
+        animation.start()
+        return
+    if controls.interrupt_allowed:
+        if controls.try_side_smash(): return
+        if controls.try_up_smash(): return
+        if controls.try_down_smash(): return
+        if controls.try_side_tilt(): return
+        if controls.try_up_tilt(): return
+        if controls.try_down_tilt(): return
+        if controls.try_jab(): return
+        if controls.try_guard(): return
+        if controls.try_taunt(): return
+        if controls.try_ground_jump(): return
+        if controls.try_dash(): return
+        if controls.try_crouch(): return
+        if controls.try_turn(): return
+        if controls.try_walk(): return
+
+action SwordCombo:
+    on state_58_interrupt:
+        SwordCombo_Interrupt()
+    on state_59_interrupt:
+        SwordCombo_Interrupt()
+    on state_60_interrupt:
+        SwordCombo_Interrupt()
+    on state_61_interrupt:
+        SwordCombo_Interrupt()
+    on state_62_interrupt:
+        SwordCombo_Interrupt()
+    on state_341_animation:
+        if animation.finished: state.wait()
+    on state_341_interrupt:
+        if controls.interrupt_allowed: controls.ground_actions()
+    on state_341_physics:
+        physics.ground_motion()
+    on state_341_collision:
+        collision.ground_standard()

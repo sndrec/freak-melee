@@ -1,0 +1,105 @@
+fighter:
+    behavior independent
+state float cape
+state int action
+state int native_kind
+state int created
+state bool present
+state bool held
+state bool pulled
+action Lifecycle:
+    on load:
+        state.cape = -1
+        state.native_kind = It_Kind_Fox_Laser
+    on tick:
+        if state.action == 1:
+            state.cape = articles.spawn_bone_attached(It_Kind_Mario_Cape, FtPart_TopN)
+            state.present = articles.owned(state.cape)
+            articles.pause_owned(state.cape)
+            articles.resume_owned(state.cape)
+        elif state.action == 2:
+            articles.spawn_authored_projectile(It_Kind_Mario_Fire, FtPart_TopN, 0)
+        elif state.action == 3:
+            state.pulled = items.pull(0)
+            state.held = items.held
+        elif state.action == 4:
+            articles.remove_owned(state.cape)
+            state.present = articles.owned(state.cape)
+        elif state.action == 5:
+            state.present = articles.owned(state.cape)
+            articles.pause_owned(state.cape)
+            articles.resume_owned(state.cape)
+            articles.remove_owned(state.cape)
+        elif state.action == 6:
+            state.held = items.held
+        elif state.action == 7:
+            state.cape = articles.spawn_attached(It_Kind_Mario_Cape, FtPart_TopN, 0, 0, 0, 1, 60)
+        elif state.action == 8:
+            articles.spawn_authored_projectile(It_Kind_Fox_Laser, FtPart_TopN, 0)
+        elif state.action == 9:
+            state.action = articles.create_at_position(It_Kind_Fox_Laser, 21, 22, 23, -1, false)
+        elif state.action == 10:
+            state.action = articles.create_with_velocity(It_Kind_Fox_Laser, 31, 32, 33, 4, 5, 6, 1, true, 4294967295, 7, true)
+        elif state.action == 11:
+            state.action = articles.create_with_velocity(It_Kind_Fox_Laser, 31, 32, 33, 4, 5, 6, 1, true, 4294967295, 7, false)
+        elif state.action == 12:
+            state.action = articles.create_at_position(It_Kind_Fox_Laser, 41, 42, 43, -1, false, 4294967295, 7.25)
+        elif state.action == 13:
+            state.action = articles.create_at_position(It_Kind_Fox_Laser, 41, 42, 43, 1, false, -2147483648, -3.5)
+        elif state.action == 14:
+            state.action = articles.create_at_position(It_Kind_Fox_Laser, 41, 42, 43, 1, true, 0, -0.0)
+        elif state.action == 15:
+            articles.launch_at_position(It_Kind_Fox_Laser, 21, 22, 23, 0, 3, 1, 4, -2147483648, -1)
+        elif state.action == 16:
+            articles.launch_projectile(It_Kind_Fox_Laser, FtPart_TopN, 1, 2, 3, 3.1415927410125732, 3, 1)
+article It_Kind_Mario_Cape states 2:
+    state int count
+    on created:
+        owner.state.created = owner.state.created + 1
+    on picked_up:
+        item.change_state(0)
+        item.activate_attached()
+    on interaction:
+        item.interact(other)
+    on destroyed:
+        if owner.exists: owner.state.cape = -1
+    state 0 anim -1:
+        on animation:
+            if not item.attachment_active: return true
+            return false
+    state 1 anim -1:
+        on animation:
+            return false
+article It_Kind_Mario_Fire states 2:
+    state int count
+    on spawned:
+        item.change_state(0)
+    state 0 anim -1:
+        on animation:
+            return false
+    state 1 anim -1:
+        on animation:
+            return false
+item Snack damage 4 angle 45 lifetime 90:
+    state int count
+    on hit:
+        item.spawn_food()
+        return true
+
+article It_Kind_Fox_Laser states 2:
+    state int count
+    state float born
+    state float created_value
+    state float launches
+    on spawned:
+        state.born = item.creation_value
+    on created:
+        state.created_value = item.creation_value
+    on launched:
+        state.launches = state.launches + 1
+    state 0 anim -1:
+        on animation:
+            return false
+    state 1 anim -1:
+        on animation:
+            return false

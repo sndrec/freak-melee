@@ -1,0 +1,82 @@
+# UNREGISTERED complete Turnip phase candidate for frozen34.
+# Constructor/pickup and the Parasol/Toad cleanup chain are separate.
+state int vegetable_handle
+export func forget_vegetable():
+    state.vegetable_handle = -1
+article It_Kind_Peach_Turnip states 5:
+    parameter int surface_response_mask = 14
+    parameter int retire_contact_mask = 3
+    state int face
+    state int face_damage
+    state bool picked_up_once
+    on thrown:
+            item.change_state_flags(2, 6)
+            item.set_appearance(0, float(item.state.face))
+            hitbox.set_damage(0, item.state.face_damage)
+            item.set_instance_scale(item.throw_scale)
+    on dropped:
+            item.change_state_flags(3, 6)
+            item.set_appearance(0, float(item.state.face))
+    on damage_dealt:
+            item.bounce()
+            item.change_state(1)
+            return false
+    on clanked:
+            item.bounce()
+            return false
+    on reflected:
+            item.reflect()
+            return false
+    on hit_shield:
+            item.bounce()
+            return false
+    on shield_bounced:
+            item.shield_bounce()
+            return false
+    on destroyed:
+            creator.call(forget_vegetable)
+    on interaction:
+            if item.attachment_owner_is(other):
+                item.clear_attachment_owner()
+            item.interact(other)
+    state 0 anim 1:
+        on animation:
+            return false
+        on physics:
+            return
+    state 1 anim -1:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity(false)
+    state 2 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+        on collision:
+            let int collision_flags = item.sweep_stage_flags()
+            if collision_flags & item.attr.surface_response_mask:
+                item.respond_stage_mask(collision_flags)
+                item.change_state(1)
+            elif collision_flags & item.attr.retire_contact_mask:
+                return true
+            return false
+    state 3 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+        on collision:
+            let int collision_flags = item.sweep_stage_flags()
+            if collision_flags & item.attr.surface_response_mask:
+                item.respond_stage_mask(collision_flags)
+                item.change_state(1)
+            elif collision_flags & item.attr.retire_contact_mask:
+                return true
+            return false
+    state 4 anim -1:
+        on animation:
+            return false
+        on physics:
+            return

@@ -1,0 +1,13 @@
+# Primary fighter's CPU-coupled capture choice; shared script59 remains the common
+# command program, not a call to a Popo fighter handler.
+move PrimaryCapturePolicy:
+    on cpu_capture_decision:
+        if cpu.grab_attempts == 0 and cpu.level > 4:
+            let float chance_per_level = 0.05
+            let float chance = chance_per_level * cpu.level
+            if random.float() < chance:
+                cpu.run_script(59)
+                return true
+        return false
+    on cpu_pummel_special:
+        return false

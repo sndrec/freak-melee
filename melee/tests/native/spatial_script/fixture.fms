@@ -1,0 +1,16 @@
+action WorldWind:
+    on load:
+        effects.wind_at_position(random.int(100), random.int(100), random.int(100), random.int(100), random.int(100), random.int(100), random.int(100))
+
+article It_Kind_GameWatch_Manhole states 1:
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state 0 anim -1:
+        on physics:
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            item.joint_world_position(0, "0", x, y, z)
+            effects.wind_at_position(x, y, z, 120, 3, 0.1, 1.0471976)
+            item.joint_world_position(1, "", item.state.saved_x, item.state.saved_y, item.state.saved_z)

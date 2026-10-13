@@ -1,0 +1,312 @@
+#include "ftaction_data.h"
+
+#include <melee/lb/types.h>
+#include <melee/ft/types.h>
+#include <sysdolphin/baselib/dat_import_internal.h>
+
+#include <limits.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct FieldLayout {
+    u8 count;
+    u8 widths[8];
+} FieldLayout;
+
+#define LAYOUT(...) { sizeof((u8[]) { __VA_ARGS__ }), { __VA_ARGS__ } }
+static const FieldLayout basic = LAYOUT(6, 26);
+static const FieldLayout event = LAYOUT(6, 8, 18);
+static const FieldLayout halves = LAYOUT(16, 16);
+static const FieldLayout sound_tail = LAYOUT(16, 8, 8);
+static const FieldLayout gfx_head = LAYOUT(6, 8, 1, 1, 1, 15);
+static const FieldLayout hitbox_head = LAYOUT(6, 3, 3, 1, 8, 1, 10);
+static const FieldLayout hitbox_third = LAYOUT(9, 9, 9, 1, 1, 1, 1, 1);
+static const FieldLayout hitbox_fourth = LAYOUT(9, 5, 8, 3, 5, 1, 1);
+static const FieldLayout hitbox_damage = LAYOUT(6, 3, 23);
+static const FieldLayout hitbox_flags = LAYOUT(6, 24, 1, 1);
+static const FieldLayout command_var = LAYOUT(6, 2, 24);
+static const FieldLayout hurt_state = LAYOUT(6, 8, 18);
+static const FieldLayout dobj_flags = LAYOUT(6, 7, 19);
+static const FieldLayout throw_hitbox_1 = LAYOUT(9, 9, 9);
+static const FieldLayout throw_hitbox_2 = LAYOUT(9, 4, 3, 4);
+static const FieldLayout random_sfx = LAYOUT(6, 8, 8, 4, 6);
+static const FieldLayout stage_sfx = LAYOUT(6, 10, 8, 8);
+static const FieldLayout tex_anim = LAYOUT(6, 1, 7, 7, 11);
+static const FieldLayout part_anim = LAYOUT(6, 7, 7, 12);
+static const FieldLayout pair13 = LAYOUT(6, 13, 13);
+static const FieldLayout one12_13 = LAYOUT(6, 1, 12, 13);
+static const FieldLayout two10_14 = LAYOUT(6, 2, 10, 14);
+static const FieldLayout byte_head = LAYOUT(6, 8);
+static const FieldLayout flag25 = LAYOUT(6, 1, 25);
+static const FieldLayout footstep = LAYOUT(6, 8, 1, 1, 8, 8);
+static const FieldLayout unknown_fx = LAYOUT(6, 2, 8, 8, 8);
+static const FieldLayout charge = LAYOUT(6, 10, 16);
+static const FieldLayout charge_tail = LAYOUT(8, 24);
+static const FieldLayout wind = LAYOUT(6, 18, 8);
+static const FieldLayout flag8 = LAYOUT(6, 1, 8);
+#undef LAYOUT
+
+// Keep this in opcode order with ftAction_803C0870. The independent ISO audit
+// records the same corpus; the native import test compares its graph totals.
+static const u8 action_widths[49] = {
+    5, 5, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 7, 4, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 2, 1, 4,
+};
+
+u32 ftActionData_SourceCommandWidth(u32 source_word)
+{
+    u32 opcode = source_word >> 26;
+    if (opcode < 10) {
+        return (opcode == 5 || opcode == 7) ? 2 : 1;
+    }
+    return opcode <= 58 ? action_widths[opcode - 10] : 0;
+}
+
+static bool fail(HSD_DatImport* import, HSD_DatResult result, u32 offset)
+{
+    import->status = result;
+    import->error_offset = offset;
+    return false;
+}
+
+static const FieldLayout* word_layout(u32 opcode, u32 word)
+{
+    if (word != 0) {
+        switch (opcode) {
+        case 10: return &halves;
+        case 11:
+            if (word <= 2) return &halves;
+            return word == 3 ? &hitbox_third : &hitbox_fourth;
+        case 17: return word == 2 ? &sound_tail : NULL;
+        case 34: return word == 1 ? &throw_hitbox_1 : &throw_hitbox_2;
+        case 39:
+            if (word == 2) return &halves;
+            return word == 3 ? &sound_tail : NULL;
+        case 54:
+        case 55: return word == 2 ? &sound_tail : NULL;
+        case 56: return &charge_tail;
+        case 58: return &halves;
+        default: return NULL;
+        }
+    }
+    switch (opcode) {
+    case 9: return &event;
+    case 10: return &gfx_head;
+    case 11: return &hitbox_head;
+    case 12:
+    case 13:
+    case 34: return &hitbox_damage;
+    case 14: return &hitbox_flags;
+    case 19: return &command_var;
+    case 28: return &hurt_state;
+    case 31: return &dobj_flags;
+    case 38: return &random_sfx;
+    case 39: return &stage_sfx;
+    case 40: return &tex_anim;
+    case 41: return &part_anim;
+    case 42: return &pair13;
+    case 43: return &one12_13;
+    case 45: return &two10_14;
+    case 46: return &event;
+    case 47: return &byte_head;
+    case 49: return &flag25;
+    case 54: return &footstep;
+    case 55: return &unknown_fx;
+    case 56: return &charge;
+    case 57: return &flag8;
+    case 58: return &wind;
+    default: return &basic;
+    }
+}
+
+static u32 transcode_word(u32 source, const FieldLayout* layout)
+{
+    if (layout == NULL) return source;
+    u32 result = 0;
+    u32 source_shift = 32;
+    u32 target_shift = 0;
+    for (u32 i = 0; i < layout->count; ++i) {
+        u32 width = layout->widths[i];
+        source_shift -= width;
+        u32 mask = width == 32 ? UINT32_MAX : (1U << width) - 1;
+        result |= ((source >> source_shift) & mask) << target_shift;
+        target_shift += width;
+    }
+    return result;
+}
+
+bool ftActionData_NextHitboxFlag(const union CmdUnion* command)
+{
+    u32 native;
+    memcpy(&native, command, 4);
+    const FieldLayout* layout = word_layout(native & 63, 0);
+    u32 source_bit = 12; // PPC bit numbering: byte 1, bit 4.
+    u32 source_at = 0;
+    u32 target_at = 0;
+    for (u32 i = 0; i < layout->count; ++i) {
+        u32 width = layout->widths[i];
+        if (source_bit >= source_at && source_bit < source_at + width) {
+            u32 native_bit = target_at + width - 1 - (source_bit - source_at);
+            return ((native >> native_bit) & 1) != 0;
+        }
+        source_at += width;
+        target_at += width;
+    }
+    return false;
+}
+
+bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
+                         u32 wait_count, struct Fighter_WaitAnimData* table,
+                         FtActionDataStats* stats)
+{
+    if (import == NULL) return false;
+    if (table == NULL || stats == NULL || (wait_source & 3) != 0 ||
+        wait_source == 0 || wait_source > import->dat->data_size ||
+        wait_count == 0)
+        return fail(import, HSD_DAT_DESCRIPTOR, wait_source);
+    memset(stats, 0, sizeof(*stats));
+    u32 source_words = wait_source / 4;
+    size_t pending_capacity = (size_t) source_words + wait_count;
+    u8* state = calloc(source_words, 1);
+    u32* pending = malloc(pending_capacity * sizeof(*pending));
+    if (state == NULL || pending == NULL) {
+        free(state);
+        free(pending);
+        return fail(import, HSD_DAT_CAPACITY, wait_source);
+    }
+    bool okay = false;
+    u32 pending_count = 0;
+    u32 source_begin = UINT32_MAX;
+    u32 instruction_count = 0;
+    u32 entry_count = 0;
+    for (u32 i = 0; i < wait_count; ++i) {
+        u32 slot = wait_source + i * 24 + 12;
+        u32 target;
+        const char* external;
+        HSD_DatReferenceKind kind =
+            HSD_DatResolve(import->dat, slot, &target, &external);
+        if (kind == HSD_DAT_REF_NULL) continue;
+        if (kind != HSD_DAT_REF_LOCAL || (target & 3) != 0 ||
+            target >= wait_source || pending_count == pending_capacity)
+        {
+            fail(import, HSD_DAT_RELOCATION, slot);
+            goto cleanup;
+        }
+        pending[pending_count++] = target;
+        ++entry_count;
+    }
+    while (pending_count != 0) {
+        u32 at = pending[--pending_count];
+        while (true) {
+            if ((at & 3) != 0 || at >= wait_source) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
+            u32 index = at / 4;
+            if (state[index] == 2) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
+            if (state[index] == 1) break;
+            u32 raw;
+            if (!HSD_DatReadU32(import->dat, at, &raw)) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
+            u32 opcode = raw >> 26;
+            u32 width = ftActionData_SourceCommandWidth(raw);
+            if (width == 0 || width > (wait_source - at) / 4) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
+            state[index] = 1;
+            for (u32 word = 1; word < width; ++word) {
+                if (state[index + word] != 0) {
+                    fail(import, HSD_DAT_DESCRIPTOR, at + word * 4);
+                    goto cleanup;
+                }
+                state[index + word] = 2;
+            }
+            if (at < source_begin) source_begin = at;
+            ++instruction_count;
+            if (opcode == 5 || opcode == 7) {
+                u32 target;
+                const char* external;
+                HSD_DatReferenceKind kind =
+                    HSD_DatResolve(import->dat, at + 4, &target, &external);
+                if (kind == HSD_DAT_REF_LOCAL && (target & 3) == 0 &&
+                    target < wait_source && pending_count < pending_capacity)
+                {
+                    pending[pending_count++] = target;
+                } else if (kind != HSD_DAT_REF_NULL) {
+                    fail(import, HSD_DAT_RELOCATION, at + 4);
+                    goto cleanup;
+                }
+            }
+            if (opcode == 0 || opcode == 6 || opcode == 7) break;
+            at += width * 4;
+        }
+    }
+    if (entry_count == 0 || source_begin == UINT32_MAX ||
+        HSD_DatBytes(import->dat, source_begin,
+                     wait_source - source_begin) == NULL)
+    {
+        fail(import, HSD_DAT_DESCRIPTOR, wait_source);
+        goto cleanup;
+    }
+    u32 word_count = (wait_source - source_begin) / 4;
+    union CmdUnion* commands = HSD_DatImportAlloc(
+        import, (size_t) word_count * sizeof(*commands));
+    if (commands == NULL) {
+        import->error_offset = source_begin;
+        goto cleanup;
+    }
+    for (u32 at = source_begin; at < wait_source; at += 4) {
+        if (state[at / 4] != 1) continue;
+        u32 raw;
+        HSD_DatReadU32(import->dat, at, &raw);
+        u32 opcode = raw >> 26;
+        u32 width = ftActionData_SourceCommandWidth(raw);
+        u32 native = transcode_word(raw, word_layout(opcode, 0));
+        memcpy(&commands[(at - source_begin) / 4], &native, 4);
+        for (u32 word = 1; word < width; ++word) {
+            u32 value;
+            if (opcode == 5 || opcode == 7) {
+                u32 target;
+                const char* external;
+                HSD_DatReferenceKind kind = HSD_DatResolve(
+                    import->dat, at + 4, &target, &external);
+                s32 relative = kind == HSD_DAT_REF_NULL
+                                   ? INT32_MIN
+                                   : (s32) target - (s32) (at + 4);
+                memcpy(&commands[(at + 4 - source_begin) / 4], &relative, 4);
+                break;
+            }
+            HSD_DatReadU32(import->dat, at + word * 4, &value);
+            value = transcode_word(value, word_layout(opcode, word));
+            memcpy(&commands[(at + word * 4 - source_begin) / 4], &value, 4);
+        }
+    }
+    for (u32 i = 0; i < wait_count; ++i) {
+        u32 target;
+        const char* external;
+        if (HSD_DatResolve(import->dat, wait_source + i * 24 + 12,
+                           &target, &external) == HSD_DAT_REF_LOCAL)
+        {
+            table[i].xC = &commands[(target - source_begin) / 4];
+        }
+    }
+    stats->commands = commands;
+    stats->source_begin = source_begin;
+    stats->word_count = word_count;
+    stats->instruction_count = instruction_count;
+    stats->entry_count = entry_count;
+    okay = true;
+
+cleanup:
+    free(pending);
+    free(state);
+    return okay;
+}

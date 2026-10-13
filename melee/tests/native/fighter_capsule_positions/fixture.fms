@@ -1,0 +1,25 @@
+state int index
+state float value
+state float current_x
+state float current_y
+state float current_z
+state float previous_x
+state float previous_y
+state float previous_z
+state float sample
+action CapsuleCoordinates:
+    on tick:
+        hitbox.current(state.index).x = state.value + 0
+        hitbox.current(state.index).y = state.value + 1
+        hitbox.current(state.index).z = state.value + 2
+        hitbox.previous(state.index).x = state.value + 3
+        hitbox.previous(state.index).y = state.value + 4
+        hitbox.previous(state.index).z = state.value + 5
+        state.current_x = hitbox.current(state.index).x
+        state.current_y = hitbox.current(state.index).y
+        state.current_z = hitbox.current(state.index).z
+        state.previous_x = hitbox.previous(state.index).x
+        state.previous_y = hitbox.previous(state.index).y
+        state.previous_z = hitbox.previous(state.index).z
+        hitbox.current(random.int(8)).x = random.int(100)
+        state.sample = hitbox.previous(random.int(8)).y

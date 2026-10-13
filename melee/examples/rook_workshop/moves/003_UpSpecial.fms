@@ -1,0 +1,83 @@
+move UpSpecial:
+    on special_hi:
+        state.up_turn_frame = -20
+        state.up_start_direction = 1
+        state.up_turned = 0
+        state.enter(350)
+        velocity.y = velocity.x * 0.25
+        velocity.x = velocity.x * 0.25
+    on special_air_hi:
+        state.up_turn_frame = -20
+        state.up_start_direction = 1
+        state.up_turned = 0
+        state.enter(350)
+        velocity.y = velocity.x * 0.25
+        velocity.x = velocity.x * 0.25
+    on state_350_animation:
+        if state.up_turned == 0 and abs(input.x) > 0.2 and facing.direction * input.x < 0 and frame < 9:
+            if frame > 2:
+                state.up_turned = 1
+            facing.direction = -facing.direction
+            state.enter(350, frame)
+        if command(1) == 1:
+            state.enter(351)
+    on state_350_collision:
+        if collision.check_ground_ledge(0): pass
+        collision.cliff_catch()
+    on state_351_animation:
+        if command(1) == 2:
+            state.enter(352)
+        if not input.special_held:
+            state.enter(352)
+    on state_351_physics:
+        let float ratio = frame / 110
+        let float max_x = 1.5 - ratio * 0.5
+        let float drift = 0.08 - ratio * 0.06
+        let float base_y = 0.6 - ratio * 0.4
+        let float add_y = 0.5 - ratio * 0.3
+        let float stick_x = input.x * 2
+        let float stick_y = input.y * 2
+        if stick_x < -1:
+            stick_x = -1
+        if stick_y < -1:
+            stick_y = -1
+        stick_x = stick_x * 2
+        stick_y = stick_y * 2
+        if stick_x > 1:
+            stick_x = 1
+        if stick_y > 1:
+            stick_y = 1
+        if frame == 1:
+            velocity.x = facing.direction * max_x
+            state.up_start_direction = facing.direction
+        if signbit(facing.direction) != signbit(velocity.x):
+            state.up_turn_frame = frame
+            facing.direction = -facing.direction
+        let float turn = (state.up_turn_frame + 16 - frame) / 16
+        if turn < 0:
+            turn = 0
+        if turn > 1:
+            turn = 1
+        if facing.direction == state.up_start_direction:
+            bones.root.rotate_y_joint(2, 3.14159 * turn)
+        else:
+            bones.root.rotate_y_joint(2, 3.14159 * (1 - turn))
+        velocity.y = base_y + stick_y * add_y
+        velocity.x = velocity.x + stick_x * drift
+        if velocity.x < -max_x:
+            velocity.x = -max_x
+        if velocity.x > max_x:
+            velocity.x = max_x
+        bones.root.rotate_x_joint(2, abs(velocity.x * 0.5) - 0.25 - input.y * 0.25 + 0.1)
+    on state_351_collision:
+        if collision.check_ground_ledge(0): pass
+        collision.cliff_catch()
+    on state_352_animation:
+        if command(1) == 3 or animation.finished:
+            state.freefall(1, 0, false, 1, 20)
+    on state_352_physics:
+        physics.air_drift()
+    on state_352_collision:
+        if collision.check_ground_ledge(0):
+            state.landing_special(false, 20)
+        collision.cliff_catch()

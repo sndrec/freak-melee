@@ -1,0 +1,46 @@
+# Inserted inside the real GBeam article, not the historical dummy Article.
+# Keep the common Catch phase order: change mode/clear fighter hitboxes before
+# publishing the endpoint as the victim's capture anchor.
+    state bool capture_bound
+
+    on signal extend_air:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).velocity.x = item.state.launch_speed * attachment_owner.facing + signal.value
+            item.resource(item.state.endpoint).velocity.y = 0
+            item.resource(item.state.endpoint).velocity.z = 0
+            ChangeMode(int(1), false)
+    on signal extend_ground:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            item.resource(item.state.endpoint).velocity.x = item.state.launch_speed * attachment_owner.facing
+            item.resource(item.state.endpoint).velocity.y = 0
+            item.resource(item.state.endpoint).velocity.z = 0
+            ChangeMode(int(1), false)
+    on signal retract:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(4), false)
+    on signal bind_capture:
+            item.state.capture_bound = false
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(5), true)
+            item.state.capture_bound = item.resource(item.state.endpoint).bind_capture_anchor()
+    on signal retract_capture:
+            if not attachment_owner.exists:
+                Dispose()
+                return
+            ChangeMode(int(5), true)
+    on signal ground_spark:
+            if not item.resource(item.state.endpoint).read_world_matrix(item.state.matrix):
+                return
+            let float x = 4 * (random.float() - 0.5) + item.state.matrix[3]
+            let float y = 4 * (random.float() - 0.5) + item.state.matrix[7]
+            let float centered = random.float() - 0.5
+            let float z = 4 * centered + item.state.matrix[11]
+            item.resource(item.state.endpoint).spawn_effect_at_position(1011, x, y, z)

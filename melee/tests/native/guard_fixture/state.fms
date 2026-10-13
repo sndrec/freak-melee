@@ -1,0 +1,21 @@
+func enable_guard():
+    guard.create(3, 1, 2, 3, 4, GuardHit)
+    guard.reactive = true
+    guard.melee_hitlag = 7
+    guard.article_hitlag = 8
+    guard.update_position()
+
+func GuardHit():
+    facing.direction = guard.hit_facing
+    velocity.x = int(guard.hit_damage) * 1.5
+    guard.active = false
+    guard.reactive = false
+    callbacks.clear_hitlag()
+
+move Guard:
+    on load:
+        enable_guard()
+    on death:
+        guard.create(-1, 0, 0, 0, 4, GuardHit)
+        guard.create(10, 0, 0, 0, 4, GuardHit)
+        guard.create(3, 0, 0, 0, -1, GuardHit)

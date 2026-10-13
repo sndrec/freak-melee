@@ -1,0 +1,177 @@
+attribute float test_attr 12
+attribute int test_limit 16
+state int test_article_id
+state int test_attached_id
+state bool test_active
+state float test_fraction
+state int test_bone_attached_id
+
+func load_preview_attachment():
+    if attachments.has_root("Accessory_TopN_joint"):
+        attachments.load(2, "Accessory_TopN_joint", 5, -1, 0)
+        attachments.add_dynamics(2, 1, 2)
+
+move Neutral:
+    on special_n:
+        stock.enter()
+    on special_air_n:
+        stock.enter()
+
+action Taunt:
+    on idle_variants:
+        return not items.held
+    on motion_is_angled:
+        return event.motion >= 51 and event.motion <= 61 and (event.motion < 54 or event.motion > 56)
+    on wait_input:
+        if input.down_held: return false
+        return input.down_release_age == 1
+    on action_status:
+        return player.secondary and player.slot == 2
+    on death1:
+        state.test_active = true
+        callbacks.clear_death1()
+    on load:
+        load_preview_attachment()
+        if input.horizontal_smash_age < 5: stats.count_as_thrown_item()
+        state.test_article_id = 17
+        state.test_attached_id = articles.spawn_attached(It_Kind_Mario_Fire, Top, 2, 1, 0, 1, 60)
+        state.test_bone_attached_id = articles.spawn_bone_attached(It_Kind_Mario_Fire, Top)
+        articles.pause_owned(state.test_bone_attached_id)
+        articles.resume_owned(state.test_bone_attached_id)
+        callbacks.track_hitlag()
+        articles.spawn_authored_projectile(It_Kind_Mario_Fire, Top, 2)
+    on pre_hitlag:
+        articles.pause_owned(state.test_bone_attached_id)
+    on post_hitlag:
+        articles.resume_owned(state.test_bone_attached_id)
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        fighter.self_damage(7)
+        fighter.self_damage(attrs.test_attr)
+    on state_341_animation:
+        callbacks.track_damage()
+        callbacks.track_death1()
+        callbacks.track_death2()
+        callbacks.track_deal_damage()
+        callbacks.track_hurtbox_detect()
+        if animation.finished: state.wait()
+    on state_341_physics:
+        if attrs.test_limit == 7:
+            physics.ground_animation_velocity()
+            physics.align_to_floor()
+            bones.root.reset_z()
+            physics.ground_to_air()
+            state.enter(342, 0, attrs.test_attr)
+    on state_341_collision:
+        if collision.wall_hug_ahead: fighter.self_damage(13)
+        if collision.special_ground_lost: fighter.self_damage(17)
+    on damage:
+        if articles.owned(state.test_article_id): articles.remove_owned(state.test_article_id)
+        fighter.self_damage(2)
+    on death2:
+        fighter.self_damage(3)
+    on deal_damage:
+        fighter.self_damage(11)
+    on hurtbox_detect:
+        fighter.self_damage(10)
+    on tick:
+        fighter.self_damage(1)
+    on late_update:
+        fighter.self_damage(8)
+    on color_animation_reset:
+        fighter.self_damage(9)
+    on user_data_remove:
+        attachments.clear_all()
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+        if items.held and not items.heavy:
+            if items.hold_kind == 3: visuals.set_part_animation(0, 0)
+            elif items.hold_kind == 4: visuals.set_part_animation(0, 1)
+            if event.flag: visuals.show_part_animation(0)
+        if event.flag: fighter.self_damage(4)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 0, 1)
+        if not event.flag: fighter.self_damage(5)
+    on item_visible:
+        fighter.item_visible(1)
+        if items.held and not items.heavy: visuals.show_part_animation(0)
+    on item_invisible:
+        fighter.item_invisible(0)
+        if items.held and not items.heavy: visuals.hide_part_animation(0)
+    on knockback_enter:
+        fighter.knockback_enter(3)
+        fighter.self_damage(6)
+    on knockback_exit:
+        fighter.knockback_exit(3)
+
+item ScriptedPotion damage 1 angle 45 lifetime 30:
+    on thrown:
+        velocity.x = facing * 2
+
+article It_Kind_Mario_Fire states 2:
+    state float value
+    state float contact
+    state float speed
+    state float owner_scale
+    state float holder_motion
+    state float holder_scale
+    state float tracked_id
+    state float holder_disabled
+    state int exact_counter
+    state bool active
+    attribute float launch_speed 0
+    attribute float launch_angle 4
+    attribute float lifetime 8
+    projectile appearance 0 state 0 speed launch_speed angle launch_angle lifetime lifetime
+    state 0 anim -1:
+        on animation:
+            item.spawn_effect_on_bone(1149, 16)
+            item.state.value = 7
+            item.state.speed = item.attr.launch_speed
+            item.state.owner_scale = owner.root_scale_y
+            item.state.holder_motion = holder.motion
+            item.state.holder_scale = holder.root_scale_y
+            item.state.holder_disabled = holder.incapacitated
+            item.state.tracked_id = owner.state.test_attached_id
+            if owner.state.test_attached_id == item.creation_id: owner.state.test_attached_id = 24
+            if owner.state.test_attached_id == 24: owner.clear_damage_death()
+            item.collision_mode = 2
+            item.world_interaction = false
+            if item.attachment_active and owner.motion == 341 and owner.command1 == 1: item.command0 = 1
+            item.child_visible(item.command0)
+            item.set_scale(owner.model_scale)
+            item.life = item.life - 1
+            if item.life <= 0: item.change_state(1)
+            return false
+        on physics:
+            item.state.exact_counter = item.state.exact_counter + 1
+            item.state.active = false
+            velocity.x = facing * 3
+        on collision:
+            item.stage_collision()
+            item.state.contact = item.bounce_stage()
+            if item.state.contact: item.play_sound(90030, 127, 64)
+            return true
+    state 1 anim 2:
+        on animation:
+            item.state.value = owner.state.test_active
+            item.state.contact = owner.state.test_fraction
+            item.state.speed = sqrt(9)
+            owner.state.test_active = false
+            owner.state.test_fraction = 0.5
+            return true
+    on spawned:
+            item.joint("0/1").translation.y = -0.425
+            item.joint("").scale.z = 2.5
+            item.state.speed = item.joint("0/1").rotation.x
+            item.state.exact_counter = 16777217
+            item.state.active = item.grounded and not item.airborne
+            item.set_lifetime(item.attr.lifetime)
+    on picked_up:
+            item.activate_attached()
+    on reflected:
+            return item.reflect()
+    on damage_dealt:
+            return true
+    on interaction:
+            item.interact(other)

@@ -1,0 +1,37 @@
+# Representable lifecycle subset. Popo sleep-peer retirement and Nana special
+# pickup filtering are exact pending generic metadata decisions, not flags hidden
+# in fighter-specific union storage. See contracts.md.
+attribute float primary_spawn_offset 0
+attribute float secondary_spawn_offset 196
+attribute float secondary_death_armor 200
+
+move OwnedLifecycle:
+    on load:
+        fighter.copy_ext_attributes()
+        spawn.horizontal_offset = attrs.MEMBER_SPAWN
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.ice_handle = -1
+        state.ice_air_boost_used = false
+        state.ice_spawn_height = 0
+        state.blizzard_effect_active = false
+        state.linked_rope_handle = -1
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)

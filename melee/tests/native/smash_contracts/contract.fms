@@ -1,0 +1,38 @@
+# Isolated common charge contract; no Ness move activation.
+state int mode
+state float frames
+state float limit
+state float saved_rate
+state int color
+state int index
+state int period
+state int table_count
+
+func Configure():
+    smash.charge_mode = Smash.manual_charge
+    smash.saved_animation_rate = animation.rate
+    smash.charge_frames = 0
+    smash.charge_limit = 60
+    smash.shake_index = 0
+    smash.shake_period = smash.shake_table_count
+    smash.charge_color = 119
+
+func SetMode(int value):
+    smash.charge_mode = value
+func SetIndex(int value):
+    smash.shake_index = value
+func SetPeriod(int value):
+    smash.shake_period = value
+func ReadAll():
+    state.mode = smash.charge_mode
+    state.frames = smash.charge_frames
+    state.limit = smash.charge_limit
+    state.saved_rate = smash.saved_animation_rate
+    state.color = smash.charge_color
+    state.index = smash.shake_index
+    state.period = smash.shake_period
+    state.table_count = smash.shake_table_count
+
+action SmashContract:
+    on load:
+        Configure()

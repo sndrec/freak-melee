@@ -1,0 +1,1032 @@
+# Donkey Kong: all four specials, with project-owned tuning and punch charge.
+# Import stock defaults into fighter_parameters.fmp before building.
+# Cargo/heavy-item movement, setup, damage and shared CPU policies are authored.
+fighter:
+    behavior independent
+
+parameter float cpu_initial_spacing = 8.5
+parameter float cpu_spacing_range = 9
+attribute int punch_max_swings 44
+attribute int punch_damage_per_swing 48
+attribute float punch_horizontal_velocity 52
+attribute float punch_landing_lag 56
+attribute float slap_spacing 104
+attribute float slap_forward_offset 108
+attribute float slap_trace_gap 112
+state int punch_charge
+state int punch_cancel
+state int punch_momentum_phase
+state int punch_effect_phase
+state int punch_spent_charge
+state int punch_base_damage0
+state int punch_base_damage1
+state bool slap_repeat
+
+attribute float headbutt_momentum_divisor 60
+attribute float headbutt_air_deceleration 64
+attribute float headbutt_gravity 68
+attribute float spin_air_vertical_speed 76
+attribute float spin_gravity_multiplier 80
+attribute float spin_ground_speed_limit 84
+attribute float spin_air_speed_limit 88
+attribute float spin_ground_acceleration 92
+attribute float spin_air_acceleration 96
+attribute float spin_landing_lag 100
+
+attribute float hold_walk_slow_velocity 20
+attribute float hold_walk_middle_velocity 24
+attribute float hold_walk_fast_velocity 28
+attribute float hold_turn_delay 32
+attribute float hold_jump_delay 36
+attribute float hold_landing_delay 40
+state float hold_walk_slow_length
+state float hold_walk_middle_length
+state float hold_walk_fast_length
+state float hold_turn_remaining
+state bool hold_turned
+state float hold_jump_remaining
+state float hold_landing_remaining
+state bool hold_input_used
+
+# Deferred world placement retains the original Hand Slap sampling phase.
+model_effect HandSlapFacing 0x4CC:
+    on update:
+        if creator.facing < 0:
+            effect.joint("").rotation.y = -pi_half
+        else:
+            effect.joint("").rotation.y = pi_half
+
+func punch_clear_effects():
+    effects.destroy_all()
+
+func punch_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+    callbacks.secondary_damage(punch_clear_effects)
+    effects.pause_during_hitlag()
+
+func punch_clear_callbacks():
+    callbacks.secondary_damage(None)
+    callbacks.pre_hitlag(None)
+    callbacks.post_hitlag(None)
+
+func punch_enter(bool air_started):
+    let start_state = 369
+    let full_state = 373
+    if air_started:
+        start_state = 374
+        full_state = 378
+    if state.punch_charge == attrs.punch_max_swings:
+        state.enter_at_speed(full_state, 0, 0, 1)
+        state.punch_effect_phase = 1
+        state.punch_spent_charge = state.punch_charge
+        state.punch_charge = 0
+    else:
+        state.enter_at_speed(start_state, 0, 0, 1)
+        state.punch_effect_phase = 0
+        state.punch_spent_charge = 0
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    state.punch_cancel = 0
+    state.punch_momentum_phase = 0
+    state.punch_base_damage1 = -1
+    state.punch_base_damage0 = -1
+    if not air_started:
+        physics.switch_to_ground()
+        velocity.y = 0
+    punch_callbacks()
+    animation.start()
+
+func punch_finish():
+    punch_clear_callbacks()
+    if airborne: state.fall()
+    else: state.wait()
+
+func punch_loop():
+    if frame == 0:
+        state.punch_charge = state.punch_charge + 1
+        if state.punch_charge >= attrs.punch_max_swings:
+            color.start(57, false)
+            state.punch_charge = attrs.punch_max_swings
+            punch_finish()
+
+func punch_interrupt():
+    if input.special_pressed:
+        let target = 372
+        if airborne: target = 377
+        state.enter_at_speed(target, 0, 0, 1)
+        state.punch_spent_charge = state.punch_charge
+        state.punch_charge = 0
+        punch_callbacks()
+        animation.start()
+    if input.shield_pressed: state.punch_cancel = 1
+    if frame == 0 and state.punch_cancel:
+        let cancel_target = 371
+        if airborne: cancel_target = 376
+        state.enter_at_speed(cancel_target, 0, 0, 1)
+        punch_callbacks()
+
+func punch_tick(bool full_charge):
+    if command(0) and state.punch_effect_phase == 0:
+        state.punch_effect_phase = 1
+    if state.punch_effect_phase == 1:
+        state.punch_effect_phase = 2
+        if airborne: effects.spawn_on_joint_with_scalar(1225, 0, facing.direction)
+        else: effects.spawn_on_joint_with_scalar(1224, 0, facing.direction)
+    # Stock punch logic accepts every non-disabled capsule state, not just Enabled.
+    if hitbox.state(0) != Hitbox.disabled:
+        if not airborne and state.punch_momentum_phase == 0:
+            state.punch_momentum_phase = 1
+        if not full_charge:
+            if state.punch_base_damage0 == -1:
+                state.punch_base_damage0 = int(hitbox.damage(0))
+            hitbox.set_damage(0, state.punch_base_damage0 + state.punch_spent_charge * attrs.punch_damage_per_swing)
+            if state.punch_base_damage1 == -1:
+                state.punch_base_damage1 = int(hitbox.damage(1))
+            hitbox.set_damage(1, state.punch_base_damage1 + state.punch_spent_charge * attrs.punch_damage_per_swing)
+    if not airborne and state.punch_momentum_phase == 1:
+        state.punch_momentum_phase = 2
+        ground.velocity = facing.direction * (attrs.punch_horizontal_velocity * state.punch_spent_charge)
+    if animation.finished:
+        state.punch_charge = 0
+        punch_clear_callbacks()
+        if not airborne: state.wait()
+        elif attrs.punch_landing_lag == 0: state.fall()
+        else: state.freefall(1, 0, true, 1, attrs.punch_landing_lag)
+
+func punch_collision(bool releasing):
+    let int flags = 0x0c4c5080
+    if releasing: flags = 0x0c4d508e
+    if airborne:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(motion.id - 5, flags, frame, 1)
+            punch_callbacks()
+    else:
+        let leave = false
+        if releasing: leave = collision.special_ground_lost
+        else: leave = collision.left_ground
+        if leave:
+            physics.ground_to_air()
+            state.enter_at_speed(motion.id + 5, flags, frame, 1)
+            punch_callbacks()
+
+func slap_loop():
+    callbacks.track_state_change()
+    cue.throw.reset()
+    state.enter_at_speed(384, 0, 0, 1)
+    if not effects.active:
+        effects.spawn_async_position_on_part(HandSlapFacing, bones.index(Top))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(slap_accessory)
+
+func slap_hitbox(int index):
+    let distance = attrs.slap_spacing * index - attrs.slap_spacing * 1.5
+    let offset = attrs.slap_forward_offset * facing.direction
+    let found = false
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    stage.follow_floor(floor.line, position.x, position.y, position.z, distance + offset, attrs.slap_trace_gap, found, x, y, z)
+    # Stock falls back to the fighter origin if the connected floor ends.
+    hitbox.set_world_position(index, x, y + 2, z)
+
+func slap_accessory():
+    if cue.consume(3) and collision.floor_contact:
+        slap_hitbox(0)
+        slap_hitbox(1)
+        slap_hitbox(2)
+        slap_hitbox(3)
+
+move GiantPunch:
+    entry explicit
+    on special_n:
+        punch_enter(false)
+    on special_air_n:
+        punch_enter(true)
+    on ground_animation:
+        if animation.finished:
+            state.enter_at_speed(370, 0, 0, 1)
+            punch_callbacks()
+    on air_animation:
+        if animation.finished:
+            state.enter_at_speed(375, 0, 0, 1)
+            punch_callbacks()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_gravity_and_friction()
+    on ground_collision:
+        punch_collision(false)
+    on air_collision:
+        punch_collision(false)
+
+move HandSlap:
+    entry explicit
+    on special_lw:
+        state.slap_repeat = false
+        state.enter_flags(383, 0)
+        animation.start()
+    on ground_animation:
+        if animation.finished: slap_loop()
+    on ground_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on ground_collision:
+        if collision.left_ground: state.fall()
+
+func spin_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+    effects.pause_during_hitlag()
+
+func headbutt_ground_accessory():
+    if not effects.active:
+        effects.spawn_on_part(1222, bones.index(TransN))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func headbutt_air_accessory():
+    if not effects.active:
+        effects.spawn_on_part(1223, bones.index(TransN))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+move Headbutt:
+    entry explicit
+    on special_s:
+        state.enter_flags(379, 0)
+        animation.start()
+        command(0) = 0
+        callbacks.accessory(headbutt_ground_accessory)
+    on special_air_s:
+        velocity.x = velocity.x / attrs.headbutt_momentum_divisor
+        velocity.y = 0
+        state.enter_flags(380, 0)
+        animation.start()
+        command(0) = 0
+        callbacks.accessory(headbutt_air_accessory)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        if command(0): physics.fall(attrs.headbutt_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.headbutt_air_deceleration)
+    on ground_collision:
+        let leave = false
+        if command(0): leave = collision.special_ground_lost
+        else: leave = collision.left_ground
+        if leave:
+            state.switch_to_air(380, 0x0c4c508a)
+            if effects.active: effects.pause_during_hitlag()
+    on air_collision:
+        if collision.landed:
+            state.switch_to_ground(379, 0x0c4c508a)
+            if effects.active: effects.pause_during_hitlag()
+
+move SpinningKong:
+    entry explicit
+    on special_hi:
+        state.enter_flags(381, 0)
+        spin_callbacks()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        physics.clamp_ground_speed(attrs.spin_ground_speed_limit)
+        velocity.x = ground.velocity
+        velocity.y = 0
+        jumps.used = jumps.max
+        animation.start()
+        # TopN is the model root, distinct from semantic TransN.
+        effects.spawn_on_part(1226, 0)
+    on special_air_hi:
+        state.enter_flags(382, 0)
+        spin_callbacks()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        physics.clamp_horizontal_speed(attrs.spin_ground_speed_limit)
+        velocity.y = attrs.spin_air_vertical_speed
+        jumps.used = jumps.max
+        animation.start()
+        effects.spawn_on_part(1226, 0)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished:
+            physics.force_air_and_use_jumps()
+            if attrs.spin_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.spin_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_accel(attrs.spin_ground_acceleration, attrs.spin_ground_speed_limit)
+        physics.ground_to_self()
+    on air_physics:
+        let gravity_scale = attrs.spin_gravity_multiplier
+        if command(0): gravity_scale = 1
+        physics.fall(gravity_scale * air.gravity, air.terminal_velocity)
+        physics.air_accel_friction(0, attrs.spin_air_acceleration, attrs.spin_air_speed_limit)
+    on ground_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(382, 0x0c4c5080, frame, 1)
+            spin_callbacks()
+            physics.clamp_horizontal_speed(attrs.spin_air_speed_limit)
+    on air_collision:
+        let land = false
+        if velocity.y >= 0: land = collision.landed
+        else: land = collision.check_ground_ledge(0)
+        if land:
+            state.switch_to_ground(381, 0x0c4c5080)
+            spin_callbacks()
+            physics.clamp_ground_speed(attrs.spin_ground_speed_limit)
+        elif velocity.y < 0 and collision.cliff_catch(): state.catch_ledge()
+
+action FighterEvents:
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_attack_motion:
+        return motion.id > 368
+    on cpu_grab_motion:
+        return motion.id >= 351 and motion.id <= 356
+    on cpu_attack_decision:
+        if motion.id == 370:
+            cpu_tap_shield()
+            cpu.queue(Cpu.wait, 5)
+        return false
+    on cpu_charge_decision:
+        if motion.id != 370 and state.punch_charge == 0:
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.press_b)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.release_b)
+            cpu.queue(Cpu.done)
+            return true
+        return false
+    on cpu_charge_cancel:
+        if motion.id == 370: cpu_tap_shield()
+    on cpu_capture_decision:
+        if motion.id < 351 or motion.id > 356: return false
+        let found = false
+        let float left_x = 0
+        let float left_y = 0
+        let float right_x = 0
+        let float right_y = 0
+        stage.island_bounds(position.x, position.y, position.z, -10, found, left_x, left_y, right_x, right_y)
+        if not found:
+            cpu.queue(Cpu.done)
+            return true
+        let right_distance = abs(position.x - right_x)
+        let left_distance = abs(position.x - left_x)
+        let direction = -127
+        let distance = left_distance
+        if right_distance < left_distance:
+            direction = 127
+            distance = right_distance
+        if distance > 10:
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.stick_x, direction)
+        else:
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.stick_x, direction)
+            cpu.queue(Cpu.press_a)
+            cpu.queue(Cpu.wait, 1)
+            cpu.queue(Cpu.stick_x, 0)
+            cpu.queue(Cpu.stick_y, 0)
+            cpu.queue(Cpu.release_a)
+        cpu.queue(Cpu.done)
+        return true
+    on load:
+        fighter.copy_ext_attributes()
+        state.hold_walk_slow_length = animation.clip_length(296)
+        state.hold_walk_middle_length = animation.clip_length(297)
+        state.hold_walk_fast_length = animation.clip_length(298)
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on heavy_throw_enter:
+        callbacks.physics(heavy_throw_physics)
+        callbacks.collision(heavy_throw_collision)
+    on heavy_item_damage:
+        if damage.reaction_suppressed or damage.knockback_level < 3:
+            damage.enter(350, 0)
+        else:
+            items.release_held(0, 0, 0, 1)
+            damage.default_reaction(0)
+    on heavy_pickup_finish:
+        heavy_wait()
+        return true
+    on throw_animation:
+        pass
+    on throw_finish:
+        if motion.id == Motion.throw_forward and capture.has_victim:
+            state.enter_at_speed(351, 0, 0, 1)
+            capture.initialize_hold(Motion.held_wait)
+            return true
+        return false
+    on death:
+        state.punch_charge = 0
+        visuals.set_group(0, 0)
+    on color_animation_reset:
+        if state.punch_charge == attrs.punch_max_swings: color.start(57, false)
+    on damage:
+        state.punch_charge = 0
+        effects.destroy_all()
+        effects.destroy_all()
+    on death2:
+        state.punch_charge = 0
+        effects.destroy_all()
+        effects.destroy_all()
+    on state_change:
+        stats.refresh_attack()
+        stats.record_attack()
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+action PunchPhases:
+    on state_370_animation:
+        punch_loop()
+    on state_370_interrupt:
+        if not controls.try_roll(): punch_interrupt()
+    on state_370_physics:
+        physics.ground_friction()
+    on state_370_collision:
+        punch_collision(false)
+    on state_371_animation:
+        if animation.finished: punch_finish()
+    on state_371_interrupt:
+        pass
+    on state_371_physics:
+        physics.ground_friction()
+    on state_371_collision:
+        punch_collision(false)
+    on state_372_animation:
+        punch_tick(false)
+    on state_372_interrupt:
+        pass
+    on state_372_physics:
+        physics.ground_friction()
+    on state_372_collision:
+        punch_collision(true)
+    on state_373_animation:
+        punch_tick(true)
+    on state_373_interrupt:
+        pass
+    on state_373_physics:
+        physics.ground_friction()
+    on state_373_collision:
+        punch_collision(true)
+    on state_375_animation:
+        punch_loop()
+    on state_375_interrupt:
+        punch_interrupt()
+    on state_375_physics:
+        physics.air_gravity_and_friction()
+    on state_375_collision:
+        punch_collision(false)
+    on state_376_animation:
+        if animation.finished: punch_finish()
+    on state_376_interrupt:
+        pass
+    on state_376_physics:
+        physics.air_gravity_and_friction()
+    on state_376_collision:
+        punch_collision(false)
+    on state_377_animation:
+        punch_tick(false)
+    on state_377_interrupt:
+        pass
+    on state_377_physics:
+        physics.air_gravity_and_friction()
+    on state_377_collision:
+        punch_collision(true)
+    on state_378_animation:
+        punch_tick(true)
+    on state_378_interrupt:
+        pass
+    on state_378_physics:
+        physics.air_gravity_and_friction()
+    on state_378_collision:
+        punch_collision(true)
+
+action SlapPhases:
+    on state_384_animation:
+        if animation.finished:
+            if state.slap_repeat:
+                state.slap_repeat = false
+                slap_loop()
+            else: state.enter_at_speed(385, 0, 0, 1)
+    on state_384_interrupt:
+        if input.special_pressed: state.slap_repeat = true
+    on state_384_physics:
+        physics.ground_friction()
+    on state_384_collision:
+        if collision.left_ground: state.fall()
+    on state_385_animation:
+        if animation.finished: state.wait()
+    on state_385_interrupt:
+        pass
+    on state_385_physics:
+        physics.ground_friction()
+    on state_385_collision:
+        if collision.left_ground: state.fall()
+    on state_386_animation:
+        if animation.finished: state.fall()
+    on state_386_interrupt:
+        pass
+    on state_386_physics:
+        physics.air_drift()
+    on state_386_collision:
+        if collision.landed: state.wait()
+
+# Shared throw operations process release/reversal cues and animated movement.
+# The script owns cargo motion transitions. A back throw may reverse facing;
+# restore the animation's original facing only during the state change.
+func cargo_throw_tick():
+    throws.update()
+    if animation.finished: state.finish()
+
+func cargo_throw_transition(int target):
+    let original_facing = facing.direction
+    facing.direction = facing.animation_direction
+    state.enter_at_speed(target, 0x0c4c5080, frame, 1)
+    facing.direction = original_facing
+    capture.mask(511)
+
+func cargo_throw_ground_collision():
+    if collision.left_ground:
+        physics.ground_to_air()
+        cargo_throw_transition(motion.id + 4)
+
+func cargo_throw_air_collision():
+    if collision.landed:
+        physics.switch_to_ground()
+        cargo_throw_transition(motion.id - 4)
+
+action CargoThrows:
+    on state_361_animation:
+        cargo_throw_tick()
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        physics.throw_motion()
+    on state_361_collision:
+        cargo_throw_ground_collision()
+    on state_362_animation:
+        cargo_throw_tick()
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        physics.throw_motion()
+    on state_362_collision:
+        cargo_throw_ground_collision()
+    on state_363_animation:
+        cargo_throw_tick()
+    on state_363_interrupt:
+        pass
+    on state_363_physics:
+        physics.throw_motion()
+    on state_363_collision:
+        cargo_throw_ground_collision()
+    on state_364_animation:
+        cargo_throw_tick()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        physics.throw_motion()
+    on state_364_collision:
+        cargo_throw_ground_collision()
+    on state_365_animation:
+        cargo_throw_tick()
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        physics.air_drift()
+    on state_365_collision:
+        cargo_throw_air_collision()
+    on state_366_animation:
+        cargo_throw_tick()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        physics.air_drift()
+    on state_366_collision:
+        cargo_throw_air_collision()
+    on state_367_animation:
+        cargo_throw_tick()
+    on state_367_interrupt:
+        pass
+    on state_367_physics:
+        physics.air_drift()
+    on state_367_collision:
+        cargo_throw_air_collision()
+    on state_368_animation:
+        cargo_throw_tick()
+    on state_368_interrupt:
+        pass
+    on state_368_physics:
+        physics.air_drift()
+    on state_368_collision:
+        cargo_throw_air_collision()
+
+func hold_wait():
+    state.enter_at_speed(351, 0, 0, 1)
+    capture.set_victim_hold_motion(Motion.held_wait)
+
+func hold_walk(float start_frame):
+    walk.enter(352, 0, start_frame, state.hold_walk_slow_length, state.hold_walk_middle_length, state.hold_walk_fast_length, attrs.hold_walk_slow_velocity * model.instance_scale_y, attrs.hold_walk_middle_velocity * model.instance_scale_y, attrs.hold_walk_fast_velocity * model.instance_scale_y, 1)
+    # Preserve stock's exact victim mapping, including Slow -> ShoulderedWait.
+    capture.set_victim_hold_motion(Motion.held_wait + walk.type)
+
+func hold_try_throw():
+    state.hold_input_used = false
+    let target = motion.id
+    if input.attack_or_special_pressed:
+        if abs(input.x) >= controls.throw_horizontal_threshold:
+            if input.x * facing.direction > 0: target = 361
+            else: target = 362
+        elif input.y >= controls.throw_up_threshold: target = 363
+        elif input.y <= controls.throw_down_threshold: target = 364
+    if target != motion.id:
+        let flags = 0
+        let throw_motion = target
+        if airborne:
+            flags = 1
+            throw_motion = target + 4
+        state.enter_at_speed(throw_motion, flags, 0, 1)
+        animation.start()
+        capture.mask(511)
+        capture.set_victim_throw_motion(Motion.held_throw_forward + target - 361, 1)
+        state.hold_input_used = true
+
+func hold_try_jump():
+    let jump_input = controls.jump_input()
+    if jump_input:
+        jump.prepare(jump_input, false)
+        state.hold_jump_remaining = attrs.hold_jump_delay
+        state.enter_at_speed(356, 0, 0, 1)
+        animation.set_rate(0)
+        capture.set_victim_hold_motion(Motion.held_wait)
+        state.hold_input_used = true
+
+func hold_ground_input(bool walking, bool turning):
+    hold_try_throw()
+    if not state.hold_input_used: hold_try_jump()
+    if state.hold_input_used: return
+    if turning: return
+    if controls.platform_drop_requested():
+        state.platform_drop(357, 0, 0)
+        animation.set_rate(0)
+        capture.set_victim_hold_motion(Motion.held_wait)
+        return
+    if walking:
+        if controls.walk_stop_requested():
+            hold_wait()
+        elif motion.id != 352 + walk.type:
+            let length = state.hold_walk_slow_length
+            if walk.type == 1: length = state.hold_walk_middle_length
+            elif walk.type == 2: length = state.hold_walk_fast_length
+            let duration = animation.length
+            let mapped_frame = 0
+            if duration > 0:
+                let quotient = int(frame / duration)
+                mapped_frame = int(length * ((frame - duration * quotient) / duration))
+            hold_walk(mapped_frame)
+    elif controls.turn_requested():
+        state.hold_turn_remaining = attrs.hold_turn_delay
+        state.hold_turned = false
+        state.enter_at_speed(355, 0, 0, 1)
+        animation.start()
+        capture.set_victim_hold_motion(Motion.held_turn)
+    elif controls.walk_requested():
+        hold_walk(0)
+
+func hold_fall():
+    state.enter_at_speed(357, 1, 0, 1)
+    animation.set_rate(0)
+    if not airborne: physics.ground_to_air()
+    capture.set_victim_hold_motion(Motion.held_wait)
+
+func hold_ground_collision():
+    if collision.left_ground: hold_fall()
+
+func hold_air_collision():
+    if collision.landed:
+        state.hold_landing_remaining = attrs.hold_landing_delay
+        state.landing(359, true, 0, 0, 1)
+        animation.set_rate(0)
+        capture.set_victim_hold_motion(Motion.held_wait)
+
+action CargoLocomotion:
+    on state_351_animation:
+        pass
+    on state_351_interrupt:
+        hold_ground_input(false, false)
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        hold_ground_collision()
+    on state_355_animation:
+        if state.hold_turn_remaining > 0:
+            state.hold_turn_remaining = state.hold_turn_remaining - 1
+        elif not state.hold_turned:
+            state.hold_turned = true
+            facing.direction = -facing.direction
+            capture.sync_victim_facing()
+        if animation.finished: hold_wait()
+    on state_355_interrupt:
+        hold_ground_input(false, true)
+    on state_355_physics:
+        physics.ground_friction()
+    on state_355_collision:
+        hold_ground_collision()
+    on state_356_animation:
+        if state.hold_jump_remaining <= 0:
+            physics.ground_to_air()
+            state.enter_at_speed(358, 0, 0, 1)
+            animation.set_rate(0)
+            jump.launch(true, 1)
+            capture.set_victim_hold_motion(Motion.held_wait)
+        state.hold_jump_remaining = state.hold_jump_remaining - 1
+    on state_356_interrupt:
+        hold_try_throw()
+        if not state.hold_input_used: jump.check_short_hop()
+    on state_356_physics:
+        physics.ground_friction()
+    on state_356_collision:
+        hold_ground_collision()
+    on state_357_animation:
+        pass
+    on state_357_interrupt:
+        hold_try_throw()
+    on state_357_physics:
+        physics.air_drift()
+    on state_357_collision:
+        hold_air_collision()
+    on state_358_animation:
+        pass
+    on state_358_interrupt:
+        hold_try_throw()
+    on state_358_physics:
+        physics.jump_motion()
+    on state_358_collision:
+        hold_air_collision()
+    on state_359_animation:
+        if state.hold_landing_remaining <= 0: hold_wait()
+        state.hold_landing_remaining = state.hold_landing_remaining - 1
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        physics.ground_friction()
+    on state_359_collision:
+        hold_ground_collision()
+    on state_360_animation:
+        damage.update_timer()
+        if not damage.in_hitstun:
+            if airborne: hold_fall()
+            else: hold_wait()
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        physics.damage_motion()
+    on state_360_collision:
+        if not airborne:
+            if collision.left_ground: physics.ground_to_air()
+        elif collision.landed: physics.switch_to_ground()
+    on state_352_animation:
+        walk.update_animation()
+    on state_352_interrupt:
+        hold_ground_input(true, false)
+    on state_352_physics:
+        physics.walk()
+    on state_352_collision:
+        hold_ground_collision()
+    on state_353_animation:
+        walk.update_animation()
+    on state_353_interrupt:
+        hold_ground_input(true, false)
+    on state_353_physics:
+        physics.walk()
+    on state_353_collision:
+        hold_ground_collision()
+    on state_354_animation:
+        walk.update_animation()
+    on state_354_interrupt:
+        hold_ground_input(true, false)
+    on state_354_physics:
+        physics.walk()
+    on state_354_collision:
+        hold_ground_collision()
+
+# Heavy-item locomotion has no victim. Its turn blocks throw/jump interrupts
+# until facing has reversed, unlike cargo turn. All timers are owned state.
+func heavy_wait():
+    if airborne: physics.switch_to_ground()
+    state.enter_at_speed(341, 0, 0, 1)
+
+func heavy_throw_physics():
+    if airborne: physics.air_drift()
+    else: physics.ground_friction()
+
+func cpu_tap_shield():
+    cpu.queue(Cpu.press_r)
+    cpu.queue(Cpu.wait, 1)
+    cpu.queue(Cpu.release_r)
+
+func heavy_throw_collision():
+    if not airborne:
+        if collision.left_ground: physics.ground_to_air()
+    elif collision.landed: physics.switch_to_ground()
+
+func heavy_walk(float start_frame):
+    walk.enter(342, 0, start_frame, state.hold_walk_slow_length, state.hold_walk_middle_length, state.hold_walk_fast_length, attrs.hold_walk_slow_velocity * model.instance_scale_y, attrs.hold_walk_middle_velocity * model.instance_scale_y, attrs.hold_walk_fast_velocity * model.instance_scale_y, 1)
+
+func heavy_try_jump():
+    let requested = controls.jump_input()
+    if requested != 0:
+        jump.prepare(requested, false)
+        state.hold_jump_remaining = attrs.hold_jump_delay
+        state.enter_at_speed(346, 0, 0, 1)
+        animation.set_rate(0)
+        state.hold_input_used = true
+
+func heavy_ground_input(bool walking):
+    state.hold_input_used = controls.try_heavy_item_throw()
+    if not state.hold_input_used: heavy_try_jump()
+    if state.hold_input_used: return
+    if walking:
+        if controls.walk_stop_requested():
+            heavy_wait()
+        elif motion.id != 342 + walk.type:
+            let length = state.hold_walk_slow_length
+            if walk.type == 1: length = state.hold_walk_middle_length
+            elif walk.type == 2: length = state.hold_walk_fast_length
+            let duration = animation.length
+            let mapped_frame = 0
+            if duration > 0:
+                let quotient = int(frame / duration)
+                mapped_frame = int(length * ((frame - duration * quotient) / duration))
+            heavy_walk(mapped_frame)
+    elif controls.turn_requested():
+        state.hold_turn_remaining = attrs.hold_turn_delay
+        state.hold_turned = false
+        state.enter_at_speed(345, 0, 0, 1)
+        animation.start()
+    elif controls.walk_requested():
+        heavy_walk(0)
+
+func heavy_fall():
+    state.enter_at_speed(347, 1, 0, 1)
+    animation.set_rate(0)
+    if not airborne: physics.ground_to_air()
+
+func heavy_ground_collision():
+    if collision.left_ground: heavy_fall()
+
+func heavy_air_collision():
+    if collision.landed:
+        state.hold_landing_remaining = attrs.hold_landing_delay
+        state.landing(349, true, 0, 0, 1)
+        animation.set_rate(0)
+
+action HeavyLocomotion:
+    on state_341_animation:
+        pass
+    on state_341_interrupt:
+        heavy_ground_input(false)
+    on state_341_physics:
+        physics.ground_friction()
+    on state_341_collision:
+        heavy_ground_collision()
+    on state_342_animation:
+        walk.update_animation()
+    on state_342_interrupt:
+        heavy_ground_input(true)
+    on state_342_physics:
+        physics.walk()
+    on state_342_collision:
+        heavy_ground_collision()
+    on state_343_animation:
+        walk.update_animation()
+    on state_343_interrupt:
+        heavy_ground_input(true)
+    on state_343_physics:
+        physics.walk()
+    on state_343_collision:
+        heavy_ground_collision()
+    on state_344_animation:
+        walk.update_animation()
+    on state_344_interrupt:
+        heavy_ground_input(true)
+    on state_344_physics:
+        physics.walk()
+    on state_344_collision:
+        heavy_ground_collision()
+    on state_345_animation:
+        if state.hold_turn_remaining > 0:
+            state.hold_turn_remaining = state.hold_turn_remaining - 1
+        elif not state.hold_turned:
+            state.hold_turned = true
+            facing.direction = -facing.direction
+        if animation.finished: heavy_wait()
+    on state_345_interrupt:
+        if state.hold_turned:
+            if not controls.try_heavy_item_throw():
+                state.hold_input_used = false
+                heavy_try_jump()
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        heavy_ground_collision()
+    on state_346_animation:
+        if state.hold_jump_remaining <= 0:
+            physics.ground_to_air()
+            state.enter_at_speed(348, 0, 0, 1)
+            animation.set_rate(0)
+            jump.launch(true, 1)
+        state.hold_jump_remaining = state.hold_jump_remaining - 1
+    on state_346_interrupt:
+        if not controls.try_heavy_item_throw(): jump.check_short_hop()
+    on state_346_physics:
+        physics.ground_friction()
+    on state_346_collision:
+        heavy_ground_collision()
+    on state_347_animation:
+        pass
+    on state_347_interrupt:
+        controls.try_heavy_item_throw()
+    on state_347_physics:
+        physics.air_drift()
+    on state_347_collision:
+        heavy_air_collision()
+    on state_348_animation:
+        pass
+    on state_348_interrupt:
+        controls.try_heavy_item_throw()
+    on state_348_physics:
+        physics.jump_motion()
+    on state_348_collision:
+        heavy_air_collision()
+    on state_349_animation:
+        if state.hold_landing_remaining <= 0: heavy_wait()
+        state.hold_landing_remaining = state.hold_landing_remaining - 1
+    on state_349_interrupt:
+        pass
+    on state_349_physics:
+        physics.ground_friction()
+    on state_349_collision:
+        heavy_ground_collision()
+    on state_350_animation:
+        damage.update_timer()
+        if not damage.in_hitstun:
+            if airborne: heavy_fall()
+            else: heavy_wait()
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.damage_motion()
+    on state_350_collision:
+        if not airborne:
+            if collision.left_ground: physics.ground_to_air()
+        elif collision.landed: physics.switch_to_ground()

@@ -1,0 +1,22 @@
+{
+  "scope": "SDK71 early prepare/history/drop/stick source+generated console checkpoint; no mode6/game claim",
+  "status": "PASS",
+  "receipt": "A:\\FreakMelee-test-archives\\cpu-early71-frozen-final\\receipt.json",
+  "original_freeze_sha256": "61d3deb09b0b0f5e98f493e8f545d0fc861d5b979c55ace5d853abbd8b46386a",
+  "current_freeze_sha256": "820f4d64f0809c1d9cb412d54d84797b689434b753f714216179397e3c274b60",
+  "source_inputs": {
+    "tests\\native\\cpu_early_policy\\compiler.c": "017c79b6e68926a8a37c22b1ef445abd747212b9057f959a7855dada17b55756",
+    "tests\\native\\cpu_early_policy\\module.c": "ede86e30f4c7beb47c3459a7c7da4802fbbfa2d1d7968212c95dd129c2a5637e",
+    "tests\\native\\cpu_early_policy\\PLAN.md": "0df6e355da5873a4cce8012177da7e4c2190f9b068032121c1671df42468cd62",
+    "tests\\native\\cpu_early_policy\\README.md": "f609eaec56a54d97fced358c5ba708e04b015cd03fbb26dbbad31a5150943869",
+    "tests\\native\\cpu_early_policy\\run.py": "df892fbb2f37aff18fa47bcab8f5f34ad1b20cb3b339f69f4a32a5b01b92ef07",
+    "tests\\native\\cpu_early_policy\\source_test.c": "25cc42163af51f6f7ca4d2a6b57094471ebeb440c1052cb45cd59310d32016ca",
+    "docs/early_follower_cpu_proposal.md": "364c0a35f1060ec1fd7c7edf3ce9c78d6e9a2441c876334cb2621f958b4abb20"
+  },
+  "matrix_results": [
+    "PASS 33 early CPU compiler programs, both routes",
+    "PASS 9259 early CPU source cases / 29994 checks",
+    "PASS 9338 early CPU source cases / 30421 checks",
+    "PASS 9338 early CPU source cases / 30421 checks"
+  ]
+}

@@ -1,0 +1,111 @@
+# Unregistered SOURCE DRAFT of representable high-special travel pieces.
+# Do not append partial overrides to a shipped template. Start animation and
+# common369/370/article protocol require reviewed generic51 contracts.
+attribute float parasol_hi_fall_drift 112
+attribute float parasol_hi_landing_lag 116
+attribute float parasol_hi_reverse_threshold 120
+attribute float parasol_hi_tilt_threshold 124
+attribute float parasol_hi_max_tilt_degrees 128
+attribute float parasol_hi_air_entry_horizontal_multiplier 132
+attribute float parasol_hi_prelaunch_gravity 136
+attribute float parasol_hi_animation_velocity_multiplier 140
+attribute int parasol_hi_timer_hint 144
+parameter int parasol_hi_ground_start_motion = 361
+parameter int parasol_hi_air_start_motion = 363
+parameter float parasol_hi_degrees_to_radians = 0.01745329252
+parameter float parasol_hi_root_quarter_turn = 1.57079632679
+
+func pause_parasol():
+    if state.parasol_handle != -1:
+        let bool paused = items.set_paused(state.parasol_handle, true)
+
+func resume_parasol():
+    if state.parasol_handle != -1:
+        let bool resumed = items.set_paused(state.parasol_handle, false)
+
+func prepare_hi_request():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    cue.throw.reset()
+    state.parasol_request_kind = It_Kind_Capsule
+    damage.song_immune = true
+    if items.held_id != -1:
+        if items.held_kind == It_Kind_Parasol:
+            state.parasol_request_kind = It_Kind_Parasol
+            return
+        if items.held_kind == It_Kind_Peach_Parasol:
+            state.parasol_request_kind = It_Kind_Peach_Parasol
+            return
+    # Reuse accepted producer body with final two named hitlag bindings.
+    callbacks.accessory(create_parasol)
+
+func hi_start_interrupt():
+    let float horizontal = abs(input.x)
+    if command(0) == 0 and horizontal > attrs.parasol_hi_tilt_threshold:
+        let float degrees = attrs.parasol_hi_max_tilt_degrees * ((horizontal - attrs.parasol_hi_tilt_threshold) / (1 - attrs.parasol_hi_tilt_threshold))
+        let float angle = degrees * attrs.parasol_hi_degrees_to_radians
+        if input.x > 0:
+            angle = -angle
+        if abs(angle) > abs(motion.launch_angle):
+            motion.launch_angle = angle
+    if cue.reverse.consume() and abs(input.x) > attrs.parasol_hi_reverse_threshold:
+        if input.x >= 0:
+            facing.direction = 1
+        else:
+            facing.direction = -1
+        bones.root.rotate_y(0, attrs.parasol_hi_root_quarter_turn * facing.direction)
+
+func hi_landing():
+    state.landing_special(false, attrs.parasol_hi_landing_lag)
+
+func hi_collision():
+    if airborne:
+        if command(0) == 0 or velocity.y >= 0:
+            collision.air_standard()
+        else:
+            collision.air_landing_callback(hi_landing)
+    else:
+        collision.ground_standard()
+
+func hi_end_animation():
+    if animation.finished:
+        state.freefall(0, 1, false, attrs.parasol_hi_fall_drift, attrs.parasol_hi_landing_lag)
+
+func hi_ground_started_physics():
+    if airborne:
+        physics.air_motion()
+    else:
+        physics.ground_motion()
+
+func hi_air_started_physics():
+    if command(0) != 0:
+        physics.air_motion()
+        velocity.x = velocity.x * attrs.parasol_hi_animation_velocity_multiplier
+        velocity.y = velocity.y * attrs.parasol_hi_animation_velocity_multiplier
+        velocity.z = velocity.z * attrs.parasol_hi_animation_velocity_multiplier
+    else:
+        physics.fall(attrs.parasol_hi_prelaunch_gravity, air.terminal_velocity)
+        physics.quick_air_decel()
+
+func hi_ground_end_physics():
+    if airborne:
+        let float retained_y = velocity.y
+        physics.air_motion()
+        velocity.y = retained_y
+        physics.fall(air.gravity, air.terminal_velocity)
+    else:
+        physics.ground_motion()
+
+func hi_air_end_physics():
+    let float retained_y = velocity.y
+    physics.air_motion()
+    velocity.x = velocity.x * attrs.parasol_hi_animation_velocity_multiplier
+    velocity.y = velocity.y * attrs.parasol_hi_animation_velocity_multiplier
+    velocity.z = velocity.z * attrs.parasol_hi_animation_velocity_multiplier
+    velocity.y = retained_y
+    physics.fall(air.gravity, air.terminal_velocity)
+
+# Complete entry/start-animation requires direct motion-id publication followed
+# by common item-open entry (blend10, ignored timer argument, real item protocol).
+# No fake placeholder method or incomplete move override is exposed here.

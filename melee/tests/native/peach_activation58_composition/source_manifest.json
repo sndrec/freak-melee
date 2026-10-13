@@ -1,0 +1,46 @@
+{
+  "status": "Frozen unregistered Peach58 debug/versus source and ownership checkpoint; no game/render acceptance",
+  "snapshot": "baseline58",
+  "snapshot_sha256": "22211927153be534372b9f6ef292cf98a2e138e763cc5e083a61590dbcd5fd99",
+  "receipt_path": ".local\\peach-activation58-final2\\receipt.json",
+  "receipt_sha256": "0ee0df51ce66c8b9fe6a78255bc4dfe21106e0a8853026e91fe35c9e0a8228f4",
+  "ownership": {
+    "checks": 11810,
+    "definition_callbacks": 35,
+    "stock_phases": 114,
+    "article_callbacks": 56,
+    "selection_cases": 30,
+    "reset_pairs": 20,
+    "load_pairs": 8,
+    "failures": 0
+  },
+  "taunt": {
+    "checks": 107592,
+    "healthy_pairs": 7680,
+    "generated_safety": 4,
+    "guarded_source_safety": 4,
+    "failures": 0
+  },
+  "separate_guarded_source": {
+    "path": "C:\\gayms\\freak-melee\\melee\\src\\melee\\ft\\kinds\\ftCommon\\ftCo_AppealS.c",
+    "sha256": "05101bbb28d24e4b44362c61e07a613bcc4f0a9f69abf657fd4676b533a7485a",
+    "body_sha256": "70559b5c7a89bbc3a590890a966cc19146a72d77be726397d10bdd69d48ec55f",
+    "line": 56
+  },
+  "namespace_sources": {
+    "assemble.py": "db2e8c726db06318ac706bef988977b9b459dda80915f521357b88d8d4840809",
+    "caller_closure.md": "2cace54f1c482686dadd8d55e043bfc6c8ca667b644d36363bda0a8419607767",
+    "fixture.py": "4bcbd796724a486513ab5aa56d77349d803ae695bca2f8e85370b71e50159f48",
+    "ownership.c": "fddd0b49b721a4b09f84f202bcdeae038ff10ca5d091656a90ef24f14b460dd7",
+    "prepare.py": "e99224a8c59dced7bffa2b8a9d73774940ee7513ff3180b91ed7b56c3d3ccd74",
+    "README.md": "13b1320d2830c2de0898c5a26c338117f7cee405f635f852e7654c6c6441ec8e",
+    "taunt.fms": "4739baf98b6066edf53b7d17ef3c76a96a800923795b739a2df1290bd803e5fc",
+    "taunt_test.c": "f2b1d178ed9320b2fb01d5b39210fd620f31b682b186818498f1f62f155bb64d"
+  },
+  "accepted_inputs": {
+    "tests\\native\\peach_parasol_travel_composition\\candidate.fms": "08bd625b98026969ccc75ba63aa7de68d694255511157d838042f7fffebde6b1",
+    "tests\\native\\peach_activation_composition\\audit.py": "4eadee157d3777489d2100a527a678ca5cb0e76ffa368514cb562855a68f04fd",
+    "tests\\native\\peach_activation_composition\\caller_closure.md": "f9d39149fbc87f4bb4a0df119a529604562b9e5ff3d3d76a0f4e466eb2ed38c9"
+  },
+  "source_only": true
+}

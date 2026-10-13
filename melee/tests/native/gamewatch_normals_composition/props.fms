@@ -1,0 +1,210 @@
+# UNREGISTERED normal prop policies. Paper construction is not implemented here.
+# SDK57 charge query is available. Generic joint-world-position/wind-coordinate
+# operations remain pending; run.py records its controlled57 lowering.
+article It_Kind_GameWatch_Greenhouse states 4:
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                if holder.motion == attrs.jab_motion:
+                    item.change_state_flags(0, 2)
+                else:
+                    item.change_state_flags(1, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(GreenhouseClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Jab:
+            item.change_state_flags(0, 2)
+    on signal Start:
+            item.change_state_flags(1, 2)
+    on signal Loop:
+            item.change_state_flags(2, 2)
+    on signal End:
+            item.change_state_flags(3, 2)
+    state 0 anim 0:
+        on animation:
+            if holder.motion < attrs.jab_motion or holder.motion > attrs.rapid_end_motion:
+                owner.call(GreenhouseClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2:
+        on animation:
+            if item.animation_finished: item.change_state_flags(2, 2)
+            if holder.motion < attrs.jab_motion or holder.motion > attrs.rapid_end_motion:
+                owner.call(GreenhouseClear)
+                return true
+            return false
+    state 3 anim 3 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Manhole states 1:
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command0 = 0
+            item.joint("0").visible = false
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(ManholeClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0:
+                item.command0 = 0
+                item.joint("0").visible = true
+                # Pending generic output query: actual first child WORLD position.
+                let float x = 0
+                let float y = 0
+                let float z = 0
+                item.joint_world_position("0/0", x, y, z)
+                item.wind_at_coordinates(x, y, z, attrs.manhole_wind_frames, attrs.manhole_wind_strength, attrs.manhole_wind_decay, attrs.manhole_wind_frequency)
+            if holder.motion != attrs.down_tilt_motion:
+                owner.call(ManholeClear)
+                return true
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Fire states 1:
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            item.joint("0").visible = false
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(TorchClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if item.animation_frame == attrs.torch_visible_frame: item.joint("0").visible = true
+            if holder.motion != attrs.forward_smash_motion:
+                owner.call(TorchClear)
+                return true
+            if targets.is_fighter(item.current_owner):
+                if targets.smash_charge_active(item.current_owner):
+                    if item.animation_rate != 0:
+                        item.animation_rate = 0
+                        item.set_model_animation_rate(item.animation_rate)
+                else:
+                    if item.animation_rate != 1:
+                        item.animation_rate = 1
+                        item.set_model_animation_rate(item.animation_rate)
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Parachute states 2:
+    on created:
+            item.attach_to_owner(attrs.normal_trans_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(ParachuteClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.joint("0").visible = false
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            # Source equality is deliberate: overshooting30 is not a timeout.
+            if item.animation_frame == attrs.parachute_end_frame:
+                owner.call(ParachuteClear)
+                return true
+            if holder.motion < attrs.neutral_air_motion or holder.motion > attrs.neutral_landing_motion:
+                owner.call(ParachuteClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Turtle states 2:
+    on created:
+            item.attach_to_owner(attrs.normal_shoulder_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(TurtleClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            if holder.motion < attrs.back_air_motion or holder.motion > attrs.back_landing_motion:
+                owner.call(TurtleClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Breath states 2:
+    on created:
+            item.attach_to_owner(attrs.normal_hand_part, false)
+            item.inherit_owner_debug_display()
+            # Actual paper setup follows attach+debug: palette/outline/frame
+            # mapping/layered visibility metadata are NOT accepted here.
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            owner.call(SparkyClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            if holder.motion < attrs.up_air_motion or holder.motion > attrs.up_landing_motion:
+                owner.call(SparkyClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)

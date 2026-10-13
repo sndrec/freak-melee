@@ -1,0 +1,214 @@
+# Ordered normal-prop lifecycle. Accepted specials are composed by compose.py.
+state int saved_manhole_held
+state int greenhouse_handle
+state int manhole_handle
+state int torch_handle
+state int parachute_handle
+state int turtle_handle
+state int sparky_handle
+func GreenhousePause():
+    if state.greenhouse_handle != -1: articles.signal_owned(state.greenhouse_handle, "Pause", 0)
+func GreenhouseResume():
+    if state.greenhouse_handle != -1: articles.signal_owned(state.greenhouse_handle, "Resume", 0)
+func GreenhouseClear():
+    GreenhouseResume()
+    state.greenhouse_handle = -1
+func GreenhouseRemove():
+    if state.greenhouse_handle != -1:
+        # Source explicitly calls its owner cleanup BEFORE item destruction.
+        let int handle = state.greenhouse_handle
+        GreenhouseClear()
+        articles.remove_owned(handle)
+        GreenhouseClear()
+func ManholePause():
+    if state.manhole_handle != -1: articles.signal_owned(state.manhole_handle, "Pause", 0)
+func ManholeResume():
+    if state.manhole_handle != -1: articles.signal_owned(state.manhole_handle, "Resume", 0)
+func ManholeClear():
+    ManholeResume()
+    state.manhole_handle = -1
+    if state.saved_manhole_held != -1:
+        items.bind_existing_held(state.saved_manhole_held)
+        state.saved_manhole_held = -1
+        let int handle = items.held_id
+        items.set_visible(handle, true)
+        items.set_paused(handle, false)
+        items.notify_pickup(true)
+func ManholeRemove():
+    if state.manhole_handle != -1:
+        let int handle = state.manhole_handle
+        ManholeClear()
+        articles.remove_owned(handle)
+        ManholeClear()
+func TorchPause():
+    if state.torch_handle != -1: articles.signal_owned(state.torch_handle, "Pause", 0)
+func TorchResume():
+    if state.torch_handle != -1: articles.signal_owned(state.torch_handle, "Resume", 0)
+func TorchClear():
+    TorchResume()
+    state.torch_handle = -1
+func TorchRemove():
+    if state.torch_handle != -1:
+        let int handle = state.torch_handle
+        TorchClear()
+        articles.remove_owned(handle)
+        TorchClear()
+func AirPropsPause():
+    if state.parachute_handle != -1: articles.signal_owned(state.parachute_handle, "Pause", 0)
+    if state.turtle_handle != -1: articles.signal_owned(state.turtle_handle, "Pause", 0)
+    if state.sparky_handle != -1: articles.signal_owned(state.sparky_handle, "Pause", 0)
+func AirPropsResume():
+    if state.parachute_handle != -1: articles.signal_owned(state.parachute_handle, "Resume", 0)
+    if state.turtle_handle != -1: articles.signal_owned(state.turtle_handle, "Resume", 0)
+    if state.sparky_handle != -1: articles.signal_owned(state.sparky_handle, "Resume", 0)
+func ParachuteClear():
+    AirPropsResume()
+    state.parachute_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func TurtleClear():
+    AirPropsResume()
+    state.turtle_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func SparkyClear():
+    AirPropsResume()
+    state.sparky_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func ParachuteRemove():
+    if state.parachute_handle != -1:
+        let int handle = state.parachute_handle
+        ParachuteClear()
+        articles.remove_owned(handle)
+        ParachuteClear()
+func TurtleRemove():
+    if state.turtle_handle != -1:
+        let int handle = state.turtle_handle
+        TurtleClear()
+        articles.remove_owned(handle)
+        TurtleClear()
+func SparkyRemove():
+    if state.sparky_handle != -1:
+        let int handle = state.sparky_handle
+        SparkyClear()
+        articles.remove_owned(handle)
+        SparkyClear()
+func JudgeRemove():
+    if state.judge_handle != -1:
+        let int handle = state.judge_handle
+        JudgeClear()
+        articles.remove_owned(handle)
+        JudgeClear()
+func PanicRemove():
+    if state.panic_handle != -1:
+        let int handle = state.panic_handle
+        PanicClear()
+        articles.remove_owned(handle)
+        PanicClear()
+func PropDamage():
+    # Source order is observable: clear callbacks, restore held item and resume
+    # surviving air props at their original positions in this nine-prop chain.
+    GreenhouseRemove()
+    ManholeRemove()
+    TorchRemove()
+    ParachuteRemove()
+    TurtleRemove()
+    SparkyRemove()
+    JudgeRemove()
+    PanicRemove()
+    RescueRemove()
+func CleanupIfAir():
+    if airborne: PropDamage()
+func GreenhouseDecide():
+    if state.greenhouse_handle != -1:
+        if motion.id == attrs.jab_motion: articles.signal_owned(state.greenhouse_handle, "Jab", 0)
+        if motion.id == attrs.rapid_start_motion: articles.signal_owned(state.greenhouse_handle, "Start", 0)
+        if motion.id == attrs.rapid_loop_motion: articles.signal_owned(state.greenhouse_handle, "Loop", 0)
+        if motion.id == attrs.rapid_end_motion: articles.signal_owned(state.greenhouse_handle, "End", 0)
+        if callbacks.death2_is(None): callbacks.death2(PropDamage)
+        if callbacks.damage_is(None): callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(GreenhousePause)
+        callbacks.post_hitlag(GreenhouseResume)
+        callbacks.accessory(None)
+func ParachuteLand():
+    if state.parachute_handle != -1:
+        AirPropsResume()
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.parachute_handle, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+func TurtleLand():
+    if state.turtle_handle != -1:
+        AirPropsResume()
+        # Original checks LandingAirN350, deliberately NOT LandingAirB351.
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.turtle_handle, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+func SparkyLand():
+    if state.sparky_handle != -1:
+        AirPropsResume()
+        # Original also checks350 rather than its own LandingAirHi352.
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.sparky_handle, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+func OwnedReset():
+    state.judge_latest = 1
+    state.judge_previous = 0
+    state.judge_impulse_used = false
+    state.panic_damage = 0
+    # Death deliberately preserves panic_charge; load initializes it separately.
+    state.chef_latest = 1
+    state.chef_previous = 3
+    ClearPropHandles()
+func ClearPropHandles():
+    state.saved_manhole_held = -1
+    state.greenhouse_handle = -1
+    state.manhole_handle = -1
+    state.torch_handle = -1
+    state.parachute_handle = -1
+    state.turtle_handle = -1
+    state.sparky_handle = -1
+    state.judge_handle = -1
+    state.panic_handle = -1
+    state.rescue_handle = -1
+action Lifecycle:
+    on load:
+        # Palette/outline/width, layered renderer and asset binding remain pending.
+        state.panic_charge = 0
+        # Source NULL is represented by -1, not zero, for full-width handles.
+        # This initialization is for a new fighter, not live resource reload.
+        ClearPropHandles()
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, -1)
+        visuals.set_group(2, 0)
+        visuals.set_group(3, 0)
+        visuals.set_group(4, -1)
+        visuals.set_group(5, -1)
+        visuals.set_group(6, -1)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+        visuals.set_group(9, -1)
+        visuals.set_group(10, -1)
+        OwnedReset()
+    on damage:
+        PropDamage()
+    on color_animation_reset:
+        if state.panic_charge >= attrs.panic_full: color.start(5, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)

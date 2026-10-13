@@ -1,0 +1,70 @@
+# UNREGISTERED INITIALIZATION FIXTURE: no smash entry or YoYo physics activation.
+# Node construction supplies initial XYZ before collision history initialization.
+parameter int resource_attachment_joint = 42
+parameter int yoyo_reverse_motion = 345
+parameter int yoyo_ecb_category = 5
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+
+action Probe:
+    on load:
+        pass
+
+article It_Kind_Ness_Yoyo states 1:
+    attribute int link_count 0
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state bool touching[90]
+    state bool contacted[90]
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.params.link_count - 1
+            item.state.allocated = item.resources.begin(item.params.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.params.link_count:
+                let float radius = attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = attrs.yoyo_tip_radius * creator.instance_scale_y
+                let bool constructed = item.resource(node).create(attrs.resource_attachment_joint, radius, attrs.yoyo_ecb_category, position.x, position.y, position.z)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                # Original it_80275328 initializes the remembered surface to0.
+                item.resource(node).surface_line = 0
+                item.state.pinned[node] = node == item.state.tip
+                item.state.touching[node] = false
+                item.state.contacted[node] = false
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                # Original string draw checks x2C_b0(false); tip draws directly.
+                let bool drawing = item.resource(node).set_draw(node == item.state.tip)
+                node = node + 1
+            item.attach_to_owner(attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+    state 0 anim -1:
+        on animation:
+            return false
+        on physics:
+            pass

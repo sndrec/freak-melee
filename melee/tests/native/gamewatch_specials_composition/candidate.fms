@@ -1,0 +1,604 @@
+# UNREGISTERED source-only Judge / Fire Rescue / Oil Panic components.
+# Paper construction/colors/rendering and ordinary Judge7 food spawn pending.
+# Absorber hit count is pending; on absorb intentionally omitted in compiled53.
+# panic_stick_deadzone is controlled common data, not a claimed ISO default.
+state int judge_latest
+state int judge_previous
+state bool judge_impulse_used
+state int judge_handle
+state int rescue_handle
+state int panic_handle
+state int panic_charge
+state int panic_damage
+state bool panic_release
+state int panic_turn
+func JudgeRoll() -> int:
+    let int total = 0
+    if state.judge_latest != 0 and state.judge_previous != 0: total = total + attrs.judge_weight_0
+    if state.judge_latest != 1 and state.judge_previous != 1: total = total + attrs.judge_weight_1
+    if state.judge_latest != 2 and state.judge_previous != 2: total = total + attrs.judge_weight_2
+    if state.judge_latest != 3 and state.judge_previous != 3: total = total + attrs.judge_weight_3
+    if state.judge_latest != 4 and state.judge_previous != 4: total = total + attrs.judge_weight_4
+    if state.judge_latest != 5 and state.judge_previous != 5: total = total + attrs.judge_weight_5
+    if state.judge_latest != 6 and state.judge_previous != 6: total = total + attrs.judge_weight_6
+    if state.judge_latest != 7 and state.judge_previous != 7: total = total + attrs.judge_weight_7
+    if state.judge_latest != 8 and state.judge_previous != 8: total = total + attrs.judge_weight_8
+    # Original result is undefined if no positive eligible total exists.
+    # Defined tuning requires nonnegative weights and at least one candidate.
+    let int roll = random.int(total)
+    let int selected = -1
+    let int cumulative = 0
+    if state.judge_latest != 0 and state.judge_previous != 0:
+        cumulative = cumulative + attrs.judge_weight_0
+        if selected == -1 and roll < cumulative: selected = 0
+    if state.judge_latest != 1 and state.judge_previous != 1:
+        cumulative = cumulative + attrs.judge_weight_1
+        if selected == -1 and roll < cumulative: selected = 1
+    if state.judge_latest != 2 and state.judge_previous != 2:
+        cumulative = cumulative + attrs.judge_weight_2
+        if selected == -1 and roll < cumulative: selected = 2
+    if state.judge_latest != 3 and state.judge_previous != 3:
+        cumulative = cumulative + attrs.judge_weight_3
+        if selected == -1 and roll < cumulative: selected = 3
+    if state.judge_latest != 4 and state.judge_previous != 4:
+        cumulative = cumulative + attrs.judge_weight_4
+        if selected == -1 and roll < cumulative: selected = 4
+    if state.judge_latest != 5 and state.judge_previous != 5:
+        cumulative = cumulative + attrs.judge_weight_5
+        if selected == -1 and roll < cumulative: selected = 5
+    if state.judge_latest != 6 and state.judge_previous != 6:
+        cumulative = cumulative + attrs.judge_weight_6
+        if selected == -1 and roll < cumulative: selected = 6
+    if state.judge_latest != 7 and state.judge_previous != 7:
+        cumulative = cumulative + attrs.judge_weight_7
+        if selected == -1 and roll < cumulative: selected = 7
+    if state.judge_latest != 8 and state.judge_previous != 8:
+        cumulative = cumulative + attrs.judge_weight_8
+        if selected == -1 and roll < cumulative: selected = 8
+    state.judge_previous = state.judge_latest
+    state.judge_latest = selected
+    return selected
+func JudgeSetup():
+    # Draft setup is kept separately; allocation / bonus food is not covered53.
+    pass
+func JudgePause():
+    articles.signal_owned(state.judge_handle, "Pause", 0)
+func JudgeResume():
+    articles.signal_owned(state.judge_handle, "Resume", 0)
+func JudgeClear():
+    JudgeResume()
+    state.judge_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func JudgeCalls():
+    if state.judge_handle != -1:
+        callbacks.death2(SpecialDamage)
+        callbacks.damage(SpecialDamage)
+    callbacks.pre_hitlag(JudgePause)
+    callbacks.post_hitlag(JudgeResume)
+    callbacks.accessory(JudgeSetup)
+func JudgeEnter(bool air):
+    if air: velocity.x = velocity.x / attrs.judge_preserve
+    else: velocity.y = 0
+    let int selected = JudgeRoll()
+    let int first = attrs.judge_ground
+    if air: first = attrs.judge_air
+    state.enter_at_speed(first + selected, 0, 0, 1)
+    animation.start()
+    command(1) = 0
+    command(0) = 0
+    callbacks.accessory(JudgeSetup)
+func JudgeSwitch(bool air):
+    if air: physics.ground_to_air()
+    else:
+        state.judge_impulse_used = false
+        physics.switch_to_ground()
+    let int first = attrs.judge_ground
+    if air: first = attrs.judge_air
+    state.enter_at_speed(first + state.judge_latest, attrs.judge_flags, frame, 1)
+    if air and command(0) == 1: command(0) = 2
+    JudgeCalls()
+func JudgeAirPhysics():
+    if uint(command(0)) >= 1:
+        if command(0) == 1:
+            command(0) = 2
+            if not state.judge_impulse_used:
+                state.judge_impulse_used = true
+                velocity.y = attrs.judge_impulse
+            else: velocity.y = 0
+        physics.fall(attrs.judge_gravity, attrs.judge_terminal)
+    else: physics.fall_basic()
+    physics.air_decel(attrs.judge_decel)
+func RescueSetup():
+    # Full creation draft is separate; paper presentation not accepted.
+    pass
+func RescuePause():
+    articles.signal_owned(state.rescue_handle, "Pause", 0)
+func RescueResume():
+    articles.signal_owned(state.rescue_handle, "Resume", 0)
+func RescueClear():
+    state.rescue_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func RescueRemove():
+    if state.rescue_handle != -1:
+        articles.remove_owned(state.rescue_handle)
+        RescueClear()
+func RescueEnter(bool air):
+    if not air:
+        acceleration.y = 0
+        velocity.y = 0
+    physics.force_air_and_use_jumps()
+    let int motion = attrs.rescue_ground
+    if air: motion = attrs.rescue_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    callbacks.accessory(RescueSetup)
+    animation.start()
+    sound.play(attrs.rescue_sound, 127, 64)
+func RescueAnimation():
+    if animation.finished:
+        if attrs.rescue_landing == 0:
+            state.fall()
+            return
+        state.freefall_blend(true, false, true, 1, attrs.rescue_landing, 0)
+func RescueInterrupt():
+    if command(0) == 0:
+        let float magnitude = abs(input.x)
+        if magnitude > attrs.rescue_stick:
+            let float direction = -1
+            if input.x > 0: direction = 1
+            let float amount = (magnitude - attrs.rescue_stick) * direction
+            let float angle = amount * attrs.rescue_angle
+            facing.from_input()
+            bones.rotate_y(Top, 1.5707963267948966 * facing.direction)
+            motion.launch_angle = -angle
+            command(0) = 1
+func RescueCollision():
+    if frame > attrs.rescue_collision_frame:
+        if velocity.y >= 0:
+            if collision.air():
+                RescueRemove()
+                physics.switch_to_ground()
+                state.landing_special(false, attrs.rescue_landing)
+                callbacks.death2(None)
+                callbacks.damage(None)
+        else:
+            if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)): state.landing_special(false, attrs.rescue_landing)
+            elif collision.cliff_catch(): state.catch_ledge()
+func PanicSetup():
+    # Full creation draft is separate; paper presentation not accepted.
+    pass
+func PanicPause():
+    articles.signal_owned(state.panic_handle, "Pause", 0)
+func PanicResume():
+    articles.signal_owned(state.panic_handle, "Resume", 0)
+func PanicClear():
+    PanicResume()
+    state.panic_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+func SpecialDamage():
+    # Scoped three-prop chain. Complete stock OnDamage includes six other props.
+    if state.judge_handle != -1:
+        articles.remove_owned(state.judge_handle)
+        JudgeClear()
+    if state.panic_handle != -1:
+        articles.remove_owned(state.panic_handle)
+        PanicClear()
+    RescueRemove()
+func BucketModels():
+    visuals.set_group(5, 2)
+    if state.panic_charge == 0:
+        visuals.set_group(6, -1)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+    elif state.panic_charge == 1:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+    elif state.panic_charge == 2:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, 0)
+        visuals.set_group(8, -1)
+    else:
+        visuals.set_group(6, 0)
+        visuals.set_group(7, 0)
+        visuals.set_group(8, 0)
+func PanicAbsorber():
+    absorber.create(attrs.panic_absorb_part, attrs.panic_absorb_x, attrs.panic_absorb_y, attrs.panic_absorb_z, attrs.panic_absorb_radius)
+func PanicUpdate(int phase):
+    if phase == 0:
+        if command(0) == 1:
+            command(0) = 2
+            PanicAbsorber()
+        elif command(0) == 0: absorber.active = false
+    elif phase == 1:
+        if command(0) == 2: PanicAbsorber()
+        elif command(0) == 0: absorber.active = false
+    else:
+        if uint(command(0)) >= 1:
+            command(0) = 2
+            PanicAbsorber()
+    if command(0) != 0: BucketModels()
+func PanicLoop(bool air):
+    let int motion = attrs.panic_ground
+    if air: motion = attrs.panic_air
+    state.enter_at_speed(motion, attrs.panic_loop_flags, attrs.panic_restart_frame - 1, 1)
+    animation.start()
+    PanicUpdate(2)
+func PanicShoot(bool air):
+    let int motion = attrs.panic_shoot_ground
+    if air: motion = attrs.panic_shoot_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    animation.start()
+    # Both intermediate truncations are intentional original cmd-var writes.
+    command(1) = int(float(state.panic_damage) * attrs.panic_damage_mul)
+    let float damage = float(command(1)) + attrs.panic_damage_add
+    command(1) = int(damage)
+    state.panic_charge = 0
+    state.panic_damage = 0
+    BucketModels()
+    callbacks.accessory(PanicSetup)
+func PanicEnter(bool air):
+    if state.panic_charge >= attrs.panic_full:
+        PanicShoot(air)
+        return
+    if air: velocity.x = velocity.x / attrs.panic_preserve
+    velocity.y = 0
+    let int motion = attrs.panic_ground
+    if air: motion = attrs.panic_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    animation.start()
+    command(1) = 0
+    command(0) = 0
+    state.panic_release = false
+    state.panic_turn = 0
+func PanicAnimation(bool air):
+    if frame == attrs.panic_loop_frame and not state.panic_release: PanicLoop(air)
+    PanicUpdate(0)
+    if animation.finished:
+        if air: state.fall()
+        else: state.wait()
+func PanicInterrupt():
+    if state.panic_turn > 0: state.panic_turn = state.panic_turn - 1
+    else:
+        if abs(input.x) > attrs.panic_stick_deadzone:
+            let float previous = facing.direction
+            facing.from_input()
+            if previous != facing.direction: state.panic_turn = int(attrs.panic_turn_frames)
+    if not input.special_held: state.panic_release = true
+func PanicPhysics(bool air):
+    if air:
+        physics.fall(attrs.panic_gravity, attrs.panic_terminal)
+        physics.air_decel(attrs.panic_decel)
+    else: physics.ground_friction()
+    absorber.skip_position_update = false
+func PanicSwitch(bool air, int phase):
+    if air: physics.ground_to_air()
+    else: physics.switch_to_ground()
+    let int motion = attrs.panic_ground + phase
+    if air: motion = attrs.panic_air + phase
+    state.enter_at_speed(motion, attrs.panic_switch_flags, frame, 1)
+    if phase == 0: PanicUpdate(1)
+    elif phase == 2:
+        BucketModels()
+        callbacks.accessory(PanicSetup)
+func PanicCatchAnimation(bool air):
+    if not animation.finished: return
+    if state.panic_charge >= attrs.panic_full:
+        if air: state.fall()
+        else: state.wait()
+        return
+    PanicLoop(air)
+func PanicShootAnimation(bool air):
+    if hitbox.state(0) == Hitbox.enabled: hitbox.set_damage(0, command(1))
+    if hitbox.state(1) == Hitbox.enabled: hitbox.set_damage(1, command(1))
+    if hitbox.state(2) == Hitbox.enabled: hitbox.set_damage(2, command(1))
+    if hitbox.state(3) == Hitbox.enabled: hitbox.set_damage(3, command(1))
+    if animation.finished:
+        if air: state.fall()
+        else: state.wait()
+move Judge:
+    entry explicit
+    on special_s:
+        JudgeEnter(false)
+    on special_air_s:
+        JudgeEnter(true)
+move Rescue:
+    entry explicit
+    on special_hi:
+        RescueEnter(false)
+    on special_air_hi:
+        RescueEnter(true)
+move Panic:
+    entry explicit
+    on special_lw:
+        PanicEnter(false)
+    on special_air_lw:
+        PanicEnter(true)
+action SpecialPhases:
+    on state_355_animation:
+        if animation.finished: state.wait()
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_355_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_356_animation:
+        if animation.finished: state.wait()
+    on state_356_interrupt:
+        pass
+    on state_356_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_356_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_357_animation:
+        if animation.finished: state.wait()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_357_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_358_animation:
+        if animation.finished: state.wait()
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_358_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_359_animation:
+        if animation.finished: state.wait()
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_359_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_360_animation:
+        if animation.finished: state.wait()
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_360_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_361_animation:
+        if animation.finished: state.wait()
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_361_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_362_animation:
+        if animation.finished: state.wait()
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_362_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_363_animation:
+        if animation.finished: state.wait()
+    on state_363_interrupt:
+        pass
+    on state_363_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_363_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_364_animation:
+        if animation.finished: state.fall()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        JudgeAirPhysics()
+    on state_364_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_365_animation:
+        if animation.finished: state.fall()
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        JudgeAirPhysics()
+    on state_365_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_366_animation:
+        if animation.finished: state.fall()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        JudgeAirPhysics()
+    on state_366_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_367_animation:
+        if animation.finished: state.fall()
+    on state_367_interrupt:
+        pass
+    on state_367_physics:
+        JudgeAirPhysics()
+    on state_367_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_368_animation:
+        if animation.finished: state.fall()
+    on state_368_interrupt:
+        pass
+    on state_368_physics:
+        JudgeAirPhysics()
+    on state_368_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_369_animation:
+        if animation.finished: state.fall()
+    on state_369_interrupt:
+        pass
+    on state_369_physics:
+        JudgeAirPhysics()
+    on state_369_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_370_animation:
+        if animation.finished: state.fall()
+    on state_370_interrupt:
+        pass
+    on state_370_physics:
+        JudgeAirPhysics()
+    on state_370_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_371_animation:
+        if animation.finished: state.fall()
+    on state_371_interrupt:
+        pass
+    on state_371_physics:
+        JudgeAirPhysics()
+    on state_371_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_372_animation:
+        if animation.finished: state.fall()
+    on state_372_interrupt:
+        pass
+    on state_372_physics:
+        JudgeAirPhysics()
+    on state_372_collision:
+        if collision.air(): JudgeSwitch(false)
+    on state_373_animation:
+        RescueAnimation()
+    on state_373_interrupt:
+        RescueInterrupt()
+    on state_373_physics:
+        physics.air_motion()
+    on state_373_collision:
+        RescueCollision()
+    on state_374_animation:
+        RescueAnimation()
+    on state_374_interrupt:
+        RescueInterrupt()
+    on state_374_physics:
+        physics.air_motion()
+    on state_374_collision:
+        RescueCollision()
+    on state_375_animation:
+        PanicAnimation(false)
+    on state_375_interrupt:
+        PanicInterrupt()
+    on state_375_physics:
+        PanicPhysics(false)
+    on state_375_collision:
+        if collision.special_ground_lost: PanicSwitch(true, 0)
+    on state_376_animation:
+        PanicCatchAnimation(false)
+    on state_376_interrupt:
+        pass
+    on state_376_physics:
+        physics.ground_friction()
+    on state_376_collision:
+        if collision.left_ground: PanicSwitch(true, 1)
+    on state_377_animation:
+        PanicShootAnimation(false)
+    on state_377_interrupt:
+        pass
+    on state_377_physics:
+        physics.ground_friction()
+    on state_377_collision:
+        if collision.left_ground: PanicSwitch(true, 2)
+    on state_378_animation:
+        PanicAnimation(true)
+    on state_378_interrupt:
+        PanicInterrupt()
+    on state_378_physics:
+        PanicPhysics(true)
+    on state_378_collision:
+        if collision.air(): PanicSwitch(false, 0)
+    on state_379_animation:
+        PanicCatchAnimation(true)
+    on state_379_interrupt:
+        pass
+    on state_379_physics:
+        physics.air_gravity_and_friction()
+    on state_379_collision:
+        if collision.air(): PanicSwitch(false, 1)
+    on state_380_animation:
+        PanicShootAnimation(true)
+    on state_380_interrupt:
+        pass
+    on state_380_physics:
+        physics.air_gravity_and_friction()
+    on state_380_collision:
+        if collision.air(): PanicSwitch(false, 2)
+# Prop callbacks use authored state/history, with PaperArticles presentation
+# deliberately excluded. Rescue's original post-remove userdata reread is not
+# reproduced; synchronous removal is terminal and generation-guarded.
+article It_Kind_GameWatch_Judge states 1:
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if owner.motion >= 0:
+                item.change_state_flags(0, 2)
+    on destroyed:
+            owner.call(JudgeClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion >= 0:
+                if owner.facing == 1:
+                    item.joint("0/0").rotation.y = 3.141592653589793
+                else:
+                    item.joint("0/0").rotation.y = 0
+            if owner.motion < attrs.judge_ground or owner.motion > attrs.judge_air + 8:
+                owner.call(JudgeClear)
+                return true
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Panic states 2:
+    # PickedUp requires live current-owner ground/air query, kept in pending.fms.
+    on destroyed:
+            owner.call(PanicClear)
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion < attrs.panic_shoot_ground or owner.motion > attrs.panic_shoot_air:
+                owner.call(PanicClear)
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Rescue states 2:
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if not creator.exists or (creator.motion != attrs.rescue_ground and creator.motion != attrs.rescue_air):
+                owner.call(RescueClear)
+                item.detach_owner()
+                item.remove()
+            return false
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim 0 use 0:
+    on interaction:
+            item.interact(other)

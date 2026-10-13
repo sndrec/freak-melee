@@ -1,0 +1,339 @@
+{
+  "status": "read-only proposal; no behavior/material/render acceptance",
+  "commit": "31f5ad348daf6adfe55a1032f4433c40d77a924b",
+  "files": {
+    "src/melee/ft/ftcharacter_assets.c": "d3ed9692359ea695fc31d4e2097858ff63ed9f5663c5d393f8434c5db59d31cf",
+    "src/melee/ft/ftdrawcommon.c": "bf1a434906af950302380b49e748a8dc64714238e3212d2298d94f98b4b4e177",
+    "src/melee/ft/ftlib.c": "59462ddc0f8cb703c3dd603de03db2f668b4d0524a72c83cceacb62c9508411b",
+    "src/melee/ft/ftmaterial.c": "f83ca8fb6d9259f09725ad493f05712401177a5507b99718514ae5a46f734066",
+    "src/melee/ft/ftmaterial_tev.c": "77f7956ec18c80952ee24e71b1b7380ff91e619a74df26b10095a3fa601b73d2",
+    "src/melee/ft/ftparts.c": "c83b23b870bb5f5872e38d058abd4b4b595e196c2b032ecde13c1bd324906d84",
+    "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c": "836626fe34ba1bf245b8e60c35c423e540e47b41a054978cbd5f26660f8a6cf5",
+    "src/melee/ft/kinds/ftGameWatch/types.h": "20234336a708c9df7be41c07f92c6622015b22bede500f9f868dc55fd0308692",
+    "src/melee/ft/native_fighter_module.h": "b7f76a55bd54d1c802df84c71c4e26564f3c16a381e7b38533f5c7dcd64ea375",
+    "src/melee/ft/native_fighter_runtime.h": "e1f43588528212887f3d4ee083e053008fd0c064a3b795618b87f3a4cc8a8501",
+    "src/melee/ft/types.h": "84d1fbbe06491286046409bdbb9d58e69495d68c11772f379592f47afd71c3f2",
+    "src/melee/it/itCharItems.h": "680ad368edca167d89dcc8ce66e999638abb3c1374e42bbf6c2b5d5b7368b9e9",
+    "src/melee/it/itCommonItems.h": "dd4a8c5fae7ee7ec679856be0b7b5f7ab44de6925ad800da6ec1ad1dbeaecd10",
+    "src/melee/it/itarticle_data.c": "93c7962becf55115bd3e721478e227bb9cb06d75867bae25423c93fa3687b4c1",
+    "src/melee/it/itdraw.c": "24b04f4f5339b84e9dd9537fa081fa625ec8c1fd8503a31c68fe8f7a3e179d02",
+    "src/melee/it/item.c": "49186f6bdadffd0a6fbbf97c4f0e087a3801c6bdd8da506dba5ad2cc8b13fafc",
+    "src/melee/it/itmaterial.c": "88c8c2cf4fca648fabd9b32af3edfca1debb27834d688ef1e5ed5e5f8d1f572b",
+    "src/melee/it/itzako.c": "05500c00a3c6bfc8db29033dae6568b11d9216e18e1a2eb207573f440970c5e5",
+    "src/melee/it/kinds/inlines.h": "21f4992a6c873bb4be4125412d4190357ec3a5d8eafa9a0929e878aeff058bc4",
+    "src/melee/it/kinds/itgamewatchbreath.c": "3500740fa4a381b0099008356cc6e58f455f9be1be2d668a082bccf1ae75eed0",
+    "src/melee/it/kinds/itgamewatchchef.c": "1b3b4f18b0bc5747064ce3b89bf5dad01629dc9cb5f68558013628a3c9df4206",
+    "src/melee/it/kinds/itgamewatchfire.c": "00e0d2a244dfa6ef722e7533beba8e741fa7c92cb7b4fd0cb4cacbd3dae98d0b",
+    "src/melee/it/kinds/itgamewatchgreenhouse.c": "3b3a37611ca1f345a751a5b684397931f9f22896170258ba8fe61e63e03054a4",
+    "src/melee/it/kinds/itgamewatchjudge.c": "6807a36a9a1c6489f709bb026c1af5b8303dcab7e676d0470eb5d2021fded464",
+    "src/melee/it/kinds/itgamewatchmanhole.c": "905daebebd603bcf4fc31eb4e093314d31c7c831e578aed05b08abe983fec84e",
+    "src/melee/it/kinds/itgamewatchpanic.c": "37c5e68e3384b6f7def4c0e8e37ec8d6c1c5d61243d9712dd7cf7e7398696574",
+    "src/melee/it/kinds/itgamewatchparachute.c": "aa29a0e287044add7a84b245eaef8df4af0df6674e5456c27d4acc8a53316f21",
+    "src/melee/it/kinds/itgamewatchrescue.c": "de0207cc9ad5aeeb901781e9edde33a0791a78124352b9fa75d1f848842769e2",
+    "src/melee/it/kinds/itgamewatchturtle.c": "034c46bf98f462b0b4cb58d5d0d1e969cc8405695e3f62b699f172e015776734",
+    "src/melee/it/kinds/itkirbygamewatchchefpan.c": "726e6a48250065ae9fa376ac083b3376792012f6d1246028e1d90ca8842fb673",
+    "src/melee/it/types.h": "f5686f6a1489102c5045327a430cf8f3663c9ffb6d9d788995f493b903ba3d66",
+    "tools/extract_native_animation.py": "d23c015f8f40ec5f9ec99b6ca76a4916d062908a5010ba3918eadb95d9e7bb3d",
+    "tools/native_fighter_item_presentation.c": "7f31d0b8bb7456a683f73ad83256e9a7f8a14d632196dc8c01ea8f54254df672",
+    "tools/native_fighter_item_script.c": "9e9145277cfdcd625917dc1a126a262ae454cba83726206a9a011a845a4bf3de",
+    "src/melee/ft/ftcommon_assets.c": "5c93e518dc4aca146616346485f38cf30ed1fce6da20e6aaecf3299b4d4271bf",
+    "src/melee/ft/fighter.c": "889627241a6202e1c717c72a04b4be5174a59e1309147eb3106070ef39cb63e0",
+    "src/melee/ft/ftlib.h": "df07658fed68ac19405f701ab0438fd3cee5280f8e1ef96f654c070b6d073f72"
+  },
+  "source_references": {
+    "src/melee/ft/ftcharacter_assets.c": [
+      {
+        "line": 1002,
+        "source": "static itGamewatchModelVisibility* import_gamewatch_model_visibility("
+      },
+      {
+        "line": 1072,
+        "source": "attrs->model_visibility = import_gamewatch_model_visibility(import, source);"
+      },
+      {
+        "line": 1094,
+        "source": "import_gamewatch_model_visibility(import, source);"
+      }
+    ],
+    "src/melee/ft/ftdrawcommon.c": [
+      {
+        "line": 410,
+        "source": "void ftDrawCommon_80080E18(HSD_GObj* gobj, int arg1)"
+      },
+      {
+        "line": 438,
+        "source": "gobj->render_cb = &ftDrawCommon_80080E18;"
+      }
+    ],
+    "src/melee/ft/ftlib.c": [
+      {
+        "line": 743,
+        "source": "bool ftLib_800870BC(HSD_GObj* gobj, int* val)"
+      },
+      {
+        "line": 1007,
+        "source": "void ftLib_8008770C(HSD_GObj* gobj, void* dst)"
+      },
+      {
+        "line": 1016,
+        "source": "void ftLib_80087744(HSD_GObj* gobj, void* dst)"
+      }
+    ],
+    "src/melee/ft/ftmaterial.c": [
+      {
+        "line": 129,
+        "source": "void ftMaterial_800BFB4C(Fighter_GObj* gobj, GXColor* diffuse)"
+      }
+    ],
+    "src/melee/ft/kinds/ftGameWatch/ftgamewatch.c": [
+      {
+        "line": 522,
+        "source": "void ftGw_Init_OnLoad(HSD_GObj* gobj)"
+      },
+      {
+        "line": 538,
+        "source": "ftMaterial_800BFB4C(gobj,"
+      }
+    ],
+    "src/melee/it/itarticle_data.c": [
+      {
+        "line": 154,
+        "source": "import_gamewatch_model_visibility(HSD_DatImport* import, u32 slot)"
+      },
+      {
+        "line": 238,
+        "source": "import_gamewatch_model_visibility(import, source);"
+      },
+      {
+        "line": 270,
+        "source": "import_gamewatch_model_visibility(import, source);"
+      }
+    ],
+    "src/melee/it/itdraw.c": [
+      {
+        "line": 216,
+        "source": "void it_8026EECC(HSD_GObj* gobj, int arg1)"
+      }
+    ],
+    "src/melee/it/item.c": [
+      {
+        "line": 65,
+        "source": "/* 2682F0 */ static bool Item_802682F0(HSD_GObj* gobj);"
+      },
+      {
+        "line": 829,
+        "source": "static bool Item_802682F0(HSD_GObj* gobj)"
+      },
+      {
+        "line": 1005,
+        "source": "if (Item_802682F0(gobj) != false) {"
+      }
+    ],
+    "src/melee/it/itmaterial.c": [
+      {
+        "line": 59,
+        "source": "it_mobj.setup = (it_MObjSetupFunc) fn_80277D8C;"
+      },
+      {
+        "line": 64,
+        "source": "void fn_80277D8C(HSD_MObj* mobj, u32 rendermode_arg, u32 unused_arg)"
+      },
+      {
+        "line": 99,
+        "source": "it_80278108(item, mobj, it_80277F90(item, mobj, &sp38));"
+      },
+      {
+        "line": 129,
+        "source": "HSD_TExp* it_80277F90(Item* item, HSD_MObj* mobj, HSD_TExp* arg2)"
+      },
+      {
+        "line": 167,
+        "source": "void it_80278108(Item* item, HSD_MObj* mobj, HSD_TExp* texp)"
+      },
+      {
+        "line": 325,
+        "source": "void it_80278574(HSD_GObj* gobj, GXColor* arg1)"
+      }
+    ],
+    "src/melee/it/itzako.c": [
+      {
+        "line": 718,
+        "source": "void it_8027CE64(Item_GObj* item_gobj, HSD_GObj* fighter_gobj,"
+      },
+      {
+        "line": 727,
+        "source": "ftLib_8008770C(fighter_gobj, (void*) &sp18);"
+      },
+      {
+        "line": 728,
+        "source": "it_80278574(item_gobj, &sp18);"
+      },
+      {
+        "line": 729,
+        "source": "ftLib_80087744(fighter_gobj, &item->xBC8);"
+      },
+      {
+        "line": 730,
+        "source": "item->x5C8 = ftLib_800870BC(item->owner, (int*) &item->xBC4);"
+      },
+      {
+        "line": 731,
+        "source": "it_80274594(item_gobj);"
+      }
+    ],
+    "src/melee/it/kinds/inlines.h": [
+      {
+        "line": 82,
+        "source": "static inline void Item_AttachGameWatchArticle(HSD_GObj* parent,"
+      },
+      {
+        "line": 89,
+        "source": "it_8027CE64(item_gobj, parent, attributes->model_visibility);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchbreath.c": [
+      {
+        "line": 30,
+        "source": "Item_AttachGameWatchArticle(parent, part, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchchef.c": [
+      {
+        "line": 48,
+        "source": "it_8027CE64(gobj, parent, attrs->model_visibility);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchfire.c": [
+      {
+        "line": 32,
+        "source": "Item_AttachGameWatchArticle(parent, part, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchgreenhouse.c": [
+      {
+        "line": 34,
+        "source": "Item_AttachGameWatchArticle(parent, part, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchjudge.c": [
+      {
+        "line": 41,
+        "source": "it_8027CE64(new_gobj, parent_gobj, special_attrs->model_visibility);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchmanhole.c": [
+      {
+        "line": 31,
+        "source": "Item_AttachGameWatchArticle(gobj, arg2, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchpanic.c": [
+      {
+        "line": 29,
+        "source": "Item_AttachGameWatchArticle(parent, arg2, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchparachute.c": [
+      {
+        "line": 39,
+        "source": "Item_AttachGameWatchArticle(parent, part, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchrescue.c": [
+      {
+        "line": 48,
+        "source": "it_8027CE64(result, parent, attributes->model_visibility);"
+      }
+    ],
+    "src/melee/it/kinds/itgamewatchturtle.c": [
+      {
+        "line": 38,
+        "source": "Item_AttachGameWatchArticle(parent, arg2, result, attr);"
+      }
+    ],
+    "src/melee/it/kinds/itkirbygamewatchchefpan.c": [
+      {
+        "line": 27,
+        "source": "Item_AttachGameWatchArticle(parent, part, result, attr);"
+      }
+    ],
+    "src/melee/it/types.h": [
+      {
+        "line": 332,
+        "source": "u8 x5C9; // used heavily in it_80278108"
+      }
+    ],
+    "src/melee/ft/ftcommon_assets.c": [
+      {
+        "line": 21,
+        "source": "static bool import_words(const HSD_Dat* dat, u32 source, void* destination,"
+      },
+      {
+        "line": 60,
+        "source": "!import_words(&output->dat, common, &output->common,"
+      },
+      {
+        "line": 65,
+        "source": "!import_words(&output->dat, source, &output->scale_modifiers,"
+      },
+      {
+        "line": 68,
+        "source": "!import_words(&output->dat, source, &output->bunny_modifiers,"
+      },
+      {
+        "line": 71,
+        "source": "!import_words(&output->dat, source, &output->metal_modifiers,"
+      },
+      {
+        "line": 74,
+        "source": "!import_words(&output->dat, source, &output->zako_modifiers,"
+      },
+      {
+        "line": 77,
+        "source": "!import_words(&output->dat, source, &output->crowd_config,"
+      },
+      {
+        "line": 85,
+        "source": "memcpy(&output->common.x7D8,"
+      },
+      {
+        "line": 86,
+        "source": "HSD_DatBytes(&output->dat, common + offsetof(ftCommonData, x7D8),"
+      },
+      {
+        "line": 105,
+        "source": "!import_words(&output->dat, source, numeric_tables[i],"
+      },
+      {
+        "line": 183,
+        "source": "!import_words(&output->dat, source,"
+      },
+      {
+        "line": 215,
+        "source": "!import_words(&output->dat, source, shake_offsets[i],"
+      }
+    ],
+    "src/melee/ft/fighter.c": [
+      {
+        "line": 784,
+        "source": "fp->x61A_controller_index = Player_GetControllerIndex(fp->player_id);"
+      },
+      {
+        "line": 793,
+        "source": "if (fp->x61A_controller_index > 4) {"
+      },
+      {
+        "line": 797,
+        "source": "if (fp->x61A_controller_index != 0) {"
+      },
+      {
+        "line": 800,
+        "source": "->x6DC_colorsByPlayer[fp->x61A_controller_index - 1];"
+      }
+    ]
+  },
+  "outputs": {
+    "proposal.md": "7a740dc5ef6e7e85ee03de2c744dc8e100416eaf33b98a93c0709a889f1d1a4b",
+    "retail_census.json": "38edb5f7bf07dc80e19e0e7824f737a3933b4195a21ed6a32e48a3c839652d29"
+  }
+}

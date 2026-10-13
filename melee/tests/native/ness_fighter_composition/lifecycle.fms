@@ -1,0 +1,48 @@
+# Exact common presentation selector1; current DSL selectors are compile-time.
+func ResourceDamage():
+    YoyoRemove()
+    flash_detach()
+    thunder_damage()
+    BatRemove()
+
+action ResourceLifecycle:
+    on load:
+        fighter.copy_ext_attributes()
+        # Native authored handles use -1; zero-filled union pointers are not IDs.
+        state.flash_handle = -1
+        state.thunder_ball_handle = -1
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+        state.thunder_effects_active = false
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        # Original reset hides this group and forgets handles; damage owns removal.
+        visuals.hide_group(0)
+        state.flash_handle = -1
+        state.thunder_ball_handle = -1
+        state.bat_handle = -1
+        state.yoyo_handle = -1
+        state.thunder_effects_active = false
+    on damage:
+        ResourceDamage()
+    on death2:
+        ResourceDamage()
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on worn_item_jump_sound:
+        return false

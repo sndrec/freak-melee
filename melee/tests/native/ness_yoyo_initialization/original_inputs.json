@@ -1,0 +1,7 @@
+{
+  "src/melee/mp/mpcoll.c": "e76841854d6f27b786ba57e431e915ebba705cb86c00cda942ff0ba44059945a",
+  "src/melee/it/kinds/inlines.h": "21f4992a6c873bb4be4125412d4190357ec3a5d8eafa9a0929e878aeff058bc4",
+  "src/melee/it/it_2725.c": "722f1f5c38a70812139b58330bed3b52571f7b8b72e2620755947e1db12b435a",
+  "src/melee/it/kinds/itlinkhookshot.c": "074e55ddfe9ab3f6bb79818926095544a15b07745f5a0eed2673c0068e3c28d4",
+  "src/melee/it/kinds/itnessyoyo.c": "7097f54999fb1bcbed86af49ae6021e41ec219c8d453efb3a4023da8abf7c995"
+}

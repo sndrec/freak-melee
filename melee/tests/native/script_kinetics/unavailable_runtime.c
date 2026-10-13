@@ -1,0 +1,19 @@
+#include <melee/it/native_script_item_actor.h>
+#include <melee/gr/stage.h>
+#include <melee/lb/lbvector.h>
+#include <stdlib.h>
+
+// Receiver/transition fixtures publish Fighter views, not authored Item actors
+// or stage/vector presentation. Never supply synthetic success to these leaves.
+bool nativeScriptItem_IsAttached(Item_GObj* object){(void)object;return false;}
+const NativeScriptItemProgram* nativeScriptItem_Spec(Item_GObj* object)
+{(void)object;abort();}
+NativeScriptVMStatus nativeScriptItem_Status(Item_GObj* object)
+{(void)object;abort();}
+bool nativeScriptItem_View(Item_GObj* object,uint32_t generation,NativeScriptReceiverView* view)
+{(void)object;(void)generation;(void)view;return false;}
+StKind Stage_80225194(void){abort();}
+void lbVector_RotateAboutUnitAxis(Vec3* vector,Vec3* axis,float angle)
+{(void)vector;(void)axis;(void)angle;abort();}
+void lbVector_Mirror(Vec3* vector,Vec3* axis)
+{(void)vector;(void)axis;abort();}

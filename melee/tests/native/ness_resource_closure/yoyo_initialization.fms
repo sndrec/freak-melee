@@ -1,0 +1,136 @@
+# Initialization/ordered-release draft; four physics solvers remain absent.
+# PENDING: generic node creation needs initial collision position BEFORE its
+# mpColl_80041EE4 call. Setting node.position after create does not seed all
+# CollData history fields, so this is NOT initialization-parity acceptance.
+# This source is unregistered and may not be activated with stock smash phases.
+article It_Kind_Ness_Yoyo states 4:
+    attribute int link_count 0
+    attribute int up_smash_charge_link_count 4
+    attribute int down_smash_charge_link_count 8
+    attribute float link_length 12
+    attribute float minimum_link_length 16
+    attribute float released_spin_rate 24
+    attribute float charged_spin_rate 28
+    attribute float initial_charge_spin_rate 32
+    attribute float release_velocity_x 36
+    attribute float horizontal_acceleration 40
+    attribute float maximum_horizontal_speed 44
+    attribute float release_velocity_y 48
+    attribute float gravity 52
+    attribute float terminal_velocity 56
+    attribute float link_gravity 60
+    attribute int up_smash_rotate_frame 64
+    attribute int up_smash_retract_frame 68
+    attribute int down_smash_rotate_frame 72
+    attribute int down_smash_retract_frame 76
+    resources capacity 90
+    model_root String 80
+    model_root Tip 84
+    model_animation Spin material 88
+    state int source_motion
+    state int tip
+    state bool allocated
+    state bool pinned[90]
+    state bool touching[90]
+    state bool contacted[90]
+
+    func release_owner():
+        if item.current_owner != 0:
+            let bool forgotten = targets.call(item.current_owner, "yoyo_forget")
+        item.clear_current_owner()
+        item.resources.release()
+
+    func advance_spin():
+        if item.resource(item.state.tip).joint("0").exists:
+            item.resource(item.state.tip).joint("0").rotation.x = item.resource(item.state.tip).joint("0").rotation.x + creator.state.yoyo_spin_rate
+
+    on created:
+            item.state.source_motion = int(item.creation_value)
+            if item.state.source_motion == attrs.yoyo_reverse_motion: facing = -facing
+            item.state.tip = item.attr.link_count - 1
+            item.state.allocated = item.resources.begin(item.attr.link_count)
+            if not item.state.allocated: item.remove()
+            let int node = 0
+            while node < item.attr.link_count:
+                let float radius = attrs.yoyo_string_radius
+                if node == item.state.tip:
+                    radius = attrs.yoyo_tip_radius * creator.instance_scale_y
+                let bool constructed = item.resource(node).create(attrs.resource_attachment_joint, radius, attrs.yoyo_ecb_category)
+                if not constructed:
+                    item.resources.release()
+                    item.remove()
+                item.resource(node).position.x = position.x
+                item.resource(node).position.y = position.y
+                item.resource(node).position.z = position.z
+                item.resource(node).velocity.x = 0
+                item.resource(node).velocity.y = 0
+                item.resource(node).velocity.z = 0
+                item.state.pinned[node] = node == item.state.tip
+                item.state.touching[node] = false
+                item.state.contacted[node] = false
+                let bool loaded = false
+                if node == item.state.tip:
+                    loaded = item.resource(node).load_model(Tip)
+                else:
+                    loaded = item.resource(node).load_model(String)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                let bool drawing = item.resource(node).set_draw(true)
+                node = node + 1
+            item.attach_to_owner(attrs.resource_attachment_joint)
+            item.resource(item.state.tip).joint("").remove_animation()
+            item.resource(item.state.tip).joint("").add_animation(Spin)
+            item.resource(item.state.tip).joint("").set_animation_rate(attrs.yoyo_material_rate)
+            item.resource(item.state.tip).joint("").request_animation(attrs.yoyo_material_start_frame)
+            item.resource(item.state.tip).joint("").advance_animation()
+    on picked_up:
+            item.change_state_flags(0, 2)
+    on signal pause:
+            item.pause()
+    on signal resume:
+            item.resume()
+    on signal remove:
+            release_owner()
+            item.remove()
+    on interaction:
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            advance_spin()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                release_owner()
+                return true
+            return false
+        on physics:
+            # Untranslated constrained pose/charge solver: never activate.
+            pass
+    state 1 anim -1:
+        on animation:
+            advance_spin()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                release_owner()
+                return true
+            return false
+        on physics:
+            pass
+    state 2 anim -1:
+        on animation:
+            advance_spin()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                release_owner()
+                return true
+            return false
+        on physics:
+            pass
+    state 3 anim -1:
+        on animation:
+            advance_spin()
+            if holder.motion < attrs.yoyo_first_motion or holder.motion > attrs.yoyo_last_motion:
+                release_owner()
+                return true
+            return false
+        on physics:
+            pass
+
+

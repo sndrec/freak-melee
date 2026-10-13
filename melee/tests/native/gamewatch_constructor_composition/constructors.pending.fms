@@ -1,0 +1,276 @@
+# UNREGISTERED constructor phase fragments, not a complete fighter/module.
+# Compose each block into the matching accepted article; preserve all accepted
+# states/destruction/interaction callbacks. No stock constructor is called.
+# palette_helpers.fms supplies real owned-palette computation.
+# creator.call typed RESULTS are proposed syntax, not accepted SDK61 syntax.
+# Existing fighter creation sites supply position/facing/group/creation_value.
+# Explicit creation runs on_created; do NOT also auto-attach with spawn_bone_attached.
+
+article It_Kind_GameWatch_Greenhouse states 4:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Manhole states 1:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Fire states 1:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Parachute states 2:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_trans_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Turtle states 2:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_shoulder_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Breath states 2:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.normal_hand_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Judge states 1:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(attrs.judge_attachment_part, false)
+            # Original legal Judge variants are 0..8; appearance requests 1..9.
+            item.set_appearance(0, float(int(item.creation_value) + 1))
+            if owner.motion >= 0:
+                if owner.facing == 1:
+                    item.joint("0/0").rotation.y = 3.141592653589793
+                else:
+                    item.joint("0/0").rotation.y = 0
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Panic states 2:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(0, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Chef states 2:
+    # Retain the accepted ordinary variant field and all lifecycle helpers.
+    state int variant
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            # No pickup/held registration; previous Z=0/current ECB center is
+            # supplied by create_with_velocity(..., origin_at_owner=true, ...).
+            item.state.variant = int(item.creation_value)
+            item.set_lifetime(attrs.food_active_lifetime)
+            item.disable_surface_response()
+            # Defined source variants are 0..4. Do not execute native invalid indexing.
+            velocity.x = attrs.food_4_horizontal * facing
+            velocity.y = attrs.food_4_vertical
+            if item.state.variant == 0:
+                velocity.x = attrs.food_0_horizontal * facing
+                velocity.y = attrs.food_0_vertical
+            if item.state.variant == 1:
+                velocity.x = attrs.food_1_horizontal * facing
+                velocity.y = attrs.food_1_vertical
+            if item.state.variant == 2:
+                velocity.x = attrs.food_2_horizontal * facing
+                velocity.y = attrs.food_2_vertical
+            if item.state.variant == 3:
+                velocity.x = attrs.food_3_horizontal * facing
+                velocity.y = attrs.food_3_vertical
+            item.use_manual_lifetime()
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+article It_Kind_GameWatch_Rescue states 2:
+    # PENDING: typed creator.call expression results are absent in SDK61.
+    # All other statements below are existing SDK61 operations.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.call(PaperBodyColor))
+        item.outline_color = creator.call(PaperOutlineColor)
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            # Caller supplies flattened position, origin_at_owner=false,
+            # collision_group=0, creation_value=0/1, initial_collision=false.
+            # Generic constructor already retains the immutable creator generation.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+            ApplyPaperPalette()
+            item.change_state_flags(int(item.creation_value), 2)
+            item.advance_animation()
+

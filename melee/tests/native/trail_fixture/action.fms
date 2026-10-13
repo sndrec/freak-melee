@@ -1,0 +1,16 @@
+action WeaponRibbon:
+    on trail:
+        trail.bone = attrs.attachment
+        trail.axis = 0
+        trail.inner_distance = attrs.inner_distance
+        trail.outer_distance = attrs.outer_distance
+        trail.inner_fade = attrs.inner_fade
+        trail.outer_fade = attrs.outer_fade
+        trail.start_alpha = attrs.start_alpha
+        trail.end_alpha = attrs.end_alpha
+        trail.inner_red = attrs.inner_red
+        trail.inner_green = attrs.inner_green
+        trail.inner_blue = attrs.inner_blue
+        trail.outer_red = attrs.outer_red
+        trail.outer_green = attrs.outer_green
+        trail.outer_blue = attrs.outer_blue

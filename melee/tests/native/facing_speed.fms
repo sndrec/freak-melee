@@ -1,0 +1,8 @@
+move Burst:
+    on special_n:
+        stock.enter()
+        motion.add_facing_speed(0.8)
+    on special_air_n:
+        stock.enter()
+        motion.add_facing_speed(0.4)
+        motion.add_vertical_speed(1.25)

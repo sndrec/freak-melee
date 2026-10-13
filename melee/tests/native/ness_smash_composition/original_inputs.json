@@ -1,0 +1,12 @@
+{
+  "src/melee/ft/kinds/ftNess/ftnessattacks4.c": "050aaeabc4f7b27df6a83d0d8ea77ce7e9e429996783c45345308c1f4498ee61",
+  "src/melee/ft/kinds/ftNess/ftnessattackhi4.c": "d624fe75cf5ab96767f05d6750690ac930692887f12d297844835481b69b19e6",
+  "src/melee/ft/kinds/ftNess/ftnessattacklw4.c": "75de1eff0dc34d43b28221a1ef7dd810b3070f83a8d897e5e8503fdd13a41c83",
+  "src/melee/ft/ft_0DF0.c": "38836511908f55b2c5860ff30174374b980abf9e99869b151ad9b1c48d72673e",
+  "src/melee/lb/lbcollision.c": "3a28b63098482e46b48d6a15bf2f0802cc60019be840374ca39ed7dc2c285c6c",
+  "src/melee/ft/ftcoll.c": "0f51d1d43e9ef0dcc46e63cf0db4fce0fe5a81a0b43492677db146f4179f41a0",
+  "src/melee/lb/lbvector.c": "e72afa9f2e19367cce248493a50ef4100b64276770ca9b4f78b82076eafaae8f",
+  "src/melee/it/kinds/itnessbat.c": "f696e4102a927c750cc569546aedb50187dfc7590dff612ebf30b960f04b3655",
+  "src/melee/it/kinds/itnessyoyo.c": "7097f54999fb1bcbed86af49ae6021e41ec219c8d453efb3a4023da8abf7c995",
+  "src/melee/ft/fighter.c": "ff0448d911ef932ca5a77b96c5ca74c23226a38759603095aaeabf726f1074f9"
+}

@@ -1,0 +1,8 @@
+{
+  "accepted_composition": "peach-fighter-composition44-accepted",
+  "sha256": "6c2476525e584e9461b6f99d457f68b08ad4e6a39338f06b62207ae38f970335",
+  "source_inputs": {
+    "tests/native/peach_fighter_composition/candidate.fms": "6c2476525e584e9461b6f99d457f68b08ad4e6a39338f06b62207ae38f970335"
+  },
+  "accepted_result_sha256": "2664c6cdddaa518233a50651b877d59845621a6eb92e5099b09a61bb1c6dac3d"
+}

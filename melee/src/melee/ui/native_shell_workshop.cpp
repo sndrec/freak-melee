@@ -1,0 +1,1023 @@
+#include "native_shell_workshop.h"
+#include "native_shell_workshop_editor.h"
+#include "native_shell_workshop_model.h"
+#include "native_shell_workshop_parameters.h"
+
+#ifdef MELEE_NATIVE
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <commdlg.h>
+
+#include "native_shell.h"
+#include "native_shell_collection.h"
+#include "native_shell_css_original.h"
+#include "native_shell_profiles.h"
+#include "native_shell_rules.h"
+
+#include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_family_project.h>
+#include <melee/ft/native_fighter_parameters.h>
+#include <melee/ft/native_fighter_runtime.h>
+#include <melee/gm/native_content_store.h>
+#include <melee/gm/native_home.h>
+#include <melee/gm/native_match_launch.h>
+#include <melee/mn/native_css_original.h>
+
+#include <RmlUi/Core.h>
+#include <RmlUi/Core/Elements/ElementFormControlInput.h>
+#include <RmlUi/Core/Elements/ElementFormControlSelect.h>
+#include <RmlUi/Core/Elements/ElementFormControlTextArea.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+
+namespace {
+
+enum { MAX_DRAFTS = 128, PATH_CAPACITY = 512 };
+
+struct Draft {
+    char path[PATH_CAPACITY];
+    char title[64];
+};
+
+Rml::ElementDocument* document;
+Draft drafts[MAX_DRAFTS];
+size_t draft_count;
+int selected = -1;
+bool opened;
+bool testing;
+NativeFighterFamilyProject active_family;
+NativeFighterProject* active_project;
+unsigned active_member;
+bool updating_member_selector;
+bool member_opened[NATIVE_FIGHTER_FAMILY_MEMBERS];
+std::string attribute_text[NATIVE_FIGHTER_FAMILY_MEMBERS][NativeFighterFloat_Count];
+bool project_loaded;
+bool attributes_dirty[NATIVE_FIGHTER_FAMILY_MEMBERS];
+bool discard_pending;
+bool package_open;
+bool build_cached_candidate(bool save_project, bool persist_portrait,
+                            bool require_built_script, NativeContentId* result);
+void enter_draft_preview();
+
+void status(const char* id, const char* message);
+
+void close_project()
+{
+    testing = false;
+    document->GetElementById("workshop-panel")->SetClass("testing", false);
+    nativeShellWorkshopEditor_Close();
+    if (project_loaded) nativeFighterFamilyProject_Close(&active_family);
+    active_project = nullptr;
+    active_member = 0;
+    std::fill_n(member_opened, NATIVE_FIGHTER_FAMILY_MEMBERS, false);
+    project_loaded = false;
+    selected = -1;
+    std::fill_n(attributes_dirty, NATIVE_FIGHTER_FAMILY_MEMBERS, false);
+    discard_pending = false;
+    package_open = false;
+}
+
+bool confirm_discard()
+{
+    bool dirty = false;
+    for (unsigned i = 0; project_loaded && i < active_family.member_count; ++i)
+        dirty |= attributes_dirty[i] || nativeShellWorkshopEditor_HasUnsavedEdits(i);
+    if (!dirty) return true;
+    if (discard_pending) return true;
+    discard_pending = true;
+    status("workshop-editor-status", "Unsaved edits. Press Back again "
+           "to discard them, or Save draft.");
+    status("workshop-script-status", "Unsaved edits. Press Back again "
+           "to discard them, or Save draft.");
+    return false;
+}
+
+Rml::ElementFormControlInput* input(const char* id)
+{
+    return static_cast<Rml::ElementFormControlInput*>(
+        document->GetElementById(id));
+}
+
+void status(const char* id, const char* message)
+{
+    document->GetElementById(id)->SetInnerRML(
+        Rml::StringUtilities::EncodeRml(message));
+}
+
+bool existing_directory(const char* path)
+{
+    DWORD attributes = GetFileAttributesA(path);
+    return attributes != INVALID_FILE_ATTRIBUTES &&
+           (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+bool ensure_directory(const char* path)
+{
+    return CreateDirectoryA(path, nullptr) || existing_directory(path);
+}
+
+bool project_root(char root[PATH_CAPACITY])
+{
+    char app_data[PATH_CAPACITY];
+    DWORD length = GetEnvironmentVariableA("LOCALAPPDATA", app_data,
+                                           sizeof(app_data));
+    if (length == 0 || length >= sizeof(app_data)) {
+        return false;
+    }
+    char parent[PATH_CAPACITY];
+    int parent_length = std::snprintf(parent, sizeof(parent),
+                                      "%s\\Freak Melee", app_data);
+    int root_length = std::snprintf(root, PATH_CAPACITY, "%s\\projects",
+                                    parent);
+    return parent_length > 0 && parent_length < sizeof(parent) &&
+           root_length > 0 && root_length < PATH_CAPACITY &&
+           ensure_directory(parent) && ensure_directory(root);
+}
+
+void refresh_drafts()
+{
+    close_project();
+    draft_count = 0;
+    document->GetElementById("workshop-editor-header")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-editor-context")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-library")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-inspector")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-inspector")
+        ->SetClass("workshop-package-open", false);
+    document->GetElementById("workshop-package-toggle")
+        ->SetClass("selected", false);
+    for (const char* id : { "workshop-editor-browser",
+                            "workshop-editor-inspector",
+                            "workshop-editor-timeline",
+                            "workshop-action-viewport",
+                            "workshop-animation-viewport",
+                            "workshop-script-inspector",
+                            "workshop-script-pane",
+                            "workshop-animation-pane",
+                            "workshop-model-pane" })
+        document->GetElementById(id)->SetProperty("display", "none");
+    document->GetElementById("workshop-attributes")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-empty")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-title")
+        ->SetInnerRML("Select a draft");
+    char root[PATH_CAPACITY];
+    if (!project_root(root)) {
+        status("workshop-library-status", "Could not open the project folder.");
+        return;
+    }
+    char pattern[PATH_CAPACITY];
+    int pattern_length = std::snprintf(pattern, sizeof(pattern), "%s\\*", root);
+    if (pattern_length <= 0 || pattern_length >= sizeof(pattern)) {
+        status("workshop-library-status", "Project folder path is too long.");
+        return;
+    }
+    WIN32_FIND_DATAA found;
+    HANDLE search = FindFirstFileA(pattern, &found);
+    if (search != INVALID_HANDLE_VALUE) {
+        do {
+            if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ||
+                (found.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+                found.cFileName[0] == '.' || draft_count == MAX_DRAFTS) {
+                continue;
+            }
+            Draft& draft = drafts[draft_count];
+            int length = std::snprintf(draft.path, sizeof(draft.path),
+                                       "%s\\%s", root, found.cFileName);
+            if (length <= 0 || length >= sizeof(draft.path)) {
+                continue;
+            }
+            NativeFighterFamilyProjectInfo info;
+            if (!nativeFighterFamilyProject_ReadInfo(draft.path, &info)) {
+                continue;
+            }
+            std::memcpy(draft.title, info.members[0].title, sizeof(draft.title));
+            ++draft_count;
+        } while (FindNextFileA(search, &found));
+        FindClose(search);
+    }
+    std::string rows;
+    for (size_t i = 0; i < draft_count; ++i) {
+        rows += "<button id='workshop-draft-" + std::to_string(i) +
+                "' class='workshop-draft'>" +
+                Rml::StringUtilities::EncodeRml(drafts[i].title) + "</button>";
+    }
+    document->GetElementById("workshop-drafts")
+        ->SetInnerRML(rows.empty() ?
+            "<p class='workshop-muted'>No drafts yet.</p>" : rows);
+    status("workshop-library-status", draft_count == MAX_DRAFTS
+        ? "Showing the first 128 drafts." : "");
+}
+
+const char* const attribute_ids[NativeFighterFloat_Count] = {
+    "workshop-walk-speed", "workshop-gravity",
+    "workshop-terminal-velocity", "workshop-weight", "workshop-model-scale"
+};
+
+const char* const attribute_labels[NativeFighterFloat_Count] = {
+    "walk speed", "gravity", "terminal velocity", "weight", "model scale"
+};
+
+bool family_script_changed()
+{
+    for (unsigned i = 0; project_loaded && i < active_family.member_count; ++i)
+        if (member_opened[i] && nativeShellWorkshopEditor_ScriptChanged(i)) return true;
+    return false;
+}
+
+bool family_has_unsaved_edits()
+{
+    for (unsigned i = 0; project_loaded && i < active_family.member_count; ++i)
+        if (attributes_dirty[i] || nativeShellWorkshopEditor_HasUnsavedEdits(i)) return true;
+    return false;
+}
+
+bool select_member(unsigned member, bool restart_preview = false)
+{
+    if (!project_loaded || member >= active_family.member_count) return false;
+    for (int i = 0; i < NativeFighterFloat_Count; ++i)
+        attribute_text[active_member][i] = input(attribute_ids[i])->GetValue();
+    // Editor restoration can immediately apply a pose. Select its actual actor
+    // before restoring the incoming member's action/animation controls.
+    const bool member_available = nativeHome_WorkshopSelectMember(member, restart_preview);
+    if (member_opened[member]) {
+        if (!nativeShellWorkshopEditor_Select(member)) return false;
+    } else {
+        nativeShellWorkshopEditor_Open(member, &active_family.members[member],
+                                       active_family.paths[member]);
+        member_opened[member] = true;
+    }
+    active_member = member;
+    active_project = &active_family.members[member];
+    for (int i = 0; i < NativeFighterFloat_Count; ++i)
+        input(attribute_ids[i])->SetValue(attribute_text[member][i]);
+    auto* member_menu = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-family-member"));
+    const std::string member_value = std::to_string(member);
+    if (member_menu->GetValue() != member_value) {
+        updating_member_selector = true;
+        member_menu->SetValue(member_value);
+        updating_member_selector = false;
+    }
+    if (restart_preview && nativeHome_IsPractice()) {
+        status("workshop-editor-status", !member_available
+            ? "This family member is not available in the current preview. Its data remains editable."
+            : nativeHome_PracticeTransitioning()
+            ? "Loading this member's preview..." : "");
+    }
+    return true;
+}
+
+void select_draft(size_t index)
+{
+    if (index >= draft_count) {
+        return;
+    }
+    NativeFighterFamilyProject family;
+    if (!nativeFighterFamilyProject_Open(drafts[index].path, &family)) {
+        status("workshop-library-status", "Could not open that complete fighter draft.");
+        return;
+    }
+    std::string values[NATIVE_FIGHTER_FAMILY_MEMBERS][NativeFighterFloat_Count];
+    bool valid = true;
+    for (unsigned member = 0; member < family.member_count; ++member) {
+        for (int i = 0; i < NativeFighterFloat_Count; ++i) {
+            float value;
+            if (!nativeFighterProject_GetFloat(&family.members[member],
+                    (NativeFighterFloatProperty)i, &value)) {
+                valid = false;
+                break;
+            }
+            char text[32];
+            std::snprintf(text, sizeof(text), "%.7g", value);
+            values[member][i] = text;
+        }
+    }
+    if (!valid) {
+        nativeFighterFamilyProject_Close(&family);
+        status("workshop-library-status", "Could not read that draft's member attributes.");
+        return;
+    }
+    close_project();
+    active_family = family;
+    active_member = 0;
+    active_project = &active_family.members[0];
+    project_loaded = true;
+    for (unsigned member = 0; member < family.member_count; ++member)
+        for (int i = 0; i < NativeFighterFloat_Count; ++i)
+            attribute_text[member][i] = std::move(values[member][i]);
+    for (int i = 0; i < NativeFighterFloat_Count; ++i)
+        input(attribute_ids[i])->SetValue(attribute_text[0][i]);
+    auto* member_menu = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-family-member"));
+    std::string member_options;
+    for (unsigned i = 0; i < family.member_count; ++i) {
+        const char* name = nativeFighterProject_StockBaseName(family.members[i].base_kind);
+        member_options += "<option value='" + std::to_string(i) + "'>" +
+            Rml::StringUtilities::EncodeRml(name != nullptr ? name : family.keys[i]) +
+            "</option>";
+    }
+    updating_member_selector = true;
+    member_menu->SetInnerRML(member_options);
+    member_menu->SetValue("0");
+    updating_member_selector = false;
+    member_menu->SetProperty("display", family.member_count > 1 ? "block" : "none");
+    selected = (int) index;
+    document->GetElementById("workshop-title")->SetInnerRML(
+        Rml::StringUtilities::EncodeRml(drafts[index].title));
+    document->GetElementById("workshop-empty")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-attributes")
+        ->SetProperty("display", "block");
+    for (size_t i = 0; i < draft_count; ++i) {
+        document->GetElementById("workshop-draft-" + std::to_string(i))
+            ->SetClass("selected", i == index);
+    }
+    status("workshop-save-status", "");
+    input("workshop-portrait-path")->SetValue("");
+    status("workshop-install-status", "");
+    status("workshop-library-status", "");
+    document->GetElementById("workshop-editor-title")->SetInnerRML(
+        Rml::StringUtilities::EncodeRml(drafts[index].title));
+    document->GetElementById("workshop-library")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-inspector")
+        ->SetProperty("display", "none");
+    document->GetElementById("workshop-editor-header")
+        ->SetProperty("display", "flex");
+    document->GetElementById("workshop-editor-context")
+        ->SetProperty("display", "flex");
+    document->GetElementById("workshop-editor-browser")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-editor-inspector")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-editor-timeline")
+        ->SetProperty("display", "block");
+    document->GetElementById("workshop-mode-action")
+        ->SetClass("selected", true);
+    nativeShellWorkshopEditor_Open(0, active_project, active_family.paths[0]);
+    member_opened[0] = true;
+    nativeHome_WorkshopSelectMember(0, false);
+    enter_draft_preview();
+}
+
+void create_stock_clone()
+{
+    const std::string title = input("workshop-new-name")->GetValue();
+    if (title.empty() || title.find_first_not_of(" \t\r\n") ==
+                             std::string::npos) {
+        status("workshop-library-status", "Give the new fighter a name.");
+        return;
+    }
+    const std::string base_name = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-new-base"))->GetValue();
+    FighterKind base_kind = Ft_Kind_None;
+    for (int index = Ft_Kind_Mario; index < Ft_Kind_StockCount; ++index) {
+        const FighterKind kind = static_cast<FighterKind>(index);
+        const char* name = nativeFighterProject_StockBaseName(kind);
+        if (name != nullptr && base_name == name) {
+            base_kind = kind;
+            break;
+        }
+    }
+    if (base_kind == Ft_Kind_None ||
+        nativeFighterRuntime_FindStockDefinition(base_kind) == nullptr) {
+        status("workshop-library-status", "Choose a supported fighter to clone.");
+        return;
+    }
+    char root[PATH_CAPACITY];
+    if (!project_root(root)) {
+        status("workshop-library-status", "Could not open the project folder.");
+        return;
+    }
+    FILETIME clock;
+    GetSystemTimeAsFileTime(&clock);
+    const unsigned long long timestamp =
+        (static_cast<unsigned long long>(clock.dwHighDateTime) << 32) |
+        clock.dwLowDateTime;
+    char path[PATH_CAPACITY];
+    bool created = false;
+    for (unsigned attempt = 0; attempt < 16; ++attempt) {
+        int length = std::snprintf(path, sizeof(path),
+                                   "%s\\fighter-%016llx-%u", root,
+                                   timestamp, attempt);
+        if (length <= 0 || length >= sizeof(path)) {
+            break;
+        }
+        if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) {
+            continue;
+        }
+        NativeFighterFamilyMode mode = NativeFighterFamily_Single;
+        FighterKind partner = Ft_Kind_None;
+        switch (base_kind) {
+        case Ft_Kind_Zelda: mode = NativeFighterFamily_AlternateForm; partner = Ft_Kind_Seak; break;
+        case Ft_Kind_Seak: mode = NativeFighterFamily_AlternateForm; partner = Ft_Kind_Zelda; break;
+        case Ft_Kind_Popo: mode = NativeFighterFamily_SimultaneousCompanion; partner = Ft_Kind_Nana; break;
+        case Ft_Kind_Nana:
+            mode = NativeFighterFamily_SimultaneousCompanion;
+            base_kind = Ft_Kind_Popo;
+            partner = Ft_Kind_Nana;
+            break;
+        default: break;
+        }
+        created = nativeFighterFamilyProject_CreateStockFromDisc(
+            path, title.c_str(), mode, base_kind, partner);
+        break;
+    }
+    if (!created) {
+        status("workshop-library-status", "Could not clone the fighter from the game disc.");
+        return;
+    }
+    refresh_drafts();
+    for (size_t i = 0; i < draft_count; ++i) {
+        if (std::strcmp(drafts[i].path, path) == 0) {
+            select_draft(i);
+            break;
+        }
+    }
+    input("workshop-new-name")->SetValue("");
+    status("workshop-library-status", "Fighter clone saved as a separate draft.");
+}
+
+bool apply_attribute_inputs(NativeFighterProject* project)
+{
+    for (int i = 0; i < NativeFighterFloat_Count; ++i) {
+        const std::string text = input(attribute_ids[i])->GetValue();
+        char* end = nullptr;
+        float value = std::strtof(text.c_str(), &end);
+        if (text.empty() || *end != '\0' ||
+            !nativeFighterProject_SetFloat(
+                project, (NativeFighterFloatProperty) i, value)) {
+            std::string message = "Invalid " +
+                                  std::string(attribute_labels[i]) + ".";
+            status("workshop-save-status", message.c_str());
+            return false;
+        }
+    }
+    return true;
+}
+
+bool save_draft()
+{
+    if (!project_loaded || selected < 0 ||
+        size_t(selected) >= draft_count) {
+        return false;
+    }
+    const unsigned previous_member = active_member;
+    bool saved = true;
+    for (unsigned member = 0; member < active_family.member_count; ++member) {
+        if (!select_member(member)) { saved = false; break; }
+        const char* path = active_family.paths[member];
+        if (!apply_attribute_inputs(active_project) ||
+            !nativeShellWorkshopEditor_SaveAnimation(path) ||
+            !nativeFighterProject_Save(path, active_project) ||
+            !nativeShellWorkshopModel_Save(path, member) ||
+            !nativeShellWorkshopParameters_Save(document, active_project, path) ||
+            !nativeShellWorkshopEditor_SaveScriptDraft()) {
+            saved = false;
+            break;
+        }
+        nativeShellWorkshopEditor_MarkFighterSaved();
+        attributes_dirty[member] = false;
+    }
+    if (saved) {
+        select_member(previous_member);
+        discard_pending = false;
+        status("workshop-save-status", "Draft saved.");
+        status("workshop-editor-status", family_script_changed()
+            ? "Draft saved. Build behavior before preview." : "Draft saved.");
+    } else {
+        status("workshop-save-status", "Could not save this member. Its edits are retained.");
+    }
+    return saved;
+}
+
+void browse_portrait()
+{
+    char path[PATH_CAPACITY] = {};
+    OPENFILENAMEA picker = {};
+    picker.lStructSize = sizeof(picker);
+    picker.hwndOwner = GetActiveWindow();
+    picker.lpstrFilter = "PNG images (*.png)\0*.png\0All files (*.*)\0*.*\0";
+    picker.lpstrFile = path;
+    picker.nMaxFile = sizeof(path);
+    picker.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
+                   OFN_NOCHANGEDIR;
+    if (GetOpenFileNameA(&picker)) {
+        input("workshop-portrait-path")->SetValue(path);
+    }
+}
+
+bool read_portrait(const char* path, uint8_t** bytes, size_t* size)
+{
+    FILE* file = std::fopen(path, "rb");
+    if (file == nullptr) {
+        return false;
+    }
+    long length = 0;
+    bool valid = std::fseek(file, 0, SEEK_END) == 0 &&
+                 (length = std::ftell(file)) >= 45 &&
+                 length <= 1024 * 1024 &&
+                 std::fseek(file, 0, SEEK_SET) == 0;
+    uint8_t* data = valid ? static_cast<uint8_t*>(std::malloc(size_t(length)))
+                          : nullptr;
+    bool loaded = data != nullptr &&
+                  std::fread(data, 1, size_t(length), file) == size_t(length);
+    loaded = std::fclose(file) == 0 && loaded;
+    if (!loaded) {
+        std::free(data);
+        return false;
+    }
+    *bytes = data;
+    *size = size_t(length);
+    return true;
+}
+
+bool build_cached_candidate(bool save_project, bool persist_portrait,
+                            bool require_built_script, NativeContentId* result)
+{
+    if (selected < 0 || size_t(selected) >= draft_count) {
+        return false;
+    }
+    if (require_built_script && family_script_changed()) {
+        status("workshop-install-status", "Build the changed behavior script "
+               "before preview or install.");
+        status("workshop-editor-status", "Build the changed behavior script "
+               "before preview or install.");
+        return false;
+    }
+    const std::string chosen = input("workshop-portrait-path")->GetValue();
+    const char* path = drafts[selected].path;
+    char saved_portrait[PATH_CAPACITY];
+    int length = std::snprintf(saved_portrait, sizeof(saved_portrait),
+                               "%s\\portrait.png", path);
+    if (length <= 0 || length >= sizeof(saved_portrait)) {
+        status("workshop-install-status", "Project path is too long.");
+        return false;
+    }
+    char fallback_portrait[MAX_PATH] = {};
+    if (!persist_portrait && chosen.empty() &&
+        GetFileAttributesA(saved_portrait) == INVALID_FILE_ATTRIBUTES) {
+        DWORD length = GetModuleFileNameA(nullptr, fallback_portrait,
+                                          sizeof(fallback_portrait));
+        char* basename = length > 0 && length < sizeof(fallback_portrait)
+            ? std::strrchr(fallback_portrait, '\\') : nullptr;
+        if (basename != nullptr &&
+            size_t(basename - fallback_portrait) +
+                sizeof("\\ui\\workshop_draft_portrait.png") <=
+                    sizeof(fallback_portrait))
+            std::strcpy(basename, "\\ui\\workshop_draft_portrait.png");
+        else fallback_portrait[0] = '\0';
+    }
+    const char* portrait_path = !fallback_portrait[0]
+        ? (chosen.empty() ? saved_portrait : chosen.c_str())
+        : fallback_portrait;
+    uint8_t* portrait = nullptr;
+    size_t portrait_size = 0;
+    uint8_t* package = nullptr;
+    size_t package_size = 0;
+    NativeContentId id;
+    char default_root[PATH_CAPACITY];
+    const char* root = nativeMatchLaunch_ContentRoot();
+    if (root == nullptr && nativeContentStore_DefaultRoot(
+                               default_root, sizeof(default_root))) {
+        root = default_root;
+    }
+    bool opened_project = project_loaded && root != nullptr &&
+                          read_portrait(portrait_path, &portrait,
+                                        &portrait_size);
+    bool built = false;
+    if (opened_project) {
+        bool valid = save_project ? save_draft() : apply_attribute_inputs(active_project);
+        NativeFighterFamilyProject candidate = active_family;
+        NativeFighterProject& member_candidate = candidate.members[active_member];
+        std::string parameter_source;
+        if (valid && !save_project && active_project->script_size != 0) {
+            parameter_source = static_cast<Rml::ElementFormControlTextArea*>(
+                document->GetElementById("workshop-parameters-source"))->GetValue();
+            NativeFighterParameters parameters;
+            valid = nativeFighterParameters_Parse(parameter_source.data(),
+                parameter_source.size(), &parameters, nullptr);
+            NativeFighterParameters built_parameters;
+            const bool built_parameters_valid = nativeFighterParameters_Parse(
+                active_project->parameter_text != nullptr
+                    ? (const char*) active_project->parameter_text : "",
+                active_project->parameter_size, &built_parameters, nullptr);
+            // An unbuilt script draft may introduce a new parameter schema.
+            // Keep its last-built behavior and values previewable together.
+            if (!nativeShellWorkshopEditor_ScriptChanged(active_member) ||
+                (valid && built_parameters_valid &&
+                 parameters.schema_hash == built_parameters.schema_hash)) {
+                member_candidate.parameter_text = (uint8_t*) parameter_source.data();
+                member_candidate.parameter_size = parameter_source.size();
+            }
+            if (!valid) status("workshop-editor-status",
+                               "Correct the parameter values before preview.");
+        }
+        built = valid && nativeFighterFamilyProject_Build(
+                             &candidate, portrait, portrait_size,
+                             &package, &package_size, &id);
+    }
+    if (!built) {
+        std::free(portrait);
+        status("workshop-install-status",
+               active_family.member_count > 1
+                   ? "Could not prepare both source members. Validate each member's behavior and owned assets; the current preview is retained."
+                   : "Could not prepare this source fighter. Validate its behavior and assets, and check the portrait.");
+        return false;
+    }
+    NativeFighterPackage metadata;
+    NativeFighterPackageData data;
+    bool cached = nativeContentStore_ParseFighter(package, package_size,
+                                                  &metadata, &data) &&
+                  metadata.member_count == active_family.member_count &&
+                  nativeContentStore_Cache(root, package, package_size,
+                                           nullptr, &id);
+    bool valid = cached && nativeFighterRuntime_ValidateCached(
+                               &id, root);
+    if (valid && persist_portrait && !chosen.empty() &&
+        _stricmp(chosen.c_str(), saved_portrait) != 0) {
+        valid = CopyFileA(chosen.c_str(), saved_portrait, 0) != 0;
+    }
+    std::free(package);
+    std::free(portrait);
+    if (!valid) {
+        status("workshop-install-status", cached && !valid
+            ? "Source fighter validation failed. Validate its behavior, parameter values and owned assets."
+            : "Could not build this fighter.");
+        return false;
+    }
+    *result = id;
+    return true;
+}
+
+void enter_draft_preview()
+{
+    NativeContentId id;
+    if (!build_cached_candidate(false, false, false, &id)) {
+        status("workshop-editor-status", "Could not build the draft for the "
+               "practice preview. Check its assets and portrait.");
+        return;
+    }
+    const bool entering = nativeHome_IsSelection()
+        ? nativeHome_RequestAuthoringPractice(&id)
+        : nativeHome_IsPractice() && nativeHome_RequestPreview(&id, false);
+    status("workshop-editor-status", entering
+        ? "Loading the draft fighter into practice..."
+        : "Could not open the draft's practice preview.");
+}
+
+void preview_draft()
+{
+    if (!nativeHome_IsPractice()) {
+        status("workshop-editor-status", "Enter practice to test this fighter.");
+        return;
+    }
+    NativeContentId id;
+    const bool script_unbuilt = family_script_changed();
+    if (!build_cached_candidate(false, false, false, &id)) {
+        return;
+    }
+    if (!nativeHome_RequestPreview(&id, true)) {
+        status("workshop-editor-status", "Could not start practice preview.");
+        return;
+    }
+    testing = true;
+    nativeShell_BlurRoom();
+    document->GetElementById("workshop-panel")->SetClass("testing", true);
+    document->GetElementById("workshop-inspector")
+        ->SetProperty("display", "none");
+    nativeShellWorkshopEditor_SetTesting(true);
+    status("workshop-test-note", script_unbuilt
+        ? "Using last built behavior. Build script to test script edits."
+        : "Live practice");
+    status("workshop-editor-status", script_unbuilt
+        ? "Testing the last built behavior; build the script to test its edits."
+        : "Starting live practice test...");
+}
+
+void install_draft()
+{
+    NativeContentId id;
+    if (!build_cached_candidate(true, true, true, &id)) {
+        return;
+    }
+    const char* root = nativeMatchLaunch_ContentRoot();
+    char default_root[PATH_CAPACITY];
+    if (root == nullptr && nativeContentStore_DefaultRoot(
+                               default_root, sizeof(default_root))) {
+        root = default_root;
+    }
+    NativeContentId replaced = {};
+    if (root == nullptr || !nativeFighterProject_Install(
+                               drafts[selected].path, root, &id, &replaced)) {
+        status("workshop-install-status", "Could not install this fighter.");
+        return;
+    }
+    const NativeContentId empty = {};
+    if (std::memcmp(&replaced, &empty, sizeof(empty)) != 0) {
+        nativeHome_ReplaceInstalledFighter(&replaced, &id);
+        nativeCssOriginal_ReloadInstalledFighters();
+    }
+    nativeShellCssOriginal_RefreshInstalledFighters();
+    char hex[65];
+    nativeContentStore_IdHex(&id, hex);
+    std::string message = "Installed " + std::string(hex, 12) +
+                          ". Add it in Edit CSS.";
+    status("workshop-install-status", message.c_str());
+}
+
+void build_script()
+{
+    if (!project_loaded || selected < 0 ||
+        size_t(selected) >= draft_count) return;
+    const unsigned previous_member = active_member;
+    if (!save_draft()) return;
+    for (unsigned member = 0; member < active_family.member_count; ++member) {
+        if (!select_member(member) ||
+            !nativeShellWorkshopEditor_BuildScript(active_family.paths[member])) {
+            status("workshop-editor-status", "Family build stopped at this member. No new family was published.");
+            return;
+        }
+    }
+    NativeFighterFamilyProject replacement;
+    if (!nativeFighterFamilyProject_Open(drafts[selected].path, &replacement)) {
+        status("workshop-editor-status", "Source validated, but the complete draft could not be reopened. The current preview is retained.");
+        return;
+    }
+    // Keep editor project addresses and DAT allocations stable. Building
+    // behavior must not discard either member's model/animation undo history.
+    for (unsigned member = 0; member < active_family.member_count; ++member) {
+        NativeFighterProject& current = active_family.members[member];
+        NativeFighterProject& built = replacement.members[member];
+        std::swap(current.asset_record, built.asset_record);
+        std::swap(current.asset_record_size, built.asset_record_size);
+        std::swap(current.resources, built.resources);
+        std::swap(current.resource_size, built.resource_size);
+        current.facts = built.facts;
+        std::swap(current.script_text, built.script_text);
+        std::swap(current.script_size, built.script_size);
+    }
+    nativeFighterFamilyProject_Close(&replacement);
+    select_member(previous_member);
+    nativeShellWorkshopEditor_RefreshScriptOutline();
+    nativeShellWorkshopEditor_Click("workshop-mode-script");
+}
+
+class WorkshopEvents final : public Rml::EventListener {
+    void ProcessEvent(Rml::Event& event) override
+    {
+        Rml::Element* target = event.GetTargetElement();
+        while (target != nullptr && target->GetId().empty()) {
+            target = target->GetParentNode();
+        }
+        if (target == nullptr) {
+            return;
+        }
+        const Rml::String id = target->GetId();
+        if (event.GetType() == "change" || event.GetType() == "input") {
+            if (id == "workshop-family-member") {
+                if (updating_member_selector) return;
+                const std::string value = static_cast<Rml::ElementFormControlSelect*>(target)->GetValue();
+                if (value == "0" || value == "1") select_member(unsigned(value[0] - '0'), true);
+            } else if (id == "workshop-action-search") {
+                nativeShellWorkshopEditor_FilterActions();
+            } else if (id == "workshop-animation-search") {
+                nativeShellWorkshopEditor_FilterClips();
+            } else if (id == "workshop-script-source") {
+                discard_pending = false;
+                nativeShellWorkshopEditor_RefreshScriptOutline();
+            } else {
+                for (const char* attribute : attribute_ids) {
+                    if (id == attribute) attributes_dirty[active_member] = true;
+                }
+                discard_pending = false;
+            }
+            return;
+        }
+        if (event.GetType() == "keydown") {
+            const int key = event.GetParameter<int>("key_identifier", 0);
+            if (key == Rml::Input::KI_ESCAPE &&
+                nativeShellWorkshopEditor_Shortcut(key)) {
+                event.StopPropagation();
+            } else if (key == Rml::Input::KI_ESCAPE && opened) {
+                if (testing) {
+                    if (!nativeHome_ReturnToWorkshopPreview()) {
+                        status("workshop-editor-status",
+                               "Wait for live practice before returning to the editor.");
+                        event.StopPropagation();
+                        return;
+                    }
+                    testing = false;
+                    document->GetElementById("workshop-panel")
+                        ->SetClass("testing", false);
+                    nativeShellWorkshopEditor_SetTesting(false);
+                    document->GetElementById("workshop-inspector")
+                        ->SetProperty("display", package_open ? "block" : "none");
+                } else nativeShellWorkshop_Close();
+                event.StopPropagation();
+            } else if (key == Rml::Input::KI_RETURN &&
+                       id == "workshop-new-name") {
+                create_stock_clone();
+                event.StopPropagation();
+            } else if ((key == Rml::Input::KI_RETURN ||
+                        key == Rml::Input::KI_SPACE) &&
+                       target->GetTagName() == "button") {
+                target->Click();
+                event.StopPropagation();
+            } else if (target->GetTagName() != "input" &&
+                       target->GetTagName() != "textarea" &&
+                       !event.GetParameter<int>("ctrl_key", 0) &&
+                       !event.GetParameter<int>("alt_key", 0) &&
+                       nativeShellWorkshopEditor_Shortcut(key)) {
+                event.StopPropagation();
+            }
+            return;
+        }
+        if (id == "workshop-script-validate") {
+            if (save_draft()) nativeShellWorkshopEditor_Click(id.c_str());
+            return;
+        }
+        if (id == "workshop-script-build") {
+            build_script();
+            return;
+        }
+        if (id == "workshop-return-editor") {
+            if (!nativeHome_ReturnToWorkshopPreview()) {
+                status("workshop-editor-status",
+                       "Wait for live practice before returning to the editor.");
+                return;
+            }
+            testing = false;
+            document->GetElementById("workshop-panel")->SetClass("testing", false);
+            nativeShellWorkshopEditor_SetTesting(false);
+            document->GetElementById("workshop-inspector")
+                ->SetProperty("display", package_open ? "block" : "none");
+            return;
+        }
+        if (id != "workshop-back-drafts" && id != "workshop-close")
+            discard_pending = false;
+        if (nativeShellWorkshopEditor_ScrubTimeline(id.c_str(),
+                event.GetParameter<int>("mouse_x", 0))) return;
+        if (nativeShellWorkshopEditor_Click(
+                id.c_str(), event.GetParameter<int>("shift_key", 0) != 0))
+            return;
+        if (id == "workshop-open") {
+            if (!nativeHome_IsSelection() && !nativeHome_IsPractice()) {
+                nativeShell_ShowRoomError("Return home to edit a fighter.");
+                return;
+            }
+            nativeShellProfiles_Close();
+            nativeShellRules_Close();
+            nativeShellCssOriginal_Close();
+            nativeShellCollection_Close();
+            refresh_drafts();
+            opened = true;
+            nativeHome_SetAuthoring(true);
+            document->GetElementById("workshop-panel")
+                ->SetProperty("display", "block");
+            input("workshop-new-name")->Focus(true);
+        } else if (id == "workshop-close") {
+            nativeShellWorkshop_Close();
+        } else if (id == "workshop-back-drafts") {
+            if (confirm_discard()) refresh_drafts();
+        } else if (id == "workshop-package-toggle") {
+            package_open = !package_open;
+            document->GetElementById("workshop-inspector")
+                ->SetProperty("display", package_open ? "block" : "none");
+            document->GetElementById("workshop-inspector")
+                ->SetClass("workshop-package-open", package_open);
+            document->GetElementById("workshop-package-toggle")
+                ->SetClass("selected", package_open);
+        } else if (id == "workshop-create") {
+            create_stock_clone();
+        } else if (id == "workshop-save" || id == "workshop-save-top") {
+            save_draft();
+        } else if (id == "workshop-portrait-browse") {
+            browse_portrait();
+        } else if (id == "workshop-preview" ||
+                   id == "workshop-test-character") {
+            preview_draft();
+        } else if (id == "workshop-install") {
+            install_draft();
+        } else if (id.compare(0, 15, "workshop-draft-") == 0) {
+            char* end = nullptr;
+            long index = std::strtol(id.c_str() + 15, &end, 10);
+            if (*end == '\0' && index >= 0) {
+                select_draft((size_t) index);
+            }
+        }
+    }
+} events;
+
+} // namespace
+
+bool nativeShellWorkshop_RefreshPreview()
+{
+    if (testing || !nativeHome_IsPractice()) return false;
+    NativeContentId id;
+    return build_cached_candidate(false, false, false, &id) &&
+           nativeHome_RequestPreview(&id, false);
+}
+
+void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
+{
+    document = shell;
+    auto* base_select = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-new-base"));
+    for (int index = Ft_Kind_Mario; index < Ft_Kind_StockCount; ++index) {
+        const FighterKind kind = static_cast<FighterKind>(index);
+        const char* name = nativeFighterProject_StockBaseName(kind);
+        if (name != nullptr &&
+            nativeFighterRuntime_FindStockDefinition(kind) != nullptr)
+            base_select->Add(name, name);
+    }
+    opened = false;
+    testing = false;
+    project_loaded = false;
+    nativeShellWorkshopEditor_Init(shell);
+    document->GetElementById("workshop-open")
+        ->AddEventListener("click", &events);
+    document->GetElementById("workshop-open")
+        ->AddEventListener("keydown", &events);
+    document->GetElementById("workshop-panel")
+        ->AddEventListener("click", &events);
+    document->GetElementById("workshop-panel")
+        ->AddEventListener("keydown", &events);
+    document->GetElementById("workshop-action-search")
+        ->AddEventListener("change", &events);
+    document->GetElementById("workshop-action-search")
+        ->AddEventListener("input", &events);
+    document->GetElementById("workshop-animation-search")
+        ->AddEventListener("change", &events);
+    document->GetElementById("workshop-animation-search")
+        ->AddEventListener("input", &events);
+    document->GetElementById("workshop-script-source")
+        ->AddEventListener("change", &events);
+    document->GetElementById("workshop-script-source")
+        ->AddEventListener("input", &events);
+    document->GetElementById("workshop-family-member")
+        ->AddEventListener("change", &events);
+    for (const char* attribute : attribute_ids)
+        document->GetElementById(attribute)->AddEventListener("change", &events);
+}
+
+void nativeShellWorkshop_Update()
+{
+    if (opened && !testing) nativeShellWorkshopEditor_Update();
+    if (opened && project_loaded) {
+        static int last_practice = -1;
+        const int practice = nativeHome_IsPractice() ? 1 : 0;
+        if (practice != last_practice) {
+            last_practice = practice;
+            status("workshop-preview-state", practice
+                ? "live practice" : "enter practice to preview");
+        }
+    }
+    if (opened && !nativeHome_IsSelection() && !nativeHome_IsPractice() &&
+        !nativeHome_PracticeTransitioning()) {
+        if (project_loaded &&
+            family_has_unsaved_edits() &&
+            !save_draft()) return;
+        nativeShellWorkshop_Close();
+    }
+}
+
+void nativeShellWorkshop_Close()
+{
+    if (!opened || nativeHome_PracticeTransitioning()) {
+        return;
+    }
+    if (!confirm_discard()) return;
+    opened = false;
+    close_project();
+    nativeHome_SetAuthoring(false);
+    document->GetElementById("workshop-panel")
+        ->SetProperty("display", "none");
+    nativeShell_BlurRoom();
+    if (nativeHome_IsSelection() || nativeHome_IsPractice()) {
+        nativeShellCollection_Open();
+    }
+}
+
+bool nativeShellWorkshop_IsOpen()
+{
+    return opened;
+}
+
+bool nativeShellWorkshop_IsTesting()
+{
+    return opened && testing;
+}
+
+#endif

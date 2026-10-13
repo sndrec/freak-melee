@@ -1,0 +1,104 @@
+state int received
+func FighterValue(int value) -> int:
+    return value
+func FighterFloat() -> float:
+    return 1.25
+func FighterBool() -> bool:
+    return true
+func FighterDispatch() -> int:
+    let int result = targets.call_int(fighter.creation_id, "value")
+    return result
+func FighterEight(int a, int b, int c, int d, int e, int f, int g, int h) -> int:
+    state.received = a + b + c + d + e + f + g + h
+    return state.received
+action Probe:
+    on load:
+        pass
+article It_Kind_Ness_PKFire states 1:
+    state int trace
+    state int value
+    state float amount
+    state bool ready
+    func Pair(int a, int b) -> int:
+        return a + b
+    func First() -> int:
+        item.state.trace = item.state.trace * 10 + 1
+        return 16777217
+    func Second() -> int:
+        item.state.trace = item.state.trace * 10 + 2
+        return 7
+    func Positive(int value) -> bool:
+        return value > 0
+    func Scale(float value) -> float:
+        return value * 1.25
+    func Dispatch() -> int:
+        let int value = targets.call_int(item.creation_id, "value")
+        item.state.trace = item.state.trace + 100
+        return value
+    func DispatchFloat() -> float:
+        let float value = targets.call_float(item.creation_id, "value")
+        return value
+    func DispatchBool() -> bool:
+        let bool value = targets.call_bool(item.creation_id, "value")
+        return value
+    func Condition() -> int:
+        if Positive(Dispatch()):
+            return 5
+        return 2
+    func ReturnMath() -> int:
+        return Pair(Dispatch(), item.creation_id) + 1
+    func RemoveFloat() -> float:
+        item.remove()
+        return 3.5
+    func VoidCall():
+        Dispatch()
+        return
+    func Truth(float value) -> bool:
+        return value
+    func Widen(int value) -> float:
+        return value
+    on created:
+            item.state.value = Pair(First(), Second())
+            item.state.amount = Scale(2)
+            item.state.ready = Positive(item.state.value)
+    on signal local:
+            item.state.value = Pair(Dispatch(), item.creation_id)
+    on signal recipient:
+            item.state.value = creator.call(FighterDispatch)
+            item.state.trace = 900
+    on signal arguments:
+            item.state.value = creator.call(FighterValue, Dispatch())
+            item.state.trace = 901
+    on signal absent:
+            item.state.value = creator.call(FighterValue, First())
+    on signal owner:
+            item.state.value = owner.call(FighterValue, First())
+    on signal palette:
+            item.state.value = creator.call(FighterValue, int(0x80000001))
+            item.state.amount = creator.call(FighterFloat)
+            item.state.ready = creator.call(FighterBool)
+    on signal eight_creator:
+            item.state.value = creator.call(FighterEight, 16777217, -1, 2, 3, 4, 5, 6, 7)
+    on signal eight_owner:
+            item.state.value = owner.call(FighterEight, 16777217, -1, 2, 3, 4, 5, 6, 7)
+    on signal eight_nested_creator:
+            creator.call(FighterEight, First(), 0, 0, 0, 0, 0, 0, 0)
+    on signal eight_nested_owner:
+            owner.call(FighterEight, First(), 0, 0, 0, 0, 0, 0, 0)
+    on signal eight_invalidating_creator:
+            creator.call(FighterEight, Dispatch(), item.creation_id, 0, 0, 0, 0, 0, 0)
+    on signal eight_invalidating_owner:
+            owner.call(FighterEight, Dispatch(), item.creation_id, 0, 0, 0, 0, 0, 0)
+    state 0 anim -1:
+        on physics:
+            item.state.value = ReturnMath()
+        on animation:
+            return Positive(Dispatch())
+article It_Kind_Ness_PKFlush states 1:
+    state int value
+    func Pair() -> bool:
+        return true
+    on created:
+            if Pair():
+                item.state.value = -1
+    state 0 anim -1:

@@ -1,0 +1,146 @@
+[
+  {
+    "name": "lay-ground-item-proxy",
+    "motions": [
+      346,
+      348,
+      350
+    ],
+    "capturable_items": [
+      "0,140,5,0"
+    ],
+    "item_kinds": [
+      0,
+      87
+    ],
+    "item_states": [
+      [
+        87,
+        1
+      ],
+      [
+        87,
+        0
+      ],
+      [
+        87,
+        2
+      ]
+    ],
+    "expired_items": [
+      87
+    ],
+    "inputs": [
+      [
+        1,
+        130,
+        131,
+        512,
+        0,
+        0
+      ]
+    ],
+    "airborne": [
+      "1,115,0,3"
+    ]
+  },
+  {
+    "name": "lay-air-item-proxy",
+    "motions": [
+      351,
+      353,
+      355
+    ],
+    "airborne": [
+      "1,125,40,150"
+    ],
+    "capturable_items": [
+      "0,140,45,130"
+    ],
+    "item_kinds": [
+      0,
+      87
+    ],
+    "item_states": [
+      [
+        87,
+        1
+      ],
+      [
+        87,
+        0
+      ],
+      [
+        87,
+        2
+      ]
+    ],
+    "expired_items": [
+      87
+    ],
+    "inputs": [
+      [
+        1,
+        130,
+        131,
+        512,
+        0,
+        0
+      ]
+    ]
+  },
+  {
+    "name": "lay-item-release-interruption",
+    "motions": [
+      346,
+      348,
+      350
+    ],
+    "airborne": [
+      "1,115,0,3",
+      "3,145,-12,0"
+    ],
+    "capturable_items": [
+      "0,140,5,0"
+    ],
+    "p3": "human:mario",
+    "damage_ports": [
+      1
+    ],
+    "absent_items": [
+      87
+    ],
+    "inputs": [
+      [
+        3,
+        100,
+        110,
+        0,
+        50,
+        0
+      ],
+      [
+        1,
+        130,
+        131,
+        512,
+        0,
+        0
+      ],
+      [
+        3,
+        152,
+        153,
+        256,
+        0,
+        0
+      ]
+    ],
+    "captured_item_removed": [
+      [
+        0,
+        1
+      ]
+    ]
+  }
+]

@@ -1,0 +1,611 @@
+# Captain Falcon's specials, lifecycle, CPU decisions and held-swing selection.
+# Independent callbacks verified against stock source and recorded gameplay.
+# See docs/captain_ganon_script_translation.md for coverage and remaining limits.
+fighter:
+    behavior independent
+
+# Explicit shared held-item swing callbacks; own animation/flags/camera remain.
+motion_policy 341 common 122
+motion_policy 342 common 126
+motion_policy 343 common 130
+motion_policy 344 common 134
+motion_policy 345 common 138
+motion_policy 346 common 142
+
+attribute float specialn_stick_range_y_neg 0
+attribute float specialn_stick_range_y_pos 4
+attribute float specialn_angle_diff 8
+attribute float specialn_vel_x 12
+attribute float specialn_vel_mul 16
+attribute float specials_gr_vel_x 20
+attribute float specials_grav 24
+attribute float specials_terminal_vel 28
+attribute float specials_miss_landing_lag 56
+attribute float specials_hit_landing_lag 60
+attribute float specialhi_air_friction_mul 64
+attribute float specialhi_horz_vel 68
+attribute float specialhi_freefall_air_spd_mul 72
+attribute float specialhi_landing_lag 76
+attribute float specialhi_input_var 88
+attribute float specialhi_unk2 92
+attribute float specialhi_catch_grav 96
+attribute float speciallw_on_hit_spd_modifier 116
+attribute float speciallw_flame_particle_angle 112
+attribute int speciallw_max_hit_scalings 120
+attribute float speciallw_ground_lag_mul 124
+attribute float speciallw_landing_lag_mul 128
+attribute float speciallw_ground_traction 132
+attribute float speciallw_air_landing_traction 136
+parameter float cpu_initial_spacing = 3.5
+parameter float cpu_spacing_range = 4
+parameter float cpu_ranged_far = 102
+parameter float cpu_ranged_near = 58
+parameter int cpu_far_candidate = 38
+parameter int cpu_near_candidate = 27
+parameter int cpu_near_followup_a = 55
+parameter int cpu_near_followup_b = 56
+parameter int cpu_grab_special_min_level = 4
+parameter float cpu_grab_chance_per_level = 0.05
+parameter float cpu_grab_damage_threshold = 100
+parameter int cpu_grab_low_damage_script = 57
+parameter int cpu_grab_high_damage_script = 58
+
+state bool side_start_effect
+state bool side_hit_effect
+state float side_gravity
+state int kick_hit_scalings
+state float kick_friction
+state bool dive_can_ledge
+state bool dive_throw_ready
+state float dive_velocity_x
+state float dive_velocity_y
+
+# ftcaptainspecials.c's shared Side transition mask, owned by this fighter.
+parameter int side_contact_transition_flags = 0x0c4c5082
+
+move FalconPunch:
+    on special_n:
+        command(1) = 0
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+        effects.pause_during_hitlag()
+    on special_air_n:
+        command(1) = 0
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+        effects.pause_during_hitlag()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        if command(0):
+            command(0) = 0
+            let stick = abs(input.y)
+            if stick > attrs.specialn_stick_range_y_pos: stick = attrs.specialn_stick_range_y_pos
+            stick = stick - attrs.specialn_stick_range_y_neg
+            if stick < 0: stick = 0
+            if input.y < 0: stick = -stick
+            let angle = radians(1) * (stick * attrs.specialn_angle_diff / (attrs.specialn_stick_range_y_pos - attrs.specialn_stick_range_y_neg))
+            velocity.y = attrs.specialn_vel_x * sin(angle)
+            velocity.x = attrs.specialn_vel_x * (facing.direction * cos(angle))
+    on ground_physics:
+        if cue.throw.consume():
+            if not effects.active:
+                effects.spawn_between(1167, 0, 57)
+                effects.active = true
+            else: effects.clear_all()
+        physics.ground_motion()
+    on air_physics:
+        if cue.throw.consume():
+            if not effects.active:
+                effects.spawn_between(1167, 0, 57)
+                effects.active = true
+            else: effects.clear_all()
+        if command(1) == 0: physics.air_gravity_and_friction()
+        elif command(1) == 1: motion.scale_planar_velocity(attrs.specialn_vel_mul)
+        elif command(1) == 2: physics.air_drift()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.to_air()
+            effects.pause_during_hitlag()
+            physics.clamp_air_drift()
+    on air_collision:
+        if collision.landed:
+            state.to_ground()
+            effects.pause_during_hitlag()
+
+move RaptorBoost:
+    on special_s:
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        physics.switch_to_ground()
+        state.enter(SideSpecial)
+        callbacks.track_damage()
+        callbacks.track_death2()
+        effects.spawn_on_part(1169, 34)
+        state.side_start_effect = true
+        state.side_hit_effect = false
+        effects.pause_during_hitlag()
+        callbacks.track_hurtbox_detect()
+        velocity.x = 0
+        velocity.y = 0
+        velocity.z = 0
+        ground.velocity = 0
+    on special_air_s:
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        state.enter(SideSpecial)
+        callbacks.track_damage()
+        callbacks.track_death2()
+        effects.spawn_on_part(1169, 34)
+        state.side_start_effect = true
+        state.side_hit_effect = false
+        effects.pause_during_hitlag()
+        callbacks.track_hurtbox_detect()
+        velocity.x = 0
+        velocity.y = 0
+        velocity.z = 0
+        state.side_gravity = 0
+        physics.force_air_and_use_jumps()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished:
+            physics.force_air_and_use_jumps()
+            if attrs.specials_miss_landing_lag == 0: state.fall()
+            else: state.freefall(1, 1, false, 1, attrs.specials_miss_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_motion()
+    on air_physics:
+        physics.animation_velocity_plain()
+        if command(1) == 1:
+            state.side_gravity = state.side_gravity - attrs.specials_grav
+            if state.side_gravity < -attrs.specials_terminal_vel: state.side_gravity = -attrs.specials_terminal_vel
+            velocity.y = state.side_gravity
+    on ground_collision:
+        if command(2) == 0:
+            collision.ground_standard()
+            return
+        if collision.left_ground:
+            effects.destroy_all()
+            physics.force_air_and_use_jumps()
+            if attrs.specials_miss_landing_lag == 0: state.fall()
+            else:
+                physics.clamp_air_drift()
+                state.freefall(1, 1, false, 1, attrs.specials_miss_landing_lag)
+            return
+        if command(0) == 1 and collision.wall_ahead:
+            effects.destroy_all()
+            state.wait()
+    on air_collision:
+        if collision.landed:
+            effects.destroy_all()
+            state.landing_fall_special(false, attrs.specials_miss_landing_lag)
+
+move FalconKick:
+    on special_lw:
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        cue.throw.reset()
+        state.kick_hit_scalings = 0
+        state.kick_friction = 1
+        state.enter(DownSpecial)
+        callbacks.track_deal_damage()
+        effects.pause_during_hitlag()
+    on special_air_lw:
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        cue.throw.reset()
+        state.enter(DownSpecial)
+        effects.pause_during_hitlag()
+    on ground_animation:
+        if animation.finished:
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            if grounded:
+                physics.switch_to_ground()
+                state.enter(358, 0, attrs.speciallw_ground_lag_mul)
+            else:
+                physics.ground_to_air()
+                state.enter(362, 0)
+            effects.pause_during_hitlag()
+    on air_animation:
+        if animation.finished:
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            physics.ground_to_air()
+            state.enter(361, 0)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if grounded:
+            bones.root.rotate_z(-atan2_float(floor.normal.x, floor.normal.y))
+            physics.ground_animation_velocity()
+        else:
+            bones.root.reset_z()
+            physics.animation_velocity_plain()
+        velocity.x = velocity.x * state.kick_friction
+        velocity.y = velocity.y * state.kick_friction
+        if cue.throw.consume():
+            if not effects.active:
+                effects.spawn_async_with_scalar(1168, RightFoot, 0)
+                effects.active = true
+            else: effects.clear_all()
+    on air_physics:
+        physics.animation_velocity_plain()
+        if cue.throw.consume():
+            if not effects.active:
+                effects.spawn_async_with_scalar(1168, LeftFoot, radians(1) * attrs.speciallw_flame_particle_angle)
+                effects.active = true
+            else: effects.clear_all()
+    on ground_collision:
+        if grounded:
+            if collision.left_ground: physics.ground_to_air()
+        elif collision.landed: physics.switch_to_ground()
+        if command(0) and collision.wall_hug_ahead:
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            physics.ground_to_air()
+            state.enter(363, 0)
+    on air_collision:
+        if collision.landed:
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            physics.switch_to_ground()
+            state.enter(360, 0, attrs.speciallw_landing_lag_mul)
+
+move FalconDive:
+    on special_hi:
+        callbacks.track_state_change()
+        state.enter(UpSpecial)
+        capture.arm(2)
+    on special_air_hi:
+        callbacks.track_state_change()
+        state.enter(UpSpecial)
+        capture.arm(2)
+    on ground_animation:
+        if animation.finished: state.freefall(1, 1, false, attrs.specialhi_freefall_air_spd_mul, attrs.specialhi_landing_lag)
+    on air_animation:
+        if animation.finished: state.freefall(1, 1, false, attrs.specialhi_freefall_air_spd_mul, attrs.specialhi_landing_lag)
+    on ground_interrupt:
+        if command(0):
+            command(0) = 0
+            state.dive_can_ledge = true
+            if abs(input.x) > attrs.specialhi_input_var:
+                facing.from_input()
+                bones.root.rotate_y(pi_half * facing.direction)
+    on air_interrupt:
+        if command(0):
+            command(0) = 0
+            state.dive_can_ledge = true
+            if abs(input.x) > attrs.specialhi_input_var:
+                facing.from_input()
+                bones.root.rotate_y(pi_half * facing.direction)
+    on ground_physics:
+        velocity.x = state.dive_velocity_x
+        velocity.y = state.dive_velocity_y
+        velocity.z = 0
+        if not physics.quick_decel(attrs.specialhi_horz_vel * air.drift_max):
+            physics.air_accel_common(air.drift_stick_mul * attrs.specialhi_air_friction_mul, air.drift_max * attrs.specialhi_horz_vel)
+        state.dive_velocity_x = acceleration.x + velocity.x
+        state.dive_velocity_y = acceleration.y + velocity.y
+        physics.animation_velocity_plain()
+        acceleration.x = 0
+        acceleration.y = 0
+        velocity.x = velocity.x + state.dive_velocity_x
+        velocity.y = velocity.y + state.dive_velocity_y
+    on air_physics:
+        velocity.x = state.dive_velocity_x
+        velocity.y = state.dive_velocity_y
+        velocity.z = 0
+        if not physics.quick_decel(attrs.specialhi_horz_vel * air.drift_max):
+            physics.air_accel_common(air.drift_stick_mul * attrs.specialhi_air_friction_mul, air.drift_max * attrs.specialhi_horz_vel)
+        state.dive_velocity_x = acceleration.x + velocity.x
+        state.dive_velocity_y = acceleration.y + velocity.y
+        physics.animation_velocity_plain()
+        acceleration.x = 0
+        acceleration.y = 0
+        velocity.x = velocity.x + state.dive_velocity_x
+        velocity.y = velocity.y + state.dive_velocity_y
+    on ground_collision:
+        if airborne:
+            if collision.check_ground_ledge(0):
+                if state.dive_can_ledge: state.landing_special(false, attrs.specialhi_landing_lag)
+                else: collision.air_standard()
+            elif state.dive_can_ledge:
+                if collision.cliff_catch(): state.catch_ledge()
+        elif collision.left_ground: physics.ground_to_air()
+    on air_collision:
+        if collision.check_ground_ledge(0):
+            if state.dive_can_ledge: state.landing_special(false, attrs.specialhi_landing_lag)
+            else: collision.air_standard()
+        elif state.dive_can_ledge:
+            if collision.cliff_catch(): state.catch_ledge()
+
+action FalconDiveCallbacks:
+    on state_change:
+        jumps.used = jumps.max
+        command(0) = 0
+        command(1) = int(attrs.specialhi_unk2)
+        state.dive_velocity_x = 0
+        state.dive_velocity_y = 0
+        state.dive_can_ledge = false
+        state.dive_throw_ready = false
+    on grabbed:
+        capture.begin(275, false, false, true, true)
+    on grab_catch:
+        state.enter_flags(355, 2)
+        damage.song_immune = true
+        capture.mask(511)
+        capture.clear_movement()
+        if victim.airborne: capture.ground_link = false
+        else:
+            capture.attach_to_victim()
+            capture.ground_link = true
+            capture.follow_victim()
+    on state_355_animation:
+        if animation.finished:
+            command(0) = 0
+            state.dive_throw_ready = false
+            state.dive_velocity_x = 0
+            state.dive_velocity_y = 0
+            state.enter_flags(356, 524290)
+            capture.mask(0)
+            capture.release_throw()
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        pass
+    on state_355_collision:
+        if not capture.ground_link: collision.air_standard()
+    on state_356_animation:
+        if animation.finished: state.fall()
+        physics.force_air_and_use_jumps()
+        if command(0):
+            command(0) = 0
+            state.dive_throw_ready = true
+    on state_356_interrupt:
+        pass
+    on state_356_physics:
+        if state.dive_throw_ready:
+            velocity.x = state.dive_velocity_x
+            velocity.y = state.dive_velocity_y
+            velocity.z = 0
+            if not physics.quick_decel(attrs.specialhi_horz_vel * air.drift_max):
+                physics.air_accel_common(air.drift_stick_mul * attrs.specialhi_air_friction_mul, air.drift_max * attrs.specialhi_horz_vel)
+            state.dive_velocity_x = acceleration.x + velocity.x
+            state.dive_velocity_y = acceleration.y + velocity.y
+            physics.animation_velocity_plain()
+            acceleration.x = 0
+            acceleration.y = 0
+            velocity.x = velocity.x + state.dive_velocity_x
+            velocity.y = velocity.y + state.dive_velocity_y
+            let prior = velocity.y - state.dive_velocity_y
+            physics.fall(attrs.specialhi_catch_grav, air.terminal_velocity)
+            state.dive_velocity_y = velocity.y - prior
+        else: physics.animation_velocity_plain()
+    on state_356_collision:
+        if collision.landed: state.landing_special(false, attrs.specialhi_landing_lag)
+
+action FalconKickStates:
+    on deal_damage:
+        if state.kick_hit_scalings <= attrs.speciallw_max_hit_scalings:
+            state.kick_hit_scalings = state.kick_hit_scalings + 1
+            state.kick_friction = state.kick_friction * attrs.speciallw_on_hit_spd_modifier
+    on state_358_animation:
+        if animation.finished:
+            if grounded: state.wait()
+            else: state.fall()
+    on state_358_physics:
+        if grounded:
+            bones.root.rotate_z(-atan2_float(floor.normal.x, floor.normal.y))
+            if command(2):
+                physics.ground_decelerate(attrs.speciallw_ground_traction * ground.friction)
+                physics.ground_to_self()
+            else: physics.ground_friction()
+        else:
+            bones.root.reset_z()
+            physics.air_gravity_and_friction()
+        velocity.x = velocity.x * state.kick_friction
+        velocity.y = velocity.y * state.kick_friction
+    on state_358_collision:
+        if grounded:
+            if command(1):
+                if collision.special_ground_lost: physics.ground_to_air()
+            elif collision.left_ground: physics.ground_to_air()
+        elif collision.landed: physics.switch_to_ground()
+    on state_360_animation:
+        if animation.finished: state.wait()
+    on state_360_physics:
+        if command(2):
+            physics.ground_decelerate(attrs.speciallw_air_landing_traction * ground.friction)
+            physics.ground_to_self()
+        else: physics.ground_friction()
+    on state_360_collision:
+        collision.ground_standard()
+    on state_361_animation:
+        if animation.finished: state.fall()
+    on state_361_physics:
+        physics.air_gravity_and_friction()
+    on state_361_collision:
+        if collision.landed:
+            command(0) = 0
+            command(1) = 0
+            command(2) = 0
+            cue.throw.reset()
+            physics.switch_to_ground()
+            state.enter(360, 0, attrs.speciallw_landing_lag_mul)
+    on state_362_animation:
+        if animation.finished:
+            if grounded: state.wait()
+            else: state.fall()
+    on state_362_physics:
+        if grounded:
+            bones.root.rotate_z(-atan2_float(floor.normal.x, floor.normal.y))
+            physics.ground_animation_velocity()
+        else:
+            bones.root.reset_z()
+            if command(0): physics.air_gravity_and_friction()
+            else: physics.animation_velocity_plain()
+    on state_362_collision:
+        if grounded:
+            if command(1):
+                if collision.special_ground_lost: physics.ground_to_air()
+            elif collision.left_ground: physics.ground_to_air()
+        elif collision.landed: physics.switch_to_ground()
+    on state_363_animation:
+        if animation.finished: state.fall()
+    on state_363_physics:
+        physics.animation_velocity_plain()
+    on state_363_collision:
+        collision.air_catch_hit()
+
+action RaptorBoostHit:
+    on state_350_animation:
+        if not state.side_hit_effect:
+            effects.spawn_on_joint_with_scalar(1170, 1, facing.direction)
+            state.side_hit_effect = true
+            effects.pause_during_hitlag()
+        if animation.finished: state.wait()
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.ground_motion()
+    on state_350_collision:
+        if collision.left_ground:
+            effects.destroy_all()
+            physics.force_air_and_use_jumps()
+            if attrs.specials_hit_landing_lag == 0: state.fall()
+            else:
+                physics.clamp_air_drift()
+                state.freefall(1, 1, false, 1, attrs.specials_hit_landing_lag)
+    on state_352_animation:
+        if not state.side_hit_effect:
+            effects.spawn_on_joint_with_scalar(1171, 1, facing.direction)
+            state.side_hit_effect = true
+            effects.pause_during_hitlag()
+        if animation.finished:
+            physics.force_air_and_use_jumps()
+            if attrs.specials_hit_landing_lag == 0: state.fall()
+            else: state.freefall(1, 1, false, 1, attrs.specials_hit_landing_lag)
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.animation_velocity_plain()
+        state.side_gravity = state.side_gravity - attrs.specials_grav
+        if state.side_gravity < -attrs.specials_terminal_vel: state.side_gravity = -attrs.specials_terminal_vel
+        velocity.y = state.side_gravity
+    on state_352_collision:
+        if collision.landed:
+            ground.velocity = velocity.x
+            effects.destroy_all()
+            state.landing_fall_special(false, attrs.specials_hit_landing_lag)
+
+action RaptorBoostCallbacks:
+    on hurtbox_detect:
+        if command(0):
+            let valid = target.is_fighter
+            if target.is_item:
+                let item = target.kind
+                if item < It_Kind_BombHei: valid = true
+                if item >= It_Kind_Kuriboh and item < It_Kind_Octarock_Stone: valid = true
+                if item >= It_Kind_Old_Kuri and item < It_Kind_Arwing_Laser: valid = true
+                if item == It_PKind_Random: valid = true
+            if valid and motion.id == 349:
+                physics.switch_to_ground()
+                state.enter_at(350, attrs.side_contact_transition_flags, 0)
+                callbacks.track_damage()
+                callbacks.track_death2()
+                velocity.y = 0
+                velocity.z = 0
+                ground.velocity = ground.velocity * attrs.specials_gr_vel_x
+            elif valid and motion.id == 351:
+                state.enter_at(352, attrs.side_contact_transition_flags, 0)
+                callbacks.track_damage()
+                callbacks.track_death2()
+                velocity.z = 0
+    on damage:
+        effects.destroy_all()
+        state.side_start_effect = false
+        state.side_hit_effect = false
+    on death2:
+        effects.destroy_all()
+        state.side_start_effect = false
+        state.side_hit_effect = false
+
+action FighterEvents:
+    on load:
+        fighter.enable_walljump()
+        fighter.copy_ext_attributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on death:
+        visuals.set_group(0, 0)
+        state.side_start_effect = false
+        state.side_hit_effect = false
+
+
+action OwnedCpuClosure:
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(attrs.cpu_ranged_far):
+            cpu.add_candidate(attrs.cpu_far_candidate)
+        if cpu.ranged_unsafe(attrs.cpu_ranged_near):
+            cpu.add_candidate(attrs.cpu_near_candidate)
+            cpu.add_candidate(attrs.cpu_near_followup_a)
+            cpu.add_candidate(attrs.cpu_near_followup_b)
+
+action OwnedCaptureCpuClosure:
+    on cpu_capture_decision:
+        if cpu.grab_attempts == 0 and cpu.level > attrs.cpu_grab_special_min_level:
+            if random.float() < attrs.cpu_grab_chance_per_level * cpu.level:
+                if capture.victim_damage < attrs.cpu_grab_damage_threshold:
+                    cpu.run_script(attrs.cpu_grab_low_damage_script)
+                else:
+                    cpu.run_script(attrs.cpu_grab_high_damage_script)
+                return true
+        return false
+
+action HeldItemSwingSelection:
+    on item_swing_motion:
+        return 341 + event.swing_type

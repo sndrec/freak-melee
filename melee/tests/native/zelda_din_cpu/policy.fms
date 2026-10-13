@@ -1,0 +1,65 @@
+# Unregistered Din CPU policy using SDK70 live creation-ID position queries.
+# DECLARATIONS
+parameter int cpu_din_motion_first = 344
+parameter int cpu_din_motion_last = 348
+parameter float cpu_din_release_radius = 15
+parameter float cpu_din_target_height = 15
+parameter int cpu_din_wait_frames = 1
+parameter int cpu_din_stick_up = 127
+parameter int cpu_din_stick_down = -127
+
+# FUNCTIONS
+func cpu_din_finish_without_target():
+    cpu.clear_target()
+    cpu.behavior = cpu.previous_behavior
+    cpu.queue(Cpu.done)
+
+func cpu_din_release():
+    cpu.queue(Cpu.release_b)
+    cpu.queue(Cpu.stick_x, 0)
+    cpu.queue(Cpu.stick_y, 0)
+    cpu.queue(Cpu.wait, attrs.cpu_din_wait_frames)
+
+func cpu_din_control():
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not articles.read_primary_translation(state.din_handle, It_Kind_Zelda_DinFire, x, y, z):
+        cpu.queue(Cpu.done)
+        return
+    let int enemy = cpu.nearest_enemy_at(x, y, z)
+    if enemy == 0:
+        cpu_din_finish_without_target()
+        return
+    let float enemy_x = 0
+    let float enemy_y = 0
+    let float enemy_z = 0
+    if not targets.read_position(enemy, enemy_x, enemy_y, enemy_z):
+        cpu_din_finish_without_target()
+        return
+    let float enemy_distance = abs(enemy_x - position.x)
+    let float projectile_distance = abs(x - position.x)
+    if projectile_distance > enemy_distance:
+        cpu_din_release()
+    elif abs(x - enemy_x) < attrs.cpu_din_release_radius and abs(attrs.cpu_din_target_height + enemy_y - y) < attrs.cpu_din_release_radius:
+        cpu_din_release()
+    elif attrs.cpu_din_target_height + enemy_y > y:
+        cpu.queue(Cpu.stick_y, attrs.cpu_din_stick_up)
+    else:
+        cpu.queue(Cpu.stick_y, attrs.cpu_din_stick_down)
+    cpu.queue(Cpu.done)
+
+# CALLBACKS
+move DinCpu:
+    on cpu_attack_decision:
+        if motion.id >= attrs.cpu_din_motion_first and motion.id <= attrs.cpu_din_motion_last:
+            cpu_din_control()
+            return true
+        return false
+    on cpu_travel_decision:
+        if motion.id >= attrs.cpu_din_motion_first and motion.id <= attrs.cpu_din_motion_last:
+            cpu_din_control()
+            # Original Zelda returns here without incrementing travel_frames.
+            # Ness and Yoshi deliberately make a different owned decision.
+            return true
+        return false

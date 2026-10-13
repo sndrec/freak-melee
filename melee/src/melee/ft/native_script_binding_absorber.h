@@ -1,0 +1,7 @@
+#ifndef MELEE_FT_NATIVE_SCRIPT_BINDING_ABSORBER_H
+#define MELEE_FT_NATIVE_SCRIPT_BINDING_ABSORBER_H
+#include "native_script_bindings.h"
+bool nativeScriptBindingAbsorber_Read(NativeScriptRuntimeContext*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+bool nativeScriptBindingAbsorber_Write(NativeScriptRuntimeContext*,uint32_t,const NativeScriptValue*,NativeScriptDiagnostic*);
+bool nativeScriptBindingAbsorber_Invoke(NativeScriptRuntimeContext*,uint32_t,const NativeScriptValue*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+#endif

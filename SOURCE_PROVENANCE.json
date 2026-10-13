@@ -1,0 +1,18 @@
+{
+  "captured": "2026-10-13",
+  "purpose": "Native Freak Melee source backup before documentation cleanup",
+  "repositories": {
+    "melee": {
+      "upstream": "https://github.com/doldecomp/melee.git",
+      "local_head": "74e6a363c8227546ed69cc7a610462814537ca2f",
+      "local_branch": "native-windows"
+    },
+    "aurora": {
+      "upstream": "https://github.com/encounter/aurora.git",
+      "local_head": "89ce7b453ba6897cdc3f04a5ff6b8b67bbd27acb",
+      "local_branch": "main"
+    }
+  },
+  "history": "Working-tree snapshot; original nested Git histories remain local.",
+  "assets": "No game ISO, extracted DAT/DOL data or local DSP ROM is included."
+}

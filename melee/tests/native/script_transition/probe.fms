@@ -1,0 +1,53 @@
+fighter:
+    behavior independent
+
+parameter uint flags = Ft_MF_Unk31 | Ft_MF_UpdateCmd
+state int completed
+
+func SwitchAir(int motion, uint flags):
+    state.switch_to_air(motion, flags)
+
+func SwitchGround(int motion, uint flags):
+    state.switch_to_ground(motion, flags)
+
+move Neutral:
+    on special_n:
+        state.enter(NeutralSpecial)
+        state.completed = state.completed + 1
+    on special_air_n:
+        state.enter(NeutralSpecial)
+        state.completed = state.completed + 1
+    on ground_collision:
+        state.to_air()
+        state.completed = state.completed + 1
+    on air_collision:
+        state.to_ground()
+        state.completed = state.completed + 1
+
+move Side:
+    on special_s:
+        state.enter(343)
+        state.completed = state.completed + 1
+    on ground_physics:
+        state.enter(345, 7.125)
+        state.completed = state.completed + 1
+    on air_physics:
+        state.enter(346, 8.25, 0.5)
+        state.completed = state.completed + 1
+    on ground_collision:
+        SwitchAir(346, attrs.flags)
+        state.completed = state.completed + 1
+    on air_collision:
+        SwitchGround(345, attrs.flags)
+        state.completed = state.completed + 1
+    on ground_animation:
+        state.enter_flags(344, attrs.flags)
+        state.completed = state.completed + 1
+    on air_animation:
+        state.enter_at(343, attrs.flags, 10.5)
+        state.completed = state.completed + 1
+
+action Hooks:
+    on tick:
+        state.begin(341)
+        state.completed = state.completed + 1

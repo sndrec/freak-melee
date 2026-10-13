@@ -1,0 +1,158 @@
+{
+  "status": "authored draft; generic50 source/generated acceptance pending",
+  "source_snapshot": "baseline50",
+  "accepted_inputs": {
+    "tests/native/peach_full_fighter_composition/candidate.fms": "fa1fc5cdbf4fbc2aa115946164cfad810a3afca16dcb177e58c60e087aaa82ff"
+  },
+  "original_source_hashes": {
+    "src/melee/ft/kinds/ftPeach/ftpeachfloat.c": "bd898a418048aca6ff232c876ecfe1a90f71f0216ab97feff3eb8647260a3194",
+    "src/melee/ft/kinds/ftPeach/ftpeachfloatfall.c": "72301a8f2b5fac5cb3d5c39b440f4ccfe7f26931ddd4990f9db262755fc34635",
+    "src/melee/ft/kinds/ftPeach/ftpeachfloatattack.c": "212b638b1dc166626c299971743df5586831fe39863eb37fea3b4cd63b6e280d",
+    "src/melee/ft/kinds/ftPeach/ftpeachspecials.c": "bfd5b84b6c42c76cb0774975bc6b148d61142e53c85173246a0f785905f12ca6",
+    "src/melee/ft/kinds/ftPeach/types.h": "e81a6e06e90eb332d0ed2c1e6fc1049c3c8b95ca8133908277bc19a419fe1c35",
+    "src/melee/ft/kinds/ftPeach/ftpeach.c": "56284b720544875175d30593cbbc91f60ee631417d17973b58f9dd55f9d1bec6",
+    "src/melee/ft/ftmovement.c": "3a0069a67f20241d8ef83c81a8a38463c424a6b4dc077b775079ff74143e22d6",
+    "src/melee/ft/ftcommon.c": "01fc801324b903720e7a9eaa84016f5ae926ab0b2bc04ef1a87df2c33fb8c22f",
+    "src/melee/ft/ft_081B.c": "1e3a0c079c2ed096db311f9105466283e0e32a473cb0596ed7f442fbb46b8c88",
+    "src/melee/ft/ft_0DF1.c": "fdb4886da89b82cd8d9ccef8400769e354de04d6e02938cc2175dc83894d7e0c",
+    "src/melee/ft/fighter.c": "a282f8794d14d38ad10e86c06076fba2406e6f6dd6d5c1f6316affb258a59f8b",
+    "src/melee/ft/kinds/ftCommon/ftCo_Fall.c": "b48ea58c14bca201907851ad0158a5ec5b376c00f1e3b38052dca0c221587ff6",
+    "src/melee/ft/kinds/ftCommon/ftCo_Jump.c": "45871e01125d70ed8415a75687816f795e0b84e69df4ed6bbea11970a4292b6f",
+    "src/melee/ft/kinds/ftCommon/ftCo_JumpAerial.c": "7e7d27e5e7d1154ee4d6da718d69306b6056bde146e694e6b698e2fd6fac7a75",
+    "src/melee/ft/kinds/ftCommon/ftCo_AttackAir.c": "3844f9f90f27280e1d14c3922a835d800898acd9d403213781268ccbc1383de1",
+    "src/melee/ft/kinds/ftCommon/ftCo_LandingAir.c": "ae801e0209d226fa1f0e5ff29c70694c3c694dbd9e60d059cc0eacae55f18fc6"
+  },
+  "fighter_state_fields": [
+    [
+      "int",
+      "toad_saved_facing"
+    ],
+    [
+      "float",
+      "float_timer"
+    ],
+    [
+      "bool",
+      "float_attack_released"
+    ],
+    [
+      "bool",
+      "side_smash"
+    ],
+    [
+      "int",
+      "parasol_request_kind"
+    ],
+    [
+      "int",
+      "parasol_handle"
+    ],
+    [
+      "int",
+      "saved_handle"
+    ],
+    [
+      "int",
+      "toad_handle"
+    ],
+    [
+      "int",
+      "vegetable_handle"
+    ],
+    [
+      "int",
+      "vegetable_kind"
+    ],
+    [
+      "float",
+      "spawn_x"
+    ],
+    [
+      "float",
+      "spawn_y"
+    ],
+    [
+      "float",
+      "spawn_z"
+    ],
+    [
+      "float",
+      "float_fall_forward_end"
+    ],
+    [
+      "float",
+      "float_fall_backward_end"
+    ],
+    [
+      "bool",
+      "has_float"
+    ],
+    [
+      "int",
+      "last_smash_motion"
+    ],
+    [
+      "bool",
+      "toad_air_boost_used"
+    ]
+  ],
+  "fighter_state_payload_bytes": 60,
+  "function_count": 43,
+  "function_names": [
+    "save_held_for_parasol",
+    "restore_held",
+    "forget_toad",
+    "forget_vegetable",
+    "cleanup_parasol",
+    "cleanup_toad",
+    "cleanup_vegetable",
+    "cleanup_resources",
+    "create_parasol",
+    "choose_vegetable",
+    "construct_vegetable",
+    "spawn_vegetable_accessory",
+    "create_explosion",
+    "pause_toad",
+    "resume_toad",
+    "install_toad_guard",
+    "create_toad",
+    "create_spore",
+    "reset_toad",
+    "toad_setup_hit",
+    "toad_setup_normal",
+    "toad_animation",
+    "toad_hit_animation",
+    "toad_air_physics",
+    "continue_float_input",
+    "enter_float",
+    "leave_float_direction",
+    "begin_float_attack",
+    "try_float_attack",
+    "float_landing",
+    "float_attack_animation",
+    "float_attack_interrupt",
+    "float_attack_physics",
+    "side_start_reset",
+    "side_face_velocity",
+    "side_reverse_velocity",
+    "side_post_end",
+    "side_ground_end",
+    "side_air_end",
+    "side_air_jump",
+    "side_rebound",
+    "side_start_acceleration",
+    "side_start_wall_contact"
+  ],
+  "fighter_parameter_declarations": 85,
+  "authored_motion_phases": 90,
+  "new_motion_phases": 56,
+  "null_motion": 356,
+  "remaining_inherited_motions": [
+    361,
+    362,
+    363,
+    364,
+    369,
+    370
+  ]
+}

@@ -1,0 +1,27 @@
+# Carried passive shield from ftLk_AttackAir_800EB3BC / ftCl_Init_8014919C.
+attribute int carried_shield_bone 196
+attribute float carried_shield_x 200
+attribute float carried_shield_y 204
+attribute float carried_shield_z 208
+attribute float carried_shield_radius 212
+attribute float carried_shield_light_amount 216
+parameter int carried_shield_recoil_sound = 160106
+
+func CarriedShield_Install():
+    if visuals.previous_group(int(2)) == 0:
+        guard.create(attrs.carried_shield_bone, attrs.carried_shield_x, attrs.carried_shield_y, attrs.carried_shield_z, attrs.carried_shield_radius, GuardHit)
+        guard.front_only = true
+        guard.filtered_attacks_only = true
+        guard.skip_contact_details = true
+
+func GuardHit():
+    let pushback = shield.pushback_damage_scale * (int(guard.hit_damage) * (1 - (attrs.carried_shield_light_amount * (shield.pushback_light_max - shield.pushback_light_min) + shield.pushback_light_min))) + shield.pushback_base
+    ground.velocity = pushback * shield.pushback_velocity_scale
+    if guard.hit_facing >= 0: ground.velocity = -ground.velocity
+    sound.play(attrs.carried_shield_recoil_sound, 127, 64)
+
+action CarriedShield:
+    on wait_enter:
+        CarriedShield_Install()
+    on crouch_wait_enter:
+        CarriedShield_Install()

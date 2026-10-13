@@ -1,0 +1,55 @@
+# Shared owned scalar observations. No retained native pointers.
+export func linked_position_x() -> float:
+    return position.x
+
+export func linked_position_y() -> float:
+    return position.y
+
+export func linked_position_z() -> float:
+    return position.z
+
+export func linked_velocity_x() -> float:
+    return velocity.x
+
+export func linked_velocity_y() -> float:
+    return velocity.y
+
+export func linked_velocity_z() -> float:
+    return velocity.z
+
+export func linked_accel_x() -> float:
+    return acceleration.x
+
+export func linked_accel_y() -> float:
+    return acceleration.y
+
+export func linked_accel_z() -> float:
+    return acceleration.z
+
+export func linked_ground_velocity() -> float:
+    return ground.velocity
+
+export func linked_ground_accel() -> float:
+    return ground.acceleration
+
+export func linked_facing() -> float:
+    return facing.direction
+
+export func linked_frame() -> float:
+    return frame
+
+export func linked_animation_rate() -> float:
+    return animation.rate
+
+export func linked_root_x() -> float:
+    return bones.root.rotation_x
+
+export func linked_scale_y() -> float:
+    return model.instance_scale_y
+
+export func linked_squall_released() -> bool:
+    return command(1) != 0
+
+
+export func linked_hitlag_active() -> bool:
+    return hitlag.active

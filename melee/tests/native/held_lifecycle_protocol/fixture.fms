@@ -1,0 +1,31 @@
+state int resumed
+state float blend_seen
+state bool landed
+state bool continued
+func record_landing(bool allowed):
+    state.landed = allowed
+action Lifecycle:
+    on neutral_enter:
+        state.blend_seen = event.blend
+        let bool notified = items.notify_held_neutral()
+        state.continued = notified
+    on air_resume_motion:
+        state.resumed = event.previous_motion
+        if event.previous_motion == Motion.fall_aerial:
+            return Motion.fall_aerial
+        if event.previous_motion == 370:
+            return Motion.fall_special
+    on held_timer_expired:
+        items.reopen_blocked = true
+        return items.reopen_blocked
+    on landing_action:
+        record_landing(event.interrupt_allowed)
+article It_Kind_Peach_Parasol states 1:
+    state int neutral_count
+    state 0 anim -1:
+    on holder_neutral:
+            item.state.neutral_count = item.state.neutral_count + 1
+article It_Kind_Peach_Turnip states 1:
+    state 0 anim -1:
+    on holder_neutral:
+            pass

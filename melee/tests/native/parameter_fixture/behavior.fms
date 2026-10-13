@@ -1,0 +1,14 @@
+action Values:
+    on state_341_physics:
+        motion.set_vertical_speed(attrs.lift)
+        if attrs.ready: velocity.x = attrs.uses
+    on landing_action:
+        velocity.x = 0
+
+article It_Kind_Fox_Laser states 1:
+    projectile appearance -1 state 0 speed speed angle 0 lifetime lifetime
+    state 0 anim 0:
+        on physics:
+            item.life = item.params.lifetime
+        on animation:
+            return item.params.enabled and item.params.limit > 0

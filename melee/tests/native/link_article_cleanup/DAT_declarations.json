@@ -1,0 +1,93 @@
+{
+  "declarations": {
+    "fighter": {
+      "source": "melee/ft/kinds/ftLink/types.h",
+      "type": "ftLk_DatAttrs",
+      "fields": {
+        "bow_max_charge": [
+          "float",
+          0,
+          "x0"
+        ],
+        "bow_start_rate": [
+          "float",
+          4,
+          "specialn_anim_rate"
+        ],
+        "bow_air_landing_lag": [
+          "float",
+          8,
+          "x8"
+        ],
+        "bow_arrow_kind": [
+          "int",
+          12,
+          "xC"
+        ],
+        "bow_kind": [
+          "int",
+          16,
+          "x10"
+        ]
+      }
+    },
+    "arrow": {
+      "source": "melee/it/itCharItems.h",
+      "type": "itLinkArrowAttributes",
+      "fields": {
+        "flight_lifetime": [
+          "float",
+          0,
+          "x0"
+        ],
+        "minimum_speed": [
+          "float",
+          4,
+          "x4"
+        ],
+        "maximum_speed": [
+          "float",
+          8,
+          "x8"
+        ],
+        "minimum_damage": [
+          "float",
+          12,
+          "xC"
+        ],
+        "maximum_damage": [
+          "float",
+          16,
+          "x10"
+        ],
+        "contact_velocity_multiplier": [
+          "float",
+          20,
+          "x14"
+        ],
+        "embedded_lifetime": [
+          "float",
+          24,
+          "x18"
+        ],
+        "gravity": [
+          "float",
+          28,
+          "x1C"
+        ],
+        "flight_angle_limit": [
+          "float",
+          32,
+          "x20"
+        ]
+      }
+    }
+  },
+  "sources_sha256": {
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline40\\sdk\\src\\melee\\ft\\kinds\\ftLink\\types.h": "70b458f6e709209d1a9799d0d8977486c6234b8a52fe73dfcf98d8dafd9d5f29",
+    "C:\\gayms\\freak-melee\\melee\\.local\\baseline40\\sdk\\src\\melee\\it\\itCharItems.h": "680ad368edca167d89dcc8ce66e999638abb3c1374e42bbf6c2b5d5b7368b9e9"
+  },
+  "normal_preparation_receipt": "C:\\gayms\\freak-melee\\melee\\.local\\link-article-cleanup40-final\\preparation.json",
+  "normal_preparation_receipt_sha256": "52f5aa273d79c07c3b00b0bf635ba3c9a85b4be1ea5eaa402b3650341f65d0c3",
+  "values_policy": "All stock values supplied by normal immutable DAT import; no manual FMP/default substitution."
+}

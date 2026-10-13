@@ -1,0 +1,1981 @@
+# Full Game & Watch composition; unregistered pending closure gate.
+# Import recipes derive from actual stock fields; literals name source constants.
+fighter:
+    behavior independent
+
+visibility_asset 10
+motion_policy 341 common 44
+motion_policy 343 common 48
+motion_policy 347 common 65
+motion_policy 348 common 67
+motion_policy 349 common 68
+
+parameter int chef_ground_motion = 353
+parameter int chef_air_motion = 354
+parameter int chef_spawn_joint = 17
+parameter int chef_variant_count = 5
+parameter int chef_transition_flags = 206327964
+attribute float chef_loop_frame 24
+attribute float chef_max_food 28
+parameter float chef_spawn_offset_x = 2.5
+parameter float chef_spawn_offset_y = 6.5
+parameter float chef_spawn_offset_z = 0.0
+parameter int judge_ground = 355
+parameter int judge_air = 364
+parameter int rescue_ground = 373
+parameter int rescue_air = 374
+parameter int panic_ground = 375
+parameter int panic_catch_ground = 376
+parameter int panic_shoot_ground = 377
+parameter int panic_air = 378
+parameter int panic_catch_air = 379
+parameter int panic_shoot_air = 380
+attribute float judge_preserve 32
+attribute float judge_decel 36
+attribute float judge_impulse 40
+attribute float judge_gravity 44
+attribute float judge_terminal 48
+attribute float rescue_stick 88
+attribute float rescue_angle 92
+attribute float rescue_landing 96
+parameter float rescue_collision_frame = 4.0
+parameter int rescue_sound = 290066
+parameter float rescue_offset = 2.5
+attribute float panic_preserve 100
+attribute float panic_decel 104
+attribute float panic_gravity 108
+attribute float panic_terminal 112
+attribute float panic_damage_add 116
+attribute float panic_damage_mul 120
+attribute float panic_turn_frames 124
+parameter float panic_loop_frame = 38.0
+parameter float panic_restart_frame = 5.0
+parameter int panic_full = 3
+attribute int panic_absorb_part 128
+attribute float panic_absorb_x 132
+attribute float panic_absorb_y 136
+attribute float panic_absorb_z 140
+attribute float panic_absorb_radius 144
+parameter int judge_flags = 206327964
+parameter int panic_switch_flags = 206327950
+parameter int panic_loop_flags = 206327946
+attribute int judge_weight_0 52
+attribute int judge_weight_1 56
+attribute int judge_weight_2 60
+attribute int judge_weight_3 64
+attribute int judge_weight_4 68
+attribute int judge_weight_5 72
+attribute int judge_weight_6 76
+attribute int judge_weight_7 80
+attribute int judge_weight_8 84
+parameter float judge_food_offset_y = 5.0
+parameter int judge_attachment_part = 32
+parameter int jab_motion = 341
+parameter int rapid_start_motion = 342
+parameter int rapid_loop_motion = 343
+parameter int rapid_end_motion = 344
+parameter int down_tilt_motion = 345
+parameter int forward_smash_motion = 346
+parameter int neutral_air_motion = 347
+parameter int back_air_motion = 348
+parameter int up_air_motion = 349
+parameter int neutral_landing_motion = 350
+parameter int back_landing_motion = 351
+parameter int up_landing_motion = 352
+parameter int manhole_wind_frames = 120
+parameter float manhole_wind_strength = 3.0
+parameter float manhole_wind_decay = 0.1
+parameter float manhole_wind_frequency = 1.0471976
+parameter float torch_visible_frame = 3.0
+parameter float parachute_end_frame = 30.0
+parameter int normal_handnb_part = 32
+parameter int normal_trans_part = 1
+parameter int normal_shoulder_part = 17
+parameter int normal_hand_part = 21
+attribute float model_width 0
+attribute byte body_0_r 4
+attribute byte body_0_g 5
+attribute byte body_0_b 6
+attribute byte body_0_a 7
+attribute byte body_1_r 8
+attribute byte body_1_g 9
+attribute byte body_1_b 10
+attribute byte body_1_a 11
+attribute byte body_2_r 12
+attribute byte body_2_g 13
+attribute byte body_2_b 14
+attribute byte body_2_a 15
+attribute byte body_3_r 16
+attribute byte body_3_g 17
+attribute byte body_3_b 18
+attribute byte body_3_a 19
+attribute byte outline_r 20
+attribute byte outline_g 21
+attribute byte outline_b 22
+attribute byte outline_a 23
+
+# immutable layered-render metadata is available. No complete-fighter claim.
+state int chef_latest
+state int chef_previous
+state int chef_spawned
+state bool chef_loop_disabled
+
+state int judge_latest
+state int judge_previous
+state bool judge_impulse_used
+state int judge_handle
+state int rescue_handle
+state int panic_handle
+state int panic_charge
+state int panic_damage
+state bool panic_release
+state int panic_turn
+
+# Ordered normal-prop lifecycle. Accepted specials are composed by compose.py.
+state int saved_manhole_held
+state int greenhouse_handle
+state int manhole_handle
+state int torch_handle
+state int parachute_handle
+state int turtle_handle
+state int sparky_handle
+
+# These helpers compute values from the fighter's own immutable parameters;
+# they do not cache palette state or read a surrogate x610 diffuse field.
+
+func PaperBodyColor() -> int:
+    if costume.index == 1:
+        return color.rgba(attrs.body_1_r, attrs.body_1_g, attrs.body_1_b, attrs.body_1_a)
+    if costume.index == 2:
+        return color.rgba(attrs.body_2_r, attrs.body_2_g, attrs.body_2_b, attrs.body_2_a)
+    if costume.index == 3:
+        return color.rgba(attrs.body_3_r, attrs.body_3_g, attrs.body_3_b, attrs.body_3_a)
+    # Defined retail domain is 0..3. Invalid custom costumes select palette0.
+    return color.rgba(attrs.body_0_r, attrs.body_0_g, attrs.body_0_b, attrs.body_0_a)
+
+func PaperOutlineColor() -> int:
+    return color.rgba(attrs.outline_r, attrs.outline_g, attrs.outline_b, attrs.outline_a)
+
+func ChefCreate():
+    if command(0) != 0:
+        command(0) = 0
+        if float(state.chef_spawned) < attrs.chef_max_food:
+            state.chef_spawned = state.chef_spawned + 1
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            bones.world_position(attrs.chef_spawn_joint, x, y, z, attrs.chef_spawn_offset_x, attrs.chef_spawn_offset_y, attrs.chef_spawn_offset_z)
+            let int variant = random.int_excluding(attrs.chef_variant_count, state.chef_latest, state.chef_previous)
+            state.chef_previous = state.chef_latest
+            state.chef_latest = variant
+            # Count and history deliberately change even if creation fails.
+            let int created = articles.create_with_velocity(It_Kind_GameWatch_Chef, x, y, 0, 0, 0, 0, facing.direction, true, 0, float(variant), true)
+        callbacks.accessory(None)
+
+func ChefEnter(bool in_air):
+    velocity.y = 0
+    if in_air: state.enter_at_speed(attrs.chef_air_motion, 0, 0, 1)
+    else: state.enter_at_speed(attrs.chef_ground_motion, 0, 0, 1)
+    animation.start()
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    state.chef_loop_disabled = false
+    state.chef_spawned = 0
+    callbacks.accessory(ChefCreate)
+
+func ChefLoop(bool in_air):
+    let int motion = attrs.chef_ground_motion
+    if in_air: motion = attrs.chef_air_motion
+    state.enter_at_speed(motion, attrs.chef_transition_flags, attrs.chef_loop_frame - 1, 1)
+    animation.start()
+    command(1) = 0
+    command(2) = 0
+    state.chef_loop_disabled = false
+    callbacks.accessory(ChefCreate)
+
+func ChefInterrupt(bool in_air):
+    if not input.special_held: state.chef_loop_disabled = true
+    if command(1) != 0 and input.special_pressed and float(state.chef_spawned) < attrs.chef_max_food:
+        ChefLoop(in_air)
+
+func JudgeRoll() -> int:
+    let int total = 0
+    if state.judge_latest != 0 and state.judge_previous != 0: total = total + attrs.judge_weight_0
+    if state.judge_latest != 1 and state.judge_previous != 1: total = total + attrs.judge_weight_1
+    if state.judge_latest != 2 and state.judge_previous != 2: total = total + attrs.judge_weight_2
+    if state.judge_latest != 3 and state.judge_previous != 3: total = total + attrs.judge_weight_3
+    if state.judge_latest != 4 and state.judge_previous != 4: total = total + attrs.judge_weight_4
+    if state.judge_latest != 5 and state.judge_previous != 5: total = total + attrs.judge_weight_5
+    if state.judge_latest != 6 and state.judge_previous != 6: total = total + attrs.judge_weight_6
+    if state.judge_latest != 7 and state.judge_previous != 7: total = total + attrs.judge_weight_7
+    if state.judge_latest != 8 and state.judge_previous != 8: total = total + attrs.judge_weight_8
+    # Original result is undefined if no positive eligible total exists.
+    # Defined tuning requires nonnegative weights and at least one candidate.
+    let int roll = random.int(total)
+    let int selected = -1
+    let int cumulative = 0
+    if state.judge_latest != 0 and state.judge_previous != 0:
+        cumulative = cumulative + attrs.judge_weight_0
+        if selected == -1 and roll < cumulative: selected = 0
+    if state.judge_latest != 1 and state.judge_previous != 1:
+        cumulative = cumulative + attrs.judge_weight_1
+        if selected == -1 and roll < cumulative: selected = 1
+    if state.judge_latest != 2 and state.judge_previous != 2:
+        cumulative = cumulative + attrs.judge_weight_2
+        if selected == -1 and roll < cumulative: selected = 2
+    if state.judge_latest != 3 and state.judge_previous != 3:
+        cumulative = cumulative + attrs.judge_weight_3
+        if selected == -1 and roll < cumulative: selected = 3
+    if state.judge_latest != 4 and state.judge_previous != 4:
+        cumulative = cumulative + attrs.judge_weight_4
+        if selected == -1 and roll < cumulative: selected = 4
+    if state.judge_latest != 5 and state.judge_previous != 5:
+        cumulative = cumulative + attrs.judge_weight_5
+        if selected == -1 and roll < cumulative: selected = 5
+    if state.judge_latest != 6 and state.judge_previous != 6:
+        cumulative = cumulative + attrs.judge_weight_6
+        if selected == -1 and roll < cumulative: selected = 6
+    if state.judge_latest != 7 and state.judge_previous != 7:
+        cumulative = cumulative + attrs.judge_weight_7
+        if selected == -1 and roll < cumulative: selected = 7
+    if state.judge_latest != 8 and state.judge_previous != 8:
+        cumulative = cumulative + attrs.judge_weight_8
+        if selected == -1 and roll < cumulative: selected = 8
+    state.judge_previous = state.judge_latest
+    state.judge_latest = selected
+    return selected
+
+func JudgeSetup():
+    if command(1) != 0:
+        command(1) = 0
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(bones.index(RightThumb), x, y, z, 0, 0, 0)
+        state.judge_handle = articles.create_with_velocity(It_Kind_GameWatch_Judge, x, y, z, 0, 0, 0, facing.direction, false, 0, float(state.judge_latest), true)
+        if state.judge_latest == 6:
+            bones.world_position(bones.index(LeftThumb), x, y, z, 0, attrs.judge_food_offset_y, 0)
+            let bool spawned_food = items.spawn_food(x, y, z)
+        if state.judge_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(JudgePause)
+        callbacks.post_hitlag(JudgeResume)
+        callbacks.accessory(None)
+
+func JudgePause():
+    articles.signal_owned(state.judge_handle, It_Kind_GameWatch_Judge, "Pause", 0)
+
+func JudgeResume():
+    articles.signal_owned(state.judge_handle, It_Kind_GameWatch_Judge, "Resume", 0)
+
+func JudgeClear():
+    JudgeResume()
+    state.judge_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func JudgeCalls():
+    if state.judge_handle != -1:
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(JudgePause)
+    callbacks.post_hitlag(JudgeResume)
+    callbacks.accessory(JudgeSetup)
+
+func JudgeEnter(bool air):
+    if air: velocity.x = velocity.x / attrs.judge_preserve
+    else: velocity.y = 0
+    let int selected = JudgeRoll()
+    let int first = attrs.judge_ground
+    if air: first = attrs.judge_air
+    state.enter_at_speed(first + selected, 0, 0, 1)
+    animation.start()
+    command(1) = 0
+    command(0) = 0
+    callbacks.accessory(JudgeSetup)
+
+func JudgeSwitch(bool air):
+    if air: physics.ground_to_air()
+    else:
+        state.judge_impulse_used = false
+        physics.switch_to_ground()
+    let int first = attrs.judge_ground
+    if air: first = attrs.judge_air
+    state.enter_at_speed(first + state.judge_latest, attrs.judge_flags, frame, 1)
+    if air and command(0) == 1: command(0) = 2
+    JudgeCalls()
+
+func JudgeAirPhysics():
+    if uint(command(0)) >= 1:
+        if command(0) == 1:
+            command(0) = 2
+            if not state.judge_impulse_used:
+                state.judge_impulse_used = true
+                velocity.y = attrs.judge_impulse
+            else: velocity.y = 0
+        physics.fall(attrs.judge_gravity, attrs.judge_terminal)
+    else: physics.fall_basic()
+    physics.air_decel(attrs.judge_decel)
+
+func RescueSetup():
+    if state.rescue_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        # Original directly uses raw part0; copied GW Top alias also maps0.
+        bones.world_position(0, x, y, z, 0, 0, 0)
+        let float scale = model.instance_scale_y * model.base_scale
+        y = -(attrs.rescue_offset * scale - y)
+        state.rescue_handle = articles.create_with_velocity(It_Kind_GameWatch_Rescue, x, y, 0, 0, 0, 0, facing.direction, false, 0, float(motion.id - attrs.rescue_ground), false)
+        if state.rescue_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(RescuePause)
+        callbacks.post_hitlag(RescueResume)
+        callbacks.accessory(None)
+    # If handle already present original does not clear accessory4.
+
+func RescuePause():
+    articles.signal_owned(state.rescue_handle, It_Kind_GameWatch_Rescue, "Pause", 0)
+
+func RescueResume():
+    articles.signal_owned(state.rescue_handle, It_Kind_GameWatch_Rescue, "Resume", 0)
+
+func RescueClear():
+    state.rescue_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func RescueRemove():
+    if state.rescue_handle != -1:
+        articles.signal_owned(state.rescue_handle, It_Kind_GameWatch_Rescue, "Remove", 0)
+        RescueClear()
+
+func RescueEnter(bool air):
+    if not air:
+        acceleration.y = 0
+        velocity.y = 0
+    physics.force_air_and_use_jumps()
+    let int motion = attrs.rescue_ground
+    if air: motion = attrs.rescue_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    callbacks.accessory(RescueSetup)
+    animation.start()
+    sound.play(attrs.rescue_sound, 127, 64)
+
+func RescueAnimation():
+    if animation.finished:
+        if attrs.rescue_landing == 0:
+            state.fall()
+            return
+        state.freefall_blend(true, false, true, 1, attrs.rescue_landing, 0)
+
+func RescueInterrupt():
+    if command(0) == 0:
+        let float magnitude = abs(input.x)
+        if magnitude > attrs.rescue_stick:
+            let float direction = -1
+            if input.x > 0: direction = 1
+            let float amount = (magnitude - attrs.rescue_stick) * direction
+            let float angle = amount * attrs.rescue_angle
+            facing.from_input()
+            bones.rotate_y(Top, 1.5707963267948966 * facing.direction)
+            motion.launch_angle = -angle
+            command(0) = 1
+
+func RescueCollision():
+    if frame > attrs.rescue_collision_frame:
+        if velocity.y >= 0:
+            if collision.landed:
+                RescueRemove()
+                physics.switch_to_ground()
+                state.landing_special(false, attrs.rescue_landing)
+                callbacks.death2(None)
+                callbacks.damage(None)
+        else:
+            if collision.check_ground_ledge(facing.sign): state.landing_special(false, attrs.rescue_landing)
+            elif collision.cliff_catch(): state.catch_ledge()
+
+func PanicSetup():
+    if state.panic_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(0, x, y, z, 0, 0, 0)
+        state.panic_handle = articles.create_with_velocity(It_Kind_GameWatch_Panic, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.panic_handle != -1:
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(PanicPause)
+    callbacks.post_hitlag(PanicResume)
+    callbacks.accessory(None)
+
+func PanicPause():
+    articles.signal_owned(state.panic_handle, It_Kind_GameWatch_Panic, "Pause", 0)
+
+func PanicResume():
+    articles.signal_owned(state.panic_handle, It_Kind_GameWatch_Panic, "Resume", 0)
+
+func PanicClear():
+    PanicResume()
+    state.panic_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func BucketModels():
+    # Oil Panic updates current model selections, not the saved selections.
+    visuals.set_current_group(5, 2)
+    if state.panic_charge == 0:
+        visuals.set_current_group(6, -1)
+        visuals.set_current_group(7, -1)
+        visuals.set_current_group(8, -1)
+    elif state.panic_charge == 1:
+        visuals.set_current_group(6, 0)
+        visuals.set_current_group(7, -1)
+        visuals.set_current_group(8, -1)
+    elif state.panic_charge == 2:
+        visuals.set_current_group(6, 0)
+        visuals.set_current_group(7, 0)
+        visuals.set_current_group(8, -1)
+    else:
+        visuals.set_current_group(6, 0)
+        visuals.set_current_group(7, 0)
+        visuals.set_current_group(8, 0)
+
+func PanicAbsorber():
+    absorber.create(attrs.panic_absorb_part, attrs.panic_absorb_x, attrs.panic_absorb_y, attrs.panic_absorb_z, attrs.panic_absorb_radius)
+
+func PanicUpdate(int phase):
+    if phase == 0:
+        if command(0) == 1:
+            command(0) = 2
+            PanicAbsorber()
+        elif command(0) == 0: absorber.active = false
+    elif phase == 1:
+        if command(0) == 2: PanicAbsorber()
+        elif command(0) == 0: absorber.active = false
+    else:
+        if uint(command(0)) >= 1:
+            command(0) = 2
+            PanicAbsorber()
+    if command(0) != 0: BucketModels()
+
+func PanicLoop(bool air):
+    let int motion = attrs.panic_ground
+    if air: motion = attrs.panic_air
+    state.enter_at_speed(motion, attrs.panic_loop_flags, attrs.panic_restart_frame - 1, 1)
+    animation.start()
+    PanicUpdate(2)
+
+func PanicShoot(bool air):
+    let int motion = attrs.panic_shoot_ground
+    if air: motion = attrs.panic_shoot_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    animation.start()
+    # Both intermediate truncations are intentional original cmd-var writes.
+    command(1) = int(float(state.panic_damage) * attrs.panic_damage_mul)
+    let float damage = float(command(1)) + attrs.panic_damage_add
+    command(1) = int(damage)
+    state.panic_charge = 0
+    state.panic_damage = 0
+    BucketModels()
+    callbacks.accessory(PanicSetup)
+
+func PanicEnter(bool air):
+    if state.panic_charge >= attrs.panic_full:
+        PanicShoot(air)
+        return
+    if air: velocity.x = velocity.x / attrs.panic_preserve
+    velocity.y = 0
+    let int motion = attrs.panic_ground
+    if air: motion = attrs.panic_air
+    state.enter_at_speed(motion, 0, 0, 1)
+    animation.start()
+    command(1) = 0
+    command(0) = 0
+    state.panic_release = false
+    state.panic_turn = 0
+
+func PanicAnimation(bool air):
+    if frame == attrs.panic_loop_frame and not state.panic_release: PanicLoop(air)
+    PanicUpdate(0)
+    if animation.finished:
+        if air: state.fall()
+        else: state.wait()
+
+func PanicInterrupt():
+    if state.panic_turn > 0: state.panic_turn = state.panic_turn - 1
+    else:
+        if abs(input.x) > controls.horizontal_stick_deadzone:
+            let float previous = facing.direction
+            facing.from_input()
+            if previous != facing.direction: state.panic_turn = int(attrs.panic_turn_frames)
+    if not input.special_held: state.panic_release = true
+
+func PanicPhysics(bool air):
+    if air:
+        physics.fall(attrs.panic_gravity, attrs.panic_terminal)
+        physics.air_decel(attrs.panic_decel)
+    else: physics.ground_friction()
+    absorber.skip_position_update = false
+
+func PanicSwitch(bool air, int phase):
+    if air: physics.ground_to_air()
+    else: physics.switch_to_ground()
+    let int motion = attrs.panic_ground + phase
+    if air: motion = attrs.panic_air + phase
+    state.enter_at_speed(motion, attrs.panic_switch_flags, frame, 1)
+    if phase == 0: PanicUpdate(1)
+    elif phase == 2:
+        BucketModels()
+        callbacks.accessory(PanicSetup)
+
+func PanicCatchAnimation(bool air):
+    if not animation.finished: return
+    if state.panic_charge >= attrs.panic_full:
+        if air: state.fall()
+        else: state.wait()
+        return
+    PanicLoop(air)
+
+func PanicShootAnimation(bool air):
+    if hitbox.state(0) == Hitbox.enabled: hitbox.set_damage(0, command(1))
+    if hitbox.state(1) == Hitbox.enabled: hitbox.set_damage(1, command(1))
+    if hitbox.state(2) == Hitbox.enabled: hitbox.set_damage(2, command(1))
+    if hitbox.state(3) == Hitbox.enabled: hitbox.set_damage(3, command(1))
+    if animation.finished:
+        if air: state.fall()
+        else: state.wait()
+
+func GreenhousePause():
+    if state.greenhouse_handle != -1: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "Pause", 0)
+
+func GreenhouseResume():
+    if state.greenhouse_handle != -1: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "Resume", 0)
+
+func GreenhouseClear():
+    GreenhouseResume()
+    state.greenhouse_handle = -1
+
+func GreenhouseRemove():
+    if state.greenhouse_handle != -1:
+        # Source explicitly calls its owner cleanup BEFORE item destruction.
+        let int handle = state.greenhouse_handle
+        GreenhouseClear()
+        articles.remove_owned(handle)
+        GreenhouseClear()
+
+func ManholePause():
+    if state.manhole_handle != -1: articles.signal_owned(state.manhole_handle, It_Kind_GameWatch_Manhole, "Pause", 0)
+
+func ManholeResume():
+    if state.manhole_handle != -1: articles.signal_owned(state.manhole_handle, It_Kind_GameWatch_Manhole, "Resume", 0)
+
+func ManholeClear():
+    ManholeResume()
+    state.manhole_handle = -1
+    if state.saved_manhole_held != -1:
+        items.bind_existing_held(state.saved_manhole_held)
+        state.saved_manhole_held = -1
+        let int handle = items.held_id
+        items.set_visible(handle, true)
+        items.set_paused(handle, false)
+        items.notify_pickup(true)
+
+func ManholeRemove():
+    if state.manhole_handle != -1:
+        let int handle = state.manhole_handle
+        ManholeClear()
+        articles.remove_owned(handle)
+        ManholeClear()
+
+func TorchPause():
+    if state.torch_handle != -1: articles.signal_owned(state.torch_handle, It_Kind_GameWatch_Fire, "Pause", 0)
+
+func TorchResume():
+    if state.torch_handle != -1: articles.signal_owned(state.torch_handle, It_Kind_GameWatch_Fire, "Resume", 0)
+
+func TorchClear():
+    TorchResume()
+    state.torch_handle = -1
+
+func TorchRemove():
+    if state.torch_handle != -1:
+        let int handle = state.torch_handle
+        TorchClear()
+        articles.remove_owned(handle)
+        TorchClear()
+
+func AirPropsPause():
+    if state.parachute_handle != -1: articles.signal_owned(state.parachute_handle, It_Kind_GameWatch_Parachute, "Pause", 0)
+    if state.turtle_handle != -1: articles.signal_owned(state.turtle_handle, It_Kind_GameWatch_Turtle, "Pause", 0)
+    if state.sparky_handle != -1: articles.signal_owned(state.sparky_handle, It_Kind_GameWatch_Breath, "Pause", 0)
+
+func AirPropsResume():
+    if state.parachute_handle != -1: articles.signal_owned(state.parachute_handle, It_Kind_GameWatch_Parachute, "Resume", 0)
+    if state.turtle_handle != -1: articles.signal_owned(state.turtle_handle, It_Kind_GameWatch_Turtle, "Resume", 0)
+    if state.sparky_handle != -1: articles.signal_owned(state.sparky_handle, It_Kind_GameWatch_Breath, "Resume", 0)
+
+func ParachuteClear():
+    AirPropsResume()
+    state.parachute_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func TurtleClear():
+    AirPropsResume()
+    state.turtle_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func SparkyClear():
+    AirPropsResume()
+    state.sparky_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+func ParachuteRemove():
+    if state.parachute_handle != -1:
+        let int handle = state.parachute_handle
+        ParachuteClear()
+        articles.remove_owned(handle)
+        ParachuteClear()
+
+func TurtleRemove():
+    if state.turtle_handle != -1:
+        let int handle = state.turtle_handle
+        TurtleClear()
+        articles.remove_owned(handle)
+        TurtleClear()
+
+func SparkyRemove():
+    if state.sparky_handle != -1:
+        let int handle = state.sparky_handle
+        SparkyClear()
+        articles.remove_owned(handle)
+        SparkyClear()
+
+func JudgeRemove():
+    if state.judge_handle != -1:
+        let int handle = state.judge_handle
+        JudgeClear()
+        articles.remove_owned(handle)
+        JudgeClear()
+
+func PanicRemove():
+    if state.panic_handle != -1:
+        let int handle = state.panic_handle
+        PanicClear()
+        articles.remove_owned(handle)
+        PanicClear()
+
+func PropDamage():
+    # Source order is observable: clear callbacks, restore held item and resume
+    # surviving air props at their original positions in this nine-prop chain.
+    GreenhouseRemove()
+    ManholeRemove()
+    TorchRemove()
+    ParachuteRemove()
+    TurtleRemove()
+    SparkyRemove()
+    JudgeRemove()
+    PanicRemove()
+    RescueRemove()
+
+func CleanupIfAir():
+    if airborne: PropDamage()
+
+func GreenhouseDecide():
+    if state.greenhouse_handle != -1:
+        if motion.id == attrs.jab_motion: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "Jab", 0)
+        if motion.id == attrs.rapid_start_motion: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "Start", 0)
+        if motion.id == attrs.rapid_loop_motion: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "Loop", 0)
+        if motion.id == attrs.rapid_end_motion: articles.signal_owned(state.greenhouse_handle, It_Kind_GameWatch_Greenhouse, "End", 0)
+        if callbacks.matches(Callback.death2, None): callbacks.death2(PropDamage)
+        if callbacks.matches(Callback.damage, None): callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(GreenhousePause)
+        callbacks.post_hitlag(GreenhouseResume)
+        callbacks.accessory(None)
+
+func ParachuteLand():
+    if state.parachute_handle != -1:
+        AirPropsResume()
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.parachute_handle, It_Kind_GameWatch_Parachute, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+
+func TurtleLand():
+    if state.turtle_handle != -1:
+        AirPropsResume()
+        # Original checks LandingAirN350, deliberately NOT LandingAirB351.
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.turtle_handle, It_Kind_GameWatch_Turtle, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+
+func SparkyLand():
+    if state.sparky_handle != -1:
+        AirPropsResume()
+        # Original also checks350 rather than its own LandingAirHi352.
+        if motion.id == attrs.neutral_landing_motion: articles.signal_owned(state.sparky_handle, It_Kind_GameWatch_Breath, "Land", 0)
+        callbacks.death2(PropDamage)
+        callbacks.damage(PropDamage)
+        callbacks.pre_hitlag(AirPropsPause)
+        callbacks.post_hitlag(AirPropsResume)
+        callbacks.accessory(None)
+
+func OwnedReset():
+    state.judge_latest = 1
+    state.judge_previous = 0
+    state.judge_impulse_used = false
+    state.panic_damage = 0
+    # Death deliberately preserves panic_charge; load initializes it separately.
+    state.chef_latest = 1
+    state.chef_previous = 3
+    ClearPropHandles()
+
+func ClearPropHandles():
+    state.saved_manhole_held = -1
+    state.greenhouse_handle = -1
+    state.manhole_handle = -1
+    state.torch_handle = -1
+    state.parachute_handle = -1
+    state.turtle_handle = -1
+    state.sparky_handle = -1
+    state.judge_handle = -1
+    state.panic_handle = -1
+    state.rescue_handle = -1
+
+func GreenhouseSetup():
+    if state.greenhouse_handle != -1: GreenhouseDecide()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+        state.greenhouse_handle = articles.create_with_velocity(It_Kind_GameWatch_Greenhouse, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.greenhouse_handle != -1:
+            if callbacks.matches(Callback.death2, None): callbacks.death2(PropDamage)
+            if callbacks.matches(Callback.damage, None): callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(GreenhousePause)
+            callbacks.post_hitlag(GreenhouseResume)
+    callbacks.accessory(None)
+func ManholeSetup():
+    if state.manhole_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+        let int held = items.held_id
+        if held != -1:
+            state.saved_manhole_held = held
+            items.set_visible(held, false)
+            items.set_paused(held, true)
+            items.notify_drop(held, true)
+        state.manhole_handle = articles.create_with_velocity(It_Kind_GameWatch_Manhole, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.manhole_handle != -1:
+        if callbacks.matches(Callback.death2, None): callbacks.death2(PropDamage)
+        if callbacks.matches(Callback.damage, None): callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(ManholePause)
+    callbacks.post_hitlag(ManholeResume)
+    callbacks.accessory(None)
+func TorchSetup():
+    # Original allocates again even when a previous Torch handle is present.
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+    state.torch_handle = articles.create_with_velocity(It_Kind_GameWatch_Fire, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.torch_handle != -1:
+        if callbacks.matches(Callback.death2, None): callbacks.death2(PropDamage)
+        if callbacks.matches(Callback.damage, None): callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(TorchPause)
+    callbacks.post_hitlag(TorchResume)
+    callbacks.accessory(None)
+func ParachuteSetup():
+    if state.parachute_handle != -1: ParachuteLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_trans_part, x, y, z, 0, 0, 0)
+        state.parachute_handle = articles.create_with_velocity(It_Kind_GameWatch_Parachute, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.parachute_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func TurtleSetup():
+    if state.turtle_handle != -1: TurtleLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_shoulder_part, x, y, z, 0, 0, 0)
+        state.turtle_handle = articles.create_with_velocity(It_Kind_GameWatch_Turtle, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.turtle_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func SparkySetup():
+    if state.sparky_handle != -1: SparkyLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_hand_part, x, y, z, 0, 0, 0)
+        state.sparky_handle = articles.create_with_velocity(It_Kind_GameWatch_Breath, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.sparky_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func RapidLoopEnter():
+    state.enter_at_speed(attrs.rapid_loop_motion, 0, 0, 1)
+    callbacks.accessory(GreenhouseDecide)
+func RapidEndEnter():
+    state.enter_at_speed(attrs.rapid_end_motion, 0, 0, 1)
+    callbacks.accessory(GreenhouseDecide)
+func NormalGroundCollision():
+    collision.ground_standard()
+    CleanupIfAir()
+func DownTiltInterrupt():
+    if controls.interrupt_allowed:
+        if controls.try_side_smash(): return
+        if controls.try_up_smash(): return
+        if controls.try_down_smash(): return
+        if controls.try_side_tilt(): return
+        if controls.try_up_tilt(): return
+        if controls.try_down_tilt(): return
+        if controls.try_jab(): return
+        if controls.try_ground_jump(): return
+        if controls.try_dash(): return
+        if controls.try_crouch(): return
+        if controls.try_turn(): return
+        if controls.try_walk(): return
+func NeutralLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        state.landing_aerial(attrs.neutral_landing_motion, stats.landing_air_neutral_lag)
+        callbacks.accessory(ParachuteLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func BackLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        state.landing_aerial(attrs.back_landing_motion, stats.landing_air_back_lag)
+        callbacks.accessory(TurtleLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func UpLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        # Original uses Back landing lag, preserved deliberately.
+        state.landing_aerial(attrs.up_landing_motion, stats.landing_air_back_lag)
+        callbacks.accessory(SparkyLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func AirAnimation():
+    if cue.reverse.consume(): facing.direction = -facing.direction
+    if animation.finished: state.fall()
+func LandingAnimation(int expected_motion):
+    if animation.finished: state.wait()
+    if motion.id != expected_motion: PropDamage()
+func LandingCollision(int expected_motion):
+    collision.ground_with_nudge()
+    if motion.id != expected_motion: PropDamage()
+move NormalEntries:
+    on jab_enter:
+        if attack.enter_jab(attrs.jab_motion): callbacks.accessory(GreenhouseSetup)
+    on rapid_jab_enter:
+        attack.enter_rapid_jab(attrs.rapid_start_motion)
+        # Source sets accessory even when pickup consumed the common entry.
+        callbacks.accessory(GreenhouseSetup)
+    on down_tilt_enter:
+        if items.try_ground_pickup(): return
+        controls.interrupt_allowed = false
+        state.enter_at_speed(attrs.down_tilt_motion, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ManholeSetup)
+    on forward_smash_enter:
+        controls.interrupt_allowed = false
+        command(0) = 0
+        state.enter_at_speed(attrs.forward_smash_motion, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(TorchSetup)
+    on aerial_attack_motion:
+        if event.motion == 65: return attrs.neutral_air_motion
+        if event.motion == 67: return attrs.back_air_motion
+        if event.motion == 68: return attrs.up_air_motion
+        return event.motion
+    on aerial_attack_enter:
+        if motion.id == attrs.neutral_air_motion: callbacks.accessory(ParachuteSetup)
+        if motion.id == attrs.back_air_motion: callbacks.accessory(TurtleSetup)
+        if motion.id == attrs.up_air_motion: callbacks.accessory(SparkySetup)
+    on state_341_animation:
+        if animation.finished: state.wait()
+    # state341 IASA is the shared common Attack11_IASA via motion_policy.
+    on state_341_physics:
+        physics.ground_motion()
+    on state_341_collision:
+        NormalGroundCollision()
+    on state_342_animation:
+        if animation.finished: RapidLoopEnter()
+    on state_342_interrupt:
+        pass
+    on state_342_physics:
+        physics.ground_motion()
+    on state_342_collision:
+        NormalGroundCollision()
+    on state_343_animation:
+        attack.update_rapid_jab(RapidEndEnter)
+    # state343 IASA is shared common Attack100Loop_IASA via motion_policy.
+    on state_343_physics:
+        physics.ground_motion()
+    on state_343_collision:
+        NormalGroundCollision()
+    on state_344_animation:
+        if animation.finished: state.wait()
+    on state_344_interrupt:
+        pass
+    on state_344_physics:
+        physics.ground_motion()
+    on state_344_collision:
+        NormalGroundCollision()
+    on state_345_animation:
+        if animation.finished: state.crouch_wait()
+    on state_345_interrupt:
+        DownTiltInterrupt()
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        NormalGroundCollision()
+    on state_346_animation:
+        if animation.finished: state.wait()
+    on state_346_interrupt:
+        if controls.interrupt_allowed: controls.ground_actions()
+    on state_346_physics:
+        physics.ground_motion()
+    on state_346_collision:
+        NormalGroundCollision()
+    on state_347_animation:
+        AirAnimation()
+    # N/B/Hi IASA bind the ordinary common aerial policy, without GW handlers.
+    on state_347_physics:
+        physics.air_drift()
+    on state_347_collision:
+        collision.air_aerial_landing_callback(NeutralLandingEnter)
+    on state_348_animation:
+        AirAnimation()
+    on state_348_physics:
+        physics.air_drift()
+    on state_348_collision:
+        collision.air_aerial_landing_callback(BackLandingEnter)
+    on state_349_animation:
+        AirAnimation()
+    on state_349_physics:
+        physics.air_drift()
+    on state_349_collision:
+        collision.air_aerial_landing_callback(UpLandingEnter)
+    on state_350_animation:
+        LandingAnimation(attrs.neutral_landing_motion)
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        LandingCollision(attrs.neutral_landing_motion)
+    on state_351_animation:
+        LandingAnimation(attrs.back_landing_motion)
+    on state_351_interrupt:
+        pass
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        LandingCollision(attrs.back_landing_motion)
+    on state_352_animation:
+        LandingAnimation(attrs.up_landing_motion)
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.ground_friction()
+    on state_352_collision:
+        LandingCollision(attrs.up_landing_motion)
+
+move Chef:
+    on special_n:
+        ChefEnter(false)
+    on special_air_n:
+        ChefEnter(true)
+    on state_353_animation:
+        if command(2) != 0:
+            command(2) = 0
+            if float(state.chef_spawned) < attrs.chef_max_food and not state.chef_loop_disabled:
+                ChefLoop(false)
+        if animation.finished: state.wait()
+    on state_354_animation:
+        if command(2) != 0:
+            command(2) = 0
+            if not state.chef_loop_disabled and float(state.chef_spawned) < attrs.chef_max_food:
+                ChefLoop(true)
+        if animation.finished: state.fall()
+    on state_353_interrupt:
+        ChefInterrupt(false)
+    on state_354_interrupt:
+        ChefInterrupt(true)
+    on state_353_physics:
+        physics.ground_friction()
+    on state_354_physics:
+        physics.air_gravity_and_friction()
+    on state_353_collision:
+        if collision.special_ground_lost:
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.chef_air_motion, attrs.chef_transition_flags, frame, 1)
+            callbacks.accessory(ChefCreate)
+    on state_354_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.chef_ground_motion, attrs.chef_transition_flags, frame, 1)
+            callbacks.accessory(ChefCreate)
+
+move Judge:
+    on special_s:
+        JudgeEnter(false)
+    on special_air_s:
+        JudgeEnter(true)
+
+move Rescue:
+    on special_hi:
+        RescueEnter(false)
+    on special_air_hi:
+        RescueEnter(true)
+
+move Panic:
+    on special_lw:
+        PanicEnter(false)
+    on special_air_lw:
+        PanicEnter(true)
+
+move SpecialPhases:
+    on state_355_animation:
+        if animation.finished: state.wait()
+    on state_355_interrupt:
+        pass
+    on state_355_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_355_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_356_animation:
+        if animation.finished: state.wait()
+    on state_356_interrupt:
+        pass
+    on state_356_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_356_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_357_animation:
+        if animation.finished: state.wait()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_357_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_358_animation:
+        if animation.finished: state.wait()
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_358_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_359_animation:
+        if animation.finished: state.wait()
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_359_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_360_animation:
+        if animation.finished: state.wait()
+    on state_360_interrupt:
+        pass
+    on state_360_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_360_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_361_animation:
+        if animation.finished: state.wait()
+    on state_361_interrupt:
+        pass
+    on state_361_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_361_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_362_animation:
+        if animation.finished: state.wait()
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_362_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_363_animation:
+        if animation.finished: state.wait()
+    on state_363_interrupt:
+        pass
+    on state_363_physics:
+        if command(0) == 1: command(0) = 2
+        physics.ground_friction()
+    on state_363_collision:
+        if collision.special_ground_lost: JudgeSwitch(true)
+    on state_364_animation:
+        if animation.finished: state.fall()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        JudgeAirPhysics()
+    on state_364_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_365_animation:
+        if animation.finished: state.fall()
+    on state_365_interrupt:
+        pass
+    on state_365_physics:
+        JudgeAirPhysics()
+    on state_365_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_366_animation:
+        if animation.finished: state.fall()
+    on state_366_interrupt:
+        pass
+    on state_366_physics:
+        JudgeAirPhysics()
+    on state_366_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_367_animation:
+        if animation.finished: state.fall()
+    on state_367_interrupt:
+        pass
+    on state_367_physics:
+        JudgeAirPhysics()
+    on state_367_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_368_animation:
+        if animation.finished: state.fall()
+    on state_368_interrupt:
+        pass
+    on state_368_physics:
+        JudgeAirPhysics()
+    on state_368_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_369_animation:
+        if animation.finished: state.fall()
+    on state_369_interrupt:
+        pass
+    on state_369_physics:
+        JudgeAirPhysics()
+    on state_369_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_370_animation:
+        if animation.finished: state.fall()
+    on state_370_interrupt:
+        pass
+    on state_370_physics:
+        JudgeAirPhysics()
+    on state_370_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_371_animation:
+        if animation.finished: state.fall()
+    on state_371_interrupt:
+        pass
+    on state_371_physics:
+        JudgeAirPhysics()
+    on state_371_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_372_animation:
+        if animation.finished: state.fall()
+    on state_372_interrupt:
+        pass
+    on state_372_physics:
+        JudgeAirPhysics()
+    on state_372_collision:
+        if collision.landed: JudgeSwitch(false)
+    on state_373_animation:
+        RescueAnimation()
+    on state_373_interrupt:
+        RescueInterrupt()
+    on state_373_physics:
+        physics.air_motion()
+    on state_373_collision:
+        RescueCollision()
+    on state_374_animation:
+        RescueAnimation()
+    on state_374_interrupt:
+        RescueInterrupt()
+    on state_374_physics:
+        physics.air_motion()
+    on state_374_collision:
+        RescueCollision()
+    on state_375_animation:
+        PanicAnimation(false)
+    on state_375_interrupt:
+        PanicInterrupt()
+    on state_375_physics:
+        PanicPhysics(false)
+    on state_375_collision:
+        if collision.special_ground_lost: PanicSwitch(true, 0)
+    on state_376_animation:
+        PanicCatchAnimation(false)
+    on state_376_interrupt:
+        pass
+    on state_376_physics:
+        physics.ground_friction()
+    on state_376_collision:
+        if collision.left_ground: PanicSwitch(true, 1)
+    on state_377_animation:
+        PanicShootAnimation(false)
+    on state_377_interrupt:
+        pass
+    on state_377_physics:
+        physics.ground_friction()
+    on state_377_collision:
+        if collision.left_ground: PanicSwitch(true, 2)
+    on state_378_animation:
+        PanicAnimation(true)
+    on state_378_interrupt:
+        PanicInterrupt()
+    on state_378_physics:
+        PanicPhysics(true)
+    on state_378_collision:
+        if collision.landed: PanicSwitch(false, 0)
+    on state_379_animation:
+        PanicCatchAnimation(true)
+    on state_379_interrupt:
+        pass
+    on state_379_physics:
+        physics.air_gravity_and_friction()
+    on state_379_collision:
+        if collision.landed: PanicSwitch(false, 1)
+    on state_380_animation:
+        PanicShootAnimation(true)
+    on state_380_interrupt:
+        pass
+    on state_380_physics:
+        physics.air_gravity_and_friction()
+    on state_380_collision:
+        if collision.landed: PanicSwitch(false, 2)
+
+move Absorb:
+    on absorb:
+        state.panic_charge = state.panic_charge + absorber.hits
+        # Both source fields are s32; preserve their integer sum.
+        state.panic_damage = state.panic_damage + absorber.damage
+        if state.panic_charge >= attrs.panic_full: color.start(5, false)
+        let int motion = attrs.panic_catch_ground
+        if airborne: motion = attrs.panic_catch_air
+        state.enter_at_speed(motion, 0, 0, 1)
+        BucketModels()
+# Prop callbacks use authored state/history, with PaperArticles presentation
+# deliberately excluded. Rescue's original post-remove userdata reread is not
+# reproduced; synchronous removal is terminal and generation-guarded.
+
+move Lifecycle:
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on load:
+        fighter.copy_ext_attributes()
+        visuals.preserve_secondary_material = true
+        model.instance_scale_z = attrs.model_width
+        visuals.outline_color = PaperOutlineColor()
+        visuals.set_diffuse_color(PaperBodyColor())
+        visuals.install_outline_visibility(10)
+        state.panic_charge = 0
+        # Source NULL is represented by -1, not zero, for full-width handles.
+        # This initialization is for a new fighter, not live resource reload.
+        ClearPropHandles()
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, -1)
+        visuals.set_group(2, 0)
+        visuals.set_group(3, 0)
+        visuals.set_group(4, -1)
+        visuals.set_group(5, -1)
+        visuals.set_group(6, -1)
+        visuals.set_group(7, -1)
+        visuals.set_group(8, -1)
+        visuals.set_group(9, -1)
+        visuals.set_group(10, -1)
+        OwnedReset()
+    on damage:
+        PropDamage()
+    on color_animation_reset:
+        if state.panic_charge >= attrs.panic_full: color.start(5, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+
+article It_Kind_GameWatch_Chef states 2:
+    attribute float food_wall_bounce 4
+    attribute float food_active_lifetime 8
+    attribute float food_inactive_lifetime 12
+    attribute float food_0_horizontal 16
+    attribute float food_0_vertical 20
+    attribute float food_0_gravity 24
+    attribute float food_0_terminal 28
+    attribute float food_0_angular 32
+    attribute float food_1_horizontal 36
+    attribute float food_1_vertical 40
+    attribute float food_1_gravity 44
+    attribute float food_1_terminal 48
+    attribute float food_1_angular 52
+    attribute float food_2_horizontal 56
+    attribute float food_2_vertical 60
+    attribute float food_2_gravity 64
+    attribute float food_2_terminal 68
+    attribute float food_2_angular 72
+    attribute float food_3_horizontal 76
+    attribute float food_3_vertical 80
+    attribute float food_3_gravity 84
+    attribute float food_3_terminal 88
+    attribute float food_3_angular 92
+    attribute float food_4_horizontal 96
+    attribute float food_4_vertical 100
+    attribute float food_4_gravity 104
+    attribute float food_4_terminal 108
+    attribute float food_4_angular 112
+    state int variant
+    # Retain the accepted ordinary variant field and all lifecycle helpers.
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            # No pickup/held registration; previous Z=0/current ECB center is
+            # supplied by create_with_velocity(..., origin_at_owner=true, ...).
+            item.state.variant = int(item.creation_value)
+            item.set_lifetime(item.attr.food_active_lifetime)
+            item.disable_surface_response()
+            # Defined source variants are 0..4. Do not execute native invalid indexing.
+            velocity.x = item.attr.food_4_horizontal * facing
+            velocity.y = item.attr.food_4_vertical
+            if item.state.variant == 0:
+                velocity.x = item.attr.food_0_horizontal * facing
+                velocity.y = item.attr.food_0_vertical
+            if item.state.variant == 1:
+                velocity.x = item.attr.food_1_horizontal * facing
+                velocity.y = item.attr.food_1_vertical
+            if item.state.variant == 2:
+                velocity.x = item.attr.food_2_horizontal * facing
+                velocity.y = item.attr.food_2_vertical
+            if item.state.variant == 3:
+                velocity.x = item.attr.food_3_horizontal * facing
+                velocity.y = item.attr.food_3_vertical
+            item.use_manual_lifetime()
+            item.change_state_flags(0, 2)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    func Expire():
+        velocity.y = 0
+        velocity.x = 0
+        item.set_lifetime(item.attr.food_inactive_lifetime)
+        item.change_state_flags(1, 2)
+    func Collide():
+        if velocity.x != 0:
+            let int flags = item.sweep_stage_flags()
+            if flags & 12:
+                velocity.x = velocity.x * -item.attr.food_wall_bounce
+            if flags & 3:
+                Expire()
+    state 0 anim 0:
+        on animation:
+            let float angular = item.attr.food_4_angular
+            if item.state.variant == 0:
+                angular = item.attr.food_0_angular
+            if item.state.variant == 1:
+                angular = item.attr.food_1_angular
+            if item.state.variant == 2:
+                angular = item.attr.food_2_angular
+            if item.state.variant == 3:
+                angular = item.attr.food_3_angular
+            item.joint("").rotation.x = item.joint("").rotation.x + angular
+            item.life = item.life - 1
+            if item.life <= 0:
+                item.life = 0
+                Expire()
+            return false
+        on physics:
+            let float gravity = item.attr.food_4_gravity
+            let float terminal = item.attr.food_4_terminal
+            if item.state.variant == 0:
+                gravity = item.attr.food_0_gravity
+                terminal = item.attr.food_0_terminal
+            if item.state.variant == 1:
+                gravity = item.attr.food_1_gravity
+                terminal = item.attr.food_1_terminal
+            if item.state.variant == 2:
+                gravity = item.attr.food_2_gravity
+                terminal = item.attr.food_2_terminal
+            if item.state.variant == 3:
+                gravity = item.attr.food_3_gravity
+                terminal = item.attr.food_3_terminal
+            # Same sign/threshold decision as generic it_80272860. The current
+            # item.gravity(false) DSL only supplies item defaults, not variant
+            # tuning; keep this small scalar formula authored.
+            let int gravity_sign = 1
+            if gravity < 0:
+                gravity_sign = -1
+            let int velocity_sign = 1
+            if velocity.y < 0:
+                velocity_sign = -1
+            if velocity_sign != gravity_sign:
+                if abs(velocity.y) < terminal:
+                    velocity.y = velocity.y - gravity
+            else:
+                velocity.y = velocity.y - gravity
+        on collision:
+            Collide()
+            return false
+    state 1 anim 1:
+        on animation:
+            item.life = item.life - 1
+            if item.life <= 0:
+                item.life = 0
+                return true
+            item.joint("").visible = (int(item.life) & 2) != 0
+            return false
+        on physics:
+            pass
+        on collision:
+            Collide()
+            return false
+    on damage_dealt:
+            Expire()
+            return false
+    on clanked:
+            Expire()
+            return false
+    on hit_shield:
+            Expire()
+            return false
+    on absorbed:
+            Expire()
+            item.life = 0
+            return false
+    on shield_bounced:
+            return item.shield_bounce()
+    on reflected:
+            return item.reflect()
+    on interaction:
+            item.interact(other)
+
+article It_Kind_GameWatch_Judge states 1:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.judge_attachment_part, false)
+            # Original legal Judge variants are 0..8; appearance requests 1..9.
+            item.set_appearance(0, float(int(item.creation_value) + 1))
+            if owner.motion >= 0:
+                if owner.facing == 1:
+                    item.joint("0/0").rotation.y = 3.141592653589793
+                else:
+                    item.joint("0/0").rotation.y = 0
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if owner.motion >= 0:
+                item.change_state_flags(0, 2)
+    on destroyed:
+            if owner.exists: owner.helpers.JudgeClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion >= 0:
+                if owner.facing == 1:
+                    item.joint("0/0").rotation.y = 3.141592653589793
+                else:
+                    item.joint("0/0").rotation.y = 0
+            if owner.motion < program.attrs.judge_ground or owner.motion > program.attrs.judge_air + 8:
+                if owner.exists: owner.helpers.JudgeClear()
+                return true
+            return false
+    on interaction:
+            item.interact(other)
+
+article It_Kind_GameWatch_Panic states 2:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(0, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.airborne = targets.airborne(item.current_owner)
+                if item.airborne:
+                    item.change_state_flags(1, 2)
+                else:
+                    item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.PanicClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if owner.motion < program.attrs.panic_shoot_ground or owner.motion > program.attrs.panic_shoot_air:
+                if owner.exists: owner.helpers.PanicClear()
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+
+article It_Kind_GameWatch_Rescue states 2:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            # Caller supplies flattened position, origin_at_owner=false,
+            # collision_group=0, creation_value=0/1, initial_collision=false.
+            # Generic constructor already retains the immutable creator generation.
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+            ApplyPaperPalette()
+            item.change_state_flags(int(item.creation_value), 2)
+            item.advance_animation()
+
+    on signal Remove:
+            if attachment_owner.exists and item.attachment_active:
+                attachment_owner.helpers.RescueClear()
+            item.detach_owner()
+            item.remove()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if not attachment_owner.exists or (attachment_owner.motion != program.attrs.rescue_ground and attachment_owner.motion != program.attrs.rescue_air):
+                if attachment_owner.exists and item.attachment_active:
+                    attachment_owner.helpers.RescueClear()
+                item.detach_owner()
+                item.remove()
+            return false
+        on physics:
+            pass
+        on collision:
+            return false
+    state 1 anim 0 use 0:
+    on interaction:
+            item.interact(other)
+# SDK57 charge query is available. Generic joint-world-position/wind-coordinate
+# operations remain pending; run.py records its controlled57 lowering.
+article It_Kind_GameWatch_Greenhouse states 4:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                if targets.motion(item.current_owner) == program.attrs.jab_motion:
+                    item.change_state_flags(0, 2)
+                else:
+                    item.change_state_flags(1, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.GreenhouseClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Jab:
+            item.change_state_flags(0, 2)
+    on signal Start:
+            item.change_state_flags(1, 2)
+    on signal Loop:
+            item.change_state_flags(2, 2)
+    on signal End:
+            item.change_state_flags(3, 2)
+    state 0 anim 0:
+        on animation:
+            if targets.motion(item.current_owner) < program.attrs.jab_motion or targets.motion(item.current_owner) > program.attrs.rapid_end_motion:
+                if owner.exists: owner.helpers.GreenhouseClear()
+                return true
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2:
+        on animation:
+            if item.animation_finished: item.change_state_flags(2, 2)
+            if targets.motion(item.current_owner) < program.attrs.jab_motion or targets.motion(item.current_owner) > program.attrs.rapid_end_motion:
+                if owner.exists: owner.helpers.GreenhouseClear()
+                return true
+            return false
+    state 3 anim 3 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Manhole states 1:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command0 = 0
+            item.joint("").visible = false
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.ManholeClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0:
+                item.command0 = 0
+                item.joint("").visible = true
+                # Actual first child world position, using the prepared primary graph.
+                let float x = 0
+                let float y = 0
+                let float z = 0
+                item.joint_world_position(0, "0", x, y, z)
+                effects.wind_at_position(x, y, z, program.attrs.manhole_wind_frames, program.attrs.manhole_wind_strength, program.attrs.manhole_wind_decay, program.attrs.manhole_wind_frequency)
+            if targets.motion(item.current_owner) != program.attrs.down_tilt_motion:
+                if owner.exists: owner.helpers.ManholeClear()
+                return true
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Fire states 1:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_handnb_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            item.joint("").visible = false
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.TorchClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    state 0 anim 0:
+        on animation:
+            if item.animation_frame == program.attrs.torch_visible_frame: item.joint("").visible = true
+            if targets.motion(item.current_owner) != program.attrs.forward_smash_motion:
+                if owner.exists: owner.helpers.TorchClear()
+                return true
+            if targets.is_fighter(item.current_owner):
+                if targets.smash_charge_active(item.current_owner):
+                    if item.animation_rate != 0:
+                        item.animation_rate = 0
+                        item.set_model_animation_rate(item.animation_rate)
+                else:
+                    if item.animation_rate != 1:
+                        item.animation_rate = 1
+                        item.set_model_animation_rate(item.animation_rate)
+            return false
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Parachute states 2:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_trans_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.ParachuteClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.joint("").visible = false
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            # Source equality is deliberate: overshooting30 is not a timeout.
+            if item.animation_frame == program.attrs.parachute_end_frame:
+                if owner.exists: owner.helpers.ParachuteClear()
+                return true
+            if targets.motion(item.current_owner) < program.attrs.neutral_air_motion or targets.motion(item.current_owner) > program.attrs.neutral_landing_motion:
+                if owner.exists: owner.helpers.ParachuteClear()
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Turtle states 2:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_shoulder_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.TurtleClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            if targets.motion(item.current_owner) < program.attrs.back_air_motion or targets.motion(item.current_owner) > program.attrs.back_landing_motion:
+                if owner.exists: owner.helpers.TurtleClear()
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+article It_Kind_GameWatch_Breath states 2:
+    # Typed helpers execute against the retained creator and its own parameters.
+    func ApplyPaperPalette():
+        item.layered = true
+        if not item.layered: return
+        # Defined stock constructor domain requires a valid parent fighter.
+        # A retired/rebound creator skips its palette; no unsafe private reads.
+        if not creator.exists: return
+        item.set_diffuse_color(creator.helpers.PaperBodyColor())
+        item.outline_color = creator.helpers.PaperOutlineColor()
+        # Source ftLib_800870BC leaves the color unchanged when no tint exists.
+        if targets.controller_color_present(item.current_owner):
+            item.controller_tint = targets.controller_color(item.current_owner)
+            item.controller_tint_enabled = true
+        else:
+            item.controller_tint_enabled = false
+        item.inherit_owner_scale()
+    on created:
+            item.attach_to_owner(program.attrs.normal_hand_part, false)
+            item.inherit_owner_debug_display()
+            ApplyPaperPalette()
+
+    on picked_up:
+            item.command0 = 0
+            if targets.is_fighter(item.current_owner):
+                item.change_state_flags(0, 2)
+                item.advance_animation()
+    on destroyed:
+            if owner.exists: owner.helpers.SparkyClear()
+    on signal Pause:
+            item.pause()
+    on signal Resume:
+            item.resume()
+    on signal Land:
+            item.change_state_flags(1, 2)
+    state 0 anim 0:
+        on animation:
+            if targets.motion(item.current_owner) < program.attrs.up_air_motion or targets.motion(item.current_owner) > program.attrs.up_landing_motion:
+                if owner.exists: owner.helpers.SparkyClear()
+                return true
+            return false
+    state 1 anim 1 use 0:
+    on interaction:
+            item.interact(other)
+
+move GroundLandingPolicy:
+    on landing_action:
+        state.judge_impulse_used = false

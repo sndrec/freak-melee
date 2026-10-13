@@ -1,0 +1,2005 @@
+{
+  "velocity.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.self_vel.x",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.self_vel.x",
+      "recipient": "Fighter.self_vel.x",
+      "article": "Item.x40_vel.x"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.cur_pos.x",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.cur_pos.x",
+      "recipient": "Fighter.cur_pos.x",
+      "article": "Item.pos.x"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.delta.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.pos_delta.x",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "acceleration.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.x74_self_accel.x",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "velocity.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.self_vel.y",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.self_vel.y",
+      "recipient": "Fighter.self_vel.y",
+      "article": "Item.x40_vel.y"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.cur_pos.y",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.cur_pos.y",
+      "recipient": "Fighter.cur_pos.y",
+      "article": "Item.pos.y"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.delta.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.pos_delta.y",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "acceleration.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.x74_self_accel.y",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "velocity.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.self_vel.z",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.self_vel.z",
+      "recipient": "Fighter.self_vel.z",
+      "article": "Item.x40_vel.z"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.cur_pos.z",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c",
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "native_operation_by_context": {
+      "fighter": "Fighter.cur_pos.z",
+      "recipient": "Fighter.cur_pos.z",
+      "article": "Item.pos.z"
+    },
+    "storage_type": "native Float32"
+  },
+  "position.delta.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.pos_delta.z",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "acceleration.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.x74_self_accel.z",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "input.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.input.lstick[0].x",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "input.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.input.lstick[0].y",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "input.special_held": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.input.held_buttons[0] & HSD_PAD_B",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "input.special_pressed": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.input.pressed_buttons & HSD_PAD_B",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "frame": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.cur_anim_frame",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "frame.integer": {
+    "status": "source_checked",
+    "result": "Int",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "integer truncation of Fighter.cur_anim_frame",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none"
+  },
+  "facing.direction": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.facing_dir",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  },
+  "effects.active": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.x2219_b0",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "airborne": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.ground_or_air == GA_Air",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_relations.c"
+    ],
+    "invalidation": "none",
+    "write_policy": "Publish ground_or_air classification alone (Bool ? GA_Air : GA_Ground); no transition helper side effects",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "grounded": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "Fighter.ground_or_air == GA_Ground",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "movement.used_tether": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.used_tether",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "movement.fastfall": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [],
+    "contexts": [
+      "fighter",
+      "recipient"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Fighter.fall_fast",
+    "sources": [
+      "tools/native_fighter_script_code.c",
+      "tools/native_fighter_script_kinetics.c",
+      "src/melee/ft/types.h",
+      "tools/native_fighter_script_primitives.c"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "targets.read_position": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "Int creation identity (bit-preserving UInt32 internally)",
+      "out Float x",
+      "out Float y",
+      "out Float z"
+    ],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "call"
+    ],
+    "native_operation": "nativeFighterTarget_Position",
+    "sources": [
+      "tools/native_fighter_script_queries.c",
+      "src/melee/ft/native_fighter_target.c"
+    ],
+    "invalidation": "may_invalidate_source; check generation before publishing outputs",
+    "output_arguments": [
+      1,
+      2,
+      3
+    ],
+    "output_policy": "publish distinct scalar/local Float outputs only on success; failure leaves destinations unchanged",
+    "value_type": "canonical Bool at semantic binding boundary",
+    "native_signature": "bool nativeFighterTarget_Position(uint32_t, Vec3*)"
+  },
+  "targets.read_position_delta": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "Int creation identity (bit-preserving UInt32 internally)",
+      "out Float x",
+      "out Float y",
+      "out Float z"
+    ],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "call"
+    ],
+    "native_operation": "nativeFighterTarget_PositionDelta",
+    "sources": [
+      "tools/native_fighter_script_queries.c",
+      "src/melee/ft/native_fighter_target.c"
+    ],
+    "invalidation": "may_invalidate_source; check generation before publishing outputs",
+    "output_arguments": [
+      1,
+      2,
+      3
+    ],
+    "output_policy": "publish distinct scalar/local Float outputs only on success; failure leaves destinations unchanged",
+    "value_type": "canonical Bool at semantic binding boundary",
+    "native_signature": "bool nativeFighterTarget_PositionDelta(uint32_t, Vec3*)"
+  },
+  "articles.read_primary_translation": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "Int creation identity (bit-preserving UInt32 internally)",
+      "declared ArticleKind",
+      "out Float x",
+      "out Float y",
+      "out Float z"
+    ],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "call"
+    ],
+    "native_operation": "nativeArticleRef_PrimaryModelTranslation",
+    "sources": [
+      "tools/native_fighter_script_queries.c",
+      "src/melee/it/native_article_refs.c"
+    ],
+    "invalidation": "may_invalidate_source; check generation before publishing outputs",
+    "output_arguments": [
+      2,
+      3,
+      4
+    ],
+    "output_policy": "same author/definition resolution; local primary-root translation, not world position; publish only on success",
+    "value_type": "canonical Bool at semantic binding boundary",
+    "native_signature": "bool nativeArticleRef_PrimaryModelTranslation(HSD_GObj*, uint32_t, ItemKind, Vec3*)"
+  },
+  "articles.ref().exists": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector Int identity",
+      "selector declared ArticleKind"
+    ],
+    "contexts": [
+      "fighter",
+      "recipient",
+      "article"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "nativeArticleRef_Exists",
+    "sources": [
+      "tools/native_fighter_script_article_refs.c",
+      "src/melee/it/native_article_refs.c"
+    ],
+    "invalidation": "none",
+    "selector": "articles.ref(identity, declared kind) retained as semantic selector",
+    "value_type": "canonical Bool at semantic binding boundary",
+    "native_signature": "bool nativeArticleRef_Exists(HSD_GObj*, uint32_t, ItemKind)"
+  },
+  "item.resource().position.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().velocity.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.position.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.previous.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().position.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().velocity.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.position.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.previous.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().position.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().velocity.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.position.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().collision.previous.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int node index"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadFloat / nativeArticleResource_WriteFloat",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().translation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().translation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().translation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().rotation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().rotation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().rotation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().scale.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().scale.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().scale.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().quaternion.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().quaternion.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().quaternion.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().quaternion.w": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.joint().visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.joint().self_visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.joint().exists": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath, or literal model (0..3) then JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "item_joint_value / item_set_joint_value -> nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "effect.joint().translation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().translation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().translation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().rotation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().rotation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().rotation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().scale.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().scale.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().scale.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().quaternion.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().quaternion.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().quaternion.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().quaternion.w": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none"
+  },
+  "effect.joint().visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "effect.joint().self_visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "effect.joint().exists": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector literal JointPath",
+      "optional literal effect member (0..3)"
+    ],
+    "contexts": [
+      "effect"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "nativeModelJoint_Read / nativeModelJoint_Write",
+    "sources": [
+      "tools/native_fighter_script_model_effect.c",
+      "src/melee/it/native_article_resource.h",
+      "src/melee/lb/native_model_joint.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.resource().joint().translation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().translation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().translation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().rotation.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().rotation.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().rotation.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().scale.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().scale.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().scale.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().quaternion.x": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().quaternion.y": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().quaternion.z": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().quaternion.w": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none"
+  },
+  "item.resource().joint().visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.resource().joint().self_visible": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.resource().joint().exists": {
+    "status": "source_checked",
+    "result": "Bool",
+    "arguments": [
+      "selector Int resource index",
+      "selector literal JointPath"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read"
+    ],
+    "native_operation": "nativeArticleResource_ReadJoint / nativeArticleResource_WriteJoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none",
+    "value_type": "canonical Bool at semantic binding boundary"
+  },
+  "item.resource().read_attachment_point": {
+    "status": "source_checked",
+    "result": "Void",
+    "arguments": [
+      "Float local x",
+      "Float local y",
+      "Float local z",
+      "out item.state Float x",
+      "out item.state Float y",
+      "out item.state Float z"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "call"
+    ],
+    "native_operation": "nativeArticleResource_ReadAttachmentPoint",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none",
+    "output_arguments": [
+      3,
+      4,
+      5
+    ],
+    "output_policy": "reference emitter initializes Vec3 zero and publishes regardless of native Bool success; preserve deliberately or explicitly revise; not the targets query success-only policy",
+    "native_signature": "bool nativeArticleResource_ReadAttachmentPoint(Item_GObj*, unsigned, const Vec3*, Vec3*)"
+  },
+  "item.resource().read_line_speed": {
+    "status": "source_checked",
+    "result": "Void",
+    "arguments": [
+      "Int line",
+      "out item.state Float x",
+      "out item.state Float y",
+      "out item.state Float z"
+    ],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "call"
+    ],
+    "native_operation": "nativeArticleResource_ReadLineSpeed",
+    "sources": [
+      "tools/native_fighter_article_resources.c",
+      "src/melee/it/native_article_resource.h"
+    ],
+    "invalidation": "none",
+    "output_arguments": [
+      1,
+      2,
+      3
+    ],
+    "output_policy": "reference emitter initializes Vec3 zero and publishes regardless of native Bool success; preserve deliberately or explicitly revise; not the targets query success-only policy",
+    "native_signature": "bool nativeArticleResource_ReadLineSpeed(Item_GObj*, unsigned, int, Vec3*)"
+  },
+  "facing": {
+    "status": "source_checked",
+    "result": "Float",
+    "arguments": [],
+    "contexts": [
+      "article"
+    ],
+    "access": [
+      "read",
+      "write"
+    ],
+    "native_operation": "Item.facing_dir",
+    "sources": [
+      "tools/native_fighter_item_script.c",
+      "src/melee/it/types.h"
+    ],
+    "invalidation": "none",
+    "storage_type": "native Float32"
+  }
+}

@@ -1,0 +1,13 @@
+# Exact Zelda/Sheik pending-action choice at the common priority point.
+# DECLARATIONS
+parameter int cpu_pending_script = 38
+
+# FUNCTIONS
+# CALLBACKS
+move PendingAction:
+    on cpu_pending_action:
+        if cpu.pending_action:
+            cpu.run_script(attrs.cpu_pending_script)
+            cpu.pending_action = false
+            return true
+        return false

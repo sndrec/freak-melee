@@ -1,0 +1,41 @@
+state bool ready
+state int handle
+state float charge
+state bool flags[5]
+state float matrix[12]
+state int histories[3]
+state float single[1]
+parameter float gain = 1.25
+parameter int seed = 0x80000001
+parameter bool enabled = true
+attribute float imported_gain 4
+attribute byte imported_flags 12
+
+func ReadImported() -> float:
+    return attrs.imported_gain
+
+func Tick(int step) -> float:
+    state.handle = state.handle + step
+    state.ready = true
+    let int index = 0
+    while index < 3:
+        state.histories[index] = state.handle + index
+        index = index + 1
+    state.charge = (state.charge + attrs.gain) * 0.95 + attrs.imported_gain * 0.05
+    state.flags[false] = true
+    state.single[0] = state.charge
+    return state.charge
+
+article It_Kind_Ness_PKFire states 1:
+    state bool ready
+    state int handle
+    state float charge
+    state float lengths[3]
+    parameter float gain = 2.0
+    attribute float imported_gain 8
+    func Tick(float step) -> float:
+        item.state.charge = item.state.charge + step + item.params.gain + item.attr.imported_gain
+        return item.state.charge
+    state 0 anim -1:
+        on physics:
+            pass

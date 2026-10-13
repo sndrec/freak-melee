@@ -1,0 +1,50 @@
+# Ordinary lifecycle decisions from ftlink.c and ftclink.c. Graph6 omitted only
+# in SDK47 evidence; SDK49 composition now installs the owned omission.
+parameter int sword_graph = 6
+parameter int sword_omission = 0
+
+action FighterLifecycle:
+    on load:
+        state.dair_timing[1] = animation.clip_length(72)
+        fighter.copy_ext_attributes()
+        state.boomerang_handle = -1
+        state.tether_handle = -1
+        state.bow_arrow_handle = -1
+        state.bow_handle = -1
+        state.milk_handle = -1
+        state.boomerang_used = false
+        state.boomerang_vertical_offset = attrs.boomerang_vertical_offset * model.instance_scale_y
+        model_graphs.install(attrs.sword_graph, attrs.sword_omission)
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        state.boomerang_vertical_offset = attrs.boomerang_vertical_offset * model.instance_scale_y
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        visuals.set_group(2, 0)
+        state.boomerang_used = false
+        state.boomerang_handle = -1
+        state.tether_handle = -1
+        state.bow_arrow_handle = -1
+        state.bow_handle = -1
+        state.milk_handle = -1
+    on item_pickup_ext:
+        if items.heavy: visuals.set_group(1, 1)
+        visuals.set_group(2, 1)
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        if items.heavy: visuals.set_group(1, 0)
+        visuals.set_group(2, 0)
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)

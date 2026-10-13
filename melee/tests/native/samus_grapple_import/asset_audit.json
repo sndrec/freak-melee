@@ -1,0 +1,294 @@
+{
+  "inventory_snapshot_sha256": "e012438a7e998183c642c01485b99fa4fc7758ac29689f194fa7f68a45bf5ec1",
+  "disc": "C:\\gayms\\freak-melee\\Super Smash Bros. Melee (USA) (v1.02).iso",
+  "disc_header_sha256": "d6aa48b44849cbfb5cd20eff0d7bab1cc1db9d17dc3972e27373ae0ee2fbb3aa",
+  "fst_sha256": "ef099ee0edf64189544d36fe8e4be2293282d595eef27715df8aacb95fc6d4d7",
+  "dat_archives_scanned": 805,
+  "scan_scope": "All disc .dat files with exact length/structurally bounded DAT header; public/external symbol tables only. No external word decoded as graph.",
+  "matches": [
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamChainA_TopN_shapeanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17036
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamChainB_TopN_shapeanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17048
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamChainC_TopN_shapeanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17060
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamStart_TopN_matanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17080
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamStart_TopN_shapeanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17084
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamTop_TopN_matanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17068
+    },
+    {
+      "archive": "PlSs.dat",
+      "symbol": "ItmSamusGBeamTop_TopN_shapeanim_joint",
+      "kind": "external",
+      "target_or_chain_head": 17072
+    }
+  ],
+  "owned_candidates": [
+    {
+      "archive": "PlCo.dat",
+      "sha256": "63841336337eb5a7366b06ccc60ea4bd37c3604ab56e19939d78b9aa9cdd234c",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSs.dat",
+      "sha256": "8fc0047354d551c8854e9834a3aad08e377f9855ab2572f47d0b41adbf347c22",
+      "roots": 1,
+      "externs": 7,
+      "matched": [
+        [
+          "ItmSamusGBeamChainA_TopN_shapeanim_joint",
+          17036,
+          false
+        ],
+        [
+          "ItmSamusGBeamChainB_TopN_shapeanim_joint",
+          17048,
+          false
+        ],
+        [
+          "ItmSamusGBeamChainC_TopN_shapeanim_joint",
+          17060,
+          false
+        ],
+        [
+          "ItmSamusGBeamStart_TopN_matanim_joint",
+          17080,
+          false
+        ],
+        [
+          "ItmSamusGBeamStart_TopN_shapeanim_joint",
+          17084,
+          false
+        ],
+        [
+          "ItmSamusGBeamTop_TopN_matanim_joint",
+          17068,
+          false
+        ],
+        [
+          "ItmSamusGBeamTop_TopN_shapeanim_joint",
+          17072,
+          false
+        ]
+      ]
+    },
+    {
+      "archive": "PlSsBk.dat",
+      "sha256": "581aef31fd1ead4067902c13a3592edb3492e281e4680e9375a7647651f07f94",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSsDViWaitAJ.dat",
+      "sha256": "b419cfed656637ae25f301c9e0f54ed2ca78bf42c066ed9c83cc5d5703cd193f",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSsGr.dat",
+      "sha256": "85a4430f2b3ad54363ef91374f4db3741ecd8925a7c048703743ab4c22821470",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSsLa.dat",
+      "sha256": "c8dd8e5d201df1e9fff6b3c21c04bd75158d9019b7b0cc8a4f066a15164b2a25",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSsNr.dat",
+      "sha256": "3d14d8e66612ed11c5522608b5f3d50ffd571263c47f4767ae03fdedcc00f291",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    },
+    {
+      "archive": "PlSsPi.dat",
+      "sha256": "71269d0fd4a92bbfa9e7b80f525574082687fb09dd1f37c8d5244e0727d5b85c",
+      "roots": 1,
+      "externs": 0,
+      "matched": []
+    }
+  ],
+  "external_components": [
+    {
+      "attribute_offset": 124,
+      "pointer_slot": 17036,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamChainA_TopN_shapeanim_joint",
+        "relocation_chain_word": 39404
+      },
+      "slots": [
+        17036,
+        39404
+      ]
+    },
+    {
+      "attribute_offset": 136,
+      "pointer_slot": 17048,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamChainB_TopN_shapeanim_joint",
+        "relocation_chain_word": 39416
+      },
+      "slots": [
+        17048,
+        39416
+      ]
+    },
+    {
+      "attribute_offset": 148,
+      "pointer_slot": 17060,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamChainC_TopN_shapeanim_joint",
+        "relocation_chain_word": 39428
+      },
+      "slots": [
+        17060,
+        39428
+      ]
+    },
+    {
+      "attribute_offset": 156,
+      "pointer_slot": 17068,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamTop_TopN_matanim_joint",
+        "relocation_chain_word": 39436
+      },
+      "slots": [
+        17068,
+        39436
+      ]
+    },
+    {
+      "attribute_offset": 160,
+      "pointer_slot": 17072,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamTop_TopN_shapeanim_joint",
+        "relocation_chain_word": 39440
+      },
+      "slots": [
+        17072,
+        39440
+      ]
+    },
+    {
+      "attribute_offset": 168,
+      "pointer_slot": 17080,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamStart_TopN_matanim_joint",
+        "relocation_chain_word": 39448
+      },
+      "slots": [
+        17080,
+        39448
+      ]
+    },
+    {
+      "attribute_offset": 172,
+      "pointer_slot": 17084,
+      "reference": {
+        "kind": "external",
+        "symbol": "ItmSamusGBeamStart_TopN_shapeanim_joint",
+        "relocation_chain_word": 39452
+      },
+      "slots": [
+        17084,
+        39452
+      ]
+    }
+  ],
+  "local_components": [
+    {
+      "attribute_offset": 116,
+      "array": 105420,
+      "first_graph": 105440
+    },
+    {
+      "attribute_offset": 120,
+      "array": 105684,
+      "first_graph": 105696
+    },
+    {
+      "attribute_offset": 128,
+      "array": 104428,
+      "first_graph": 104448
+    },
+    {
+      "attribute_offset": 132,
+      "array": 104692,
+      "first_graph": 104704
+    },
+    {
+      "attribute_offset": 140,
+      "array": 99796,
+      "first_graph": 99816
+    },
+    {
+      "attribute_offset": 144,
+      "array": 100060,
+      "first_graph": 100072
+    },
+    {
+      "attribute_offset": 152,
+      "array": 88164,
+      "first_graph": 88184
+    },
+    {
+      "attribute_offset": 164,
+      "array": 97208,
+      "first_graph": 97228
+    }
+  ],
+  "source_sha256": {
+    "tests/native/samus_tether_composition/audit.py": "217d6e457c4596375fc31450cb3b1865e0b1cc4903df33f88ef19b13f0e62e3f",
+    "src/melee/lb/lbarchive.c": "81cab4dc942fe764e9ec0bcdb9c9c64f0ad9811945aaa917c8de21128219335d",
+    "src/sysdolphin/baselib/archive.c": "599de67184ef4af586fbcb72f9f6df85b772b5221174533f67ad190da0273715",
+    "src/sysdolphin/baselib/dat.c": "9451e3659c7f34cff915aaba6872db2d12ac0724f72d2b9c43ca2aee0e7e3e0e",
+    "src/sysdolphin/baselib/dat_import.c": "6c29b05a82bb1a29485344e648f099e542f0ef431c647ba0f238634bb16e0b20",
+    "src/melee/it/itarticle_data.c": "005f4c9c18072f7b1e5e2cca1b6424d40c1ca39f1ad90cbfb5c742d657f4ffcd",
+    "src/melee/ft/ftdata.c": "1109bdde60f875f63548ed4dc24ca46bf5d8f4dbb28abf464222ac82fe665004",
+    "src/melee/ft/ftcharacter_assets.c": "d55fcb17e98765ca553d4ed0f058c2ecf110b37e4221c0282cb16c9a41a69862",
+    "src/melee/it/kinds/itsamusgrapple.c": "ee68aeedf8ff1bb23145b73b510bf468265e854125d4dc420e2e79faef5d478a",
+    "src/melee/ft/kinds/ftSamus/types.h": "90660c0f00058125aa33d91197c02228f27580dc10c3353a3c026c02069baa67",
+    "input_inventory": "30d3e474864e21f941d1b1bd1d482e9cf87e72c1955d6d8ecc9f911d46f67779"
+  }
+}

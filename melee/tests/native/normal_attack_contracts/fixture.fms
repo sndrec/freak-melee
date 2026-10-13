@@ -1,0 +1,38 @@
+state int tail
+state int self_id
+state int debug
+state bool entered
+state bool picked_up
+state float landing_lag
+
+func FinishRapid():
+    state.tail = state.tail + 1
+
+func Land():
+    state.landing_aerial(350, 8)
+    state.tail = state.tail + 1
+
+action NormalEntries:
+    on load:
+        state.self_id = fighter.creation_id
+        state.debug = engine.debug_level
+        state.landing_lag = stats.landing_air_neutral_lag + stats.landing_air_forward_lag + stats.landing_air_back_lag + stats.landing_air_up_lag + stats.landing_air_down_lag
+    on jab_enter:
+        state.entered = attack.enter_jab(341)
+        state.tail = state.tail + 1
+    on rapid_jab_enter:
+        attack.enter_rapid_jab(342)
+        state.tail = state.tail + 1
+    on down_tilt_enter:
+        state.picked_up = items.try_ground_pickup()
+        state.tail = state.tail + 1
+    on aerial_attack_motion:
+        if event.motion == 65:
+            return 347
+        return event.motion
+    on state_341_animation:
+        attack.update_rapid_jab(FinishRapid)
+        state.tail = state.tail + 1
+    on state_341_collision:
+        collision.air_aerial_landing_callback(Land)
+        state.tail = state.tail + 1

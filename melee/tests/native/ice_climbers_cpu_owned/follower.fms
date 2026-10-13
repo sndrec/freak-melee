@@ -1,0 +1,234 @@
+# Standalone authored follower decisions. Compose beside accepted Blizzard helpers.
+state bool copy_controls
+state bool recovery_lock
+state int history_target
+
+func follower_in_final_belay() -> bool:
+    return motion.id >= attrs.follower_belay_first and motion.id <= attrs.follower_belay_last
+
+func follower_copy_allowed(int target) -> bool:
+    let int target_motion = targets.motion(target)
+    if target_motion == attrs.common_cliff_catch or target_motion == attrs.common_cliff_wait:
+        return false
+    if target_motion == attrs.common_capture_wait_hi or target_motion == attrs.common_capture_wait_lw:
+        return false
+    if target_motion >= attrs.common_shouldered_wait and target_motion <= attrs.common_shouldered_turn:
+        return false
+    if target_motion == attrs.common_teeter or target_motion == attrs.common_teeter_wait:
+        return false
+    if target_motion >= attrs.common_capture_kirby and target_motion <= attrs.common_capture_wait_kirby:
+        return false
+    if target_motion >= attrs.common_rebirth and target_motion <= attrs.common_rebirth_wait:
+        return false
+    if target_motion >= attrs.common_warp_jump and target_motion <= attrs.common_warp_fall:
+        return false
+    if target_motion >= attrs.common_parasol_fall and target_motion <= attrs.common_parasol_damage_fall:
+        return false
+    if items.held_kind == It_Kind_Box or items.held_kind == It_Kind_Taru or items.held_kind == It_Kind_Kusudama or items.held_kind == It_Kind_TaruCann:
+        return false
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return false
+    if not targets.airborne(target) and airborne and y > position.y and position.delta.y < 0:
+        return false
+    if motion.allows_controller_sync:
+        return true
+    return motion.id == attrs.common_squat or motion.id == attrs.common_squat_wait or motion.id == attrs.common_landing or motion.id == attrs.common_landing_special or (motion.id >= attrs.common_landing_air_n and motion.id <= attrs.common_landing_air_lw)
+
+func follower_can_start_copy(int target) -> bool:
+    if not follower_copy_allowed(target):
+        return false
+    if targets.airborne(target) or airborne or state.recovery_lock or follower_in_final_belay():
+        return false
+    if not cpu.prepare_destination_update() and motion.id != attrs.common_wait:
+        return false
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position_delta(target, x, y, z):
+        return false
+    x = position.delta.x - x
+    y = position.delta.y - y
+    if x * x + y * y > ground.mid_walk_point * ground.mid_walk_point:
+        return false
+    if not targets.read_position(target, x, y, z):
+        return false
+    x = position.x - x
+    y = y - position.y
+    return x * x + y * y < 25.0 * 25.0
+
+# A7AAC owns destination choices. Split the source's innermost edge decision
+# into an authored helper to stay within the grammar's three nesting levels.
+func follower_air_island_margin(int line, float spacing):
+    let float left_x = 0
+    let float left_y = 0
+    let float right_x = 0
+    let float right_y = 0
+    if stage.read_line_island_bounds(line, left_x, left_y, right_x, right_y):
+        if abs(right_x - cpu.destination.x) < 5.0:
+            cpu.set_destination(right_x - 5.0, right_y, spacing)
+        elif abs(left_x - cpu.destination.x) < 5.0:
+            cpu.set_destination(5.0 + left_x, left_y, spacing)
+
+func follower_destination(int target):
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return
+    let float spacing = cpu.approach_spacing + targets.cpu_body_half_width(target)
+    let float floor_x = 0
+    let float floor_y = 0
+    let int line = -1
+    let float left_x = 0
+    let float left_y = 0
+    let float right_x = 0
+    let float right_y = 0
+    if targets.airborne(target):
+        if stage.read_floor(x, 10 + y, x, y - 1000, floor_x, floor_y, line) and not stage.cpu_floor_excluded(line):
+            if not stage.cpu_island_blocked(line):
+                cpu.set_destination(floor_x, floor_y, spacing)
+                follower_air_island_margin(line, spacing)
+        return
+    let int target_line = targets.floor_line(target)
+    if stage.cpu_island_blocked(target_line):
+        return
+    # Ground source queries floor but both defined branches request current target
+    # position; no floor-hit or delayed-history position is substituted here.
+    let bool floor_found = stage.read_floor(x, 2.0 + y, x, y - 2.0, floor_x, floor_y, line)
+    if floor_found and stage.cpu_floor_excluded(line):
+        floor_found = false
+    cpu.set_destination(x, y, spacing)
+    let bool same_island = false
+    if grounded:
+        same_island = stage.same_line_island(floor.line, target_line)
+    if same_island or motion.id == attrs.common_cliff_catch or motion.id == attrs.common_cliff_wait:
+        return
+    if not stage.read_line_island_bounds(target_line, left_x, left_y, right_x, right_y) or cpu.destination.y - position.y <= 0.0:
+        return
+    if cpu.destination.x - position.x > 0.0:
+        if position.x < left_x:
+            cpu.set_destination(5.0 + left_x, left_y, spacing)
+    elif position.x > right_x:
+        cpu.set_destination(right_x - 5.0, right_y, spacing)
+
+func follower_should_stop_copy(int target) -> bool:
+    if follower_in_final_belay():
+        state.recovery_lock = true
+        return true
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    if not targets.read_position(target, x, y, z):
+        return true
+    x = position.x - x
+    y = y - position.y
+    if x * x + y * y > 25.0 * 25.0:
+        return true
+    return not follower_copy_allowed(target)
+
+# Same owned entry as the accepted fighter's special_lw callback. The accessory
+# is the real accepted authored helper; no stock special entry is called.
+func follower_start_blizzard():
+    cue.throw.reset()
+    command(0) = 0
+    command(3) = 0
+    state.blizzard_countdown = 0
+    state.blizzard_emitting = false
+    state.enter_at_speed(357, 0, 0, 1)
+    animation.start()
+    callbacks.accessory(blizzard_cue)
+
+move FollowerPolicy:
+    on cpu_prepare:
+        state.copy_controls = false
+        state.recovery_lock = false
+        state.history_target = event.history_source
+        cpu.mode = 6
+        cpu.follow_distance = 15
+        cpu.combat_candidates_enabled = true
+        return event.history_source
+    on cpu_initialize:
+        cpu.set_approach_spacing(1)
+    on cpu_spacing_update:
+        let float spacing = 1.0 * event.value
+        cpu.set_approach_spacing(spacing)
+    on cpu_stick_step:
+        return 64
+    on cpu_stick_limit:
+        return 127
+    on cpu_drop_command:
+        cpu.queue(Cpu.wait, 1)
+        cpu.queue(Cpu.stick_y, -127)
+        cpu.queue(Cpu.wait, 5)
+        cpu.queue(Cpu.stick_x, 0)
+        cpu.queue(Cpu.stick_y, 0)
+        cpu.queue(Cpu.wait, 1)
+        cpu.queue(Cpu.done)
+        return true
+    on cpu_mode_update:
+        if cpu.mode != 6:
+            return false
+        cpu.combat_candidates_enabled = true
+        cpu.ranged_gate_enabled = true
+        state.history_target = family.member_id(attrs.follower_target_member)
+        let int target = state.history_target
+        if not targets.is_fighter(target) or targets.sleeping(target):
+            cpu.plan_without_target()
+            return true
+        if not cpu.record_input(target):
+            return true
+        let int level = int(targets.damage(target) / 20)
+        if level > 9:
+            level = 9
+        cpu.level = level
+        if state.copy_controls:
+            follower_destination(target)
+            if follower_should_stop_copy(target):
+                state.copy_controls = false
+                cpu.behavior = cpu.previous_behavior
+                cpu.output.left_x = 0
+                cpu.output.left_y = 0
+                cpu.output.buttons = 0
+                cpu.output.left_trigger = 0
+                cpu.output.right_trigger = 0
+        else:
+            cpu.prepare_combat_plan()
+            if cpu.prepare_destination_update():
+                if state.recovery_lock:
+                    cpu.update_recovery_destination()
+                else:
+                    follower_destination(target)
+            cpu.plan_attack()
+            if follower_can_start_copy(target):
+                cpu.behavior = 0
+                state.copy_controls = true
+                cpu.combat_candidates_enabled = false
+                cpu.ranged_gate_enabled = false
+        if grounded:
+            state.recovery_lock = false
+        return true
+    on cpu_output:
+        let int target = state.history_target
+        if not targets.is_fighter(target) or targets.sleeping(target) or not state.copy_controls:
+            return true
+        if motion.id != attrs.common_flower_ground and motion.id != attrs.common_flower_air:
+            if targets.motion(target) == attrs.follower_blizzard_ground and motion.id < attrs.common_motion_count:
+                facing.direction = -targets.facing(target)
+                follower_start_blizzard()
+                return true
+        if not cpu.apply_recorded_input():
+            return true
+        if motion.allows_controller_sync:
+            let float x = 0
+            let float y = 0
+            let float z = 0
+            let float direction = 0
+            if cpu.read_history_pose(x, y, z, direction):
+                position.x = 0.95 * position.x + 0.05 * x
+                position.y = 0.95 * position.y + 0.05 * y
+                if motion.id != attrs.follower_blizzard_ground and motion.id != attrs.follower_blizzard_air:
+                    facing.direction = direction
+        return true

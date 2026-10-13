@@ -1,0 +1,535 @@
+# UNREGISTERED SOURCE CANDIDATE: Sweep uses SDK64 resource.sweep_point().
+# Resource0 is original x4 head; resource tip is original x0 tip.
+article It_Kind_Seak_Chain states 5:
+    attribute int link_count 0
+    attribute float link_length 4
+    attribute float horizontal_decay 16
+    attribute float floor_horizontal_decay 20
+    attribute float gravity 24
+    attribute float input_horizontal_scale 28
+    attribute float input_vertical_scale 32
+    attribute float maximum_horizontal_speed 36
+    attribute float vertical_deadzone 40
+    attribute float maximum_vertical_speed 44
+    attribute float wall_input_scale 48
+    attribute float propagation_scale 52
+    attribute float forward_delta_scale 56
+    attribute float backward_delta_scale 60
+    attribute float upward_delta_scale 64
+    attribute float downward_delta_scale 68
+    attribute float stick_deadzone 72
+    attribute float movement_threshold 76
+    attribute float launch_speed 80
+    attribute float retract_speed 84
+    attribute float initial_bounce_scale 88
+    attribute float wall_bounce_scale 92
+    attribute float wall_vertical_threshold 96
+    parameter float attachment_depth = 0.1
+    parameter float collision_radius = 1
+    parameter int collision_category = 5
+    parameter int contact_sound = 270149
+    parameter int neutral_collision_skip = 3
+    parameter int downward_collision_skip = 1
+    parameter int other_collision_skip = 2
+    parameter float downward_input_threshold = -0.5
+    parameter int contact_sound_stride = 5
+    parameter int endpoint_divisions = 3
+    parameter float vertical_basis_limit = 0.9999
+    resources capacity 30
+    model_root Link 100
+    model_root Tip 104
+    state int tip
+    state int previous_wall_flags
+    state int previous_rehit
+    state bool active[30]
+    state bool touching[30]
+    state bool sound_latched[30]
+    state float history_x[15]
+    state float history_y[15]
+    state float matrix[12]
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float vector_x
+    state float vector_y
+    state float vector_z
+    state float stick_deadzone
+    state float movement_threshold
+    state float launch_speed
+
+    func SetPosition(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func Advance(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    func PushHistory(int node):
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+
+    func SeedHistory(int node):
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+        item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+        item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+
+    func SetActive(int node, bool active):
+        item.state.active[node] = active
+        # Original tip draws unconditionally; other nodes gate x2C_b0.
+        let bool drawing = item.resource(node).set_draw(active or node == item.state.tip)
+
+    func Measure(float ax, float ay, float az, float bx, float by, float bz) -> float:
+        item.state.vector_x = ax - bx
+        item.state.vector_y = ay - by
+        item.state.vector_z = az - bz
+        let float length = sqrt(item.state.vector_x * item.state.vector_x + item.state.vector_y * item.state.vector_y + item.state.vector_z * item.state.vector_z)
+        let float inverse = 0
+        if length != 0:
+            inverse = 1 / length
+        item.state.vector_x = item.state.vector_x * inverse
+        item.state.vector_y = item.state.vector_y * inverse
+        item.state.vector_z = item.state.vector_z * inverse
+        return length
+
+    func PlaceMeasured(int node, float x, float y, float z, float length):
+        SetPosition(node, item.state.vector_x * length + x, item.state.vector_y * length + y, item.state.vector_z * length + z)
+
+    func Sweep(int node, bool sound) -> int:
+        if node > 0 and item.state.active[node - 1]:
+            item.resource(node).collision.previous.x = item.resource(node - 1).position.x
+            item.resource(node).collision.previous.y = item.resource(node - 1).position.y
+            item.resource(node).collision.previous.z = item.resource(node - 1).position.z
+        else:
+            item.resource(node).collision.previous.x = item.resource(node).collision.position.x
+            item.resource(node).collision.previous.y = item.resource(node).collision.position.y
+            item.resource(node).collision.previous.z = item.resource(node).collision.position.z
+        item.resource(node).collision.position.x = item.resource(node).position.x
+        item.resource(node).collision.position.y = item.resource(node).position.y
+        item.resource(node).collision.position.z = item.resource(node).position.z
+        # Pending mpColl_80048844: any line contact, not a floor-touch result.
+        if item.resource(node).sweep_point():
+            if not item.state.touching[node] and sound and not item.state.sound_latched[node]:
+                let int voice = audio.play_global(item.params.contact_sound, 127, 64)
+                item.state.sound_latched[node] = true
+            item.state.touching[node] = true
+        else:
+            item.state.touching[node] = false
+            item.state.sound_latched[node] = false
+        let int environment = item.resource(node).collision.environment
+        if environment & 98304:
+            item.resource(node).collision.position.x = item.resource(node).position.x
+        elif environment & 4095:
+            if node > 0 and node < item.state.tip and item.state.active[node - 1]:
+                item.resource(node).collision.position.y = item.resource(node).collision.position.y + item.params.link_length
+        SetPosition(node, item.resource(node).collision.position.x, item.resource(node).collision.position.y, item.resource(node).collision.position.z)
+        return environment & 102399
+
+    func ReverseConstrain(int node, float distance):
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, distance)
+        let int previous = node + 1
+        while previous <= item.state.tip:
+            item.resource(previous).velocity.y = item.resource(previous).velocity.y - item.params.gravity
+            Advance(previous)
+            PushHistory(previous)
+            let int environment = Sweep(previous, false)
+            measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if measured > item.params.link_length:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+            node = previous
+            previous = previous + 1
+
+    func Extend(bool gravity) -> int:
+        let int node = item.state.tip
+        let int next = node - 1
+        if gravity:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity
+        Advance(node)
+        let int floor = Sweep(node, true) & 4095
+        let float weight = 1
+        while next >= 0:
+            let float measured = 0
+            if item.state.active[next]:
+                if gravity:
+                    item.resource(next).velocity.y = -((item.params.gravity * weight) - item.resource(next).velocity.y)
+                    weight = weight * item.params.propagation_scale
+                    Advance(next)
+                measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.link_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+                PushHistory(next)
+            else:
+                measured = Measure(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.link_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+                    SetActive(next, true)
+                    SeedHistory(next)
+                elif floor != 0:
+                    return 1
+                else:
+                    return 0
+            node = next
+            next = next - 1
+        ReverseConstrain(node, item.params.link_length)
+        return 2
+
+    func DecayHorizontal(int node, float decay):
+        let float speed = item.resource(node).velocity.x
+        if speed > decay:
+            item.resource(node).velocity.x = speed - decay
+        elif speed < -decay:
+            item.resource(node).velocity.x = speed + decay
+        else:
+            item.resource(node).velocity.x = 0
+
+    func LimitVelocity(int node, float weight):
+        DecayHorizontal(node, item.params.horizontal_decay * weight)
+        let float limit = item.params.maximum_horizontal_speed * weight
+        if abs(item.resource(node).velocity.x) > limit:
+            if item.resource(node).velocity.x > 0:
+                item.resource(node).velocity.x = limit
+            else:
+                item.resource(node).velocity.x = -limit
+        let float gravity = item.params.gravity * weight
+        if item.resource(node).velocity.y > gravity - item.params.vertical_deadzone:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - gravity
+        elif item.resource(node).velocity.y < -gravity - item.params.vertical_deadzone:
+            item.resource(node).velocity.y = item.resource(node).velocity.y + gravity
+        limit = item.params.maximum_vertical_speed * weight
+        if abs(item.resource(node).velocity.y) > limit:
+            if item.resource(node).velocity.y > 0:
+                item.resource(node).velocity.y = limit
+            else:
+                item.resource(node).velocity.y = -limit
+
+    func UpdateInputHistory():
+        let int history = int(0.5 * float(item.params.link_count) - 1)
+        while history > 0:
+            item.state.history_x[history] = item.state.history_x[history - 1]
+            item.state.history_y[history] = item.state.history_y[history - 1]
+            history = history - 1
+        let float dx = creator.state.chain_delta_x
+        let float dy = creator.state.chain_delta_y
+        item.state.history_x[0] = 0
+        if abs(dx) > item.params.stick_deadzone:
+            let int sign = 1
+            if dx < 0:
+                sign = -1
+            if facing == sign:
+                item.state.history_x[0] = dx * item.params.forward_delta_scale
+            else:
+                item.state.history_x[0] = dx * item.params.backward_delta_scale
+        item.state.history_y[0] = 0
+        if abs(dy) > item.params.stick_deadzone:
+            if dy > 0:
+                item.state.history_y[0] = dy * item.params.upward_delta_scale
+            else:
+                item.state.history_y[0] = dy * item.params.downward_delta_scale
+        # Actual raw alias is Sheik's Int rehit timer, not arbitrary common data.
+        item.state.previous_rehit = creator.state.chain_rehit_timer
+
+    func Propagate(int node, int previous, float weight, int previous_wall, int skip, bool sound) -> int:
+        let int counter = 0
+        # Original env_flags is undefined if no following node. Authored empty
+        # loop state is deterministic0; normal-loop comparisons stay separate.
+        let int environment = 0
+        while previous <= item.state.tip:
+            let int history = int(0.5 * float(counter + 1))
+            let float dx = weight * (item.state.history_x[history] * item.params.input_horizontal_scale)
+            let float dy = weight * (item.state.history_y[history] * item.params.input_vertical_scale)
+            if previous_wall != 0:
+                dx = dx * item.params.wall_input_scale
+            item.resource(previous).velocity.x = item.resource(previous).velocity.x + dx
+            item.resource(previous).velocity.y = item.resource(previous).velocity.y + dy
+            LimitVelocity(previous, weight)
+            counter = counter + 1
+            weight = weight * item.params.propagation_scale
+            Advance(previous)
+            environment = 0
+            if counter > skip:
+                environment = Sweep(previous, sound and counter % item.params.contact_sound_stride == 0)
+            environment = environment & 98304
+            if environment != 0:
+                if abs(item.resource(previous).velocity.y) > item.params.wall_vertical_threshold:
+                    item.resource(previous).velocity.y = item.resource(previous).velocity.y * -item.params.wall_bounce_scale
+                else:
+                    DecayHorizontal(previous, item.params.floor_horizontal_decay)
+                    item.resource(previous).velocity.y = 0
+            let float measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            if measured > item.params.link_length:
+                PlaceMeasured(previous, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.link_length)
+            node = previous
+            previous = previous + 1
+        return environment
+
+
+    func Control():
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.active[node]:
+            node = previous
+            previous = previous + 1
+        let bool sound = item.state.previous_rehit != 0
+        UpdateInputHistory()
+        item.resource(node).velocity.x = item.resource(node).velocity.x + item.state.history_x[0] * item.params.input_horizontal_scale
+        item.resource(node).velocity.y = item.resource(node).velocity.y + item.state.history_y[0] * item.params.input_vertical_scale
+        LimitVelocity(node, 1)
+        Advance(node)
+        let float weight = 1
+        weight = weight * item.params.propagation_scale
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if measured > item.params.link_length:
+            PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.params.link_length)
+        let int previous_wall = item.state.previous_wall_flags
+        let int skip = item.params.other_collision_skip
+        if abs(creator.input.x) < item.params.stick_deadzone and abs(creator.input.y) < item.params.stick_deadzone:
+            skip = item.params.neutral_collision_skip
+        elif creator.input.y < item.params.downward_input_threshold:
+            skip = item.params.downward_collision_skip
+        item.state.previous_wall_flags = Propagate(node, previous, weight, previous_wall, skip, sound)
+
+    func Retract() -> bool:
+        let int node = 0
+        let int previous = 1
+        while previous <= item.state.tip and not item.state.active[node]:
+            node = previous
+            previous = previous + 1
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        while previous <= item.state.tip and item.params.retract_speed > measured:
+            SetActive(node, false)
+            measured = Measure(item.resource(previous).position.x, item.resource(previous).position.y, item.resource(previous).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            node = previous
+            previous = previous + 1
+        let float remaining = measured - item.params.retract_speed
+        if remaining > item.params.link_length:
+            remaining = item.params.link_length
+        ReverseConstrain(node, remaining)
+        return previous > item.state.tip
+
+    func ReadAnchor():
+        item.resource(0).read_attachment_point(0, 0, item.params.attachment_depth, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+
+    func TipAtHand():
+        item.resource(item.state.tip).read_attachment_matrix(item.state.matrix)
+        item.state.matrix[3] = item.state.matrix[3] + item.state.matrix[2] * item.params.attachment_depth
+        item.state.matrix[7] = item.state.matrix[7] + item.state.matrix[6] * item.params.attachment_depth
+        item.state.matrix[11] = item.state.matrix[11] + item.state.matrix[10] * item.params.attachment_depth
+        item.resource(item.state.tip).set_world_matrix(item.state.matrix)
+
+    func Orient(int node, float x, float y, float z):
+        let float measured = Measure(x, y, z, 0, 0, 0)
+        let float forward_x = item.state.vector_x
+        let float forward_y = item.state.vector_y
+        let float forward_z = item.state.vector_z
+        # BCB88 normalizes once;6DC8 normalizes a second time before the crosses.
+        measured = Measure(forward_x, forward_y, forward_z, 0, 0, 0)
+        forward_x = item.state.vector_x
+        forward_y = item.state.vector_y
+        forward_z = item.state.vector_z
+        let float basis_x = 0
+        let float basis_y = 1
+        if forward_y > item.params.vertical_basis_limit:
+            basis_x = -1
+            basis_y = 0
+        elif forward_y < -item.params.vertical_basis_limit:
+            basis_x = 1
+            basis_y = 0
+        let float right_x = basis_y * forward_z
+        let float right_y = -basis_x * forward_z
+        let float right_z = basis_x * forward_y - basis_y * forward_x
+        let float up_x = forward_y * right_z - forward_z * right_y
+        let float up_y = forward_z * right_x - forward_x * right_z
+        let float up_z = forward_x * right_y - forward_y * right_x
+        measured = Measure(right_x, right_y, right_z, 0, 0, 0)
+        right_x = item.state.vector_x
+        right_y = item.state.vector_y
+        right_z = item.state.vector_z
+        measured = Measure(up_x, up_y, up_z, 0, 0, 0)
+        up_x = item.state.vector_x
+        up_y = item.state.vector_y
+        up_z = item.state.vector_z
+        item.state.matrix[0] = right_x * item.params.link_length
+        item.state.matrix[4] = right_y * item.params.link_length
+        item.state.matrix[8] = right_z * item.params.link_length
+        item.state.matrix[1] = up_x * item.params.link_length
+        item.state.matrix[5] = up_y * item.params.link_length
+        item.state.matrix[9] = up_z * item.params.link_length
+        item.state.matrix[2] = forward_x * item.params.link_length
+        item.state.matrix[6] = forward_y * item.params.link_length
+        item.state.matrix[10] = forward_z * item.params.link_length
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func Render():
+        let int node = 0
+        while node <= item.state.tip and not item.state.active[node]:
+            node = node + 1
+        let int count = 0
+        let int stride = item.params.link_count / item.params.endpoint_divisions
+        while node <= item.state.tip:
+            let float next_x = item.state.anchor_x
+            let float next_y = item.state.anchor_y
+            let float next_z = item.state.anchor_z
+            if node > 0 and item.state.active[node - 1]:
+                next_x = item.resource(node - 1).position.x
+                next_y = item.resource(node - 1).position.y
+                next_z = item.resource(node - 1).position.z
+            let float previous_x = item.resource(node).position.x
+            let float previous_y = item.resource(node).position.y
+            let float previous_z = item.resource(node).position.z
+            if node < item.state.tip:
+                previous_x = item.resource(node + 1).position.x
+                previous_y = item.resource(node + 1).position.y
+                previous_z = item.resource(node + 1).position.z
+            item.resource(node).joint("").translation.x = item.resource(node).position.x
+            item.resource(node).joint("").translation.y = item.resource(node).position.y
+            item.resource(node).joint("").translation.z = item.resource(node).position.z
+            if count % stride == 0:
+                let int hit = item.params.endpoint_divisions
+                while hit > count / stride:
+                    creator.call(chain_endpoint, hit - 1, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    hit = hit - 1
+            if node == item.state.tip:
+                creator.call(chain_endpoint, 3, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+            count = count + 1
+            Orient(node, previous_x - next_x, previous_y - next_y, previous_z - next_z)
+            node = node + 1
+
+    func Change(int motion):
+        # ITEM_ANIM_UPDATE is bit1 (2), distinct from ITEM_DROP_UPDATE bit2.
+        item.change_state_flags(motion, 2)
+        item.track_accessory()
+
+    func Cleanup():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "chain_lost")
+        item.detach_owner()
+        item.resources.release()
+
+    on created:
+            item.state.tip = item.params.link_count - 1
+            item.state.previous_wall_flags = 0
+            # Original x18 has no explicit constructor write; undefined boundary.
+            item.state.previous_rehit = 0
+            item.state.stick_deadzone = item.params.stick_deadzone
+            item.state.movement_threshold = item.params.movement_threshold
+            item.state.launch_speed = item.params.launch_speed
+            let int index = 0
+            while index < 15:
+                item.state.history_x[index] = 0
+                item.state.history_y[index] = 0
+                index = index + 1
+            item.joint("").visible = false
+            # Malformed edited counts do not reproduce stride0/history overflow.
+            # Retail source audit reports20; capacity30 fits15 history entries.
+            if item.params.link_count < 3 or item.params.link_count > 30 or item.params.endpoint_divisions != 3:
+                item.remove()
+            let bool allocated = item.resources.begin(item.params.link_count)
+            if not allocated:
+                item.remove()
+            index = 0
+            while index < item.params.link_count:
+                let bool created = item.resource(index).create(attrs.chain_attachment_part, item.params.collision_radius, item.params.collision_category, 0, 0, 0)
+                if not created:
+                    item.resources.release()
+                    item.remove()
+                item.resource(index).surface_line = 0
+                item.state.active[index] = false
+                item.state.touching[index] = false
+                item.state.sound_latched[index] = false
+                let bool loaded = false
+                if index == item.state.tip:
+                    loaded = item.resource(index).load_model(Tip)
+                else:
+                    loaded = item.resource(index).load_model(Link)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                let bool drawing = item.resource(index).set_draw(index == item.state.tip)
+                index = index + 1
+            item.attach_to_owner(attrs.chain_attachment_part)
+    on picked_up:
+            Change(0)
+    on accessory:
+            if item.motion_state == 0:
+                TipAtHand()
+            else:
+                ReadAnchor()
+                if item.motion_state == 1:
+                    let int outcome = Extend(false)
+                    if outcome == 1:
+                        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * -item.params.initial_bounce_scale
+                        creator.call(chain_clear_hitboxes)
+                        Change(2)
+                    elif outcome == 2:
+                        creator.call(chain_clear_hitboxes)
+                        Change(3)
+                elif item.motion_state == 2:
+                    let int outcome = Extend(true)
+                    if outcome == 1:
+                        item.resource(item.state.tip).velocity.x = item.resource(item.state.tip).velocity.x * -item.params.initial_bounce_scale
+                    elif outcome == 2:
+                        creator.call(chain_clear_hitboxes)
+                        Change(3)
+                elif item.motion_state == 3:
+                    Control()
+                elif item.motion_state == 4:
+                    if Retract():
+                        Change(0)
+                Render()
+    on signal launch:
+            ReadAnchor()
+            SetPosition(item.state.tip, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            # History seeds actual ECB midpoint, distinct from hand/item position.
+            item.resource(item.state.tip).collision.position.x = creator.position.x
+            let float center_y = creator.call(chain_center_y)
+            item.resource(item.state.tip).collision.position.y = center_y
+            item.resource(item.state.tip).collision.position.z = creator.position.z
+            item.resource(item.state.tip).collision.previous.x = item.resource(item.state.tip).collision.position.x
+            item.resource(item.state.tip).collision.previous.y = item.resource(item.state.tip).collision.position.y
+            item.resource(item.state.tip).collision.previous.z = item.resource(item.state.tip).collision.position.z
+            SetActive(item.state.tip, true)
+            item.resource(item.state.tip).velocity.x = item.params.launch_speed * facing
+            item.resource(item.state.tip).velocity.y = 0
+            item.resource(item.state.tip).velocity.z = 0
+            Change(1)
+    on signal retract:
+            Change(4)
+    on signal pause:
+            item.pause()
+    on signal resume:
+            item.resume()
+    on signal destroy:
+            Cleanup()
+            item.remove()
+    on destroyed:
+            Cleanup()
+    on interaction:
+            let bool creator_removed = item.attachment_owner_is(other)
+            item.interact(other)
+            if creator_removed:
+                # Original EvtUnk clears parent independently of mutable owner.
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            let int holder_motion = holder.motion
+            if holder_motion < 349 or holder_motion > 354:
+                Cleanup()
+                return true
+            return false
+    state 1 anim -1 use 0:
+    state 2 anim -1 use 0:
+    state 3 anim -1 use 0:
+    state 4 anim -1 use 0:

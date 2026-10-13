@@ -1,0 +1,20 @@
+{
+  "status": "source-stable",
+  "receipt": "A:/FreakMelee-test-archives/cpu-follower72-final-trigger/receipt.json",
+  "scope": "generic follower foundation; prior SDK71 audit immutable; no complete follower/game acceptance",
+  "inputs": {
+    "tests/native/cpu_follower_foundation/backend_test.c": "7c0dc4814d8049ce6cfe07fbe25e29f4e2f7053bd0643ed8c20e425a2fc434a8",
+    "tests/native/cpu_follower_foundation/compiler.c": "9fec5ae304905da72f9c20c55116b04c09666894bb5f97dcbd9905a58c00c50c",
+    "tests/native/cpu_follower_foundation/history_test.c": "d4c847c3e525e0797361621ca936736389f7cd7091e2a2dd34735e6b019187da",
+    "tests/native/cpu_follower_foundation/hook_test.c": "3d23736c24138799955b28ff1cc7511f6d9a9b66868dd16ebce0a93072c45c55",
+    "tests/native/cpu_follower_foundation/module.c": "cdf2cdd3914b5ed270c14077256a39ceaf4b680c4f82b79a1187aadb06e96b35",
+    "tests/native/cpu_follower_foundation/source_test.c": "feb5e4ea32db0b73a8c58efe4086d9cb6de1f2a14e1831a13ac8e8e3cdf5d16b",
+    "tests/native/cpu_follower_foundation/refactor_audit.py": "d82aa4decc5532bf55187b4c64e74fb7376b4f8822765f7bb3a19c848e732b98",
+    "tests/native/cpu_follower_foundation/run.py": "5c79b79677e8e180b9fe1ece9baee49ef123158b17f0be693e06b380679e05e6",
+    "tests/native/cpu_follower_foundation/README.md": "e5cec44e04003a270af5832de2cf5d45e7d827b4dafa992af53307284562d64a",
+    "docs/scripting/cpu_history.md": "409965b3f8ac22dfe33718e5731a849321973e7750443a56c85f7d6d1654b6bd",
+    "src/melee/ft/native_cpu_history.c": "e8733b0ea0d51866e9efe229309bfb66634f397e6abfb9a0ec7656bdea3bc8df",
+    "src/melee/ft/native_cpu_history.h": "268ba871b73016226bacef21c2ea3fba53dff51c4655711ef171beae5b0e5aa7"
+  },
+  "notes": "Runner encoding-only follow-up after final-trigger acceptance; all reads/writes/subprocess explicitly UTF-8. Refactor auditor has no file or subprocess I/O."
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "freak-melee-releases",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "CHANNEL_PATH": "3ShgcrpBLwN2237YIwwm6kX0"
+  },
+  "r2_buckets": [
+    {
+      "binding": "RELEASES",
+      "bucket_name": "freak-melee-releases"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    }
+  }
+}

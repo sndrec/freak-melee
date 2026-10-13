@@ -1,0 +1,61 @@
+add_executable(native_source_assets_test tests/native/source_assets/test.c)
+target_include_directories(native_source_assets_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_assets_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_assets_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_assets_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_assets_test)
+
+add_executable(native_script_move_entry_test tests/native/script_move_entry_test.c)
+target_include_directories(native_script_move_entry_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_script_move_entry_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(native_script_move_entry_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_script_move_entry_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_script_move_entry_test)
+add_test(NAME native_script_move_entry COMMAND native_script_move_entry_test)
+
+add_executable(native_source_package_runtime_test tests/native/source_package_runtime/test.c)
+target_include_directories(native_source_package_runtime_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_package_runtime_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_package_runtime_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_package_runtime_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_package_runtime_test)
+
+add_executable(native_source_item_package_test tests/native/source_item_package/test.c)
+target_include_directories(native_source_item_package_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_item_package_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_item_package_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_item_package_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_item_package_test)
+# The standalone runner supplies a fresh private output path and actual ISO;
+# it intentionally does not create a persistent mutable CTest draft directory.
+
+add_executable(native_source_family_project_test tests/native/source_family_project/test.c)
+target_include_directories(native_source_family_project_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_family_project_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_family_project_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_family_project_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_family_project_test)
+
+add_executable(native_source_family_runtime_test tests/native/source_family_runtime/test.c)
+target_include_directories(native_source_family_runtime_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_family_runtime_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_family_runtime_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_family_runtime_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_family_runtime_test)
+
+add_executable(native_source_owned_declarations_test tests/native/source_owned_declarations/test.c)
+target_include_directories(native_source_owned_declarations_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_source_owned_declarations_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+target_link_libraries(native_source_owned_declarations_test PRIVATE melee_runtime aurora_os aurora_gx aurora_vi
+    aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+target_link_options(native_source_owned_declarations_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_source_owned_declarations_test)
+add_test(NAME native_source_owned_declarations COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/source_owned_declarations/run.py"
+    --exe "$<TARGET_FILE:native_source_owned_declarations_test>" --iso "${MELEE_ISO}")

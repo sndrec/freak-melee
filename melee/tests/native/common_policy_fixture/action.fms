@@ -1,0 +1,285 @@
+func custom_landing():
+    velocity.z = 95
+
+func shield_visual():
+    visuals.set_current_group(1, 1)
+    sound.play(190115, 127, 64)
+
+func roll_collision():
+    collision.ground_standard_box(12, -2, -3, 4, 3, 4)
+
+func floor_probe(int index, float distance):
+    let found = false
+    let x = 0
+    let y = 0
+    let z = 0
+    stage.follow_floor(floor.line, position.x, position.y, position.z, distance, 3, found, x, y, z)
+    hitbox.set_world_position(index, x, y + 2, z)
+
+action Policy:
+    on wait_enter:
+        let bool installed = model_graphs.install(6, 0)
+        velocity.x = visuals.previous_group(2)
+        if installed: velocity.y = shield.pushback_light_min + shield.pushback_light_max
+        guard.filtered_attacks_only = true
+        guard.skip_contact_details = false
+    on crouch_wait_enter:
+        model_graphs.install(6, 0)
+        velocity.x = visuals.current_group(2)
+        guard.filtered_attacks_only = false
+        guard.skip_contact_details = true
+    on aerial_attack_enter:
+        if guard.skip_contact_details and not guard.filtered_attacks_only: velocity.x = 74
+        if controls.try_taunt(): return
+        if controls.try_crouch(): return
+        if controls.try_turn(): return
+        if controls.try_walk(): return
+        velocity.y = 75
+    on aerial_action_manual:
+        return input.jump_held and input.cstick_attack_edge() and controls.aerial_attack_motion() == 65
+    on aerial_action_automatic:
+        if not collision.contact_rebound_allowed(): return false
+        if controls.try_air_item_throw(): return true
+        collision.air_landing_callback(custom_landing)
+        state.air_gun()
+        return true
+    on grounded_motion_setup:
+        movement.fastfall = false
+        velocity.x = controls.tap_jump_threshold
+        velocity.y = controls.aerial_action_down_threshold
+        velocity.z = items.held_use_category
+    on jab_start:
+        callbacks.state_changed(jab_bookkeeping)
+        return Transition.skip_attack_count
+    on forward_smash_start:
+        physics.air_accel_normal()
+        velocity.y = 43
+        controls.interrupt_allowed = Collision.floor_mask + Collision.ceiling_mask + Collision.wall_mask != 0
+        damage.song_immune = true
+        let float rotated_x = 0
+        let float rotated_y = 0
+        let float rotated_z = 0
+        vectors.rotate(1, 2, 3, Axis.z, 0.5, rotated_x, rotated_y, rotated_z)
+        if rotated_x == 4 and rotated_y == 5 and rotated_z == 6: velocity.x = 98
+        hitbox.clear_victims(2)
+        ground.velocity = hitbox.state(2)
+        hitbox.set_enabled(2, true)
+        hitbox.clear_victims(-1)
+        hitbox.set_enabled(4, true)
+        let int flags = stage.sweep_box(1, 2, 3, 4, 5, 6, 7, -8, -9, 10, 11, 12, 5)
+        if flags == -2147483647: velocity.z = 99
+    on forward_smash_enter:
+        velocity.x = event.angle + facing.direction
+    on up_smash_enter:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(3, x, y, z, 7, 8, 9)
+        velocity.x = x
+        velocity.y = y
+        velocity.z = z
+    on down_smash_enter:
+        let float x = 1
+        let float y = 1
+        let float z = 1
+        bones.world_position(-1, x, y, z)
+        velocity.x = x
+        velocity.y = y
+        velocity.z = z
+    on auxiliary_item_attach:
+        velocity.z = 44
+        visuals.set_group(costume.variant, 0)
+    on catch_allowed:
+        return false
+    on catch_start:
+        velocity.x = 51
+    on catch_frame:
+        return motion.id == 350
+    on catch_exit:
+        velocity.x = 52
+    on catch_wait_release:
+        velocity.x = 53
+    on catch_pull_anchor:
+        return true
+    on catch_pull_ready:
+        return false
+    on catch_pull_follow:
+        return true
+    on auxiliary_item_visibility_reset:
+        velocity.z = 45
+        visuals.set_group(-1, 0)
+    on cpu_recovery:
+        velocity.x = random.float()
+        cpu.queue(Cpu.stick_x, cpu.destination.x)
+        cpu.queue(Cpu.wait, abs(cpu.destination.y))
+        cpu.queue(Cpu.done)
+    on throw_victim_motion:
+        if event.motion == Motion.throw_down and capture.victim_animation_family == AnimationFamily.zelda: return Motion.thrown_down_alternate
+        return event.victim_motion
+    on cpu_pummel_special:
+        return motion.id == 350
+    on cpu_ranged_allowed:
+        return cpu.floor_in_bounds
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(abs(-27)): cpu.add_candidate(38)
+    on presentation_item:
+        physics.air_accel_from(velocity.x)
+        physics.animation_vertical_velocity_adjusted()
+        velocity.z = 73
+    on cpu_projectile_hit:
+        if event.prediction_frames >= 21 and event.unblockable: return 3
+        return 2
+    on cpu_special_candidate:
+        if event.distance == 123: return true
+        if event.distance == 124:
+            cpu.selected_command = 0
+            return true
+        if event.distance == 125:
+            cpu.selected_command = 62
+            return true
+        if event.distance >= 200:
+            cpu.selected_command = 61
+            return true
+        if not grounded and event.angle < -0.7853981573134661:
+            cpu.selected_command = 38
+            return true
+        return false
+    on cpu_threat:
+        let float probe_x = 0
+        let float probe_y = 0
+        let int probe_line = -1
+        let bool found = stage.read_floor(position.x, position.y, other.position.x, other.position.y, probe_x, probe_y, probe_line)
+        found = found and not stage.cpu_floor_excluded(probe_line)
+        return found and other.cpu.body_half_width == 7
+    on cpu_initialize:
+        cpu.set_approach_spacing(8.5)
+        cpu.queue(Cpu.press_b)
+        cpu.queue(Cpu.wait, 3)
+        cpu.queue(Cpu.forward_clamped, 40, 127)
+        let left_stick = -127
+        cpu.queue(Cpu.stick_x, left_stick)
+        cpu.queue(Cpu.forward_clamped, left_stick, -40)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(9 * event.value)
+    on cpu_attack_motion:
+        return motion.id > 368
+    on cpu_grab_motion:
+        return motion.id >= 351 and motion.id <= 356
+    on cpu_capture_decision:
+        let found = false
+        let left_x = 0
+        let left_y = 0
+        let right_x = 0
+        let right_y = 0
+        stage.island_bounds(position.x, position.y, position.z, -10, found, left_x, left_y, right_x, right_y)
+        velocity.x = right_x - left_x
+        return found
+    on cpu_attack_decision:
+        return false
+    on cpu_charge_decision:
+        return true
+    on cpu_charge_cancel:
+        cpu.queue(Cpu.release_r)
+    on roll_enter:
+        callbacks.collision(roll_collision)
+    on load:
+        bones.set_direct_animation_copy(TransN, true)
+        animation.hip_root_compensation = true
+        hurtboxes.set_all(Hurt.normal)
+        hurtboxes.set_bone(6, Hurt.intangible)
+        hurtboxes.set_bone(7, Hurt.intangible)
+        hurtboxes.set_bone(-1, Hurt.intangible)
+        hurtboxes.set_bone(76, Hurt.intangible)
+        hurtboxes.set_all(3)
+        items.set_held_visible(false)
+        articles.set_attached_visible(false)
+        animation.delta.y = 0
+        animation.delta.x = 4
+        animation.delta.z = -2
+        collision.unlock_ecb()
+        effects.spawn_at_position(1240, position.x, position.y, position.z)
+        floor_probe(0, 6)
+        floor_probe(1, -6)
+        floor_probe(4, 6)
+        floor_probe(-1, 6)
+        velocity.x = hitbox.damage(1)
+        if input.shield_pressed and controls.try_roll(): velocity.z = 1
+        callbacks.track_secondary_damage()
+        velocity.z = facing.animation_direction
+        throws.update()
+        physics.throw_motion()
+    on secondary_damage:
+        velocity.y = 15
+        callbacks.clear_secondary_damage()
+    on body_rebound:
+        return motion.id == 369 or motion.id == 371
+    on jab_restart:
+        return event.motion == 46
+    on dynamics_wind:
+        return not items.held
+    on dynamics_ground_collision:
+        return grounded and model.instance_scale_y == 1
+    on dynamics_interaction_start:
+        if event.set == event.set_count - 1: return 0
+        return 8
+    on worn_item_jump_sound:
+        return false
+    on aerial_jump:
+        let motion = 27
+        if input.x * facing.direction <= -controls.aerial_jump_reverse_threshold: motion = 28
+        jump.begin(motion, input.x * air.jump_horizontal_multiplier, 0, 0, true, true, false)
+    on shield_start:
+        shield_visual()
+    on shield_reflect_start:
+        shield_visual()
+    on death:
+        visuals.set_current_group(-1, 0)
+        visuals.set_current_group(2, 0)
+        visuals.set_current_group(1, 300)
+    on heavy_throw_enter:
+        callbacks.animation(None)
+        callbacks.interrupt(None)
+        callbacks.physics(carry_physics)
+        callbacks.collision(carry_collision)
+        callbacks.accessory(carry_accessory)
+    on heavy_item_damage:
+        if damage.reaction_suppressed or damage.knockback_level < 3:
+            damage.enter(350, 0)
+        else:
+            items.release_held(0, 0, 0, 1)
+            damage.default_reaction(0)
+    on heavy_pickup_finish:
+        return controls.try_heavy_item_throw()
+    on throw_finish:
+        if motion.id != Motion.throw_forward: return false
+        velocity.x = animation.clip_length(2) + animation.length + walk.type
+        if controls.walk_requested() and not controls.walk_stop_requested(): velocity.y = controls.jump_input()
+        if controls.throw_horizontal_threshold > 0.5 and controls.throw_up_threshold == 0.5 and controls.throw_down_threshold == -0.5: velocity.z = 12
+        walk.enter(352, 0, 3, 10, 20, 30, 1, 2, 3, 1)
+        walk.update_animation()
+        physics.walk()
+        jump.prepare(controls.jump_input(), false)
+        jump.check_short_hop()
+        jump.launch(true, 1)
+        physics.jump_motion()
+        state.landing(359, true, 0, 0, 1)
+        capture.initialize_hold(Motion.held_wait)
+        capture.set_victim_hold_motion(Motion.held_turn)
+        capture.set_victim_throw_motion(Motion.held_throw_forward, 1)
+        capture.sync_victim_facing()
+        damage.update_timer()
+        physics.damage_motion()
+        return capture.has_victim and not damage.in_hitstun
+
+func carry_physics():
+    velocity.x = 88
+    callbacks.physics(carry_physics)
+
+func carry_collision():
+    velocity.y = 99
+
+func carry_accessory():
+    velocity.z = 77
+
+func jab_bookkeeping():
+    ground.velocity = 42

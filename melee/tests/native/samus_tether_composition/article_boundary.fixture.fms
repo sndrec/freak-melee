@@ -1,0 +1,26 @@
+# TEST BOUNDARY ONLY: these callbacks are not a Grapple implementation.
+# The source fixture controls article construction and ordered signal effects.
+# No production template, registration, or article acceptance is claimed.
+article It_Kind_Samus_GBeam states 9:
+    attribute float source_launch_speed 24
+    attribute float ground_coefficient 92
+    attribute float air_coefficient 96
+    state bool completed
+    state bool capture_bound
+    state float launch_speed
+    state float endpoint_x
+    state float endpoint_y
+    state float endpoint_z
+    on created:
+            item.state.completed = false
+    state 0 anim -1:
+        on physics:
+            pass
+    state 1 anim -1:
+    state 2 anim -1:
+    state 3 anim -1:
+    state 4 anim -1:
+    state 5 anim -1:
+    state 6 anim -1:
+    state 7 anim -1:
+    state 8 anim -1:

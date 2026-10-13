@@ -1,0 +1,8 @@
+#ifndef MELEE_FT_NATIVE_SCRIPT_BINDING_ACTIONS_H
+#define MELEE_FT_NATIVE_SCRIPT_BINDING_ACTIONS_H
+#include "native_script_vm.h"
+bool nativeScriptBindingActions_Read(NativeScriptRuntimeContext*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+bool nativeScriptBindingActions_Invoke(NativeScriptRuntimeContext*,uint32_t,const NativeScriptValue*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+bool nativeScriptBindingFeedback_Invoke(NativeScriptRuntimeContext*,uint32_t,const NativeScriptValue*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+bool nativeScriptBindingCollision_Invoke(NativeScriptRuntimeContext*,uint32_t,const NativeScriptValue*,uint32_t,NativeScriptValue*,NativeScriptDiagnostic*);
+#endif

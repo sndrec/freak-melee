@@ -1,0 +1,102 @@
+{
+  "snapshot": "baseline50",
+  "status": "read-only source inventory / unregistered draft; no generated module or comparisons",
+  "inputs": {
+    "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c": "d6c81e6cd27c6791c846b260fa7d048ba78bf7a29382df7f7c59d5f9503b746d",
+    "src/melee/it/kinds/itpeachparasol.c": "4ab2510baccbd35b68f53653831cf712bc9ab97068780a13c7c659b37582ca85",
+    "src/melee/ft/ftcommon.c": "01fc801324b903720e7a9eaa84016f5ae926ab0b2bc04ef1a87df2c33fb8c22f",
+    "src/melee/ft/kinds/ftCommon/inlines.h": "30135b8b8b91347f2119ac6eaff5476ecd48e8725e4084be4bbd68c90243753e",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c": "3ab6fd83d3932435881b909c58c7c84ef79f9f626c5a62e916774983aa2fd94b",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFall.c": "2104ac193ee18c03df3a076db0c5ffa045d809e747cb516ff1cf5449c2f043fd",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c": "fb43737a010f8465e16830b0cba5243ea17c22bdf765e9129d9c9815126837eb",
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolDamageFall.c": "1fc8c737a3474e809057933bc7e9e2750dfb6ac1d90fd0cc302c450a191b1598",
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": "2eb2a869336452adc2b35cb2b12b4c91134d9eeef6bf6dbf9810af5de53de7ed",
+    "src/melee/ft/ft_08A1.c": "31061c51b43b8dfaf697acf7c2b43c341ba510b68f7a8a43400c16dc21d3d243",
+    "src/melee/ft/ft_0D27.c": "e18b798f9ddd615df8c51e8050b2a5d13be0ad8a52901485e2385e807b20027f",
+    "src/melee/ft/fighter.c": "a282f8794d14d38ad10e86c06076fba2406e6f6dd6d5c1f6316affb258a59f8b",
+    "src/melee/ft/ftaction.c": "b2ee5a6465fff4529fc28af970bd0511c7b9e48ce960da5f3ef9a069ec0d4c9e",
+    "src/melee/ft/kinds/ftPeach/forward.h": "aef7ddc48f4d1c85c274b14eb452fa3ff9ccbb0435b86c43b09ee3bfb5bc8267",
+    "src/melee/ft/ft_084E.c": "496cd3a71a7921e618a470ddaee0fb133780f611b7173efb99bd744438e1d066"
+  },
+  "functions": {
+    "src/melee/ft/kinds/ftPeach/ftpeachspecialhi.c": {
+      "ftPe_SpecialHi_Enter": 168,
+      "ftPe_SpecialAirHi_Enter": 177,
+      "notUsingParasol": 115,
+      "ftPe_SpecialHi_NotActive": 135,
+      "doEnter": 145,
+      "checkCmdVar2": 190,
+      "ftPe_SpecialHiStart_Anim": 200,
+      "ftPe_SpecialHiStart_IASA": 222,
+      "ftPe_SpecialHiStart_Phys": 249,
+      "ftPe_SpecialAirHiStart_Phys": 258,
+      "doColl": 281,
+      "ftPe_SpecialHiEnd_Anim": 305,
+      "ftPe_SpecialHiEnd_Phys": 324,
+      "ftPe_SpecialAirHiEnd_Phys": 339
+    },
+    "src/melee/it/kinds/itpeachparasol.c": {
+      "it_802BDA40": 30,
+      "it_802BDC38": 77,
+      "itPeachparasol_UnkMotion2_Anim": 97,
+      "it_802BDD40": 117,
+      "it_802BDDB4": 92
+    },
+    "src/melee/ft/ftcommon.c": {
+      "ftCommon_8007E83C": 641,
+      "ftGetParasolStatus": 647
+    },
+    "src/melee/ft/kinds/ftCommon/inlines.h": {
+      "ftCo_ItemParasolGetFallMotionId": 55
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolOpen.c": {
+      "ftCo_800CEE70": 22,
+      "ft_800CEF08": 32,
+      "ftCo_800CEFE0": 62,
+      "ftCo_ItemParasolOpen_Anim": 75,
+      "ftCo_ItemParasolOpen_IASA": 87,
+      "ftCo_ItemParasolOpen_Phys": 99,
+      "ftCo_ItemParasolOpen_Coll": 127
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFall.c": {
+      "ftCo_800CF280": 21,
+      "ftCo_ItemParasolFall_IASA": 30
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolFallSpecial.c": {
+      "ftCo_800CF3C8": 17,
+      "ftCo_ItemParasolFallSpecial_IASA": 32
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_ItemParasolDamageFall.c": {
+      "ftCo_800CF4DC": 14
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": {
+      "ftCo_Landing_Enter": 39
+    },
+    "src/melee/ft/ft_08A1.c": {
+      "ft_8008A348": 63
+    },
+    "src/melee/ft/ft_0D27.c": {
+      "fn_800D2890": 70
+    },
+    "src/melee/ft/fighter.c": {
+      "Fighter_ChangeMotionState": 1025,
+      "Fighter_8006A360": 1552
+    },
+    "src/melee/ft/ftaction.c": {
+      "ftAction_80072894": 1011
+    },
+    "src/melee/ft/kinds/ftPeach/forward.h": {},
+    "src/melee/ft/ft_084E.c": {
+      "ft_80085154": 128
+    }
+  },
+  "motion_ids": {
+    "ground_start": 361,
+    "ground_end": 362,
+    "air_start": 363,
+    "air_end": 364,
+    "open": 369,
+    "fall_special": 370
+  },
+  "immutable_composition50_sha256": "05a446f1dc03996956268141e37192b269f788623dc8ac209b888432190885b8"
+}

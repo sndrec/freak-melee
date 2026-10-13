@@ -1,0 +1,271 @@
+# UNCOMPILED complete normal-entry/phase draft. This file is NOT used by run.py.
+# Exclusive entry hooks/shared attack operations/explicit landing callback and
+# lag reads await the root's next shared batch. No stock handlers are called.
+# Use common policies solely for callbacks with no fighter-specific decisions:
+motion_policy 341 common 44
+motion_policy 343 common 48
+motion_policy 347 common 65
+motion_policy 348 common 67
+motion_policy 349 common 68
+func GreenhouseSetup():
+    if state.greenhouse_handle != -1: GreenhouseDecide()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+        state.greenhouse_handle = articles.create_with_velocity(It_Kind_GameWatch_Greenhouse, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.greenhouse_handle != -1:
+            if callbacks.death2_is(None): callbacks.death2(PropDamage)
+            if callbacks.damage_is(None): callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(GreenhousePause)
+            callbacks.post_hitlag(GreenhouseResume)
+    callbacks.accessory(None)
+func ManholeSetup():
+    if state.manhole_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+        let int held = items.held_id
+        if held != -1:
+            state.saved_manhole_held = held
+            items.set_visible(held, false)
+            items.set_paused(held, true)
+            items.notify_drop(held, true)
+        state.manhole_handle = articles.create_with_velocity(It_Kind_GameWatch_Manhole, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.manhole_handle != -1:
+        if callbacks.death2_is(None): callbacks.death2(PropDamage)
+        if callbacks.damage_is(None): callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(ManholePause)
+    callbacks.post_hitlag(ManholeResume)
+    callbacks.accessory(None)
+func TorchSetup():
+    # Original allocates again even when a previous Torch handle is present.
+    let float x = 0
+    let float y = 0
+    let float z = 0
+    bones.world_position(attrs.normal_handnb_part, x, y, z, 0, 0, 0)
+    state.torch_handle = articles.create_with_velocity(It_Kind_GameWatch_Fire, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.torch_handle != -1:
+        if callbacks.death2_is(None): callbacks.death2(PropDamage)
+        if callbacks.damage_is(None): callbacks.damage(PropDamage)
+    callbacks.pre_hitlag(TorchPause)
+    callbacks.post_hitlag(TorchResume)
+    callbacks.accessory(None)
+func ParachuteSetup():
+    if state.parachute_handle != -1: ParachuteLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_trans_part, x, y, z, 0, 0, 0)
+        state.parachute_handle = articles.create_with_velocity(It_Kind_GameWatch_Parachute, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.parachute_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func TurtleSetup():
+    if state.turtle_handle != -1: TurtleLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_shoulder_part, x, y, z, 0, 0, 0)
+        state.turtle_handle = articles.create_with_velocity(It_Kind_GameWatch_Turtle, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.turtle_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func SparkySetup():
+    if state.sparky_handle != -1: SparkyLand()
+    else:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(attrs.normal_hand_part, x, y, z, 0, 0, 0)
+        state.sparky_handle = articles.create_with_velocity(It_Kind_GameWatch_Breath, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+        if state.sparky_handle != -1:
+            callbacks.death2(PropDamage)
+            callbacks.damage(PropDamage)
+            callbacks.pre_hitlag(AirPropsPause)
+            callbacks.post_hitlag(AirPropsResume)
+    callbacks.accessory(None)
+func RapidLoopEnter():
+    state.enter_at_speed(attrs.rapid_loop_motion, 0, 0, 1)
+    callbacks.accessory(GreenhouseDecide)
+func RapidEndEnter():
+    state.enter_at_speed(attrs.rapid_end_motion, 0, 0, 1)
+    callbacks.accessory(GreenhouseDecide)
+func NormalGroundCollision():
+    collision.ground_standard()
+    CleanupIfAir()
+func DownTiltInterrupt():
+    if controls.interrupt_allowed:
+        if controls.try_side_smash(): return
+        if controls.try_up_smash(): return
+        if controls.try_down_smash(): return
+        if controls.try_side_tilt(): return
+        if controls.try_up_tilt(): return
+        if controls.try_down_tilt(): return
+        if controls.try_jab(): return
+        if controls.try_ground_jump(): return
+        if controls.try_dash(): return
+        if controls.try_crouch(): return
+        if controls.try_turn(): return
+        if controls.try_walk(): return
+func NeutralLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        state.landing_aerial(attrs.neutral_landing_motion, stats.landing_air_neutral_lag)
+        callbacks.accessory(ParachuteLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func BackLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        state.landing_aerial(attrs.back_landing_motion, stats.landing_air_back_lag)
+        callbacks.accessory(TurtleLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func UpLandingEnter():
+    AirPropsResume()
+    if command(0) != 0:
+        # Original uses Back landing lag, preserved deliberately.
+        state.landing_aerial(attrs.up_landing_motion, stats.landing_air_back_lag)
+        callbacks.accessory(SparkyLand)
+        return
+    state.basic_landing()
+    PropDamage()
+func AirAnimation():
+    if cue.consume(3): facing.flip()
+    if animation.finished: state.fall()
+func LandingAnimation(int expected_motion):
+    if animation.finished: state.wait()
+    if motion.id != expected_motion: PropDamage()
+func LandingCollision(int expected_motion):
+    collision.ground_with_nudge()
+    if motion.id != expected_motion: PropDamage()
+action NormalEntries:
+    on jab_enter:
+        if attack.enter_jab(attrs.jab_motion): callbacks.accessory(GreenhouseSetup)
+    on rapid_jab_enter:
+        attack.enter_rapid_jab(attrs.rapid_start_motion)
+        # Source sets accessory even when pickup consumed the common entry.
+        callbacks.accessory(GreenhouseSetup)
+    on down_tilt_enter:
+        if items.try_pickup(): return
+        controls.interrupt_allowed = false
+        state.enter_at_speed(attrs.down_tilt_motion, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(ManholeSetup)
+    on forward_smash_enter:
+        controls.interrupt_allowed = false
+        command(0) = 0
+        state.enter_at_speed(attrs.forward_smash_motion, 0, 0, 1)
+        animation.start()
+        callbacks.accessory(TorchSetup)
+    on aerial_attack_motion:
+        if event.motion == 65: return attrs.neutral_air_motion
+        if event.motion == 67: return attrs.back_air_motion
+        if event.motion == 68: return attrs.up_air_motion
+        return event.motion
+    on aerial_attack_enter:
+        if motion.id == attrs.neutral_air_motion: callbacks.accessory(ParachuteSetup)
+        if motion.id == attrs.back_air_motion: callbacks.accessory(TurtleSetup)
+        if motion.id == attrs.up_air_motion: callbacks.accessory(SparkySetup)
+    on state_341_animation:
+        if animation.finished: state.wait()
+    # state341 IASA is the shared common Attack11_IASA via motion_policy.
+    on state_341_physics:
+        physics.ground_motion()
+    on state_341_collision:
+        NormalGroundCollision()
+    on state_342_animation:
+        if animation.finished: RapidLoopEnter()
+    on state_342_interrupt:
+        pass
+    on state_342_physics:
+        physics.ground_motion()
+    on state_342_collision:
+        NormalGroundCollision()
+    on state_343_animation:
+        attack.update_rapid_jab(RapidEndEnter)
+    # state343 IASA is shared common Attack100Loop_IASA via motion_policy.
+    on state_343_physics:
+        physics.ground_motion()
+    on state_343_collision:
+        NormalGroundCollision()
+    on state_344_animation:
+        if animation.finished: state.wait()
+    on state_344_interrupt:
+        pass
+    on state_344_physics:
+        physics.ground_motion()
+    on state_344_collision:
+        NormalGroundCollision()
+    on state_345_animation:
+        if animation.finished: state.crouch_wait()
+    on state_345_interrupt:
+        DownTiltInterrupt()
+    on state_345_physics:
+        physics.ground_friction()
+    on state_345_collision:
+        NormalGroundCollision()
+    on state_346_animation:
+        if animation.finished: state.wait()
+    on state_346_interrupt:
+        if controls.interrupt_allowed: controls.ground_actions()
+    on state_346_physics:
+        physics.ground_motion()
+    on state_346_collision:
+        NormalGroundCollision()
+    on state_347_animation:
+        AirAnimation()
+    # N/B/Hi IASA bind the ordinary common aerial policy, without GW handlers.
+    on state_347_physics:
+        physics.air_drift()
+    on state_347_collision:
+        collision.air_aerial_landing_callback(NeutralLandingEnter)
+    on state_348_animation:
+        AirAnimation()
+    on state_348_physics:
+        physics.air_drift()
+    on state_348_collision:
+        collision.air_aerial_landing_callback(BackLandingEnter)
+    on state_349_animation:
+        AirAnimation()
+    on state_349_physics:
+        physics.air_drift()
+    on state_349_collision:
+        collision.air_aerial_landing_callback(UpLandingEnter)
+    on state_350_animation:
+        LandingAnimation(attrs.neutral_landing_motion)
+    on state_350_interrupt:
+        pass
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        LandingCollision(attrs.neutral_landing_motion)
+    on state_351_animation:
+        LandingAnimation(attrs.back_landing_motion)
+    on state_351_interrupt:
+        pass
+    on state_351_physics:
+        physics.ground_friction()
+    on state_351_collision:
+        LandingCollision(attrs.back_landing_motion)
+    on state_352_animation:
+        LandingAnimation(attrs.up_landing_motion)
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.ground_friction()
+    on state_352_collision:
+        LandingCollision(attrs.up_landing_motion)

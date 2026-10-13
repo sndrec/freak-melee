@@ -1,0 +1,11 @@
+{
+  "source_inputs": {
+    "tests/native/peach_fighter_composition/candidate.fms": "6c2476525e584e9461b6f99d457f68b08ad4e6a39338f06b62207ae38f970335"
+  },
+  "composition_changes": [
+    "Accepted setup/Turnip/cleanup/Parasol producer unchanged; partial Toad declaration replaced.",
+    "Four complete counter states365..368 and Toad/Spore policies added.",
+    "Separate named pre/post hitlag bindings preserve stock Toad-only overwrite.",
+    "No registration, independent declaration or default activation."
+  ]
+}

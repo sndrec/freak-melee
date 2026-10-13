@@ -1,0 +1,76 @@
+{
+  "snapshot": "baseline54",
+  "freeze_sha256": "9701c5486b769e0cbea0a2cc4b645ec9ad268ad57d235569452521d0244222ba",
+  "inputs": {
+    "src/melee/ft/ft_08A1.c": {
+      "sha256": "31061c51b43b8dfaf697acf7c2b43c341ba510b68f7a8a43400c16dc21d3d243",
+      "bodies": {
+        "ft_8008A348": {
+          "sha256": "1dbdda9b61f92f2ea122f9805a444d17c481dc752ffd5c1e088245bc6b5256cb",
+          "line": 73
+        }
+      }
+    },
+    "src/melee/ft/ft_0D27.c": {
+      "sha256": "e18b798f9ddd615df8c51e8050b2a5d13be0ad8a52901485e2385e807b20027f",
+      "bodies": {
+        "fn_800D2890": {
+          "sha256": "98bcd70056f25f1f818b6bac1354f06662be9257ab11f8b7d9ef55e3125e3011",
+          "line": 70
+        }
+      }
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_Landing.c": {
+      "sha256": "2eb2a869336452adc2b35cb2b12b4c91134d9eeef6bf6dbf9810af5de53de7ed",
+      "bodies": {
+        "ftCo_Landing_Enter": {
+          "sha256": "80f1a666f03924a81ba283547f7160049c523d875042c6985c4c4ee4c9b60d4f",
+          "line": 39
+        }
+      }
+    },
+    "src/melee/ft/fighter.c": {
+      "sha256": "b90bc8f7fad29ea03380f56d88cbc1564511a9ac7f231f15f934846b69880f6f",
+      "bodies": {
+        "Fighter_8006A360": {
+          "sha256": "45d1f858ac8cd423324e597881ce12e44d82eaf4367851a832f9b4d40b6ae957",
+          "line": 1562
+        }
+      }
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoGiantEnd.c": {
+      "sha256": "1aa2d9b6720cdfec8891e60016c5b004afd5b75b5e12fd6dc8c71274c7b5c3d6",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoGiantEnd.h": {
+      "sha256": "ab4b45da116a24308a4d3371f3b507be3ddf9c9535eefe4e2c005465b8eb3a77",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoGiantStart.c": {
+      "sha256": "09b697a8f61ec570a966e231f8e10c68ab1a8acdc604b7bc2a6c923d73acbcea",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoGiantStart.h": {
+      "sha256": "5b7cc7f2465c02d30385df3fbfd9895efb5b90efaf079dfa67f189f3e209c337",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoSmallEnd.c": {
+      "sha256": "525f49ac2aac16aa63a4864255d4cdf6b771789dc11d1fcbe0d7453fd0316b50",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoSmallEnd.h": {
+      "sha256": "184182dcde78b8eebd57a76044d8324212ecff4aa3dafdc71797325b86d733c6",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoSmallStart.c": {
+      "sha256": "69e71e603c00c0b4863fc68a1b307290cbf1d94836dbb171e5cc80040d92ad8c",
+      "scope": "original mushroom caller source"
+    },
+    "src/melee/ft/kinds/ftCommon/ftCo_KinokoSmallStart.h": {
+      "sha256": "879a1871e70a5a21907e9757e45d47e4fd4467e63993934073f5879853a16e81",
+      "scope": "original mushroom caller source"
+    }
+  },
+  "original_inc_sha256": "782cee483061d31bddfe286ec81e15fa176356778d93b0a8f4ce1bd39ddd3b24",
+  "scope": "Complete unmodified actual neutral entry, air resume selector, landing entry and timer-containing caller bodies."
+}

@@ -1,0 +1,113 @@
+# UNCOMPILED replacement fragments for the complete specials composition.
+# Do not append this file to candidate.fms: duplicate helpers/article clauses
+# must replace the explicitly scoped pending clauses when contracts are ready.
+# Proposed unknown generic operations are identified in README, not delegates.
+func JudgeSetup():
+    if command(1) != 0:
+        command(1) = 0
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(bones.index(RightThumb), x, y, z, 0, 0, 0)
+        state.judge_handle = articles.create_with_velocity(It_Kind_GameWatch_Judge, x, y, z, 0, 0, 0, facing.direction, false, 0, float(state.judge_latest), true)
+        if state.judge_latest == 6:
+            bones.world_position(bones.index(LeftThumb), x, y, z, 0, attrs.judge_food_offset_y, 0)
+            # Pending ordinary ENGINE spawn, not an authored Foods logic:
+            # availability(Foods); prev XYZ above; current owner-center XYZ;
+            # NULL primary + secondary parents; facing -1; collision true;
+            # success-only global ordinary food count increment.
+        if state.judge_handle != -1:
+            callbacks.death2(SpecialDamage)
+            callbacks.damage(SpecialDamage)
+        callbacks.pre_hitlag(JudgePause)
+        callbacks.post_hitlag(JudgeResume)
+        callbacks.accessory(None)
+func RescueSetup():
+    if state.rescue_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        # Original directly uses raw part0; copied GW Top alias also maps0.
+        bones.world_position(0, x, y, z, 0, 0, 0)
+        let float scale = model.instance_scale_y * model.base_scale
+        y = -(attrs.rescue_offset * scale - y)
+        state.rescue_handle = articles.create_with_velocity(It_Kind_GameWatch_Rescue, x, y, 0, 0, 0, 0, facing.direction, false, 0, float(motion.id - attrs.rescue_ground), false)
+        if state.rescue_handle != -1:
+            callbacks.death2(SpecialDamage)
+            callbacks.damage(SpecialDamage)
+        callbacks.pre_hitlag(RescuePause)
+        callbacks.post_hitlag(RescueResume)
+        callbacks.accessory(None)
+    # If handle already present original does not clear accessory4.
+func RescueRemove():
+    if state.rescue_handle != -1:
+        articles.signal_owned(state.rescue_handle, "Remove", 0)
+        RescueClear()
+func PanicSetup():
+    if state.panic_handle == -1:
+        let float x = 0
+        let float y = 0
+        let float z = 0
+        bones.world_position(0, x, y, z, 0, 0, 0)
+        state.panic_handle = articles.create_with_velocity(It_Kind_GameWatch_Panic, x, y, z, 0, 0, 0, facing.direction, false, 0, 0, true)
+    if state.panic_handle != -1:
+        callbacks.death2(SpecialDamage)
+        callbacks.damage(SpecialDamage)
+    callbacks.pre_hitlag(PanicPause)
+    callbacks.post_hitlag(PanicResume)
+    callbacks.accessory(None)
+action Absorb:
+    on absorb:
+        state.panic_charge = state.panic_charge + absorber.hits
+        # Original s32 += Float damage truncates the sum, not damage alone.
+        state.panic_damage = int(float(state.panic_damage) + absorber.damage)
+        if state.panic_charge >= attrs.panic_full: color.start(5, false)
+        let int motion = attrs.panic_catch_ground
+        if airborne: motion = attrs.panic_catch_air
+        state.enter_at_speed(motion, 0, 0, 1)
+        BucketModels()
+article It_Kind_GameWatch_Judge states 1:
+    on created:
+            item.attach_to_owner(attrs.judge_attachment_part, false)
+            item.set_appearance(0, float(int(item.creation_value) + 1))
+            if owner.facing == 1:
+                item.joint("0/0").rotation.y = 3.141592653589793
+            else:
+                item.joint("0/0").rotation.y = 0
+            item.inherit_owner_debug_display()
+            # Original paper setup follows debug and numeral orientation.
+            # Actual immutable paper-render metadata/configuration remains open.
+            item.inherit_owner_scale()
+article It_Kind_GameWatch_Panic states 2:
+    on created:
+            item.attach_to_owner(0, false)
+            item.inherit_owner_debug_display()
+            # Paper setup follows attach+debug; inherit scale is controlled only.
+            item.inherit_owner_scale()
+    on picked_up:
+            item.command1 = 0
+            item.command0 = 0
+            if targets.exists(item.current_owner):
+                item.airborne = targets.airborne(item.current_owner)
+                if item.airborne:
+                    item.change_state_flags(1, 2)
+                else:
+                    item.change_state_flags(0, 2)
+                item.advance_animation()
+article It_Kind_GameWatch_Rescue states 2:
+    on created:
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.remove_at_bounds = false
+            # Generic constructor captures immutable creator ID. No attachment
+            # operation: original constructor ignores its part / offset args.
+            # Actual paper setup precedes state-change and animation advance.
+            item.inherit_owner_scale()
+            item.change_state_flags(int(item.creation_value), 2)
+            item.advance_animation()
+    on signal Remove:
+            owner.call(RescueClear)
+            item.detach_owner()
+            item.remove()

@@ -1,0 +1,696 @@
+# Script-owned Dr. Mario specials. The shared Mario move phases use Dr. Mario's
+# own attributes and motion table; pill selection lives in this script.
+# The taunt and pill article are authored below; unrecorded branches remain open.
+# Stock Cape enters article state 0 in both grounded and airborne parity traces.
+fighter:
+    behavior independent
+
+state int vitamin_current
+state int vitamin_previous
+state bool tornado_charge
+state bool cape_boost_used
+state float tornado_ground_vel
+state bool tornado_collision
+state bool cape_reflecting
+state int taunt_article
+state int cape_article
+parameter float results_scale = 0.71428
+parameter int presentation_sleep_motion = 11
+parameter int presentation_pill_mode = 2
+
+# The visual policy belongs to this fighter, just like its move callbacks.
+model_effect TornadoSwirl 0x47c:
+    on update:
+        effect.joint("1").visible = creator.motion == 349
+        if creator.command3 and creator.state.tornado_collision:
+            effect.joint("").rotation.z = -atan2_float(creator.floor.normal.x, creator.floor.normal.y)
+        else:
+            effect.joint("").rotation.z = 0
+
+# Copied into project-owned values when this template opens.
+attribute float cape_horizontal_decay 0
+attribute float cape_boost_horizontal 4
+attribute float cape_boost_vertical 8
+attribute float cape_gravity 12
+attribute float cape_terminal_speed 16
+attribute float jump_freefall_mobility 24
+attribute float jump_landing_lag 28
+attribute float jump_reverse_stick_range 32
+attribute float jump_momentum_stick_range 36
+attribute float jump_angle_diff 40
+attribute float jump_air_horizontal_scale 44
+attribute float jump_gravity 48
+attribute float jump_velocity_scale 52
+attribute float tornado_initial_vertical_speed 56
+attribute float tornado_ground_speed 60
+attribute float tornado_air_speed 64
+attribute float tornado_ground_accel 68
+attribute float tornado_air_accel 72
+attribute float tornado_end_friction 76
+attribute float tornado_tap_speed 84
+attribute float tornado_tap_gravity 88
+attribute int tornado_landing_lag 92
+
+attribute int cape_bone 96
+attribute int cape_max_damage 100
+attribute float cape_offset_x 104
+attribute float cape_offset_y 108
+attribute float cape_offset_z 112
+attribute float cape_radius 116
+attribute float cape_damage_mul 120
+attribute float cape_speed_mul 124
+attribute bool cape_keep_owner 128
+
+move Megavitamin:
+    on special_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on special_air_n:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(NeutralSpecial)
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        if command(0): controls.ground_actions()
+    on air_interrupt:
+        if command(0): controls.air_actions()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+    on neutral_special_cue:
+        let pill = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+        state.vitamin_previous = state.vitamin_current
+        state.vitamin_current = pill
+        articles.spawn_authored_projectile(It_Kind_DrMario_Vitamin, LeftHand, pill)
+
+move SuperJumpPunch:
+    on special_hi:
+        command(0) = 0
+        cue.throw.reset()
+        state.enter(UpSpecial)
+    on special_air_hi:
+        command(0) = 0
+        cue.throw.reset()
+        motion.set_vertical_speed(0)
+        motion.scale_horizontal_speed(attrs.jump_air_horizontal_scale)
+        state.enter(UpSpecial)
+    on ground_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on air_animation:
+        if animation.finished: state.freefall(0, 1, false, attrs.jump_freefall_mobility, attrs.jump_landing_lag)
+    on ground_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on air_interrupt:
+        let stick = abs(input.x)
+        let threshold = attrs.jump_momentum_stick_range
+        if not command(0) and stick > threshold:
+            let degrees = attrs.jump_angle_diff * ((stick - threshold) / (1 - threshold))
+            let angle = radians(degrees)
+            if input.x > 0: angle = -angle
+            if abs(angle) > abs(motion.launch_angle): motion.launch_angle = angle
+        let reverse = cue.reverse.consume()
+        if reverse and stick > attrs.jump_reverse_stick_range:
+            facing.from_input()
+            bones.root.rotate_y(pi_half * facing.direction)
+    on ground_physics:
+        if grounded: physics.ground_motion()
+        if airborne: physics.air_motion()
+    on air_physics:
+        if command(0): physics.air_motion()
+        if command(0): motion.scale_velocity(attrs.jump_velocity_scale)
+        if not command(0): physics.fall(attrs.jump_gravity)
+        if not command(0): physics.quick_air_decel()
+    on ground_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+    on air_collision:
+        if airborne and (not command(0) or velocity.y >= 0): collision.air_standard()
+        elif airborne and command(0) and velocity.y < 0: collision.air_special_landing(false, attrs.jump_landing_lag)
+        elif grounded: collision.ground_standard()
+
+func ResetRootRotation():
+    # Original callback resets only X on raw root joint 0; other axes survive.
+    bones.root.rotate_x(0)
+
+move Tornado:
+    on special_lw:
+        command(2) = 0
+        state.enter(AirDownSpecial)
+        motion.set_vertical_speed(attrs.tornado_initial_vertical_speed - attrs.tornado_tap_speed)
+        physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.tornado_ground_vel = 0
+        state.tornado_collision = false
+        callbacks.damage(ResetRootRotation)
+        callbacks.death2(ResetRootRotation)
+        effects.spawn_root(TornadoSwirl)
+        effects.pause_during_hitlag()
+    on special_air_lw:
+        command(2) = 0
+        state.enter(DownSpecial)
+        if state.tornado_charge: motion.set_vertical_speed(attrs.tornado_initial_vertical_speed)
+        else: motion.set_vertical_speed(attrs.tornado_initial_vertical_speed - attrs.tornado_tap_speed)
+        physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+        command(0) = 0
+        command(1) = 0
+        state.tornado_ground_vel = 0
+        state.tornado_collision = false
+        callbacks.damage(ResetRootRotation)
+        callbacks.death2(ResetRootRotation)
+        effects.spawn_root(TornadoSwirl)
+        effects.pause_during_hitlag()
+    on ground_animation:
+        if animation.finished:
+            callbacks.clear_damage_death()
+            state.wait()
+    on air_animation:
+        if command(1):
+            command(1) = 0
+            state.tornado_charge = true
+        if animation.finished:
+            callbacks.clear_damage_death()
+            if attrs.tornado_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.tornado_landing_lag)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        let speed = attrs.tornado_ground_speed
+        if command(0):
+            state.tornado_ground_vel = state.tornado_ground_vel - attrs.tornado_end_friction
+            speed = speed + state.tornado_ground_vel
+            if speed < 0: speed = 0
+        physics.ground_accel(attrs.tornado_ground_accel, speed)
+        physics.ground_to_self()
+        if command(2) and input.special_pressed:
+            motion.add_vertical_speed(attrs.tornado_tap_speed)
+            command(2) = 0
+            state.to_air()
+            physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+            physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+            effects.pause_during_hitlag()
+    on air_physics:
+        if not state.tornado_charge and command(2) and input.special_pressed: physics.ascend(attrs.tornado_tap_speed, attrs.tornado_tap_gravity)
+        physics.fall_basic()
+        let speed = attrs.tornado_air_speed
+        if command(0):
+            state.tornado_ground_vel = state.tornado_ground_vel - attrs.tornado_end_friction
+            speed = speed + state.tornado_ground_vel
+            if speed < 0: speed = 0
+        physics.air_accel(attrs.tornado_air_accel, speed)
+    on ground_collision:
+        if grounded:
+            if collision.ground_box(12, 0, -6, 6, 6, 6): state.tornado_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+                effects.pause_during_hitlag()
+                state.tornado_collision = false
+        else:
+            if collision.air_box(12, 0, -6, 6, 6, 6): state.tornado_collision = true
+            else:
+                command(2) = 0
+                state.to_air()
+                physics.clamp_fall_speed(attrs.tornado_tap_gravity)
+                physics.clamp_horizontal_speed(attrs.tornado_air_speed)
+                effects.pause_during_hitlag()
+                state.tornado_collision = false
+        if command(3) and state.tornado_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+    on air_collision:
+        if collision.air_box(12, 0, -6, 6, 6, 6):
+            command(2) = 0
+            motion.set_vertical_speed(0)
+            state.tornado_charge = false
+            state.to_ground()
+            physics.clamp_ground_speed(attrs.tornado_ground_speed)
+            effects.pause_during_hitlag()
+            state.tornado_collision = true
+        else: state.tornado_collision = false
+        if command(3) and state.tornado_collision: bones.root.rotate_x(facing.direction * atan2(floor.normal.x, floor.normal.y))
+        else: bones.root.rotate_x(0)
+
+move Cape:
+    on special_s:
+        motion.set_vertical_speed(0)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.cape_reflecting = false
+    on special_air_s:
+        motion.divide_horizontal_speed(attrs.cape_horizontal_decay)
+        state.enter(SideSpecial)
+        command(2) = 0
+        command(1) = 0
+        command(0) = 0
+        state.cape_reflecting = false
+    on accessory:
+        if not command(2):
+            command(2) = 1
+            state.cape_article = articles.spawn_bone_attached(It_Kind_DrMario_Sheet, RightThumb)
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+            articles.stop_cue()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if command(0) == 1:
+            command(0) = 2
+            effects.wind(Hip, 3, 120, 0.9, 0.02, 1.0471976)
+        physics.ground_friction()
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on air_physics:
+        if command(0) >= 1:
+            if command(0) == 1:
+                command(0) = 2
+                if not state.cape_boost_used:
+                    state.cape_boost_used = true
+                    motion.set_vertical_speed(attrs.cape_boost_vertical)
+                else: motion.set_vertical_speed(0)
+                effects.wind(Hip, 3, 120, 3, 0.1, 1.0471976)
+            physics.fall(attrs.cape_gravity, attrs.cape_terminal_speed)
+        else: physics.fall_basic()
+        physics.air_decel(attrs.cape_boost_horizontal)
+        if command(1) == 1 and not state.cape_reflecting:
+            state.cape_reflecting = true
+            reflector.create(attrs.cape_bone, attrs.cape_max_damage, attrs.cape_offset_x, attrs.cape_offset_y, attrs.cape_offset_z, attrs.cape_radius, attrs.cape_damage_mul, attrs.cape_speed_mul, attrs.cape_keep_owner)
+        elif not command(1) and state.cape_reflecting:
+            state.cape_reflecting = false
+            reflector.disable()
+        reflector.update()
+    on ground_collision:
+        if collision.special_ground_lost:
+            state.to_air()
+            if command(0) == 1: command(0) = 2
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+    on air_collision:
+        if collision.landed:
+            state.cape_boost_used = false
+            state.to_ground()
+            if state.cape_reflecting: reflector.retain()
+            if articles.owned(state.cape_article): callbacks.track_damage()
+            if articles.owned(state.cape_article): callbacks.track_death2()
+            callbacks.track_hitlag()
+
+action FighterEvents:
+    # Sleep's presentation pill uses mode 2 and the actual right-thumb pickup.
+    on presentation_item:
+        if motion.id != attrs.presentation_sleep_motion: return
+        let color = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+        state.vitamin_previous = state.vitamin_current
+        state.vitamin_current = color
+        let int pill = articles.create_with_velocity(It_Kind_DrMario_Vitamin, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, float(attrs.presentation_pill_mode), true)
+        if pill == -1:
+            items.clear_held()
+            return
+        articles.signal_owned(pill, It_Kind_DrMario_Vitamin, "initialize_result", color)
+        let bool attached = items.attach(pill, bones.index(RightThumb), false)
+        if not attached:
+            # Preserve a surviving previous held item on invalid-rig failure.
+            articles.signal_owned(pill, It_Kind_DrMario_Vitamin, "discard_presentation", 0)
+            return
+        articles.signal_owned(pill, It_Kind_DrMario_Vitamin, "finish_presentation", 0)
+        let bool published = articles.bind_held(pill)
+    # Results variant 1 owns two presentation articles, not pickup attachments.
+    on demo_enter:
+        if event.mode == 1:
+            let first = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+            state.vitamin_previous = state.vitamin_current
+            state.vitamin_current = first
+            let int held = articles.create_with_velocity(It_Kind_DrMario_Vitamin, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, 1, true)
+            articles.signal_owned(held, It_Kind_DrMario_Vitamin, "initialize_result", first)
+            let bool held_bound = articles.bind_held(held)
+            articles.signal_owned(held, It_Kind_DrMario_Vitamin, "scale_result", attrs.results_scale * (model.instance_scale_y * model.base_scale))
+            let second = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+            state.vitamin_previous = state.vitamin_current
+            state.vitamin_current = second
+            let int auxiliary = articles.create_with_velocity(It_Kind_DrMario_Vitamin, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, 0, true)
+            articles.signal_owned(auxiliary, It_Kind_DrMario_Vitamin, "initialize_result", second)
+            let bool auxiliary_bound = articles.bind_auxiliary(auxiliary)
+            articles.signal_owned(auxiliary, It_Kind_DrMario_Vitamin, "scale_result", attrs.results_scale * (model.instance_scale_y * model.base_scale))
+    on load:
+        fighter.copy_ext_attributes()
+        state.vitamin_current = 0
+        state.vitamin_previous = 0
+        state.taunt_article = -1
+        state.cape_article = -1
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on landing_action:
+        state.tornado_charge = false
+        state.cape_boost_used = false
+    on death:
+        visuals.hide_group(0)
+        state.tornado_charge = false
+        state.cape_boost_used = false
+        state.cape_article = -1
+        state.taunt_article = -1
+        state.cape_reflecting = false
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on pre_hitlag:
+        articles.pause_owned(state.cape_article)
+    on post_hitlag:
+        articles.resume_owned(state.cape_article)
+
+action Taunt:
+    on taunt:
+        state.taunt(341, 342)
+        command(0) = 1
+        command(1) = 0
+        state.taunt_article = -1
+    on state_341_animation:
+        if command(0) == 1 and not articles.owned(state.taunt_article):
+            let pill = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+            state.vitamin_previous = state.vitamin_current
+            state.vitamin_current = pill
+            state.taunt_article = articles.spawn_attached(It_Kind_DrMario_Vitamin, Top, pill, 1, 1, 2, 1200)
+            if articles.owned(state.taunt_article): callbacks.track_damage()
+            if articles.owned(state.taunt_article): callbacks.track_death2()
+        elif command(0) == 2:
+            articles.remove_owned(state.taunt_article)
+            state.taunt_article = -1
+            callbacks.clear_damage_death()
+        if animation.finished:
+            articles.remove_owned(state.taunt_article)
+            state.taunt_article = -1
+            callbacks.clear_damage_death()
+            state.wait()
+    on state_341_interrupt:
+        controls.taunt_actions()
+    on state_341_physics:
+        physics.ground_friction()
+    on state_341_collision:
+        collision.ground_with_nudge()
+    on state_342_animation:
+        if command(0) == 1 and not articles.owned(state.taunt_article):
+            let pill = random.int_excluding(9, state.vitamin_current, state.vitamin_previous)
+            state.vitamin_previous = state.vitamin_current
+            state.vitamin_current = pill
+            state.taunt_article = articles.spawn_attached(It_Kind_DrMario_Vitamin, Top, pill, 1, 1, 2, 1200)
+            if articles.owned(state.taunt_article): callbacks.track_damage()
+            if articles.owned(state.taunt_article): callbacks.track_death2()
+        elif command(0) == 2:
+            articles.remove_owned(state.taunt_article)
+            state.taunt_article = -1
+            callbacks.clear_damage_death()
+        if animation.finished:
+            articles.remove_owned(state.taunt_article)
+            state.taunt_article = -1
+            callbacks.clear_damage_death()
+            state.wait()
+    on state_342_interrupt:
+        controls.taunt_actions()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        collision.ground_with_nudge()
+    on damage:
+        articles.remove_owned(state.taunt_article)
+        state.taunt_article = -1
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+    on death2:
+        articles.remove_owned(state.taunt_article)
+        state.taunt_article = -1
+        articles.remove_owned(state.cape_article)
+        state.cape_article = -1
+        callbacks.clear_damage_death()
+
+article It_Kind_DrMario_Sheet states 2:
+    state 0 anim 0:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if attachment_owner.motion != 345 and attachment_owner.motion != 346: return true
+            return false
+    state 1 anim 1:
+        on animation:
+            if item.command0 != 0: item.spawn_effect_on_bone(1149, 16)
+            if item.command0 != 0: item.command0 = 0
+            if item.command1 != 0: item.spawn_effect_on_bone(1150, 6)
+            if item.command1 != 0: item.command1 = 0
+            if not item.attachment_active: return true
+            if attachment_owner.motion != 345 and attachment_owner.motion != 346: return true
+            return false
+    on destroyed:
+            if attachment_owner.exists:
+                attachment_owner.state.cape_article = -1
+                attachment_owner.clear_damage_death()
+    on picked_up:
+            item.command0 = 0
+            item.command1 = 0
+            item.change_state(0)
+            item.activate_attached()
+    on interaction:
+            item.interact(other)
+
+article It_Kind_DrMario_Vitamin states 7:
+    state bool bounced
+    state bool result_initialized
+    state float result_facing
+    parameter int result_state_base = 4
+    parameter int result_appearance_descriptor = 1
+    parameter float half_pi = 1.5707963267948966
+    attribute float launch_speed 0
+    attribute float launch_angle 4
+    attribute float lifetime 8
+    attribute float bounce_speed 16
+    projectile appearance 0 state 0 speed launch_speed angle launch_angle lifetime lifetime auto_lifetime off
+
+    on created:
+            item.state.result_facing = facing
+
+    on signal initialize_result:
+            let int mode = int(item.creation_value)
+            if mode < 0 or mode > 2: return
+            item.set_lifetime(item.attr.lifetime)
+            item.change_state_flags(item.params.result_state_base + mode, 2)
+            item.use_manual_lifetime()
+            item.set_appearance(item.params.result_appearance_descriptor, signal.value)
+            item.collision_mode = 2
+            item.use_manual_lifetime()
+            # Stock repeats this transition after appearance baking reinstalls script.
+            item.change_state_flags(item.params.result_state_base + mode, 2)
+            item.command3 = 0
+            item.command2 = 0
+            item.command1 = 0
+            item.command0 = 0
+            item.reverse_spin = false
+            item.track_accessory()
+            item.owner_bound = true
+            item.reset_spin()
+            item.collision_mode = 2
+            item.use_manual_lifetime()
+            item.state.result_initialized = true
+            item.refresh_physics()
+            # Mode 2 attaches after refresh; the caller completes final lifetime.
+            if mode != 2: item.use_manual_lifetime()
+
+    on signal finish_presentation:
+            item.use_manual_lifetime()
+    on signal discard_presentation:
+            item.detach_owner()
+            item.remove()
+    on signal scale_result:
+            # Called by fighter AFTER init returned, matching caller scale placement.
+            item.scale_by_attribute(signal.value)
+
+    on accessory:
+            if attachment_owner.exists:
+                position.x = attachment_owner.position.x
+                position.y = attachment_owner.position.y
+                position.z = attachment_owner.position.z
+                item.joint(0, "").translation.x = position.x
+                item.joint(0, "").translation.y = position.y
+                item.joint(0, "").translation.z = position.z
+                item.joint(0, "").rotation.y = item.params.half_pi * item.state.result_facing
+                item.joint(0, "").rotation.z = 0
+            item.use_manual_lifetime()
+
+    state 0 anim 0:
+        on animation:
+            item.world_interaction = false
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.world_interaction = false
+            item.gravity()
+        on collision:
+            item.stage_collision()
+            item.world_interaction = false
+            item.state.bounced = item.bounce_stage()
+            if item.state.bounced and sqrt(velocity.x * velocity.x + velocity.y * velocity.y) < item.attr.bounce_speed: return true
+            if item.state.bounced: item.play_sound(90030, 127, 64)
+            return false
+    state 1 anim 1:
+        on animation:
+            item.collision_mode = 2
+            item.world_interaction = false
+            item.joint(0, "0").local_visible = item.command0 == 1
+            if not item.attachment_active: return true
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: attachment_owner.state.taunt_article = -1
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: attachment_owner.clear_damage_death()
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: return true
+            if attachment_owner.state.taunt_article < 0: attachment_owner.clear_damage_death()
+            if attachment_owner.state.taunt_article < 0: return true
+            item.command0 = attachment_owner.command1
+            item.set_scale(attachment_owner.model.scale)
+            return false
+        on physics:
+            item.collision_mode = 2
+            item.world_interaction = false
+        on collision:
+            item.collision_mode = 2
+            item.world_interaction = false
+            return false
+    state 2 anim 2:
+        on animation:
+            item.collision_mode = 2
+            item.world_interaction = false
+            item.joint(0, "0").local_visible = item.command0 == 1
+            if not item.attachment_active: return true
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: attachment_owner.state.taunt_article = -1
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: attachment_owner.clear_damage_death()
+            if attachment_owner.motion != 341 and attachment_owner.motion != 342: return true
+            if attachment_owner.state.taunt_article < 0: attachment_owner.clear_damage_death()
+            if attachment_owner.state.taunt_article < 0: return true
+            item.command0 = attachment_owner.command1
+            item.set_scale(attachment_owner.model.scale)
+            return false
+        on physics:
+            item.collision_mode = 2
+            item.world_interaction = false
+        on collision:
+            item.collision_mode = 2
+            item.world_interaction = false
+            return false
+    state 3 anim 1:
+        on animation:
+            item.world_interaction = false
+            if attachment_owner.exists and creator.exists and (creator.motion == ftCo_MS_DeadUpFallHitCameraIce or creator.motion == ftCo_MS_Sleep): item.set_scale(creator.model.root_scale_y)
+            return false
+        on physics:
+            item.world_interaction = false
+        on collision:
+            item.world_interaction = false
+            return false
+    state 4 anim 3:
+        on animation:
+            item.world_interaction = false
+            if attachment_owner.exists and creator.exists and (creator.motion == ftCo_MS_DeadUpFallHitCameraIce or creator.motion == ftCo_MS_Sleep): item.set_scale(creator.model.root_scale_y)
+            return false
+        on physics:
+            item.world_interaction = false
+        on collision:
+            item.world_interaction = false
+            return false
+    state 5 anim 4:
+        on animation:
+            item.world_interaction = false
+            if attachment_owner.exists and creator.exists and (creator.motion == ftCo_MS_DeadUpFallHitCameraIce or creator.motion == ftCo_MS_Sleep): item.set_scale(creator.model.root_scale_y)
+            return false
+        on physics:
+            item.world_interaction = false
+        on collision:
+            item.world_interaction = false
+            return false
+    state 6 anim 5:
+        on animation:
+            item.world_interaction = false
+            if attachment_owner.exists and creator.exists and (creator.motion == ftCo_MS_DeadUpFallHitCameraIce or creator.motion == ftCo_MS_Sleep): item.set_scale(creator.model.root_scale_y)
+            return false
+        on physics:
+            item.world_interaction = false
+        on collision:
+            item.world_interaction = false
+            return false
+    on picked_up:
+            item.set_lifetime(item.attr.lifetime)
+            item.change_state(6)
+            item.use_manual_lifetime()
+    on damage_dealt:
+            item.world_interaction = false
+            item.play_sound(90030, 127, 64)
+            return true
+    on reflected:
+            item.world_interaction = false
+            return item.reflect()
+    on clanked:
+            item.world_interaction = false
+            item.play_sound(90030, 127, 64)
+            return true
+    on hit_shield:
+            item.world_interaction = false
+            item.play_sound(90030, 127, 64)
+            return true
+    on absorbed:
+            item.world_interaction = false
+            item.play_sound(90030, 127, 64)
+            return true
+    on shield_bounced:
+            item.world_interaction = false
+            item.play_sound(90030, 127, 64)
+            return true
+    on interaction:
+            item.interact(other)

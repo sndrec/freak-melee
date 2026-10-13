@@ -1,0 +1,39 @@
+action GuardPolicy:
+    on load_special_attrs:
+        motion.fall_animation = 7
+        velocity.y = motion.fall_animation
+    on shield_transition:
+        guard.elapsed = event.mode + float(0.25)
+        guard.release_requested = event.special_hit
+        guard.minimum_hold_frames = 5
+        guard.reflect_frames = 6
+        guard.powershield_frames = 7
+        guard.input_lock_frames = 8
+        guard.interrupt_mode = 9
+        guard.delayed_action_frames = 10
+        guard.volume_enabled = true
+        guard.new_powershield = true
+        guard.reflect_window = true
+        guard.powershield_window = true
+        input.horizontal_tilt_age = 254
+        input.analog_shield_age = 253
+        damage.jump_armor = 120
+        guard.install_shield()
+        guard.install_reflector()
+        guard.track_sdi()
+    on shield_scale:
+        return shield.initial_size
+    on shield_alpha:
+        return false
+    on spotdodge_enter:
+        velocity.x = visuals.current_group(0)
+    on capture_wait_setup:
+        capture.enclose_caught(other.position.y)
+    on capture_wait_enter:
+        capture.constrain_caught()
+    on catch_pull_frame:
+        return frame + float(0.375)
+    on throw_victim_setup:
+        capture.set_victim_body_status(2)
+    on reflect_hit:
+        pass

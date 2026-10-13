@@ -1,0 +1,1476 @@
+# Fox specials, owned articles, throw shots and radio taunts.
+# Independent source; interpreter acceptance remains work in progress.
+# Import the source defaults into fighter_parameters.fmp before editing values.
+fighter:
+    behavior independent
+
+# CPU and item-use policies are editable source-owned values.
+# Article identities select assets/code, never these behavioral decisions.
+parameter bool cpu_capture_enabled = true
+parameter int cpu_capture_attempt = 0
+parameter int cpu_capture_min_level = 4
+parameter float cpu_capture_chance_per_level = 0.05
+parameter int cpu_capture_script = 61
+parameter float cpu_blaster_range = 62
+parameter int cpu_blaster_candidate = 27
+parameter float cpu_ground_reflect_threshold = 0.5
+parameter int cpu_reflect_level_ceiling = 9
+parameter int cpu_reflect_stick_y = -80
+parameter int cpu_reflect_press_frames = 1
+parameter float cpu_reflect_random_span = 4
+parameter int cpu_reflect_delay_base = 4
+parameter int cpu_retap_frames = 1
+parameter int cpu_recover_stick = 88
+parameter int cpu_recover_press_frames = 1
+parameter int cpu_recover_wait_frames = 40
+
+# Common presentation entries: DeadDown, DeadRight, camera-ice, and Sleep.
+# Only Fox owns a presentation gun; Falco intentionally creates none.
+parameter int presentation_down_motion = 0
+parameter int presentation_right_motion = 2
+parameter int presentation_camera_ice_motion = 10
+parameter int presentation_sleep_motion = 11
+
+attribute float blaster_angle 16
+attribute float blaster_speed 20
+attribute float blaster_landing_lag 24
+parameter bool allow_special_while_holding_item = true
+parameter int radio_speaker = 0
+parameter int blaster_shot_forward_sound = 110103
+parameter int blaster_shot_backward_sound = 110106
+parameter int blaster_throw_vertical_sound = 110109
+parameter int blaster_close_sound = 110100
+attribute float side_start_gravity_delay 36
+attribute float side_start_velocity_divisor 40
+attribute float side_start_air_deceleration 44
+attribute float side_start_gravity 48
+attribute float side_end_ground_velocity 52
+attribute float side_end_ground_friction 56
+attribute float side_end_air_velocity 60
+attribute float side_end_air_deceleration 64
+attribute float side_end_gravity_delay 68
+attribute float side_end_gravity 72
+attribute float side_freefall_mobility 76
+attribute float side_landing_lag 80
+attribute float fire_gravity_delay 84
+attribute float fire_velocity_divisor 88
+attribute float fire_air_deceleration 92
+attribute float fire_start_gravity 96
+attribute float fire_direction_threshold 100
+attribute float fire_travel_frames 104
+attribute int fire_platform_grace_frames 108
+attribute float fire_deceleration_start 112
+attribute float fire_speed 116
+attribute float fire_travel_deceleration 120
+attribute float fire_end_ground_deceleration 124
+attribute float fire_bound_velocity_multiplier 132
+attribute float fire_facing_threshold 136
+attribute float fire_freefall_mobility 140
+attribute float fire_landing_lag 144
+attribute float fire_bound_angle 148
+attribute float reflect_release_lag 152
+attribute float reflect_turn_frames 156
+attribute int reflect_gravity_delay 164
+attribute float reflect_air_preserve 168
+attribute float reflect_fall_accel 172
+attribute int reflect_bone 176
+attribute int reflect_max_damage 180
+attribute float reflect_offset_x 184
+attribute float reflect_offset_y 188
+attribute float reflect_offset_z 192
+attribute float reflect_radius 196
+attribute float reflect_damage_mul 200
+attribute float reflect_speed_mul 204
+attribute bool reflect_keep_owner 208
+
+
+state int conversation_phase
+state int conversation_facing
+state int fire_gravity_timer
+state float fire_angle
+state int fire_travel_remaining
+state int fire_travel_age
+state int fire_collision_age
+
+state int side_gravity_timer
+state int side_article_handle
+state float trail_x0
+state float trail_x1
+state float trail_x2
+state float trail_x3
+state float trail_y0
+state float trail_y1
+state float trail_y2
+state float trail_y3
+state float trail_z0
+state float trail_z1
+state float trail_z2
+state float trail_z3
+state float trail_rotation0
+state float trail_rotation1
+state float trail_rotation2
+state float trail_rotation3
+
+state int blaster_handle
+state bool blaster_loop
+state int reflect_release_timer
+state int reflect_turn_timer
+state bool reflect_released
+state int reflect_gravity_timer
+state int reflect_effect
+
+# Follow the current authored travel angle instead of stock move-union storage.
+# The recipe supplies the model and attachment; this update owns its rotation.
+model_effect FireTravel 0x48C:
+    on update:
+        let half_pi = pi_half
+        let angle = half_pi - creator.state.fire_angle
+        if creator.facing < 0:
+            effect.joint("").rotation.y = -half_pi
+            effect.joint("").rotation.z = angle
+        else:
+            effect.joint("").rotation.y = half_pi
+            effect.joint("").rotation.z = -angle
+
+# These effects are armed explicitly at the stock transition points. In
+# particular, SideDash and Blaster startup do not install an accessory callback.
+# Ordinary helpers can also be rebound after ground/air or loop transitions.
+func fire_accessory():
+    if not effects.active:
+        if motion.id == 353 or motion.id == 354:
+            effects.spawn_on_part(1163, bones.index(TransN))
+        else:
+            effects.spawn_on_part(FireTravel, bones.index(Hip))
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func side_accessory():
+    if not effects.active:
+        effects.spawn_on_joint_with_scalar(1165, 0, facing.direction)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func reflect_accessory():
+    if not effects.active:
+        effects.spawn_on_part(state.reflect_effect, 5)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func reflect_bubble():
+    reflector.create(attrs.reflect_bone, attrs.reflect_max_damage, attrs.reflect_offset_x, attrs.reflect_offset_y, attrs.reflect_offset_z, attrs.reflect_radius, attrs.reflect_damage_mul, attrs.reflect_speed_mul, attrs.reflect_keep_owner)
+    callbacks.track_reflect_hit()
+
+func reflect_hold():
+    if not input.special_held: state.reflect_released = true
+    if state.reflect_release_timer > 0: state.reflect_release_timer = state.reflect_release_timer - 1
+
+func reflect_setup():
+    state.reflect_release_timer = int(attrs.reflect_release_lag)
+    state.reflect_released = false
+    command(1) = 4
+    state.reflect_gravity_timer = attrs.reflect_gravity_delay
+    state.reflect_effect = 1161
+    callbacks.accessory(reflect_accessory)
+
+func reflect_end():
+    if airborne: state.enter_at_speed(368, 0, 0, 1)
+    else: state.enter_at_speed(363, 0, 0, 1)
+
+func reflect_loop():
+    if airborne: state.enter_at_speed(366, 2, 0, 1)
+    else: state.enter_at_speed(361, 2, 0, 1)
+    reflect_bubble()
+
+func reflect_resume():
+    if state.reflect_release_timer <= 0 and state.reflect_released: reflect_end()
+    else: reflect_loop()
+
+func reflect_turn_tick():
+    state.reflect_turn_timer = state.reflect_turn_timer - 1
+    if not command(0) and state.reflect_turn_timer <= attrs.reflect_turn_frames:
+        command(0) = 1
+        facing.direction = -facing.direction
+    # Stock reads and writes rotation Y; its getter previously had a misleading Z name.
+    bones.root.rotate_y(-(radians(180 / attrs.reflect_turn_frames) - bones.root.rotation_y))
+
+func reflect_air_physics():
+    if state.reflect_gravity_timer != 0: state.reflect_gravity_timer = state.reflect_gravity_timer - 1
+    else: physics.fall(attrs.reflect_fall_accel, air.terminal_velocity)
+    physics.quick_air_decel()
+
+func side_seed_trail():
+    state.trail_x0 = position.x
+    state.trail_x1 = position.x
+    state.trail_x2 = position.x
+    state.trail_x3 = position.x
+    state.trail_y0 = position.y
+    state.trail_y1 = position.y
+    state.trail_y2 = position.y
+    state.trail_y3 = position.y
+    state.trail_z0 = position.z
+    state.trail_z1 = position.z
+    state.trail_z2 = position.z
+    state.trail_z3 = position.z
+    state.trail_rotation0 = bones.root.rotation_x
+    state.trail_rotation1 = bones.root.rotation_x
+    state.trail_rotation2 = bones.root.rotation_x
+    state.trail_rotation3 = bones.root.rotation_x
+    callbacks.accessory(side_accessory)
+
+func side_shift_trail():
+    state.trail_x3 = state.trail_x2
+    state.trail_x2 = state.trail_x1
+    state.trail_x1 = state.trail_x0
+    state.trail_x0 = position.x
+    state.trail_y3 = state.trail_y2
+    state.trail_y2 = state.trail_y1
+    state.trail_y1 = state.trail_y0
+    state.trail_y0 = position.y
+    state.trail_z3 = state.trail_z2
+    state.trail_z2 = state.trail_z1
+    state.trail_z1 = state.trail_z0
+    state.trail_z0 = position.z
+    state.trail_rotation3 = state.trail_rotation2
+    state.trail_rotation2 = state.trail_rotation1
+    state.trail_rotation1 = state.trail_rotation0
+    state.trail_rotation0 = bones.root.rotation_x
+
+func side_dash():
+    if airborne: state.enter_at_speed(351, 0x800, 0, 1)
+    else: state.enter_at_speed(348, 0x800, 0, 1)
+    side_seed_trail()
+
+func side_end():
+    if airborne:
+        velocity.x = attrs.side_end_air_velocity * facing.direction
+        velocity.y = 0
+        state.enter_at_speed(352, 0x800, 0, 1)
+    else:
+        ground.velocity = attrs.side_end_ground_velocity * facing.direction
+        state.enter_at_speed(349, 0x800, 0, 1)
+    state.side_gravity_timer = int(attrs.side_end_gravity_delay)
+    damage.song_immune = true
+
+func side_create_trail():
+    if command(2) == 1:
+        command(2) = 0
+        let initial_state = 0
+        if airborne: initial_state = 1
+        # Creation value carries the authored ground/air entry choice.
+        state.side_article_handle = articles.create_at_position(It_Kind_Fox_Illusion, position.x, position.y, position.z, facing.direction, false, 0, float(initial_state))
+        if state.side_article_handle != -1: damage.song_immune = true
+
+# Own command reset and accessory scheduling; the trail starts at dash, not startup.
+func fire_rotate():
+    # Stock uses a binary32 full turn, then subtracts the launch angle.
+    bones.rotate_x(XRotN, float(6.2831854820251465) - state.fire_angle)
+
+func fire_air_launch():
+    if abs(input.x) + abs(input.y) >= attrs.fire_direction_threshold:
+        if abs(input.x) > attrs.fire_facing_threshold: facing.from_input()
+        state.fire_angle = atan2_float(input.y, input.x * facing.direction)
+    else: state.fire_angle = float(1.5707963705062866)
+    state.enter_flags(356, 0)
+    items.block_ground_pickup = true
+    state.fire_travel_remaining = int(attrs.fire_travel_frames)
+    state.fire_travel_age = 0
+    state.fire_collision_age = 0
+    velocity.x = facing.direction * (attrs.fire_speed * cos(state.fire_angle))
+    velocity.y = attrs.fire_speed * sin(state.fire_angle)
+    fire_rotate()
+    callbacks.align_velocity_to_facing()
+    callbacks.accessory(fire_accessory)
+    jumps.used = jumps.max
+
+func fire_choose_launch():
+    if abs(input.x) + abs(input.y) >= attrs.fire_direction_threshold:
+        if not (vectors.angle_xy(floor.normal.x, floor.normal.y, input.x, input.y) < float(1.5707963705062866)) and not collision.skip_soft_floor():
+            facing.from_input()
+            state.enter_flags(355, 0)
+            items.block_ground_pickup = true
+            state.fire_travel_remaining = int(attrs.fire_travel_frames)
+            state.fire_travel_age = 0
+            state.fire_collision_age = 0
+            ground.velocity = attrs.fire_speed * facing.direction
+            state.fire_angle = atan2_float(-floor.normal.x * facing.direction, floor.normal.y)
+            fire_rotate()
+            callbacks.accessory(fire_accessory)
+            callbacks.align_velocity_to_facing()
+            return
+    physics.force_air_and_use_jumps()
+    fire_air_launch()
+
+func fire_end(int motion):
+    effects.clear_all()
+    if motion == 357 and airborne: physics.switch_to_ground()
+    state.enter_at_speed(motion, 0, 0, 1)
+    callbacks.align_velocity_to_facing()
+
+func fire_travel_done():
+    state.fire_travel_remaining = state.fire_travel_remaining - 1
+    if state.fire_travel_remaining > 0: return
+    if airborne: fire_end(358)
+    else: fire_end(357)
+
+func fire_realign():
+    if velocity.x >= 0: facing.direction = 1
+    else: facing.direction = -1
+    state.fire_angle = atan2_float(velocity.y, velocity.x * facing.direction)
+    fire_rotate()
+
+func fire_bound():
+    state.enter_flags(359, 0)
+    animation.start()
+    callbacks.align_velocity_to_facing()
+    velocity.x = velocity.x * attrs.fire_bound_velocity_multiplier
+    command(0) = 0
+    let rotation = 0.0
+    if collision.floor_contact: rotation = -atan2_float(floor.normal.x, floor.normal.y)
+    effects.spawn_with_scalar_at_position(1030, position.x, position.y, position.z, rotation)
+    effects.active = true
+    effects.pause_during_hitlag()
+
+# Stock ftCo_CpuFireBlaster actually presses down-B (Reflector).
+func cpu_reflect_response():
+    let int delay = attrs.cpu_reflect_level_ceiling - cpu.level
+    cpu.queue(Cpu.stick_x, 0)
+    cpu.queue(Cpu.stick_y, attrs.cpu_reflect_stick_y)
+    cpu.queue(Cpu.press_b)
+    cpu.queue(Cpu.wait, attrs.cpu_reflect_press_frames)
+    cpu.queue(Cpu.stick_y, 0)
+    if delay != 0:
+        let int random_delay = int(attrs.cpu_reflect_random_span * random.float()) + attrs.cpu_reflect_delay_base
+        cpu.queue(Cpu.wait, delay * random_delay)
+    cpu.queue(Cpu.done)
+
+func cpu_retap_guard():
+    cpu.queue(Cpu.release_r)
+    cpu.queue(Cpu.wait, attrs.cpu_retap_frames)
+    cpu.queue(Cpu.press_r)
+    cpu.queue(Cpu.wait, attrs.cpu_retap_frames)
+    cpu.queue(Cpu.release_r)
+    cpu.queue(Cpu.done)
+
+move FireDash:
+    entry explicit
+    on special_hi:
+        state.fire_gravity_timer = int(attrs.fire_gravity_delay)
+        ground.velocity = ground.velocity / attrs.fire_velocity_divisor
+        state.enter_flags(353, 0)
+        animation.start()
+        callbacks.accessory(fire_accessory)
+    on special_air_hi:
+        state.fire_gravity_timer = int(attrs.fire_gravity_delay)
+        velocity.x = velocity.x / attrs.fire_velocity_divisor
+        velocity.y = 0
+        state.enter_flags(354, 0)
+        animation.start()
+        callbacks.accessory(fire_accessory)
+    on ground_animation:
+        if animation.finished:
+            if airborne: fire_air_launch()
+            else: fire_choose_launch()
+    on air_animation:
+        if animation.finished:
+            if airborne: fire_air_launch()
+            else: fire_choose_launch()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        if state.fire_gravity_timer != 0: state.fire_gravity_timer = state.fire_gravity_timer - 1
+        else: physics.fall(attrs.fire_start_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.fire_air_deceleration)
+    on ground_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(354, 0x0C4C5082, frame, 1)
+            callbacks.accessory(fire_accessory)
+    on air_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.switch_to_ground(353, 0x0C4C5082)
+            callbacks.accessory(fire_accessory)
+            physics.clamp_air_drift()
+            return
+        collision.cliff_catch()
+
+move SideDash:
+    entry explicit
+    on special_s:
+        command(2) = 0
+        state.side_gravity_timer = int(attrs.side_start_gravity_delay)
+        state.side_article_handle = -1
+        ground.velocity = ground.velocity / attrs.side_start_velocity_divisor
+        state.enter_flags(347, 0)
+        animation.start()
+    on special_air_s:
+        command(2) = 0
+        state.side_gravity_timer = int(attrs.side_start_gravity_delay)
+        state.side_article_handle = -1
+        velocity.y = 0
+        velocity.x = velocity.x / attrs.side_start_velocity_divisor
+        state.enter_flags(350, 0)
+        animation.start()
+        jumps.used = jumps.max
+    on ground_animation:
+        if animation.finished: side_dash()
+    on air_animation:
+        if animation.finished: side_dash()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if state.side_gravity_timer != 0: state.side_gravity_timer = state.side_gravity_timer - 1
+        physics.ground_friction()
+    on air_physics:
+        if state.side_gravity_timer != 0: state.side_gravity_timer = state.side_gravity_timer - 1
+        else: physics.fall(attrs.side_start_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.side_start_air_deceleration)
+    on ground_collision:
+        if collision.left_ground: state.switch_to_air(350, 0x0C4C5880)
+    on air_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.switch_to_ground(347, 0x0C4C5880)
+            return
+        collision.cliff_catch()
+
+move Reflector:
+    on special_lw:
+        state.enter(DownSpecial)
+        reflect_setup()
+    on special_air_lw:
+        velocity.y = 0
+        velocity.x = velocity.x / attrs.reflect_air_preserve
+        state.enter(DownSpecial)
+        reflect_setup()
+    on ground_animation:
+        if not input.special_held: state.reflect_released = true
+        if animation.finished:
+            reflect_loop()
+            effects.clear_all()
+            state.reflect_effect = 1160
+            callbacks.accessory(reflect_accessory)
+    on air_animation:
+        if not input.special_held: state.reflect_released = true
+        if animation.finished:
+            reflect_loop()
+            effects.clear_all()
+            state.reflect_effect = 1160
+            callbacks.accessory(reflect_accessory)
+    on ground_interrupt:
+        if controls.platform_drop_requested():
+            state.platform_drop(365, 0x0C4C5082, frame)
+            reflect_bubble()
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        reflect_air_physics()
+    on ground_collision:
+        if collision.special_ground_lost: state.switch_to_air(365, 0x0C4C5082)
+    on air_collision:
+        if collision.landed:
+            state.switch_to_ground(360, 0x0C4C5082)
+            physics.clamp_air_drift()
+
+move Blaster:
+    on special_n:
+        physics.switch_to_ground()
+        state.enter_flags(341, 0)
+        blaster_init()
+        ground.velocity = 0
+        velocity.z = 0
+        velocity.y = 0
+        velocity.x = 0
+        blaster_spawn()
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "scale", 0.85)
+    on special_air_n:
+        state.enter_flags(344, 0)
+        blaster_init()
+        blaster_spawn()
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "scale", 0.85)
+    on ground_animation:
+        blaster_start()
+    on air_animation:
+        blaster_start()
+    on ground_interrupt:
+        blaster_input()
+    on air_interrupt:
+        blaster_input()
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        collision.ground_standard()
+    on air_collision:
+        collision.air_catch_hit()
+
+
+action FireDashTravel:
+    on state_355_animation:
+        fire_travel_done()
+    on state_356_animation:
+        fire_travel_done()
+    on state_355_interrupt:
+        pass
+    on state_356_interrupt:
+        pass
+    on state_355_physics:
+        state.fire_travel_age = state.fire_travel_age + 1
+        if state.fire_travel_age >= attrs.fire_deceleration_start: physics.ground_decelerate(attrs.fire_travel_deceleration)
+        physics.ground_to_self()
+    on state_356_physics:
+        state.fire_travel_age = state.fire_travel_age + 1
+        if state.fire_travel_age >= attrs.fire_deceleration_start:
+            velocity.x = -((facing.direction * (attrs.fire_travel_deceleration * cos(state.fire_angle))) - velocity.x)
+            velocity.y = -((attrs.fire_travel_deceleration * sin(state.fire_angle)) - velocity.y)
+    on state_355_collision:
+        state.fire_collision_age = state.fire_collision_age + 1
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(356, 0x0C4C508A, frame, 1)
+            items.block_ground_pickup = true
+            callbacks.accessory(fire_accessory)
+            return
+        if collision.floor_contact:
+            state.fire_angle = atan2_float(-floor.normal.x * facing.direction, floor.normal.y)
+            fire_rotate()
+    on state_356_collision:
+        let bound_limit = float(0.01745329238474369) * (float(90) + attrs.fire_bound_angle)
+        if collision.check_ground_ledge(0):
+            let can_bound = true
+            if state.fire_collision_age < attrs.fire_platform_grace_frames: can_bound = not collision.skip_soft_floor()
+            if can_bound:
+                if not collision.floor_contact or not (vectors.angle_xy(floor.normal.x, floor.normal.y, velocity.x, velocity.y) < bound_limit):
+                    fire_bound()
+                    return
+                fire_realign()
+                return
+        if collision.cliff_catch(): return
+        let impact_angle = 0.0
+        if collision.ceiling_contact: impact_angle = vectors.angle_xy(ceiling.normal.x, ceiling.normal.y, velocity.x, velocity.y)
+        elif collision.left_wall: impact_angle = vectors.angle_xy(wall.left.normal.x, wall.left.normal.y, velocity.x, velocity.y)
+        elif collision.right_wall: impact_angle = vectors.angle_xy(wall.right.normal.x, wall.right.normal.y, velocity.x, velocity.y)
+        else: return
+        if impact_angle < bound_limit: fire_realign()
+
+action FireDashRecovery:
+    on state_357_animation:
+        if animation.finished: state.wait()
+    on state_358_animation:
+        if animation.finished: state.freefall(1, 0, true, attrs.fire_freefall_mobility, attrs.fire_landing_lag)
+    on state_357_interrupt:
+        pass
+    on state_358_interrupt:
+        pass
+    on state_357_physics:
+        physics.ground_decelerate(attrs.fire_end_ground_deceleration)
+        physics.ground_to_self()
+    on state_358_physics:
+        physics.air_drift()
+    on state_357_collision:
+        if collision.left_ground: state.freefall(1, 0, true, attrs.fire_freefall_mobility, attrs.fire_landing_lag)
+    on state_358_collision:
+        if collision.check_ground_ledge(0):
+            physics.switch_to_ground()
+            state.enter_at_speed(357, 0x5000, 13, 1)
+            animation.start()
+            return
+        collision.cliff_catch()
+
+action FireDashRebound:
+    on state_359_animation:
+        if command(0) != 0 and airborne:
+            state.freefall(1, 0, true, attrs.fire_freefall_mobility, attrs.fire_landing_lag)
+            jumps.used = jumps.max
+            return
+        if animation.finished:
+            if airborne:
+                state.freefall(1, 0, true, attrs.fire_freefall_mobility, attrs.fire_landing_lag)
+                jumps.used = jumps.max
+            else: state.wait()
+    on state_359_interrupt:
+        pass
+    on state_359_physics:
+        if airborne:
+            physics.animation_vertical_velocity()
+            physics.quick_air_decel()
+        else: physics.ground_friction()
+    on state_359_collision:
+        if airborne:
+            if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+                physics.switch_to_ground()
+                return
+            collision.cliff_catch()
+        else: collision.ground_standard()
+
+action SideDashTravel:
+    on state_348_animation:
+        if animation.finished: side_end()
+        side_create_trail()
+    on state_351_animation:
+        if animation.finished: side_end()
+        side_create_trail()
+    on state_348_interrupt:
+        if input.special_pressed: side_end()
+    on state_351_interrupt:
+        if input.special_pressed: side_end()
+    on state_348_physics:
+        physics.ground_animation_velocity()
+        side_shift_trail()
+    on state_351_physics:
+        physics.animation_velocity_plain()
+        side_shift_trail()
+    on state_348_collision:
+        if collision.left_ground:
+            state.switch_to_air(351, 0x0C4C5884)
+            command(2) = 0
+    on state_351_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.switch_to_ground(348, 0x0C4C5884)
+            command(2) = 0
+            return
+        collision.cliff_catch()
+
+action SideDashEnd:
+    on state_349_animation:
+        if animation.finished: state.wait()
+    on state_352_animation:
+        if animation.finished: state.freefall(1, 0, true, attrs.side_freefall_mobility, attrs.side_landing_lag)
+    on state_349_interrupt:
+        pass
+    on state_352_interrupt:
+        pass
+    on state_349_physics:
+        if state.side_gravity_timer != 0: state.side_gravity_timer = state.side_gravity_timer - 1
+        physics.ground_decelerate(attrs.side_end_ground_friction)
+        physics.ground_to_self()
+        side_shift_trail()
+    on state_352_physics:
+        if state.side_gravity_timer != 0: state.side_gravity_timer = state.side_gravity_timer - 1
+        else: physics.fall(attrs.side_end_gravity, air.terminal_velocity)
+        physics.air_decel(attrs.side_end_air_deceleration)
+        side_shift_trail()
+    on state_349_collision:
+        if collision.special_ground_lost: state.fall()
+    on state_352_collision:
+        if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+            state.landing_special(false, attrs.side_landing_lag)
+            return
+        collision.cliff_catch()
+
+action ReflectLoop:
+    on state_361_animation:
+        reflect_hold()
+        if state.reflect_release_timer <= 0 and state.reflect_released: reflect_end()
+    on state_361_interrupt:
+        if controls.turn_requested():
+            if airborne: state.enter_at_speed(369, 2, 0, 1)
+            else: state.enter_at_speed(364, 2, 0, 1)
+            reflector.retain()
+            callbacks.track_reflect_hit()
+            state.reflect_turn_timer = int(attrs.reflect_turn_frames)
+            command(0) = 0
+            reflect_turn_tick()
+            state.reflect_effect = 1160
+            callbacks.accessory(reflect_accessory)
+            return
+
+        if controls.try_ground_jump(): return
+        if controls.platform_drop_requested():
+            state.platform_drop(366, 0x0C4C5082, frame)
+            reflect_bubble()
+    on state_361_physics:
+        physics.ground_friction()
+        reflector.update()
+    on state_361_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(366, 0x0C4C5082)
+            reflect_bubble()
+    on state_366_animation:
+        reflect_hold()
+        if state.reflect_release_timer <= 0 and state.reflect_released: reflect_end()
+    on state_366_interrupt:
+        if controls.turn_requested():
+            if airborne: state.enter_at_speed(369, 2, 0, 1)
+            else: state.enter_at_speed(364, 2, 0, 1)
+            reflector.retain()
+            callbacks.track_reflect_hit()
+            state.reflect_turn_timer = int(attrs.reflect_turn_frames)
+            command(0) = 0
+            reflect_turn_tick()
+            state.reflect_effect = 1160
+            callbacks.accessory(reflect_accessory)
+            return
+
+        let jumped = controls.try_aerial_jump()
+    on state_366_physics:
+        reflect_air_physics()
+        reflector.update()
+    on state_366_collision:
+        if collision.landed:
+            state.switch_to_ground(361, 0x0C4C5082)
+            physics.clamp_air_drift()
+            reflect_bubble()
+
+action ReflectHit:
+    on state_362_animation:
+        reflect_hold()
+        if animation.finished:
+            if state.reflect_release_timer <= 0 and state.reflect_released: reflect_end()
+            else:
+                reflect_loop()
+                effects.clear_all()
+                state.reflect_effect = 1160
+                callbacks.accessory(reflect_accessory)
+    on state_362_interrupt:
+        pass
+    on state_362_physics:
+        physics.ground_friction()
+        reflector.update()
+    on state_362_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(367, 0x0C4C5082)
+            reflector.retain()
+            callbacks.track_reflect_hit()
+    on state_367_animation:
+        reflect_hold()
+        if animation.finished:
+            if state.reflect_release_timer <= 0 and state.reflect_released: reflect_end()
+            else:
+                reflect_loop()
+                effects.clear_all()
+                state.reflect_effect = 1160
+                callbacks.accessory(reflect_accessory)
+    on state_367_interrupt:
+        pass
+    on state_367_physics:
+        reflect_air_physics()
+        reflector.update()
+    on state_367_collision:
+        if collision.landed:
+            state.switch_to_ground(362, 0x0C4C5082)
+            physics.clamp_air_drift()
+            reflector.retain()
+            callbacks.track_reflect_hit()
+
+action ReflectTurn:
+    on state_364_animation:
+        reflect_hold()
+        reflect_turn_tick()
+        if state.reflect_turn_timer <= 0: reflect_resume()
+    on state_364_interrupt:
+        pass
+    on state_364_physics:
+        physics.ground_friction()
+        reflector.update()
+    on state_364_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(369, 0x0C4C5082)
+            reflector.retain()
+            callbacks.track_reflect_hit()
+    on state_369_animation:
+        reflect_hold()
+        reflect_turn_tick()
+        if state.reflect_turn_timer <= 0: reflect_resume()
+    on state_369_interrupt:
+        pass
+    on state_369_physics:
+        reflect_air_physics()
+        reflector.update()
+    on state_369_collision:
+        if collision.landed:
+            state.switch_to_ground(364, 0x0C4C5082)
+            physics.clamp_air_drift()
+            reflector.retain()
+            callbacks.track_reflect_hit()
+
+action ReflectEnd:
+    on state_363_animation:
+        if animation.finished:
+            effects.clear_all()
+            state.finish()
+    on state_363_interrupt:
+        pass
+    on state_363_physics:
+        physics.ground_friction()
+    on state_363_collision:
+        if collision.special_ground_lost:
+            state.switch_to_air(368, 0x5000)
+    on state_368_animation:
+        if animation.finished:
+            effects.clear_all()
+            state.finish()
+    on state_368_interrupt:
+        pass
+    on state_368_physics:
+        reflect_air_physics()
+    on state_368_collision:
+        if collision.landed:
+            state.switch_to_ground(363, 0x5000)
+            physics.clamp_air_drift()
+
+func conversation_cancel():
+    stage.event(StageEvent_Conversation_cancel, 0)
+    callbacks.death1(None)
+
+func conversation_animate():
+    if cue.reverse.consume():
+        if stage.event(StageEvent_Conversation_start, attrs.radio_speaker): callbacks.death1(conversation_cancel)
+    if animation.finished:
+        state.conversation_phase = state.conversation_phase + 1
+        if state.conversation_phase >= 3:
+            state.wait_blend(-1)
+            return
+        state.enter_at_speed(370 + state.conversation_facing + 2 * state.conversation_phase, 0, 0, 1)
+
+action Conversation:
+    on wait_input:
+        if not stage.event(StageEvent_Conversation_available, 0) or input.down_held or input.down_press_age != 1: return false
+        let slot = 0
+        while slot < 6:
+            if stats.action_count(slot, 0x72) != 0: return false
+            slot = slot + 1
+        state.conversation_phase = 0
+        state.conversation_facing = 0
+        if facing.direction != 1: state.conversation_facing = 1
+        cue.throw.reset()
+        state.enter_at_speed(370 + state.conversation_facing, 0, 0, 1)
+        stats.notify_taunt()
+        return true
+    on action_status:
+        return stats.action_count(fighter.player_slot, 0x72) != 0 and stage.event(StageEvent_Conversation_active, 0)
+    on state_370_animation:
+        conversation_animate()
+    on state_370_interrupt:
+        pass
+    on state_370_physics:
+        physics.ground_friction()
+    on state_370_collision:
+        collision.ground_with_nudge()
+    on state_371_animation:
+        conversation_animate()
+    on state_371_interrupt:
+        pass
+    on state_371_physics:
+        physics.ground_friction()
+    on state_371_collision:
+        collision.ground_with_nudge()
+    on state_372_animation:
+        conversation_animate()
+    on state_372_interrupt:
+        pass
+    on state_372_physics:
+        physics.ground_friction()
+    on state_372_collision:
+        collision.ground_with_nudge()
+    on state_373_animation:
+        conversation_animate()
+    on state_373_interrupt:
+        pass
+    on state_373_physics:
+        physics.ground_friction()
+    on state_373_collision:
+        collision.ground_with_nudge()
+    on state_374_animation:
+        conversation_animate()
+    on state_374_interrupt:
+        pass
+    on state_374_physics:
+        physics.ground_friction()
+    on state_374_collision:
+        collision.ground_with_nudge()
+    on state_375_animation:
+        conversation_animate()
+    on state_375_interrupt:
+        pass
+    on state_375_physics:
+        physics.ground_friction()
+    on state_375_collision:
+        collision.ground_with_nudge()
+
+action FighterEvents:
+    on presentation_item:
+        let bool scale_presentation = motion.id == attrs.presentation_down_motion or motion.id == attrs.presentation_right_motion
+        let bool unscaled_presentation = motion.id == attrs.presentation_camera_ice_motion or motion.id == attrs.presentation_sleep_motion
+        if not(scale_presentation) and not(unscaled_presentation): return
+        let int gun = articles.create_with_velocity(It_Kind_Fox_Blaster, position.x, position.y, 0, 0, 0, 0, facing.direction, false, 0, 0, false)
+        if gun == -1:
+            items.clear_held()
+            return
+        # Commands must be set before pickup chooses the last item state.
+        articles.signal_owned(gun, It_Kind_Fox_Blaster, "initialize_presentation", 0)
+        let bool attached = items.attach(gun, bones.index(RightThumb), false)
+        if not attached:
+            # Invalid attachment is outside retail's valid-rig contract.
+            # Discard the new item without clearing a surviving previous slot.
+            articles.signal_owned(gun, It_Kind_Fox_Blaster, "discard_presentation", 0)
+            return
+        let bool published = articles.bind_held(gun)
+        if scale_presentation:
+            articles.signal_owned(gun, It_Kind_Fox_Blaster, "scale", model.instance_scale_y * model.base_scale)
+    on cpu_capture_decision:
+        if attrs.cpu_capture_enabled:
+            if cpu.grab_attempts == attrs.cpu_capture_attempt and cpu.level > attrs.cpu_capture_min_level:
+                if random.float() < attrs.cpu_capture_chance_per_level * cpu.level:
+                    cpu.run_script(attrs.cpu_capture_script)
+                    return true
+        return false
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(attrs.cpu_blaster_range): cpu.add_candidate(attrs.cpu_blaster_candidate)
+    on cpu_recovery:
+        cpu.queue(Cpu.stick_y, attrs.cpu_recover_stick)
+        cpu.queue(Cpu.x_toward_destination, attrs.cpu_recover_stick)
+        cpu.queue(Cpu.press_b_for, attrs.cpu_recover_press_frames)
+        cpu.queue(Cpu.release_b)
+        cpu.queue(Cpu.wait, attrs.cpu_recover_wait_frames)
+        cpu.queue(Cpu.done)
+    on cpu_projectile_defense:
+        if airborne:
+            if event.category == 2: cpu_reflect_response()
+            else: cpu_retap_guard()
+            return true
+        if random.float() > attrs.cpu_ground_reflect_threshold:
+            cpu_reflect_response()
+            return true
+        return false
+    on idle_variants:
+# Fox permits held-item idle variants; Falco repeats the current idle.
+# The authored policy is independent of the engine donor identity.
+        return not items.held or attrs.allow_special_while_holding_item
+    on motion_is_angled:
+# Stock forward-tilt/forward-smash statistic range is 51..61.
+# Fox/Falco exclude AttackS3LwS, AttackS3Lw and AttackHi3 (54..56).
+        return event.motion >= 51 and event.motion <= 61 and (event.motion < 54 or event.motion > 56)
+    on load:
+        fighter.copy_ext_attributes()
+        fighter.enable_walljump()
+        state.blaster_handle = -1
+    on death:
+        state.blaster_handle = -1
+        visuals.set_group(0, 0)
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+        visuals.apply_part_animation(3, 3, 0)
+        visuals.apply_part_animation(4, 3, 0)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+        visuals.apply_part_animation(3, 2, 0)
+        visuals.apply_part_animation(4, 2, 0)
+    on reflect_hit:
+        facing.direction = reflector.hit_direction
+        effects.wind(Hip, 0, 120, 3, 0.1, 1.0471976)
+        if airborne: state.enter_at_speed(367, 0, 0, 1)
+        else: state.enter_at_speed(362, 0, 0, 1)
+        reflector.retain()
+        callbacks.track_reflect_hit()
+        state.reflect_effect = 1162
+        callbacks.accessory(reflect_accessory)
+
+
+func blaster_track():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+func blaster_clear():
+    state.blaster_handle = -1
+    callbacks.clear_damage_death()
+
+func blaster_cleanup():
+    articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "cleanup", 0)
+    blaster_clear()
+
+func blaster_spawn():
+    state.blaster_handle = articles.spawn_bone_attached(It_Kind_Fox_Blaster, RightThumb)
+    if articles.owned(state.blaster_handle): blaster_track()
+
+func blaster_init():
+    command(3) = 0
+    command(2) = 0
+    command(1) = 0
+    command(0) = 0
+    animation.start()
+    state.blaster_loop = false
+
+func blaster_open():
+    articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "visibility", 1)
+    if command(3) == 1 and articles.owned(state.blaster_handle):
+        command(3) = 0
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "open", 0)
+
+func blaster_input():
+    if command(0) != 0 and input.special_pressed: state.blaster_loop = true
+
+func blaster_throw_sound():
+    if motion.id == Motion.throw_up or motion.id == Motion.throw_down:
+        sound.play(attrs.blaster_throw_vertical_sound, 127, 64)
+    elif facing.direction == 1:
+        sound.play(attrs.blaster_shot_backward_sound, 127, 64)
+    else:
+        sound.play(attrs.blaster_shot_forward_sound, 127, 64)
+
+func blaster_fire():
+    if command(2) == 0: return
+    command(2) = 0
+    let angle = attrs.blaster_angle
+    if facing.direction != 1: angle = pi - attrs.blaster_angle
+    articles.launch_projectile(It_Kind_Fox_Laser, RightThumb, 0, 1.2325000762939453, 4.263599872589111, angle, attrs.blaster_speed, 0)
+    articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "recoil", 0)
+    if facing.direction == -1: sound.play(attrs.blaster_shot_backward_sound, 127, 64)
+    else: sound.play(attrs.blaster_shot_forward_sound, 127, 64)
+
+func blaster_start():
+    blaster_open()
+    if animation.finished:
+        if airborne: state.enter_at_speed(345, 0x12, 0, 1)
+        else: state.enter_at_speed(342, 0x12, 0, 1)
+        blaster_track()
+        callbacks.accessory(blaster_fire)
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "visibility", 1)
+
+func blaster_loop_tick():
+    blaster_open()
+    if animation.finished:
+        if state.blaster_loop:
+            callbacks.track_state_change()
+            if airborne: state.enter_at_speed(345, 0x2000012, 0, 1)
+            else: state.enter_at_speed(342, 0x2000012, 0, 1)
+            callbacks.accessory(blaster_fire)
+            state.blaster_loop = false
+        else:
+            if airborne: state.enter_at_speed(346, 0x12, 0, 1)
+            else: state.enter_at_speed(343, 0x12, 0, 1)
+            command(1) = 1
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "visibility", 1)
+        blaster_track()
+    blaster_fire()
+
+func blaster_end():
+    articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "visibility", command(1))
+    if command(1) == 2: items.notify_pickup(false)
+    if command(3) == 2 and articles.owned(state.blaster_handle):
+        command(3) = 0
+        articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "close", 0)
+    if animation.finished:
+        blaster_clear()
+        if grounded: state.wait()
+        else:
+            if attrs.blaster_landing_lag == 0: state.fall()
+            else: state.freefall(1, 0, true, 1, attrs.blaster_landing_lag)
+
+action BlasterPhases:
+    on damage:
+        blaster_cleanup()
+    on death2:
+        blaster_cleanup()
+    on state_change:
+        stats.refresh_attack()
+        stats.record_attack()
+    on throw_animation:
+        if motion.id != Motion.throw_back and motion.id != Motion.throw_up and motion.id != Motion.throw_down: return
+        if animation.finished:
+            blaster_clear()
+            return
+        if command(1) == 1:
+            if not articles.owned(state.blaster_handle):
+                blaster_spawn()
+                articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "scale", float(0.85) * float(model.instance_scale_y * model.base_scale))
+                return
+            blaster_open()
+            if command(3) == 2:
+                command(3) = 0
+                articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "close", 0)
+            if cue.article.consume():
+                let float muzzle_x = 0
+                let float muzzle_y = 0
+                let float muzzle_z = 0
+                let float barrel_x = 0
+                let float barrel_y = 0
+                let float barrel_z = 0
+                bones.world_position_offset(bones.index(RightThumb), muzzle_x, muzzle_y, muzzle_z, 0, 1.2325000762939453, 4.263599872589111)
+                bones.world_position_offset(bones.index(RightThumb), barrel_x, barrel_y, barrel_z, 0, 1.2325000762939453, 0.013600001111626625)
+                let angle = atan2_float(muzzle_y - barrel_y, muzzle_x - barrel_x)
+                articles.launch_projectile(It_Kind_Fox_Laser, RightThumb, 0, 1.2325000762939453, 4.263599872589111, angle, attrs.blaster_speed, 1)
+                articles.signal_owned(state.blaster_handle, It_Kind_Fox_Blaster, "recoil", 0)
+                blaster_throw_sound()
+        elif command(1) == 2:
+            if articles.owned(state.blaster_handle):
+                blaster_clear()
+                sound.play(attrs.blaster_close_sound, 127, 64)
+        elif command(1) == 0:
+            blaster_clear()
+            items.notify_pickup(false)
+    on state_342_animation:
+        blaster_loop_tick()
+    on state_342_interrupt:
+        blaster_input()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_342_collision:
+        collision.ground_standard()
+    on state_343_animation:
+        blaster_end()
+    on state_343_interrupt:
+        pass
+    on state_343_physics:
+        physics.ground_friction()
+    on state_343_collision:
+        collision.ground_standard()
+    on state_345_animation:
+        blaster_loop_tick()
+    on state_345_interrupt:
+        blaster_input()
+    on state_345_physics:
+        physics.air_drift()
+    on state_345_collision:
+        collision.air_catch_hit()
+    on state_346_animation:
+        blaster_end()
+    on state_346_interrupt:
+        pass
+    on state_346_physics:
+        physics.air_drift()
+    on state_346_collision:
+        collision.air_catch_hit()
+
+# Gun behavior is script-owned; the fighter firing callbacks must switch with it.
+# Also included in the WIP fighter; kept here for focused stock comparisons.
+# Model tables preserve stock values, including rotation in radians.
+
+article It_Kind_Fox_Blaster states 11:
+    attachment origin owner plane on initial_collision off held off
+    state int recoil_step
+    state int open_step
+    state int open_direction
+    state bool opened_once
+    state int visibility
+    state bool open_moving
+    state int owner_action
+    state bool changing_action
+    state bool effect_pending
+    state bool cleanup
+    table float pickup_states = [0, 9, 9, 3, 9, 9, 6, 7, 8, 9, 10]
+    table float open_y = [-0.425, -0.595, -0.765, -0.935, -0.85]
+    table float recoil_z = [0, -0.51, -1.02, -1.53, -1.39, -1.251, -1.112, -0.973, -0.834, -0.695, -0.556, -0.417, -0.278, -0.139]
+    table float recoil_scale = [0.5, 0.5, 1.75, 3, 2.375, 1.75, 1.125, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    table float recoil_rotation = [0, -42, -20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    on spawned:
+            item.state.visibility = 1
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.remove_at_bounds = false
+    on picked_up:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.owner_action = int(table.pickup_states[item.state.owner_action])
+            if (item.command0 | item.command1 | item.command2 | item.command3) != 0: item.state.owner_action = 10
+            item.change_state(item.state.owner_action)
+            item.advance_animation()
+    on accessory:
+            if not item.attachment_active or not item.state.effect_pending: return
+            item.state.effect_pending = false
+            # Stock passes the same muzzle point twice to atan2, yielding zero.
+            let float muzzle_x = 0
+            let float muzzle_y = 0
+            let float muzzle_z = 0
+            creator.bones.world_position_offset(creator.bones.index(RightThumb), muzzle_x, muzzle_y, muzzle_z, 0, 1.2325000762939453, 4.263599872589111)
+            item.spawn_with_scalar_at_position(1166, muzzle_x, muzzle_y, muzzle_z, 0)
+    on interaction:
+            item.interact(other)
+    on signal initialize_presentation:
+            item.command3 = 1
+            item.command2 = 1
+            item.command1 = 1
+            item.command0 = 1
+    on signal discard_presentation:
+            item.detach_owner()
+            item.remove()
+    on signal scale:
+            item.scale_by_attribute(signal.value)
+    on signal cleanup:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            item.remove()
+    on signal open:
+            if item.state.open_step == 4: return
+            item.state.open_step = 1
+            item.state.open_direction = 1
+            if not item.state.opened_once: item.play_sound(110085, 127, 64)
+            item.state.opened_once = true
+    on signal close:
+            if item.state.open_step == 0: return
+            item.state.open_step = 3
+            item.state.open_direction = -1
+    on signal recoil:
+            item.state.recoil_step = 1
+            item.state.effect_pending = true
+            item.track_accessory()
+    on signal visibility:
+            if item.state.visibility != int(signal.value) and int(signal.value) == 2: item.play_sound(110100, 127, 64)
+            item.state.visibility = int(signal.value)
+            if item.state.visibility == 0 or item.state.visibility == 2: item.joint("0").visible = false
+            if item.state.visibility == 1: item.joint("0").visible = true
+    state 0 anim 0:
+        on animation:
+            item.state.owner_action = 9
+            if owner.motion >= 341 and owner.motion <= 346: item.state.owner_action = owner.motion - 341
+            if owner.motion == Motion.throw_back or owner.motion == Motion.throw_up or owner.motion == Motion.throw_down: item.state.owner_action = owner.motion - Motion.catch_dash
+            item.state.changing_action = item.motion_state != 2 and item.motion_state != 5 and item.motion_state != 6 and item.motion_state != 7 and item.motion_state != 8 and item.motion_state != item.state.owner_action
+            if item.state.changing_action: item.change_state(item.state.owner_action)
+            if item.state.changing_action: item.advance_animation()
+            item.state.cleanup = not item.attachment_active or item.state.owner_action == 9 or owner.state.blaster_handle < 0
+            if item.state.cleanup: owner.state.blaster_handle = -1
+            if item.state.cleanup: owner.clear_damage_death()
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.destroy_effects()
+            if item.state.cleanup: item.remove()
+            # Removal destroys effects. Avoid stock's effect cleanup after free.
+            item.state.cleanup = owner.fighter.action_detaches_items
+            if item.state.cleanup: item.detach_owner()
+            if item.state.cleanup: item.remove()
+        on collision:
+            return false
+        on physics:
+            if item.joint("0/0/0/0").exists: item.joint("0/0/0/0").translation.y = table.open_y[item.state.open_step]
+            item.state.open_moving = item.joint("0/0/0/0").exists and item.state.open_step > 0 and item.state.open_step < 4
+            if item.state.open_moving: item.state.open_step = item.state.open_step + item.state.open_direction
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step >= 5: item.state.open_step = 4
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_direction = 0
+            if item.state.open_moving and item.state.open_step <= 0: item.state.open_step = 0
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/1").translation.z = table.recoil_z[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.y = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/2").scale.z = table.recoil_scale[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists: item.joint("0/0/0/3").rotation.x = table.recoil_rotation[item.state.recoil_step]
+            if item.joint("0/0/0/1").exists and item.state.recoil_step > 0 and item.state.recoil_step < 14: item.state.recoil_step = item.state.recoil_step + 1
+            if item.joint("0/0/0/1").exists and item.state.recoil_step >= 14: item.state.recoil_step = 0
+    state 1 anim 1 use 0:
+    state 2 anim 2 use 0:
+    state 3 anim 3 use 0:
+    state 4 anim 4 use 0:
+    state 5 anim 5 use 0:
+    state 6 anim 6 use 0:
+    state 7 anim 7 use 0:
+    state 8 anim 8 use 0:
+    state 9 anim -1:
+        on animation:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+        on collision:
+            owner.state.blaster_handle = -1
+            owner.clear_damage_death()
+            item.detach_owner()
+            item.destroy_effects()
+            return true
+    state 10 anim -1:
+        on animation:
+            # Presentation scale follows the original creator after owner changes.
+            if creator.exists and creator.fighter.incapacitated:
+                let float root_scale = creator.model.root_scale_y
+                # Stock copies the creator's rendered root Y uniformly. It
+                # changes the joint only, not Item.scl or collision scaling.
+                item.joint("").scale.x = root_scale
+                item.joint("").scale.y = root_scale
+                item.joint("").scale.z = root_scale
+            return false
+        on collision:
+            return false
+
+article It_Kind_Fox_Laser states 2:
+    attribute float lifetime 0
+    attribute float maximum_length 4
+    state float length
+    state float angle
+    state float speed
+    state float rotation_velocity_x
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float saved_x
+    state float saved_y
+    state float saved_z
+    state bool stage_hit
+    projectile appearance -1 state 0 speed 0 angle 0 lifetime lifetime initial_velocity off initial_update off
+    on launched:
+            item.state.length = 0
+            item.state.angle = item.launch_angle
+            item.state.speed = item.launch_speed
+            item.state.previous_x = item.launch_origin.x
+            item.state.previous_y = item.launch_origin.y
+            item.state.previous_z = item.launch_origin.z
+    on reflected:
+            if facing != item.reflect_facing: item.joint("").rotation.y = (pi / 2) * item.reflect_facing
+            facing = item.reflect_facing
+            item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.state.angle = wrap_angle(item.state.angle + pi)
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            item.state.length = float(0.001)
+            item.state.angle = wrap_angle(atan2(velocity.y, velocity.x))
+            return false
+    on damage_dealt:
+            return true
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false
+    state 1 anim 1:
+        on animation:
+            velocity.x = item.state.speed * cos(item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.angle)
+            velocity.z = 0
+            facing = -1
+            if velocity.x > 0: facing = 1
+            item.joint("").rotation.y = (pi / 2) * facing
+            item.state.rotation_velocity_x = velocity.x
+            if facing == 1: item.state.rotation_velocity_x = -velocity.x
+            item.joint("").rotation.x = pi + atan2(velocity.y, item.state.rotation_velocity_x)
+            item.state.length = item.state.length + abs(item.state.speed) / float(11.25)
+            if item.state.length > item.attr.maximum_length: item.state.length = item.attr.maximum_length
+            if item.state.length < float(0.00001): item.state.length = float(0.001)
+            item.joint("").scale.z = item.state.length
+            item.life = item.life - 1
+            if item.life <= 0: return true
+            return false
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+        on collision:
+            item.state.saved_x = position.x
+            item.state.saved_y = position.y
+            item.state.saved_z = position.z
+            item.state.stage_hit = item.sweep_stage(item.state.previous_x, item.state.previous_y, item.state.previous_z)
+            if item.state.stage_hit: item.set_lifetime(1)
+            if item.state.stage_hit: position.x = item.state.saved_x
+            if item.state.stage_hit: position.y = item.state.saved_y
+            if item.state.stage_hit: position.z = item.state.saved_z
+            return false
+
+article It_Kind_Fox_Illusion states 3:
+    render standard
+    attribute float trail_lifetime 0
+    attribute float fade_lifetime 4
+    state bool fading
+    on created:
+            item.life = item.attr.trail_lifetime
+            item.disable_surface_response()
+            item.use_manual_lifetime()
+            item.change_state(int(item.creation_value))
+            item.inherit_owner_scale()
+            item.inherit_owner_debug_display()
+            item.refresh_physics()
+    on damage_dealt:
+            item.cancel_hitlag_request()
+            return false
+    on destroyed:
+            item.destroy_model(1)
+            item.detach_owner()
+            item.owner_bound = false
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if item.attachment_active and owner.command2 == 2 and not item.joint(1, "").exists: item.clone_model(1)
+            if not item.attachment_active or owner.motion < 347 or owner.motion > 352: return true
+            item.life = item.life - 1
+            item.state.fading = item.life <= 0
+            if item.state.fading: item.life = 0
+            if item.state.fading: item.life = item.attr.fade_lifetime
+            if item.state.fading: item.joint("").visible = false
+            if item.state.fading: item.change_state(2)
+            return false
+        on physics:
+            if item.attachment_active: position.x = owner.state.trail_x1
+            if item.attachment_active: position.y = owner.state.trail_y1
+            if item.attachment_active: position.z = owner.state.trail_z1
+            if item.attachment_active: item.joint("").rotation.x = owner.state.trail_rotation1
+            if item.attachment_active: item.joint(1, "").translation.x = owner.state.trail_x3
+            if item.attachment_active: item.joint(1, "").translation.y = owner.state.trail_y3
+            if item.attachment_active: item.joint(1, "").translation.z = owner.state.trail_z3
+            if item.attachment_active: item.joint(1, "").rotation.x = owner.state.trail_rotation3
+        on collision:
+            return false
+    state 1 anim 1 use 0:
+    state 2 anim 2:
+        on animation:
+            if not item.attachment_active or owner.motion < 347 or owner.motion > 352: return true
+            item.life = item.life - 1
+            if item.life <= 0: item.life = 0
+            if item.life <= 0: return true
+            return false
+        on physics:
+            if item.attachment_active: item.joint(1, "").translation.x = owner.state.trail_x3
+            if item.attachment_active: item.joint(1, "").translation.y = owner.state.trail_y3
+            if item.attachment_active: item.joint(1, "").translation.z = owner.state.trail_z3
+        on collision:
+            return false

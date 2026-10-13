@@ -1,0 +1,219 @@
+# Six complete live Side-B states. Retail state356 is deliberately null.
+attribute int side_smash_age_limit 48
+attribute float side_ground_start_speed 52
+attribute float side_ground_acceleration 56
+attribute float side_ground_target_speed 60
+attribute float side_air_start_vertical_speed 64
+attribute float side_jump_horizontal_speed 68
+attribute float side_smash_horizontal_speed 72
+attribute float side_jump_vertical_speed 76
+attribute float side_jump_gravity 80
+attribute float side_jump_deceleration 84
+attribute float side_jump_braking_gravity 88
+attribute float side_jump_terminal_velocity 92
+attribute float side_rebound_horizontal_speed 96
+attribute float side_rebound_vertical_speed 100
+attribute float side_end_horizontal_divisor 104
+attribute float side_end_vertical_divisor 108
+parameter int side_ground_start_motion = 354
+parameter int side_air_start_motion = 357
+parameter int side_air_jump_motion = 360
+parameter int side_ground_end_motion = 355
+parameter int side_air_end_motion = 358
+parameter int side_air_rebound_motion = 359
+parameter int side_start_transition_flags = 0x0c4c5084
+parameter int side_end_transition_flags = 0x00005000
+parameter float side_ground_launch_offset_x = -4
+parameter float side_ground_launch_offset_y = 3.5
+parameter int side_explosion_joint = 4
+state bool side_smash
+
+func side_start_reset():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    velocity.x = 0
+    animation.delta.x = 0
+    if input.horizontal_smash_age < attrs.side_smash_age_limit:
+        stats.count_as_thrown_item()
+        state.side_smash = true
+    else:
+        state.side_smash = false
+
+func side_face_velocity():
+    ground.velocity = facing.direction * abs(ground.velocity)
+    velocity.x = facing.direction * abs(velocity.x)
+
+func side_reverse_velocity():
+    ground.velocity = -facing.direction * abs(ground.velocity)
+    velocity.x = -facing.direction * abs(velocity.x)
+
+func side_post_end():
+    if command(2) != 0:
+        bones.world_position(attrs.side_explosion_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+        state.spawn_z = 0
+        let int explosion = create_explosion(state.spawn_x, state.spawn_y, state.spawn_z, state.side_smash)
+        velocity.x = attrs.side_rebound_horizontal_speed * facing.direction
+        velocity.y = attrs.side_rebound_vertical_speed
+    callbacks.reflect(side_reverse_velocity)
+
+func side_ground_end():
+    state.enter_at_speed(attrs.side_ground_end_motion, 0, 0, 1)
+    side_post_end()
+
+func side_air_end():
+    velocity.x = velocity.x / attrs.side_end_horizontal_divisor
+    velocity.y = velocity.y / attrs.side_end_vertical_divisor
+    let int destination = attrs.side_air_end_motion
+    if command(2) != 0:
+        destination = attrs.side_air_rebound_motion
+    state.enter_at_speed(destination, 0, 0, 1)
+    side_post_end()
+
+func side_air_jump():
+    let float speed = attrs.side_jump_horizontal_speed
+    if state.side_smash:
+        speed = attrs.side_smash_horizontal_speed
+    velocity.x = speed * facing.direction
+    velocity.y = attrs.side_jump_vertical_speed
+    state.enter_at_speed(attrs.side_air_jump_motion, 0, 0, 1)
+    callbacks.reflect(side_face_velocity)
+    callbacks.track_hurtbox_detect()
+
+func side_rebound():
+    if not collision.contact_rebound_allowed():
+        return
+    velocity.x = 0
+    if velocity.y >= 0:
+        velocity.y = 0
+    command(2) = 1
+    side_air_end()
+
+func side_start_acceleration():
+    # Exact common AccelToVel math; LStick-scaled ground_accel is different.
+    let float acceleration = attrs.side_ground_acceleration * facing.direction
+    let float target = attrs.side_ground_target_speed * facing.direction
+    if target == 0:
+        acceleration = -ground.velocity
+    elif not (ground.velocity * acceleration < 0):
+        if acceleration > 0:
+            if ground.velocity + acceleration > target:
+                acceleration = target - ground.velocity
+        elif ground.velocity + acceleration < target:
+            acceleration = target - ground.velocity
+    ground.acceleration = acceleration
+    physics.ground_to_self()
+
+func side_start_wall_contact() -> bool:
+    return (collision.right_wall and facing.direction == -1) or (collision.left_wall and facing.direction == 1)
+
+move SideBPolicies:
+    on special_s:
+        callbacks.state_changed(side_start_reset)
+        velocity.y = 0
+        ground.velocity = attrs.side_ground_start_speed * facing.direction
+        state.enter_at_speed(attrs.side_ground_start_motion, 0, 0, 1)
+        animation.start()
+    on special_air_s:
+        callbacks.state_changed(side_start_reset)
+        velocity.y = attrs.side_air_start_vertical_speed
+        state.enter_at_speed(attrs.side_air_start_motion, 0, 0, 1)
+        animation.start()
+    on hurtbox_detect:
+        side_rebound()
+    on state_354_animation:
+        if animation.finished:
+            if command(0) != 0:
+                side_ground_end()
+            else:
+                physics.ground_to_air()
+                position.x = position.x + attrs.side_ground_launch_offset_x * facing.direction * model.instance_scale_y
+                position.y = position.y + attrs.side_ground_launch_offset_y * model.instance_scale_y
+                side_air_jump()
+    on state_354_interrupt:
+        return
+    on state_354_physics:
+        side_start_acceleration()
+    on state_354_collision:
+        if collision.special_ground_lost:
+            velocity.x = 0
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.side_air_start_motion, attrs.side_start_transition_flags, frame, 1)
+        # Original continues these tests after transition.
+        if side_start_wall_contact():
+            ground.velocity = 0
+            command(0) = 1
+    on state_357_animation:
+        if animation.finished:
+            if command(0) != 0:
+                side_air_end()
+            else:
+                side_air_jump()
+    on state_357_interrupt:
+        return
+    on state_357_physics:
+        physics.air_gravity_and_friction()
+    on state_357_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.side_ground_start_motion, attrs.side_start_transition_flags, frame, 1)
+        if collision.ceiling_contact:
+            velocity.y = 0
+            command(0) = 1
+        if side_start_wall_contact():
+            velocity.x = 0
+            command(0) = 1
+    on state_360_animation:
+        if command(3) != 0 or animation.finished:
+            side_air_end()
+    on state_360_interrupt:
+        return
+    on state_360_physics:
+        if command(1) != 0:
+            physics.air_decel(attrs.side_jump_deceleration)
+        let float gravity = attrs.side_jump_gravity
+        if command(1) != 0:
+            gravity = attrs.side_jump_braking_gravity
+        physics.fall(gravity, attrs.side_jump_terminal_velocity)
+    on state_360_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            side_ground_end()
+        if side_start_wall_contact():
+            command(2) = 1
+            side_air_end()
+    on state_355_animation:
+        if animation.finished:
+            state.wait()
+    on state_355_interrupt:
+        return
+    on state_355_physics:
+        physics.ground_friction()
+    on state_355_collision:
+        if collision.left_ground:
+            physics.ground_to_air()
+            state.enter_at_speed(attrs.side_air_end_motion, attrs.side_end_transition_flags, frame, 1)
+    on state_358_animation:
+        if animation.finished:
+            state.fall()
+    on state_358_interrupt:
+        return
+    on state_358_physics:
+        physics.air_gravity_and_friction()
+    on state_358_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.side_ground_end_motion, attrs.side_end_transition_flags, frame, 1)
+    on state_359_animation:
+        if animation.finished:
+            state.fall()
+    on state_359_interrupt:
+        return
+    on state_359_physics:
+        physics.air_gravity_and_friction()
+    on state_359_collision:
+        if collision.landed:
+            physics.switch_to_ground()
+            state.enter_at_speed(attrs.side_ground_end_motion, attrs.side_end_transition_flags, frame, 1)
+

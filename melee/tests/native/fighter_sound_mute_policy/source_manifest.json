@@ -1,0 +1,21 @@
+{
+  "scope": "read-only fighter sound mute ownership proposal; no source tests performed",
+  "source_sha256": {
+    "src/melee/ft/ftaction.c": "34d21959f1f6ed746d3caceb101fe439fa5764db131501729f1ead32ee2cd2aa",
+    "src/melee/ft/ft_0881.c": "9b525e621dd088b163ec66059b12062c17963351b49550abfe1f0db5aade2a04",
+    "src/melee/ft/ft_0877.c": "91f433807fafb210ef9cc1938f61ab472ec5e4b24ff08e00c44812724887a824",
+    "src/melee/ft/ft_0D31.c": "bbb16f61d6a941782689d70f113f20dd50a1e7a4fe58e9b55df300ed3345f911",
+    "src/melee/ft/ft_0C8C.c": "b48df9f99466298d3fdc67ae9baf1a14ae47fc4e9be5e47532156f29d2f08f31",
+    "src/melee/ft/ftcommon.c": "7d2baf872ba133baf7b4eb56183a911ebae273bf0549057b785e12a59ef01588",
+    "src/melee/ft/fighter.c": "3fc5501a53747c3cf002327fd98f7a02b8931f700f95c84655e07afb1bc530e6",
+    "src/melee/ft/native_fighter_runtime.c": "322ba6c4728476314110f0dc5449ae4a2c33374e12ea35271fb767d5e6484b0f",
+    "src/melee/ft/native_fighter_runtime.h": "186908ec6b50528cab503402346a0367e9e4dddbd7a07ea5dc68640063e4268a",
+    "src/melee/ft/native_fighter_module.h": "0cf6294dd9daf74edcedef2422611044cb99905212076229b9e54d733715afc8",
+    "src/melee/ft/native_fighter_module.c": "323c5d8cdfd75ed82b9f03c563d84868efebe82b360ea15c08d3bb1a3e2f6853",
+    "src/melee/ft/kinds/ftSamus/ftsamus_clone.c": "6948cfd03b0b52d07f78d8df14f88a898aa64daa971daff30630202c08002190",
+    "src/melee/ft/kinds/ftGameWatch/ftgamewatch_clone.c": "6c56132d72e303e305a5dfe85a3db6f9428442066bf7c2e43c1078c9a04a822a",
+    "src/melee/lb/types.h": "195573ffc5bdb603e27cc5d55a7509d4ba05f38fdda1fd1a829ec6a6a1f4e987",
+    "examples/gamewatch_full.fms": "bb45d311708cfa6585a44f4fe1f90cda2aa0b007720622f3272cb7da981184d6",
+    "examples/samus_wip.fms": "2e020bddaa3ec12e8b2bbaad94bb466fe66a8ef3072bc1c87ff3092ac09f69fb"
+  }
+}

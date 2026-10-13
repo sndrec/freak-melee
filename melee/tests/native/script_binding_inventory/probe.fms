@@ -1,0 +1,45 @@
+# Structural census fixture; unsupported expressions remain visible to the audit.
+state int handle
+state float x
+state float y
+state float z
+parameter float multiplier = 1
+
+func Helper(int node) -> float:
+    return item.resource(node).position.x
+
+export func recipient_value() -> float:
+    return position.x
+
+func Shadow(float facing):
+    let float frame = facing
+    frame = frame + 1
+
+move Example:
+    on ground_physics:
+        velocity.x = velocity.x + attrs.multiplier
+        if articles.ref(state.handle, It_Kind_Mario_Fire).exists:
+            let bool found = targets.read_position(state.handle, state.x, state.y, state.z)
+        # A fake token in a string/comment must never become an engine access.
+        articles.signal(state.handle, It_Kind_Mario_Fire, "item.nonexistent()", 0) # item.fake()
+        unknown.operation(1)
+
+article It_Kind_Mario_Fire states 1:
+    state int node
+    table float scale = [1, 2]
+    func ArticleHelper(int index):
+        item.resource(index).joint("0/1").rotation.z = Helper(index)
+    callbacks:
+        on physics:
+            item.resource(item.state.node).joint("0/1").translation.x = table.scale[item.state.node]
+            ArticleHelper(item.state.node)
+            item.resource(item.state.node).read_line_speed(0, item.state.x, item.state.y, item.state.z)
+            if item.joint(2, "0/1").exists: item.joint(2, "0/1").visible = true
+
+model_effect Probe 1:
+    on update:
+        effect.joint("0/1", 2).visible = creator.exists
+
+item WorkshopItem damage 1 angle 45 lifetime 10:
+    on thrown:
+        velocity.x = facing

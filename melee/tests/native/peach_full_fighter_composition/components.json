@@ -1,0 +1,17 @@
+{
+  "source_inputs": {
+    "tests/native/peach_pluck_smash/candidate.fms": "4c09a1023a204894cc9f03cffa4bff4fb823d2f20a168ae09544807249fcc758",
+    "tests/native/peach_counter_full_phase/counter.fms": "641e6038e6f04d5cb4704a9a922c48c7a0b543c9ccf8c84ddf46038b9b920bef",
+    "tests/native/peach_pluck_smash/test.c": "ce189fd7deaa20fee79f1f8f36bfa01b38c4d9f6f42bd5e07931bb571b3a0d40",
+    "tests/native/peach_pluck_smash/fixture.py": "f73f2e69fbbf29914a25073c34c9c338e5442bac78c3c05587e8436cc0b79a5f",
+    "tests/native/peach_counter_full_phase/test.c": "20b069f70157c7ff1afbd8548596959f2723dd5f31a315b5fd8fa007cc47a73d",
+    "tests/native/peach_counter_full_phase/fixture.py": "65d7a2690932d78d471956895ad54b21a45e5887b476a2a1d5b78bc2ff15e9be",
+    "tests/native/peach_fighter_composition/candidate.fms": "6c2476525e584e9461b6f99d457f68b08ad4e6a39338f06b62207ae38f970335"
+  },
+  "changes": [
+    "Accepted pluck/smash/setup/Turnip/cleanup/Parasol producer retained verbatim.",
+    "Partial Toad table replaced with complete counter/Toad/Spore component.",
+    "34 custom motion phases; all five article declarations coexist.",
+    "Float, Side-B, full Parasol flight/common routing remain inherited, not activated."
+  ]
+}

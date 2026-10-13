@@ -1,0 +1,79 @@
+# Four primary Squall collisions. Private model-pointer transport is separately
+# inventoried; no substitute pointer/state is written into the fighter union.
+parameter float squall_wall_restitution = 1
+parameter float squall_wall_minimum_speed = 1
+
+func owned_squall_wall_bounce(float speed) -> float:
+    let bool wall = false
+    if speed > 0:
+        wall = collision.left_wall
+    elif speed < 0:
+        wall = collision.right_wall
+    if wall:
+        if abs(speed) < attrs.squall_wall_minimum_speed:
+            if speed > 0:
+                speed = -attrs.squall_wall_minimum_speed
+            else:
+                speed = attrs.squall_wall_minimum_speed
+        else:
+            speed = speed * -attrs.squall_wall_restitution
+    return speed
+
+func owned_squall_root_tilt():
+    let float angle = 0
+    if command(3) != 0 and state.linked_squall_on_floor:
+        angle = facing.direction * atan2_float(floor.normal.x, floor.normal.y)
+    bones.root.rotate_x(0, angle)
+
+func owned_squall_leave_ground(bool paired):
+    physics.ground_to_air()
+    acceleration.x = ground.acceleration
+    if paired:
+        state.enter_at_speed(346, 0x0C4C528A, frame, 1)
+    else:
+        state.enter_at_speed(345, 0x0C4C528A, frame, 1)
+    linked_primary_callbacks()
+    physics.clamp_horizontal_speed(attrs.squall_air_max)
+
+func owned_squall_land(bool paired):
+    physics.switch_to_ground()
+    if paired:
+        state.enter_at_speed(344, 0x0C4C528A, frame, 1)
+    else:
+        state.enter_at_speed(343, 0x0C4C528A, frame, 1)
+    linked_primary_callbacks()
+    acceleration.y = 0
+    velocity.y = 0
+    physics.clamp_ground_speed(attrs.linked_squall_ground_max)
+
+func owned_squall_collision(bool air, bool paired):
+    let bool contact = false
+    if air:
+        contact = collision.air_box(12, 0, -6, 6, 6, 6)
+        # Preserve the literal original mask comparison: the ceiling mask cannot
+        # equal1. Do not reinterpret it as a normalized contact query.
+        # (flags & 0x6000) == 1 is always false, so there is no ceiling write.
+        velocity.x = owned_squall_wall_bounce(velocity.x)
+        if contact:
+            owned_squall_land(paired)
+        state.linked_squall_on_floor = contact
+    else:
+        contact = collision.ground_box(12, 0, -6, 6, 6, 6)
+        ground.velocity = owned_squall_wall_bounce(ground.velocity)
+        if not contact:
+            owned_squall_leave_ground(paired)
+        state.linked_squall_on_floor = contact
+    owned_squall_root_tilt()
+    # Stock calls the retained model transport here. The zero-pointer source
+    # branch has no effect; named model policy/timing acceptance is separate.
+    linked_primary_callbacks()
+
+move OwnedPrimarySquallCollision:
+    on state_343_collision:
+        owned_squall_collision(false, false)
+    on state_344_collision:
+        owned_squall_collision(false, true)
+    on state_345_collision:
+        owned_squall_collision(true, false)
+    on state_346_collision:
+        owned_squall_collision(true, true)

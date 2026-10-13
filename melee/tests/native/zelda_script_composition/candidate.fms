@@ -1,0 +1,367 @@
+# Unregistered Zelda phase composition. No transform or independent declaration.
+# Full article initializer decisions are authored; allocator/model loading remain engine boundaries.
+base ftDataZelda 341 18
+attribute int neutral_gravity_delay 4
+attribute float neutral_horizontal_divisor 8
+attribute float neutral_gravity 12
+attribute int reflect_bone 132
+attribute int reflect_damage_limit 136
+attribute float reflect_x 140
+attribute float reflect_y 144
+attribute float reflect_z 148
+attribute float reflect_radius 152
+attribute float reflect_damage_multiplier 156
+attribute float reflect_speed_multiplier 160
+attribute bool reflect_preserve_owner 164
+state int neutral_gravity_timer
+state int din_handle
+
+func neutral_reflector():
+    reflector.create(attrs.reflect_bone, attrs.reflect_damage_limit, attrs.reflect_x, attrs.reflect_y, attrs.reflect_z, attrs.reflect_radius, attrs.reflect_damage_multiplier, attrs.reflect_speed_multiplier, attrs.reflect_preserve_owner)
+    callbacks.track_reflect_hit()
+
+func neutral_ground_effect():
+    if not effects.active:
+        effects.spawn_on_bone(1268, TransN)
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func neutral_air_effect():
+    if not effects.active:
+        effects.spawn_on_bone(1269, TransN)
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+func neutral_tick(bool air_started):
+    if command(0) == 1:
+        command(0) = 2
+        neutral_reflector()
+    if command(0) == 0:
+        reflector.disable()
+    if animation.finished:
+        if air_started: state.fall()
+        else: state.wait()
+
+export func din_can_steer() -> bool:
+    return (motion.id == 344 or motion.id == 347) and state.din_handle != -1
+
+export func din_release_requested() -> bool:
+    if state.din_handle != -1 and (motion.id == 345 or motion.id == 348) and command(1) == 1:
+        command(1) = 0
+        return true
+    return false
+
+export func forget_din():
+    state.din_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+export func cleanup_din():
+    if state.din_handle != -1:
+        articles.signal(state.din_handle, It_Kind_Zelda_DinFire, "detach_control", 0)
+        state.din_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+move Zelda:
+    on special_n:
+        state.enter_at_speed(341, 0, 0, 1)
+        animation.start()
+        command(0) = 0
+        state.neutral_gravity_timer = attrs.neutral_gravity_delay
+        callbacks.accessory(neutral_ground_effect)
+    on special_air_n:
+        velocity.y = 0
+        velocity.x = velocity.x / attrs.neutral_horizontal_divisor
+        state.enter_at_speed(342, 0, 0, 1)
+        animation.start()
+        command(0) = 0
+        state.neutral_gravity_timer = attrs.neutral_gravity_delay
+        callbacks.accessory(neutral_air_effect)
+    on state_341_animation:
+        neutral_tick(false)
+    on state_342_animation:
+        neutral_tick(true)
+    on state_341_interrupt:
+        return
+    on state_342_interrupt:
+        return
+    on state_341_physics:
+        physics.ground_friction()
+        reflector.update()
+    on state_342_physics:
+        if state.neutral_gravity_timer != 0:
+            state.neutral_gravity_timer = state.neutral_gravity_timer - 1
+        else:
+            physics.fall(attrs.neutral_gravity, air.terminal_velocity)
+        physics.quick_air_decel()
+        reflector.update()
+    on state_341_collision:
+        if collision.left_ground:
+            state.switch_to_air(342, 0x0c4c508e)
+            if command(0) == 2: neutral_reflector()
+            callbacks.accessory(neutral_air_effect)
+    on state_342_collision:
+        if collision.landed:
+            state.switch_to_ground(341, 0x0c4c508e)
+            if command(0) == 2: neutral_reflector()
+            callbacks.accessory(neutral_ground_effect)
+    on reflect_hit:
+        return
+    on load:
+        fighter.copy_ext_attributes()
+        state.din_handle = -1
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.set_group(0, 0)
+        visuals.set_group(1, 0)
+        state.din_handle = -1
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+
+article It_Kind_Zelda_DinFire states 2:
+    attribute float lifetime 0
+    attribute float charge_limit 4
+    attribute float scale_min 8
+    attribute float scale_max 12
+    attribute float initial_angle 16
+    attribute float initial_speed 20
+    attribute float acceleration 24
+    attribute float speed_limit 28
+    attribute float steering_threshold 32
+    attribute float steering_angle_step 36
+    attribute float steering_angle_limit 40
+    attribute float burst_delay 44
+    state float charge
+    state bool reflected
+    state float angle
+    state float base_angle
+    state float speed
+    state bool effect_active
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(item.attr.lifetime)
+            item.state.charge = 0
+            item.state.reflected = false
+            item.state.angle = item.attr.initial_angle * facing
+            if facing == 1:
+                item.state.base_angle = 0
+            else:
+                item.state.base_angle = float(pi)
+            item.state.speed = item.attr.initial_speed
+            item.spawn_root_effect(1272)
+            item.state.effect_active = true
+            velocity.x = item.state.speed * cos(item.state.base_angle + item.state.angle)
+            velocity.y = item.state.speed * sin(item.state.base_angle + item.state.angle)
+            velocity.z = 0
+            item.inherit_owner_debug_display()
+    on signal detach_control:
+            item.clear_current_owner()
+            item.clear_attachment_owner()
+            item.owner_bound = false
+    on signal burst:
+            if item.state.effect_active:
+                item.destroy_effects()
+                item.state.effect_active = false
+            item.change_state_flags(1, 2)
+            item.spawn_root_effect(1273)
+            item.state.effect_active = true
+            # Direct assignment deliberately retains the existing half-life.
+            item.life = item.attr.burst_delay
+    on destroyed:
+            hitboxes.disable_all()
+            if creator.exists:
+                if item.attachment_active:
+                    creator.call(forget_din)
+                item.clear_attachment_owner()
+            if item.state.effect_active:
+                item.destroy_effects()
+                item.state.effect_active = false
+            item.owner_bound = false
+    on reflected:
+            item.state.reflected = true
+            facing = -facing
+            item.joint(0, "").rotation.y = (pi / 2) * facing
+            velocity.x = -velocity.x
+            velocity.y = -velocity.y
+            velocity.z = 0
+            return false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            if not item.state.reflected:
+                item.state.charge = item.state.charge + 1
+                if item.state.charge >= item.attr.charge_limit:
+                    item.state.charge = item.attr.charge_limit
+                if creator.exists and item.attachment_active:
+                    if targets.call_bool(item.current_owner, "din_release_requested"):
+                        item.signal("burst", 0)
+            let float scale = item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit) + item.attr.scale_min
+            item.set_scale(scale)
+            # Expiry runs after the requested burst, even when that duplicates it.
+            if item.expire_tick():
+                item.signal("burst", 0)
+            return false
+        on physics:
+            if not item.state.reflected and creator.exists and item.attachment_active:
+                if targets.call_bool(item.current_owner, "din_can_steer"):
+                    if abs(creator.input.y) > item.attr.steering_threshold:
+                        item.state.angle = facing * (item.attr.steering_angle_step * creator.input.y) + item.state.angle
+                        if abs(item.state.angle) > item.attr.steering_angle_limit:
+                            if item.state.angle > 0:
+                                item.state.angle = item.attr.steering_angle_limit
+                            else:
+                                item.state.angle = -item.attr.steering_angle_limit
+                    item.state.speed = item.state.speed + item.attr.acceleration
+                    if item.state.speed > item.attr.speed_limit:
+                        item.state.speed = item.attr.speed_limit
+                    velocity.x = item.state.speed * cos(item.state.base_angle + item.state.angle)
+                    velocity.y = item.state.speed * sin(item.state.base_angle + item.state.angle)
+                    velocity.z = 0
+        on collision:
+            item.stage_collision(false)
+            let bool contact = false
+            if velocity.y > 0:
+                if collision.ceiling_contact:
+                    contact = true
+            elif collision.floor_contact:
+                contact = true
+            if velocity.x > 0:
+                if collision.left_wall:
+                    contact = true
+            elif collision.right_wall:
+                contact = true
+            if contact:
+                item.signal("burst", 0)
+            return false
+    state 1 anim 1:
+        on animation:
+            let float scale = item.state.charge * ((item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit) + item.attr.scale_min
+            item.set_scale(scale)
+            if item.expire_tick():
+                if item.state.effect_active:
+                    item.destroy_effects()
+                    item.state.effect_active = false
+                if creator.exists and item.attachment_active:
+                    let int created_explosion = item.create_child(It_Kind_Zelda_DinFire_Explode, position.x, position.y, 0, facing, item.current_owner, 0, item.state.charge, 0)
+                    creator.call(forget_din)
+                return true
+            return false
+        on physics:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+
+article It_Kind_Zelda_DinFire_Explode states 1:
+    attribute float charge_limit 0
+    attribute float scale_min 4
+    attribute float scale_max 8
+    attribute float damage_base 12
+    attribute float damage_charge_step 16
+    state float charge
+    state float base_hitbox_radius
+    state bool effect_active
+    # Called after the initial animation update, retaining feedback order.
+    on signal initialization_feedback:
+            let float ratio = item.state.charge / item.attr.charge_limit
+            if ratio < 0.4375:
+                item.rumble(11, 10)
+            elif ratio < 0.625:
+                item.rumble(12, 10)
+            elif ratio < 0.8125:
+                item.rumble(13, 15)
+                camera.quake(2, position.x, position.y, position.z)
+            else:
+                item.rumble(14, 20)
+                camera.quake(3, position.x, position.y, position.z)
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            item.state.charge = item.creation_value
+            item.use_manual_lifetime()
+            item.owner_bound = false
+            item.joint(0, "0").visible = true
+            item.change_state_flags(0, 2)
+            item.set_lifetime(60)
+            item.state.base_hitbox_radius = 0
+            item.spawn_root_effect(1274)
+            item.state.effect_active = true
+            item.advance_animation()
+            let float scale_step = (item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit
+            let float scale = item.state.charge * scale_step + item.attr.scale_min
+            item.set_scale(scale)
+            if hitbox.enabled(0):
+                hitbox.set_damage(0, item.state.charge * item.attr.damage_charge_step + item.attr.damage_base)
+                if item.state.base_hitbox_radius == 0:
+                    item.state.base_hitbox_radius = hitbox.radius(0)
+                hitbox.set_radius(0, item.state.base_hitbox_radius * scale)
+            let bool initial_expired = item.expire_tick()
+            item.signal("initialization_feedback", 0)
+            item.inherit_owner_debug_display()
+    on destroyed:
+            hitboxes.disable_all()
+            item.clear_current_owner()
+            item.destroy_effects()
+            item.state.effect_active = false
+    on clanked:
+            return true
+    on absorbed:
+            return true
+    on shield_bounced:
+            return true
+    on hit_shield:
+            return true
+    on interaction:
+            item.interact(other)
+    state 0 anim 0:
+        on animation:
+            let float scale_step = (item.attr.scale_max - item.attr.scale_min) / item.attr.charge_limit
+            let float scale = item.state.charge * scale_step + item.attr.scale_min
+            item.set_scale(scale)
+            if hitbox.enabled(0):
+                hitbox.set_damage(0, item.state.charge * item.attr.damage_charge_step + item.attr.damage_base)
+                if item.state.base_hitbox_radius == 0:
+                    item.state.base_hitbox_radius = hitbox.radius(0)
+                hitbox.set_radius(0, item.state.base_hitbox_radius * scale)
+            return item.expire_tick()
+        on physics:
+            # Retail preserves X and clears only Y/Z, including its doubled Z.
+            velocity.y = 0
+            velocity.z = 0
+        on collision:
+            return false
+
+
+
+
+

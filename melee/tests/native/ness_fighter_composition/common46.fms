@@ -1,0 +1,82 @@
+# Owned common policies using SDK46 generic contracts.
+parameter int jump_forward_motion = 27
+parameter int jump_backward_motion = 28
+parameter int presentation_star_ice_motion = 5
+parameter int presentation_camera_ice_motion = 10
+parameter int presentation_sleep_motion = 11
+parameter int presentation_bat_mode = 1
+parameter float presentation_star_scale = 0.8
+parameter float cpu_target_facing_epsilon = 1
+parameter float cpu_fire_angle_low = -0.8726646192371845
+parameter float cpu_fire_angle_high = -0.6981316953897476
+parameter float cpu_ground_angle_low = -0.08726646192371845
+parameter float cpu_ground_angle_high = 0.08726646192371845
+parameter float cpu_fire_distance = 53
+parameter float cpu_flash_high_angle = 1.0471975430846214
+parameter float cpu_flash_probability = 0.1
+parameter int cpu_fire_command = 27
+parameter int cpu_flash_high_command = 20
+parameter int cpu_flash_low_command = 31
+parameter int cpu_absorb_minimum_level = 4
+parameter int cpu_unblockable_prediction_start = 21
+parameter int cpu_projectile_normal_category = 2
+parameter int cpu_projectile_unblockable_category = 3
+state float jump_horizontal_accumulator
+
+func JumpPhysics():
+    physics.air_accel_from(state.jump_horizontal_accumulator)
+    state.jump_horizontal_accumulator = state.jump_horizontal_accumulator + acceleration.x
+    acceleration.x = 0
+    velocity.x = animation.delta.z * facing.direction + state.jump_horizontal_accumulator
+    physics.animation_vertical_velocity_adjusted()
+
+action CommonPolicy:
+    on aerial_jump:
+        physics.ground_to_air()
+        command(0) = 1
+        let int target = attrs.jump_backward_motion
+        if input.x * facing.direction > -controls.aerial_jump_reverse_threshold:
+            target = attrs.jump_forward_motion
+        jump.begin(target, 0, 0, 0, true, false, false)
+        callbacks.physics(JumpPhysics)
+        state.jump_horizontal_accumulator = input.x * air.jump_horizontal_multiplier
+    on presentation_item:
+        if motion.id != attrs.presentation_star_ice_motion and motion.id != attrs.presentation_camera_ice_motion and motion.id != attrs.presentation_sleep_motion:
+            return
+        # Presentation Bat is published only as the held reference. It does not
+        # replace the smash Bat handle or install the resource damage callback.
+        let int bat = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, false, 0, float(attrs.presentation_bat_mode), false)
+        if bat == -1:
+            items.clear_held()
+        else:
+            let bool published = articles.bind_held(bat)
+            if motion.id == attrs.presentation_star_ice_motion:
+                articles.signal(bat, It_Kind_Ness_Bat, "presentation_scale", attrs.presentation_star_scale * (model.instance_scale_y * model.base_scale))
+    on cpu_special_candidate:
+        let int target = int(cpu.target_id)
+        let float target_x = 0
+        let float target_y = 0
+        let float target_z = 0
+        let bool has_target = targets.read_position(target, target_x, target_y, target_z)
+        let float separation = target_x - position.x
+        let bool facing_target = not has_target or abs(separation) < attrs.cpu_target_facing_epsilon or separation * facing.direction >= 0
+        if airborne:
+            if event.angle < attrs.cpu_fire_angle_high and event.angle > attrs.cpu_fire_angle_low and event.distance < attrs.cpu_fire_distance and facing_target:
+                cpu.selected_command = attrs.cpu_fire_command
+                return true
+            return false
+        if event.angle < attrs.cpu_ground_angle_high and event.angle > attrs.cpu_ground_angle_low and event.distance < attrs.cpu_fire_distance and facing_target:
+            cpu.selected_command = attrs.cpu_fire_command
+            return true
+        if position.y >= target_y: return false
+        if event.angle > attrs.cpu_flash_high_angle:
+            cpu.selected_command = attrs.cpu_flash_high_command
+        elif random() < attrs.cpu_flash_probability:
+            cpu.selected_command = attrs.cpu_flash_low_command
+        # Consume without assigning when the random branch fails. Preserve the
+        # existing selected command (including zero), exactly as original C.
+        return true
+    on cpu_projectile_hit:
+        if cpu.level >= attrs.cpu_absorb_minimum_level and event.prediction_frames >= attrs.cpu_unblockable_prediction_start and event.unblockable:
+            return attrs.cpu_projectile_unblockable_category
+        return attrs.cpu_projectile_normal_category

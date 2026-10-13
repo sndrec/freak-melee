@@ -1,0 +1,1054 @@
+{
+  "scope": "read-only source/API proposal, no compile/runtime acceptance",
+  "freeze_sha256": "820f4d64f0809c1d9cb412d54d84797b689434b753f714216179397e3c274b60",
+  "inputs": {
+    "src/melee/ft/kinds/ftCommon/ftCo_0A01.c": "024038279003559d8ca89e8136443347b1f943efe0a009c50e4a0d4a44d2c9f0",
+    "src/melee/ft/ftcpuattack.c": "c270df90c23c49b8ad7d40f8f217e44d458d221b19fd2741fc62300fe6d64396",
+    "src/melee/ft/ftcmdscript.c": "b389ca683c6a372a2e8514eac3874b8c175eb934752f6ebcbb223bb1298320a7",
+    "src/melee/ft/types.h": "e4b82311e49f27faea353234eaf4099cfb31b46b4db80f60f41c37b13be43c0c",
+    "src/melee/ft/fighter.c": "60e5774c7fb1e34f2d2ba619d768777d8ea6930352f5791a6eb5506f143d7f41",
+    "src/melee/ft/native_fighter_runtime.h": "0ea875b0a3bddd563fc727ed35401dcb6d6b8e4266e11f6acf0abb01f6cee8fd",
+    "src/melee/ft/native_fighter_runtime.c": "5b60ae9186a9ae3a3d5a13a0970fd6a5d7a77128ad0092e0ca9d52cc6f0bc2e2",
+    "src/melee/ft/native_fighter_target.h": "6976ef3796af2628972c3f33dbc1aae58637c8abb33d7bb311289daca3d4049d",
+    "src/melee/ft/kinds/ftCommon/forward.h": "514cd2e4a2ebf3729255efce6b88bb6b91acd685a519e2b4bb01bcb09f7492ca",
+    "src/melee/ft/kinds/ftPopo/forward.h": "ffce60ae50c5cdbc9e5a2bfb75e423e4519d36d2c7553a6fd17d634717e937fa",
+    "tools/native_fighter_script_cpu.c": "f16fc50664066be0e785a08b22044b8c6c1677e672543f4494f1aaf659231bc5",
+    "tools/native_fighter_script_terrain.c": "9a37ecfa6d808990dd6fb2c02d8bc9903483ab063e0e90d5fabba1be16b1ad52",
+    "tools/native_fighter_script_primitives.c": "38214528121414d9558374c5828de03754c632d544d88fb5e8a624d41e4235b2"
+  },
+  "functions": {
+    "ftCo_800A589C": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 2933,
+      "lines": 23,
+      "body_sha256": "ead4bba8936c5497b90789b266c3eaaa431bf2712528a838948e2323e0559b1a",
+      "calls_lexical": [
+        "GET_FIGHTER"
+      ],
+      "field_names_lexical": [
+        "gobj",
+        "next",
+        "player_id",
+        "x221F_b3"
+      ]
+    },
+    "inlineM0": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7634,
+      "lines": 8,
+      "body_sha256": "b24ca00c3eae4fcdbc1b5226b2e6d57a51dc982af0f6bc90528ad2b3760985cb",
+      "calls_lexical": [],
+      "field_names_lexical": []
+    },
+    "ftCo_800B0918": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7643,
+      "lines": 23,
+      "body_sha256": "f123aa4a1e7fb14cf286902fbb64761a5d29e4a43dc239702046b8ddcb4d6b84",
+      "calls_lexical": [
+        "ARRAY_SIZE",
+        "inlineM0"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "cstick",
+        "cur_pos",
+        "facing_dir",
+        "input",
+        "lstick",
+        "x0",
+        "x4",
+        "x444",
+        "x448",
+        "x5",
+        "xFC"
+      ]
+    },
+    "inlineJ0": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7667,
+      "lines": 15,
+      "body_sha256": "0890c04d21356b77a9c8140239dfa35f8eb993a9d335210d4aab1cff27a7a7b9",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "ftCo_800B0AF4": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7683,
+      "lines": 30,
+      "body_sha256": "af2f5d639eec68dfd57b32497cca120e1490d062976ab6d47f70c409dbbc56e6",
+      "calls_lexical": [
+        "ftCo_800A589C",
+        "ftPp_SpecialLw_Enter",
+        "inlineJ0"
+      ],
+      "field_names_lexical": [
+        "buttons",
+        "cpu",
+        "cstick",
+        "cur_pos",
+        "facing_dir",
+        "gobj",
+        "lstick",
+        "ltrigger",
+        "motion_id",
+        "rtrigger",
+        "x0",
+        "x2225_b3",
+        "x4",
+        "x448",
+        "x5",
+        "xFA_b7"
+      ]
+    },
+    "isInCaptureWait": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7714,
+      "lines": 13,
+      "body_sha256": "69da9d8e92d5dfb38fbb57fa99636238abed5a8a6a3d2999d9b7b956c937e391",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "ftCo_800B0CA8": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7728,
+      "lines": 65,
+      "body_sha256": "8b29e987d44f334e2faeff414933ede44a59a8267084ce101563357d20b650db",
+      "calls_lexical": [
+        "GET_ITEM",
+        "ftCo_800A3200",
+        "isInCaptureWait",
+        "isInTeeter"
+      ],
+      "field_names_lexical": [
+        "cur_pos",
+        "ground_or_air",
+        "item_gobj",
+        "kind",
+        "motion_id",
+        "pos_delta",
+        "x2225_b3"
+      ]
+    },
+    "inlineK0": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7794,
+      "lines": 8,
+      "body_sha256": "ed8d1a643248afcc7aae74d156f2731957f949dc8900dd5340dea01e6905b12d",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "ftCo_800B0E98": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7803,
+      "lines": 36,
+      "body_sha256": "b6095d8a36276f30e328eb0c365ef4d654ab059f1466ac94fc7a101eaca4b276",
+      "calls_lexical": [
+        "SQ",
+        "ftCo_800B0CA8",
+        "ftCo_CpuShouldAct",
+        "inlineK0"
+      ],
+      "field_names_lexical": [
+        "co_attrs",
+        "cpu",
+        "cur_pos",
+        "ground_or_air",
+        "motion_id",
+        "pos_delta",
+        "xFB_b0"
+      ]
+    },
+    "isPopoUpB": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7840,
+      "lines": 9,
+      "body_sha256": "2116cc033f8d3e7cbe71c662ef03d87133104877a48cd1686c018c2617ce3de9",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "ftCo_800B101C_inline0": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7850,
+      "lines": 18,
+      "body_sha256": "167bf380263dead5c2d1c4692ab97a88f87fb1738c56ae34ba8ddf9e82f0bbc9",
+      "calls_lexical": [
+        "SQ",
+        "ftCo_800B0CA8",
+        "isPopoUpB"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "cur_pos",
+        "xFB_b0"
+      ]
+    },
+    "ftCo_CpuUpdateNanaFollow": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7869,
+      "lines": 11,
+      "body_sha256": "24058be848689ba0817d5c37c208212d3dfbddf298753840b3b3f58635a17669",
+      "calls_lexical": [
+        "ftCo_800B0760",
+        "ftCo_800B0E98"
+      ],
+      "field_names_lexical": [
+        "x18",
+        "xF9_b2",
+        "xF9_b4",
+        "xFA_b7"
+      ]
+    },
+    "ftCo_800B101C": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7881,
+      "lines": 50,
+      "body_sha256": "65d7c373b908a5e286ffe7ddf32668dfc3692d4045b6fe8ded2cdadfa7f0a0be",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A589C",
+        "ftCo_800A7AAC",
+        "ftCo_800AEFB8",
+        "ftCo_800B0918",
+        "ftCo_800B101C_inline0",
+        "ftCo_CpuUpdateNanaFollow"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "dmg",
+        "ground_or_air",
+        "level",
+        "x18",
+        "x1C",
+        "xF9_b2",
+        "xF9_b4",
+        "xFA_b7",
+        "xFB_b0"
+      ]
+    },
+    "ftCo_800A7AAC": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 3948,
+      "lines": 130,
+      "body_sha256": "7259396a73095e6e4cc6c906cb2fa5822c5333801d03af21fb38ecc3feeaf2f4",
+      "calls_lexical": [
+        "ABS",
+        "PAD_STACK",
+        "ftCo_800A1F3C",
+        "ftCo_800A2718",
+        "ftCo_800A589C",
+        "ftCo_800A75DC_CheckFloor",
+        "grBigBlue_801EF844",
+        "grCorneria_801E2D90",
+        "grInishie1_801FCAAC",
+        "grVenom_80206D10",
+        "mpCheckFloor",
+        "mpIsland_8005AB54"
+      ],
+      "field_names_lexical": [
+        "coll_data",
+        "cpu",
+        "cur_pos",
+        "ground_or_air",
+        "motion_id",
+        "x14",
+        "x54",
+        "x56C",
+        "x8"
+      ]
+    },
+    "inlineI3": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7599,
+      "lines": 11,
+      "body_sha256": "b06c74a4bb8668e9f7024b39c2d49c2f8e64e4397c90a7831ce65a570a01ac93",
+      "calls_lexical": [
+        "ftCo_800A7AAC",
+        "ftCo_800A8DE4",
+        "ftCo_CpuDataShouldAct"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "xFB_b0"
+      ]
+    },
+    "ftCo_800B0760": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7611,
+      "lines": 21,
+      "body_sha256": "b0c6acefafe335680aa00e67a7d65c08560ff45674c3bda3b3671ab943ccd2fd",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A4BEC",
+        "ftCo_800ADE48",
+        "ftCo_CpuUpdateCommonItemTarget",
+        "ftCo_CpuUpdateSpecialItemTarget",
+        "inlineI3"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "xF8_b0",
+        "xF9_b1",
+        "xF9_b2",
+        "xF9_b3",
+        "xF9_b4",
+        "xF9_b5",
+        "xF9_b6",
+        "xF9_b7"
+      ]
+    },
+    "ftCo_800AEFB8": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7077,
+      "lines": 26,
+      "body_sha256": "2d60deab382ecdd728c4be0b230444ab1b9fb06e1746f89f249d307a4661c8fd",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A229C",
+        "ftCo_800A5CE0",
+        "ftCo_800ADE48",
+        "ftCo_800AE7AC",
+        "ftCo_CpuActOnNoTarget",
+        "ftCo_CpuInitNoTarget",
+        "ftCo_CpuSetTargetFlags",
+        "ftCo_CpuTargetAct",
+        "ftCo_CpuUpdateCommonItemTarget",
+        "ftCo_CpuUpdateSpecialItemTarget"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "x44"
+      ]
+    },
+    "ftCo_800B2AFC": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 8382,
+      "lines": 351,
+      "body_sha256": "5318fcb002c92a29502c5f41e1adc22ed376708bbe6e129cb2160e1584796b57",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A1F3C_noinline2",
+        "ftCo_800A75DC",
+        "ftCo_800ADE48",
+        "ftCo_800AECF0",
+        "ftCo_800AF290",
+        "ftCo_800AF78C",
+        "ftCo_800AFC40",
+        "ftCo_800AFE3C",
+        "ftCo_800B00F8",
+        "ftCo_800B04DC",
+        "ftCo_800B101C",
+        "ftCo_800B126C",
+        "ftCo_800B1478",
+        "ftCo_800B17D0",
+        "ftCo_800B1AB8",
+        "ftCo_800B1DA0_noinline2",
+        "ftCo_800B1EF0",
+        "ftCo_800B21C8",
+        "ftCo_800B24B8",
+        "ftCo_800B2AFC_IsIgnoredFloor",
+        "ftCo_CpuClearTargetModes",
+        "ftCo_CpuInitEnemyTarget",
+        "mpCheckFloor"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "cur_pos",
+        "x18",
+        "x1C",
+        "x20",
+        "x44",
+        "x60",
+        "xF8_b0",
+        "xF9_b1",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_800B2790": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 8244,
+      "lines": 132,
+      "body_sha256": "4166f1bab75a4549092210b51835c4b13d99f373c2042cff41148693d3ad10ff",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A0148",
+        "ftCo_800A8DE4_noinline",
+        "ftCo_800A9904",
+        "ftCo_800ABA34",
+        "ftCo_800ABBA8",
+        "ftCo_800AC30C_noinline",
+        "ftCo_800AC434",
+        "ftCo_800AC5A0",
+        "ftCo_800AC7D4",
+        "ftCo_800ACB44",
+        "ftCo_800ACD5C",
+        "ftCo_800AD42C",
+        "ftCo_800AD54C",
+        "ftCo_800AD7FC",
+        "ftCo_800ADC28",
+        "ftCo_800B462C",
+        "ftCo_800B463C",
+        "ftCo_800B49F4",
+        "ftCo_800B4A78",
+        "ftCo_800B658C",
+        "ftCo_800B683C",
+        "ftCo_800B7180",
+        "ftCo_800B9020",
+        "ftCo_800BA9A0",
+        "ftCo_CpuFinishWithNeutralStick",
+        "ftCo_CpuRetapA",
+        "ftCo_CpuReturnToPreviousBehavior",
+        "ftCo_CpuSetNeutralStick",
+        "grBigBlue_801EF844",
+        "grCorneria_801E2D90",
+        "grInishie1_801FCAAC",
+        "grVenom_80206D10"
+      ],
+      "field_names_lexical": [
+        "coll_data",
+        "command_duration",
+        "cpu",
+        "csP",
+        "ground_or_air",
+        "item_gobj",
+        "motion_id",
+        "x18",
+        "x1C",
+        "x80",
+        "xF8_b7",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_800B3900": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 8924,
+      "lines": 12,
+      "body_sha256": "581b57716873e3c10e8a1abceb55930c2d78ebf4cbb804da014e45e1621d1250",
+      "calls_lexical": [
+        "GET_FIGHTER",
+        "PAD_STACK",
+        "ftCo_800B0AF4",
+        "ftCo_800B2790",
+        "ftCo_800B2AFC",
+        "ftCo_800B33B0",
+        "ftCo_800B3E04"
+      ],
+      "field_names_lexical": [
+        "cpu"
+      ]
+    },
+    "ftCo_800A4BEC": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 2572,
+      "lines": 53,
+      "body_sha256": "48b774cadb804c2c016cbb2a1b68f1a883c0ea72376ed4533ccf2a1bde5ab72b",
+      "calls_lexical": [
+        "GET_FIGHTER",
+        "HSD_Randf",
+        "ftCo_800A1AB4",
+        "ftCo_800A1C44",
+        "ftCo_IsAlly_dontinline",
+        "inlineD0",
+        "inlineD1"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "gobj",
+        "next",
+        "x30",
+        "x48",
+        "xF9_b0"
+      ]
+    },
+    "ftCo_800A1F3C": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 1118,
+      "lines": 10,
+      "body_sha256": "e56b6496188174eefddd87366b2cf4a74ba2efb095925ac4484d798d4321603c",
+      "calls_lexical": [
+        "ftCo_800A1CC4"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "x38",
+        "x54",
+        "x60"
+      ]
+    },
+    "ftCo_800A1CC4": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 1062,
+      "lines": 43,
+      "body_sha256": "a709a6942ff444732cfc7138c387cfe5b4df28a25376f0dea6ea34c1cbe7cb81",
+      "calls_lexical": [
+        "ABS",
+        "PAD_STACK",
+        "ftCo_800A1CC4_inline0",
+        "ftCo_800A1CC4_inline1",
+        "ftCo_800A21FC",
+        "lb_8000D008",
+        "mpIsland_8005AB54"
+      ],
+      "field_names_lexical": [
+        "coll_data",
+        "cpu",
+        "cur_pos",
+        "facing_dir",
+        "ground_or_air",
+        "next",
+        "x10",
+        "x14",
+        "x18",
+        "x1C",
+        "x20",
+        "x24",
+        "x28",
+        "x2C",
+        "x30",
+        "x34",
+        "x38",
+        "x3C",
+        "x40",
+        "x54",
+        "x60",
+        "xC"
+      ]
+    },
+    "ftCo_800A2718": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 1361,
+      "lines": 82,
+      "body_sha256": "0a7ef3294f5104684f9ec9e6754e60cd09e2776baca2b43e314cb75fc12e0033",
+      "calls_lexical": [
+        "Ground_801C5794",
+        "PAD_STACK",
+        "ftCo_800A1F98",
+        "ftCo_800A5944",
+        "it_8026C1B4",
+        "mpIsland_8005AB54",
+        "mpIsland_8005AC8C"
+      ],
+      "field_names_lexical": [
+        "next",
+        "user_data",
+        "x14",
+        "x378_itemColl",
+        "x8"
+      ]
+    },
+    "ftCo_800A75DC_CheckFloor": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 3798,
+      "lines": 27,
+      "body_sha256": "fecd7706e822494c18c0b7ecb14945c53646c2f142c7f99dc7e696a1cf2b69b1",
+      "calls_lexical": [
+        "grBigBlue_801EF844",
+        "grCorneria_801E2D90",
+        "grInishie1_801FCAAC",
+        "grVenom_80206D10",
+        "mpCheckFloor"
+      ],
+      "field_names_lexical": []
+    },
+    "ftCo_CpuDataShouldAct": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 6780,
+      "lines": 12,
+      "body_sha256": "bfac472692823e64f50ac9be9110a0d380221a04b671436696c061c92a3f1b40",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "x18",
+        "x1C",
+        "x20",
+        "x60",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_CpuShouldAct": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 6923,
+      "lines": 15,
+      "body_sha256": "e6529cb6b8bcf76a6b3a561c98cb6aa12b642c9739e0a58f18362ab4bace8e1a",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "cpu",
+        "x18",
+        "x1C",
+        "x20",
+        "x60",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_CpuInitNoTarget": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7031,
+      "lines": 15,
+      "body_sha256": "52c39e631bc4bdd97a3a12a7bbcf688e8d2a9604e62bedbcd790f2cc98d139a3",
+      "calls_lexical": [
+        "ftCo_800A4BEC"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "xF8_b0",
+        "xF9_b1",
+        "xF9_b2",
+        "xF9_b3",
+        "xF9_b4",
+        "xF9_b5",
+        "xF9_b6",
+        "xF9_b7"
+      ]
+    },
+    "ftCo_CpuActOnNoTarget": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 7047,
+      "lines": 29,
+      "body_sha256": "ccc519db1c2faf88ee85eaa412e0fd73fdc69e18979195d394b3fa564207d8ec",
+      "calls_lexical": [
+        "ftCo_800A53DC",
+        "ftCo_800A75DC",
+        "ftCo_800A866C",
+        "ftCo_800ADE48"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "x18",
+        "x1C",
+        "x20",
+        "x44",
+        "x4C",
+        "x60",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_CpuTargetAct": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 6939,
+      "lines": 7,
+      "body_sha256": "816bd06b544955648de569cd53d9f741552c8c9d77bed148b2ed8c6a321e9489",
+      "calls_lexical": [
+        "ftCo_800A20A0",
+        "ftCo_800A80E4",
+        "ftCo_CpuShouldAct"
+      ],
+      "field_names_lexical": []
+    },
+    "ftCo_CpuSetTargetFlags": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 6967,
+      "lines": 6,
+      "body_sha256": "e912447a0f8b0e08313ef6fed8d7c2c1bdf0b0e3d0cabf77dc9cde05a854d022",
+      "calls_lexical": [
+        "ftCo_CpuClearTargetModes",
+        "ftCo_CpuSetTargetActive",
+        "ftCo_CpuSetTargetReady"
+      ],
+      "field_names_lexical": []
+    },
+    "ftCo_800A3200": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 1815,
+      "lines": 11,
+      "body_sha256": "cab16e6bd713f746359a380c372c2a56753aafd4aa9137e85dd0d25bce857209",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "isInTeeter": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 5027,
+      "lines": 9,
+      "body_sha256": "d5aef35b71f774974a4b2d5855942844f4d5faf165e1c08fe6c24e8e4025e860",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "motion_id"
+      ]
+    },
+    "ftCo_800A1B38": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 668,
+      "lines": 3,
+      "body_sha256": "c88122d2f8fef85a5753889a4a7330254a65d81373f8416478d920962ecab653",
+      "calls_lexical": [],
+      "field_names_lexical": []
+    },
+    "ftCo_800A8DE4": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 4392,
+      "lines": 16,
+      "body_sha256": "0f2ab092760021f4c66200d7d782185127e49d04bdfb655509a440b9fb492fd4",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A3908",
+        "ftCo_800A4038"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "facing_dir",
+        "x5C",
+        "xFA_b2"
+      ]
+    },
+    "ftCo_800B33B0": {
+      "path": "src/melee/ft/kinds/ftCommon/ftCo_0A01.c",
+      "line": 8750,
+      "lines": 173,
+      "body_sha256": "d30a410ee4e36e6e1a9352ef7bc2aa56af8f6dfbfab2e2189ba04d9c353c7ef8",
+      "calls_lexical": [
+        "HSD_Randf",
+        "Stage_GetBlastZoneBottomOffset",
+        "Stage_GetBlastZoneLeftOffset",
+        "Stage_GetBlastZoneRightOffset",
+        "Stage_GetBlastZoneTopOffset",
+        "ftCo_800B33B0_IsIgnoredFloor",
+        "ftCo_CpuUpdateRecoveryScale",
+        "grBigBlue_801EF844",
+        "grCorneria_801E2D90",
+        "grCorneria_801E2E50",
+        "grInishie1_801FCAAC",
+        "grLib_801C9E60",
+        "grVenom_80206D10",
+        "mpCheckCeiling",
+        "mpCheckFloor",
+        "mpGetSpeed",
+        "sqrtf"
+      ],
+      "field_names_lexical": [
+        "coll_data",
+        "cpu",
+        "cur_pos",
+        "ground_or_air",
+        "half_height",
+        "half_width",
+        "level",
+        "x30",
+        "x54",
+        "x60",
+        "x64",
+        "x7C",
+        "x84",
+        "xF9_b0",
+        "xFA_b34",
+        "xFA_b5",
+        "xFA_b6"
+      ]
+    },
+    "ftCo_800B683C": {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 1027,
+      "lines": 194,
+      "body_sha256": "70f5a1214493744ce4ea310e23fdbf2fe7061ba4f2d5fdf4645db7fc4bdf8ec7",
+      "calls_lexical": [
+        "ABS",
+        "GET_FIGHTER",
+        "HSD_Randf",
+        "ftCo_800A0C8C",
+        "ftCo_800B463C",
+        "ftCo_800B46B8",
+        "ftCo_800B4880",
+        "ftCo_CpuClearTargetAndFinish",
+        "ftCo_CpuFlickLstickX",
+        "ftCo_CpuPressAWithLstickX",
+        "ftCo_CpuSetNeutralStick",
+        "ftCo_IsGrabbing",
+        "mpIsland_8005AC14",
+        "mpIsland_8005ACE8",
+        "nativeCallbackSource_Alive",
+        "nativeFighterRuntime_Definition",
+        "on_cpu_capture_decision",
+        "on_cpu_pummel_special"
+      ],
+      "field_names_lexical": [
+        "behavior_kind",
+        "cpu",
+        "cur_pos",
+        "dmg",
+        "gobj",
+        "kind",
+        "level",
+        "motion_id",
+        "on_cpu_capture_decision",
+        "on_cpu_pummel_special",
+        "victim_gobj",
+        "x8_spawnNum",
+        "x94"
+      ]
+    },
+    "ftCo_800B885C": {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 1720,
+      "lines": 32,
+      "body_sha256": "ea0953bb40a52a7544fd1b25b7db20169fa8d7bd6406c2cdfad06f3eaae6ad43",
+      "calls_lexical": [],
+      "field_names_lexical": [
+        "cpu",
+        "x80"
+      ]
+    },
+    "ftCo_800B89CC": {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 1753,
+      "lines": 32,
+      "body_sha256": "1fff13a6d762fa8152d22a05180ee40e27138eb113bf6726f07af527edc7d771",
+      "calls_lexical": [
+        "PAD_STACK",
+        "ftCo_800A3200",
+        "nativeFighterRuntime_Definition",
+        "on_cpu_ranged_allowed"
+      ],
+      "field_names_lexical": [
+        "cpu",
+        "cur_pos",
+        "gobj",
+        "kind",
+        "level",
+        "on_cpu_ranged_allowed",
+        "xF9_b4",
+        "xFA_b5"
+      ]
+    },
+    "ftCo_800B8A9C": {
+      "path": "src/melee/ft/ftcpuattack.c",
+      "line": 983,
+      "lines": 4,
+      "body_sha256": "f83c4965233ffab1902b6cefc3e1a2e568aa1d9e082d4114a76de5163e5a873d",
+      "calls_lexical": [
+        "ftCo_CpuClearTargetAndFinish"
+      ],
+      "field_names_lexical": []
+    },
+    "ftCo_800B3E04": {
+      "path": "src/melee/ft/ftcmdscript.c",
+      "line": 10,
+      "lines": 308,
+      "body_sha256": "3d248b7da1d4a6548891dc1eee7fe96164fcd57ea7df3b29e4ab3cce9d22c781",
+      "calls_lexical": [
+        "HSD_ASSERTREPORT",
+        "cosf",
+        "lb_8000D008",
+        "sinf"
+      ],
+      "field_names_lexical": [
+        "buffer",
+        "buttons",
+        "command_duration",
+        "cpu",
+        "csP",
+        "cstick",
+        "cur_pos",
+        "facing_dir",
+        "lstick",
+        "ltrigger",
+        "motion_id",
+        "rtrigger",
+        "x18",
+        "x44",
+        "x54"
+      ]
+    }
+  },
+  "raw_kind_sites": {
+    "src/melee/ft/kinds/ftCommon/ftCo_0A01.c": [
+      {
+        "line": 481,
+        "text": "if (fp->kind == Ft_Kind_Nana) {"
+      },
+      {
+        "line": 571,
+        "text": "case Ft_Kind_Nana:"
+      },
+      {
+        "line": 721,
+        "text": "if (arg0->kind == Ft_Kind_Nana) {"
+      },
+      {
+        "line": 852,
+        "text": "if (arg0->kind == Ft_Kind_Nana) {"
+      },
+      {
+        "line": 908,
+        "text": "case Ft_Kind_Nana:"
+      },
+      {
+        "line": 4977,
+        "text": "if (fp->kind == Ft_Kind_Nana) {"
+      },
+      {
+        "line": 7674,
+        "text": "if (nana_fp->motion_id == ftPp_MS_SpecialLw &&"
+      },
+      {
+        "line": 7690,
+        "text": "ftPp_SpecialLw_Enter(fp->gobj);"
+      },
+      {
+        "line": 7705,
+        "text": "if (fp->motion_id != ftPp_MS_SpecialLw &&"
+      },
+      {
+        "line": 7706,
+        "text": "fp->motion_id != ftPp_MS_SpecialAirLw)"
+      },
+      {
+        "line": 7842,
+        "text": "if (fp->motion_id >= ftPp_MS_SpecialHi_0 &&"
+      },
+      {
+        "line": 7843,
+        "text": "fp->motion_id <= ftPp_MS_SpecialHi_5)"
+      }
+    ],
+    "src/melee/ft/ftcpuattack.c": [
+      {
+        "line": 1125,
+        "text": "} else if (fp->kind == Ft_Kind_Popo) {"
+      }
+    ],
+    "src/melee/ft/ftcmdscript.c": []
+  },
+  "modes": {
+    "case 0": [
+      "ftCo_800A1F3C_noinline2",
+      "ftCo_800ADE48",
+      "ftCo_800B2AFC_IsIgnoredFloor",
+      "ftCo_CpuClearTargetModes"
+    ],
+    "case 1": [
+      "ftCo_800A1F3C_noinline2",
+      "ftCo_800ADE48",
+      "ftCo_800B2AFC_IsIgnoredFloor",
+      "ftCo_CpuClearTargetModes"
+    ],
+    "case 2": [
+      "ftCo_800B04DC"
+    ],
+    "case 3": [
+      "ftCo_800A1F3C_noinline2",
+      "ftCo_800ADE48",
+      "ftCo_800B2AFC_IsIgnoredFloor",
+      "ftCo_CpuClearTargetModes"
+    ],
+    "case 6": [
+      "ftCo_800B101C"
+    ],
+    "case 4": [
+      "ftCo_800B24B8"
+    ],
+    "case 7": [
+      "ftCo_800AF290"
+    ],
+    "case 8": [
+      "ftCo_800AECF0"
+    ],
+    "case 9": [
+      "ftCo_800B00F8"
+    ],
+    "case 10": [
+      "ftCo_800AFC40"
+    ],
+    "case 11": [
+      "ftCo_800B24B8"
+    ],
+    "case 12": [
+      "ftCo_800B24B8"
+    ],
+    "case 13": [
+      "ftCo_800B126C"
+    ],
+    "case 14": [
+      "ftCo_800B1478"
+    ],
+    "case 15": [],
+    "case 17": [
+      "ftCo_800B17D0"
+    ],
+    "case 18": [
+      "ftCo_800AF78C"
+    ],
+    "case 19": [
+      "ftCo_800AFE3C"
+    ],
+    "case 20": [
+      "ftCo_800AFE3C"
+    ],
+    "case 21": [
+      "ftCo_800AFE3C"
+    ],
+    "case 22": [
+      "ftCo_800AFE3C"
+    ],
+    "case 23": [
+      "ftCo_800A75DC",
+      "ftCo_800ADE48",
+      "ftCo_CpuInitEnemyTarget"
+    ],
+    "case 24": [
+      "ftCo_800B1DA0_noinline2"
+    ],
+    "case 25": [
+      "ftCo_800A75DC",
+      "ftCo_800ADE48",
+      "ftCo_CpuInitEnemyTarget"
+    ],
+    "case 26": [
+      "ftCo_800A1F3C_noinline2",
+      "ftCo_800ADE48",
+      "ftCo_800B2AFC_IsIgnoredFloor",
+      "ftCo_CpuInitEnemyTarget"
+    ],
+    "case 27": [
+      "ftCo_800B1EF0"
+    ],
+    "case 28": [
+      "ftCo_800B21C8"
+    ],
+    "case 29": [
+      "ftCo_800B1AB8"
+    ],
+    "default": [
+      "ftCo_800B24B8"
+    ]
+  },
+  "motion_values": {
+    "ftCo_MS_CliffCatch": 252,
+    "ftCo_MS_CliffWait": 253,
+    "ftCo_MS_Count": 341,
+    "ftPp_MS_SpecialN": 341,
+    "ftPp_MS_SpecialAirN": 342,
+    "ftPp_MS_SpecialS1": 343,
+    "ftPp_MS_SpecialS2": 344,
+    "ftPp_MS_SpecialAirS1": 345,
+    "ftPp_MS_SpecialAirS2": 346,
+    "ftPp_MS_SpecialHiStart_0": 347,
+    "ftPp_MS_SpecialHiThrow_0": 348,
+    "ftPp_MS_SpecialHiThrow2": 349,
+    "ftPp_MS_SpecialHiStart_1": 350,
+    "ftPp_MS_SpecialHiThrow_1": 351,
+    "ftPp_MS_SpecialAirHiStart_0": 352,
+    "ftPp_MS_SpecialAirHiThrow_0": 353,
+    "ftPp_MS_SpecialAirHiThrow2": 354,
+    "ftPp_MS_SpecialAirHiStart_1": 355,
+    "ftPp_MS_SpecialAirHiThrow_1": 356,
+    "ftPp_MS_SpecialLw": 357,
+    "ftPp_MS_SpecialAirLw": 358,
+    "ftPp_MS_SpecialS_0": 359,
+    "ftPp_MS_SpecialS_1": 360,
+    "ftPp_MS_SpecialHi_0": 361,
+    "ftPp_MS_SpecialHi_1": 362,
+    "ftPp_MS_SpecialHi_2": 363,
+    "ftPp_MS_SpecialHi_3": 364,
+    "ftPp_MS_SpecialHi_4": 365,
+    "ftPp_MS_SpecialHi_5": 366,
+    "ftPp_MS_Count": 367,
+    "ftPp_MS_SelfCount": 26
+  }
+}

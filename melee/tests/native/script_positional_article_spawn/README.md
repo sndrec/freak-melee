@@ -1,0 +1,23 @@
+# Source-authored positional Article constructor
+
+```powershell
+python tests/native/script_positional_article_spawn/run.py --compiler .local/baseline72/compiler --output 'A:/FreakMelee-test-archives/script-positional-article-spawn-new'
+```
+
+Fresh private A: output. Compile/console processes use `CREATE_NO_WINDOW` and 120-second bounds; no global build/game. The receipt records exact commands and verifies source/header/compiler hashes remain unchanged.
+
+Acceptance: `A:/FreakMelee-test-archives/script-unowned-article-oct10d/receipt.json`, **PASS 12,812 checks / 35 cases / 1,024 reuse cycles / 1,056 native frees**.
+
+The production API is `nativeScriptItemSpawn_At(context, owner_node, position, velocity, facing, origin_at_owner, collision_group, creation_value, initial_collision, gameplay_owned, output, diagnostic)`. Origin and initial-collision flags retain their actual meanings; neither requests grounded spawning. Explicitly unowned creation leaves both gameplay parents and original creator NULL while selecting code/assets from the caller's bank. Supplied position becomes previous/current input position. Owner-center changes only current input position, using the captured current damage owner for Item children, and is rejected for unowned construction. Input SpawnItem is zeroed; the real `Item_CreateAuthored` prefunction subsequently sets airborne state and maps hold kind. The test captures both entry and post-prefunction fields rather than confusing those stages.
+
+The factory directly uses the source owner's selected bank/Article and real native constructor. It preserves full collision-group bits and Float inputs; source Float/Double conversion is exercised with the real value converter. Item children keep original creator, current damage owner and creating Item independently. A reflected foreign Fighter may own damage while the source author/bank and original creator remain unchanged. Original creator is correct before Attach/Spawned through the parent's actual constructor correction. Genuinely NULL creator is allowed; retained stale creator/damage-owner references fail closed. Native generation zero is valid.
+
+Caller and non-NULL relations retain physical pool/scene/native generations through construction and Created. Owned creator also retains its exact program/storage view. Live native allocation/selector failure returns Ok with NULL output, allowing the binding's missing-handle result. Retirement/fault leaves output unchanged; a valid surviving native creation remains observable. Created immediate removal returns SourceRetired rather than publishing a freed object. No forced initial state, projectile appearance/update, facing normalization, generated callback, Definition or donor asset fallback is used.
+
+The fixture runs actual extracted public/common Item constructor, source state/removal bodies, actual GObj/proc pools, Fighter/Item actors, compiler/VM/receiver/storage and original `nativeItem_CaptureCreator`/`nativeItem_Creator` functions. Source callbacks execute real code IDs, with markers observing the actual callback source (not an arbitrary list head). Cases cover position/previous ordering, owner center, full group word, source-owner/bank rejection, reflection, genuine absence, stale relations, generation zero, allocation failure, Created removal/fault, caller/original-creator/damage-owner retirement and repeated storage/GObj reuse.
+
+The unowned slice also executes a real prepared root helper through the Fighter controller, shared VM, source-resolved binding and actual constructor. It verifies NULL ownership during Spawned/Created, preconstruction position/velocity, the saved returned handle, allocation failure (-1), caller retirement at both hooks, Created removal/fault, and survival after author retirement. A direct Item-author constructor case confirms no gameplay ownership is inherited from its parent. Existing owned/reflected/child behavior remains covered.
+
+Immutable metadata/spec selection, assets/model/geometry and the physics initializer are controlled leaves. The selector binds only the exact published source spec and contains no authored callback table. Constructor-entry copies and callback markers are fixture instrumentation. This is not actual DAT/costume/physics/render or game acceptance. Unrelated effect/signal recipients and movement/presentation routes are explicitly unavailable rather than successful placeholders.
+
+Production ownership for this slice is only `native_script_item_spawn.c/.h`; parent owns the actual `item.c` creator-before-Spawned correction and catalog/resolver/binding/CMake integration.

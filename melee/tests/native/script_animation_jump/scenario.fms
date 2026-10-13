@@ -1,0 +1,32 @@
+fighter:
+    behavior independent
+state int after
+state int ordinary
+state int animated
+state int override
+func BeginTrue():
+    jump.begin(341, -0.8125, 0, -0.125, true, true, true)
+    state.after = state.after + 1
+func BeginFalse():
+    jump.begin(341, -0.8125, 0, -0.125, true, false, true)
+    state.after = state.after + 1
+func Override():
+    state.override = state.override + 1
+func ArmOverride():
+    callbacks.physics(Override)
+func Clear():
+    callbacks.physics(None)
+func Fail():
+    position.x = 1
+action Events:
+    on load:
+        pass
+    on animation_driven_jump_physics:
+        physics.air_accel_normal()
+        physics.animation_vertical_velocity_adjusted()
+        state.animated = state.animated + 1
+action Ordinary:
+    on state_341_physics:
+        state.ordinary = state.ordinary + 1
+    on state_342_physics:
+        state.ordinary = state.ordinary + 10

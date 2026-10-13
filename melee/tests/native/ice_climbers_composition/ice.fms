@@ -1,0 +1,170 @@
+article It_Kind_IceClimber_Ice states 4:
+    parameter float lifetime = 1
+    parameter float bounce_lifetime_loss = 1
+    parameter float shield_expiry_threshold = 1
+    parameter float impact_speed_limit = 1
+    parameter float launch_speed = 1
+    parameter float slope_scale = 1
+    parameter float slope_with_velocity = 1
+    parameter float slope_against_velocity = 1
+    parameter float stop_speed = 1
+    parameter float shrink_factor = 0.95
+    parameter int base_damage = 1
+    parameter int speed_damage_multiplier = 1
+    parameter float minimum_scale = 0.01
+    state bool launched
+    state float shrink_scale
+    state int saved_creator
+    on created:
+            item.state.saved_creator = item.current_owner
+            item.state.launched = false
+            item.state.shrink_scale = item.base_scale
+            item.spawn_async_joint_effect(0x4E9, "0", 0)
+            item.change_state_flags(1, 2)
+            item.inherit_owner_debug_display()
+            item.use_manual_lifetime()
+            item.refresh_physics()
+    on signal remove:
+            item.remove()
+    on signal launch:
+            velocity.x = item.params.launch_speed * facing
+            velocity.z = 0
+            velocity.y = 0
+            item.set_lifetime(item.params.lifetime)
+            item.state.launched = true
+            item.align_facing_to_velocity()
+            item.spawn_async_joint_effect(0x4EA, "0", 3)
+            item.spawn_async_joint_effect(0x4EB, "0", 3)
+            item.change_state_flags(2, 2)
+    on destroyed:
+            if item.state.saved_creator != 0:
+                creator.call(forget_ice, item.creation_id)
+            item.state.saved_creator = 0
+    on stage_left:
+            if item.motion_state == 0:
+                item.change_state_flags(1, 2)
+            elif item.motion_state == 2:
+                item.change_state_flags(3, 2)
+                item.destroy_effects()
+    on stage_landed:
+            velocity.x = 0
+            velocity.y = 0
+            velocity.z = 0
+            item.change_state_flags(0, 2)
+    on damage_dealt:
+            return true
+    on reflected:
+            return item.reflect()
+    on clanked:
+            return true
+    on hit_shield:
+            if abs(velocity.x) <= item.params.impact_speed_limit:
+                item.bounce()
+                item.align_facing_to_velocity()
+                velocity.x = velocity.x * item.surface_restitution
+                velocity.y = velocity.y * item.surface_restitution
+                velocity.z = velocity.z * item.surface_restitution
+                item.life = item.life - item.params.bounce_lifetime_loss
+                if item.life < item.params.shield_expiry_threshold:
+                    return true
+            else:
+                return true
+            return false
+    on absorbed:
+            return true
+    on shield_bounced:
+            return item.shield_bounce()
+    on interaction:
+            if item.state.saved_creator != 0 and item.attachment_owner_is(other):
+                item.state.saved_creator = 0
+            item.interact(other)
+    state 0 anim -1:
+        on animation:
+            if item.state.launched:
+                item.state.shrink_scale = item.state.shrink_scale * item.params.shrink_factor
+                item.joint("0").scale.x = item.state.shrink_scale
+                item.joint("0").scale.y = item.state.shrink_scale
+                item.joint("0").scale.z = item.state.shrink_scale
+                if item.state.shrink_scale < item.params.minimum_scale:
+                    return true
+            return false
+        on physics:
+            pass
+        on collision:
+            item.follow_ground()
+            item.align_to_floor()
+            return false
+    state 1 anim -1:
+        on animation:
+            return false
+        on physics:
+            item.gravity(false)
+        on collision:
+            item.bounce_to_ground(1)
+            return false
+    state 2 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            if collision.floor_contact:
+                let int normal_sign = 1
+                let int velocity_sign = 1
+                if floor.normal.x < 0:
+                    normal_sign = -1
+                if velocity.x < 0:
+                    velocity_sign = -1
+                let float delta = item.params.slope_with_velocity * (floor.normal.x * item.params.slope_scale)
+                if velocity_sign != normal_sign:
+                    delta = item.params.slope_against_velocity * (floor.normal.x * item.params.slope_scale)
+                velocity.x = velocity.x + delta
+                if abs(velocity.x) < item.params.stop_speed:
+                    item.stop_on_surface = true
+                    item.custom_floor_motion = true
+                    velocity.x = 0
+                    velocity.y = 0
+                    velocity.z = 0
+                    item.change_state_flags(0, 2)
+                    item.destroy_effects()
+                    let int damage = uint(abs(velocity.x * item.params.speed_damage_multiplier))
+                    damage = uint(damage) + uint(item.params.base_damage)
+                    hitbox.set_damage(0, damage)
+        on collision:
+            item.follow_ground()
+            item.align_to_floor()
+            let int flags = item.wall_contact_flags()
+            if flags != 0:
+                if abs(velocity.x) <= item.params.impact_speed_limit:
+                    let bool bounced = item.reflect_from_wall()
+                    item.align_facing_to_velocity()
+                    item.life = item.life - item.params.bounce_lifetime_loss
+                else:
+                    return true
+            return false
+    state 3 anim 0:
+        on animation:
+            if item.life <= 0:
+                return true
+            item.life = item.life - 1
+            return false
+        on physics:
+            item.gravity()
+            let int damage = uint(abs(velocity.x * item.params.speed_damage_multiplier))
+            damage = uint(damage) + uint(item.params.base_damage)
+            hitbox.set_damage(0, damage)
+        on collision:
+            let int flags = item.sweep_stage_flags()
+            if (flags & 1) != 0:
+                item.spawn_async_joint_effect(0x4EB, "0", 3)
+                item.change_state_flags(2, 2)
+            let int walls = item.wall_contact_flags()
+            if walls != 0:
+                if abs(velocity.x) <= item.params.impact_speed_limit:
+                    let bool bounced = item.reflect_from_wall()
+                    item.align_facing_to_velocity()
+                    item.life = item.life - item.params.bounce_lifetime_loss
+                else:
+                    return true
+            return false

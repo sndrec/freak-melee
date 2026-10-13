@@ -1,0 +1,434 @@
+# UNREGISTERED inherited Peach composition. No installation or activation.
+# Float, Side-B, Toad and Parasol travel/animation remain pending.
+# Partial Parasol/Toad tables below exist solely for accepted resource callbacks.
+base ftDataPeach 341 30
+
+attribute int rare_roll_bound 20
+attribute int rare_count 16
+attribute int rare_weight_0 24
+attribute int rare_kind_0 28
+attribute int rare_weight_1 32
+attribute int rare_kind_1 36
+attribute int rare_weight_2 40
+attribute int rare_kind_2 44
+parameter int spawn_position_joint = 109
+parameter int held_attachment_joint = 109
+parameter int parasol_attachment_joint = 109
+parameter float cpu_ranged_probe_distance = 32
+parameter int cpu_ranged_candidate = 38
+parameter int cpu_attack_lower_bound = 343
+parameter int dynamics_first_active = 3
+parameter int jump_forward_motion = 27
+parameter int jump_backward_motion = 28
+parameter int rebound_ground_motion = 365
+parameter int rebound_air_motion = 367
+parameter int yellow_costume_index = 1
+
+state int parasol_request_kind
+state int parasol_handle
+state int saved_handle
+state int toad_handle
+state int vegetable_handle
+state int vegetable_kind
+state float spawn_x
+state float spawn_y
+state float spawn_z
+state float float_fall_forward_end
+state float float_fall_backward_end
+state bool has_float
+state int last_smash_motion
+state bool toad_air_boost_used
+
+export func save_held_for_parasol():
+    let int previous = items.held_id
+    if previous != -1:
+        state.saved_handle = previous
+        let bool hidden = items.set_visible(previous, false)
+        let bool paused = items.set_paused(previous, true)
+        let bool dropped = items.notify_drop(previous, true)
+
+export func restore_held() -> bool:
+    state.parasol_handle = -1
+    callbacks.death3(None)
+    callbacks.damage(None)
+    if state.saved_handle != -1:
+        let int previous = state.saved_handle
+        let bool bound = items.bind_existing_held(previous)
+        state.saved_handle = -1
+        if bound:
+            let bool shown = items.set_visible(previous, true)
+            let bool resumed = items.set_paused(previous, false)
+            if shown and resumed:
+                items.notify_pickup(true)
+                return true
+    return false
+
+export func forget_toad():
+    if state.toad_handle != -1:
+        let bool resumed = items.set_paused(state.toad_handle, false)
+    state.toad_handle = -1
+    callbacks.death2(None)
+    callbacks.damage(None)
+
+export func forget_vegetable():
+    state.vegetable_handle = -1
+
+func cleanup_parasol():
+    if state.parasol_handle != -1:
+        articles.signal(state.parasol_handle, It_Kind_Peach_Parasol, "remove_cleanup", 0)
+        restore_held()
+
+func cleanup_toad():
+    if state.toad_handle != -1:
+        articles.signal(state.toad_handle, It_Kind_Peach_Toad, "remove_cleanup", 0)
+        forget_toad()
+
+func cleanup_vegetable():
+    if state.vegetable_handle != -1 and items.held_id == state.vegetable_handle and items.held_kind == It_Kind_Peach_Turnip:
+        articles.signal(state.vegetable_handle, It_Kind_Peach_Turnip, "remove_cleanup", 0)
+        forget_vegetable()
+
+export func cleanup_resources():
+    cleanup_parasol()
+    cleanup_toad()
+    cleanup_vegetable()
+
+export func create_parasol():
+    let bool requested = false
+    if state.parasol_request_kind == It_Kind_Capsule:
+        state.parasol_request_kind = It_Kind_Peach_Parasol
+        requested = state.parasol_handle == -1
+    if requested:
+        bones.world_position(attrs.parasol_attachment_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+        save_held_for_parasol()
+        let int created = articles.create_at_position(It_Kind_Peach_Parasol, state.spawn_x, state.spawn_y, state.spawn_z, facing.direction, false)
+        let int final_handle = -1
+        if created != -1:
+            let bool attached = items.attach(created, attrs.parasol_attachment_joint, true)
+            if attached:
+                final_handle = created
+            else:
+                # Invalid attachment is outside the retail fixed-rig contract.
+                # Discard only this creation, then restore the live saved item.
+                articles.signal(created, It_Kind_Peach_Parasol, "discard_unattached", 0)
+                let bool restored = restore_held()
+                callbacks.accessory(None)
+                callbacks.track_hitlag()
+                return
+        state.parasol_handle = final_handle
+        items.clear_held()
+        if final_handle != -1:
+            let bool bound = items.bind_held(final_handle)
+            if bound:
+                callbacks.death3(cleanup_resources)
+                callbacks.damage(cleanup_resources)
+    callbacks.accessory(None)
+    callbacks.track_hitlag()
+
+func choose_vegetable():
+    state.vegetable_kind = It_Kind_Peach_Turnip
+    if random.int(attrs.rare_roll_bound) == 0:
+        let int total = attrs.rare_weight_0
+        if attrs.rare_count >= 2: total = total + attrs.rare_weight_1
+        if attrs.rare_count >= 3: total = total + attrs.rare_weight_2
+        let int draw = random.int(total)
+        state.vegetable_kind = attrs.rare_kind_0
+        if attrs.rare_count >= 2 and draw >= attrs.rare_weight_0:
+            state.vegetable_kind = attrs.rare_kind_1
+        if attrs.rare_count >= 3 and draw >= attrs.rare_weight_0 + attrs.rare_weight_1:
+            state.vegetable_kind = attrs.rare_kind_2
+        # Selection and RNG order match. The unused source read of the next
+        # weight after a result is selected (including entry3) is omitted.
+
+export func construct_vegetable():
+    bones.world_position(attrs.spawn_position_joint, state.spawn_x, state.spawn_y, state.spawn_z)
+    choose_vegetable()
+    let int created_handle = -1
+    if state.vegetable_kind == It_Kind_Peach_Turnip:
+        # on_created performs type/lifetime/flag initialization BEFORE AB54.
+        created_handle = articles.create_at_position(It_Kind_Peach_Turnip, state.spawn_x, state.spawn_y, state.spawn_z, facing.direction, false)
+    else:
+        # Ordinary engine callbacks/assets, not fake authored Bomb/Saturn/Sword.
+        created_handle = items.create_engine(state.vegetable_kind, state.spawn_x, state.spawn_y, state.spawn_z, 0, 0, 0, facing.direction, 0, 0)
+    if created_handle != -1:
+        let bool attached = items.attach(created_handle, attrs.held_attachment_joint, false)
+        if not attached:
+            created_handle = -1
+        elif state.vegetable_kind != It_Kind_Sword:
+            let bool inherited = items.inherit_owner_scale(created_handle, true)
+            if not inherited: created_handle = -1
+    # Stock setupVeg publishes NULL on allocation failure as well as success.
+    items.clear_held()
+    state.vegetable_handle = created_handle
+    if created_handle != -1:
+        let bool bound = items.bind_held(created_handle)
+        if bound:
+            items.notify_pickup(false)
+            effects.spawn_at_position(1234, position.x, position.y, position.z)
+            callbacks.death2(cleanup_resources)
+            callbacks.damage(cleanup_resources)
+
+# Exact spawnVeg cue boundary; future down-B phase binds this helper.
+func spawn_vegetable_accessory():
+    if cue.article.consume(): construct_vegetable()
+
+move CompositionPolicies:
+    on load:
+        state.float_fall_forward_end = animation.clip_length(18)
+        state.float_fall_backward_end = animation.clip_length(19)
+        fighter.copy_ext_attributes()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        state.has_float = true
+        state.last_smash_motion = -1
+        state.toad_air_boost_used = false
+        state.parasol_handle = -1
+        state.saved_handle = -1
+        state.toad_handle = -1
+        state.vegetable_handle = -1
+        visuals.set_group(0, 0)
+        visuals.set_group(2, 0)
+        visuals.set_group(3, -1)
+        visuals.set_group(4, 0)
+        if costume.index == attrs.yellow_costume_index:
+            visuals.set_group(1, -1)
+            visuals.set_group(5, 0)
+            visuals.set_group(6, -1)
+        else:
+            visuals.set_group(1, 0)
+            visuals.set_group(5, -1)
+            visuals.set_group(6, 0)
+    on death2:
+        cleanup_resources()
+    on pre_hitlag:
+        if state.parasol_handle != -1:
+            let bool paused = items.set_paused(state.parasol_handle, true)
+    on post_hitlag:
+        if state.parasol_handle != -1:
+            let bool resumed = items.set_paused(state.parasol_handle, false)
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on item_visible:
+        fighter.item_visible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on aerial_jump:
+        physics.ground_to_air()
+        command(0) = 1
+        let int jump_motion = attrs.jump_backward_motion
+        if input.x * facing.direction > -controls.aerial_jump_reverse_threshold:
+            jump_motion = attrs.jump_forward_motion
+        jump.begin(jump_motion, input.x * air.jump_horizontal_multiplier, 0, 0, true, true, true)
+    on dynamics_interaction_start:
+        if event.set == event.set_count - 1: return 0
+        return attrs.dynamics_first_active
+    on body_rebound:
+        return motion.id == attrs.rebound_ground_motion or motion.id == attrs.rebound_air_motion
+    on cpu_attack_motion:
+        return motion.id > attrs.cpu_attack_lower_bound
+    on cpu_ranged_candidates:
+        if cpu.ranged_unsafe(attrs.cpu_ranged_probe_distance):
+            cpu.add_candidate(attrs.cpu_ranged_candidate)
+
+article It_Kind_Peach_Parasol states 3:
+    on signal discard_unattached:
+            item.clear_current_owner()
+            item.remove()
+    on picked_up:
+            item.animation_rate = 16
+            item.change_state(2)
+            item.track_accessory()
+            item.advance_animation()
+            item.animation_rate = 1
+    on accessory:
+            return
+
+    on signal remove_cleanup:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+            item.remove()
+    on destroyed:
+            let bool restored = targets.call_bool(item.current_owner, "restore_held")
+            if restored:
+                item.clear_current_owner()
+    state 0 anim -1:
+    state 1 anim 0:
+    state 2 anim 1:
+
+article It_Kind_Peach_Toad states 2:
+    on signal remove_cleanup:
+            targets.call(item.current_owner, "forget_toad")
+            item.remove()
+    on destroyed:
+            targets.call(item.current_owner, "forget_toad")
+    state 0 anim 0:
+    state 1 anim 1:
+
+article It_Kind_Peach_Turnip states 5:
+    parameter int surface_response_mask = 14
+    parameter int retire_contact_mask = 3
+    attribute float lifetime 0
+    attribute int face_count 4
+    attribute int face_weight_0 8
+    attribute int face_damage_0 12
+    attribute int face_weight_1 16
+    attribute int face_damage_1 20
+    attribute int face_weight_2 24
+    attribute int face_damage_2 28
+    attribute int face_weight_3 32
+    attribute int face_damage_3 36
+    attribute int face_weight_4 40
+    attribute int face_damage_4 44
+    attribute int face_weight_5 48
+    attribute int face_damage_5 52
+    attribute int face_weight_6 56
+    attribute int face_damage_6 60
+    attribute int face_weight_7 64
+    attribute int face_damage_7 68
+    state int face
+    state int face_damage
+    state bool picked_up_once
+    on created:
+            item.set_lifetime(item.attr.lifetime)
+            let int total = item.attr.face_weight_0
+            if item.attr.face_count >= 2:
+                total = total + item.attr.face_weight_1
+            if item.attr.face_count >= 3:
+                total = total + item.attr.face_weight_2
+            if item.attr.face_count >= 4:
+                total = total + item.attr.face_weight_3
+            if item.attr.face_count >= 5:
+                total = total + item.attr.face_weight_4
+            if item.attr.face_count >= 6:
+                total = total + item.attr.face_weight_5
+            if item.attr.face_count >= 7:
+                total = total + item.attr.face_weight_6
+            if item.attr.face_count >= 8:
+                total = total + item.attr.face_weight_7
+            let int draw = random.int(total)
+            let int cumulative = item.attr.face_weight_0
+            item.state.face = 0
+            item.state.face_damage = item.attr.face_damage_0
+            if item.attr.face_count >= 2 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_1
+                item.state.face = 1
+                item.state.face_damage = item.attr.face_damage_1
+            if item.attr.face_count >= 3 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_2
+                item.state.face = 2
+                item.state.face_damage = item.attr.face_damage_2
+            if item.attr.face_count >= 4 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_3
+                item.state.face = 3
+                item.state.face_damage = item.attr.face_damage_3
+            if item.attr.face_count >= 5 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_4
+                item.state.face = 4
+                item.state.face_damage = item.attr.face_damage_4
+            if item.attr.face_count >= 6 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_5
+                item.state.face = 5
+                item.state.face_damage = item.attr.face_damage_5
+            if item.attr.face_count >= 7 and draw >= cumulative:
+                cumulative = cumulative + item.attr.face_weight_6
+                item.state.face = 6
+                item.state.face_damage = item.attr.face_damage_6
+            if item.attr.face_count >= 8 and draw >= cumulative:
+                item.state.face = 7
+                item.state.face_damage = item.attr.face_damage_7
+            item.state.picked_up_once = false
+            item.subaction_sounds_muted = true
+    on picked_up:
+            item.set_appearance(0, float(item.state.face))
+            if item.state.picked_up_once:
+                item.change_state(4)
+            else:
+                item.change_state(0)
+                item.subaction_sounds_muted = false
+            item.state.picked_up_once = true
+            item.advance_animation()
+    on thrown:
+            item.change_state_flags(2, 6)
+            item.set_appearance(0, float(item.state.face))
+            hitbox.set_damage(0, item.state.face_damage)
+            item.set_instance_scale(item.throw_scale)
+    on dropped:
+            item.change_state_flags(3, 6)
+            item.set_appearance(0, float(item.state.face))
+    on damage_dealt:
+            item.bounce()
+            item.change_state(1)
+            return false
+    on clanked:
+            item.bounce()
+            return false
+    on reflected:
+            item.reflect()
+            return false
+    on hit_shield:
+            item.bounce()
+            return false
+    on shield_bounced:
+            item.shield_bounce()
+            return false
+    on signal remove_cleanup:
+            item.remove()
+    on destroyed:
+            creator.call(forget_vegetable)
+    on interaction:
+            if item.attachment_owner_is(other):
+                item.clear_attachment_owner()
+            item.interact(other)
+    state 0 anim 1:
+        on animation:
+            return false
+        on physics:
+            return
+    state 1 anim -1:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity(false)
+    state 2 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+        on collision:
+            let int collision_flags = item.sweep_stage_flags()
+            if collision_flags & item.attr.surface_response_mask:
+                item.respond_stage_mask(collision_flags)
+                item.change_state(1)
+            elif collision_flags & item.attr.retire_contact_mask:
+                return true
+            return false
+    state 3 anim 2:
+        on animation:
+            return item.expire_tick()
+        on physics:
+            item.gravity()
+        on collision:
+            let int collision_flags = item.sweep_stage_flags()
+            if collision_flags & item.attr.surface_response_mask:
+                item.respond_stage_mask(collision_flags)
+                item.change_state(1)
+            elif collision_flags & item.attr.retire_contact_mask:
+                return true
+            return false
+    state 4 anim -1:
+        on animation:
+            return false
+        on physics:
+            return

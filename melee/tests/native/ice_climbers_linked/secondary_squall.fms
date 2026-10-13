@@ -1,0 +1,188 @@
+# Companion Squall policy; paired foundation operations are pending SDK.
+# Compose scalar exports/hitlag helpers. No Ice/Blizzard or Belay override here.
+parameter float linked_squall_radius = 1
+parameter float linked_squall_fall_lag = 1
+parameter int linked_squall_delay_limit = 5
+parameter float linked_squall_delay_spacing = 1.5
+parameter float linked_root_quarter_turn = 1.5707963267948966
+state int linked_follow_delay
+
+func linked_begin_secondary_squall(bool air):
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    if air:
+        state.enter_at_speed(360, 0, 0, 1)
+    else:
+        state.enter_at_speed(359, 0, 0, 1)
+    linked_secondary_callbacks()
+    animation.start()
+    acceleration.y = 0
+    velocity.y = 0
+
+func linked_join_squall(bool requested_air) -> bool:
+    let int primary = family.member_id(0)
+    if primary == 0:
+        hitlag.unlink()
+        return false
+    if action.category >= 1 and action.category <= 13:
+        hitlag.unlink()
+        return false
+    let float primary_x = targets.call_float(primary, "linked_position_x")
+    let float primary_y = targets.call_float(primary, "linked_position_y")
+    let float dx = position.x - primary_x
+    let float dy = position.y - primary_y
+    let float scale = targets.call_float(primary, "linked_scale_y")
+    let float radius = attrs.linked_squall_radius
+    # Source truncates the squared scaled threshold to Int before comparison.
+    if not(dx * dx + dy * dy < int(scale * (radius * radius))):
+        hitlag.unlink()
+        return false
+    if requested_air:
+        if not airborne:
+            physics.ground_to_air()
+    elif airborne:
+        collision.copy_from(primary)
+        physics.switch_to_ground()
+    linked_begin_secondary_squall(requested_air)
+    state.linked_follow_delay = 0
+    position.x = targets.call_float(primary, "linked_position_x")
+    position.y = targets.call_float(primary, "linked_position_y")
+    position.z = targets.call_float(primary, "linked_position_z")
+    velocity.x = targets.call_float(primary, "linked_velocity_x")
+    velocity.y = targets.call_float(primary, "linked_velocity_y")
+    velocity.z = targets.call_float(primary, "linked_velocity_z")
+    ground.velocity = targets.call_float(primary, "linked_ground_velocity")
+    facing.direction = targets.call_float(primary, "linked_facing")
+    bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+    hitlag.link(primary)
+    # Authored exported result is positive accepted; the original helper
+    # returns the inverse (true means solo/rejected). The primary caller owns
+    # this inversion, so a failed/missing typed recipient returns safely false.
+    return true
+
+export func linked_join_squall_ground() -> bool:
+    return linked_join_squall(false)
+
+export func linked_join_squall_air() -> bool:
+    return linked_join_squall(true)
+
+export func linked_secondary_finished() -> bool:
+    return motion.id != 359 and motion.id != 360
+
+func linked_primary_squall_active(int primary) -> bool:
+    let int motion = targets.motion(primary)
+    return motion == 344 or motion == 346
+
+func linked_secondary_animation(bool air):
+    let int primary = family.member_id(0)
+    if primary != 0 and linked_primary_squall_active(primary):
+        let float primary_frame = targets.call_float(primary, "linked_frame")
+        animation.set_timer(primary_frame)
+        return
+    linked_cleanup_hitlag()
+    linked_clear_callbacks()
+    if not air:
+        state.wait()
+    elif attrs.linked_squall_fall_lag == 0:
+        state.fall()
+    else:
+        physics.force_air_and_use_jumps()
+        state.freefall(1, 0, true, 1, attrs.linked_squall_fall_lag)
+
+func linked_secondary_squall_physics():
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return
+    velocity.x = targets.call_float(primary, "linked_velocity_x")
+    velocity.y = targets.call_float(primary, "linked_velocity_y")
+    velocity.z = targets.call_float(primary, "linked_velocity_z")
+    acceleration.x = targets.call_float(primary, "linked_accel_x")
+    acceleration.y = targets.call_float(primary, "linked_accel_y")
+    acceleration.z = targets.call_float(primary, "linked_accel_z")
+    ground.velocity = targets.call_float(primary, "linked_ground_velocity")
+    ground.acceleration = targets.call_float(primary, "linked_ground_accel")
+    facing.direction = targets.call_float(primary, "linked_facing")
+    bones.root.rotate_y(0, attrs.linked_root_quarter_turn * facing.direction)
+
+func linked_secondary_separate():
+    state.linked_follow_delay = state.linked_follow_delay + 1
+    if state.linked_follow_delay > attrs.linked_squall_delay_limit:
+        state.linked_follow_delay = attrs.linked_squall_delay_limit
+    let int primary = family.member_id(0)
+    let float primary_x = targets.call_float(primary, "linked_position_x")
+    position.x = -(attrs.linked_squall_delay_spacing * (state.linked_follow_delay * facing.direction) - primary_x)
+
+func linked_secondary_box_air():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    physics.ground_to_air()
+    state.enter_at_speed(360, 0x0C4C528A, frame, 1)
+    linked_secondary_callbacks()
+
+func linked_secondary_box_ground():
+    command(0) = 0
+    command(1) = 0
+    command(2) = 0
+    command(3) = 0
+    linked_secondary_callbacks()
+    physics.switch_to_ground()
+    velocity.y = 0
+    state.enter_at_speed(359, 0x0C4C528A, frame, 1)
+    linked_secondary_callbacks()
+
+func linked_secondary_collision(bool air):
+    let int primary = family.member_id(0)
+    if primary == 0:
+        return
+    let bool active = linked_primary_squall_active(primary)
+    let bool released = true
+    if active:
+        released = targets.call_bool(primary, "linked_squall_released")
+    if active and not released:
+        position.x = targets.call_float(primary, "linked_position_x")
+        position.y = targets.call_float(primary, "linked_position_y")
+        position.z = targets.call_float(primary, "linked_position_z")
+        collision.copy_from(primary)
+        let bool primary_air = targets.airborne(primary)
+        if airborne != primary_air:
+            if air:
+                state.enter_at_speed(359, 0x0C4C528A, frame, 1)
+            else:
+                state.enter_at_speed(360, 0x0C4C528A, frame, 1)
+        # Direct publication follows motion and collision-history copy.
+        # Ground/air transition helpers would introduce extra side effects.
+        airborne = primary_air
+    else:
+        linked_secondary_separate()
+        if air:
+            if collision.air_box(12, 0, -6, 6, 6, 6):
+                linked_secondary_box_ground()
+        elif not collision.ground_box(12, 0, -6, 6, 6, 6):
+            linked_secondary_box_air()
+    let float primary_root_x = targets.call_float(primary, "linked_root_x")
+    bones.root.rotate_x(0, primary_root_x)
+    linked_secondary_callbacks()
+
+move CompanionSquall:
+    on state_359_animation:
+        linked_secondary_animation(false)
+    on state_360_animation:
+        linked_secondary_animation(true)
+    on state_359_interrupt:
+        return
+    on state_360_interrupt:
+        return
+    on state_359_physics:
+        linked_secondary_squall_physics()
+    on state_360_physics:
+        linked_secondary_squall_physics()
+    on state_359_collision:
+        linked_secondary_collision(false)
+    on state_360_collision:
+        linked_secondary_collision(true)

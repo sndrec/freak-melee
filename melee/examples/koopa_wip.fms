@@ -1,0 +1,880 @@
+# Bowser: authored decisions for all four specials and the flame article.
+# Import the stock defaults into fighter_parameters.fmp before building.
+# Fighter-wide, CPU, capture and article policies are independently authored.
+fighter:
+    behavior independent
+
+parameter float cpu_initial_spacing = 8.5
+parameter float cpu_spacing_range = 9
+parameter float cpu_ranged_probe_distance = 27
+parameter float cpu_up_smash_threat_height = 35
+attribute float spin_air_vertical_speed 84
+attribute float spin_gravity 88
+attribute float spin_terminal_velocity 92
+attribute float spin_ground_speed_limit 96
+attribute float spin_air_speed_limit 100
+attribute float spin_ground_acceleration 104
+attribute float spin_air_acceleration 108
+attribute float spin_landing_lag 124
+attribute float bomb_air_horizontal_multiplier 128
+attribute float bomb_air_vertical_multiplier 132
+attribute float bomb_air_deceleration 136
+attribute float bomb_gravity 140
+attribute float bomb_terminal_velocity 144
+attribute float bomb_dive_velocity 148
+state float spin_elapsed
+state bool spin_floor_contact
+state bool bomb_landing_effect
+
+attribute float breath_armor 0
+attribute int breath_minimum_duration 4
+attribute float breath_length_regen 8
+attribute float breath_size_regen 12
+attribute float breath_max_length 16
+attribute float breath_min_length 20
+attribute float breath_max_size 24
+attribute float breath_min_size 28
+attribute int breath_quake_period 32
+attribute float breath_muzzle_x 36
+attribute float breath_muzzle_y 40
+state float breath_length
+state float breath_size
+state int breath_phase
+state int breath_hit_group
+state int breath_appearance
+state int breath_minimum_loops
+state int breath_group_count
+state int breath_quake_tick
+state int breath_elapsed
+state float breath_muzzle_x
+state float breath_muzzle_y
+state float breath_muzzle_z
+
+attribute int bite_damage 44
+attribute float throw_stick_threshold 48
+attribute float capture_wiggle_scale 52
+attribute float capture_wiggle_limit 56
+attribute float capture_mash_animation_rate 60
+attribute float capture_mash_pause_frames 64
+attribute float capture_mash_reduction 68
+attribute float capture_timer_decay 72
+attribute float capture_timer_damage_multiplier 76
+state bool bite_requested
+state bool bite_repeat
+state bool throw_reversed
+state int throw_direction
+state int throw_input
+
+# The constructor has two model roots; both retain their own engine animation.
+model_effect FortressModels 0x4DA:
+    on update:
+        effect.joint("", 1).visible = creator.motion == 359
+        let float angle = 0
+        if creator.command2 % 2 != 0 and creator.state.spin_floor_contact:
+            angle = -atan2_float(creator.floor.normal.x, creator.floor.normal.y)
+        effect.joint("").rotation.z = angle
+        effect.joint("", 1).rotation.z = angle
+
+func spin_callbacks():
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+func spin_shell():
+    let shell = (command(2) % 2) != 0
+    if airborne: shell = (command(1) % 2) != 0
+    if shell:
+        visuals.set_current_group(0, 1)
+        hurtboxes.set_bone(55, Hurt.intangible)
+        hurtboxes.set_bone(48, Hurt.intangible)
+        hurtboxes.set_bone(60, Hurt.intangible)
+        hurtboxes.set_bone(33, Hurt.intangible)
+        hurtboxes.set_bone(61, Hurt.intangible)
+        hurtboxes.set_bone(34, Hurt.intangible)
+        hurtboxes.set_bone(15, Hurt.intangible)
+        hurtboxes.set_bone(6, Hurt.intangible)
+        hurtboxes.set_bone(16, Hurt.intangible)
+        hurtboxes.set_bone(7, Hurt.intangible)
+        hurtboxes.set_bone(19, Hurt.intangible)
+        hurtboxes.set_bone(10, Hurt.intangible)
+        items.set_held_visible(false)
+        articles.attached_visible = false
+    else:
+        visuals.set_current_group(0, 0)
+        hurtboxes.set_all(Hurt.normal)
+        items.set_held_visible(true)
+        articles.attached_visible = true
+
+func spin_floor_rotation():
+    if command(3) and state.spin_floor_contact:
+        bones.root.rotate_x(facing.direction * atan2_float(floor.normal.x, floor.normal.y))
+    else:
+        bones.root.rotate_x(0)
+
+func spin_ground_animation():
+    state.spin_elapsed = state.spin_elapsed + 1
+    spin_shell()
+    if animation.finished: state.wait()
+
+func spin_fall():
+    if attrs.spin_landing_lag == 0: state.fall()
+    else: state.freefall(1, 0, true, 1, attrs.spin_landing_lag)
+
+func spin_land():
+    physics.switch_to_ground()
+    # Stock tests lower < elapsed < lower (the SAME bound), so the alternate
+    # frame-subtraction branch is unreachable. Keep the observed same-frame path.
+    state.enter_at_speed(359, 0x0c4c5292, frame, 1)
+    spin_callbacks()
+    physics.clamp_ground_speed(attrs.spin_ground_speed_limit)
+
+move WhirlingFortress:
+    entry explicit
+    on special_hi:
+        state.enter_flags(359, 0)
+        spin_callbacks()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        velocity.y = 0
+        jumps.used = jumps.max
+        state.spin_elapsed = 0
+        state.spin_floor_contact = false
+        effects.spawn_root(FortressModels)
+        effects.active = true
+        effects.pause_during_hitlag()
+        animation.start()
+    on special_air_hi:
+        state.enter_flags(360, 0)
+        spin_callbacks()
+        command(0) = 0
+        command(1) = 0
+        command(2) = 0
+        command(3) = 0
+        physics.clamp_ground_speed(attrs.spin_ground_speed_limit)
+        velocity.y = attrs.spin_air_vertical_speed
+        jumps.used = jumps.max
+        state.spin_elapsed = 0
+        state.spin_floor_contact = false
+        effects.spawn_root(FortressModels)
+        effects.active = true
+        effects.pause_during_hitlag()
+        animation.start()
+        # The stock aerial entry immediately invokes the ground animation tick.
+        spin_ground_animation()
+    on ground_animation:
+        spin_ground_animation()
+    on air_animation:
+        state.spin_elapsed = state.spin_elapsed + 1
+        spin_shell()
+        if command(2) == 2:
+            if airborne:
+                physics.force_air_and_use_jumps()
+                effects.destroy_all()
+                effects.active = false
+                callbacks.pre_hitlag(None)
+                callbacks.post_hitlag(None)
+                spin_fall()
+        elif animation.finished:
+            physics.force_air_and_use_jumps()
+            spin_fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        if command(0) == 0:
+            physics.ground_accel(attrs.spin_ground_acceleration, attrs.spin_ground_speed_limit)
+            physics.ground_to_self()
+        else: physics.ground_friction()
+    on air_physics:
+        if command(0) == 0:
+            physics.fall(attrs.spin_gravity, attrs.spin_terminal_velocity)
+            physics.air_accel_friction(0, attrs.spin_air_acceleration, attrs.spin_air_speed_limit)
+        else: physics.air_drift()
+    on ground_collision:
+        if collision.left_ground:
+            physics.force_air_and_use_jumps()
+            state.enter_at_speed(360, 0x0c4c5292, frame, 1)
+            spin_callbacks()
+            physics.clamp_horizontal_speed(attrs.spin_air_speed_limit)
+            effects.pause_during_hitlag()
+            state.spin_floor_contact = false
+        else: state.spin_floor_contact = true
+        spin_shell()
+        spin_floor_rotation()
+    on air_collision:
+        if velocity.y >= 0:
+            if collision.landed:
+                spin_land()
+                effects.pause_during_hitlag()
+                state.spin_floor_contact = true
+            else: state.spin_floor_contact = false
+            spin_shell()
+            spin_floor_rotation()
+        elif collision.check_ground_ledge(0):
+            spin_land()
+            state.spin_floor_contact = true
+            spin_shell()
+            spin_floor_rotation()
+            effects.pause_during_hitlag()
+        else:
+            state.spin_floor_contact = false
+            if collision.cliff_catch(): state.catch_ledge()
+
+func bomb_reset():
+    command(0) = 0
+    command(1) = 0
+    cue.throw.reset()
+    animation.delta.y = 0
+    items.block_ground_pickup = true
+
+func bomb_collision():
+    if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+        if command(0) and velocity.y <= 0:
+            ground.velocity = 0
+            physics.switch_to_ground()
+            state.enter_at_speed(363, 0, 0, 1)
+            state.bomb_landing_effect = true
+            callbacks.accessory(bomb_accessory)
+        else:
+            physics.ground_to_air()
+            collision.unlock_ecb()
+    elif command(0) and collision.cliff_catch(): state.catch_ledge()
+
+func bomb_accessory():
+    if not effects.active:
+        if state.bomb_landing_effect:
+            effects.spawn_at_position(1240, position.x, position.y, position.z)
+        else: effects.spawn_on_part(1247, 0)
+        effects.active = true
+    effects.pause_during_hitlag()
+    callbacks.accessory(None)
+
+move BowserBomb:
+    entry explicit
+    on special_lw:
+        velocity.x = 0
+        velocity.y = 0
+        physics.ground_to_air()
+        state.enter_flags(361, 0)
+        animation.start()
+        bomb_reset()
+    on special_air_lw:
+        velocity.x = velocity.x * attrs.bomb_air_horizontal_multiplier
+        velocity.y = velocity.y * attrs.bomb_air_vertical_multiplier
+        state.enter_flags(362, 0)
+        animation.start()
+        bomb_reset()
+    on ground_animation:
+        if animation.finished: state.enter_at_speed(362, 0x0c4c5088, 30, 1)
+    on air_animation:
+        if animation.finished: command(1) = 1
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.animation_velocity_plain()
+        if velocity.y < 0: velocity.y = 0
+    on air_physics:
+        physics.fall(attrs.bomb_gravity, attrs.bomb_terminal_velocity)
+        physics.air_decel(attrs.bomb_air_deceleration)
+        if velocity.y < attrs.bomb_dive_velocity or command(1):
+            velocity.y = attrs.bomb_dive_velocity
+        if command(1):
+            velocity.x = 0
+            if not effects.active:
+                state.bomb_landing_effect = false
+                callbacks.accessory(bomb_accessory)
+    on ground_collision:
+        bomb_collision()
+    on air_collision:
+        bomb_collision()
+
+func breath_initialize():
+    state.breath_phase = 0
+    state.breath_hit_group = articles.new_collision_group()
+    state.breath_appearance = 0
+    state.breath_minimum_loops = 1
+    state.breath_group_count = 0
+    state.breath_quake_tick = 0
+    state.breath_elapsed = 0
+
+func breath_emit():
+    bones.world_position(48, state.breath_muzzle_x, state.breath_muzzle_y, state.breath_muzzle_z)
+    state.breath_muzzle_x = state.breath_muzzle_x + model.instance_scale_y * (attrs.breath_muzzle_x * facing.direction)
+    state.breath_muzzle_y = state.breath_muzzle_y + attrs.breath_muzzle_y * model.instance_scale_y
+    # Preserve the stock appearance table and its conditional RNG draw count.
+    if state.breath_appearance == 1 or state.breath_appearance == 2:
+        state.breath_appearance = (int(random.int(32) / 8) % 2) * 3
+    elif random.int(32) < 16:
+        state.breath_appearance = (int(random.int(32) / 8) % 2) * 3
+    else:
+        state.breath_appearance = 1 + (int(random.int(32) / 8) % 2)
+    articles.launch_at_position(It_Kind_Koopa_Flame, state.breath_muzzle_x, state.breath_muzzle_y, state.breath_muzzle_z, 0, 0, 0, state.breath_appearance, state.breath_hit_group, facing.direction)
+    if state.breath_group_count == 0:
+        state.breath_hit_group = articles.new_collision_group()
+        stats.refresh_attack()
+        stats.record_attack()
+    if state.breath_group_count % 3 == 0:
+        let strength = (state.breath_size - attrs.breath_min_size) / (attrs.breath_max_size - attrs.breath_min_size)
+        if strength < 0.3333: sound.play(150059, 127, 64)
+        elif strength < 0.6666: sound.play(150056, 127, 64)
+        else: sound.play(150053, 127, 64)
+    state.breath_group_count = (state.breath_group_count + 1) % 12
+
+func breath_loop_animation():
+    if frame == 0:
+        state.breath_minimum_loops = state.breath_minimum_loops - 1
+        if state.breath_minimum_loops <= 0: state.breath_minimum_loops = 0
+    if state.breath_quake_tick == 0: camera.quake(2, position.x, position.y, position.z)
+    state.breath_quake_tick = (state.breath_quake_tick + 1) % attrs.breath_quake_period
+
+func breath_loop_interrupt():
+    if state.breath_elapsed >= attrs.breath_minimum_duration and not input.special_held and state.breath_minimum_loops == 0:
+        let target = 343
+        if airborne: target = 346
+        state.enter_at_speed(target, 0, 0, 1)
+    elif state.breath_phase == 0:
+        breath_emit()
+    state.breath_phase = (state.breath_phase + 1) % 3
+    state.breath_length = max(attrs.breath_min_length, state.breath_length - 1)
+    state.breath_size = max(attrs.breath_min_size, state.breath_size - 1)
+    state.breath_elapsed = state.breath_elapsed + 1
+    if state.breath_elapsed > attrs.breath_minimum_duration:
+        state.breath_elapsed = attrs.breath_minimum_duration
+
+move FlameBreath:
+    entry explicit
+    on special_n:
+        state.enter_flags(341, 0)
+        breath_initialize()
+    on special_air_n:
+        state.enter_flags(344, 0)
+        breath_initialize()
+    on ground_animation:
+        if animation.finished: state.enter_at_speed(342, 0, 0, 1)
+    on air_animation:
+        if animation.finished: state.enter_at_speed(345, 0, 0, 1)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.air_drift()
+    on ground_collision:
+        if collision.left_ground: state.switch_to_air(344, 0x0c4c5080)
+    on air_collision:
+        if collision.landed: state.switch_to_ground(341, 0x0c4c5080)
+
+func claw_arm():
+    capture.timer_damage_multiplier = attrs.capture_timer_damage_multiplier
+    capture.timer_decay = attrs.capture_timer_decay
+    capture.mash_reduction = attrs.capture_mash_reduction
+    capture.mash_pause_frames = attrs.capture_mash_pause_frames
+    capture.mash_animation_rate = attrs.capture_mash_animation_rate
+    capture.wiggle_scale = attrs.capture_wiggle_scale
+    capture.wiggle_limit = attrs.capture_wiggle_limit
+    capture.arm(8)
+    state.bite_requested = false
+    state.throw_direction = 0
+
+func claw_catch():
+    if airborne:
+        if state.bite_repeat: state.enter_at_speed(355, 0x80, 0, 1)
+        else: state.enter_at_speed(354, 0, 0, 1)
+    else:
+        if state.bite_repeat: state.enter_at_speed(349, 0x80, 0, 1)
+        else: state.enter_at_speed(348, 0, 0, 1)
+    damage.song_immune = true
+    capture.mask(511)
+    capture.clear_movement()
+    state.bite_requested = false
+    command(0) = 0
+
+func claw_bite_animation():
+    if command(0) and state.bite_repeat:
+        hitbox.set_damage(0, attrs.bite_damage)
+        command(0) = 0
+    if not animation.finished: return
+    if state.bite_requested:
+        state.bite_repeat = true
+        claw_catch()
+        if airborne: capture.set_victim_capture_motion(Motion.captured_damage_air)
+        else: capture.set_victim_capture_motion(Motion.captured_damage_ground)
+    else:
+        if airborne: state.enter_at_speed(356, 0x80080, frame, 1)
+        else: state.enter_at_speed(350, 0x80080, frame, 1)
+        animation.set_rate(0)
+        state.bite_requested = false
+        command(0) = 0
+        capture.mask(511)
+
+func claw_choose_direction():
+    let direction = 0
+    if input.special_pressed: state.bite_requested = true
+    if input.previous_x > -attrs.throw_stick_threshold and input.x < -attrs.throw_stick_threshold: direction = -1
+    if input.previous_x < attrs.throw_stick_threshold and input.x > attrs.throw_stick_threshold: direction = 1
+    state.throw_direction = int(facing.direction * direction)
+    state.throw_input = int(direction)
+
+func claw_throw():
+    cue.throw.reset()
+    command(0) = 0
+    if airborne:
+        if state.throw_direction == 1:
+            state.enter_at_speed(357, 0x80000, 0, 1)
+            capture.set_victim_attached_throw(Motion.captured_throw_air_forward, 0, 0, true)
+        else:
+            state.enter_at_speed(358, 0x80000, 0, 1)
+            capture.set_victim_attached_throw(Motion.captured_throw_air_back, 0, 0, true)
+    else:
+        if state.throw_direction == 1:
+            state.enter_at_speed(351, 0x80000, 0, 1)
+            capture.set_victim_attached_throw(Motion.captured_throw_forward, 0, 0, true)
+        else:
+            state.enter_at_speed(352, 0x80000, 0, 1)
+            capture.set_victim_attached_throw(Motion.captured_throw_back, 0, 0, true)
+
+func claw_bite_interrupt():
+    claw_choose_direction()
+    if state.throw_input != 0: claw_throw()
+
+func claw_wait_interrupt():
+    claw_choose_direction()
+    if state.throw_input != 0:
+        claw_throw()
+    elif state.bite_requested:
+        state.bite_repeat = true
+        claw_catch()
+        if airborne: capture.set_victim_capture_motion(Motion.captured_damage_air)
+        else: capture.set_victim_capture_motion(Motion.captured_damage_ground)
+
+func claw_release_animation():
+    if cue.consume(4):
+        facing.direction = -facing.direction
+        state.throw_reversed = true
+    if command(0) and capture.has_victim:
+        capture.mask(0)
+        capture.release_damage(false, false)
+        command(0) = 0
+    if animation.finished: state.finish()
+
+func claw_drop():
+    physics.ground_to_air()
+    capture.drop_victim()
+    state.fall()
+
+func claw_land_throw():
+    let target = 351
+    let victim_motion = Motion.captured_throw_forward
+    if motion.id == 358:
+        target = 352
+        victim_motion = Motion.captured_throw_back
+    physics.switch_to_ground()
+    if state.throw_reversed: facing.direction = -facing.direction
+    state.enter_at_speed(target, 0x0c4c5088, frame, 1)
+    if state.throw_reversed: facing.direction = -facing.direction
+    capture.set_victim_attached_throw(victim_motion, 0x0c4c5080, capture.victim_frame, false)
+    capture.mask(511)
+    capture.clear_movement()
+
+move KoopaKlaw:
+    entry explicit
+    on special_s:
+        cue.throw.reset()
+        command(0) = 0
+        state.bite_repeat = false
+        state.throw_reversed = false
+        state.enter_flags(347, 0)
+        animation.start()
+        claw_arm()
+    on special_air_s:
+        cue.throw.reset()
+        command(0) = 0
+        state.bite_repeat = false
+        state.throw_reversed = false
+        state.enter_flags(353, 0)
+        animation.start()
+        claw_arm()
+    on ground_animation:
+        if animation.finished: state.finish()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_animation_facing_motion()
+    on air_physics:
+        let saved_y = velocity.y
+        physics.animation_velocity_plain()
+        velocity.y = saved_y
+        physics.fall_basic()
+    on ground_collision:
+        if collision.left_ground:
+            state.switch_to_air(353, 0x0c4c5088)
+            claw_arm()
+    on air_collision:
+        if collision.landed:
+            state.switch_to_ground(347, 0x0c4c5088)
+            claw_arm()
+            command(0) = 0
+
+action FighterEvents:
+    on load:
+        fighter.copy_ext_attributes()
+        damage.reverse_knockdown_pose = true
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on item_pickup:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_pickup_ext:
+        fighter.item_pickup(event.flag, 1, 1)
+    on item_drop:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 1, 1)
+    on item_visible:
+        fighter.item_visible(1)
+    on item_invisible:
+        fighter.item_invisible(1)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)
+    on throw_victim_motion:
+        if event.motion == Motion.throw_down:
+            if capture.victim_animation_family == AnimationFamily.peach or capture.victim_animation_family == AnimationFamily.zelda:
+                return Motion.thrown_down_alternate
+        return event.victim_motion
+    on cpu_initialize:
+        cpu.set_approach_spacing(attrs.cpu_initial_spacing)
+    on cpu_spacing_update:
+        cpu.set_approach_spacing(attrs.cpu_spacing_range * event.value)
+    on cpu_attack_motion:
+        return motion.id >= 341
+    on cpu_grab_motion:
+        # Stock classifies the ground waiting state only, not aerial wait.
+        return motion.id == 350
+    on cpu_attack_decision:
+        return false
+    on cpu_capture_decision:
+        return false
+    on cpu_pummel_special:
+        return motion.id == 350
+    on cpu_charge_decision:
+        return false
+    on cpu_charge_cancel:
+        pass
+    on cpu_ranged_allowed:
+        return cpu.floor_in_bounds
+    on cpu_ranged_candidates:
+        if grounded:
+            if cpu.ranged_unsafe(attrs.cpu_ranged_probe_distance): cpu.add_candidate(38)
+        else:
+            if not cpu.floor_in_bounds: cpu.add_candidate(38)
+    on cpu_threat:
+        if motion.id == 361 or motion.id == 362:
+            let float probe_x = 0
+            let float probe_y = 0
+            let int probe_line = -1
+            let bool blocked = stage.read_floor(position.x, position.y, other.position.x, other.position.y + 5, probe_x, probe_y, probe_line)
+            blocked = blocked and not stage.cpu_floor_excluded(probe_line)
+            if blocked: return false
+            return position.x + cpu.body_half_width + other.cpu.body_half_width > other.position.x and position.x - cpu.body_half_width - other.cpu.body_half_width < other.position.x
+        if motion.id == Motion.up_smash:
+            if position.x + cpu.body_half_width + other.cpu.body_half_width > other.position.x and position.x - cpu.body_half_width - other.cpu.body_half_width < other.position.x:
+                return position.y < other.position.y and other.position.y - position.y < attrs.cpu_up_smash_threat_height
+        return false
+    on grab_catch:
+        claw_catch()
+    on grabbed:
+        if airborne: capture.begin_attached(Motion.captured_damage_air)
+        else: capture.begin_attached(Motion.captured_damage_ground)
+    on state_348_animation:
+        claw_bite_animation()
+    on state_348_interrupt:
+        claw_bite_interrupt()
+    on state_348_physics:
+        physics.ground_friction()
+    on state_348_collision:
+        if collision.special_ground_lost: claw_drop()
+    on state_354_animation:
+        claw_bite_animation()
+    on state_354_interrupt:
+        claw_bite_interrupt()
+    on state_354_physics:
+        physics.air_gravity_and_friction()
+    on state_354_collision:
+        if collision.landed:
+            state.switch_to_ground(348, 0x0c4c5088)
+            capture.mask(511)
+            capture.clear_movement()
+    on state_349_animation:
+        claw_bite_animation()
+    on state_349_interrupt:
+        claw_bite_interrupt()
+    on state_349_physics:
+        physics.ground_friction()
+    on state_349_collision:
+        if collision.special_ground_lost: claw_drop()
+    on state_355_animation:
+        claw_bite_animation()
+    on state_355_interrupt:
+        claw_bite_interrupt()
+    on state_355_physics:
+        physics.air_gravity_and_friction()
+    on state_355_collision:
+        if collision.landed:
+            state.switch_to_ground(348, 0x0c4c5088)
+            capture.mask(511)
+            capture.clear_movement()
+    on state_350_animation:
+        pass
+    on state_350_interrupt:
+        claw_wait_interrupt()
+    on state_350_physics:
+        physics.ground_friction()
+    on state_350_collision:
+        if collision.special_ground_lost: claw_drop()
+    on state_356_animation:
+        pass
+    on state_356_interrupt:
+        claw_wait_interrupt()
+    on state_356_physics:
+        physics.air_gravity_and_friction()
+    on state_356_collision:
+        if collision.landed:
+            state.switch_to_ground(350, 0x044c1080)
+            capture.mask(511)
+            capture.clear_movement()
+            animation.set_rate(0)
+            state.bite_requested = false
+            command(0) = 0
+    on state_351_animation:
+        claw_release_animation()
+    on state_351_interrupt:
+        pass
+    on state_351_physics:
+        physics.ground_animation_facing_motion()
+    on state_351_collision:
+        if collision.special_ground_lost: claw_drop()
+    on state_357_animation:
+        claw_release_animation()
+    on state_357_interrupt:
+        pass
+    on state_357_physics:
+        physics.air_gravity_and_friction()
+    on state_357_collision:
+        if collision.landed: claw_land_throw()
+    on state_352_animation:
+        claw_release_animation()
+    on state_352_interrupt:
+        pass
+    on state_352_physics:
+        physics.ground_animation_facing_motion()
+    on state_352_collision:
+        if collision.special_ground_lost: claw_drop()
+    on state_358_animation:
+        claw_release_animation()
+    on state_358_interrupt:
+        pass
+    on state_358_physics:
+        physics.air_gravity_and_friction()
+    on state_358_collision:
+        if collision.landed: claw_land_throw()
+    on dynamics_ground_collision:
+        return false
+    # The stock damage/death2 callback installed by Fortress is empty.
+    on damage:
+        pass
+    on death2:
+        pass
+    on state_363_animation:
+        if animation.finished: state.finish()
+    on state_363_physics:
+        physics.ground_friction()
+    on state_363_collision:
+        if collision.left_ground: state.fall()
+    on death:
+        visuals.set_group(0, 0)
+        damage.armor = attrs.breath_armor
+        state.breath_length = attrs.breath_max_length
+        state.breath_size = attrs.breath_max_size
+    on late_update:
+        if motion.id < 341 or motion.id >= 347:
+            state.breath_length = min(attrs.breath_max_length, state.breath_length + attrs.breath_length_regen)
+            state.breath_size = min(attrs.breath_max_size, state.breath_size + attrs.breath_size_regen)
+
+    on state_342_animation:
+        breath_loop_animation()
+    on state_345_animation:
+        breath_loop_animation()
+    on state_342_interrupt:
+        breath_loop_interrupt()
+    on state_345_interrupt:
+        breath_loop_interrupt()
+    on state_342_physics:
+        physics.ground_friction()
+    on state_345_physics:
+        physics.air_drift()
+    on state_342_collision:
+        if collision.left_ground: state.switch_to_air(345, 0x0c4c5880)
+    on state_345_collision:
+        if collision.landed: state.switch_to_ground(342, 0x0c4c5880)
+    on state_343_animation:
+        if animation.finished: state.finish()
+    on state_346_animation:
+        if animation.finished: state.fall()
+    on state_343_interrupt:
+        pass
+    on state_346_interrupt:
+        pass
+    on state_343_physics:
+        physics.ground_friction()
+    on state_346_physics:
+        physics.air_drift()
+    on state_343_collision:
+        if collision.left_ground: state.switch_to_air(346, 0x0c4c5080)
+    on state_346_collision:
+        if collision.landed: state.switch_to_ground(343, 0x0c4c5080)
+
+
+article It_Kind_Koopa_Flame states 1:
+    attribute float lifetime 0
+    attribute float hitbox_lifetime 4
+    attribute float min_speed 8
+    attribute float max_speed 12
+    attribute float min_angle 16
+    attribute float max_angle 20
+    state float speed
+    state float angle
+    state float size
+    state float base_radius
+    state int age
+    state bool effect_spawned
+    state float direction_x
+    state float direction_y
+    state float direction_z
+    state float unit_x
+    state float unit_y
+    state float unit_z
+    state float previous_x
+    state float previous_y
+    state float previous_z
+    state float angle_difference
+    state float turn_amount
+    state float turn_fraction
+    state int appearance
+    state bool contact
+    projectile appearance -1 state 0 speed 0 angle 0 lifetime lifetime auto_lifetime off initial_velocity off initial_update off
+    on created:
+            item.command0 = 0
+            item.command1 = 0
+            item.command2 = 0
+            item.command3 = 0
+            # Stock's length, size and maximum getters truncate to integer.
+            item.state.speed = (int(owner.state.breath_length) / float(int(owner.params.breath_max_length))) * ((item.params.max_speed - item.params.min_speed) * random.float() + item.params.min_speed)
+            item.state.size = int(owner.state.breath_size) / float(int(owner.params.breath_max_size))
+            item.state.angle = (item.params.max_angle - item.params.min_angle) * random.float() + item.params.min_angle
+            if facing != 1: item.state.angle = -item.state.angle
+            item.state.angle = wrap_signed_angle(item.state.angle)
+            item.state.direction_x = facing
+            item.state.appearance = owner.state.breath_appearance
+            item.remove_at_bounds = false
+            item.owner_bound = false
+            if item.joint(0, "0").exists: item.joint(0, "0").local_visible = true
+            item.advance_animation()
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+            velocity.x = item.state.speed * sin(item.state.angle)
+            velocity.y = item.state.speed * cos(item.state.angle)
+            velocity.z = 0
+            item.state.unit_x = velocity.x
+            item.state.unit_y = velocity.y
+            item.state.unit_z = velocity.z
+            vectors.normalize(item.state.unit_x, item.state.unit_y, item.state.unit_z)
+            position.x = position.x - velocity.x
+            position.y = position.y - velocity.y
+            item.stage_collision()
+            position.x = item.state.previous_x
+            position.y = item.state.previous_y
+            position.z = item.state.previous_z
+    state 0 anim 0:
+        on animation:
+            if hitbox.enabled(0) and item.state.base_radius == 0: item.state.base_radius = hitbox.radius(0)
+            if hitbox.enabled(0): hitbox.set_radius(0, item.state.base_radius * item.state.size)
+            item.set_scale(item.state.size)
+            item.state.age = item.state.age + 1
+            if item.state.age > item.params.hitbox_lifetime: hitboxes.disable_all()
+            if not item.state.effect_spawned: item.spawn_root_effect(1243 + item.state.appearance)
+            item.state.effect_spawned = true
+            item.life = item.life - 1
+            return item.life <= 0
+        on physics:
+            item.state.previous_x = position.x
+            item.state.previous_y = position.y
+            item.state.previous_z = position.z
+            velocity.x = item.state.speed * sin(item.state.angle)
+            velocity.y = item.state.speed * cos(item.state.angle)
+            velocity.z = 0
+            item.state.unit_x = velocity.x
+            item.state.unit_y = velocity.y
+            item.state.unit_z = velocity.z
+            vectors.normalize(item.state.unit_x, item.state.unit_y, item.state.unit_z)
+        on collision:
+            item.state.angle = wrap_signed_angle(item.state.angle)
+            ecb.up = 3
+            ecb.down = 3
+            ecb.front = 3
+            ecb.back = 3
+            item.stage_collision()
+            item.state.contact = collision.floor_contact or collision.ceiling_contact or collision.left_wall or collision.right_wall
+            if collision.floor_contact: item.state.direction_x = item.state.direction_x + floor.normal.x
+            if collision.floor_contact: item.state.direction_y = item.state.direction_y + floor.normal.y
+            if collision.ceiling_contact: item.state.direction_x = item.state.direction_x + ceiling.normal.x
+            if collision.ceiling_contact: item.state.direction_y = item.state.direction_y + ceiling.normal.y
+            if collision.left_wall: item.state.direction_x = item.state.direction_x + wall.left.normal.x
+            if collision.left_wall: item.state.direction_y = item.state.direction_y + wall.left.normal.y
+            if collision.right_wall: item.state.direction_x = item.state.direction_x + wall.right.normal.x
+            if collision.right_wall: item.state.direction_y = item.state.direction_y + wall.right.normal.y
+            if item.state.contact: vectors.normalize(item.state.direction_x, item.state.direction_y, item.state.direction_z)
+            if item.state.contact: item.state.angle_difference = wrap_signed_angle(atan2(item.state.unit_x, item.state.unit_y) - atan2(item.state.direction_x, item.state.direction_y))
+            item.state.turn_amount = 0
+            if item.state.contact: item.state.turn_amount = vectors.angle(item.state.direction_x, item.state.direction_y, item.state.direction_z, item.state.unit_x, item.state.unit_y, item.state.unit_z)
+            if abs(item.state.angle_difference) < pi / 2: item.state.turn_fraction = 0.02 * (abs(item.state.angle_difference) / pi)
+            if abs(item.state.angle_difference) >= pi / 2: item.state.turn_fraction = 0.5 * (abs(item.state.angle_difference) / pi)
+            item.state.turn_amount = item.state.turn_amount * item.state.turn_fraction
+            if item.state.angle_difference < 0: item.state.turn_amount = -item.state.turn_amount
+            if item.state.angle_difference == 0: item.state.turn_amount = 0
+            if item.state.contact: item.state.angle = wrap_signed_angle(item.state.angle - item.state.turn_amount)
+            return false
+    on reflected:
+            item.state.angle = wrap_signed_angle(item.state.angle + pi)
+            facing = -facing
+            velocity.x = -velocity.x
+            velocity.y = -velocity.y
+            return false
+    on shield_bounced:
+            item.mirror_velocity()
+            velocity.z = 0
+            # Preserve stock's deliberate atan2(y,x) here, versus physics' sin/cos.
+            item.state.angle = wrap_signed_angle(atan2(velocity.y, velocity.x))
+            return false
+    on absorbed:
+            item.destroy_effects()
+            return true
+    on damage_dealt:
+            return false
+    on clanked:
+            return false
+    on hit_shield:
+            return false
+    on interaction:
+            item.interact(other)

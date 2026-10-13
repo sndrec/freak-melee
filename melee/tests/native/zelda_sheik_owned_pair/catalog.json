@@ -1,0 +1,22 @@
+{
+  "status": "PROPOSED ONLY; no defaults or shared sources edited",
+  "snapshot_sha256": "61d3deb09b0b0f5e98f493e8f545d0fc861d5b979c55ace5d853abbd8b46386a",
+  "census_sha256": "8cfc00c3018a0bfda59195b80d66fc040a4805386a4decef7e58b2aaba8491d3",
+  "source_inputs": {
+    "src/melee/ft/native_fighter_runtime.c": "6bf3d2d2c97aa259f9eb8251220480e52388f5cc9695fddc5dbe67527988913b",
+    "src/melee/ft/native_fighter_project.c": "0b4c75c71511c84b57f05d1554180a67fe5e447ff6fe41425397e2907e328fa2",
+    "src/melee/ft/native_fighter_article_bindings.c": "6ce385f881f67b864c7f46a40ebef7a30987539edbb2cddb73665141ab4bb406",
+    "tools/native_content_tool.c": "ac455cd9eaf18825d6b30777c4f41646d28862bf37e79c080bf9c0e55aca6533",
+    "src/melee/ft/kinds/ftZelda/ftzelda_clone.c": null,
+    "src/melee/ft/kinds/ftZelda/ftzelda_clone.h": null,
+    "src/melee/ft/kinds/ftSeak/ftsheik_clone.c": "363f6c176c5fff85e3874bbbd549bc87fa49a80d61f1df49f65c0a02a92ffd3d",
+    "src/melee/ft/kinds/ftSeak/ftsheik_clone.h": "04502c767e6d6ab6f1803657dd7ff48cfa331efa83f7efe44df3df4a70549c58"
+  },
+  "patch_sha256": "f4aa3bb54502a5b5f1f9309735b0dbd9ce1d7f6e3c39bf91b613f4da40cac065",
+  "base_inputs": {
+    "ftsheik_clone.c": "7eafcb7472e155af7e8528359d32a2f52c7c694d2500db2f1754316f22cf38e2",
+    "ftsheik_clone.h": "3d5f5ec07722aa4755cd764e2a20d23a7d7df357cb0427e76ab520f24823df13",
+    "ftzelda_clone.c": "744bcfc596eed0e08b3f5ed3105a7ba7bf9f96f4aa8742ea09a793443b8252d7",
+    "ftzelda_clone.h": "e75c093abf385d2fb905b58f668bd661e196c60a0dce4f912b3b665c330a824f"
+  }
+}

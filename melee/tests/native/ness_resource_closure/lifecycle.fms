@@ -1,0 +1,117 @@
+# Unregistered composition. Called by owned Bat/YoYo construction only.
+parameter int resource_attachment_joint = 42
+parameter int bat_smash_motion = 341
+parameter int bat_normal_mode = 0
+parameter int bat_presentation_mode = 1
+parameter float bat_lifetime = 1200
+parameter int yoyo_reverse_motion = 345
+parameter int yoyo_first_motion = 342
+parameter int yoyo_last_motion = 347
+parameter int yoyo_ecb_category = 5
+parameter float yoyo_string_radius = 1
+parameter float yoyo_tip_radius = 2
+parameter float yoyo_material_rate = 1
+parameter float yoyo_material_start_frame = 0
+state int bat_handle
+state int yoyo_handle
+state float yoyo_spin_rate
+state float yoyo_hit_x
+state float yoyo_hit_y
+state float yoyo_hit_z
+
+func resource_initialize():
+    state.flash_handle = -1
+    state.thunder_ball_handle = -1
+    state.bat_handle = -1
+    state.yoyo_handle = -1
+    state.thunder_effects_active = false
+
+func bat_forget():
+    state.bat_handle = -1
+
+func bat_remove():
+    if state.bat_handle != -1:
+        articles.signal(state.bat_handle, It_Kind_Ness_Bat, "remove", 0)
+        state.bat_handle = -1
+
+func yoyo_pause():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "pause", 0)
+
+func yoyo_resume():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "resume", 0)
+
+export func yoyo_forget():
+    # Native nested SetFlag resumes the still-published handle FIRST.
+    yoyo_resume()
+    state.yoyo_handle = -1
+
+func yoyo_remove():
+    if state.yoyo_handle != -1:
+        articles.signal(state.yoyo_handle, It_Kind_Ness_Yoyo, "remove", 0)
+        # Keep the outer source SetUnk2 after nested recipient clearing.
+        yoyo_resume()
+        state.yoyo_handle = -1
+
+func resource_damage():
+    yoyo_remove()
+    flash_detach()
+    thunder_damage()
+    bat_remove()
+
+func bat_finish_construction(int handle):
+    state.bat_handle = handle
+    if handle != -1:
+        callbacks.death2(resource_damage)
+        callbacks.damage(resource_damage)
+
+func yoyo_finish_construction(int handle):
+    state.yoyo_handle = handle
+    if handle == -1:
+        items.clear_auxiliary()
+    else:
+        let bool published = articles.bind_auxiliary(handle)
+        if callbacks.death2_is(None): callbacks.death2(resource_damage)
+        if callbacks.damage_is(None): callbacks.damage(resource_damage)
+    callbacks.track_hitlag()
+
+func bat_create(bool presentation):
+    let int mode = attrs.bat_normal_mode
+    if presentation: mode = attrs.bat_presentation_mode
+    # The twelfth Bool is actual initial-collision input, available in30.
+    let int handle = articles.create_with_velocity(It_Kind_Ness_Bat, position.x, position.y, 0, 0, 0, 0, facing.direction, true, 0, mode, false)
+    if presentation:
+        # Common incapacitated presentation owns item_gobj, NOT u.ns.bat_gobj,
+        # and does not install the smash damage callbacks.
+        if handle == -1:
+            items.clear_held()
+        else:
+            let bool published = items.bind_held(handle)
+    else:
+        bat_finish_construction(handle)
+
+func yoyo_create():
+    bones.world_position(attrs.resource_attachment_joint, state.yoyo_hit_x, state.yoyo_hit_y, state.yoyo_hit_z)
+    let int handle = articles.create_at_position(It_Kind_Ness_Yoyo, state.yoyo_hit_x, state.yoyo_hit_y, state.yoyo_hit_z, facing.direction, true, 0, motion.id)
+    yoyo_finish_construction(handle)
+
+# INSERT these events in place of the candidate FlashCleanup action; remove its
+# two partial damage/death2 handlers rather than retaining conflicting callbacks.
+action ResourceLifetime:
+    on load:
+        fighter.copy_ext_attributes()
+        resource_initialize()
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+    on death:
+        visuals.hide_group(0)
+        resource_initialize()
+    on damage:
+        resource_damage()
+    on death2:
+        resource_damage()
+    on pre_hitlag:
+        yoyo_pause()
+    on post_hitlag:
+        yoyo_resume()

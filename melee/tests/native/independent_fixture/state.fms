@@ -1,0 +1,21 @@
+fighter:
+    behavior independent
+move Neutral:
+    on special_n:
+        pass
+    on state_341_animation:
+        pass
+    on state_341_interrupt:
+        pass
+    on state_341_physics:
+        pass
+    on state_341_collision:
+        pass
+move OtherMotion:
+    on state_342_animation:
+        pass
+move Lifecycle:
+    on load:
+        pass
+    on load_special_attrs:
+        pass

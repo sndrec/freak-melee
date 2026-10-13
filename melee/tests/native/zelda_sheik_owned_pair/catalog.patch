@@ -1,0 +1,258 @@
+--- a/src/melee/ft/native_fighter_runtime.c
++++ b/src/melee/ft/native_fighter_runtime.c
+@@ -43,6 +43,8 @@
+ #include <melee/ft/kinds/ftNess/ftness_clone.h>
+ #include <melee/ft/kinds/ftPeach/ftpeach_clone.h>
+ #include <melee/ft/kinds/ftGameWatch/ftgamewatch_clone.h>
++#include <melee/ft/kinds/ftZelda/ftzelda_clone.h>
++#include <melee/ft/kinds/ftSeak/ftsheik_clone.h>
+ #include <melee/ft/kinds/ftRook/ftrook.h>
+ #include <melee/pl/player.h>
+ #include <melee/it/native_holdable.h>
+@@ -147,6 +149,8 @@
+     { Ft_Kind_Ness, &ftNessClone_Definition },
+     { Ft_Kind_Peach, &ftPeachClone_Definition },
+     { Ft_Kind_GameWatch, &ftGameWatchClone_Definition },
++    { Ft_Kind_Zelda, &ftZeldaClone_Definition },
++    { Ft_Kind_Seak, &ftSheikClone_Definition },
+ };
+ 
+ FighterKind nativeFighterRuntime_AnimationFamily(Fighter* fighter)
+--- a/src/melee/ft/native_fighter_project.c
++++ b/src/melee/ft/native_fighter_project.c
+@@ -132,6 +132,8 @@
+     case Ft_Kind_Ness: return "Ness";
+     case Ft_Kind_Peach: return "Peach";
+     case Ft_Kind_GameWatch: return "Game & Watch";
++    case Ft_Kind_Zelda: return "Zelda";
++    case Ft_Kind_Seak: return "Sheik";
+     default: return NULL;
+     }
+ }
+--- a/src/melee/ft/native_fighter_article_bindings.c
++++ b/src/melee/ft/native_fighter_article_bindings.c
+@@ -40,6 +40,12 @@
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_PKFlush_Explode, 8, -1),
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_Bat, 9, -1),
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_Yoyo, 10, -1),
++    SLOT(Ft_Kind_Zelda, It_Kind_Zelda_DinFire, 0, -1),
++    SLOT(Ft_Kind_Zelda, It_Kind_Zelda_DinFire_Explode, 1, -1),
++    SLOT(Ft_Kind_Seak, It_Kind_Seak_NeedleThrow, 0, -1),
++    SLOT(Ft_Kind_Seak, It_Kind_Seak_NeedleHeld, 1, -1),
++    SLOT(Ft_Kind_Seak, It_Kind_Seak_Vanish, 2, -1),
++    SLOT(Ft_Kind_Seak, It_Kind_Seak_Chain, 3, -1),
+     SLOT(Ft_Kind_Yoshi, It_Kind_Yoshi_EggThrow, 0, -1),
+     SLOT(Ft_Kind_Yoshi, It_Kind_Yoshi_Star, 1, -1),
+     SLOT(Ft_Kind_Yoshi, It_Kind_Yoshi_EggLay, 2, -1),
+--- a/tools/native_content_tool.c
++++ b/tools/native_content_tool.c
+@@ -60,7 +60,7 @@
+         "  uninstall PACKAGE_ID\n"
+         "  export PACKAGE_ID OUTPUT.fmc\n"
+         "  extract-stock ISO CHARACTER BASE_COLOR OUTPUT.dat\n"
+-        "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\" PROJECT_DIRECTORY TITLE\n"
++        "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\"|Zelda|Sheik PROJECT_DIRECTORY TITLE\n"
+         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
+         "  inspect-project PROJECT_DIRECTORY\n"
+         "  project-model-scan SOURCE.glb\n"
+--- /dev/null
++++ b/src/melee/ft/kinds/ftZelda/ftzelda_clone.c
+@@ -0,0 +1,104 @@
++#include "ftzelda_clone.h"
++#ifdef MELEE_NATIVE
++#include <melee/ft/kinds/ftZelda/ftzelda.h>
++#include <melee/ft/kinds/ftZelda/ftzeldaspecialn.h>
++#include <melee/ft/kinds/ftZelda/ftzeldaspecials.h>
++#include <melee/ft/kinds/ftZelda/ftzeldaspecialhi.h>
++#include <melee/ft/kinds/ftZelda/ftzeldaspeciallw.h>
++#include <melee/ft/types.h>
++
++// Proposed raw catalog base, not registered. Raw fallback remains stock.
++// Independent generated modules must replace gameplay callbacks.
++static const NativeFighterBone ftZeldaClone_Bones[] = {
++    { FtPart_TopN, 0 },
++    { FtPart_TransN, 1 },
++    { FtPart_XRotN, 2 },
++    { FtPart_YRotN, 3 },
++    { FtPart_HipN, 4 },
++    { FtPart_LLegJA, 5 },
++    { FtPart_LLegJ, 6 },
++    { FtPart_LKneeJ, 7 },
++    { FtPart_LFootJA, 8 },
++    { FtPart_LFootJ, 9 },
++    { FtPart_RLegJA, 11 },
++    { FtPart_RLegJ, 12 },
++    { FtPart_RKneeJ, 13 },
++    { FtPart_RFootJA, 14 },
++    { FtPart_RFootJ, 15 },
++    { FtPart_BustN, 66 },
++    { FtPart_LShoulderN, 67 },
++    { FtPart_LShoulderJA, 68 },
++    { FtPart_LShoulderJ, 71 },
++    { FtPart_LArmJ, 72 },
++    { FtPart_LHandN, 73 },
++    { FtPart_L1stNa, 76 },
++    { FtPart_L1stNb, 77 },
++    { FtPart_L2ndNa, 78 },
++    { FtPart_L2ndNb, 79 },
++    { FtPart_L3rdNa, 80 },
++    { FtPart_L3rdNb, 81 },
++    { FtPart_L4thNa, 82 },
++    { FtPart_L4thNb, 83 },
++    { FtPart_LThumbNa, 84 },
++    { FtPart_LThumbNb, 85 },
++    { FtPart_LHandNb, 86 },
++    { FtPart_NeckN, 87 },
++    { FtPart_HeadN, 88 },
++    { FtPart_RShoulderN, 89 },
++    { FtPart_RShoulderJA, 96 },
++    { FtPart_RShoulderJ, 99 },
++    { FtPart_RArmJ, 100 },
++    { FtPart_RHandN, 101 },
++    { FtPart_R1stNa, 104 },
++    { FtPart_R1stNb, 105 },
++    { FtPart_R2ndNa, 106 },
++    { FtPart_R2ndNb, 107 },
++    { FtPart_R3rdNa, 108 },
++    { FtPart_R3rdNb, 109 },
++    { FtPart_R4thNa, 110 },
++    { FtPart_R4thNb, 111 },
++    { FtPart_RThumbNa, 112 },
++    { FtPart_RThumbNb, 113 },
++    { FtPart_RHandNb, 114 },
++    { FtPart_ThrowN, 115 },
++    { FtPart_TransN2, 116 },
++    { 53, 117 },
++};
++
++static const NativeFighterArticleAsset ftZeldaClone_Articles[] = {
++    { It_Kind_Zelda_DinFire, 0, -1 },
++    { It_Kind_Zelda_DinFire_Explode, 1, -1 },
++};
++
++static const Fighter_DemoStrings ftZeldaClone_DemoMotionNames = {
++    "ftDemoResultMotionFileZelda",
++    "ftDemoIntroMotionFileZelda",
++    "ftDemoEndingMotionFileZelda",
++    "ftDemoViWaitMotionFileZelda",
++};
++
++const NativeFighterDefinition ftZeldaClone_Definition = {
++    .code_key = "zelda_clone", .source_kind = Ft_Kind_Zelda,
++    .animation_source_kind = Ft_Kind_Zelda,
++    .sound_banks = UINT64_C(1) << 27, .sound_mute_channels = 0x44, .effect_bank = 17,
++    .asset_layout = { .article_mask = 0x003 },
++    .article_assets = ftZeldaClone_Articles, .article_asset_count = 2,
++    .bones = ftZeldaClone_Bones, .bone_count = 53,
++    .demo_motion_names = &ftZeldaClone_DemoMotionNames,
++    .fighter_root = "ftDataZelda", .costume_joint = "PlyZelda5K_Share_joint",
++    .costume_matanim = "PlyZelda5K_Share_matanim_joint",
++    .action_count = 311, .demo_count = 14, .joint_count = 118,
++    .motion_state_first = ftCo_MS_Count, .motion_state_count = ftZd_MS_SelfCount,
++    .motion_states = ftZd_Init_MotionStateTable,
++    .special_ground_state = { ftZd_MS_SpecialN, ftZd_MS_SpecialSStart, ftZd_MS_SpecialHiStart_0, ftZd_MS_SpecialLw },
++    .special_air_state = { ftZd_MS_SpecialAirN, ftZd_MS_SpecialAirSStart, ftZd_MS_SpecialAirHiStart_0, ftZd_MS_SpecialAirLw },
++    .special_n = ftZd_SpecialN_Enter,
++    .special_air_n = ftZd_SpecialAirN_Enter,
++    .special_s = ftZd_SpecialS_Enter,
++    .special_air_s = ftZd_SpecialAirS_Enter,
++    .special_hi = ftZd_SpecialHi_Enter,
++    .special_air_hi = ftZd_SpecialAirHi_Enter,
++    .special_lw = ftZd_SpecialLw_Enter,
++    .special_air_lw = ftZd_SpecialAirLw_Enter,
++};
++#endif
+--- /dev/null
++++ b/src/melee/ft/kinds/ftZelda/ftzelda_clone.h
+@@ -0,0 +1,5 @@
++#ifndef NATIVE_FT_ZELDA_CLONE_H
++#define NATIVE_FT_ZELDA_CLONE_H
++#include <melee/ft/native_fighter_runtime.h>
++extern const NativeFighterDefinition ftZeldaClone_Definition;
++#endif
+--- a/src/melee/ft/kinds/ftSeak/ftsheik_clone.c
++++ b/src/melee/ft/kinds/ftSeak/ftsheik_clone.c
+@@ -1,15 +1,14 @@
+ #include "ftsheik_clone.h"
+ #ifdef MELEE_NATIVE
+-#include "ftseak.h"
+-#include "ftseakspecialn.h"
+-#include "ftseakspecials.h"
+-#include "ftseakspecialhi.h"
+-#include "ftseakspeciallw.h"
++#include <melee/ft/kinds/ftSeak/ftseak.h>
++#include <melee/ft/kinds/ftSeak/ftseakspecialn.h>
++#include <melee/ft/kinds/ftSeak/ftseakspecials.h>
++#include <melee/ft/kinds/ftSeak/ftseakspecialhi.h>
++#include <melee/ft/kinds/ftSeak/ftseakspeciallw.h>
+ #include <melee/ft/types.h>
+ 
+-// Unregistered copied-asset base. Raw catalog fallback remains stock; a future
+-// complete authored module must replace all decisions before source_kind=None.
+-// USA v1.02 PlCo.dat has 52 mappings, 58 runtime parts and zero omissions.
++// Proposed raw catalog base, not registered. Raw fallback remains stock.
++// Independent generated modules must replace gameplay callbacks.
+ static const NativeFighterBone ftSheikClone_Bones[] = {
+     { FtPart_TopN, 0 },
+     { FtPart_TransN, 1 },
+@@ -73,7 +72,6 @@
+ };
+ 
+ static const NativeFighterPoseGraph ftSheikClone_Poses[] = {
+-    // Sorted name hashes, exactly the declarations in the Chain component.
+     { UINT32_C(305010971), 4, "0" },
+     { UINT32_C(1363947600), 5, "0" },
+ };
+@@ -86,32 +84,21 @@
+ };
+ 
+ const NativeFighterDefinition ftSheikClone_Definition = {
+-    .code_key = "sheik_clone",
+-    .source_kind = Ft_Kind_Seak,
++    .code_key = "sheik_clone", .source_kind = Ft_Kind_Seak,
+     .animation_source_kind = Ft_Kind_Seak,
+-    .sound_banks = UINT64_C(1) << 27,
+-    .sound_mute_channels = 0x44,
+-    .effect_bank = 17,
+-    .asset_layout = { .article_mask = 0x00F, .joint_graph_mask = 0x030,
+-                      .item_format = FtCharacterItems_Chain },
+-    .article_assets = ftSheikClone_Articles,
+-    .article_asset_count = sizeof(ftSheikClone_Articles) / sizeof(ftSheikClone_Articles[0]),
+-    .bones = ftSheikClone_Bones,
+-    .bone_count = sizeof(ftSheikClone_Bones) / sizeof(ftSheikClone_Bones[0]),
+-    .pose_graphs = ftSheikClone_Poses,
+-    .pose_graph_count = sizeof(ftSheikClone_Poses) / sizeof(ftSheikClone_Poses[0]),
++    .sound_banks = UINT64_C(1) << 27, .sound_mute_channels = 0x44, .effect_bank = 17,
++    .asset_layout = { .article_mask = 0x00F, .joint_graph_mask = 0x030, .item_format = FtCharacterItems_Chain },
++    .article_assets = ftSheikClone_Articles, .article_asset_count = 4,
++    .bones = ftSheikClone_Bones, .bone_count = 52,
++    .pose_graphs = ftSheikClone_Poses, .pose_graph_count = 2,
+     .demo_motion_names = &ftSheikClone_DemoMotionNames,
+-    .fighter_root = "ftDataSeak",
+-    .costume_joint = "PlySeak5K_Share_joint",
++    .fighter_root = "ftDataSeak", .costume_joint = "PlySeak5K_Share_joint",
+     .costume_matanim = "PlySeak5K_Share_matanim_joint",
+     .action_count = 317, .demo_count = 14, .joint_count = 58,
+-    .motion_state_first = ftCo_MS_Count,
+-    .motion_state_count = ftSk_MS_SelfCount,
++    .motion_state_first = ftCo_MS_Count, .motion_state_count = ftSk_MS_SelfCount,
+     .motion_states = ftSk_Init_MotionStateTable,
+-    .special_ground_state = { ftSk_MS_SpecialNStart, ftSk_MS_SpecialSStart,
+-                              ftSk_MS_SpecialHiStart_0, ftSk_MS_SpecialLw },
+-    .special_air_state = { ftSk_MS_SpecialAirNStart, ftSk_MS_SpecialAirSStart,
+-                           ftSk_MS_SpecialAirHiStart_0, ftSk_MS_SpecialAirLw },
++    .special_ground_state = { ftSk_MS_SpecialNStart, ftSk_MS_SpecialSStart, ftSk_MS_SpecialHiStart_0, ftSk_MS_SpecialLw },
++    .special_air_state = { ftSk_MS_SpecialAirNStart, ftSk_MS_SpecialAirSStart, ftSk_MS_SpecialAirHiStart_0, ftSk_MS_SpecialAirLw },
+     .special_n = ftSk_SpecialN_Enter,
+     .special_air_n = ftSk_SpecialAirN_Enter,
+     .special_s = ftSk_SpecialS_Enter,
+--- a/src/melee/ft/kinds/ftSeak/ftsheik_clone.h
++++ b/src/melee/ft/kinds/ftSeak/ftsheik_clone.h
+@@ -1,5 +1,5 @@
+-#ifndef MELEE_FT_SHEIK_CLONE_H
+-#define MELEE_FT_SHEIK_CLONE_H
++#ifndef NATIVE_FT_SHEIK_CLONE_H
++#define NATIVE_FT_SHEIK_CLONE_H
+ #include <melee/ft/native_fighter_runtime.h>
+ extern const NativeFighterDefinition ftSheikClone_Definition;
+ #endif

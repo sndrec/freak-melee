@@ -1,0 +1,10 @@
+{
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspecials.c": "f635af265aba069ae1d56edfd106cca5371c22e0a386ce610a148eb2f937484e",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspecialhi.c": "abfab6f2a8de6772ba24448b17e41884b850fcf5612f230f20e9c56f82d6344c",
+  "src/melee/ft/kinds/ftGameWatch/ftgamewatchspeciallw.c": "f96fae2fe9653ae430f9ebb676606069842e4540c6b115ecc92027ad5db34b9e",
+  "src/melee/ft/ftcoll.c": "0f51d1d43e9ef0dcc46e63cf0db4fce0fe5a81a0b43492677db146f4179f41a0",
+  "src/melee/it/kinds/itgamewatchjudge.c": "6807a36a9a1c6489f709bb026c1af5b8303dcab7e676d0470eb5d2021fded464",
+  "src/melee/it/kinds/itgamewatchpanic.c": "37c5e68e3384b6f7def4c0e8e37ec8d6c1c5d61243d9712dd7cf7e7398696574",
+  "src/melee/it/kinds/itgamewatchrescue.c": "de0207cc9ad5aeeb901781e9edde33a0791a78124352b9fa75d1f848842769e2",
+  "src/melee/it/it_26B1.c": "e52996c8fcb6727366dc6f5ac5965a09a4f644fe0088ff3e1c3a30d3a1a6276e"
+}

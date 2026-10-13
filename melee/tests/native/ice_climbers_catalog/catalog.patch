@@ -1,0 +1,57 @@
+--- a/src/melee/ft/native_fighter_runtime.c
++++ b/src/melee/ft/native_fighter_runtime.c
+@@ -45,6 +45,8 @@
+ #include <melee/ft/kinds/ftGameWatch/ftgamewatch_clone.h>
+ #include <melee/ft/kinds/ftZelda/ftzelda_clone.h>
+ #include <melee/ft/kinds/ftSeak/ftsheik_clone.h>
++#include <melee/ft/kinds/ftPopo/ftpopo_clone.h>
++#include <melee/ft/kinds/ftNana/ftnana_clone.h>
+ #include <melee/ft/kinds/ftRook/ftrook.h>
+ #include <melee/pl/player.h>
+ #include <melee/it/native_holdable.h>
+@@ -151,6 +153,8 @@
+     { Ft_Kind_GameWatch, &ftGameWatchClone_Definition },
+     { Ft_Kind_Zelda, &ftZeldaClone_Definition },
+     { Ft_Kind_Seak, &ftSheikClone_Definition },
++    { Ft_Kind_Popo, &ftPopoClone_Definition },
++    { Ft_Kind_Nana, &ftNanaClone_Definition },
+ };
+ 
+ FighterKind nativeFighterRuntime_AnimationFamily(Fighter* fighter)
+--- a/src/melee/ft/native_fighter_project.c
++++ b/src/melee/ft/native_fighter_project.c
+@@ -134,6 +134,8 @@
+     case Ft_Kind_GameWatch: return "Game & Watch";
+     case Ft_Kind_Zelda: return "Zelda";
+     case Ft_Kind_Seak: return "Sheik";
++    case Ft_Kind_Popo: return "Popo";
++    case Ft_Kind_Nana: return "Nana";
+     default: return NULL;
+     }
+ }
+--- a/src/melee/ft/native_fighter_article_bindings.c
++++ b/src/melee/ft/native_fighter_article_bindings.c
+@@ -40,6 +40,12 @@
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_PKFlush_Explode, 8, -1),
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_Bat, 9, -1),
+     SLOT(Ft_Kind_Ness, It_Kind_Ness_Yoyo, 10, -1),
++    SLOT(Ft_Kind_Popo, It_Kind_IceClimber_Ice, 0, -1),
++    SLOT(Ft_Kind_Popo, It_Kind_IceClimber_Blizzard, 1, -1),
++    SLOT(Ft_Kind_Popo, It_Kind_IceClimber_GumStrings, 2, -1),
++    SLOT(Ft_Kind_Nana, It_Kind_IceClimber_Ice, 0, -1),
++    SLOT(Ft_Kind_Nana, It_Kind_IceClimber_Blizzard, 1, -1),
++    SLOT(Ft_Kind_Nana, It_Kind_IceClimber_GumStrings, 2, -1),
+     SLOT(Ft_Kind_Zelda, It_Kind_Zelda_DinFire, 0, -1),
+     SLOT(Ft_Kind_Zelda, It_Kind_Zelda_DinFire_Explode, 1, -1),
+     SLOT(Ft_Kind_Seak, It_Kind_Seak_NeedleThrow, 0, -1),
+--- a/tools/native_content_tool.c
++++ b/tools/native_content_tool.c
+@@ -60,7 +60,7 @@
+         "  uninstall PACKAGE_ID\n"
+         "  export PACKAGE_ID OUTPUT.fmc\n"
+         "  extract-stock ISO CHARACTER BASE_COLOR OUTPUT.dat\n"
+-        "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\"|Zelda|Sheik PROJECT_DIRECTORY TITLE\n"
++        "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\"|Zelda|Sheik|Popo|Nana PROJECT_DIRECTORY TITLE\n"
+         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
+         "  inspect-project PROJECT_DIRECTORY\n"
+         "  project-model-scan SOURCE.glb\n"

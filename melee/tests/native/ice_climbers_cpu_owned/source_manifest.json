@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_FROZEN",
+  "scope": "unregistered authored follower and primary capture source composition; controlled engine boundaries",
+  "latest_executed_receipt": {
+    "path": "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\receipt.json",
+    "sha256": "02882243bdba293ba02723467fcf67c26392f61ca291134520e4281914798414",
+    "status": "PASS",
+    "driver_reporting_followup": "complete body hashes, accepted dependency hashes and structured result counts; no behavioral input changes"
+  },
+  "namespace_inputs": {
+    "capture.fms": "0c51c1a1ab8b3afe8ba9c2d44a27a1ae00f10cf3bd74de6debc6aa18a76d139f",
+    "compare.c": "4d895da34a2d8a3e1d4825b5e0f9c691c0d75d1a64b3624eb3c4d2994e36a995",
+    "follower.fms": "0cce7787e1639c08d73ac0566b548c8a026de67fc3ddc4871389b3760ad70b4e",
+    "generate.c": "97846853c58ae3330205c60b5b8a11053eae0c33e82ebf5e2ec5e48a1f885254",
+    "parameters.fms": "9af6a978b095b362e3691b765f74c74c8979fd17536fad570373eb87c11a0fca",
+    "query_fixture.fms": "840633ad03cdd22f5c15ad798ba5fc33d8b7b36f817ddfb85638c41f461ca7b4",
+    "README.md": "a00f58223eb8ee3d3fe7ad144ace765d4969f14ee4ea5589066f472ab80d24b8",
+    "run.py": "8ce566cec69514a16bf6c1ed96522595c32224c6dec05b0895a9bb75bc95c097"
+  },
+  "accepted_component_inputs": {
+    "tests\\native\\ice_climbers_composition\\fighter.fms": "3cbe90b5e9beaabcbf8e9333360d5bf1a4e65dbdea746190fb5d004bb2c06679",
+    "tests\\native\\ice_climbers_composition\\ice.fms": "970333cd853ee0bcaa5bef868c33376a6f08e51039bb72e064ecfd33cbc7ac67",
+    "tests\\native\\ice_climbers_composition\\blizzard.fms": "4c8cd3382f9e9a3cfb67e9c0c9d747c3927abe24ca352a57311db01a1075c90a"
+  },
+  "snapshot_manifests": {
+    "71": "820f4d64f0809c1d9cb412d54d84797b689434b753f714216179397e3c274b60",
+    "72": "b8543ec1953839a4f93cac9ad9275426463635f8cd67844d5850fcf191bd554d"
+  },
+  "counts_per_route": {
+    "whole_phase_pairs": 506488,
+    "eligibility_pairs": 551300,
+    "threshold_pairs": 504,
+    "checks": 21580064,
+    "authored_safety_cases": 17,
+    "compiler_checks": 15,
+    "max_float_error": 0
+  },
+  "generated_inputs": {
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\blizzard_entry.h": "8cccc3025b17739219f3533a5ce1aefa487dc53ce1ce6ec2fbcbcccca7ab56b4",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\capture_body.h": "aa437f8d6ef4527647d7ebeea71c3035c43ddb3128adb8af71588d77c2dd26f2",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\common_bodies.h": "a00217bd9faf8b3447914fd7e0748c43d7ca7a1f1494cb58f30e38bf2510dcb9",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\host_0.inc": "09b1b90b00f44647eaa4866a8035260b2d1c1d9c1cf4e46c4fe78ffcee0cc560",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\host_1.inc": "09b1b90b00f44647eaa4866a8035260b2d1c1d9c1cf4e46c4fe78ffcee0cc560",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_0.fmp": "5a84fb0bf83dfdc5aa223585759c296089d1e8ea12acc852eafffd16f0a88c60",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_0.fms": "9092c4df6e26fe68ab40f19675ad9ae5067df1d58c1214b005476113d34fc8fd",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_0.inc": "da018af0d122fd5af1d8c82cd435d6b1a0de9d4f191af330fe4a53772e6b21c5",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_1.fmp": "5a84fb0bf83dfdc5aa223585759c296089d1e8ea12acc852eafffd16f0a88c60",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_1.fms": "79f46f1a5fa786b1f5abf6dfa2b7664d91e5d1fff524a91cc4a1536c91ea62c1",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\owned_1.inc": "40ed34101acf7b02e12bc5008ff49c10a25d79d3c6c901a4dc776720c14aa980",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\parameters.fms": "9af6a978b095b362e3691b765f74c74c8979fd17536fad570373eb87c11a0fca",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\parameters_0.inc": "52683f4c57171b807c0408fe5a87941912c0b543802c73bdc56b70ab0502f9ba",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\parameters_1.inc": "52683f4c57171b807c0408fe5a87941912c0b543802c73bdc56b70ab0502f9ba",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\stock_bodies.h": "49c531de335488e0d40d0f59fa0d2c97a48f62fd77e6a32b83bf6381b479f2f1",
+    "A:\\FreakMelee-test-archives\\ice-climbers-cpu72-eleventh\\target_bodies.h": "e4ca21266704686252305547fc11206cc0fbe92ad059f1edf8092ae506cf5a6e"
+  }
+}

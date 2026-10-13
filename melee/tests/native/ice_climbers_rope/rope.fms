@@ -1,0 +1,343 @@
+# Unregistered Gumstrings policy. No native solver, linked-list or union access.
+# Resource index0 is original head(x8); count-1 is original tail(x4).
+article It_Kind_IceClimber_GumStrings states 4:
+    attribute int link_count 0
+    attribute int inactive_limit 4
+    attribute float maximum_length 8
+    attribute float minimum_length 12
+    attribute float gravity 20
+    attribute int extend_command 24
+    attribute int fall_command 28
+    attribute int retract_command 32
+    parameter float gravity_tail_multiplier = 0.9
+    parameter float horizontal_decay = 0.9
+    parameter float activation_distance = 0.1
+    parameter float retract_distance = 2.25
+    parameter float vertical_basis_limit = 0.9999
+    parameter float collision_radius = 1
+    parameter int collision_category = 5
+    parameter int attachment_part = 29
+    parameter int removal_command = 83
+    resources capacity 40
+    model_root Segment 36
+    model_root Tail 40
+    state bool active[40]
+    state float matrix[12]
+    state float direction_x
+    state float direction_y
+    state float direction_z
+    state float anchor_x
+    state float anchor_y
+    state float anchor_z
+    state float retract_distance
+    state int tail
+
+    func Place(int node, float x, float y, float z):
+        item.resource(node).position.x = x
+        item.resource(node).position.y = y
+        item.resource(node).position.z = z
+
+    func Advance(int node):
+        item.resource(node).position.x = item.resource(node).position.x + item.resource(node).velocity.x
+        item.resource(node).position.y = item.resource(node).position.y + item.resource(node).velocity.y
+        item.resource(node).position.z = item.resource(node).position.z + item.resource(node).velocity.z
+
+    # Original it_802A3C98: subtract, sqrt, zero reciprocal, then three products.
+    func Measure(float ax, float ay, float az, float bx, float by, float bz) -> float:
+        item.state.direction_x = ax - bx
+        item.state.direction_y = ay - by
+        item.state.direction_z = az - bz
+        let float length = sqrt(item.state.direction_x * item.state.direction_x + item.state.direction_y * item.state.direction_y + item.state.direction_z * item.state.direction_z)
+        let float inverse = 0
+        if length != 0:
+            inverse = 1 / length
+        item.state.direction_x = item.state.direction_x * inverse
+        item.state.direction_y = item.state.direction_y * inverse
+        item.state.direction_z = item.state.direction_z * inverse
+        return length
+
+    func PlaceMeasured(int node, float x, float y, float z, float length):
+        Place(node, item.state.direction_x * length + x, item.state.direction_y * length + y, item.state.direction_z * length + z)
+
+    func Draw(int node, bool active):
+        item.state.active[node] = active
+        # Tail has unconditional original GX callback even when solver-inactive.
+        let bool drawing = item.resource(node).set_draw(active or node == item.state.tail)
+
+    func Anchor(int node):
+        item.resource(node).read_attachment_point(0, 0, 0, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+
+    func ConstrainForward(int node, float length, bool falling):
+        let float measured = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        PlaceMeasured(node, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, length)
+        let int next = node + 1
+        while next <= item.state.tail:
+            if falling:
+                item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.gravity
+                Advance(next)
+            if falling or item.state.active[next]:
+                measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.maximum_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+            node = next
+            next = next + 1
+
+    func PullMinimum(int node, int next):
+        let float first_x = item.state.direction_x
+        let float first_y = item.state.direction_y
+        let float first_z = item.state.direction_z
+        let float measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        if measured <= item.params.activation_distance:
+            Draw(next, false)
+        else:
+            # The second measurement writes dir2; placement uses dir.
+            item.state.direction_x = first_x
+            item.state.direction_y = first_y
+            item.state.direction_z = first_z
+            PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.minimum_length)
+
+    func Extend(bool falling) -> int:
+        let int node = item.state.tail
+        if falling:
+            item.resource(node).velocity.y = item.resource(node).velocity.y - item.params.gravity_tail_multiplier * item.params.gravity
+        let float endpoint_x = creator.state.linked_rope_endpoint_x
+        let float endpoint_y = creator.state.linked_rope_endpoint_y
+        if endpoint_x != 0 or endpoint_y != 0:
+            let float endpoint_z = creator.state.linked_rope_endpoint_z
+            Place(node, endpoint_x, endpoint_y, endpoint_z)
+        elif falling:
+            Advance(node)
+        if not falling:
+            item.resource(node).velocity.x = 0
+            item.resource(node).velocity.y = 0
+            item.resource(node).velocity.z = 0
+        let int next = node - 1
+        let int counter = 0
+        while next >= 0:
+            counter = counter + 1
+            if item.state.active[next]:
+                if falling:
+                    item.resource(next).velocity.y = item.resource(next).velocity.y - item.params.gravity
+                    Advance(next)
+                else:
+                    Place(next, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+                let float measured = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                if measured > item.params.maximum_length:
+                    PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+                elif not falling and measured < item.params.minimum_length:
+                    PullMinimum(node, next)
+            else:
+                if falling and counter > item.params.inactive_limit:
+                    Place(next, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+                else:
+                    let float measured = Measure(item.state.anchor_x, item.state.anchor_y, item.state.anchor_z, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z)
+                    if measured > item.params.maximum_length:
+                        PlaceMeasured(next, item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.params.maximum_length)
+                        Draw(next, true)
+                    else:
+                        return 0
+            node = next
+            next = next - 1
+        if falling:
+            ConstrainForward(node, item.params.maximum_length, false)
+            item.resource(item.state.tail).velocity.x = item.resource(item.state.tail).velocity.x * item.params.horizontal_decay
+        return 2
+
+    func Retract() -> bool:
+        let int node = 0
+        let int next = 1
+        while next <= item.state.tail and not item.state.active[node]:
+            node = next
+            next = next + 1
+        let float distance = Measure(item.resource(node).position.x, item.resource(node).position.y, item.resource(node).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        while next <= item.state.tail and item.state.retract_distance > distance:
+            Draw(node, false)
+            distance = Measure(item.resource(next).position.x, item.resource(next).position.y, item.resource(next).position.z, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+            node = next
+            next = next + 1
+        let float remaining = distance - item.state.retract_distance
+        if remaining > item.params.maximum_length:
+            remaining = item.params.maximum_length
+        ConstrainForward(node, remaining, true)
+        return next > item.state.tail
+
+    func Change(int motion):
+        item.change_state_flags(motion, 2)
+        item.joint("").visible = true
+        item.track_accessory()
+
+    func Fold():
+        Draw(item.state.tail, false)
+        item.resource(item.state.tail).read_attachment_matrix(item.state.matrix)
+        item.resource(item.state.tail).set_world_matrix(item.state.matrix)
+
+    func StartExtend():
+        Anchor(item.state.tail)
+        Place(item.state.tail, item.state.anchor_x, item.state.anchor_y, item.state.anchor_z)
+        item.resource(item.state.tail).collision.position.x = item.state.anchor_x
+        item.resource(item.state.tail).collision.position.y = item.state.anchor_y
+        item.resource(item.state.tail).collision.position.z = item.state.anchor_z
+        item.resource(item.state.tail).collision.previous.x = item.state.anchor_x
+        item.resource(item.state.tail).collision.previous.y = item.state.anchor_y
+        item.resource(item.state.tail).collision.previous.z = item.state.anchor_z
+        Draw(item.state.tail, true)
+        Change(1)
+
+    func Orient(int node, float x, float y, float z):
+        let float measured = Measure(x, y, z, 0, 0, 0)
+        let float forward_x = item.state.direction_x
+        let float forward_y = item.state.direction_y
+        let float forward_z = item.state.direction_z
+        # BCB88 normalizes once;6DC8 normalizes a second time before the crosses.
+        measured = Measure(forward_x, forward_y, forward_z, 0, 0, 0)
+        forward_x = item.state.direction_x
+        forward_y = item.state.direction_y
+        forward_z = item.state.direction_z
+        let float basis_x = 0
+        let float basis_y = 1
+        if forward_y > item.params.vertical_basis_limit:
+            basis_x = -1
+            basis_y = 0
+        elif forward_y < -item.params.vertical_basis_limit:
+            basis_x = 1
+            basis_y = 0
+        let float right_x = basis_y * forward_z - 0 * forward_y
+        let float right_y = 0 * forward_x - basis_x * forward_z
+        let float right_z = basis_x * forward_y - basis_y * forward_x
+        let float up_x = forward_y * right_z - forward_z * right_y
+        let float up_y = forward_z * right_x - forward_x * right_z
+        let float up_z = forward_x * right_y - forward_y * right_x
+        measured = Measure(right_x, right_y, right_z, 0, 0, 0)
+        right_x = item.state.direction_x
+        right_y = item.state.direction_y
+        right_z = item.state.direction_z
+        measured = Measure(up_x, up_y, up_z, 0, 0, 0)
+        up_x = item.state.direction_x
+        up_y = item.state.direction_y
+        up_z = item.state.direction_z
+        item.state.matrix[0] = right_x * item.params.maximum_length
+        item.state.matrix[4] = right_y * item.params.maximum_length
+        item.state.matrix[8] = right_z * item.params.maximum_length
+        item.state.matrix[1] = up_x * item.params.maximum_length
+        item.state.matrix[5] = up_y * item.params.maximum_length
+        item.state.matrix[9] = up_z * item.params.maximum_length
+        item.state.matrix[2] = forward_x * item.params.maximum_length
+        item.state.matrix[6] = forward_y * item.params.maximum_length
+        item.state.matrix[10] = forward_z * item.params.maximum_length
+        item.state.matrix[3] = item.resource(node).position.x
+        item.state.matrix[7] = item.resource(node).position.y
+        item.state.matrix[11] = item.resource(node).position.z
+        item.resource(node).set_world_matrix(item.state.matrix)
+
+    func Render():
+        let int node = 0
+        while node <= item.state.tail and not item.state.active[node]:
+            node = node + 1
+        while node <= item.state.tail:
+            let float next_x = item.state.anchor_x
+            let float next_y = item.state.anchor_y
+            let float next_z = item.state.anchor_z
+            if node > 0 and item.state.active[node - 1]:
+                next_x = item.resource(node - 1).position.x
+                next_y = item.resource(node - 1).position.y
+                next_z = item.resource(node - 1).position.z
+            let float previous_x = item.resource(node).position.x
+            let float previous_y = item.resource(node).position.y
+            let float previous_z = item.resource(node).position.z
+            if node < item.state.tail:
+                previous_x = item.resource(node + 1).position.x
+                previous_y = item.resource(node + 1).position.y
+                previous_z = item.resource(node + 1).position.z
+            item.resource(node).joint("").translation.x = item.resource(node).position.x
+            item.resource(node).joint("").translation.y = item.resource(node).position.y
+            item.resource(node).joint("").translation.z = item.resource(node).position.z
+            Orient(node, previous_x - next_x, previous_y - next_y, previous_z - next_z)
+            node = node + 1
+
+    func Cleanup():
+        if item.current_owner != -1:
+            let bool forgotten = targets.call(item.current_owner, "linked_forget_rope")
+        item.detach_owner()
+        item.clear_attachment_owner()
+        item.resources.release()
+
+    on created:
+            item.state.tail = item.params.link_count - 1
+            # Fixed collection failure is atomic; original uninitialized/free-after-
+            # free cleanup is not a valid stock outcome to emulate.
+            if item.params.link_count < 2 or item.params.link_count > 40:
+                item.remove()
+            let bool allocated = item.resources.begin(item.params.link_count)
+            if not allocated:
+                item.remove()
+            let int node = 0
+            while node <= item.state.tail:
+                let bool created = item.resource(node).create(item.params.attachment_part, item.params.collision_radius, item.params.collision_category, position.x, position.y, position.z)
+                if not created:
+                    item.resources.release()
+                    item.remove()
+                item.state.active[node] = node == item.state.tail
+                let bool loaded = false
+                if node == item.state.tail:
+                    loaded = item.resource(node).load_model(Tail)
+                else:
+                    loaded = item.resource(node).load_model(Segment)
+                if not loaded:
+                    item.resources.release()
+                    item.remove()
+                let bool drawing = item.resource(node).set_draw(node == item.state.tail)
+                node = node + 1
+            item.attach_to_owner(item.params.attachment_part)
+    on picked_up:
+            item.change_state_flags(0, 2)
+            item.joint("").visible = false
+            item.track_accessory()
+    on accessory:
+            if item.motion_state == 0:
+                Fold()
+            else:
+                if item.motion_state == 3:
+                    Anchor(0)
+                    let bool completed = Retract()
+                    if completed:
+                        item.change_state_flags(0, 2)
+                        item.joint("").visible = false
+                        item.track_accessory()
+                else:
+                    Draw(item.state.tail, true)
+                    Anchor(item.state.tail)
+                    let int outcome = Extend(item.motion_state == 2)
+                Render()
+    on signal schedule:
+            let int command = int(signal.value)
+            if command == item.params.extend_command:
+                StartExtend()
+            elif command == item.params.fall_command:
+                Change(2)
+            elif command == item.params.retract_command:
+                Anchor(0)
+                item.state.retract_distance = item.params.retract_distance
+                Change(3)
+            if command == item.params.removal_command:
+                Cleanup()
+                item.remove()
+    on signal remove:
+            Cleanup()
+            item.remove()
+    on destroyed:
+            Cleanup()
+    on interaction:
+            let bool source_removed = item.attachment_owner_is(other)
+            item.interact(other)
+            if source_removed:
+                item.clear_attachment_owner()
+    state 0 anim -1:
+        on animation:
+            let int motion = holder.motion
+            if motion < 347 or motion > 356:
+                Cleanup()
+                return true
+            return false
+    state 1 anim -1 use 0:
+    state 2 anim -1 use 0:
+    state 3 anim -1 use 0:

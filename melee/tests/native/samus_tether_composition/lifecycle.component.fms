@@ -1,0 +1,11 @@
+# Joined with FighterEvents by the Samus authoring composition. Ordinary
+# state owns handles and charge; cleanup does not touch the stock Samus union.
+func Samus_DamageDeathCleanup():
+    shot_remove()
+    state.shot_charge = 0
+    spin_clear()
+    Tether_Remove()
+    # ftCo_800D9C98 clears these after grapple removal; retain that order.
+    callbacks.death2(None)
+    callbacks.secondary_damage(None)
+    callbacks.damage(None)
