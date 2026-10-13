@@ -168,6 +168,13 @@ bool nativeFighterAction_Timeline(const NativeFighterProject* project,
                                   NativeFighterActionOccurrence* occurrences,
                                   size_t capacity, size_t* count,
                                   bool* complete);
+// Move every occurrence of one event by delta frames, preserving all other
+// event times and loop periods. Regenerate and merge relative waits. A move
+// across its containing loop boundary, or an incomplete timeline, is rejected.
+// On success moved_offset identifies the event in the action-local result.
+bool nativeFighterAction_MoveEvent(NativeFighterProject* project, unsigned action,
+                                   uint32_t source_offset, int delta,
+                                   uint32_t* moved_offset);
 // Insert a copy of an existing non-control command after one reachable
 // command. The destination action becomes local; reachable branches and
 // subroutines are copied with remapped targets.

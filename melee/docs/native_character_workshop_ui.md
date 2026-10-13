@@ -49,6 +49,17 @@ ordering and the original subaction control flow; runtime-dependent branches
 must not become an invented fixed timeline. The command list remains available
 when a compact timeline cannot express an operation faithfully.
 
+Drag an event to update its timing continuously. G starts a grab for the selected
+event; move the mouse, then left click to confirm. Right click or Esc restores
+the starting timing. A confirmed move creates one undo step. Moving a looped
+event moves every repetition by the same amount, preserving the loop spacing.
+
+The timeline generates waits from event times. Events at the same time share
+a wait; separating them adds a wait and bringing them together removes the
+redundant wait. Other events retain their times. Timers remain visible and
+editable in the event list. Events currently stay within their containing loop
+interval; animation-dependent timing uses the event list.
+
 ## Animation graph
 
 Show the enabled channels of all selected bones on one shared value-over-time

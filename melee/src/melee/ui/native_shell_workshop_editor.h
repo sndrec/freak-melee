@@ -14,8 +14,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* proje
 bool nativeShellWorkshopEditor_Select(unsigned member);
 void nativeShellWorkshopEditor_Close();
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift = false);
-bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x,
-                                             bool commit_move = true);
+bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x);
 bool nativeShellWorkshopEditor_Shortcut(int key_identifier);
 void nativeShellWorkshopEditor_FilterActions();
 void nativeShellWorkshopEditor_FilterClips();

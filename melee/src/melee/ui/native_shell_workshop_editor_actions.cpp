@@ -28,7 +28,8 @@ void show_frame_stack()
                session->commands[command].source_offset !=
                    session->timeline_occurrences[occurrence].source_offset)
             ++command;
-        if (command == session->command_count || !visible_command(session->commands[command])) continue;
+        if (command == session->command_count || !visible_command(session->commands[command]) ||
+            (!session->show_event_list && session->commands[command].opcode <= 2)) continue;
         int event = -1;
         for (size_t item = 0; item < session->event_count; ++item)
             if (session->events[item].source_offset ==
@@ -135,19 +136,6 @@ int hitbox_end_frame(size_t index)
     return session->timeline_end_frame;
 }
 
-int timing_event_for_selected()
-{
-    if (session->selected_event < 0 || (size_t) session->selected_event >= session->event_count ||
-        session->event_frames[session->selected_event] < 0) return -1;
-    for (int i = session->selected_event - 1; i >= 0; --i) {
-        if (session->event_frames[i] < 0) return -1;
-        if (session->events[i].kind == NativeFighterActionEvent_SyncTimer ||
-            session->events[i].kind == NativeFighterActionEvent_AsyncTimer)
-            return i;
-    }
-    return -1;
-}
-
 void show_event()
 {
     document->GetElementById("workshop-command-fields")->SetProperty("display", "none");
@@ -180,7 +168,8 @@ void show_event()
         airborne_event ? "none" : "block");
     set_text("workshop-event-value-label",
         event.kind == NativeFighterActionEvent_ThrowHitbox ? "Damage" : "Command value");
-    if (timing_event_for_selected() >= 0) {
+    if (session->event_frames[session->selected_event] >= 0 &&
+        event.kind != NativeFighterActionEvent_SyncTimer && event.kind != NativeFighterActionEvent_AsyncTimer) {
         document->GetElementById("workshop-event-timing")
             ->SetProperty("display", "block");
         field("workshop-event-frame")->SetValue(
@@ -610,7 +599,7 @@ void select_action(unsigned action)
         session->mode == WorkshopMode::Animation)
         session->animation_frame = 0;
     stop_action_preview();
-    session->action_move_armed = false;
+    action_timeline_events.Reset();
     session->add_event_menu_open = false;
     document->GetElementById("workshop-add-event-menu")
         ->SetProperty("display", "none");
@@ -762,6 +751,7 @@ void toggle_add_event_menu()
         NativeFighterActionEvent_SetAirborneState,
     };
     for (unsigned kind : kinds) {
+        if (!session->show_event_list && (kind == NativeFighterActionEvent_SyncTimer || kind == NativeFighterActionEvent_AsyncTimer)) continue;
         if (!session->event_templates[kind].found) continue;
         markup += "<button id='workshop-add-kind-" + number(kind) +
                   "'>" + WorkshopLabels::event(kind) + "</button>";
@@ -844,60 +834,6 @@ void delete_selected_event()
              "action. Save the draft to keep the edit.");
 }
 
-void apply_event_frame();
-
-void ActionTimelineEvents::ProcessEvent(Rml::Event& event)
-{
-    if (session->project == nullptr || session->mode != WorkshopMode::Action) return;
-    Rml::Element* target = event.GetTargetElement();
-    if (target == nullptr) return;
-    unsigned index;
-    if (!parse_row(target->GetId().c_str(), "workshop-timeline-event-",
-                   &index) || index >= session->timeline_event_count) return;
-    if (event.GetType() == "dragstart") {
-        source_event = (int) session->timeline_events[index].event;
-        start_x = event.GetParameter<int>("mouse_x", 0);
-        start_frame = session->timeline_events[index].frame;
-        return;
-    }
-    if (event.GetType() != "dragend" ||
-        source_event != (int) session->timeline_events[index].event)
-        return;
-    source_event = -1;
-    Rml::Element* track_element = document->GetElementById(
-        "workshop-event-timeline-ruler");
-    if (!track_element) return;
-    const int width = track_element->GetClientWidth();
-    if (width <= 0) return;
-    const int dx = event.GetParameter<int>("mouse_x", start_x) - start_x;
-    const int target_frame = std::clamp(start_frame +
-        (int) std::lround(double(dx) * session->timeline_end_frame /
-                          (width * 0.92)), 0, 1000);
-    if (target_frame == start_frame) return;
-    stop_action_preview();
-    session->selected_event = (int) session->timeline_events[index].event;
-    session->selected_command = -1;
-    for (size_t command = 0; command < session->command_count; ++command)
-        if (session->commands[command].source_offset ==
-            session->events[session->selected_event].source_offset) {
-            session->selected_command = (int) command;
-            break;
-        }
-    if (timing_event_for_selected() < 0) {
-        set_text("workshop-editor-status", "This event has no editable "
-                 "straight-line timer. Its timing may depend on control flow.");
-        show_event();
-        show_action_timeline();
-        return;
-    }
-    const int source_frame = session->event_frames[session->selected_event];
-    if (source_frame < 0) return;
-    const int moved_frame = std::clamp(source_frame +
-        target_frame - start_frame, 0, 1000);
-    field("workshop-event-frame")->SetValue(number((unsigned) moved_frame));
-    apply_event_frame();
-}
-
 void TimelineRulerEvents::ProcessEvent(Rml::Event& event)
 {
     if (session->project == nullptr || session->mode != WorkshopMode::Action) return;
@@ -907,7 +843,7 @@ void TimelineRulerEvents::ProcessEvent(Rml::Event& event)
     if (type == "dragend") {
         nativeShellWorkshopEditor_ScrubTimeline(
             "workshop-event-timeline-ruler",
-            event.GetParameter<int>("mouse_x", 0), false);
+            event.GetParameter<int>("mouse_x", 0));
         seeking = false;
         return;
     }
@@ -915,7 +851,7 @@ void TimelineRulerEvents::ProcessEvent(Rml::Event& event)
         type == "dragstart" || type == "drag")
         nativeShellWorkshopEditor_ScrubTimeline(
             "workshop-event-timeline-ruler",
-            event.GetParameter<int>("mouse_x", 0), false);
+            event.GetParameter<int>("mouse_x", 0));
 }
 
 void WorkshopCameraEvents::ProcessEvent(Rml::Event& event)
@@ -1189,54 +1125,32 @@ void commit_fighter_event_edit(FighterEventEdit* edit)
 
 void apply_event_frame()
 {
-    const int timer_index = timing_event_for_selected();
-    if (session->project == nullptr || session->selected_action < 0 || timer_index < 0) return;
+    if (!session->project || session->selected_action < 0 || session->selected_event < 0) return;
     uint16_t desired;
     if (!parse_u16("workshop-event-frame", 1000, &desired)) {
         set_text("workshop-editor-status", "Enter a frame between 0 and 1000.");
         return;
     }
-    const int delta = (int) desired - session->event_frames[session->selected_event];
-    if (delta == 0) return;
-    const NativeFighterActionEvent timer = session->events[timer_index];
-    const int64_t value = (int64_t) timer.value + delta;
-    if (value < 0 || value > 0x3FFFFFF) {
-        set_text("workshop-editor-status", "That frame exceeds the source "
-                 "timer's range.");
-        return;
-    }
-    const int reselect_event = session->selected_event;
+    const int current = session->event_frames[session->selected_event];
+    if (current < 0 || desired == current) return;
+    const uint32_t source = session->events[session->selected_event].source_offset;
     FighterEventEdit edit = {};
-    if (!begin_fighter_event_edit(timer.source_offset, &edit)) {
-        set_text("workshop-editor-status", "Could not prepare this "
-                 "action's timer for editing.");
-        return;
-    }
-    if (!nativeFighterAction_SetValue(session->project, (unsigned) session->selected_action,
-                                      edit.offset, (uint32_t) value)) {
-        cancel_fighter_event_edit(&edit);
-        set_text("workshop-editor-status", "Could not move this timing "
-                 "group with the timer's source encoding.");
+    edit.size = session->project->fighter_size;
+    edit.before = (uint8_t*) std::malloc(edit.size);
+    if (!edit.before) return;
+    std::memcpy(edit.before, session->project->fighter_dat, edit.size);
+    edit.localized = true;
+    if (!nativeFighterAction_MoveEvent(session->project, session->selected_action, source,
+                                       (int) desired - current, &edit.offset)) {
+        std::free(edit.before);
+        set_text("workshop-editor-status", "Keep this event within its loop interval. Animation-dependent timing must be edited in the event list.");
         return;
     }
     commit_fighter_event_edit(&edit);
-    if (reselect_event >= 0 && (size_t) reselect_event < session->event_count) {
-        session->selected_event = reselect_event;
-        session->selected_command = -1;
-        for (size_t command = 0; command < session->command_count; ++command)
-            if (session->commands[command].source_offset ==
-                session->events[session->selected_event].source_offset) {
-                session->selected_command = (int) command;
-                break;
-            }
-        show_event();
-        show_action_timeline();
-    }
     session->timeline_frame = desired;
     field("workshop-current-frame")->SetValue(number(desired));
     update_timeline_cursor();
-    set_text("workshop-editor-status", "Moved the timing group. Later events "
-             "governed by this source timer move with it.");
+    set_text("workshop-editor-status", "Moved the event; other event times are unchanged.");
 }
 
 void apply_hitbox()

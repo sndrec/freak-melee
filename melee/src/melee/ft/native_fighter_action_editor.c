@@ -1,4 +1,5 @@
 #include "native_fighter_action_editor.h"
+#include "native_fighter_action_internal.h"
 
 #ifdef MELEE_NATIVE
 
@@ -10,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool action_table(const NativeFighterProject* project, HSD_Dat* dat,
+bool nativeFighterAction_OpenTable(const NativeFighterProject* project, HSD_Dat* dat,
                          u32* table)
 {
     u32 root;
@@ -46,7 +47,7 @@ bool nativeFighterAction_GetMetadata(const NativeFighterProject* project,
     u32 offset, size, flags;
     if (metadata == NULL || project == NULL ||
         action >= project->action_count ||
-        !action_table(project, &dat, &table) ||
+        !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !HSD_DatReadU32(&dat, table + action * 24 + 4, &offset) ||
         !HSD_DatReadU32(&dat, table + action * 24 + 8, &size) ||
         !HSD_DatReadU32(&dat, table + action * 24 + 16, &flags)) {
@@ -71,7 +72,7 @@ bool nativeFighterAction_SetAnimationFlags(NativeFighterProject* project,
     if (flags == metadata.animation_flags) return true;
     HSD_Dat dat;
     u32 table;
-    if (!action_table(project, &dat, &table)) return false;
+    if (!nativeFighterAction_OpenTable(project, &dat, &table)) return false;
     u8* bytes = project->fighter_dat + 32 + table + action * 24 + 16;
     bytes[0] = (u8) (flags >> 24);
     bytes[1] = (u8) (flags >> 16);
@@ -86,7 +87,7 @@ bool nativeFighterAction_List(const NativeFighterProject* project,
 {
     HSD_Dat dat;
     u32 table;
-    if (count == NULL || !action_table(project, &dat, &table)) {
+    if (count == NULL || !nativeFighterAction_OpenTable(project, &dat, &table)) {
         return false;
     }
     *count = project->action_count;
@@ -159,7 +160,7 @@ static bool collect_action(const NativeFighterProject* project,
     if ((event_count == NULL && command_count == NULL) ||
         (event_count != NULL && events == NULL) ||
         (command_count == NULL && commands != NULL) ||
-        !action_table(project, &dat, &table) ||
+        !nativeFighterAction_OpenTable(project, &dat, &table) ||
         action >= project->action_count) {
         return false;
     }
@@ -339,7 +340,7 @@ bool nativeFighterAction_Timeline(const NativeFighterProject* project,
     HSD_Dat dat;
     u32 table, at;
     if (occurrences == NULL || capacity == 0 || count == NULL ||
-        complete == NULL || !action_table(project, &dat, &table) ||
+        complete == NULL || !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !action_source(project, &dat, table, action, &at)) return false;
     typedef struct TimelineReturn {
         u32 offset;
@@ -453,7 +454,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
     HSD_Dat dat;
     u32 table, entry;
     if ((!removing && inserted_offset == NULL) ||
-        !action_table(project, &dat, &table) ||
+        !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !action_source(project, &dat, table, action, &entry) ||
         dat.extern_count != 0) return false;
 
@@ -762,7 +763,7 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
 {
     HSD_Dat dat;
     u32 table, raw;
-    if (frame > 1000 || !action_table(project, &dat, &table) ||
+    if (frame > 1000 || !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !HSD_DatReadU32(&dat, template_offset, &raw)) return false;
     const u32 width = ftActionData_SourceCommandWidth(raw);
     if (!width || width > 7 || template_offset + width * 4 > table) return false;

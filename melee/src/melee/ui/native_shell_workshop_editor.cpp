@@ -401,6 +401,8 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     nativeWorkshopTransform_Init(shell);
     nativeWorkshopPose_Init(shell);
     nativeWorkshopPose_SetHistory(record_pose_edit);
+    for (const char* type : { "mousedown", "mousemove", "mouseup", "click", "keydown" })
+        shell->GetContext()->AddEventListener(type, &action_timeline_events, true);
     init_editor_input();
     nativeShellWorkshopBones_Init(shell);
     nativeShellWorkshopHitboxes_Init(shell);
@@ -422,10 +424,6 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     graph->AddEventListener("mousedown", &graph_navigation_events);
     shell->AddEventListener("mousemove", &graph_navigation_events);
     shell->AddEventListener("mouseup", &graph_navigation_events);
-    Rml::Element* action_tracks = shell->GetElementById(
-        "workshop-event-timeline-lanes");
-    action_tracks->AddEventListener("dragstart", &action_timeline_events);
-    action_tracks->AddEventListener("dragend", &action_timeline_events);
     Rml::Element* action_ruler = shell->GetElementById(
         "workshop-event-timeline-ruler");
     for (const char* type : { "mousedown", "mousemove", "mouseup",
@@ -461,7 +459,6 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
         for (unsigned joint = 0; joint < model->joint_count; ++joint)
             session->bone_names[joint] = model->joints[joint].name;
     std::free(model);
-    session->action_move_armed = false;
     session->edit_history.clear();
     session->edit_cursor = 0;
     update_history_buttons();
@@ -667,8 +664,7 @@ void nativeShellWorkshopEditor_FilterActions()
     document->GetElementById("workshop-action-list")->SetInnerRML(markup);
 }
 
-bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x,
-                                             bool commit_move)
+bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x)
 {
     const bool action = std::strcmp(id, "workshop-event-timeline-ruler") == 0;
     const bool animation = std::strcmp(id, "workshop-dope-ruler") == 0;
@@ -685,15 +681,8 @@ bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x,
             int(std::lround(double(x) * session->timeline_end_frame /
                             (width * 0.92))),
             0, session->timeline_end_frame);
-        if (next_frame == session->timeline_frame && !commit_move) return true;
+        if (next_frame == session->timeline_frame) return true;
         session->timeline_frame = next_frame;
-        if (commit_move && session->action_move_armed && session->selected_event >= 0 &&
-            (size_t) session->selected_event < session->event_count) {
-            session->action_move_armed = false;
-            field("workshop-event-frame")->SetValue(
-                number((unsigned) session->timeline_frame));
-            apply_event_frame();
-        }
         field("workshop-current-frame")->SetValue(
             number((unsigned) session->timeline_frame));
         update_timeline_cursor();
@@ -817,6 +806,13 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             "selected", !session->show_event_list);
         document->GetElementById("workshop-timeline-list")->SetClass(
             "selected", session->show_event_list);
+        if (!session->show_event_list && session->selected_event >= 0 &&
+            (session->events[session->selected_event].kind == NativeFighterActionEvent_SyncTimer ||
+             session->events[session->selected_event].kind == NativeFighterActionEvent_AsyncTimer)) {
+            session->selected_event = session->selected_command = -1;
+            show_event();
+        }
+        show_frame_stack();
         return true;
     }
     if (std::strcmp(id, "workshop-frame-start") == 0 ||
@@ -1013,8 +1009,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-event-timeline-lanes") == 0) {
-        session->action_move_armed = false;
-        session->selected_event = -1;
+            session->selected_event = -1;
         session->selected_command = -1;
         show_event();
         show_action_timeline();
@@ -1186,26 +1181,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 bool nativeShellWorkshopEditor_Shortcut(int key_identifier)
 {
     if (session->project == nullptr) return false;
-    if (session->mode == WorkshopMode::Action) {
-        if (key_identifier == Rml::Input::KI_ESCAPE && session->action_move_armed) {
-            session->action_move_armed = false;
-            set_text("workshop-editor-status", "Move cancelled.");
-            return true;
-        }
-        if (key_identifier == Rml::Input::KI_G && session->selected_event >= 0 &&
-            (size_t) session->selected_event < session->event_count) {
-            if (timing_event_for_selected() < 0) {
-                set_text("workshop-editor-status", "This event has no "
-                         "editable source timer to move.");
-                return true;
-            }
-            session->action_move_armed = true;
-            set_text("workshop-editor-status", "Click the ruler at the new "
-                     "frame to move this event's timing group. Esc cancels.");
-            return true;
-        }
-        return false;
-    }
     if (session->mode != WorkshopMode::Animation ||
         !session->show_animation_curves) return false;
     if (key_identifier == Rml::Input::KI_A) {
@@ -1239,6 +1214,7 @@ bool nativeShellWorkshopEditor_Shortcut(int key_identifier)
 void nativeShellWorkshopEditor_Update()
 {
     if (session->project == nullptr) return;
+    action_timeline_events.Update();
     if (session->mode == WorkshopMode::Model) {
         nativeWorkshopPose_Clear();
         nativeShellWorkshopModel_Update();

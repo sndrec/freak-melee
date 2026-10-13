@@ -201,10 +201,10 @@
         </div>
         <div id="workshop-event-timing">
           <div class="workshop-divider"></div>
-          <div class="eyebrow">EDIT SOURCE TIMER</div>
-          <div class="workshop-inspector-hint">This command's first execution and later commands governed by the same timer move together, including loop repeats.</div>
+          <div class="eyebrow">EVENT TIMING</div>
+          <div class="workshop-inspector-hint">Move this event and its loop repetitions. Other events keep their existing times.</div>
           <div class="workshop-inspector-row"><label for="workshop-event-frame" class="field-label">First execution frame</label><input id="workshop-event-frame" class="room-input" type="text" /></div>
-          <button id="workshop-event-frame-apply" class="room-button">Apply timer change</button>
+          <button id="workshop-event-frame-apply" class="room-button">Move event</button>
         </div>
         <button id="workshop-delete-event" class="room-button" title="Remove this source command from the action, including every loop repeat">Delete selected command</button>
         <div id="workshop-command-fields"><div class="workshop-divider"></div><div id="workshop-command-fields-title" class="eyebrow">COMMAND PROPERTIES</div><div id="workshop-command-fields-help" class="workshop-muted"></div><div id="workshop-command-fields-inputs"></div><button id="workshop-command-fields-apply" class="room-button primary">Apply command edit</button></div>

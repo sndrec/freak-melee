@@ -175,6 +175,19 @@ with real projects.
 
 ### Source corrections
 
+Follow-up: event dragging and G now preview continuously, with confirm/cancel
+and one undo step per gesture. The timeline compiles event times into relative
+waits, merging shared times and preserving other events and loop periods.
+Timers stay in the event list and are hidden from the timeline frame stack.
+Moving across a containing loop interval remains explicitly rejected.
+Independent retiming checks cover simultaneous hitboxes, wait merging, repeated
+loop events, frame-zero events, and atomic rejection at loop boundaries.
+Focused client checks confirmed G updated the event from frame 20 to 22 before
+confirmation, Esc restored frame 20, left click confirmed the move, direct
+dragging committed it, and one undo restored the previous timing. Timeline
+rebuilds occur outside input dispatch and restore hover/focus, preserving mouse
+release and keyboard input throughout the gesture.
+
 - The recorded crash dereferenced a removed timeline element ID during drag
   completion. Dragging now uses the current ruler and checks its presence.
 - Empty action scripts are valid. They no longer stop the shared-command

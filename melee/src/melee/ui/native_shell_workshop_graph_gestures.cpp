@@ -456,8 +456,7 @@ namespace WorkshopEditor {
                 if (session->graph_drag_active) {
                     preview_graph_transform(mouse_x, mouse_y);
                 } else if (ruler) {
-                    nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x,
-                                                            false);
+                    nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x);
                 }
             } else if (type == "mousedown") {
                 discard_click = false;
@@ -480,8 +479,7 @@ namespace WorkshopEditor {
                         }
                     }
                     if (ruler) {
-                        nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x,
-                                                                false);
+                        nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x);
                     }
                 }
             } else if (type == "mouseup") {
