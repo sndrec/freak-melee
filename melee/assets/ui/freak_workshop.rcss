@@ -340,7 +340,7 @@
   min-width: 42dp; max-width: 105dp; height: 18dp;
   margin: 0; padding: 1dp 6dp; text-align: left;
   color: #efae98; background-color: #382c2c;
-  border: 1dp #895c53; font-size: 10dp; drag: drag;
+  border: 1dp #895c53; font-size: 10dp;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   cursor: ew-resize; }
 .workshop-timeline-lane button.selected { border-color: #f59e82;

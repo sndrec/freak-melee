@@ -80,6 +80,7 @@ static void usage(void)
         "  project-attribute PROJECT_DIRECTORY PROPERTY [VALUE]\n"
         "  project-actions PROJECT_DIRECTORY [ACTION_INDEX]\n"
         "  project-insert-at-frame PROJECT_DIRECTORY ACTION_INDEX FRAME TEMPLATE_ACTION TEMPLATE_OFFSET\n"
+        "  project-move-event PROJECT_DIRECTORY ACTION_INDEX SOURCE_OFFSET FRAME_DELTA\n"
         "  project-insert-command PROJECT_DIRECTORY ACTION_INDEX AFTER_OFFSET "
         "TEMPLATE_ACTION TEMPLATE_OFFSET\n"
         "  project-delete-command PROJECT_DIRECTORY ACTION_INDEX "
@@ -699,6 +700,29 @@ static int project_event(const char* path, const char* action_text,
         fputs("Could not save that action command.\n", stderr);
     }
     return ok ? 0 : 1;
+}
+
+static int project_move_event(const char* path, const char* action_text,
+                              const char* source_text, const char* delta_text)
+{
+    u32 action, source;
+    char* end;
+    const long delta = strtol(delta_text, &end, 10);
+    if (!parse_number(action_text, NATIVE_FIGHTER_ACTION_CAPACITY - 1, &action) ||
+        !parse_number(source_text, UINT32_MAX, &source) || !*delta_text || *end ||
+        delta < -1000 || delta > 1000) return 1;
+    NativeFighterProject project;
+    if (!nativeFighterProject_Open(path, &project)) return 1;
+    uint32_t moved;
+    const bool ok = nativeFighterAction_MoveEvent(&project, action, source, (int) delta, &moved) &&
+                    nativeFighterProject_Save(path, &project);
+    nativeFighterProject_Close(&project);
+    if (!ok) {
+        fputs("Could not move this event within its structured timeline.\n", stderr);
+        return 1;
+    }
+    printf("Moved event to source 0x%X.\n", (unsigned) moved);
+    return 0;
 }
 
 static int project_insert_command(const char* path,
@@ -1981,6 +2005,8 @@ int main(int argc, char** argv)
         return project_event(argv[index + 1], argv[index + 2],
                              argv[index + 3], argv[index + 4]);
     }
+    if (arguments == 5 && strcmp(argv[index], "project-move-event") == 0)
+        return project_move_event(argv[index + 1], argv[index + 2], argv[index + 3], argv[index + 4]);
     if (arguments == 6 &&
         (strcmp(argv[index], "project-insert-command") == 0 || strcmp(argv[index], "project-insert-at-frame") == 0)) {
         return project_insert_command(argv[index + 1], argv[index + 2],

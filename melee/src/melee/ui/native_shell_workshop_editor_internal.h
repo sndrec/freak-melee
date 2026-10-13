@@ -164,7 +164,6 @@ struct EditorSession {
     unsigned preview_hitbox_mask;
     int preview_hitbox_cached_frame = -1;
     int preview_hitbox_cached_action = -1;
-    bool action_move_armed;
     int graph_width;
     int graph_height;
     float graph_units_per_pixel[1024];
@@ -255,12 +254,28 @@ private:
 extern GraphNavigationEvents graph_navigation_events;
 class ActionTimelineEvents final : public Rml::EventListener {
 public:
-    void Reset() { source_event = -1; }
+    void Reset();
+    void Update();
     void ProcessEvent(Rml::Event& event) override;
 private:
-    int source_event = -1;
+    bool Begin(unsigned event, int occurrence_frame, bool modal);
+    void Preview(int x);
+    void Finish(bool commit);
+    FighterEventEdit edit = {};
+    bool active = false;
+    bool modal = false;
+    bool discard_click = false;
+    bool was_dirty = false;
+    bool refresh_pending = false;
+    uint32_t original_source = 0;
+    uint32_t selected_source = 0;
+    int initial_frame = 0;
+    int occurrence_frame = 0;
+    int preview_delta = 0;
+    int last_x = 0;
+    int last_y = 0;
     int start_x = 0;
-    int start_frame = 0;
+    float frames_per_pixel = 0;
 };
 extern ActionTimelineEvents action_timeline_events;
 class TimelineRulerEvents final : public Rml::EventListener {
@@ -345,7 +360,6 @@ void apply_action_playback();
 void update_timeline_cursor();
 int hitbox_end_for_instance(size_t instance);
 int hitbox_end_frame(size_t index);
-int timing_event_for_selected();
 void show_event();
 void show_command_fields(const NativeFighterActionEvent&);
 void apply_command_fields();

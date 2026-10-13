@@ -136,6 +136,11 @@ feedback and focused verification. Add Event inserts at the playhead, including
 actions with no existing script. Meaningful commands have names, descriptions
 and editable fields. Timeline markers clip their labels and show full names
 on hover; the inspector follows the current selection.
+Dragging events previews continuously. G grabs the selected event, left click
+confirms, and right click or Esc cancels. Event times generate and merge waits;
+other events retain their times. Loop repetitions move together with their
+original spacing. Timers remain editable in the event list. Events currently
+stay within their containing loop interval.
 
 Animation pose values update the preview as they change. Each channel has a
 Key button, and I over a numeric property inserts that channel's key. Enter

@@ -156,7 +156,6 @@ void restore_session_widgets()
 void cancel_session_gestures()
 {
     stop_action_preview();
-    session->action_move_armed = false;
     finish_graph_transform(false);
     session->graph_drag_active = false;
     session->graph_box_active = false;
