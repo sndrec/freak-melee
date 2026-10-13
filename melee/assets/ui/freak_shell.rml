@@ -207,6 +207,7 @@
           <button id="workshop-event-frame-apply" class="room-button">Apply timer change</button>
         </div>
         <button id="workshop-delete-event" class="room-button" title="Remove this source command from the action, including every loop repeat">Delete selected command</button>
+        <div id="workshop-command-fields"><div class="workshop-divider"></div><div id="workshop-command-fields-title" class="eyebrow">COMMAND PROPERTIES</div><div id="workshop-command-fields-help" class="workshop-muted"></div><div id="workshop-command-fields-inputs"></div><button id="workshop-command-fields-apply" class="room-button primary">Apply command edit</button></div>
         <div id="workshop-value-fields">
           <div class="workshop-divider"></div>
           <div id="workshop-value-kind" class="eyebrow"></div>
@@ -257,11 +258,15 @@
           <div id="workshop-bone-parent" class="workshop-muted"></div>
           <div id="workshop-bone-frame" class="workshop-muted"></div>
           <div class="eyebrow">LOCAL TRANSFORM</div>
-          <div class="workshop-bone-axis"><span></span><span>X</span><span>Y</span><span>Z</span></div>
-          <div class="workshop-bone-row"><span>Position</span><input id="workshop-bone-px" type="text" /><input id="workshop-bone-py" type="text" /><input id="workshop-bone-pz" type="text" /></div>
-          <div class="workshop-bone-row"><span>Rotation</span><input id="workshop-bone-rx" type="text" /><input id="workshop-bone-ry" type="text" /><input id="workshop-bone-rz" type="text" /></div>
-          <div class="workshop-bone-row"><span>Scale</span><input id="workshop-bone-sx" type="text" /><input id="workshop-bone-sy" type="text" /><input id="workshop-bone-sz" type="text" /></div>
-          <button id="workshop-bone-apply" class="room-button primary">Apply pose</button>
+          <div class="workshop-pose-channel" title="Position X (units). Hover and press I to insert a key."><label for="workshop-bone-px">Position X</label><input id="workshop-bone-px" type="text"/><button id="workshop-bone-key-0" title="Insert Position X key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Position Y (units). Hover and press I to insert a key."><label for="workshop-bone-py">Position Y</label><input id="workshop-bone-py" type="text"/><button id="workshop-bone-key-1" title="Insert Position Y key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Position Z (units). Hover and press I to insert a key."><label for="workshop-bone-pz">Position Z</label><input id="workshop-bone-pz" type="text"/><button id="workshop-bone-key-2" title="Insert Position Z key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Rotation X (radians). Hover and press I to insert a key."><label for="workshop-bone-rx">Rotation X</label><input id="workshop-bone-rx" type="text"/><button id="workshop-bone-key-3" title="Insert Rotation X key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Rotation Y (radians). Hover and press I to insert a key."><label for="workshop-bone-ry">Rotation Y</label><input id="workshop-bone-ry" type="text"/><button id="workshop-bone-key-4" title="Insert Rotation Y key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Rotation Z (radians). Hover and press I to insert a key."><label for="workshop-bone-rz">Rotation Z</label><input id="workshop-bone-rz" type="text"/><button id="workshop-bone-key-5" title="Insert Rotation Z key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Scale X (factor). Hover and press I to insert a key."><label for="workshop-bone-sx">Scale X</label><input id="workshop-bone-sx" type="text"/><button id="workshop-bone-key-6" title="Insert Scale X key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Scale Y (factor). Hover and press I to insert a key."><label for="workshop-bone-sy">Scale Y</label><input id="workshop-bone-sy" type="text"/><button id="workshop-bone-key-7" title="Insert Scale Y key at the current frame">Key</button></div>
+          <div class="workshop-pose-channel" title="Scale Z (factor). Hover and press I to insert a key."><label for="workshop-bone-sz">Scale Z</label><input id="workshop-bone-sz" type="text"/><button id="workshop-bone-key-8" title="Insert Scale Z key at the current frame">Key</button></div>
           <button id="workshop-bone-key" class="room-button">Insert Key</button>
           <div class="workshop-unit-note">Auto Key is off by default. Insert Key saves the selected pose into this animation.</div>
         </div>
@@ -269,7 +274,7 @@
           <div class="workshop-divider"></div>
           <div class="eyebrow">CLIP SETTINGS</div>
           <div class="workshop-inspector-row"><label for="workshop-clip-end" class="field-label">End frame</label><input id="workshop-clip-end" class="room-input" type="text" /></div>
-          <button id="workshop-clip-end-apply" class="room-button">Apply clip length</button>
+          <div class="workshop-unit-note">Press Enter to set the end frame.</div>
           <div class="workshop-unit-note">Looping belongs to the fighter action, not the animation clip.</div>
         </div>
         <div id="workshop-pose-fields">
@@ -403,7 +408,7 @@
         </div>
         <div id="workshop-event-timeline">
           <div id="workshop-event-timeline-labels"></div>
-          <div id="workshop-event-timeline-tracks"><div id="workshop-event-timeline-ruler"></div><div id="workshop-event-timeline-lanes"></div><div id="workshop-timeline-playhead"></div></div>
+          <div id="workshop-event-timeline-tracks"><div id="workshop-event-timeline-ruler"></div><div id="workshop-timeline-grid"></div><div id="workshop-event-timeline-lanes"></div><div id="workshop-timeline-playhead"></div></div>
         </div>
         <div id="workshop-command-list"></div>
         <div id="workshop-timeline-footer"><span id="workshop-timeline-selection">Select an event</span><span>60 fps</span></div>
@@ -478,17 +483,10 @@
           <div id="workshop-dope-content"><div id="workshop-dope-ruler"></div><div id="workshop-dope-rows"></div><div id="workshop-dope-playhead"></div></div>
         </div>
         <div id="workshop-graph-toolbar">
-          <button id="workshop-graph-pivot" class="room-button">Pivot: selection</button>
-          <button id="workshop-graph-select-all" class="room-button">Select visible</button>
-          <button id="workshop-graph-clear-selection" class="room-button">Clear</button>
-          <button id="workshop-graph-pan-left" class="room-button" title="Pan graph left">←</button>
-          <button id="workshop-graph-zoom-in" class="room-button" title="Zoom graph in">+</button>
-          <button id="workshop-graph-frame-all" class="room-button">Frame all</button>
-          <button id="workshop-graph-focus" class="room-button">Focus graph</button>
-          <button id="workshop-graph-zoom-out" class="room-button" title="Zoom graph out">−</button>
-          <button id="workshop-graph-pan-right" class="room-button" title="Pan graph right">→</button>
-          <button id="workshop-graph-animated-only" class="room-button">Animated only</button>
-          <button id="workshop-graph-normalize" class="room-button">Normalize values: on</button>
+          <label class="workshop-graph-toggle" title="Selection: center of the selected keys’ bounds. Cursor: the point set by clicking the graph."><span>Pivot</span><select id="workshop-graph-pivot" class="room-input"><option value="selection" selected="selected">Selection</option><option value="cursor">Cursor</option></select></label>
+          <button id="workshop-graph-focus" class="room-button" title="Give the graph the full Workshop editing area">Expand graph</button>
+          <label class="workshop-graph-toggle" title="Show channels with more than one animation key"><input id="workshop-graph-animated-only" type="checkbox" checked="checked"/><span>Animated only</span></label>
+          <label class="workshop-graph-toggle" title="Fit each channel to the same display range, preserving its authored values"><input id="workshop-graph-normalize" type="checkbox"/><span>Normalize values</span></label>
         </div>
         <div id="workshop-graph-content">
           <div id="workshop-graph-channels"></div>

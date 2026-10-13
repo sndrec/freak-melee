@@ -1,4 +1,5 @@
 #include "native_shell_workshop_materials.h"
+#include "native_shell_workshop_textures.h"
 
 #include <melee/ft/native_fighter_costume_dat.h>
 extern "C" {
@@ -59,7 +60,7 @@ namespace {
     {
         u32 target;
         const char* external;
-        *present = HSD_DatResolve(&model.dat, mat.offset + 16, &target,
+        *present = HSD_DatResolve(&model.dat, mat.offset + 20, &target,
                                   &external) == HSD_DAT_REF_LOCAL &&
                    HSD_DatBytes(&model.dat, target, 12) != nullptr;
         if (*present) {
@@ -136,7 +137,18 @@ nativeWorkshopMaterials_Controls(const NativeFighterModelEditor& model,
         return {};
     }
     const auto& mat = model.materials[material];
-    std::string html = "<div class='workshop-model-inspector-section'><div "
+    std::string html;
+    if (mat.color_offset) {
+        html += "<div class='workshop-model-inspector-section'><div class='eyebrow'>LIGHTING COLORS</div>";
+        const uint8_t* colors[] = {mat.ambient,mat.specular};
+        for (unsigned i = 0; i < 2; ++i) {
+            char text[16]; std::snprintf(text,sizeof(text),"#%02X%02X%02X%02X",colors[i][0],colors[i][1],colors[i][2],colors[i][3]);
+            html += "<label>" + std::string(i ? "Specular RGBA" : "Ambient RGBA") +
+                    "</label><input id='workshop-material-color-" + std::to_string(i) + "' class='room-input' type='text' value='" + text + "'/>";
+        }
+        html += "<label>Diffuse alpha (0-255)</label><input id='workshop-material-diffuse-alpha' class='room-input' type='text' value='" + std::to_string(mat.diffuse[3]) + "'/></div>";
+    }
+    html += "<div class='workshop-model-inspector-section'><div "
                        "class='eyebrow'>RENDERING</div>";
     const char* color[] = { "Engine default", "Material color",
                             "Vertex colors", "Material and vertex colors" };
@@ -196,7 +208,7 @@ nativeWorkshopMaterials_Controls(const NativeFighterModelEditor& model,
                 "' />";
     }
     return html + "<button id='workshop-material-apply-render' "
-                  "class='room-button primary'>Apply material</button></div>";
+                  "class='room-button primary'>Apply material</button></div>" + nativeWorkshopTextures_Controls(model,material);
 }
 
 bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
@@ -230,6 +242,20 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
         return false;
     }
     const auto& mat = model.materials[material];
+    if (mat.color_offset) {
+        for (unsigned i = 0; i < 2; ++i) {
+            auto* control = dynamic_cast<Rml::ElementFormControl*>(document->GetElementById("workshop-material-color-" + std::to_string(i)));
+            const auto text = control ? control->GetValue() : std::string{};
+            char* end = nullptr;
+            const unsigned long rgba = text.size() == 9 && text[0] == '#' ? std::strtoul(text.c_str()+1,&end,16) : 0;
+            if (!end || *end) { *error = "Enter ambient and specular colors as #RRGGBBAA."; return false; }
+            dat.word(mat.color_offset + (i ? 8 : 0), (uint32_t) rgba);
+        }
+        unsigned alpha;
+        if (!value("workshop-material-diffuse-alpha",255,&alpha)) { *error = "Diffuse alpha must be 0-255."; return false; }
+        dat.data[mat.color_offset + 7] = (uint8_t) alpha;
+    }
+    if (!nativeWorkshopTextures_Apply(document,model,material,dat,error)) return false;
     unsigned mode = mat.render_mode;
     unsigned color, alpha;
     if (!value("workshop-material-color-source", 3, &color) ||
@@ -324,7 +350,7 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
         }
         u32 target;
         const char* external;
-        if (HSD_DatResolve(&model.dat, mat.offset + 16, &target, &external) !=
+        if (HSD_DatResolve(&model.dat, mat.offset + 20, &target, &external) !=
                 HSD_DAT_REF_LOCAL ||
             !HSD_DatBytes(&model.dat, target, 12))
         {
@@ -334,9 +360,9 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
             return false;
         }
         std::memcpy(dat.data.data() + target, pe, 12);
-        dat.link(mat.offset + 16, target);
+        dat.link(mat.offset + 20, target);
     } else {
-        dat.link(mat.offset + 16, 0);
+        dat.link(mat.offset + 20, 0);
     }
     std::vector<uint8_t> result;
     if (!dat.finish(&result)) {

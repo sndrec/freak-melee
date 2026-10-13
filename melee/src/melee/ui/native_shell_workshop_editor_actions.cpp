@@ -4,6 +4,14 @@
 
 namespace WorkshopEditor {
 
+static bool visible_command(const NativeFighterActionCommand& command)
+{
+    if (command.opcode != 20) return true;
+    const uint8_t* p = session->project->fighter_dat + 32 + command.source_offset;
+    const uint32_t word = uint32_t(p[0]) << 24 | uint32_t(p[1]) << 16 | uint32_t(p[2]) << 8 | p[3];
+    return (word & 0x3ffffffu) <= 1;
+}
+
 void show_frame_stack()
 {
     if (document == nullptr || session->mode != WorkshopMode::Action ||
@@ -20,7 +28,7 @@ void show_frame_stack()
                session->commands[command].source_offset !=
                    session->timeline_occurrences[occurrence].source_offset)
             ++command;
-        if (command == session->command_count) continue;
+        if (command == session->command_count || !visible_command(session->commands[command])) continue;
         int event = -1;
         for (size_t item = 0; item < session->event_count; ++item)
             if (session->events[item].source_offset ==
@@ -35,7 +43,7 @@ void show_frame_stack()
                 ((int) command == session->selected_command ? " selected" : "") +
                 "'><span class='workshop-stack-order'>" + number(order) +
                 "</span><span class='workshop-stack-command-label'>" +
-                (event >= 0 ? WorkshopLabels::event(session->events[event].kind) :
+                (event >= 0 ? event_name(session->events[event]) :
                  WorkshopLabels::command(session->commands[command].opcode)) +
                 (event >= 0 && session->events[event].kind ==
                  NativeFighterActionEvent_CreateHitbox
@@ -142,6 +150,7 @@ int timing_event_for_selected()
 
 void show_event()
 {
+    document->GetElementById("workshop-command-fields")->SetProperty("display", "none");
     document->GetElementById("workshop-event-timing")
         ->SetProperty("display", "none");
     document->GetElementById("workshop-delete-event")
@@ -152,6 +161,8 @@ void show_event()
     value_inspector->SetProperty("display", "none");
     document->GetElementById("workshop-sound-fields")->SetProperty("display", "none");
     document->GetElementById("workshop-effect-fields")->SetProperty("display", "none");
+    document->GetElementById("workshop-action-playback")->SetProperty("display",
+        session->selected_event < 0 && session->selected_command < 0 ? "block" : "none");
     if (session->project == nullptr || session->selected_action < 0 || session->selected_event < 0 ||
         (size_t) session->selected_event >= session->event_count) {
         if (session->selected_command < 0) {
@@ -161,6 +172,7 @@ void show_event()
         return;
     }
     const NativeFighterActionEvent& event = session->events[session->selected_event];
+    show_command_fields(event);
     const bool airborne_event = event.kind == NativeFighterActionEvent_SetAirborneState;
     document->GetElementById("workshop-air-state")->SetProperty("display",
         airborne_event ? "block" : "none");
@@ -176,7 +188,13 @@ void show_event()
     }
     document->GetElementById("workshop-delete-event")
         ->SetProperty("display", "block");
-    set_text("workshop-action-title", WorkshopLabels::event(event.kind));
+    set_text("workshop-action-title", event_name(event));
+    if (event.kind == NativeFighterActionEvent_Command) {
+        set_text("workshop-action-title", event_name(event));
+        set_text("workshop-action-detail", WorkshopLabels::command_description(event.opcode));
+        document->GetElementById("workshop-delete-event")->SetProperty("display", "block");
+        return;
+    }
     if (event.kind == NativeFighterActionEvent_SoundEffect) {
         NativeFighterSoundEffect sound;
         if (!nativeFighterAction_GetSoundEffect(session->project,
@@ -210,10 +228,11 @@ void show_event()
     }
     if (event.kind != NativeFighterActionEvent_CreateHitbox) {
         set_text("workshop-action-detail",
-                 std::string(WorkshopLabels::event(event.kind)) + " · source 0x" +
+                 std::string(event_name(event)) + " · source 0x" +
                  [&] { char hex[16]; std::snprintf(hex, sizeof(hex), "%X",
                                            event.source_offset); return std::string(hex); }());
-        if (event.kind != NativeFighterActionEvent_AllowInterrupt &&
+        if (event.kind != NativeFighterActionEvent_SetCommandVar &&
+            event.kind != NativeFighterActionEvent_AllowInterrupt &&
             event.kind != NativeFighterActionEvent_ReleaseThrow &&
             event.kind != NativeFighterActionEvent_ReverseFacing &&
             event.kind != NativeFighterActionEvent_NeutralCue &&
@@ -222,7 +241,7 @@ void show_event()
             event.kind != NativeFighterActionEvent_SoundEffect &&
             event.kind != NativeFighterActionEvent_SpawnEffect) {
             value_inspector->SetProperty("display", "block");
-            set_text("workshop-value-kind", WorkshopLabels::event(event.kind));
+            set_text("workshop-value-kind", event_name(event));
             set_text("workshop-value-target", "Target ID " +
                      number(event.target_id) + " · original command value");
             field("workshop-event-value")->SetValue(number(event.value));
@@ -289,6 +308,7 @@ void show_commands()
     unsigned frame_order = 0;
     for (size_t i = 0; i < session->command_count; ++i) {
         const NativeFighterActionCommand& command = session->commands[i];
+        if (!visible_command(command)) continue;
         if (session->command_frames[i] != previous_frame) {
             frame_order = 0;
             previous_frame = session->command_frames[i];
@@ -337,7 +357,7 @@ void show_commands()
                        ? number((unsigned) session->command_frames[i]) : "flow") +
                   "</span><span>" + number(frame_order) +
                   "</span><span>" +
-                  (event_index >= 0 ? WorkshopLabels::event(session->events[event_index].kind)
+                  (event_index >= 0 ? event_name(session->events[event_index])
                                     : WorkshopLabels::command(command.opcode)) +
                   "</span><span>" + target + "</span></button>";
     }
@@ -523,7 +543,8 @@ void show_action_timeline()
                 event.kind == NativeFighterActionEvent_SetHitboxScale ||
                 event.kind == NativeFighterActionEvent_SetHitboxFlag ||
                 event.kind == NativeFighterActionEvent_SetCommandVar ||
-                event.kind == NativeFighterActionEvent_NeutralCue;
+                event.kind == NativeFighterActionEvent_NeutralCue ||
+                event.kind == NativeFighterActionEvent_Command;
             if (!belongs) continue;
             const int left = std::clamp(frame * 92 / session->timeline_end_frame, 0, 92);
             int end_frame = frame + 1;
@@ -538,7 +559,7 @@ void show_action_timeline()
                      (event.kind == NativeFighterActionEvent_CreateHitbox
                           ? " hitbox-block" : "") +
                      std::string((int) i == session->selected_event ? " selected" : "") +
-                     "' title='" + WorkshopLabels::event(event.kind) +
+                     "' title='" + event_name(event) +
                      " at frame " + number((unsigned) frame) +
                      "' style='left: " + number((unsigned) left) +
                      "%; width: " + number((unsigned) width) + "%'>" +
@@ -548,7 +569,7 @@ void show_action_timeline()
                           ? number(event.value) + "%" :
                       event.kind == NativeFighterActionEvent_ReleaseThrow
                           ? "Release" :
-                          Rml::StringUtilities::EncodeRml(WorkshopLabels::event(event.kind))) +
+                          Rml::StringUtilities::EncodeRml(event_name(event))) +
                      "</button>";
         }
         lanes += "</div>";
@@ -559,6 +580,12 @@ void show_action_timeline()
         ->SetProperty("min-height", content_height);
     document->GetElementById("workshop-event-timeline-tracks")
         ->SetProperty("min-height", content_height);
+    std::string grid;
+    for (int frame = 0; frame <= session->timeline_end_frame; frame += tick_step) {
+        const float left = 92.0f * frame / session->timeline_end_frame;
+        grid += "<div style='left:" + float_text(left) + "%'></div>";
+    }
+    document->GetElementById("workshop-timeline-grid")->SetInnerRML(grid);
     document->GetElementById("workshop-event-timeline-labels")->SetInnerRML(labels);
     document->GetElementById("workshop-event-timeline-ruler")->SetInnerRML(ruler);
     document->GetElementById("workshop-event-timeline-lanes")->SetInnerRML(lanes);
@@ -566,7 +593,7 @@ void show_action_timeline()
     show_frame_stack();
     set_text("workshop-timeline-selection", session->selected_event >= 0 &&
                  (size_t) session->selected_event < session->event_count
-             ? std::string(WorkshopLabels::event(session->events[session->selected_event].kind)) +
+             ? std::string(event_name(session->events[session->selected_event])) +
                (session->event_frames[session->selected_event] >= 0
                     ? " · frame " + number((unsigned) session->event_frames[session->selected_event])
                     : " · dynamic timing; see event list")
@@ -680,6 +707,7 @@ void refresh_event_templates()
 {
     if (!session->event_templates_dirty) return;
     std::memset(session->event_templates, 0, sizeof(session->event_templates));
+    std::memset(session->command_templates, 0, sizeof(session->command_templates));
     for (size_t i = 0; i < session->action_count; ++i) {
         NativeFighterActionEvent listed[256];
         size_t listed_count = 0;
@@ -687,6 +715,9 @@ void refresh_event_templates()
                                         listed, 256, &listed_count)) continue;
         for (size_t item = 0; item < listed_count; ++item) {
             const unsigned kind = listed[item].kind;
+            if (kind == NativeFighterActionEvent_Command && listed[item].opcode < 59 &&
+                !session->command_templates[listed[item].opcode].found)
+                session->command_templates[listed[item].opcode] = {(unsigned) i, listed[item].source_offset, true};
             if (kind > NativeFighterActionEvent_SetAirborneState ||
                 session->event_templates[kind].found) continue;
             session->event_templates[kind] = { (unsigned) i,
@@ -698,9 +729,8 @@ void refresh_event_templates()
 
 void toggle_add_event_menu()
 {
-    if (session->project == nullptr || session->selected_action < 0 || session->selected_command < 0) {
-        set_text("workshop-editor-status", "Select a command to place a "
-                 "new event after it.");
+    if (session->project == nullptr || session->selected_action < 0) {
+        set_text("workshop-editor-status", "Choose an action, then a frame for the new event.");
         return;
     }
     session->add_event_menu_open = !session->add_event_menu_open;
@@ -736,16 +766,17 @@ void toggle_add_event_menu()
         markup += "<button id='workshop-add-kind-" + number(kind) +
                   "'>" + WorkshopLabels::event(kind) + "</button>";
     }
+    for (unsigned opcode = 9; opcode < 59; ++opcode) if (session->command_templates[opcode].found)
+        markup += "<button id='workshop-add-command-" + number(opcode) + "'>" +
+                  WorkshopLabels::command(opcode) + "</button>";
     menu->SetInnerRML(markup);
     menu->SetProperty("display", "block");
 }
 
 void insert_selected_event(unsigned template_action, uint32_t template_offset)
 {
-    if (session->project == nullptr || session->selected_action < 0 || session->selected_command < 0 ||
-        (size_t) session->selected_command >= session->command_count) {
-        set_text("workshop-editor-status", "Select a command to place a "
-                 "new event after it.");
+    if (session->project == nullptr || session->selected_action < 0) {
+        set_text("workshop-editor-status", "Choose an action and frame for the new event.");
         return;
     }
     if (session->command_count >= 512 || session->event_count >= 256) {
@@ -754,12 +785,12 @@ void insert_selected_event(unsigned template_action, uint32_t template_offset)
         return;
     }
     const unsigned action = (unsigned) session->selected_action;
-    const uint32_t source = session->commands[session->selected_command].source_offset;
+    const int requested_frame = session->timeline_frame;
     const size_t previous_size = session->project->fighter_size;
     std::vector<uint8_t> previous(session->project->fighter_dat,
                                   session->project->fighter_dat + previous_size);
     uint32_t inserted;
-    if (!nativeFighterAction_InsertCommand(session->project, action, source,
+    if (!nativeFighterAction_InsertAtFrame(session->project, action, requested_frame,
                                             template_action, template_offset,
                                             &inserted)) {
         set_text("workshop-editor-status", "Could not add this event. "
@@ -834,7 +865,8 @@ void ActionTimelineEvents::ProcessEvent(Rml::Event& event)
         return;
     source_event = -1;
     Rml::Element* track_element = document->GetElementById(
-        "workshop-event-timeline-track_element");
+        "workshop-event-timeline-ruler");
+    if (!track_element) return;
     const int width = track_element->GetClientWidth();
     if (width <= 0) return;
     const int dx = event.GetParameter<int>("mouse_x", start_x) - start_x;
@@ -953,8 +985,26 @@ void apply_history(bool redo)
 {
     if (session->project == nullptr || (redo ? session->edit_cursor >= session->edit_history.size()
                                     : session->edit_cursor == 0)) return;
+    if (auto* focus = document->GetContext()->GetFocusElement()) {
+        if (focus->GetId().compare(0,14,"workshop-bone-") == 0) focus->Blur();
+    }
     const EditHistoryEntry& edit = session->edit_history[redo ? session->edit_cursor :
                                                      session->edit_cursor - 1];
+    if (!edit.poses.empty()) {
+        stop_action_preview();
+        session->animation_clip = edit.pose_clip;
+        session->animation_frame = edit.pose_frame;
+        nativeWorkshopPose_Begin(session->project, edit.pose_clip, edit.pose_frame);
+        nativeWorkshopPose_Restore(edit.poses.data(), (unsigned) edit.poses.size(), redo);
+        field("workshop-animation-current-frame")->SetValue(number(edit.pose_frame));
+        if (redo) ++session->edit_cursor; else --session->edit_cursor;
+        update_history_buttons();
+        show_bone_transform();
+        session->graph_refresh = true;
+        return;
+    }
+    nativeWorkshopPose_Clear();
+    nativeHome_WorkshopPoseInvalidate();
     const auto& fighter = redo ? edit.after_fighter : edit.before_fighter;
     if (!fighter.empty() && fighter.size() != session->project->fighter_size) return;
     if (!edit.before_bank.empty()) {
@@ -1028,6 +1078,11 @@ void apply_history(bool redo)
         select_track((unsigned) track);
         if (key >= 0 && (size_t) key < session->key_count) select_key((unsigned) key);
     }
+    session->animation_frame = std::clamp(animation_frame, 0, int(std::ceil(session->clip_frames)));
+    field("workshop-animation-current-frame")->SetValue(number(session->animation_frame));
+    nativeHome_WorkshopPoseInvalidate();
+    session->bone_pose_refresh = true;
+    session->graph_refresh = true;
     set_text("workshop-editor-status", redo ? "Reapplied workshop edit."
                                             : "Undid workshop edit.");
 }
@@ -1045,6 +1100,8 @@ void select_command(unsigned index)
         }
     }
     if (session->selected_event < 0) {
+        document->GetElementById("workshop-action-playback")->SetProperty("display", "none");
+        document->GetElementById("workshop-command-fields")->SetProperty("display", "none");
         document->GetElementById("workshop-event-timing")
             ->SetProperty("display", "none");
         document->GetElementById("workshop-delete-event")

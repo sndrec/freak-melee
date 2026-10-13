@@ -93,6 +93,7 @@ ModelSession* active = &sessions[0];
 bool visible;
 int hovered_mesh = -1;
 bool playing;
+unsigned reveal_material;
 std::chrono::steady_clock::time_point play_started;
 int play_start_frame;
 void build_bones();
@@ -112,7 +113,7 @@ void update_mesh_view()
     nativeHome_WorkshopMeshView(meshes, active->model.mesh_count, hovered_mesh,
                                 active->context == Context::Skinning ? active->selected_mesh
                                                              : -1,
-                                (unsigned) active->selected_joint);
+                                (unsigned) active->selected_joint, active->rig_mode != RigMode::Animation);
 }
 
 Rml::Element* element(const char* id)
@@ -143,7 +144,7 @@ void status(const std::string& value)
 std::string decimal(float value)
 {
     char output[32];
-    std::snprintf(output, sizeof(output), "%.5g", value);
+    std::snprintf(output, sizeof(output), "%.9g", value);
     return output;
 }
 
@@ -1245,6 +1246,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         if (std::strcmp(id, (std::string("workshop-model-context-") +
                             contexts[i]).c_str()) == 0) {
             active->context = (Context) i;
+            reveal_material = active->context == Context::Materials ? 2 : 0;
             if (active->context == Context::Skinning) {
                 if (active->selected_joint < 0 ||
                     !(active->model.joints[active->selected_joint].flags & JOBJ_SKELETON))
@@ -1397,7 +1399,10 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-model-edit-material") == 0) {
-        active->context = Context::Materials; render(); return true;
+        active->context = Context::Materials;
+        render();
+        reveal_material = 2;
+        return true;
     }
     if (std::strcmp(id, "workshop-model-play") == 0) {
         if (active->rig_mode != RigMode::Animation) return true;
@@ -1588,6 +1593,10 @@ static bool commit_model_pose(const NativeWorkshopTransformChange* edits,
 
 void nativeShellWorkshopModel_Update()
 {
+    if (reveal_material && --reveal_material == 0 && active->selected_material >= 0) {
+        if (auto* row = document->GetElementById("workshop-model-material-" + std::to_string(active->selected_material)))
+            row->ScrollIntoView(true);
+    }
     if (!visible || active->project == nullptr || active->selected_clip < 0) return;
     if (!active->roles_applied && nativeHome_WorkshopBoneCount() != 0) {
         for (unsigned i = 0; i < active->model.joint_count; ++i) {

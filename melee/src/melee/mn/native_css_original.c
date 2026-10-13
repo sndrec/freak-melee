@@ -218,7 +218,7 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
     }
     nativeMenuVisuals_Text(menu_visuals, menu, world_x(300), world_y(95), 0,
                            (world_right-world_left)*0.50f,
-                           (world_top-world_bottom)*0.048f, NativeMenuFont_Heading, "CHOOSE A FIGHTER");
+                           (world_top-world_bottom)*0.033f, NativeMenuFont_Heading, "CHOOSE A FIGHTER");
     make_defaults();
     bool missing = false;
     editable = nativeCssLayout_DefaultPath(layout_path, sizeof(layout_path));

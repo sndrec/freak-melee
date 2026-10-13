@@ -62,6 +62,8 @@ struct GraphKeyBaseline {
     float units_per_pixel;
     float screen_x;
     float screen_y;
+    float tangent;
+    bool tangent_editable;
 };
 struct EditedByte { uint32_t offset; uint8_t before; uint8_t after; };
 struct EditHistoryEntry {
@@ -71,6 +73,9 @@ struct EditHistoryEntry {
     std::vector<uint8_t> after_bank;
     std::vector<uint8_t> before_fighter;
     std::vector<uint8_t> after_fighter;
+    std::vector<NativeWorkshopTransformChange> poses;
+    NativeFighterAnimationClip pose_clip;
+    int pose_frame = 0;
 };
 enum class GraphTool { Move, Box, Rotate, Scale };
 enum class WorkshopMode { Action, Script, Animation, Model };
@@ -99,7 +104,8 @@ struct EditorSession {
     bool action_has_clip[1024];
     float action_clip_frames[1024];
     NativeFighterActionEvent events[256];
-    ActionEventTemplate event_templates[NativeFighterActionEvent_SetAirborneState + 1];
+    ActionEventTemplate event_templates[NativeFighterActionEvent_Command + 1];
+    ActionEventTemplate command_templates[59];
     bool event_templates_dirty = true;
     bool add_event_menu_open;
     NativeFighterActionCommand commands[512];
@@ -128,7 +134,7 @@ struct EditorSession {
     bool bone_pose_refresh;
     bool action_dirty;
     bool script_loaded;
-    bool normalize_values = true;
+    bool normalize_values = false;
     bool graph_animated_only = true;
     bool show_animation_curves = true;
     bool graph_focused;
@@ -172,6 +178,16 @@ struct EditorSession {
     int animation_frame;
     bool graph_refresh;
     bool graph_drag_active;
+    bool graph_modal;
+    bool graph_tangent;
+    int graph_tangent_side;
+    unsigned graph_constraint;
+    float graph_cursor_x = 8, graph_cursor_y = 7;
+    float graph_cursor_frame = 0, graph_cursor_value = 0;
+    float graph_value_low, graph_value_high;
+    bool graph_value_range_valid;
+    std::vector<uint8_t> graph_before;
+    std::string bone_names[512];
     unsigned drag_track;
     unsigned drag_key;
     int drag_start_x;
@@ -200,6 +216,12 @@ struct EditorSession {
     std::string parameter_source;
     std::string focus_id;
 };
+std::string bone_name(unsigned joint);
+void init_editor_input();
+bool begin_graph_transform(GraphTool, int, int, bool);
+bool preview_graph_transform(int, int);
+void finish_graph_transform(bool);
+void record_pose_edit(const NativeWorkshopTransformChange*, unsigned);
 extern Rml::ElementDocument* document;
 extern EditorSession sessions[2];
 extern EditorSession* session;
@@ -211,16 +233,7 @@ public:
 extern GraphKeyEvents graph_key_events;
 class GraphTangentEvents final : public Rml::EventListener {
 public:
-    void Reset() { track = key = UINT_MAX; }
     void ProcessEvent(Rml::Event& event) override;
-private:
-    unsigned track = UINT_MAX;
-    unsigned key = UINT_MAX;
-    int side = 0;
-    int mouse_x = 0;
-    int mouse_y = 0;
-    float handle_x = 0.0f;
-    float handle_y = 0.0f;
 };
 extern GraphTangentEvents graph_tangent_events;
 class GraphBoxEvents final : public Rml::EventListener {
@@ -231,9 +244,10 @@ extern GraphBoxEvents graph_box_events;
 class GraphNavigationEvents final : public Rml::EventListener {
 public:
     void ProcessEvent(Rml::Event& event) override;
-    void Reset() { dragging = false; }
+    void Reset() { dragging = seeking = false; }
 private:
     bool dragging = false;
+    bool seeking = false;
     bool zooming = false;
     int last_x = 0;
     int last_y = 0;
@@ -307,7 +321,7 @@ void record_pose_keys(const uint8_t* before, size_t size,
 void show_animation_graph();
 void set_graph_tool(GraphTool tool);
 void show_animation_dopesheet();
-void select_key(unsigned key);
+void select_key(unsigned key, bool seek = true);
 void show_track_browser();
 void refresh_track_selection();
 void select_track(unsigned track, bool toggle = false);
@@ -333,6 +347,9 @@ int hitbox_end_for_instance(size_t instance);
 int hitbox_end_frame(size_t index);
 int timing_event_for_selected();
 void show_event();
+void show_command_fields(const NativeFighterActionEvent&);
+void apply_command_fields();
+std::string event_name(const NativeFighterActionEvent&);
 void show_commands();
 void show_action_timeline();
 void select_action(unsigned action);

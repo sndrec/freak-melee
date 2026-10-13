@@ -8,7 +8,10 @@ extern "C" {
 #endif
 // Transient authoring state. Never modifies costume materials or mesh flags.
 void nativeModelView_Clear(void);
-void nativeModelView_Begin(unsigned count);
+void nativeModelView_Begin(unsigned count, bool override_visibility);
+bool nativeModelView_OverridesVisibility(const HSD_JObj*);
+u32 nativeModelView_JointFlags(const HSD_JObj*);
+u32 nativeModelView_MeshFlags(const HSD_DObj*);
 void nativeModelView_Mesh(unsigned index, HSD_JObj* owner, HSD_DObj* mesh,
                           bool hidden, bool highlight, HSD_JObj* weight_bone);
 bool nativeModelView_Draw(HSD_DObj* mesh, Mtx view);

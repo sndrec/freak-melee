@@ -163,15 +163,11 @@
 .workshop-transform-tools select { width: 130dp; }
 #workshop-animation-viewport .workshop-transform-tools { top: 76dp; }
 .workshop-transform-tools button.selected { background-color: #65453b; color: #ffb194; }
-.workshop-transform-axis {
-    position: absolute; height: 5px; padding: 0; margin: 0; border-width: 0;
-    transform-origin: 0px 2px; pointer-events: auto;
-}
-.workshop-transform-axis.axis-0 { background-color: #ef7373; }
-.workshop-transform-axis.axis-1 { background-color: #80d78c; }
-.workshop-transform-axis.axis-2 { background-color: #6eaaff; }
-.workshop-transform-axis:hover, .workshop-transform-axis.selected { background-color: #fff1a3; }
 .workshop-transform-hint {
     position: absolute; left: 8dp; bottom: 8dp; padding: 4dp 6dp;
     background-color: #191c25dc; color: #c3c8d5; font-size: 10dp;
 }
+
+.workshop-model-inspector-section .workshop-material-check { display:block; margin:10dp 0; }
+.workshop-model-inspector-section .workshop-material-check input { display:inline-block; width:15dp; height:15dp; padding:0; margin:0 7dp 0 0; background-color:#211d2a; border:1dp #8d7480; }
+.workshop-model-inspector-section .workshop-material-check input:checked { background-color:#b25b4d; border-color:#f4b093; }

@@ -1,4 +1,5 @@
 #include "native_shell_workshop_transform.h"
+#include <sysdolphin/baselib/native_workshop_gizmo.h>
 
 #include <algorithm>
 #include <cmath>
@@ -156,11 +157,7 @@ namespace {
     Rml::ElementDocument* document;
     Rml::Element* viewport;
     Rml::Element* overlay;
-    struct Segment {
-        Rml::Element* element;
-        float x, y, width, angle;
-        bool visible, selected, initialized;
-    } segments[3][32];
+    struct PickSegment { float x, y, xx, yy; bool visible; } segments[3][32];
     Rml::Element* tool_buttons[3];
     Rml::Element* hint;
     int drawn_operation = -1, drawn_running = -1;
@@ -437,23 +434,11 @@ namespace {
                               : "Scale") +
                     "</button>";
         }
-        html += "<select id='transform-pivot'><option value='0'>Selection "
+        html += "<select id='transform-pivot' title='Center, active bone, or each bone’s own origin'><option value='0'>Selection "
                 "center</option><option value='1'>Active bone</option><option "
                 "value='2'>Individual origins</option></select><select "
-                "id='transform-space'><option value='0'>World</option><option "
+                "id='transform-space' title='World axes or the active bone’s local axes'><option value='0'>World</option><option "
                 "value='1'>Local</option></select></div>";
-        for (unsigned a = 0; a < 3; ++a) {
-            for (unsigned segment = 0; segment < 32; ++segment) {
-                html += "<button id='transform-axis-" + std::to_string(a) +
-                        "-" + std::to_string(segment) +
-                        "' class='workshop-transform-axis axis-" +
-                        std::to_string(a) + "' title='" +
-                        std::string(a == 0   ? "X"
-                                    : a == 1 ? "Y"
-                                             : "Z") +
-                        " axis'></button>";
-            }
-        }
         html +=
             "<div id='transform-hint' class='workshop-transform-hint'></div>";
         overlay->SetInnerRML(html);
@@ -467,13 +452,8 @@ namespace {
         for (unsigned a = 0; a < 3; ++a) {
             tool_buttons[a] = document->GetElementById("transform-tool-" +
                                                        std::to_string(a));
-            for (unsigned seg = 0; seg < 32; ++seg) {
-                segments[a][seg] = {};
-                segments[a][seg].element = document->GetElementById(
-                    "transform-axis-" + std::to_string(a) + "-" +
-                    std::to_string(seg));
-            }
         }
+
         hint = document->GetElementById("transform-hint");
         drawn_operation = drawn_running = -1;
     }
@@ -519,65 +499,22 @@ namespace {
                 ? length(o2 + d2 * (dot(center - o2, normal) / denominator) -
                          center)
                 : 6;
-        auto offset = viewport->GetAbsoluteOffset(Rml::BoxArea::Content);
+        unsigned chosen = 0;
         for (unsigned a = 0; a < 3; ++a) {
+            if (running && (axis < 0 || (plane ? (int) a != axis : (int) a == axis))) chosen |= 1u << a;
             for (unsigned seg = 0; seg < 32; ++seg) {
-                Segment& cached = segments[a][seg];
-                auto* e = cached.element;
-                bool shown = operation == Rotate || seg == 0;
+                auto& cached = segments[a][seg];
                 V p = center, q = center + basis[a] * size;
                 if (operation == Rotate) {
-                    float t = seg * 2 * Pi / 32, u = (seg + 1) * 2 * Pi / 32;
-                    p = center + (basis[(a + 1) % 3] * std::cos(t) +
-                                  basis[(a + 2) % 3] * std::sin(t)) *
-                                     size;
-                    q = center + (basis[(a + 1) % 3] * std::cos(u) +
-                                  basis[(a + 2) % 3] * std::sin(u)) *
-                                     size;
+                    const float t = seg * 2 * Pi / 32, u = (seg + 1) * 2 * Pi / 32;
+                    p = center + (basis[(a+1)%3] * std::cos(t) + basis[(a+2)%3] * std::sin(t)) * size;
+                    q = center + (basis[(a+1)%3] * std::cos(u) + basis[(a+2)%3] * std::sin(u)) * size;
                 }
-                float x, y, xx, yy;
-                shown = shown && screen(p, x, y) && screen(q, xx, yy);
-                if (!cached.initialized || cached.visible != shown) {
-                    e->SetProperty("display", shown ? "block" : "none");
-                }
-                cached.visible = shown;
-                if (shown) {
-                    x -= offset.x;
-                    y -= offset.y + 2;
-                    float width =
-                        std::max(4.0f, std::hypot(xx - offset.x - x,
-                                                  yy - offset.y - 2 - y));
-                    float angle =
-                        std::atan2(yy - offset.y - 2 - y, xx - offset.x - x);
-                    if (!cached.initialized || cached.x != x) {
-                        e->SetProperty("left", std::to_string(x) + "px");
-                    }
-                    if (!cached.initialized || cached.y != y) {
-                        e->SetProperty("top", std::to_string(y) + "px");
-                    }
-                    if (!cached.initialized || cached.width != width) {
-                        e->SetProperty("width", std::to_string(width) + "px");
-                    }
-                    if (!cached.initialized || cached.angle != angle) {
-                        e->SetProperty("transform", "rotate(" +
-                                                        std::to_string(angle) +
-                                                        "rad)");
-                    }
-                    bool selected =
-                        running && (axis < 0 || (plane ? (int) a != axis
-                                                       : (int) a == axis));
-                    if (!cached.initialized || cached.selected != selected) {
-                        e->SetClass("selected", selected);
-                    }
-                    cached.x = x;
-                    cached.y = y;
-                    cached.width = width;
-                    cached.angle = angle;
-                    cached.selected = selected;
-                }
-                cached.initialized = true;
+                cached.visible = (operation == Rotate || seg == 0) &&
+                    screen(p,cached.x,cached.y) && screen(q,cached.xx,cached.yy);
             }
         }
+        nativeHome_WorkshopGizmo(&center.x, reinterpret_cast<const float (*)[3]>(basis), size, (unsigned) operation, chosen);
         if (drawn_operation != (int) operation) {
             for (unsigned i = 0; i < 3; ++i) {
                 tool_buttons[i]->SetClass("selected",
@@ -593,6 +530,21 @@ namespace {
                                     "Shift+click: select bones");
             drawn_running = (int) running;
         }
+    }
+
+    int pick_axis()
+    {
+        float best = 8.0f; int hit = -1;
+        for (unsigned axis = 0; axis < 3; ++axis) for (const auto& segment : segments[axis]) {
+            if (!segment.visible) continue;
+            const float dx = segment.xx - segment.x, dy = segment.yy - segment.y;
+            const float n = dx*dx + dy*dy;
+            if (n < 9) continue;
+            const float t = std::clamp(((mouse_x-segment.x)*dx+(mouse_y-segment.y)*dy)/n,0.0f,1.0f);
+            const float distance = std::hypot(mouse_x-segment.x-t*dx,mouse_y-segment.y-t*dy);
+            if (distance < best) { best = distance; hit = (int) axis; }
+        }
+        return hit;
     }
 
     class Events final : public Rml::EventListener {
@@ -619,8 +571,8 @@ namespace {
                     finish(button == 0);
                     suppress_click = true;
                     consume = true;
-                } else if (button == 0 && id.find("transform-axis-") == 0) {
-                    begin(operation, std::atoi(id.c_str() + 15), true);
+                } else if (button == 0 && over_viewport() && pick_axis() >= 0) {
+                    begin(operation, pick_axis(), true);
                     consume = true;
                 }
             }
@@ -718,6 +670,7 @@ void nativeWorkshopTransform_Init(Rml::ElementDocument* doc)
 }
 void nativeWorkshopTransform_Clear()
 {
+    nativeWorkshopGizmo_Clear();
     finish(false);
     if (overlay && viewport) {
         viewport->RemoveChild(overlay);

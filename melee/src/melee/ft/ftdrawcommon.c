@@ -1,4 +1,6 @@
 #include "ftdrawcommon.h"
+#include <sysdolphin/baselib/native_workshop_gizmo.h>
+#include <sysdolphin/baselib/native_model_view.h>
 
 #include <Runtime/platform.h>
 
@@ -263,7 +265,8 @@ void ftDrawCommon_800805C8(HSD_GObj* gobj, s32 arg1, bool arg2)
         return;
     }
 
-    if (!fighter->invisible && !fighter->x221E_b5 && arg2) {
+    if (arg2 && (nativeModelView_OverridesVisibility(GET_JOBJ(gobj)) ||
+                 (!fighter->invisible && !fighter->x221E_b5))) {
         ftParts_800750C8(fighter, 1, 0);
         ftParts_800750C8(fighter, 4, 0);
         if (fighter->is_metal || fighter->x2226_b5 || fighter->x2227_b3) {
@@ -295,6 +298,10 @@ void ftDrawCommon_800805C8(HSD_GObj* gobj, s32 arg1, bool arg2)
                         HSD_GObj_80390EB8(arg1), 0);
     }
     ftCo_800C2600(gobj, arg1);
+#ifdef MELEE_NATIVE
+    HSD_CObj* camera = HSD_CObjGetCurrent();
+    if (arg1 == 0 && camera) nativeWorkshopGizmo_Draw(GET_JOBJ(gobj), HSD_CObjGetViewingMtxPtrDirect(camera));
+#endif
 }
 
 void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
@@ -313,7 +320,8 @@ void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
 
     fighter = GET_FIGHTER(gobj);
     if (fighter->x21FC_flag.b7 != 0) {
-        if (!fighter->invisible && !fighter->x221E_b5 && !fighter->x2226_b5) {
+        if (nativeModelView_OverridesVisibility(GET_JOBJ(gobj)) ||
+            (!fighter->invisible && !fighter->x221E_b5 && !fighter->x2226_b5)) {
             ftCo_8009F5AC(fighter);
             if (fighter->x5AC.xC[1] != NULL) {
                 ftParts_800750C8(fighter, 0, 0);
@@ -332,6 +340,7 @@ void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
             HSD_JObjDispAll(jobj, vmtx, HSD_GObj_80390EB8(flag_index), 0);
 #ifdef MELEE_NATIVE
             nativeFighterAttachment_Draw(gobj, flag_index, vmtx);
+            if (flag_index == 0) nativeWorkshopGizmo_Draw(jobj, vmtx);
 #endif
             if (ftData_UnkMtxFunc0[fighter->kind] != NULL) {
                 ftData_UnkMtxFunc0[fighter->kind](gobj, flag_index, vmtx);

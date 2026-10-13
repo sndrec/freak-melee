@@ -1,4 +1,5 @@
 #include "displayfunc.h"
+#include "native_model_view.h"
 #include "native_render_phase.h"
 
 #include <string.h>
@@ -294,11 +295,12 @@ void HSD_JObjDispSub(HSD_JObj* jobj, MtxPtr vmtx, MtxPtr pmtx,
 
     HSD_PObjClearMtxMark(NULL, 0);
     for (dobj = jobj->u.dobj; dobj; dobj = dobj->next) {
-        if (dobj->flags & DOBJ_HIDDEN) {
+        const u32 draw_flags = nativeModelView_MeshFlags(dobj);
+        if (draw_flags & DOBJ_HIDDEN) {
             continue;
         }
 
-        if (dobj->flags & dobj_trsp) {
+        if (draw_flags & dobj_trsp) {
             HSD_DObjSetCurrent(dobj);
             HSD_DOBJ_METHOD(dobj)->disp(dobj, vmtx, pmtx, rendermode);
         }
@@ -313,8 +315,9 @@ void HSD_JObjDispDObj(HSD_JObj* jobj, MtxPtr vmtx, HSD_TrspMask trsp_mask,
     HSD_CObj* cobj;
     Mtx mtx;
 
-    if ((jobj->flags & JOBJ_HIDDEN) == 0) {
-        u32 xlu_bits = jobj->flags & (trsp_mask << JOBJ_TRSP_SHIFT);
+    const u32 draw_flags = nativeModelView_JointFlags(jobj);
+    if ((draw_flags & JOBJ_HIDDEN) == 0) {
+        u32 xlu_bits = draw_flags & (trsp_mask << JOBJ_TRSP_SHIFT);
         if (xlu_bits != 0) {
             HSD_JObjSetupMatrix(jobj);
 

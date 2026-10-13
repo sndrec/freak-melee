@@ -8,6 +8,7 @@
 #include "dobj.h"
 #include "jobj.h"
 #include "list.h"
+#include "mobj.h"
 #include "pobj.h"
 #include "state.h"
 #include <dolphin/gx.h>
@@ -23,22 +24,67 @@ typedef struct ViewMesh {
 } ViewMesh;
 static ViewMesh meshes[VIEW_MESHES];
 static unsigned mesh_count;
+static bool override_visibility;
+static struct { const HSD_JObj* joint; u32 passes; } view_joints[512];
+static unsigned view_joint_count;
 
 void nativeModelView_Clear(void)
 {
     mesh_count = 0;
+    view_joint_count = 0;
+    override_visibility = false;
 }
-void nativeModelView_Begin(unsigned count)
+void nativeModelView_Begin(unsigned count, bool visibility)
 {
+    view_joint_count = 0;
+    override_visibility = visibility;
     mesh_count = count < VIEW_MESHES ? count : VIEW_MESHES;
 }
 void nativeModelView_Mesh(unsigned index, HSD_JObj* owner, HSD_DObj* mesh,
                           bool hidden, bool highlight, HSD_JObj* weight_bone)
 {
     if (index < mesh_count) {
-        meshes[index] =
-            (ViewMesh){ owner, mesh, weight_bone, hidden, highlight };
+        meshes[index] = (ViewMesh){ owner, mesh, weight_bone, hidden, highlight };
+        if (override_visibility && owner && mesh && !hidden) {
+            const u32 mode = mesh->mobj ? mesh->mobj->rendermode : 0;
+            const u32 pass = mode & RENDER_XLU ? (mode & RENDER_NO_ZUPDATE ? JOBJ_TEXEDGE : JOBJ_XLU) : JOBJ_OPA;
+            for (HSD_JObj* joint = owner; joint; joint = joint->parent) {
+                unsigned slot = 0;
+                while (slot < view_joint_count && view_joints[slot].joint != joint) ++slot;
+                if (slot == view_joint_count) {
+                    if (view_joint_count == 512) break;
+                    view_joints[slot].joint = joint; view_joints[slot].passes = 0; ++view_joint_count;
+                }
+                view_joints[slot].passes |= joint == owner ? pass : pass << 10;
+            }
+        }
     }
+}
+
+bool nativeModelView_OverridesVisibility(const HSD_JObj* joint)
+{
+    if (override_visibility)
+        for (unsigned i = 0; i < view_joint_count; ++i)
+            if (view_joints[i].joint == joint) return true;
+    return false;
+}
+u32 nativeModelView_JointFlags(const HSD_JObj* joint)
+{
+    if (override_visibility)
+        for (unsigned i = 0; i < view_joint_count; ++i)
+            if (view_joints[i].joint == joint) return (joint->flags & ~JOBJ_HIDDEN) | view_joints[i].passes;
+    return joint->flags;
+}
+u32 nativeModelView_MeshFlags(const HSD_DObj* mesh)
+{
+    for (unsigned i = 0; i < mesh_count; ++i) if (meshes[i].mesh == mesh) {
+        if (meshes[i].hidden) return mesh->flags | DOBJ_HIDDEN;
+        if (!override_visibility) return mesh->flags;
+        const u32 mode = mesh->mobj ? mesh->mobj->rendermode : 0;
+        const u32 pass = mode & RENDER_XLU ? (mode & RENDER_NO_ZUPDATE ? (HSD_TRSP_TEXEDGE << DOBJ_TRSP_SHIFT) : (HSD_TRSP_XLU << DOBJ_TRSP_SHIFT)) : (HSD_TRSP_OPA << DOBJ_TRSP_SHIFT);
+        return (mesh->flags & ~(DOBJ_HIDDEN | (HSD_TRSP_OPA << DOBJ_TRSP_SHIFT) | (HSD_TRSP_TEXEDGE << DOBJ_TRSP_SHIFT) | (HSD_TRSP_XLU << DOBJ_TRSP_SHIFT))) | pass;
+    }
+    return mesh->flags;
 }
 
 static u16 be16(const u8* p)

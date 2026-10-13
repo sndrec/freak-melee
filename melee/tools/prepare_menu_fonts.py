@@ -152,8 +152,10 @@ if __name__=='__main__':
                 h=height if c.isalnum() else min(height,im.height)
                 glyphs[c]=im.resize((max(1,round(im.width*h/im.height)),h),Image.Resampling.LANCZOS)
         atlas(args.output/(face+'.bin'),glyphs,height,tracking,True)
-    heading=raster_font(Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/impact.ttf',38)
-    atlas(args.output/'menu-heading.bin',heading,28,1)
+    # The home prompt is a menu notice. Use the supplied game notice family;
+    # the Melee logo's compressed lettering has a separate visual role.
+    heading=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',32)
+    atlas(args.output/'menu-heading.bin',heading,24,1)
     folk=raster_font(root/'assets/fonts/FolkPro-Medium.otf',32)
     atlas(args.output/'notice.bin',folk,24,1)
     glyphs=angular_glyphs(root/'assets/ui/fonts/angular_glyph_set.svg')

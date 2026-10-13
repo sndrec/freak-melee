@@ -143,6 +143,13 @@ context-specific glyph atlases. These changes still need the user's usability
 and typography assessment; the broader acceptance tasks below remain open.
 
 
+The [second recording feedback list](melee/docs/native_workshop_feedback_2026_10_13.md)
+is implemented and ready for the user's next review. The pass addresses its
+crash, editing interactions, contextual labels, material/visibility gaps and
+typography. Pause after the focused checks and local commits. Model mode uses
+editor eye visibility alone; Animation and Test Character use authored
+visibility. IK remains future authoring work.
+
 - [ ] Complete clone -> edit -> preview/test -> save/reopen -> install with the
   user, preserving the source fighter and keeping preview/cache/install distinct.
 - [ ] Review the real Action Editor timeline, loop unrolling, simultaneous

@@ -79,6 +79,7 @@ static void usage(void)
         "  project-model-texture PROJECT_DIRECTORY MATERIAL IMAGE_FILE\n"
         "  project-attribute PROJECT_DIRECTORY PROPERTY [VALUE]\n"
         "  project-actions PROJECT_DIRECTORY [ACTION_INDEX]\n"
+        "  project-insert-at-frame PROJECT_DIRECTORY ACTION_INDEX FRAME TEMPLATE_ACTION TEMPLATE_OFFSET\n"
         "  project-insert-command PROJECT_DIRECTORY ACTION_INDEX AFTER_OFFSET "
         "TEMPLATE_ACTION TEMPLATE_OFFSET\n"
         "  project-delete-command PROJECT_DIRECTORY ACTION_INDEX "
@@ -641,7 +642,8 @@ static int project_actions(const char* path, const char* action_text)
                     : event->kind == NativeFighterActionEvent_SetAirborneState
                         ? "ground-air-state"
                     : event->kind == NativeFighterActionEvent_AllowInterrupt
-                        ? "allow-interrupt" : "neutral-cue";
+                        ? "allow-interrupt"
+                    : event->kind == NativeFighterActionEvent_NeutralCue ? "neutral-cue" : "command";
                 printf("0x%X %s %u", event->source_offset, kind,
                        event->value);
                 if (event->kind == NativeFighterActionEvent_CreateHitbox ||
@@ -651,6 +653,7 @@ static int project_actions(const char* path, const char* action_text)
                     event->kind == NativeFighterActionEvent_ThrowHitbox) {
                     printf(" id=%u", event->target_id);
                 }
+                if (event->kind == NativeFighterActionEvent_Command) printf(" opcode=%u", event->opcode);
                 if (event->kind == NativeFighterActionEvent_SetCommandVar)
                     printf(" var=%u", event->target_id);
                 if (event->kind == NativeFighterActionEvent_SetBoneHurtState)
@@ -702,7 +705,7 @@ static int project_insert_command(const char* path,
                                   const char* action_text,
                                   const char* after_text,
                                   const char* template_action_text,
-                                  const char* template_offset_text)
+                                  const char* template_offset_text, bool at_frame)
 {
     u32 action, after, template_action, template_offset;
     uint32_t inserted;
@@ -722,9 +725,8 @@ static int project_insert_command(const char* path,
         fputs("Could not open a complete fighter draft.\n", stderr);
         return 1;
     }
-    const bool ok = nativeFighterAction_InsertCommand(
-                        &project, action, after, template_action,
-                        template_offset, &inserted) &&
+    const bool ok = (at_frame ? nativeFighterAction_InsertAtFrame(&project, action, after, template_action, template_offset, &inserted)
+                              : nativeFighterAction_InsertCommand(&project, action, after, template_action, template_offset, &inserted)) &&
                     nativeFighterProject_Save(path, &project);
     nativeFighterProject_Close(&project);
     if (!ok) {
@@ -1980,10 +1982,10 @@ int main(int argc, char** argv)
                              argv[index + 3], argv[index + 4]);
     }
     if (arguments == 6 &&
-        strcmp(argv[index], "project-insert-command") == 0) {
+        (strcmp(argv[index], "project-insert-command") == 0 || strcmp(argv[index], "project-insert-at-frame") == 0)) {
         return project_insert_command(argv[index + 1], argv[index + 2],
                                       argv[index + 3], argv[index + 4],
-                                      argv[index + 5]);
+                                      argv[index + 5], strcmp(argv[index], "project-insert-at-frame") == 0);
     }
     if (arguments == 4 &&
         strcmp(argv[index], "project-delete-command") == 0) {

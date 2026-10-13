@@ -157,11 +157,11 @@ void cancel_session_gestures()
 {
     stop_action_preview();
     session->action_move_armed = false;
+    finish_graph_transform(false);
     session->graph_drag_active = false;
     session->graph_box_active = false;
     session->graph_drag_baselines.clear();
     session->add_event_menu_open = false;
-    graph_tangent_events.Reset();
     graph_navigation_events.Reset();
     action_timeline_events.Reset();
     timeline_ruler_events.Reset();
@@ -227,8 +227,12 @@ bool nativeShellWorkshopEditor_Select(unsigned member)
         { "workshop-view-bones", session->show_action_bones },
         { "workshop-animation-show-bones", session->show_animation_bones } })
         document->GetElementById(flag.first)->SetClass("selected", flag.second);
-    set_text("workshop-graph-normalize", session->normalize_values ? "Normalize values: on" : "Normalize values: off");
-    set_text("workshop-graph-pivot", session->graph_cursor_pivot ? "Pivot: cursor" : "Pivot: selection");
+    field("workshop-graph-normalize")->SetAttribute("checked", session->normalize_values);
+    if (!session->normalize_values) field("workshop-graph-normalize")->RemoveAttribute("checked");
+    field("workshop-graph-animated-only")->SetAttribute("checked", session->graph_animated_only);
+    if (!session->graph_animated_only) field("workshop-graph-animated-only")->RemoveAttribute("checked");
+    static_cast<Rml::ElementFormControlSelect*>(document->GetElementById("workshop-graph-pivot"))->SetValue(
+        session->graph_cursor_pivot ? "cursor" : "selection");
     update_history_buttons();
     restore_session_widgets();
     if (!model_available)

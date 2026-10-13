@@ -70,7 +70,8 @@ typedef struct NativeHomeWorkshopMesh {
 } NativeHomeWorkshopMesh;
 void nativeHome_WorkshopMeshView(const NativeHomeWorkshopMesh* meshes,
                                  unsigned count, int highlight,
-                                 int weight_mesh, unsigned weight_joint);
+                                 int weight_mesh, unsigned weight_joint, bool override_visibility);
+void nativeHome_WorkshopGizmo(const float center[3], const float axes[3][3], float size, unsigned operation, unsigned selected);
 bool nativeHome_WorkshopBoneMatrix(unsigned joint, float result[3][4]);
 bool nativeHome_WorkshopRay(float x, float y, float origin[3],
                             float direction[3]);
