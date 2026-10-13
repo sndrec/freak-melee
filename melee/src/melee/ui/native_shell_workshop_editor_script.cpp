@@ -14,6 +14,7 @@ std::string combined_script()
     return WorkshopScriptFiles::compose(session->script_files);
 }
 
+
 void show_script_files()
 {
     std::string markup;
@@ -46,25 +47,6 @@ void select_script_file(size_t index)
 
 void show_script()
 {
-    const bool explicit_states = session->project != nullptr &&
-        std::strcmp(session->project->fighter_root, "ftDataMario") != 0;
-    document->GetElementById("workshop-script-api")->SetInnerRML(
-        explicit_states
-            ? "<div class='workshop-api-signature'>on state_ID_animation:</div>"
-              "<div class='workshop-api-signature'>state.enter(motion_id)</div>"
-              "<div class='workshop-api-signature'>state.enter(motion_id, frame)</div>"
-              "<div class='workshop-api-signature'>callbacks.damage(Helper)</div>"
-              "<div class='workshop-api-signature'>velocity.x = number</div>"
-              "<div class='workshop-api-signature'>velocity.y = number</div>"
-              "<div class='workshop-api-signature'>random.float()</div>"
-            : "<div class='workshop-api-signature'>state.enter(NeutralSpecial)</div>"
-              "<div class='workshop-api-signature'>motion.add_facing_speed(number)</div>"
-              "<div class='workshop-api-signature'>motion.add_vertical_speed(number)</div>"
-              "<div class='workshop-api-signature'>motion.set_facing_speed(number)</div>"
-              "<div class='workshop-api-signature'>motion.set_vertical_speed(number)</div>"
-              "<div class='workshop-api-signature'>command(0)</div>"
-              "<div class='workshop-api-signature'>articles.spawn_authored_projectile(It_Kind_Mario_Fire, LeftHand, 0)</div>"
-              "<div class='workshop-api-signature'>effects.spawn(id, bone)</div>");
     if (session->script_loaded) return;
     session->saved_script.clear();
     bool draft_loaded = false;
@@ -284,8 +266,7 @@ bool validate_script()
         set_text("workshop-script-problems", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");
         return false;
     }
-    const std::string parameter_source = static_cast<Rml::ElementFormControlTextArea*>(
-        document->GetElementById("workshop-parameters-source"))->GetValue();
+    const std::string parameter_source = nativeShellWorkshopParameters_Text();
     NativeFighterParameters parameters;unsigned error_line = 0;std::string diagnostics;
     bool valid = nativeFighterParameters_Parse(parameter_source.data(), parameter_source.size(), &parameters, &error_line);
     if (valid) valid = run_script_tool(session->project_path, source, false, &diagnostics, &error_line);
@@ -331,7 +312,8 @@ using namespace WorkshopEditor;
 void nativeShellWorkshopEditor_RefreshScriptOutline()
 {
     if (!session->script_loaded || document == nullptr) return;
-    combined_script();
+    const std::string composed = combined_script();
+    nativeShellWorkshopParameters_Refresh(document, composed);
     const std::string& state = WorkshopScriptFiles::source(session->script_files, 0);
     std::string variables;
     size_t state_start = 0;
@@ -403,6 +385,22 @@ void nativeShellWorkshopEditor_RefreshScriptOutline()
              std::string(nativeShellWorkshopEditor_ScriptChanged(selected_member)
                  ? "Unvalidated draft" : "Validated source") +
              " · Original commands and hitboxes are edited in Action Editor.");
+}
+
+bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* source,
+                                             std::string* parameters)
+{
+    if (member >= 2 || source == nullptr || parameters == nullptr ||
+        sessions[member].project == nullptr || !sessions[member].script_loaded)
+        return false;
+    if (member == selected_member) {
+        *source = combined_script();
+        *parameters = nativeShellWorkshopParameters_Text();
+    } else {
+        *source = WorkshopScriptFiles::compose(sessions[member].script_files);
+        *parameters = sessions[member].parameter_source;
+    }
+    return !source->empty() && source->size() <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY;
 }
 
 bool nativeShellWorkshopEditor_BuildScript(const char* output_path)

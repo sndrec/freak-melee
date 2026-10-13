@@ -1,9 +1,10 @@
 # Aerial actions
 
-These operations let a fighter own hovering, aerial attacks and contact reactions
-while using the shared input selector and landing solver. Store move availability,
-timers and tuning in ordinary [fighter variables and parameters](language.md).
-No operation selects Peach's Float or another stock special handler.
+Use these callbacks and functions to add airborne actions such as hovering,
+choose aerial attacks, and respond to landings and body contact. Melee handles
+input direction and collision detection; your script decides which move to use.
+Store availability and timers in [fighter variables](language.md), and use
+[parameters](language.md#fighter-attributes) for editable settings.
 
 [Common policies](common_policies.md) | [Movement](movement.md) |
 [Synchronous callback lifetime](synchronous_callbacks.md)
@@ -12,19 +13,20 @@ No operation selects Peach's Float or another stock special handler.
 
 | Handler | Result | Entry point |
 | --- | --- | --- |
-| `on aerial_action_manual:` | Bool | The manual aerial-action position in common Fall, Jump and JumpAerial interrupts, with their original per-state eligibility gates. |
-| `on aerial_action_automatic:` | Bool | The automatic aerial-action position after the jump check, preserving each caller's original gate and priority. |
+| `on aerial_action_manual:` | Bool | Called during input checks in Fall, Jump and JumpAerial when that motion allows a manual aerial action. |
+| `on aerial_action_automatic:` | Bool | Called after the jump check when the current motion allows an automatic aerial action. |
 | `on grounded_motion_setup:` | Void | Grounded motion entry, before the common grounded flag resets. |
 
-Returning true from an aerial policy consumes the input chain. Returning false
-continues common interrupts; it does not then run a stock Float decision. If the
-source is removed, recycled or faults its VM, or its selected program/state
-changes, the input chain stops even when the callback returned false. Without
-a declared policy, an attached scripted fighter continues common interrupts;
-it does not test a stock fighter's Float eligibility. The grounded policy replaces the stock per-kind
-availability reset, so it can replenish any script-owned aerial resource.
-Keep it to setup work: entering another grounded motion would recursively invoke
-the same hook.
+Return `true` after handling an aerial input. Return `false` to let Melee
+continue checking the other inputs for that motion. A fighter with no aerial
+callback continues those checks automatically.
+
+Use `grounded_motion_setup` to reset resources when a grounded motion begins,
+such as making hover available again. Keep this callback to setup work: starting
+another grounded motion here calls `grounded_motion_setup` again.
+
+If a callback removes the fighter, changes its move or program, or encounters a
+script error, the current input check ends immediately.
 
 ```text
 state bool hover_available = true
@@ -39,8 +41,9 @@ action Hover:
         return false
 ```
 
-`BeginHover()` is an authored helper, not an engine primitive. It can consume the
-availability variable, enter an authored motion and install its callbacks.
+Define `BeginHover()` in your script. This helper can set `hover_available` to
+`false` and start the hover motion with its animation, physics and collision
+callbacks.
 
 ## Input and held items
 
@@ -48,11 +51,11 @@ availability variable, enter an authored motion and install its callbacks.
 | --- | --- | --- |
 | `input.jump_held` | Bool | Either logical jump button is held. |
 | `controls.tap_jump_threshold` | Float | Shared upward stick threshold for tap jump. |
-| `controls.horizontal_stick_deadzone` | Read Float | Current common horizontal stick deadzone. This reads shared engine tuning each time; it is not a fighter parameter. |
-| `controls.stick_smoothing` | Read Float | Shared interpolation factor for stick direction and magnitude. Reading it does not smooth input; scripts choose their interpolation and state. |
+| `controls.horizontal_stick_deadzone` | Read Float | Current engine setting for ignoring small horizontal stick movements. |
+| `controls.stick_smoothing` | Read Float | Engine smoothing factor for stick direction and magnitude. Use it in your script's interpolation calculation. |
 | `controls.aerial_action_down_threshold` | Float | Shared magnitude used for downward aerial-action input. |
 | `input.cstick_attack_edge()` | Bool | The engine's directional C-stick attack edge test. |
-| `controls.aerial_attack_motion()` | Int | Shared A/C-stick aerial attack motion selection, including facing and directional thresholds. It does not enter the motion. |
+| `controls.aerial_attack_motion()` | Int | Return the aerial attack motion ID selected by the A button or C-stick, using the fighter's facing and the engine's direction thresholds. |
 | `items.held_use_category` | Int | Held item's engine use category; -1 if there is no held item. |
 | `controls.try_air_item_throw()` | Bool | Check and enter the ordinary airborne held-item throw. True consumes the input. |
 | `state.air_gun()` | Void | Enter the shared airborne held-item shooting action. |
@@ -63,44 +66,38 @@ The held item's use category is distinct from its hold kind and article ID.
 Item throws and shooting can enter authored callbacks synchronously. The
 interpreter stops after the call if the source's lifetime changed or its VM faulted.
 
-`controls.aerial_attack_motion()` returns the common aerial motion ID selected
-from current input. It does not apply the fighter's `aerial_attack_motion` hook
-or enter an attack. A hovering move can map the returned common ID to its own
-motions in script. `input.cstick_attack_edge()` only observes whether either
-C-stick axis crossed its shared directional threshold; it does not check the
-game mode, held item, or attack button. Input consumption remains your policy.
+`controls.aerial_attack_motion()` returns a motion ID. Your script can use that
+ID to start a normal aerial attack or map it to a custom move.
+`input.cstick_attack_edge()` returns whether either C-stick axis crossed its
+direction threshold. Check held items, game mode and other buttons separately
+when your move needs those conditions.
 
-`state.air_gun()` selects the shared airborne shooting entry for a held ray gun,
-Fire Flower, or Super Scope. With no held item or another kind, it does nothing.
-`controls.try_air_item_throw()` retains native throw/drop selection, stick ages,
-and smash-throw thresholds. Its result means the input was handled, rather than
-that an item was successfully removed. A dropped item may legitimately remove
-itself while the fighter continues its input handling.
+`state.air_gun()` starts the airborne shooting action for a held ray gun, Fire
+Flower or Super Scope. It takes effect when one of those items is held.
+`controls.try_air_item_throw()` applies Melee's throw/drop selection, stick
+timing and smash-throw thresholds. A `true` result means the input was handled.
 
-`controls.try_air_special()` checks up, down, side, then neutral. If the selected
-authored special is absent it returns false without reversing facing or trying
-another direction. If present, its source hook runs with the shared facing
-adjustments. It never delegates an attached fighter to a stock special handler.
+`controls.try_air_special()` checks up, down, side, then neutral special. It
+starts the selected special with Melee's facing adjustments when that special
+is defined in the fighter's scripts. It returns `false` if that entry is absent.
 
-`physics.animation_vertical_velocity_adjusted()` writes only vertical
-self-velocity. It neither advances the animation nor adds gravity. The bunny
-item relation is a presence test; the engine applies its vertical multiplier
-once on that branch. There is no additional facing factor or value clamp.
+`physics.animation_vertical_velocity_adjusted()` sets vertical self-velocity
+from the animation's TransN displacement. It applies the bunny item's vertical
+multiplier when the fighter is wearing that item. Animation playback and
+gravity are handled by their respective update functions.
 
 ## `collision.air_landing_callback(Function)`
 
-Run the shared airborne map and environmental response with the normal
-special-fall platform predicate and an authored landing callback. `Function`
-must name a root helper in this fighter's program with no arguments and no
-return value. `None`, event callbacks, article-owned helpers and typed-return
-helpers are rejected.
-The callback decides which landing action to enter and which variables to reset;
-the solver owns collision and ledge acceptance. It may execute the helper during
-this call, so source lifetime is checked before the script continues.
-On accepted ground contact it runs the helper. Otherwise it tries the common
-wall-jump response, then cliff handling; it does not add an aerial-jump check.
-An environmental interruption retains the native solver's false result and
-continuation order. This is not a general grounded-state predicate.
+Check airborne movement against the stage and call `Function` on an accepted
+landing. Melee checks platforms, walls and ledges; your helper chooses the
+landing motion and resets any move variables.
+
+`Function` must name a fighter-level helper with no arguments and no return
+value. The helper runs during this call. If the fighter is removed or its
+script encounters an error, script execution stops.
+
+When the fighter stays airborne, this function checks wall jumping and then
+ledge grabbing. Use a separate input callback for aerial jumps.
 
 ```text
 func LandHover():
@@ -114,13 +111,11 @@ action Hover:
 
 ## `collision.contact_rebound_allowed()`
 
-Query whether the current body-contact recipient permits a rebound. With no body
-contact, it returns true. A recipient with `on body_rebound:` owns the decision;
-otherwise original counter-state eligibility applies. The operation exposes no
-recipient pointer and enters no recoil motion itself.
+Return whether the fighter currently touching this fighter allows a rebound.
+If that fighter defines `on body_rebound:`, its callback decides. Otherwise,
+Melee uses its usual counter-state rules. The result is `true` when there is no
+body contact and `false` when the contacted fighter has been removed.
 
-The native dispatcher validates source and recipient registration before reads,
-then rechecks their generations, kinds, Definitions and retained contact link
-after an authored predicate. An absent or retired recipient fails safely. This
-validation covers the current call; the original contact field itself does not
-retain a historical generation from when it was written.
+Use the result to decide whether to enter your rebound motion. The engine
+checks that both fighters and their contact link remain valid while the
+callback runs.

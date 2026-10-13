@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include "native_shell_workshop_docs.h"
 
 #ifdef MELEE_NATIVE
 
@@ -366,6 +367,7 @@ using namespace WorkshopEditor;
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
 {
     document = shell;
+    nativeWorkshopDocs_Init(shell);
     nativeWorkshopTransform_Init(shell);
     nativeWorkshopPose_Init(shell);
     nativeShellWorkshopBones_Init(shell);

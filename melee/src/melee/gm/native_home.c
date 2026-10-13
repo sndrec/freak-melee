@@ -1139,7 +1139,7 @@ bool nativeHome_PracticeTransitioning(void)
     return home.preview_transitioning || home.authoring_transitioning;
 }
 
-bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter)
+bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool live_test)
 {
     if (fighter == NULL || !has_package_id(fighter) || !home.authoring ||
         home.css == NULL || !nativeHome_IsSelection() ||
@@ -1174,7 +1174,7 @@ bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter)
     home.preview_candidate = *fighter;
     home.preview_previous_candidate = (NativeContentId){ 0 };
     home.preview_active = true;
-    home.preview_live_test = false;
+    home.preview_live_test = live_test;
     home.preview_restart = false;
     home.preview_transitioning = true;
     home.fighter_packages[preview_port] = *fighter;

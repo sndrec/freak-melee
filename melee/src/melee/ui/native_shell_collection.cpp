@@ -4,6 +4,8 @@
 
 #include "native_shell.h"
 #include "native_shell_costumes.h"
+#include "native_shell_workshop.h"
+#include <melee/ft/native_fighter_family_project.h>
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
 
@@ -33,6 +35,8 @@ struct CollectionItem {
 
 Rml::ElementDocument* document;
 CollectionItem items[MAX_COLLECTION_ITEMS];
+NativeFighterDraft local_drafts[128];
+size_t local_draft_count;
 size_t item_count;
 uint64_t displayed_revision;
 uint64_t hide_after_slide;
@@ -106,6 +110,19 @@ void load_items()
         rows += "</span></div><button id='collection-send-" +
                 std::to_string(row) + "'>Send</button></div>";
     }
+    std::string draft_rows;
+    if (!nativeFighterFamilyProject_ListLocal(local_drafts, 128, &local_draft_count)) {
+        local_draft_count = 0;
+        draft_rows = "<p class='collection-empty'>Could not read local drafts.</p>";
+    }
+    for (size_t i = 0; i < local_draft_count; ++i) {
+        draft_rows += "<div class='collection-item'><div><span class='collection-kind'>EDITABLE DRAFT</span><strong>" +
+            Rml::StringUtilities::EncodeRml(local_drafts[i].title) +
+            "</strong><span class='collection-id'>Local project · editable</span></div><button id='collection-draft-" +
+            std::to_string(i) + "'>Edit</button></div>";
+    }
+    document->GetElementById("collection-drafts")->SetInnerRML(draft_rows.empty()
+        ? "<p class='collection-empty'>No drafts yet. Create one in the Workshop.</p>" : draft_rows);
     document->GetElementById("collection-count")
         ->SetInnerRML(std::to_string(item_count) + " installed");
     document->GetElementById("collection-items")
@@ -266,6 +283,11 @@ class CollectionEvents final : public Rml::EventListener {
             }
         } else if (id == "gift-decline") {
             nativeOnlineSession_DeclineGift();
+        } else if (id.compare(0, 17, "collection-draft-") == 0) {
+            char* end = nullptr;
+            const long index = std::strtol(id.c_str() + 17, &end, 10);
+            if (*end == '\0' && index >= 0 && size_t(index) < local_draft_count)
+                nativeShellWorkshop_Open(local_drafts[index].path, true);
         } else if (id.compare(0, 16, "collection-send-") == 0) {
             char* end = nullptr;
             const long index = std::strtol(id.c_str() + 16, &end, 10);

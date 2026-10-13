@@ -405,9 +405,6 @@
 .workshop-watch-row { display: flex; justify-content: space-between;
   padding: 5dp 0; border-bottom: 1dp #343743; font-size: 10dp; }
 .workshop-watch-row b { color: #e8e9ef; font-family: Consolas; }
-#workshop-script-api { margin-top: 8dp; color: #9ccfc0; }
-.workshop-api-signature { padding: 5dp 2dp; border-bottom: 1dp #343743;
-  font-family: Consolas; font-size: 10dp; }
 #workshop-script-sidebar { width: 223dp; flex-shrink: 0; height: 100%;
   padding: 20dp 13dp; overflow-y: auto; background-color: #12131d;
   border-right: 1dp #514453; }
@@ -419,10 +416,6 @@
   background-color: transparent; border: 0; cursor: pointer; }
 #workshop-script-variable-type, #workshop-script-variable-name,
 #workshop-script-variable-add { margin-top: 6dp; width: 100%; }
-#workshop-parameters-source { width: 100%; min-height: 125dp;
-  margin: 8dp 0 6dp; padding: 7dp; color: #f1e8e5;
-  background-color: #10111b; border: 1dp #514453;
-  font-family: Consolas; font-size: 11dp; }
 #workshop-parameters-save { width: 100%; }
 #workshop-parameters-status { margin: 6dp 0 12dp; }
 .workshop-script-outline-row { display: block; width: 100%; margin: 3dp 0;
@@ -610,3 +603,67 @@
   background-color: transparent; border: 0; font-size: 11dp; }
 .workshop-track-row.selected { background-color: #51343e;
   border-left: 2dp #fa8a75; }
+
+/* Draft management uses the entire window; the game is not a browser backdrop. */
+#workshop-panel.library { background-color: #10111b; pointer-events: auto; }
+#workshop-panel.library #workshop-inspector { display: none; }
+#workshop-panel.library #workshop-library { width: 100vw; padding: 28dp 36dp; border: 0; }
+.workshop-library-create { width: 300dp; padding-right: 24dp; }
+.workshop-library-drafts { position: absolute; left: 380dp; right: 36dp; top: 120dp; }
+.workshop-library-drafts .workshop-draft { padding: 16dp; }
+#workshop-undo, #workshop-redo { width: 52dp; font-size: 11dp; padding: 9dp 4dp; }
+#workshop-package-toggle { width: 92dp; }
+#workshop-script-sidebar { width: 310dp; }
+button, select, option { cursor: pointer; }
+input, textarea { cursor: text; }
+input:hover, textarea:hover { border-color: #8d7986; background-color: #242330; }
+input:focus, textarea:focus { border-color: #f59e82; background-color: #171923; }
+select selectbox { background-color: #211f2b; border: 1dp #8d7986; z-index: 30; padding: 4dp; }
+select option { display: block; padding: 8dp 10dp; color: #eee6ed; background-color: #211f2b; }
+select option:hover, select option:checked { background-color: #554047; color: #fff4ec; }
+button:hover { background-color: #44323b; border-color: #a67f8d; }
+button:focus { border-color: #f59e82; }
+
+.workshop-param-group { display: block; width: 100%; padding: 9dp 6dp; text-align: left; border: 0; background-color: #24212d; color: #f59e82; margin-top: 8dp; }
+.workshop-parameter-row { padding: 8dp 0; border-bottom: 1dp #37313d; }
+.workshop-parameter-row label { display: block; word-break: break-all; font-size: 11dp; color: #e5dce4; }
+.workshop-parameter-row small { display: block; color: #9c97a7; font-size: 9dp; margin: 2dp 0 5dp; }
+.workshop-parameter-row input, .workshop-parameter-row select { width: 70%; padding: 5dp 7dp; margin: 0; }
+.workshop-parameter-row button { width: 25%; margin-left: 4%; padding: 6dp 2dp; color: #c1b0bc; background-color: #282430; border: 1dp #594954; font-size: 10dp; }
+.workshop-attribute-group { margin: 20dp 0; padding-top: 8dp; border-top: 1dp #443743; }
+
+#workshop-script-source { color: #00000000; caret-color: #f1e8e5; }
+#workshop-script-source selection { color: #ffffff; background-color: #54435e; }
+#workshop-script-colours { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+
+#workshop-doc-menu { display: none; position: fixed; width: 270dp; background: #292632; border: 1dp #a47e8e; z-index: 100; padding: 5dp; pointer-events: auto; }
+#workshop-doc-menu button { width: 100%; padding: 10dp; }
+#workshop-doc-panel { display: none; position: absolute; left: 8%; right: 8%; top: 100dp; bottom: 50dp; background: #1d2028; border: 1dp #6c5b6b; z-index: 90; pointer-events: auto; }
+#workshop-doc-panel header { height: 48dp; padding: 12dp 18dp; border-bottom: 1dp #464651; font-size: 18dp; }
+#workshop-doc-close { float: right; padding: 5dp 15dp; }
+#workshop-doc-panel aside { position: absolute; left: 0; top: 73dp; bottom: 0; width: 245dp; padding: 12dp; overflow-y: auto; border-right: 1dp #464651; }
+#workshop-doc-content { position: absolute; left: 285dp; right: 16dp; top: 73dp; bottom: 0; padding: 12dp 18dp; overflow-y: auto; }
+#workshop-doc-content h1 { font-size: 25dp; margin-bottom: 16dp; }
+#workshop-doc-content h2 { font-size: 19dp; margin: 20dp 0 10dp; color: #f5b79c; }
+#workshop-doc-content h3 { font-size: 16dp; margin: 16dp 0 8dp; }
+#workshop-doc-content p { line-height: 1.55; margin: 8dp 0; }
+#workshop-doc-content pre { font-family: Consolas; background: #13151c; padding: 14dp; white-space: pre-wrap; margin: 12dp 0; }
+#workshop-doc-content code { font-family: Consolas; color: #a7d5da; }
+.doc-page { display: block; width: 100%; text-align: left; padding: 8dp; margin: 3dp 0; }
+.doc-link { display: inline; padding: 0; color: #f3aa8b; background: transparent; border-width: 0; }
+
+#workshop-panel.library #workshop-close { width: 160dp; }
+
+#workshop-doc-content table { display: table; width: 100%; margin: 12dp 0; }
+#workshop-doc-content tr { display: table-row; }
+#workshop-doc-content th, #workshop-doc-content td { display: table-cell; padding: 9dp; border-bottom: 1dp #41444e; vertical-align: top; line-height: 1.5; }
+#workshop-doc-content th { background-color: #292c36; text-align: left; }
+#workshop-doc-content ul { margin: 8dp 0; padding-left: 22dp; }
+#workshop-doc-content li { display: block; margin: 5dp 0; line-height: 1.5; }
+
+#workshop-doc-content h1, #workshop-doc-content h2, #workshop-doc-content h3,
+#workshop-doc-content pre, #workshop-doc-content ul { display: block; }
+
+.workshop-parameter-row input, .workshop-parameter-row select,
+.workshop-parameter-row button { display: inline-block; vertical-align: middle; }
+#workshop-doc-menu button { display: block; }

@@ -7,6 +7,7 @@
 #include <melee/ft/native_fighter_cpu.h>
 #include <melee/ft/native_source_asset_facts.h>
 #include <melee/gm/native_content_store.h>
+#include "native_fighter_attributes.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -51,14 +52,7 @@ typedef struct NativeFighterProjectInfo {
     NativeSourceAssetFacts facts;
 } NativeFighterProjectInfo;
 
-typedef enum NativeFighterFloatProperty {
-    NativeFighterFloat_WalkSpeed,
-    NativeFighterFloat_Gravity,
-    NativeFighterFloat_TerminalVelocity,
-    NativeFighterFloat_Weight,
-    NativeFighterFloat_ModelScale,
-    NativeFighterFloat_Count,
-} NativeFighterFloatProperty;
+
 
 const char* nativeFighterProject_StockBaseName(FighterKind source_kind);
 
@@ -89,12 +83,10 @@ bool nativeFighterProject_CreateFromMember(const char* path, const char* title,
 bool nativeFighterProject_ReadInfo(const char* path,
                                    NativeFighterProjectInfo* info);
 bool nativeFighterProject_Open(const char* path, NativeFighterProject* project);
-bool nativeFighterProject_GetFloat(const NativeFighterProject* project,
-                                   NativeFighterFloatProperty property,
-                                   float* value);
-bool nativeFighterProject_SetFloat(NativeFighterProject* project,
-                                   NativeFighterFloatProperty property,
-                                   float value);
+bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
+                                       size_t property, double* value);
+bool nativeFighterProject_SetAttribute(NativeFighterProject* project,
+                                       size_t property, double value);
 // Save fighter DAT edits atomically and retain the immediately previous file.
 bool nativeFighterProject_Save(const char* path,
                                const NativeFighterProject* project);

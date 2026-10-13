@@ -20,7 +20,8 @@ static void usage(const char* executable)
             "  %s [--id NAME] clear [port]\n"
             "  %s [--id NAME] tap <port> <input>... [frames=N]\n"
             "  %s [--id NAME] hold <port> <input>...\n"
-            "  %s [--id NAME] ui-click <x> <y>\n"
+            "  %s [--id NAME] ui-inspect <element-id>\n"
+            "  %s [--id NAME] ui-click <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1>\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
@@ -31,7 +32,7 @@ static void usage(const char* executable)
             "        short-hop no-tap-jump tilt-stick\n"
             "        sx=N sy=N cx=N cy=N lt=N rt=N aa=N ab=N\n",
             executable, executable, executable, executable, executable,
-            executable, executable, executable, executable, executable);
+            executable, executable, executable, executable, executable, executable);
 }
 
 static bool parse_long(const char* text, long minimum, long maximum,
@@ -163,7 +164,7 @@ int main(int argc, char** argv)
         message.command = DB_NATIVE_CONTROL_SCREENSHOT;
     } else if ((_stricmp(command[0], "ui-click") == 0 ||
                 _stricmp(command[0], "ui-move") == 0) &&
-               command_args == 3)
+               (command_args == 3 || command_args == 4))
     {
         long x, y;
         if (!parse_long(command[1], 0, 32767, &x) ||
@@ -176,6 +177,16 @@ int main(int argc, char** argv)
                               : DB_NATIVE_CONTROL_UI_CLICK;
         message.ui_x = x;
         message.ui_y = y;
+        if(command_args==4) {
+            if(_stricmp(command[0],"ui-click")!=0)return 1;
+            if(_stricmp(command[3],"right")==0)message.buttons=1;
+            else if(_stricmp(command[3],"middle")==0)message.buttons=2;
+            else return 1;
+        }
+    } else if (_stricmp(command[0], "ui-inspect") == 0 && command_args == 2) {
+        if (strlen(command[1]) >= sizeof(message.text)) return 1;
+        message.command = DB_NATIVE_CONTROL_UI_INSPECT;
+        strcpy(message.text, command[1]);
     } else if (_stricmp(command[0], "ui-key") == 0 && command_args >= 2 &&
                command_args <= 5)
     {

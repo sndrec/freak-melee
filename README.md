@@ -23,7 +23,8 @@ separate implemented features from remaining work and historical evidence.
 ## Build
 
 Use Windows x86-64, LLVM Clang targeting MSVC, Visual Studio C++ libraries and
-Windows SDK, CMake 3.25 or newer, Ninja, and Python 3. Select a consistent MSVC
+Windows SDK, CMake 3.25 or newer, Ninja, and Python 3 with Pillow
+(`python -m pip install -r melee/tools/requirements-build.txt`). Select a consistent MSVC
 library environment before configuring. The current development build uses
 Clang 22.1.6 and MSVC 14.44.
 
@@ -39,6 +40,9 @@ cmake -S melee -B melee/build/native -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo 
 cmake --build melee/build/native --target melee_native native_content_tool -j 4
 melee\build\native\melee_native.exe --iso "C:/local/Melee-USA-v1.02.iso"
 ```
+
+Menu glyph atlases are prepared from the verified ISO, the supplied private
+font/reference assets, and Windows Impact. See [font inputs](melee/assets/fonts/README.md).
 
 The game and content tool build together for Workshop use. No external C
 compiler is needed to execute ordinary character scripts. This snapshot has

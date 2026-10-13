@@ -545,18 +545,11 @@ static int inspect_project(const char* path)
 static int project_attribute(const char* path, const char* property_name,
                              const char* requested_value)
 {
-    static const char* names[NativeFighterFloat_Count] = {
-        "walk-speed", "gravity", "terminal-velocity", "weight", "model-scale"
-    };
-    NativeFighterFloatProperty property = NativeFighterFloat_Count;
-    for (int i = 0; i < NativeFighterFloat_Count; ++i) {
-        if (strcmp(property_name, names[i]) == 0) {
-            property = (NativeFighterFloatProperty) i;
-            break;
-        }
-    }
-    if (property == NativeFighterFloat_Count) {
-        fputs("Unknown fighter property.\n", stderr);
+    size_t property = NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT;
+    for (size_t i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i)
+        if (strcmp(property_name, nativeFighterCommonAttributes[i].name) == 0) { property = i; break; }
+    if (property == NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT) {
+        fputs("Unknown common attribute. Use the schema name shown in the Workshop.\n", stderr);
         return 1;
     }
     NativeFighterProject project;
@@ -564,15 +557,15 @@ static int project_attribute(const char* path, const char* property_name,
         fputs("Could not open a complete fighter draft.\n", stderr);
         return 1;
     }
-    float value = 0.0f;
-    bool ok = nativeFighterProject_GetFloat(&project, property, &value);
+    double value = 0.0;
+    bool ok = nativeFighterProject_GetAttribute(&project, property, &value);
     if (ok && requested_value != NULL) {
         char* end;
-        float next = strtof(requested_value, &end);
+        double next = strtod(requested_value, &end);
         ok = *requested_value != '\0' && *end == '\0' &&
-             nativeFighterProject_SetFloat(&project, property, next) &&
+             nativeFighterProject_SetAttribute(&project, property, next) &&
              nativeFighterProject_Save(path, &project) &&
-             nativeFighterProject_GetFloat(&project, property, &value);
+             nativeFighterProject_GetAttribute(&project, property, &value);
     }
     nativeFighterProject_Close(&project);
     if (!ok) {

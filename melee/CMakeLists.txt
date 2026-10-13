@@ -1939,6 +1939,11 @@ target_link_options(melee_native PRIVATE "LINKER:/errorlimit:0" "LINKER:/opt:ref
 include(cmake/NativeOptimization.cmake)
 aurora_copy_runtime_dlls(melee_native)
 add_custom_target(melee_native_ui
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_fonts.py"
+        --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/fonts"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting"
+        "$<TARGET_FILE_DIR:melee_native>/ui/docs"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui"
         "$<TARGET_FILE_DIR:melee_native>/ui"

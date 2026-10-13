@@ -7,6 +7,7 @@
 #include "native_shell_rules.h"
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_editor.h"
+#include "native_shell_workshop_code.h"
 
 #ifdef MELEE_NATIVE
 
@@ -58,9 +59,6 @@ namespace {
     bool displayedContentSizeKnown;
     uint8_t localPlayers = 1;
     int displayedControls = -1;
-    std::string resultTitles[4];
-    int resultWinner = -1;
-    bool resultDirty;
 
     const char* const roomControls[] = {
         "create-room",     "join-code", "join-room",  "local-name",
@@ -225,35 +223,6 @@ namespace {
         }
     }
 
-    void update_result_titles()
-    {
-        if (!resultDirty) {
-            return;
-        }
-        resultDirty = false;
-        bool any = false;
-        for (unsigned i = 0; i < 4; ++i) {
-            char id[32];
-            std::snprintf(id, sizeof(id), "custom-result-name-%u", i);
-            Rml::Element* element = document->GetElementById(id);
-            const bool present = !resultTitles[i].empty();
-            element->SetProperty("display", present ? "block" : "none");
-            if (present) {
-                element->SetInnerRML(escape_rml(resultTitles[i].c_str()));
-                any = true;
-            }
-        }
-        const bool customWinner = resultWinner >= 0 && resultWinner < 4 &&
-                                  !resultTitles[resultWinner].empty();
-        Rml::Element* winner = document->GetElementById("custom-result-winner");
-        winner->SetProperty("display", customWinner ? "block" : "none");
-        if (customWinner) {
-            winner->SetInnerRML(escape_rml(resultTitles[resultWinner].c_str()));
-        }
-        document->GetElementById("custom-results")
-            ->SetProperty("display", any ? "block" : "none");
-    }
-
     void room_action(NativeOnlineMenuAction action)
     {
         auto* nameInput = static_cast<Rml::ElementFormControlInput*>(
@@ -320,8 +289,6 @@ namespace {
             return;
         }
         displayedControls = controlState;
-        document->GetElementById("home-caption")
-            ->SetProperty("display", homeSelection ? "block" : "none");
         for (const char* id :
              { "create-room", "join-room", "leave-room", "start-match" })
         {
@@ -412,9 +379,9 @@ namespace {
         const int editorLeftWidth = std::clamp(int(dimensions.x * 0.135f),
                                                int(160 * density),
                                                int(230 * density));
-        const int editorRightWidth = std::clamp(int(dimensions.x * 0.16f),
-                                                int(210 * density),
-                                                int(265 * density));
+        const int editorRightWidth = workshopScript
+            ? std::clamp(int(dimensions.x * 0.22f),int(290*density),int(360*density))
+            : std::clamp(int(dimensions.x * 0.16f),int(210*density),int(265*density));
         const int leftWidth = workshopModel ? int(232 * density)
             : workshopScript
             ? dimensions.x - editorRightWidth
@@ -453,7 +420,7 @@ namespace {
         for (const char* id : { "workshop-library", "workshop-inspector" }) {
             document->GetElementById(id)->SetProperty(
                 Rml::PropertyId::Width,
-                Rml::Property(float(workshopWidth), Rml::Unit::PX));
+                Rml::Property(float(std::strcmp(id, "workshop-library") == 0 && !workshopEditor ? dimensions.x : workshopWidth), Rml::Unit::PX));
         }
         for (const char* id : { "workshop-editor-browser" }) {
             document->GetElementById(id)->SetProperty(
@@ -526,35 +493,6 @@ namespace {
             : (dimensions.x - gameWidth) * 0.5f;
         const float gameTop = topMargin +
                               (availableHeight - gameHeight) * 0.5f;
-        Rml::Element* results = document->GetElementById("custom-results");
-        results->SetProperty(Rml::PropertyId::Left,
-                             Rml::Property(gameLeft, Rml::Unit::PX));
-        results->SetProperty(Rml::PropertyId::Top,
-                             Rml::Property(gameTop, Rml::Unit::PX));
-        results->SetProperty(Rml::PropertyId::Width,
-                             Rml::Property(gameWidth, Rml::Unit::PX));
-        results->SetProperty(Rml::PropertyId::Height,
-                             Rml::Property(gameHeight, Rml::Unit::PX));
-        document->GetElementById("custom-result-winner")
-            ->SetProperty(Rml::PropertyId::FontSize,
-                          Rml::Property(gameHeight * 0.06f, Rml::Unit::PX));
-        for (unsigned i = 0; i < 4; ++i) {
-            char id[32];
-            std::snprintf(id, sizeof(id), "custom-result-name-%u", i);
-            document->GetElementById(id)->SetProperty(
-                Rml::PropertyId::FontSize,
-                Rml::Property(gameHeight * 0.028f, Rml::Unit::PX));
-        }
-        Rml::Element* caption = document->GetElementById("home-caption");
-        caption->SetProperty(Rml::PropertyId::Left,
-                             Rml::Property(gameLeft + gameWidth * 0.30f,
-                                           Rml::Unit::PX));
-        caption->SetProperty(Rml::PropertyId::Top,
-                             Rml::Property(gameTop + gameHeight * 0.082f,
-                                           Rml::Unit::PX));
-        caption->SetProperty(Rml::PropertyId::Width,
-                             Rml::Property(gameWidth * 0.50f,
-                                           Rml::Unit::PX));
         nativeShellCssOriginal_Resize(int(gameLeft), int(gameTop),
                                       int(gameWidth), int(gameHeight));
     }
@@ -811,6 +749,10 @@ extern "C" bool nativeShell_Init(void)
     const bool regular =
         Rml::LoadFontFace(fontDirectory + "segoeui.ttf", false);
     const bool bold = Rml::LoadFontFace(fontDirectory + "segoeuib.ttf", false);
+    Rml::LoadFontFace(fontDirectory + "segoeuii.ttf", false);
+    Rml::LoadFontFace(fontDirectory + "segoeuiz.ttf", false);
+    Rml::LoadFontFace(fontDirectory + "arial.ttf", false);
+    Rml::LoadFontFace(fontDirectory + "arialbd.ttf", false);
     const bool display =
         Rml::LoadFontFace(fontDirectory + "arialbi.ttf", false);
     const bool codeFont =
@@ -820,6 +762,7 @@ extern "C" bool nativeShell_Init(void)
         return false;
     }
 
+    nativeWorkshopCode_Register();
     document = context->LoadDocument("ui/freak_shell.rml");
     if (document == nullptr) {
         std::fprintf(stderr, "Could not load the native shell UI.\n");
@@ -858,7 +801,6 @@ extern "C" void nativeShell_Update(void)
 {
     if (document != nullptr) {
         update_layout();
-        update_result_titles();
         update_controllers();
         update_room();
         update_content_progress();
@@ -989,31 +931,29 @@ extern "C" void nativeShell_Shutdown(void)
     }
 }
 
-extern "C" void nativeShell_ClickAt(int x, int y)
+extern "C" void nativeShell_InspectElement(const char* id)
+{
+    if (!document) return;
+    auto* element = document->GetElementById(id);
+    if (!element) { std::fprintf(stderr, "[ui-inspect] %s: absent\n", id); return; }
+    const auto origin = element->GetAbsoluteOffset(Rml::BoxArea::Content);
+    const auto size = element->GetBox().GetSize(Rml::BoxArea::Content);
+    const auto colour = element->GetComputedValues().color();
+    std::fprintf(stderr, "[ui-inspect] %s: tag=%s visible=%d origin=%.1f,%.1f size=%.1f,%.1f scroll=%.1f,%.1f colour=%u,%u,%u,%u\n",
+             id, element->GetTagName().c_str(), element->IsVisible(true),
+             origin.x, origin.y, size.x, size.y, element->GetScrollLeft(), element->GetScrollTop(),
+             colour.red, colour.green, colour.blue, colour.alpha);
+}
+
+extern "C" void nativeShell_ClickAt(int x, int y, int button)
 {
     if (document == nullptr) {
         return;
     }
     Rml::Context* context = document->GetContext();
     context->ProcessMouseMove(x, y, 0);
-    context->ProcessMouseButtonDown(0, 0);
-    context->ProcessMouseButtonUp(0, 0);
-}
-
-extern "C" void nativeShell_ShowCustomResults(const char* const titles[4],
-                                                int winner)
-{
-    for (unsigned i = 0; i < 4; ++i) {
-        resultTitles[i] = titles != nullptr && titles[i] != nullptr
-                              ? titles[i] : "";
-    }
-    resultWinner = winner;
-    resultDirty = true;
-}
-
-extern "C" void nativeShell_ClearCustomResults(void)
-{
-    nativeShell_ShowCustomResults(nullptr, -1);
+    context->ProcessMouseButtonDown(button, 0);
+    context->ProcessMouseButtonUp(button, 0);
 }
 
 extern "C" void nativeShell_DragAt(int start_x, int start_y,

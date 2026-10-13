@@ -47,7 +47,8 @@ static void apply_message(const DbNativeControlMessage* message)
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_CLICK) {
-        nativeShell_ClickAt(message->ui_x, message->ui_y);
+        if (message->buttons <= 2)
+            nativeShell_ClickAt(message->ui_x, message->ui_y, message->buttons);
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_MOVE) {
@@ -62,6 +63,11 @@ static void apply_message(const DbNativeControlMessage* message)
     if (message->command == DB_NATIVE_CONTROL_UI_DRAG) {
         nativeShell_DragAt(message->ui_x, message->ui_y,
                            message->ui_end_x, message->ui_end_y);
+        return;
+    }
+    if (message->command == DB_NATIVE_CONTROL_UI_INSPECT) {
+        if (memchr(message->text, '\0', sizeof(message->text)))
+            nativeShell_InspectElement(message->text);
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_TEXT) {

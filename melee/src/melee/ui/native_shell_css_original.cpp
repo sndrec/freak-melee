@@ -44,6 +44,7 @@ struct InstalledPortrait {
     NativeContentId id;
     std::string title;
     std::vector<std::byte> pixels;
+    std::vector<uint8_t> png;
     unsigned width;
     unsigned height;
 };
@@ -156,6 +157,7 @@ void load_portraits()
             portrait.title = metadata.title;
             if (decode_portrait(data.portrait_png, data.portrait_size,
                                 portrait)) {
+                portrait.png.assign(data.portrait_png,data.portrait_png+data.portrait_size);
                 portraits.push_back(std::move(portrait));
             }
         }
@@ -179,49 +181,14 @@ void set_status(const char* message)
     document->GetElementById("css-original-status")->SetInnerRML(message);
 }
 
-void portrait_geometry(unsigned index, const NativeCssTile& tile)
-{
-    Rml::Element* image = document->GetElementById(
-        "css-original-portrait-" + std::to_string(index));
-    if (image == nullptr) {
-        return;
-    }
-    image->SetProperty(Rml::PropertyId::Left,
-                       Rml::Property(tile.x * canvas_width / 1000.0f,
-                                     Rml::Unit::PX));
-    image->SetProperty(Rml::PropertyId::Top,
-                       Rml::Property(tile.y * canvas_height / 1000.0f,
-                                     Rml::Unit::PX));
-    image->SetProperty(Rml::PropertyId::Width,
-                       Rml::Property(tile.width * canvas_width / 1000.0f,
-                                     Rml::Unit::PX));
-    image->SetProperty(Rml::PropertyId::Height,
-                       Rml::Property(tile.height * canvas_height / 1000.0f,
-                                     Rml::Unit::PX));
-}
-
 void build_portraits()
 {
-    const NativeCssLayout* layout = nativeCssOriginal_Layout();
-    std::string markup;
-    if (layout != nullptr) {
-        for (unsigned index = 0; index < layout->count; ++index) {
-            const NativeCssTile& tile = layout->tiles[index];
-            if (find_portrait(tile.fighter_package_id) == nullptr) {
-                continue;
-            }
-            char hex[65];
-            nativeContentStore_IdHex(&tile.fighter_package_id, hex);
-            markup += "<img id=\"css-original-portrait-" +
-                      std::to_string(index) + "\" class=\"css-original-portrait\" "
-                      "src=\"fighter://" + hex + "\" />";
-        }
-    }
-    document->GetElementById("css-original-portraits")->SetInnerRML(markup);
-    if (layout != nullptr) {
-        for (unsigned index = 0; index < layout->count; ++index) {
-            portrait_geometry(index, layout->tiles[index]);
-        }
+    nativeCssOriginal_ClearPortraits();
+    const NativeCssLayout* layout=nativeCssOriginal_Layout();
+    if (!layout) return;
+    for (unsigned index=0;index<layout->count;++index) {
+        const InstalledPortrait* p=find_portrait(layout->tiles[index].fighter_package_id);
+        if(p)nativeCssOriginal_SetPortrait(index,p->png.data(),(unsigned)p->png.size(),p->title.c_str());
     }
 }
 
@@ -325,13 +292,11 @@ void drag_handle(Rml::Event& event, unsigned index, bool resize)
     }
     if (nativeCssOriginal_PreviewTile(index, &tile)) {
         handle_geometry(index, tile);
-        portrait_geometry(index, tile);
     }
     if (type == "dragend") {
         if (!nativeCssOriginal_UpdateTile(index, &tile)) {
             nativeCssOriginal_CancelPreview();
             handle_geometry(index, drag_origin);
-            portrait_geometry(index, drag_origin);
             set_status("Couldn't save the layout.");
         }
         dragging = -1;
@@ -573,36 +538,13 @@ void nativeShellCssOriginal_Update(void)
         catalog_loaded = true;
         build_portraits();
     } else if (!available && catalog_loaded) {
-        document->GetElementById("css-original-portraits")->SetInnerRML("");
         portraits.clear();
         catalog_loaded = false;
-    }
-    if (available) {
-        const NativeCssLayout* layout = nativeCssOriginal_Layout();
-        for (unsigned index = 0; index < layout->count; ++index) {
-            Rml::Element* portrait = document->GetElementById(
-                "css-original-portrait-" + std::to_string(index));
-            if (portrait == nullptr) {
-                continue;
-            }
-            for (unsigned port = 0; port < 4; ++port) {
-                const NativeContentId* selected =
-                    nativeHome_FighterPackage(port);
-                portrait->SetClass(
-                    "selected-p" + std::to_string(port + 1),
-                    selected != nullptr &&
-                        std::memcmp(selected,
-                                    &layout->tiles[index].fighter_package_id,
-                                    sizeof(*selected)) == 0);
-            }
-        }
     }
     // RmlUI property assignment dirties layout even when the value is unchanged.
     // Apply visibility on selection/match transitions, not on every game frame.
     if (displayed_availability != int(available)) {
         displayed_availability = int(available);
-        document->GetElementById("css-original-portraits")
-            ->SetProperty("display", available ? "block" : "none");
         document->GetElementById("css-original-edit")
             ->SetProperty("display", available ? "block" : "none");
     }
@@ -614,7 +556,7 @@ void nativeShellCssOriginal_Update(void)
 void nativeShellCssOriginal_RefreshInstalledFighters(void)
 {
     if (document == nullptr) return;
-    document->GetElementById("css-original-portraits")->SetInnerRML("");
+    nativeCssOriginal_ClearPortraits();
     portraits.clear();
     catalog_loaded = false;
 }
@@ -627,9 +569,7 @@ void nativeShellCssOriginal_Resize(int left, int top, int width, int height)
         return;
     }
     Rml::Element* panel = document->GetElementById("css-original-overlay");
-    Rml::Element* portrait_panel = document->GetElementById(
-        "css-original-portraits");
-    for (Rml::Element* element : { panel, portrait_panel }) {
+    for (Rml::Element* element : { panel }) {
         element->SetProperty(Rml::PropertyId::Left,
                              Rml::Property(float(left), Rml::Unit::PX));
         element->SetProperty(Rml::PropertyId::Top,
@@ -640,11 +580,6 @@ void nativeShellCssOriginal_Resize(int left, int top, int width, int height)
                              Rml::Property(float(height), Rml::Unit::PX));
     }
     const NativeCssLayout* layout = nativeCssOriginal_Layout();
-    if (layout != nullptr) {
-        for (unsigned index = 0; index < layout->count; ++index) {
-            portrait_geometry(index, layout->tiles[index]);
-        }
-    }
     if (editing) {
         if (layout != nullptr) {
             for (unsigned index = 0; index < layout->count; ++index) {

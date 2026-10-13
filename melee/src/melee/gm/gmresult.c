@@ -2,7 +2,9 @@
 #ifdef MELEE_NATIVE
 #include "gmresult_assets.h"
 #include <melee/ft/native_fighter_runtime.h>
-#include <melee/ui/native_shell.h>
+#include <melee/mn/native_menu_visuals.h>
+#include <sysdolphin/baselib/dobj.h>
+static NativeMenuVisuals* custom_results_visuals;
 #endif
 
 #include "types.h"
@@ -1421,6 +1423,28 @@ void fn_80175DC8(HSD_GObj* gobj)
     }
 
     fn_801785B0(gobj);
+#ifdef MELEE_NATIVE
+    nativeMenuVisuals_Begin(&custom_results_visuals, jobj, 0xD);
+    Vec3 eye; HSD_CObjGetEyePosition(data->cobj, &eye);
+    float hh=eye.z*tanf(HSD_CObjGetFov(data->cobj)*0.00872664626f);
+    float ww=hh*HSD_CObjGetAspect(data->cobj);
+    for (int slot=0;slot<4;++slot) {
+        if(me->player_standings[slot].pkind==Gm_PKind_NA)continue;
+        const char* title=nativeFighterRuntime_Title(me->player_standings[slot].ckind);
+        if(!title)continue;
+        HSD_JObjSetFlagsAll(data->player_data[slot].jobjs[5],JOBJ_HIDDEN);
+        nativeMenuVisuals_Text(custom_results_visuals,data->player_data[slot].jobjs[5],
+            eye.x+ww*(-0.77f+slot*0.45f),eye.y-hh*0.80f,0,ww*0.31f,hh*0.045f,NativeMenuFont_ResultName,title);
+    }
+    if(!gm_WasMatchCanceled(me->outcome)) {
+        const char* title=nativeFighterRuntime_Title(me->player_standings[data->x6].ckind);
+        if(title) {
+            HSD_DObjSetFlags(data->x30->u.dobj->next,DOBJ_HIDDEN);
+            nativeMenuVisuals_Text(custom_results_visuals,data->x30,
+                eye.x-ww*0.11f,eye.y+hh*0.74f,0,ww*0.78f,hh*0.13f,NativeMenuFont_ResultWinner,title);
+        }
+    }
+#endif
     if (me->match_kind == 0) {
         title_text = data->x2C;
         title_jobj = data->x28;
@@ -1820,17 +1844,7 @@ void gm_Scene_Results_OnEnter(void* arg0_)
         }
     }
     fn_801771C0(&lbl_8046DBE8);
-#ifdef MELEE_NATIVE
-    const char* custom_titles[4] = { 0 };
-    for (int slot = 0; slot < 4; ++slot) {
-        if (match_end->player_standings[slot].pkind != Gm_PKind_NA) {
-            custom_titles[slot] = nativeFighterRuntime_Title(
-                match_end->player_standings[slot].ckind);
-        }
-    }
-    nativeShell_ShowCustomResults(
-        custom_titles, gm_WasMatchCanceled(match_end->outcome) ? -1 : data->x6);
-#endif
+
     if (match_end->player_standings[data->x6].pkind == Gm_PKind_Human) {
         if (!gm_WasMatchCanceled(match_end->outcome) &&
             match_end->player_standings[data->x6].x3_6)
@@ -1883,7 +1897,7 @@ void gm_Scene_Results_OnEnter(void* arg0_)
 void gm_Scene_Results_OnExit(void* unused)
 {
 #ifdef MELEE_NATIVE
-    nativeShell_ClearCustomResults();
+    nativeMenuVisuals_End(&custom_results_visuals);
 #endif
     fn_801701AC();
 }
