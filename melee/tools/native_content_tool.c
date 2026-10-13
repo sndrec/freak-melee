@@ -81,6 +81,7 @@ static void usage(void)
         "  project-actions PROJECT_DIRECTORY [ACTION_INDEX]\n"
         "  project-insert-at-frame PROJECT_DIRECTORY ACTION_INDEX FRAME TEMPLATE_ACTION TEMPLATE_OFFSET\n"
         "  project-move-event PROJECT_DIRECTORY ACTION_INDEX SOURCE_OFFSET FRAME_DELTA\n"
+        "  project-hitbox-intervals PROJECT_DIRECTORY [ACTION_INDEX]\n"
         "  project-insert-command PROJECT_DIRECTORY ACTION_INDEX AFTER_OFFSET "
         "TEMPLATE_ACTION TEMPLATE_OFFSET\n"
         "  project-delete-command PROJECT_DIRECTORY ACTION_INDEX "
@@ -714,7 +715,7 @@ static int project_move_event(const char* path, const char* action_text,
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;
     uint32_t moved;
-    const bool ok = nativeFighterAction_MoveEvent(&project, action, source, (int) delta, &moved) &&
+    const bool ok = nativeFighterAction_EditEventTiming(&project, action, source, (int) delta, 0, &moved) &&
                     nativeFighterProject_Save(path, &project);
     nativeFighterProject_Close(&project);
     if (!ok) {
@@ -723,6 +724,23 @@ static int project_move_event(const char* path, const char* action_text,
     }
     printf("Moved event to source 0x%X.\n", (unsigned) moved);
     return 0;
+}
+
+static int project_hitbox_intervals(const char* path, const char* action_text)
+{
+    NativeFighterProject project;
+    if (!nativeFighterProject_Open(path, &project)) return 1;
+    unsigned converted = 0;
+    bool ok = true;
+    if (action_text) {
+        u32 action;
+        ok = parse_number(action_text, project.action_count - 1, &action) &&
+            nativeFighterAction_ConvertHitboxIntervals(&project, action, &converted);
+    } else nativeFighterAction_ConvertAllHitboxIntervals(&project, &converted);
+    if (ok && converted) ok = nativeFighterProject_Save(path, &project);
+    nativeFighterProject_Close(&project);
+    printf("Converted %u static hitbox intervals; unresolved actions retain their events.\n", converted);
+    return ok ? 0 : 1;
 }
 
 static int project_insert_command(const char* path,
@@ -965,6 +983,8 @@ static bool hitbox_field(NativeFighterHitbox* h, const char* name,
     HITBOX_U(hit_sfx_kind, 31)
     HITBOX_U(hit_grounded, 1)
     HITBOX_U(hit_aerial, 1)
+    HITBOX_U(duration256, 256000)
+    HITBOX_U(refresh_hit_eligibility, 1)
 #undef HITBOX_U
 #undef HITBOX_S
     return false;
@@ -1008,6 +1028,8 @@ static int project_hitbox(const char* path, const char* action_text,
                h.hit_grounded, h.hit_aerial, h.item_hit_interaction,
                h.ignore_thrown_fighters, h.ignore_fighter_scale,
                h.clank, h.rebound, h.hit_sfx_severity, h.hit_sfx_kind);
+        if (h.timed) printf("duration=%g duration256=%u refresh_hit_eligibility=%u\n",
+                            h.duration256 / 256.0, h.duration256, h.refresh_hit_eligibility);
     }
     nativeFighterProject_Close(&project);
     if (!ok) fputs("Could not read or save that hitbox.\n", stderr);
@@ -2007,6 +2029,8 @@ int main(int argc, char** argv)
     }
     if (arguments == 5 && strcmp(argv[index], "project-move-event") == 0)
         return project_move_event(argv[index + 1], argv[index + 2], argv[index + 3], argv[index + 4]);
+    if ((arguments == 2 || arguments == 3) && strcmp(argv[index], "project-hitbox-intervals") == 0)
+        return project_hitbox_intervals(argv[index + 1], arguments == 3 ? argv[index + 2] : NULL);
     if (arguments == 6 &&
         (strcmp(argv[index], "project-insert-command") == 0 || strcmp(argv[index], "project-insert-at-frame") == 0)) {
         return project_insert_command(argv[index + 1], argv[index + 2],

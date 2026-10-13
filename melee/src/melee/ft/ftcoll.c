@@ -1,3 +1,6 @@
+#ifdef MELEE_NATIVE
+#include "native_hitbox_lifetime.h"
+#endif
 #include "ftcoll.h"
 #include "fighter_collision_state.h"
 #include <melee/ft/native_fighter_target.h>
@@ -3072,6 +3075,9 @@ void ftColl_8007AF60(Fighter_GObj* gobj)
 void ftColl_8007AFC8(Fighter_GObj* gobj, int hit_idx)
 {
     lbColl_80008428(&GET_FIGHTER(gobj)->x914[hit_idx]);
+#ifdef MELEE_NATIVE
+    nativeHitboxLifetime_Clear(GET_FIGHTER(gobj), hit_idx);
+#endif
 }
 
 void ftColl_8007AFF8(Fighter_GObj* gobj)
@@ -3080,6 +3086,9 @@ void ftColl_8007AFF8(Fighter_GObj* gobj)
     int i;
     for (i = 0; i < ARRAY_SIZE(fp->x914); i++) {
         lbColl_80008428(&fp->x914[i]);
+#ifdef MELEE_NATIVE
+        nativeHitboxLifetime_Clear(fp, i);
+#endif
     }
     fp->x2219_b3 = false;
 }

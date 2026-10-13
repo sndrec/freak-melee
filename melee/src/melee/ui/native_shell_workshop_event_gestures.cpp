@@ -42,6 +42,21 @@ namespace WorkshopEditor {
         session->selected_command = -1;
         original_source = selected_source =
             session->events[event].source_offset;
+        original_duration = session->events[event].duration256;
+        interval_edit = IntervalEdit::Move;
+        if (!keyboard && original_duration) {
+            auto* hovered = document->GetContext()->GetHoverElement();
+            if (hovered) {
+                const float left = hovered->GetAbsoluteOffset(Rml::BoxArea::Border).x;
+                const float right = left + hovered->GetOffsetWidth();
+                const float edge = std::min(6.0f, (right - left) * 0.25f);
+                if (last_x <= left + edge) {
+                    interval_edit = IntervalEdit::Start;
+                } else if (last_x >= right - edge) {
+                    interval_edit = IntervalEdit::End;
+                }
+            }
+        }
         auto* ruler =
             document->GetElementById("workshop-event-timeline-ruler");
         if (!ruler || ruler->GetClientWidth() <= 0 ||
@@ -90,8 +105,11 @@ namespace WorkshopEditor {
             return;
         }
         const int delta =
-            std::clamp((int) std::lround((x - start_x) * frames_per_pixel),
-                       -occurrence_frame, 1000 - occurrence_frame);
+            interval_edit == IntervalEdit::End
+                ? (int) std::lround((x - start_x) * frames_per_pixel)
+                : std::clamp(
+                      (int) std::lround((x - start_x) * frames_per_pixel),
+                      -occurrence_frame, 1000 - occurrence_frame);
         if (delta == preview_delta) {
             return;
         }
@@ -105,13 +123,32 @@ namespace WorkshopEditor {
         candidate.fighter_size = edit.size;
         std::memcpy(candidate.fighter_dat, edit.before, edit.size);
         uint32_t moved = original_source;
-        const bool ok = delta == 0 || nativeFighterAction_MoveEvent(
+        const int source_delta =
+            interval_edit == IntervalEdit::End ? 0 : delta;
+        const int64_t length =
+            interval_edit == IntervalEdit::Move
+                ? 0
+                : (int64_t) original_duration +
+                      (interval_edit == IntervalEdit::End ? delta : -delta) *
+                          256;
+        if (interval_edit != IntervalEdit::Move &&
+            (length < 1 || length > 256000))
+        {
+            std::free(candidate.fighter_dat);
+            set_text(
+                "workshop-editor-status",
+                "Keep a positive duration of at most 1000 animation frames.");
+            return;
+        }
+        const bool ok = delta == 0 || nativeFighterAction_EditEventTiming(
                                           &candidate, session->selected_action,
-                                          original_source, delta, &moved);
+                                          original_source, source_delta,
+                                          (uint32_t) length, &moved);
         if (!ok) {
             std::free(candidate.fighter_dat);
             set_text("workshop-editor-status",
-                     "Keep this event within its loop interval. "
+                     "Keep intervals in the same slot non-overlapping and "
+                     "within their loop. "
                      "Animation-dependent timing must be edited in the event "
                      "list.");
             return;
@@ -123,7 +160,7 @@ namespace WorkshopEditor {
         preview_delta = delta;
         refresh_pending = true;
         field("workshop-current-frame")
-            ->SetValue(number(occurrence_frame + delta));
+            ->SetValue(number(occurrence_frame + source_delta));
         set_text("workshop-editor-status",
                  "Moving event; loop repetitions follow. Left click/release "
                  "confirms, right click or Esc cancels.");
@@ -143,12 +180,17 @@ namespace WorkshopEditor {
             cancel_fighter_event_edit(&edit);
             session->action_dirty = was_dirty;
         }
-        refresh_moved_event(changed ? selected_source : original_source,
-                            commit ? occurrence_frame + preview_delta
-                                   : initial_frame);
+        refresh_moved_event(
+            changed ? selected_source : original_source,
+            commit
+                ? occurrence_frame +
+                      (interval_edit == IntervalEdit::End ? 0 : preview_delta)
+                : initial_frame);
         document->GetElementById("workshop-timeline-graph")->Focus();
         set_text("workshop-editor-status",
-                 changed  ? "Moved the event; other event times are unchanged."
+                 changed  ? interval_edit == IntervalEdit::Move
+                                ? "Moved the event; other event times are unchanged."
+                                : "Resized the hitbox; other event times are unchanged."
                  : commit ? "Event selected."
                           : "Move cancelled; original timing restored.");
     }
@@ -168,7 +210,10 @@ namespace WorkshopEditor {
         // Rebuild outside input dispatch so the mouse-down target survives its
         // event. Refresh hover afterward so mouse-up has a live target, even
         // when the pointer stops moving over the rebuilt event bars.
-        refresh_moved_event(selected_source, occurrence_frame + preview_delta);
+        refresh_moved_event(
+            selected_source,
+            occurrence_frame +
+                (interval_edit == IntervalEdit::End ? 0 : preview_delta));
         document->GetElementById("workshop-timeline-graph")->Focus();
         auto* context = document->GetContext();
         context->Update();
@@ -244,6 +289,18 @@ namespace WorkshopEditor {
                     Finish(key == Rml::Input::KI_RETURN);
                     discard_click = true;
                 }
+                event.StopPropagation();
+                return;
+            }
+            if (session->mode == WorkshopMode::Action &&
+                event.GetParameter<int>("ctrl_key", 0) &&
+                (key == Rml::Input::KI_Z || key == Rml::Input::KI_Y) &&
+                target->GetTagName() != "input" &&
+                target->GetTagName() != "textarea" &&
+                target->GetTagName() != "select")
+            {
+                apply_history(key == Rml::Input::KI_Y ||
+                              event.GetParameter<int>("shift_key", 0));
                 event.StopPropagation();
                 return;
             }

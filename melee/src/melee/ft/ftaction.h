@@ -5,6 +5,7 @@
 
 /* 071028 */ void ftAction_80071028(Fighter_GObj* gobj, CommandInfo* cmd);
 /* 0711DC */ void ftAction_800711DC(Fighter_GObj* gobj, CommandInfo* cmd);
+void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd);
 /* 071B50 */ void ftAction_80071B50(Fighter_GObj* gobj, CommandInfo* cmd);
 /* 071CA4 */ void ftAction_80071CA4(Fighter_GObj* gobj, CommandInfo* cmd);
 /* 0730B8 */ void ftAction_800730B8(Fighter_GObj* gobj, CommandInfo* cmd);

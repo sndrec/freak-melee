@@ -236,6 +236,11 @@
           <div class="workshop-divider"></div>
           <div class="eyebrow">HITBOX</div>
           <div id="workshop-hitbox-id" class="workshop-muted"></div>
+          <div id="workshop-hitbox-lifetime">
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-duration" class="field-label">Duration (frames)</label><input id="workshop-hitbox-duration" class="room-input" type="text" /></div>
+            <label class="workshop-hitbox-check" title="Allow another hit when this interval follows a hitbox in the same slot. Leave off to preserve its hit history."><input id="workshop-hitbox-refresh" type="checkbox" /> Refresh Hit Eligibility</label>
+          </div>
+          <div id="workshop-hitbox-manual-lifetime" class="workshop-inspector-hint">Duration could not be inferred safely. Edit its ending command in the Event list.</div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-damage" class="field-label">Damage</label><input id="workshop-hitbox-damage" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-angle" class="field-label">Angle</label><input id="workshop-hitbox-angle" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-kbg" class="field-label">Knockback growth</label><input id="workshop-hitbox-kbg" class="room-input" type="text" /></div>

@@ -1,3 +1,6 @@
+#ifdef MELEE_NATIVE
+#include "native_hitbox_lifetime.h"
+#endif
 #include "ftaction.h"
 #include <melee/ft/native_callback_lifetime.h>
 #include <melee/ft/native_fighter_runtime.h>
@@ -190,6 +193,9 @@ static FtCmd ftAction_803C06E8[] = {
     ftAction_80072B94, ftAction_80072BF4, ftAction_80072C6C, ftAction_80072CB0,
     ftAction_80072CD8, ftAction_80072E4C, ftAction_80073008, ftAction_800730B8,
     ftAction_80073118,
+#ifdef MELEE_NATIVE
+    nativeHitboxLifetime_Spawn,
+#endif
 };
 
 static FtCmd ftAction_803C07AC[ARRAY_SIZE(ftAction_803C06E8)] = {
@@ -206,12 +212,18 @@ static FtCmd ftAction_803C07AC[ARRAY_SIZE(ftAction_803C06E8)] = {
     ftAction_80072BE4, ftAction_80072C5C, ftAction_80072C6C, ftAction_80072CB0,
     ftAction_80072E24, ftAction_80072FE0, ftAction_8007309C, ftAction_80073108,
     ftAction_8007320C,
+#ifdef MELEE_NATIVE
+    nativeHitboxLifetime_Skip,
+#endif
 };
 
 static u8 ftAction_803C0870[ARRAY_SIZE(ftAction_803C06E8)] = {
     05, 05, 01, 01, 01, 01, 01, 03, 01, 01, 01, 01, 01, 01, 01, 01, 01,
     01, 01, 01, 01, 01, 01, 01, 03, 01, 01, 01, 07, 04, 01, 01, 01, 01,
     01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 03, 03, 02, 01, 04
+#ifdef MELEE_NATIVE
+    , 06
+#endif
 };
 
 /*
@@ -304,6 +316,9 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
     {
         ftAction_800715EC(gobj, cmd);
     } else {
+#ifdef MELEE_NATIVE
+        nativeHitboxLifetime_Clear(fp, cmd->u->create_hitbox_0.id);
+#endif
         hit_group = cmd->u->create_hitbox_0.hit_group;
         if (((hitbox = &fp->x914[cmd->u->create_hitbox_0.id])->state ==
              HitCapsule_Disabled) ||

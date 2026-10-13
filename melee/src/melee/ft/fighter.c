@@ -490,6 +490,7 @@ void Fighter_UnkInitReset_80067C98(Fighter* fp)
     fp->victim_gobj = 0;
     fp->x1A5C = 0;
     fp->native_hitlag_link_generation = nativeFighterTarget_Id(fp->x1A5C);
+    memset(fp->native_hitbox_lifetimes, 0, sizeof(fp->native_hitbox_lifetimes));
 
     fp->x221B_b6 = 0;
 

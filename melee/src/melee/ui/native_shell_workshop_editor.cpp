@@ -454,6 +454,8 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     selected_member = member;
     session = &sessions[member];
     session->project = fighter;
+    unsigned converted_hitboxes = 0;
+    nativeFighterAction_ConvertAllHitboxIntervals(fighter, &converted_hitboxes);
     auto* model = (NativeFighterModelEditor*) std::malloc(sizeof(NativeFighterModelEditor));
     if (model && nativeFighterModel_Open(model, fighter))
         for (unsigned joint = 0; joint < model->joint_count; ++joint)
@@ -468,7 +470,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     session->pose_copied = false;
     set_text("workshop-pose-source", "No pose copied yet.");
     session->animation_dirty = false;
-    session->action_dirty = false;
+    session->action_dirty = converted_hitboxes != 0;
     session->script_loaded = false;
     WorkshopScriptFiles::close(session->script_files);
     session->graph_width = 0;

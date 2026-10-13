@@ -60,6 +60,19 @@ redundant wait. Other events retain their times. Timers remain visible and
 editable in the event list. Events currently stay within their containing loop
 interval; animation-dependent timing uses the event list.
 
+Hitboxes have a duration in animation frames. Drag the bar to move both ends;
+drag its left or right edge to resize it. Each loop repetition follows the
+same edit. The inspector also provides a Duration field. Hitlag pauses the
+duration, and animation speed controls how quickly it advances. Intervals in
+the same hitbox slot stay non-overlapping.
+
+Refresh Hit Eligibility lets an adjacent hitbox in the same slot hit an
+opponent again. With it off, the next interval retains the opponents hit by
+the previous interval. A gap starts a fresh hitbox. Opening a draft converts
+static create/clear pairs into these intervals. Save keeps the conversion.
+Actions whose endings depend on runtime decisions retain their commands and
+can be edited through the event list.
+
 ## Animation graph
 
 Show the enabled channels of all selected bones on one shared value-over-time

@@ -35,7 +35,7 @@ review, not a claim of pixel-perfect matching. See [font inputs](../assets/fonts
 
 | Workspace | Current tools |
 | --- | --- |
-| Action Editor | Source-linked subaction/event list and expanded timeline, per-hitbox lanes/properties, playback flags, frame seeking, frozen-pose preview, hit/hurtbox displays and viewport picking. |
+| Action Editor | Source-linked subaction/event list and expanded timeline, duration-owned hitbox bars with edge resizing and Refresh Hit Eligibility, playback flags, frame seeking, frozen-pose preview, hit/hurtbox displays and viewport picking. |
 | Scripting | Separate move files and editable fighter-state source, parameter/variable controls, typed diagnostics, source checking and bytecode-backed behavior publication. |
 | Animation | Bone hierarchy, shared curves, keys/tangents, playback/scrubbing, pose transfer, G/R/S transforms, pivot/axis/plane choices and explicit key insertion / Auto Key off by default. |
 | Model | Mesh/material/skeleton/skinning contexts, Edit/Pose/Animation modes, cgltf import review, rigid/generated/transfer binding, initial painting and skinned rest-bind compensation. |
@@ -164,6 +164,7 @@ muted clients; user projects were preserved.
 
 ## Evidence entry points
 
+- [Hitbox intervals](native_hitbox_intervals.md).
 - [Source-owned member preview](native_source_workshop_preview_checkpoint.md).
 - [Family authoring](native_source_family_authoring_checkpoint.md).
 - [Interpreted Rook](native_rook_interpreter_checkpoint.md).
