@@ -188,6 +188,23 @@ dragging committed it, and one undo restored the previous timing. Timeline
 rebuilds occur outside input dispatch and restore hover/focus, preserving mouse
 release and keyboard input throughout the gesture.
 
+Hitboxes now own their animation-frame duration. Moving the bar moves its
+endpoint, and either edge can resize it. Refresh Hit Eligibility controls
+whether an adjacent interval in the same slot can hit an opponent again.
+Static create/clear sequences are converted on draft opening; unresolved
+sequences retain their original commands. See [hitbox intervals](native_hitbox_intervals.md)
+for controls, runtime ownership and focused verification.
+
+The focused hidden/muted client check moved a bar from frame 20 to 22 while
+retaining its five-frame duration. Right-edge resizing changed 20–25 to 20–27;
+left-edge resizing changed that to 21–27. Undo restored 20–27, and the saved
+DAT reopened with the same start and duration. Resize detection now uses the
+visible button border. Action undo hotkeys use the context input listener so
+they also work when focus falls back to the document after a timeline rebuild;
+the next user pass can review that final keyboard-focus adjustment.
+The conversion audit covered seven cases and 66 stock Ganondorf actions.
+Lifetime and existing action-duplication tests passed.
+
 - The recorded crash dereferenced a removed timeline element ID during drag
   completion. Dragging now uses the current ruler and checks its presence.
 - Empty action scripts are valid. They no longer stop the shared-command

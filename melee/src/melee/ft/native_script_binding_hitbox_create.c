@@ -1,6 +1,7 @@
 #include "native_script_binding_hitbox_create.h"
 #include "native_script_bindings.h"
 #include "native_fighter_lifetime.h"
+#include "native_hitbox_lifetime.h"
 #include "native_source_package.h"
 #include "fighter.h"
 #include "ftcoll.h"
@@ -76,6 +77,7 @@ bool nativeScriptBindingHitboxCreate_Invoke(NativeScriptRuntimeContext* c,
     if(!p_ftCommonData)return error(d,"Hitbox angle helper has no common engine parameters");
     if(!damage_valid(f,(uint32_t)spec->damage,d))return false;
     if(!nativeFighterLifetime_Current(&source))return error(d,"Hitbox source retired before creation");
+    nativeHitboxLifetime_Clear(f, (unsigned)slot);
     HitCapsule* hit=&f->x914[slot];
     if(hit->state==HitCapsule_Disabled||hit->x4!=(uint32_t)spec->group){
         hit->x4=(uint32_t)spec->group;hit->state=HitCapsule_Enabled;f->x2219_b3=true;ftColl_800768A0(f,hit);

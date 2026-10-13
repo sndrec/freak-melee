@@ -8,6 +8,7 @@
 
 #ifdef MELEE_NATIVE
 #include "native_costume_runtime.h"
+#include "native_hitbox_lifetime.h"
 #endif
 
 #include "fighter.h"
@@ -60,11 +61,17 @@ void ftAnim_8006EBA4(Fighter_GObj* gobj)
         return;
     }
 #endif
+#ifdef MELEE_NATIVE
+    nativeHitboxLifetime_BeginStep(gobj->user_data, ((Fighter*)gobj->user_data)->frame_speed_mul);
+#endif
     ftAction_80073240(gobj);
 #ifdef MELEE_NATIVE
     if (!nativeFighterLifetime_Current(&lifetime)) {
         return;
     }
+#endif
+#ifdef MELEE_NATIVE
+    nativeHitboxLifetime_EndStep(gobj);
 #endif
     ftAnim_800707B0(gobj);
 #ifdef MELEE_NATIVE

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "ftaction_data.h"
+#include "native_hitbox_lifetime.h"
 
 enum {
     TIMING_NODES = 2048,
@@ -14,7 +15,8 @@ enum {
 typedef struct TimingNode {
     u32 source, output, repeat;
     int parent, frame, end;
-    bool loop;
+    bool loop, omit, refresh_known;
+    u32 lifetime;
 } TimingNode;
 typedef struct TimingOrder {
     int parent, frame, node;
@@ -29,7 +31,8 @@ typedef struct TimingPlan {
     size_t count, cursor, node_count;
     u32 bytes, selected, moved;
     int delta;
-    bool found;
+    uint32_t duration_edit;
+    bool found, converting;
 } TimingPlan;
 
 static void put_word(u8* out, u32 word)
@@ -140,6 +143,9 @@ static bool emit_block(TimingPlan* plan, int parent, unsigned depth)
     for (int i = 0; i < plan->children[parent]; ++i) {
         TimingNode* node =
             &plan->nodes[plan->order[plan->first[parent] + i].node];
+        if (node->omit) {
+            continue;
+        }
         if (node->frame < frame || node->frame > 1000) {
             return false;
         }
@@ -169,6 +175,23 @@ static bool emit_block(TimingPlan* plan, int parent, unsigned depth)
             }
             memcpy(plan->code + plan->bytes, source, size);
             plan->bytes += size;
+            if (node->source == plan->selected && plan->duration_edit &&
+                (raw >> 26) == NATIVE_HITBOX_TIMED_OPCODE)
+            {
+                u32 original_life;
+                HSD_DatReadU32(&plan->dat, node->source + 20, &original_life);
+                put_word(plan->code + node->output + 20,
+                         (original_life & ~NATIVE_HITBOX_DURATION_MASK) |
+                             plan->duration_edit);
+            }
+            if (node->lifetime) {
+                put_word(plan->code + node->output,
+                         (raw & 0x3ffffff) |
+                             (NATIVE_HITBOX_TIMED_OPCODE << 26));
+                if (!emit_word(plan, node->lifetime)) {
+                    return false;
+                }
+            }
             if (node->source == plan->selected && plan->moved == UINT32_MAX) {
                 plan->moved = node->output;
             }
@@ -195,7 +218,7 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
     u32 copied_slots = 0;
     for (size_t n = 1; n < plan->node_count; ++n) {
         const TimingNode* node = &plan->nodes[n];
-        if (node->loop) {
+        if (node->loop || node->omit) {
             continue;
         }
         u32 raw;
@@ -250,7 +273,7 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
     }
     for (size_t n = 1; n < plan->node_count; ++n) {
         const TimingNode* node = &plan->nodes[n];
-        if (node->loop) {
+        if (node->loop || node->omit) {
             continue;
         }
         u32 raw;
@@ -301,8 +324,10 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
                 continue;
             }
             size_t node = 1;
-            while (node < plan->node_count &&
-                   table + plan->nodes[node].output != actual[i].source_offset)
+            while (
+                node < plan->node_count &&
+                (plan->nodes[node].omit ||
+                 table + plan->nodes[node].output != actual[i].source_offset))
             {
                 ++node;
             }
@@ -316,7 +341,9 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
                 const NativeFighterActionOccurrence* before =
                     &plan->occurrences[j];
                 if (!matched[j] && before->source_offset == old &&
-                    before->opcode == actual[i].opcode &&
+                    (before->opcode == actual[i].opcode ||
+                     (plan->converting && before->opcode == 11 &&
+                      actual[i].opcode == NATIVE_HITBOX_TIMED_OPCODE)) &&
                     (int) before->frame +
                             (old == plan->selected ? plan->delta : 0) ==
                         actual[i].frame)
@@ -333,11 +360,17 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
     }
     if (valid) {
         for (size_t i = 0; i < plan->count; ++i) {
-            if (plan->occurrences[i].opcode >= 9 && !matched[i]) {
+            if (plan->occurrences[i].opcode >= 9 && !matched[i] &&
+                !(plan->converting && (plan->occurrences[i].opcode == 15 ||
+                                       plan->occurrences[i].opcode == 16)))
+            {
                 valid = false;
                 break;
             }
         }
+    }
+    if (valid) {
+        valid = nativeFighterAction_HitboxIntervalsValid(&candidate, action);
     }
     if (!valid) {
         free(bytes);
@@ -346,15 +379,16 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
     free(project->fighter_dat);
     project->fighter_dat = bytes;
     project->fighter_size = new_size;
-    *moved = table + plan->moved;
+    *moved = plan->moved == UINT32_MAX ? 0 : table + plan->moved;
     return true;
 }
 
-bool nativeFighterAction_MoveEvent(NativeFighterProject* project,
-                                   unsigned action, uint32_t source, int delta,
-                                   uint32_t* moved)
+bool nativeFighterAction_EditEventTiming(NativeFighterProject* project,
+                                         unsigned action, uint32_t source,
+                                         int delta, uint32_t duration256,
+                                         uint32_t* moved)
 {
-    if (!moved || delta < -1000 || delta > 1000) {
+    if (!moved || delta < -1000 || delta > 1000 || duration256 > 256000) {
         return false;
     }
     TimingPlan* plan = calloc(1, sizeof(*plan));
@@ -365,6 +399,7 @@ bool nativeFighterAction_MoveEvent(NativeFighterProject* project,
     bool complete;
     plan->selected = source;
     plan->delta = delta;
+    plan->duration_edit = duration256;
     plan->moved = UINT32_MAX;
     plan->node_count = 1;
     bool ok = nativeFighterAction_OpenTable(project, &plan->dat, &table) &&
@@ -373,6 +408,11 @@ bool nativeFighterAction_MoveEvent(NativeFighterProject* project,
                                            TIMING_OCCURRENCES, &plan->count,
                                            &complete) &&
               complete && parse_block(plan, 0, 0, &closing) && plan->found;
+    if (ok && duration256) {
+        u32 raw;
+        ok = HSD_DatReadU32(&plan->dat, source, &raw) &&
+             (raw >> 26) == NATIVE_HITBOX_TIMED_OPCODE;
+    }
     if (ok) {
         for (size_t i = 1; i < plan->node_count; ++i) {
             const TimingNode* node = &plan->nodes[i];
@@ -401,5 +441,267 @@ bool nativeFighterAction_MoveEvent(NativeFighterProject* project,
     }
     free(plan);
     return ok;
+}
+
+bool nativeFighterAction_HitboxIntervalsValid(
+    const NativeFighterProject* project, unsigned action)
+{
+    NativeFighterActionOccurrence occurrences[TIMING_OCCURRENCES];
+    size_t count;
+    bool complete;
+    if (!nativeFighterAction_Timeline(project, action, occurrences,
+                                      TIMING_OCCURRENCES, &count, &complete))
+    {
+        return false;
+    }
+    HSD_Dat dat;
+    u32 table;
+    if (!nativeFighterAction_OpenTable(project, &dat, &table)) {
+        return false;
+    }
+    uint32_t ends[4] = { 0 };
+    for (size_t i = 0; i < count; ++i) {
+        const NativeFighterActionOccurrence* occurrence = &occurrences[i];
+        if (occurrence->opcode != 11 &&
+            occurrence->opcode != NATIVE_HITBOX_TIMED_OPCODE &&
+            occurrence->opcode != 15 && occurrence->opcode != 16)
+        {
+            continue;
+        }
+        u32 raw;
+        HSD_DatReadU32(&dat, occurrence->source_offset, &raw);
+        if (occurrence->opcode == 16) {
+            memset(ends, 0, sizeof(ends));
+            continue;
+        }
+        const unsigned slot =
+            occurrence->opcode == 15 ? raw & 0x3ffffff : (raw >> 23) & 7;
+        if (slot >= 4) {
+            return false;
+        }
+        if (occurrence->opcode == 15) {
+            ends[slot] = 0;
+            continue;
+        }
+        if (ends[slot] > occurrence->frame * 256u) {
+            return false;
+        }
+        ends[slot] = 0;
+        if (occurrence->opcode == NATIVE_HITBOX_TIMED_OPCODE) {
+            u32 life;
+            if (!HSD_DatReadU32(&dat, occurrence->source_offset + 20, &life) ||
+                !(life & NATIVE_HITBOX_DURATION_MASK) ||
+                (life & NATIVE_HITBOX_DURATION_MASK) > 256000)
+            {
+                return false;
+            }
+            ends[slot] = occurrence->frame * 256u +
+                         (life & NATIVE_HITBOX_DURATION_MASK);
+        }
+    }
+    return true;
+}
+
+bool nativeFighterAction_ConvertHitboxIntervals(NativeFighterProject* project,
+                                                unsigned action,
+                                                unsigned* converted)
+{
+    if (!converted) {
+        return false;
+    }
+    *converted = 0;
+    NativeFighterActionCommand commands[1024];
+    size_t command_count;
+    if (!nativeFighterAction_Commands(project, action, commands, 1024,
+                                      &command_count))
+    {
+        return false;
+    }
+    bool has_hitbox = false;
+    for (size_t i = 0; i < command_count; ++i) {
+        if (commands[i].opcode == NATIVE_HITBOX_TIMED_OPCODE) {
+            return true;
+        }
+        has_hitbox |= commands[i].opcode == 11;
+    }
+    if (!has_hitbox) {
+        return true;
+    }
+    TimingPlan* plan = calloc(1, sizeof(*plan));
+    if (!plan) {
+        return false;
+    }
+    u32 table, closing;
+    bool complete;
+    plan->node_count = 1;
+    plan->selected = plan->moved = UINT32_MAX;
+    plan->converting = true;
+    bool proven = nativeFighterAction_OpenTable(project, &plan->dat, &table) &&
+                  !plan->dat.extern_count &&
+                  nativeFighterAction_Timeline(
+                      project, action, plan->occurrences, TIMING_OCCURRENCES,
+                      &plan->count, &complete) &&
+                  complete && parse_block(plan, 0, 0, &closing);
+    bool active[4] = { false }, seen[4] = { false };
+    unsigned group[4] = { 0 };
+    int started[4] = { 0 }, cleared[4] = { -1, -1, -1, -1 };
+    for (size_t i = 0; proven && i < plan->count; ++i) {
+        const NativeFighterActionOccurrence* occurrence =
+            &plan->occurrences[i];
+        u32 raw;
+        HSD_DatReadU32(&plan->dat, occurrence->source_offset, &raw);
+        const unsigned slot =
+            occurrence->opcode == 11 ? (raw >> 23) & 7 : raw & 0x3ffffff;
+        if (occurrence->opcode == 15 || occurrence->opcode == 16) {
+            if (occurrence->opcode == 15) {
+                if (slot >= 4 || !seen[slot]) {
+                    proven = false;
+                    break;
+                }
+                active[slot] = false;
+                cleared[slot] = occurrence->frame;
+            } else {
+                if (!seen[0] && !seen[1] && !seen[2] && !seen[3]) {
+                    proven = false;
+                    break;
+                }
+                for (unsigned s = 0; s < 4; ++s) {
+                    active[s] = false;
+                    cleared[s] = occurrence->frame;
+                }
+            }
+        }
+        if (occurrence->opcode != 11) {
+            continue;
+        }
+        u32 third;
+        HSD_DatReadU32(&plan->dat, occurrence->source_offset + 12, &third);
+        if (slot >= 4 || (third & 8)) {
+            proven = false;
+            break;
+        } // Conditional thrown-owner spawn.
+        const unsigned new_group = (raw >> 20) & 7;
+        const bool must_refresh = (active[slot] && group[slot] != new_group) ||
+                                  (!active[slot] && seen[slot] &&
+                                   cleared[slot] == occurrence->frame);
+        const bool refresh_known = active[slot] || must_refresh;
+        // Stock creation may inherit another slot's older group history. A
+        // fresh duration-owned slot cannot reproduce that through its
+        // checkbox.
+        if (!active[slot] || must_refresh) {
+            for (unsigned s = 0; s < 4; ++s) {
+                if (s != slot && active[s] && group[s] == new_group &&
+                    started[s] < occurrence->frame)
+                {
+                    proven = false;
+                }
+            }
+        }
+        if (!proven) {
+            break;
+        }
+        int end = -1;
+        bool expire_all = false;
+        for (size_t j = i + 1; j < plan->count; ++j) {
+            const NativeFighterActionOccurrence* next = &plan->occurrences[j];
+            u32 value;
+            HSD_DatReadU32(&plan->dat, next->source_offset, &value);
+            if (next->opcode == 16 ||
+                (next->opcode == 15 && (value & 0x3ffffff) == slot) ||
+                (next->opcode == 11 && ((value >> 23) & 7) == slot))
+            {
+                end = next->frame;
+                expire_all = next->opcode == 16;
+                break;
+            }
+        }
+        if (end <= occurrence->frame) {
+            proven = false;
+            break;
+        }
+        const u32 duration = (end - occurrence->frame) * 256u;
+        for (size_t n = 1; n < plan->node_count; ++n) {
+            TimingNode* node = &plan->nodes[n];
+            if (node->source != occurrence->source_offset) {
+                continue;
+            }
+            if ((node->lifetime &&
+                 (node->lifetime & NATIVE_HITBOX_DURATION_MASK) != duration) ||
+                (refresh_known && node->refresh_known &&
+                 ((node->lifetime & NATIVE_HITBOX_REFRESH) != 0) !=
+                     must_refresh))
+            {
+                proven = false;
+                break;
+            }
+            node->lifetime =
+                (node->lifetime & ~NATIVE_HITBOX_DURATION_MASK) | duration;
+            if (expire_all) {
+                node->lifetime |= NATIVE_HITBOX_EXPIRE_ALL;
+            }
+            if (refresh_known) {
+                node->refresh_known = true;
+                if (must_refresh) {
+                    node->lifetime |= NATIVE_HITBOX_REFRESH;
+                } else {
+                    node->lifetime &= ~NATIVE_HITBOX_REFRESH;
+                }
+            }
+        }
+        if (!active[slot] || must_refresh) {
+            started[slot] = occurrence->frame;
+        }
+        active[slot] = seen[slot] = true;
+        group[slot] = new_group;
+    }
+    if (!proven) {
+        free(plan);
+        return true;
+    } // Preserve the original action intact.
+    for (size_t n = 1; n < plan->node_count; ++n) {
+        TimingNode* node = &plan->nodes[n];
+        u32 raw;
+        HSD_DatReadU32(&plan->dat, node->source, &raw);
+        node->omit = (raw >> 26) == 15 || (raw >> 26) == 16;
+        plan->order[n - 1] =
+            (TimingOrder){ node->parent, node->frame, (int) n };
+    }
+    qsort(plan->order, plan->node_count - 1, sizeof(*plan->order),
+          compare_order);
+    for (size_t i = 0; i < plan->node_count - 1; ++i) {
+        const int parent = plan->order[i].parent;
+        if (plan->children[parent]++ == 0) {
+            plan->first[parent] = (int) i;
+        }
+    }
+    uint32_t moved;
+    const bool ok = emit_block(plan, 0, 0) && emit_word(plan, 0) &&
+                    publish(project, action, table, plan, &moved);
+    if (ok) {
+        for (size_t n = 1; n < plan->node_count; ++n) {
+            if (plan->nodes[n].lifetime) {
+                ++*converted;
+            }
+        }
+    }
+    free(plan);
+    return ok;
+}
+
+void nativeFighterAction_ConvertAllHitboxIntervals(
+    NativeFighterProject* project, unsigned* converted)
+{
+    unsigned total = 0;
+    for (unsigned action = 0; action < project->action_count; ++action) {
+        unsigned count;
+        if (nativeFighterAction_ConvertHitboxIntervals(project, action,
+                                                       &count))
+        {
+            total += count;
+        }
+    }
+    if (converted) {
+        *converted = total;
+    }
 }
 #endif

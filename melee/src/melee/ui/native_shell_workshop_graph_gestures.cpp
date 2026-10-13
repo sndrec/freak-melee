@@ -540,7 +540,7 @@ namespace WorkshopEditor {
                 const bool ctrl = event.GetParameter<int>("ctrl_key", 0) != 0;
                 if (ctrl &&
                     (key == Rml::Input::KI_Z || key == Rml::Input::KI_Y) &&
-                    session->mode != WorkshopMode::Script)
+                    (session->mode == WorkshopMode::Animation || session->mode == WorkshopMode::Model))
                 {
                     const bool redo = key == Rml::Input::KI_Y ||
                                       event.GetParameter<int>("shift_key", 0);

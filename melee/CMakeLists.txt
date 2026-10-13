@@ -954,6 +954,11 @@ if(MELEE_BUILD_TESTS)
 endif()
 
 if(MELEE_BUILD_TESTS)
+    add_executable(native_hitbox_lifetime_test
+        tests/native/hitbox_lifetime_test.c src/melee/ft/native_hitbox_lifetime.c)
+    target_include_directories(native_hitbox_lifetime_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_hitbox_lifetime_test PRIVATE MELEE_NATIVE=1)
+    add_test(NAME native_hitbox_lifetime COMMAND native_hitbox_lifetime_test)
     add_executable(native_heap_test tests/native/heap_test.c
         tests/native/animation_test.c src/sysdolphin/baselib/fobj.c
         tests/native/animation_scheduler_boundary.c src/sysdolphin/baselib/native_animation_pool.c

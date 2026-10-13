@@ -150,6 +150,11 @@ typography. Pause after the focused checks and local commits. Model mode uses
 editor eye visibility alone; Animation and Test Character use authored
 visibility. IK remains future authoring work.
 
+Follow-up action editing adds [duration-owned hitbox intervals](melee/docs/native_hitbox_intervals.md):
+moving bars carries their endpoints, edges resize them, and adjacent intervals
+offer Refresh Hit Eligibility. Static lifetimes are converted when a draft
+opens; unresolved runtime-dependent sequences remain available in the event list.
+
 - [ ] Complete clone -> edit -> preview/test -> save/reopen -> install with the
   user, preserving the source fighter and keeping preview/cache/install distinct.
 - [ ] Review the real Action Editor timeline, loop unrolling, simultaneous

@@ -347,6 +347,10 @@
   background-color: #6d4039; }
 .workshop-timeline-lane button.hitbox-block { min-width: 0;
   max-width: none; background-color: #503833; border-color: #d58c76; }
+.workshop-hitbox-edge { position: absolute; top: 0; bottom: 0; width: 3dp;
+  background-color: #f09b78; pointer-events: none; }
+.workshop-hitbox-edge.left { left: 0; }
+.workshop-hitbox-edge.right { right: 0; }
 .workshop-animation-span { display: block; width: 98%; height: 20dp;
   padding: 3dp 6dp; color: #d0d4dd; background-color: #292c36;
   border: 1dp #393d49; font-size: 10dp; }

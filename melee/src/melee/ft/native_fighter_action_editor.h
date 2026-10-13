@@ -52,6 +52,7 @@ typedef enum NativeFighterActionEventKind {
 } NativeFighterActionEventKind;
 
 typedef struct NativeFighterActionEvent {
+    uint32_t duration256;
     uint32_t source_offset;
     uint32_t value;
     uint32_t target_id;
@@ -85,6 +86,8 @@ bool nativeFighterAction_SetField(NativeFighterProject*, unsigned action,
 // 1/256-unit encoding; no floating-point round trip is involved. Offset names
 // follow the source command fields, whose evaluator maps z/x into b_offset.x/z.
 typedef struct NativeFighterHitbox {
+    uint32_t duration256;
+    bool timed, refresh_hit_eligibility, expire_all;
     uint8_t id;
     uint8_t hit_group;
     uint8_t only_hit_grabbed;
@@ -172,9 +175,15 @@ bool nativeFighterAction_Timeline(const NativeFighterProject* project,
 // event times and loop periods. Regenerate and merge relative waits. A move
 // across its containing loop boundary, or an incomplete timeline, is rejected.
 // On success moved_offset identifies the event in the action-local result.
-bool nativeFighterAction_MoveEvent(NativeFighterProject* project, unsigned action,
-                                   uint32_t source_offset, int delta,
+bool nativeFighterAction_EditEventTiming(NativeFighterProject* project, unsigned action,
+                                   uint32_t source_offset, int delta, uint32_t duration256,
                                    uint32_t* moved_offset);
+bool nativeFighterAction_HitboxIntervalsValid(const NativeFighterProject*, unsigned action);
+// Convert statically proven lifetimes to duration-owned commands. Unresolved
+// actions retain their original source. False denotes invalid input/allocation.
+bool nativeFighterAction_ConvertHitboxIntervals(NativeFighterProject*, unsigned action,
+                                                unsigned* converted);
+void nativeFighterAction_ConvertAllHitboxIntervals(NativeFighterProject*, unsigned* converted);
 // Insert a copy of an existing non-control command after one reachable
 // command. The destination action becomes local; reachable branches and
 // subroutines are copied with remapped targets.

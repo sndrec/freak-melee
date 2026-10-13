@@ -116,6 +116,8 @@ int hitbox_end_for_instance(size_t instance)
 {
     if (instance >= session->timeline_event_count) return session->timeline_end_frame;
     const unsigned id = session->events[session->timeline_events[instance].event].target_id;
+    const unsigned duration = session->events[session->timeline_events[instance].event].duration256;
+    const int owned_end = duration ? session->timeline_events[instance].frame + (int)((duration + 255) / 256) : session->timeline_end_frame;
     for (size_t later = instance + 1; later < session->timeline_event_count; ++later) {
         const NativeFighterActionEvent& event =
             session->events[session->timeline_events[later].event];
@@ -123,9 +125,9 @@ int hitbox_end_for_instance(size_t instance)
             ((event.kind == NativeFighterActionEvent_ClearHitbox ||
               event.kind == NativeFighterActionEvent_CreateHitbox) &&
              event.target_id == id))
-            return session->timeline_events[later].frame;
+            return std::min(owned_end, session->timeline_events[later].frame);
     }
-    return session->timeline_end_frame;
+    return owned_end;
 }
 
 int hitbox_end_frame(size_t index)
@@ -256,6 +258,14 @@ void show_event()
         return;
     }
     inspector->SetProperty("display", "block");
+    document->GetElementById("workshop-hitbox-lifetime")->SetProperty("display", hitbox.timed ? "block" : "none");
+    document->GetElementById("workshop-hitbox-manual-lifetime")->SetProperty("display", hitbox.timed ? "none" : "block");
+    if (hitbox.timed) {
+        field("workshop-hitbox-duration")->SetValue(std::to_string(hitbox.duration256 / 256.0f));
+        auto* refresh = document->GetElementById("workshop-hitbox-refresh");
+        if (hitbox.refresh_hit_eligibility) refresh->SetAttribute("checked", "checked");
+        else refresh->RemoveAttribute("checked");
+    }
     set_text("workshop-action-title", "Hitbox " + number(hitbox.id));
     set_text("workshop-hitbox-id", "Hitbox " + number(hitbox.id) +
              (hitbox.use_common_bone_ids ? " · common bone " :
@@ -381,6 +391,9 @@ void show_action_timeline()
         const auto& current = session->timeline_occurrences[occurrence];
         const int frame = current.frame;
         session->timeline_end_frame = std::max(session->timeline_end_frame, frame + 3);
+        for (size_t e = 0; e < session->event_count; ++e)
+            if (session->events[e].source_offset == current.source_offset && session->events[e].duration256)
+                session->timeline_end_frame = std::max(session->timeline_end_frame, frame + (int)((session->events[e].duration256 + 255) / 256));
         for (size_t command = 0; command < session->command_count; ++command)
             if (session->commands[command].source_offset == current.source_offset) {
                 if (session->command_frames[command] < 0) session->command_frames[command] = frame;
@@ -486,22 +499,26 @@ void show_action_timeline()
                      "</span>";
         if (lane == 1 && hitbox_count != 0) {
             int first = session->timeline_end_frame;
-            int last = 0;
+            float last = 0;
             for (size_t i = 0; i < session->timeline_event_count; ++i) {
                 const auto& occurrence = session->timeline_events[i];
                 if (session->events[occurrence.event].kind !=
                     NativeFighterActionEvent_CreateHitbox) continue;
                 first = std::min(first, occurrence.frame);
-                last = std::max(last, hitbox_end_for_instance(i));
+                const auto& event = session->events[occurrence.event];
+                const float end = event.duration256
+                    ? occurrence.frame + event.duration256 / 256.0f
+                    : (float) hitbox_end_for_instance(i);
+                last = std::max(last, end);
             }
             if (last > first) {
-                const int left = std::clamp(first * 92 / session->timeline_end_frame, 0, 92);
-                const int width = std::clamp((last - first) * 92 /
-                    session->timeline_end_frame, 2, std::max(2, 92 - left));
+                const float left = std::clamp(first * 92.0f / session->timeline_end_frame, 0.0f, 92.0f);
+                const float width = std::clamp((last - first) * 92.0f /
+                    session->timeline_end_frame, 0.0f, 92.0f - left);
                 lanes += "<button id='workshop-hitbox-overview' "
                          "class='workshop-timeline-event hitbox-overview' "
-                         "style='left: " + number((unsigned) left) +
-                         "%; width: " + number((unsigned) width) + "%'>" +
+                         "style='left: " + std::to_string(left) +
+                         "%; width: " + std::to_string(width) + "%'>" +
                          number((unsigned) hitbox_count) + " hitboxes</button>";
             }
         }
@@ -535,13 +552,15 @@ void show_action_timeline()
                 event.kind == NativeFighterActionEvent_NeutralCue ||
                 event.kind == NativeFighterActionEvent_Command;
             if (!belongs) continue;
-            const int left = std::clamp(frame * 92 / session->timeline_end_frame, 0, 92);
+            const float left = std::clamp(frame * 92.0f / session->timeline_end_frame, 0.0f, 92.0f);
             int end_frame = frame + 1;
             if (event.kind == NativeFighterActionEvent_CreateHitbox) {
                 end_frame = hitbox_end_for_instance(instance);
             }
-            const int width = std::clamp((end_frame - frame) * 92 /
-                session->timeline_end_frame, release_lane ? 5 : 2, std::max(5, 92 - left));
+            const float span = event.duration256 ? event.duration256 / 256.0f : end_frame - frame;
+            const float width = std::clamp(span * 92.0f / session->timeline_end_frame,
+                event.duration256 ? 0.0f : release_lane ? 5.0f : 2.0f,
+                event.duration256 ? 92.0f - left : std::max(5.0f, 92.0f - left));
             lanes += "<button id='workshop-timeline-event-" +
                      number((unsigned) instance) +
                      "' class='workshop-timeline-event" +
@@ -550,8 +569,9 @@ void show_action_timeline()
                      std::string((int) i == session->selected_event ? " selected" : "") +
                      "' title='" + event_name(event) +
                      " at frame " + number((unsigned) frame) +
-                     "' style='left: " + number((unsigned) left) +
-                     "%; width: " + number((unsigned) width) + "%'>" +
+                     (event.duration256 ? ". Drag the body to move; drag either edge to resize." : "") +
+                     "' style='left: " + std::to_string(left) +
+                     "%; width: " + std::to_string(width) + "%'>" +
                      (event.kind == NativeFighterActionEvent_CreateHitbox
                           ? "#" + number(event.target_id) :
                       event.kind == NativeFighterActionEvent_ThrowHitbox
@@ -559,7 +579,7 @@ void show_action_timeline()
                       event.kind == NativeFighterActionEvent_ReleaseThrow
                           ? "Release" :
                           Rml::StringUtilities::EncodeRml(event_name(event))) +
-                     "</button>";
+                     (event.duration256 ? "<span class='workshop-hitbox-edge left'></span><span class='workshop-hitbox-edge right'></span>" : "") + "</button>";
         }
         lanes += "</div>";
     }
@@ -689,6 +709,13 @@ int active_hitbox_event(unsigned hitbox_id)
         else if (event.kind == NativeFighterActionEvent_CreateHitbox &&
                  event.target_id == hitbox_id) active = (int) instance.event;
     }
+    if (active >= 0 && session->events[active].duration256) {
+        int start = -1;
+        for (size_t i = 0; i < session->timeline_event_count; ++i)
+            if (session->timeline_events[i].event == (unsigned)active && session->timeline_events[i].frame <= session->timeline_frame)
+                start = session->timeline_events[i].frame;
+        if (start >= 0 && (session->timeline_frame - start) * 256u >= session->events[active].duration256) active = -1;
+    }
     return active;
 }
 
@@ -708,7 +735,8 @@ void refresh_event_templates()
                 !session->command_templates[listed[item].opcode].found)
                 session->command_templates[listed[item].opcode] = {(unsigned) i, listed[item].source_offset, true};
             if (kind > NativeFighterActionEvent_SetAirborneState ||
-                session->event_templates[kind].found) continue;
+                (session->event_templates[kind].found &&
+                 !(kind == NativeFighterActionEvent_CreateHitbox && listed[item].duration256))) continue;
             session->event_templates[kind] = { (unsigned) i,
                 listed[item].source_offset, true };
         }
@@ -751,7 +779,8 @@ void toggle_add_event_menu()
         NativeFighterActionEvent_SetAirborneState,
     };
     for (unsigned kind : kinds) {
-        if (!session->show_event_list && (kind == NativeFighterActionEvent_SyncTimer || kind == NativeFighterActionEvent_AsyncTimer)) continue;
+        if (!session->show_event_list && (kind == NativeFighterActionEvent_SyncTimer || kind == NativeFighterActionEvent_AsyncTimer ||
+            kind == NativeFighterActionEvent_ClearHitbox || kind == NativeFighterActionEvent_ClearAllHitboxes)) continue;
         if (!session->event_templates[kind].found) continue;
         markup += "<button id='workshop-add-kind-" + number(kind) +
                   "'>" + WorkshopLabels::event(kind) + "</button>";
@@ -1140,8 +1169,8 @@ void apply_event_frame()
     if (!edit.before) return;
     std::memcpy(edit.before, session->project->fighter_dat, edit.size);
     edit.localized = true;
-    if (!nativeFighterAction_MoveEvent(session->project, session->selected_action, source,
-                                       (int) desired - current, &edit.offset)) {
+    if (!nativeFighterAction_EditEventTiming(session->project, session->selected_action, source,
+                                       (int) desired - current, 0, &edit.offset)) {
         std::free(edit.before);
         set_text("workshop-editor-status", "Keep this event within its loop interval. Animation-dependent timing must be edited in the event list.");
         return;
@@ -1163,6 +1192,16 @@ void apply_hitbox()
     NativeFighterHitbox hitbox;
     if (!nativeFighterAction_GetHitbox(session->project, (unsigned) session->selected_action,
                                       offset, &hitbox)) return;
+    if (hitbox.timed) {
+        const std::string text = field("workshop-hitbox-duration")->GetValue();
+        char* end; const double frames = std::strtod(text.c_str(), &end);
+        if (text.empty() || *end || !std::isfinite(frames) || frames < 1.0/256.0 || frames > 1000) {
+            set_text("workshop-editor-status", "Duration must be between 1/256 and 1000 animation frames.");
+            return;
+        }
+        hitbox.duration256 = (uint32_t) std::lround(frames * 256);
+        hitbox.refresh_hit_eligibility = document->GetElementById("workshop-hitbox-refresh")->HasAttribute("checked");
+    }
     uint16_t bone;
     if (!parse_u16("workshop-hitbox-damage", 1023, &hitbox.damage) ||
         !parse_u16("workshop-hitbox-angle", 511, &hitbox.angle) ||

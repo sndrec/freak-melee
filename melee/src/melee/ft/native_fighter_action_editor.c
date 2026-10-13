@@ -1,5 +1,6 @@
 #include "native_fighter_action_editor.h"
 #include "native_fighter_action_internal.h"
+#include "native_hitbox_lifetime.h"
 
 #ifdef MELEE_NATIVE
 
@@ -233,9 +234,15 @@ static bool collect_action(const NativeFighterProject* project,
                 }
                 NativeFighterActionEvent* event = &events[(*event_count)++];
                 event->source_offset = at;
+                event->duration256 = 0;
+                if (opcode == NATIVE_HITBOX_TIMED_OPCODE) {
+                    u32 life;
+                    if (!HSD_DatReadU32(&dat, at + 20, &life)) { ok = false; break; }
+                    event->duration256 = life & NATIVE_HITBOX_DURATION_MASK;
+                }
                 event->opcode = (uint8_t) opcode;
                 event->target_id = opcode == 10 ? (raw >> 18) & 0xFF
-                                   : opcode >= 11 && opcode <= 13
+                                   : (opcode >= 11 && opcode <= 13) || opcode == NATIVE_HITBOX_TIMED_OPCODE
                                        ? (raw >> 23) & 7
                                    : opcode == 14 ? (raw >> 2) & 0xFFFFFF
                                    : opcode == 15 ? raw & 0x3FFFFFF
@@ -250,7 +257,7 @@ static bool collect_action(const NativeFighterProject* project,
                         break;
                     }
                     event->value = opcode == 10 ? detail >> 16 : detail;
-                } else event->value = opcode == 11 ? raw & 0x3FF
+                } else event->value = (opcode == 11 || opcode == NATIVE_HITBOX_TIMED_OPCODE) ? raw & 0x3FF
                              : opcode == 12 || opcode == 13
                                  ? raw & 0x7FFFFF
                              : opcode == 14 ? raw & 3
@@ -263,7 +270,7 @@ static bool collect_action(const NativeFighterProject* project,
                 event->kind = opcode == 1 ? NativeFighterActionEvent_SyncTimer
                             : opcode == 2 ? NativeFighterActionEvent_AsyncTimer
                             : opcode == 10 ? NativeFighterActionEvent_SpawnEffect
-                            : opcode == 11 ? NativeFighterActionEvent_CreateHitbox
+                            : (opcode == 11 || opcode == NATIVE_HITBOX_TIMED_OPCODE) ? NativeFighterActionEvent_CreateHitbox
                             : opcode == 12 ? NativeFighterActionEvent_SetHitboxDamage
                             : opcode == 13 ? NativeFighterActionEvent_SetHitboxScale
                             : opcode == 14 ? NativeFighterActionEvent_SetHitboxFlag
@@ -516,7 +523,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
         if (template_width == 0) return false;
     }
     unsigned free_hitbox_id = 4;
-    if (inserting && template_opcode == 11) {
+    if (inserting && (template_opcode == 11 || template_opcode == NATIVE_HITBOX_TIMED_OPCODE)) {
         NativeFighterActionEvent listed[256];
         size_t listed_count;
         bool occupied[4] = { false };
@@ -656,7 +663,7 @@ static bool rewrite_action_command(NativeFighterProject* project,
         const u32 timer = copied_offset(command_offset, range_begin, table, edit_at, inserted, removed);
         write_be32(bytes + 32 + timer, (1u << 26) | split_wait);
     }
-    if (template_opcode == 11) {
+    if ((template_opcode == 11 || template_opcode == NATIVE_HITBOX_TIMED_OPCODE)) {
         u32 raw = ((u32) bytes[32 + new_command] << 24) |
                   ((u32) bytes[32 + new_command + 1] << 16) |
                   ((u32) bytes[32 + new_command + 2] << 8) |
@@ -675,7 +682,8 @@ static bool rewrite_action_command(NativeFighterProject* project,
     const bool valid = HSD_DatOpen(&check, bytes, new_size) == HSD_DAT_OK &&
         nativeFighterAction_Commands(&candidate, action, NULL, 0, &count) &&
         count == (removing ? old_command_count - 1 :
-                  inserting ? old_command_count + (before_command ? payload_commands : 1) : old_command_count);
+                  inserting ? old_command_count + (before_command ? payload_commands : 1) : old_command_count) &&
+        nativeFighterAction_HitboxIntervalsValid(&candidate, action);
     if (!valid) {
         free(bytes);
         return false;
@@ -701,7 +709,7 @@ bool nativeFighterAction_InsertCommand(NativeFighterProject* project,
 
 static bool create_action_script(NativeFighterProject* project, const HSD_Dat* dat,
                                   u32 table, unsigned action, unsigned frame,
-                                  u32 source, u32 width, uint32_t* inserted)
+                                  const u8* event_bytes, u32 width, uint32_t* inserted)
 {
     const u32 prefix = frame ? 4 : 0;
     const u32 added = prefix + width * 4 + 4;
@@ -717,7 +725,7 @@ static bool create_action_script(NativeFighterProject* project, const HSD_Dat* d
     if (!bytes || !relocations) { free(bytes); free(relocations); return false; }
     memcpy(bytes, project->fighter_dat, 32 + table);
     if (prefix) write_be32(bytes + 32 + table, (1u << 26) | frame);
-    memcpy(bytes + 32 + table + prefix, project->fighter_dat + 32 + source, width * 4);
+    memcpy(bytes + 32 + table + prefix, event_bytes, width * 4);
     write_be32(bytes + 32 + table + prefix + width * 4, 0);
     memcpy(bytes + 32 + table + added, project->fighter_dat + 32 + table, dat->data_size - table);
     const u32 tail = 32 + dat->data_size + dat->relocation_count * 4;
@@ -765,16 +773,23 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
     u32 table, raw;
     if (frame > 1000 || !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !HSD_DatReadU32(&dat, template_offset, &raw)) return false;
-    const u32 width = ftActionData_SourceCommandWidth(raw);
+    u32 width = ftActionData_SourceCommandWidth(raw);
     if (!width || width > 7 || template_offset + width * 4 > table) return false;
     if (action >= project->action_count || (raw >> 26) == 0 || ((raw >> 26) >= 3 && (raw >> 26) <= 8)) return false;
     NativeFighterActionCommand templates[512]; size_t template_count; bool found = false;
     if (!nativeFighterAction_Commands(project, template_action, templates, 512, &template_count)) return false;
     for (size_t i = 0; i < template_count; ++i) found |= templates[i].source_offset == template_offset;
     if (!found) return false;
+    u8 event_bytes[28];
+    memcpy(event_bytes, project->fighter_dat + 32 + template_offset, width * 4);
+    if ((raw >> 26) == 11) {
+        write_be32(event_bytes, (raw & 0x3ffffff) | (NATIVE_HITBOX_TIMED_OPCODE << 26));
+        write_be32(event_bytes + 20, 256);
+        width = 6;
+    }
     u32 source;
     if (!action_source(project, &dat, table, action, &source))
-        return create_action_script(project, &dat, table, action, frame, template_offset, width, inserted_offset);
+        return create_action_script(project, &dat, table, action, frame, event_bytes, width, inserted_offset);
     NativeFighterActionOccurrence occurrences[4096];
     size_t count; bool complete;
     if (!nativeFighterAction_Timeline(project, action, occurrences, 4096, &count, &complete)) return false;
@@ -797,7 +812,7 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
     if (anchor == UINT32_MAX || previous_frame > frame) return false;
     u8 payload[32]; u32 offset = 0;
     if (frame > previous_frame) { write_be32(payload, (1u << 26) | (frame - previous_frame)); offset = 4; }
-    memcpy(payload + offset, project->fighter_dat + 32 + template_offset, width * 4);
+    memcpy(payload + offset, event_bytes, width * 4);
     return rewrite_action_command(project, action, anchor, ActionRewrite_Insert,
                                   template_action, template_offset, inserted_offset,
                                   payload, width * 4 + offset, offset,
@@ -975,6 +990,14 @@ bool nativeFighterAction_GetHitbox(const NativeFighterProject* project,
         .hit_grounded = (w[4] >> 1) & 1,
         .hit_aerial = w[4] & 1,
     };
+    hitbox->timed = (w[0] >> 26) == NATIVE_HITBOX_TIMED_OPCODE;
+    if (hitbox->timed) {
+        u32 life;
+        if (!HSD_DatReadU32(&dat, source_offset + 20, &life)) return false;
+        hitbox->duration256 = life & NATIVE_HITBOX_DURATION_MASK;
+        hitbox->refresh_hit_eligibility = (life & NATIVE_HITBOX_REFRESH) != 0;
+        hitbox->expire_all = (life & NATIVE_HITBOX_EXPIRE_ALL) != 0;
+    }
     return true;
 }
 
@@ -982,7 +1005,7 @@ static bool valid_hitbox(const NativeFighterHitbox* h)
 {
     return h->id < 4 && h->hit_group <= 7 &&
            (h->use_common_bone_ids ? h->bone < FT_COMMON_PART_COUNT
-                                   : h->bone < NATIVE_FIGHTER_MARIO_JOINT_COUNT) &&
+                                   : true) &&
            h->only_hit_grabbed <= 1 && h->use_common_bone_ids <= 1 &&
            h->damage <= 1023 && h->angle <= 511 &&
            h->knockback_growth <= 511 && h->weight_set_knockback <= 511 &&
@@ -992,7 +1015,7 @@ static bool valid_hitbox(const NativeFighterHitbox* h)
            h->rebound <= 1 && h->base_knockback <= 511 &&
            h->element <= 31 && h->hit_sfx_severity <= 7 &&
            h->hit_sfx_kind <= 31 && h->hit_grounded <= 1 &&
-           h->hit_aerial <= 1;
+           h->hit_aerial <= 1 && (!h->timed || (h->duration256 > 0 && h->duration256 <= 256000));
 }
 
 bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
@@ -1001,7 +1024,9 @@ bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
 {
     HSD_Dat dat;
     u32 original[5];
-    if (h == NULL || !valid_hitbox(h) ||
+    if (project == NULL || h == NULL || !valid_hitbox(h) ||
+        (!h->use_common_bone_ids &&
+         h->bone >= project->facts.joints + project->facts.omission_count) ||
         !hitbox_source(project, action, source_offset, &dat)) return false;
     for (unsigned i = 0; i < 5; ++i) {
         if (!HSD_DatReadU32(&dat, source_offset + i * 4, &original[i])) {
@@ -1013,7 +1038,7 @@ bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
         return false;
     }
     u32 next[5] = {
-        (11u << 26) | ((u32) h->id << 23) |
+        ((original[0] & 0xfc000000u)) | ((u32) h->id << 23) |
             ((u32) h->hit_group << 20) |
             ((u32) h->only_hit_grabbed << 19) |
             ((u32) h->bone << 11) |
@@ -1034,7 +1059,13 @@ bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
             ((u32) h->hit_sfx_kind << 2) |
             ((u32) h->hit_grounded << 1) | h->hit_aerial,
     };
-    if (memcmp(original, next, sizeof(next)) == 0) return true;
+    u32 life = 0, previous_life = 0;
+    if ((original[0] >> 26) == NATIVE_HITBOX_TIMED_OPCODE) {
+        if (!h->timed || !HSD_DatReadU32(&dat, source_offset + 20, &previous_life)) return false;
+        life = h->duration256 | (h->refresh_hit_eligibility ? NATIVE_HITBOX_REFRESH : 0) |
+               (h->expire_all ? NATIVE_HITBOX_EXPIRE_ALL : 0);
+    }
+    if (memcmp(original, next, sizeof(next)) == 0 && life == previous_life) return true;
     unsigned users;
     if (!nativeFighterAction_Users(project, source_offset, &users) ||
         users != 1) return false;
@@ -1045,6 +1076,12 @@ bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
         bytes[i * 4 + 1] = (u8) (word >> 16);
         bytes[i * 4 + 2] = (u8) (word >> 8);
         bytes[i * 4 + 3] = (u8) word;
+    }
+    if (h->timed) write_be32(bytes + 20, life);
+    if (h->timed && !nativeFighterAction_HitboxIntervalsValid(project, action)) {
+        for (unsigned i = 0; i < 5; ++i) write_be32(bytes + i * 4, original[i]);
+        write_be32(bytes + 20, previous_life);
+        return false;
     }
     return true;
 }

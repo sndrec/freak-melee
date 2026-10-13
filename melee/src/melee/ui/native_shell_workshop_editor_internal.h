@@ -269,6 +269,8 @@ private:
     bool refresh_pending = false;
     uint32_t original_source = 0;
     uint32_t selected_source = 0;
+    enum class IntervalEdit { Move, Start, End } interval_edit = IntervalEdit::Move;
+    uint32_t original_duration = 0;
     int initial_frame = 0;
     int occurrence_frame = 0;
     int preview_delta = 0;

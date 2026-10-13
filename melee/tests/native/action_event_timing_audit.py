@@ -48,7 +48,13 @@ def action_traces(path):
         for _ in range(8192):
             value = word(offset)
             opcode = value >> 26
-            width = 2 if opcode in (5, 7) else 1 if opcode < 10 else widths[opcode - 10]
+            width = (
+                6
+                if opcode == 59
+                else (
+                    2 if opcode in (5, 7) else 1 if opcode < 10 else widths[opcode - 10]
+                )
+            )
             payload = tuple(word(offset + i * 4) for i in range(width))
             if opcode == 1:
                 frame += value & 0x3FFFFFF
