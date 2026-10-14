@@ -145,7 +145,8 @@ def halo(path, center):
 
 
 def make_art(output, rig):
-    center = bind_point(rig, 6) + np.array([0, 5.4, 0])
+    # Rigid import uses the selected bone's local coordinate system.
+    center = np.array([0, 5.4, 0])
     halo(output / "halo.glb", center)
     image = Image.new("RGBA", (128, 128))
     draw = ImageDraw.Draw(image)

@@ -1,7 +1,7 @@
 func BeginUpdraft():
     state.updraft_launched = false
     if not airborne: physics.ground_to_air()
-    state.enter(UpSpecial)
+    state.enter(AirUpSpecial)
     velocity.x = velocity.x * 0.3
     velocity.y = 0
 

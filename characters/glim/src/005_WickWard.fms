@@ -1,5 +1,6 @@
 func BeginWard():
-    state.enter(DownSpecial)
+    if airborne: state.enter(AirDownSpecial)
+    else: state.enter(DownSpecial)
     callbacks.track_damage()
     callbacks.track_death2()
 

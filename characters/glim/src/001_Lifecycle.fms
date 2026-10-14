@@ -11,6 +11,8 @@ move Lifecycle:
     on landing:
         state.skip_used = false
     on death:
+        # Puff's copied visibility group must start on its visible body.
+        visuals.set_group(0, 0)
         state.skip_used = false
         state.reflected_charge = 0
         reflector.disable()
