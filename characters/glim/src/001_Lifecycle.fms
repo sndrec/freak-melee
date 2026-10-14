@@ -1,0 +1,36 @@
+move Lifecycle:
+    on load:
+        fighter.copy_ext_attributes()
+        fighter.enable_multi_jump()
+        ConfigureJumps()
+        state.skip_used = false
+        state.reflected_charge = 0
+    on load_special_attrs:
+        fighter.reload_ext_attributes()
+        ConfigureJumps()
+    on landing:
+        state.skip_used = false
+    on death:
+        state.skip_used = false
+        state.reflected_charge = 0
+        reflector.disable()
+    on damage:
+        reflector.disable()
+    on death2:
+        reflector.disable()
+    on shield_break:
+        pass
+    on item_pickup:
+        fighter.item_pickup(event.flag, 0, 0)
+    on item_drop:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_drop_ext:
+        fighter.item_drop(event.flag, 0, 0)
+    on item_visible:
+        if items.held and not items.heavy: visuals.show_part_animation(0)
+    on item_invisible:
+        if items.held and not items.heavy: visuals.hide_part_animation(0)
+    on knockback_enter:
+        fighter.knockback_enter(1)
+    on knockback_exit:
+        fighter.knockback_exit(1)

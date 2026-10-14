@@ -1,0 +1,50 @@
+func BeginSkip():
+    if airborne and state.skip_used:
+        state.fall()
+        return
+    state.skip_used = true
+    state.skip_bounced = false
+    state.skip_x = facing.direction * attrs.skip_speed
+    if abs(input.x) > 0.3:
+        if input.x < 0: facing.direction = -1
+        else: facing.direction = 1
+        state.skip_x = facing.direction * attrs.skip_speed
+    state.skip_y = input.y * attrs.skip_vertical
+    if not airborne: physics.ground_to_air()
+    state.enter(SideSpecial)
+    velocity.x = 0
+    velocity.y = 0.4
+
+move FireflySkip:
+    on special_s:
+        BeginSkip()
+    on special_air_s:
+        BeginSkip()
+    on ground_animation:
+        if animation.finished: FinishMove()
+    on air_animation:
+        if animation.finished: state.fall()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        if frame >= 5 and frame < 15:
+            velocity.x = state.skip_x
+            velocity.y = state.skip_y
+        else:
+            physics.fall(0.075, 1.8)
+            physics.air_decel(0.11)
+    on ground_collision:
+        if collision.special_ground_lost: state.to_air()
+    on air_collision:
+        if collision.check_ground_ledge(0) and frame >= 5:
+            state.landing_special(false, 12)
+            return
+        if collision.wall_contact and frame >= 5 and frame < 15 and not state.skip_bounced:
+            state.skip_bounced = true
+            state.skip_x = -state.skip_x * 0.65
+            facing.direction = -facing.direction
+        if frame >= 15: collision.cliff_catch()

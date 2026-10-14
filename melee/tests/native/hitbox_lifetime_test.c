@@ -15,6 +15,7 @@ void ftAction_8007121C(Fighter_GObj* object, CommandInfo* command)
     nativeHitboxLifetime_Clear(fighter, slot);
     memset(&fighter->x914[slot], 0, sizeof(HitCapsule));
     fighter->x914[slot].state = HitCapsule_Enabled;
+    fighter->x914[slot].hit_grabbed_victim_only = true;
     command->u += 5;
 }
 
@@ -64,6 +65,7 @@ int main(void)
     spawn(&object, 0, 512 | NATIVE_HITBOX_EXPIRE_ALL);
     fighter.x2219_b3 = true;
     CHECK(fighter.native_hitbox_lifetimes[0].remaining == 2);
+    CHECK(!fighter.x914[0].hit_grabbed_victim_only);
     nativeHitboxLifetime_BeginStep(&fighter, 0.5f);
     nativeHitboxLifetime_EndStep(&object);
     CHECK(fighter.x914[0].state != HitCapsule_Disabled);

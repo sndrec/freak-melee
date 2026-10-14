@@ -1,0 +1,36 @@
+func BeginUpdraft():
+    state.updraft_launched = false
+    if not airborne: physics.ground_to_air()
+    state.enter(UpSpecial)
+    velocity.x = velocity.x * 0.3
+    velocity.y = 0
+
+move Updraft:
+    on special_hi:
+        BeginUpdraft()
+    on special_air_hi:
+        BeginUpdraft()
+    on ground_animation:
+        if animation.finished: state.wait()
+    on air_animation:
+        if frame >= 4 and not state.updraft_launched:
+            state.updraft_launched = true
+            velocity.y = attrs.updraft_speed
+            velocity.x = input.x * 0.8
+        if animation.finished: state.freefall(1, 1, false, 1, 16)
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        if state.updraft_launched:
+            physics.fall(attrs.updraft_gravity, 1.8)
+            physics.air_accel(0.065, 1.4)
+    on ground_collision:
+        if collision.special_ground_lost: state.to_air()
+    on air_collision:
+        if frame >= 6:
+            if collision.check_ground_ledge(0): state.landing_special(false, 16)
+            else: collision.cliff_catch()

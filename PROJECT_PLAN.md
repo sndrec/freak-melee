@@ -7,6 +7,11 @@ their own builds; their old "remaining" lists are not the current backlog.
 
 ## Current direction
 
+- Current autonomous task: create **Glim**, a custom fighter, and use it to
+  exercise the Workshop. Record authoring gaps, keep the fighter reproducible
+  from local stock assets, and pause after the example is ready for review.
+  The user authorizes regular commits and pushes to the private `sndrec/freak-melee`
+  repository for this work. Keep disc-derived assets and generated packages local.
 - Continue the native client and character-authoring platform.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;

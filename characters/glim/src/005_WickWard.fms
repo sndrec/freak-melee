@@ -1,0 +1,38 @@
+func BeginWard():
+    state.enter(DownSpecial)
+    callbacks.track_damage()
+    callbacks.track_death2()
+
+func WardAnimation():
+    if frame >= 3 and frame < 14:
+        if not reflector.active:
+            reflector.create(4, 100, 0, 0, 0, attrs.ward_radius, 1.2, 1.35, false)
+            callbacks.track_reflect_hit()
+        reflector.update()
+    elif reflector.active:
+        reflector.disable()
+    if animation.finished: FinishMove()
+
+move WickWard:
+    on special_lw:
+        BeginWard()
+    on special_air_lw:
+        BeginWard()
+    on reflect_hit:
+        state.reflected_charge = 12
+    on ground_animation:
+        WardAnimation()
+    on air_animation:
+        WardAnimation()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.fall(0.08, 1.8)
+    on ground_collision:
+        if collision.special_ground_lost: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
