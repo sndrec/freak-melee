@@ -4,6 +4,9 @@
 
 namespace WorkshopEditor {
 
+// The runtime command uses this exact scale for radius and bone offsets.
+constexpr float HitboxDistanceScale = 0.003906f;
+
 static bool visible_command(const NativeFighterActionCommand& command)
 {
     if (command.opcode != 20) return true;
@@ -273,13 +276,13 @@ void show_event()
              number(hitbox.bone));
     field("workshop-hitbox-damage")->SetValue(number(hitbox.damage));
     field("workshop-hitbox-angle")->SetValue(number(hitbox.angle));
-    field("workshop-hitbox-radius")->SetValue(number(hitbox.radius));
+    field("workshop-hitbox-radius")->SetValue(std::to_string(hitbox.radius * HitboxDistanceScale));
     field("workshop-hitbox-kbg")->SetValue(number(hitbox.knockback_growth));
     field("workshop-hitbox-bkb")->SetValue(number(hitbox.base_knockback));
     field("workshop-hitbox-bone")->SetValue(number(hitbox.bone));
-    field("workshop-hitbox-offset-x")->SetValue(std::to_string(hitbox.offset_x));
-    field("workshop-hitbox-offset-y")->SetValue(std::to_string(hitbox.offset_y));
-    field("workshop-hitbox-offset-z")->SetValue(std::to_string(hitbox.offset_z));
+    field("workshop-hitbox-offset-x")->SetValue(std::to_string(hitbox.offset_x * HitboxDistanceScale));
+    field("workshop-hitbox-offset-y")->SetValue(std::to_string(hitbox.offset_y * HitboxDistanceScale));
+    field("workshop-hitbox-offset-z")->SetValue(std::to_string(hitbox.offset_z * HitboxDistanceScale));
     Rml::Element* grounded = document->GetElementById("workshop-hitbox-grounded");
     Rml::Element* aerial = document->GetElementById("workshop-hitbox-aerial");
     if (hitbox.hit_grounded) grounded->SetAttribute("checked", "");
@@ -1203,15 +1206,28 @@ void apply_hitbox()
         hitbox.refresh_hit_eligibility = document->GetElementById("workshop-hitbox-refresh")->HasAttribute("checked");
     }
     uint16_t bone;
+    const char* spatial_ids[] = {"workshop-hitbox-radius", "workshop-hitbox-offset-x",
+                                 "workshop-hitbox-offset-y", "workshop-hitbox-offset-z"};
+    long spatial[4];
+    for (unsigned axis = 0; axis < 4; ++axis) {
+        float value;
+        if (!parse_float(spatial_ids[axis], &value) ||
+            value < (axis ? -32768 : 0) * HitboxDistanceScale ||
+            value > (axis ? 32767 : 65535) * HitboxDistanceScale) {
+            set_text("workshop-editor-status", "Enter a radius from 0 to 255.98 and offsets from -127.99 to 127.99 game units.");
+            return;
+        }
+        spatial[axis] = std::lround(value / HitboxDistanceScale);
+    }
+    hitbox.radius = (uint16_t) spatial[0];
+    hitbox.offset_x = (int16_t) spatial[1];
+    hitbox.offset_y = (int16_t) spatial[2];
+    hitbox.offset_z = (int16_t) spatial[3];
     if (!parse_u16("workshop-hitbox-damage", 1023, &hitbox.damage) ||
         !parse_u16("workshop-hitbox-angle", 511, &hitbox.angle) ||
-        !parse_u16("workshop-hitbox-radius", 65535, &hitbox.radius) ||
         !parse_u16("workshop-hitbox-kbg", 511, &hitbox.knockback_growth) ||
         !parse_u16("workshop-hitbox-bkb", 511, &hitbox.base_knockback) ||
-        !parse_u16("workshop-hitbox-bone", 255, &bone) ||
-        !parse_i16("workshop-hitbox-offset-x", &hitbox.offset_x) ||
-        !parse_i16("workshop-hitbox-offset-y", &hitbox.offset_y) ||
-        !parse_i16("workshop-hitbox-offset-z", &hitbox.offset_z)) {
+        !parse_u16("workshop-hitbox-bone", 255, &bone)) {
         set_text("workshop-editor-status", "Enter whole values within the "
                  "original command's range.");
         return;

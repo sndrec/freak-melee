@@ -72,6 +72,9 @@ def assemble_source(info, project):
         (project / "moves" / path.name).write_text(text)
         sources.append(text)
     (project / "behavior.fms").write_text("\n".join(sources))
+    shutil.copy2(
+        HERE / "src/fighter_parameters.fmp", project / "fighter_parameters.fmp"
+    )
 
 
 def main():

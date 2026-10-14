@@ -2,6 +2,11 @@
 
 ## Creating a hitbox
 
+To adjust a hitbox created by an action event before it can hit, use an
+accessory helper through `callbacks.accessory(HelperName)`. Accessory helpers
+run after the action events and before hit detection. Animation callbacks run
+before those events, so a hitbox created that frame may not be present yet.
+
 Declare reusable immutable hitbox data at the root of a fighter script, then
 create it in one of the four native capsule slots:
 
