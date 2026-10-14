@@ -45,8 +45,9 @@ def decode(dat, texture):
     elif fmt == 9:
         tlut = dat.u32(texture + 80)
         palette = dat.u32(tlut)
-        if dat.u32(tlut + 4) != 1:
-            raise ValueError("Expected the copied rig's RGB5A3 palette")
+        palette_format = dat.u32(tlut + 4)
+        if palette_format > 2:
+            raise ValueError("Unsupported palette format")
         for by in range(0, height, 4):
             for bx in range(0, width, 8):
                 for y in range(4):
@@ -71,6 +72,11 @@ def decode(dat, texture):
                                 ((value >> 12) & 7) * 255 // 7,
                             )
                         )
+                        if palette_format == 1:
+                            color = (*rgb565(value), 255)
+                        elif palette_format == 0:
+                            intensity = value & 255
+                            color = (intensity, intensity, intensity, value >> 8)
                         result.putpixel((bx + x, by + y), color)
     else:
         raise ValueError(f"Unexpected copied texture format {fmt}")

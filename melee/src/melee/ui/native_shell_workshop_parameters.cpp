@@ -162,6 +162,11 @@ void nativeShellWorkshopParameters_Refresh(Rml::ElementDocument* document, const
         row.name.assign(tree.source + node.name.offset, node.name.length);
         row.type = node.value_type == NativeScriptType_F32 ? "float" : node.value_type == NativeScriptType_Bool ? "bool" : "int";
         row.default_value.assign(tree.source + node.value.offset, node.value.length);
+        // The declaration span includes its '=' token. Display the value
+        // itself so numeric inputs and boolean dropdowns receive literals.
+        const size_t value_start = row.default_value.find_first_not_of(" \t=");
+        row.default_value.erase(0, value_start == std::string::npos
+                                      ? row.default_value.size() : value_start);
         row.group = "Fighter";
         for (uint32_t parent = node.parent; parent != 0; parent = nodes[parent].parent) {
             if (nodes[parent].kind == NativeScriptSource_Article || nodes[parent].kind == NativeScriptSource_Item || nodes[parent].kind == NativeScriptSource_Effect) {

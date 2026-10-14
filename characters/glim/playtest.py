@@ -101,6 +101,8 @@ def main():
         "second_jump": 342 in motions,
         "neutral_air": 65 in motions,
         "down_air": 69 in motions,
+        "charged_damage": "P5 0.00 -> 11.00" in log,
+        "skip_damage": "P5 11.00 -> 18.00" in log,
     }
     receipt = dict(
         exit_code=result.returncode,

@@ -28,5 +28,34 @@ builder refuses to overwrite an existing installed Workshop draft unless
 explicitly told to replace it. Edit that draft freely; rerunning the recipe
 does not replace your edits by default.
 
+The recipe requires a built `native_content_tool.exe`, Python, NumPy and Pillow.
+
 The [Workshop notes](WORKSHOP_NOTES.md) record authoring limitations found
 during this character's creation, along with any workarounds used.
+
+## Try Glim
+
+Open **Workshop**, select **Glim**, and choose **Test Character**. Its installed
+package is also available through the character catalog for ordinary matches.
+The four specials are separate editable files in Scripting. Their tuning is in
+Fighter state; the Parameters panel can override those defaults.
+
+Custom normal attacks are neutral air (a spinning early/late hit), forward air
+(a reaching strike), down air (a meteor followed by a weaker upward hit), and
+forward smash (a fixed-power electric burst). Forward smash does not charge.
+The other normal attacks use the copied Jigglypuff data.
+
+Flash takes at least six charge frames. Its burst lasts six frames and deals
+5 damage plus 0.22 per charged tick, rounded down to a whole damage value.
+Skip has twelve landing frames. Updraft ends in special fall and has sixteen
+landing frames. Ward reflects during animation frames 3 through 13.
+Its shipped radius override is 9 game units; reset the parameter to restore
+the source's default of 8.
+
+The original halo mesh and portrait are in `assets/`; they can be reused
+directly from the Model workspace. The costume retains the copied facial
+details and expressions.
+
+For a finite gameplay exercise, run `playtest.py` with `--iso`, the installed
+`--package` ID, and an `--output` directory. It runs hidden and muted, checks
+the move transitions and actual charged/skip damage, and saves a receipt.

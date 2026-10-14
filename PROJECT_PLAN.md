@@ -7,9 +7,10 @@ their own builds; their old "remaining" lists are not the current backlog.
 
 ## Current direction
 
-- Current autonomous task: create **Glim**, a custom fighter, and use it to
-  exercise the Workshop. Record authoring gaps, keep the fighter reproducible
-  from local stock assets, and pause after the example is ready for review.
+- **Glim** is ready for review in the Workshop and installed character catalog.
+  The [fighter guide](characters/glim/README.md) covers its moves and rebuild
+  recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
+  the UI checks, fixed bugs and remaining gaps. Pause for the user's next pass.
   The user authorizes regular commits and pushes to the private `sndrec/freak-melee`
   repository for this work. Keep disc-derived assets and generated packages local.
 - Continue the native client and character-authoring platform.
@@ -159,6 +160,13 @@ Follow-up action editing adds [duration-owned hitbox intervals](melee/docs/nativ
 moving bars carries their endpoints, edges resize them, and adjacent intervals
 offer Refresh Hit Eligibility. Static lifetimes are converted when a draft
 opens; unresolved runtime-dependent sequences remain available in the event list.
+
+Glim dogfooding additionally fixed imported bone-attached mesh draw passes,
+timed hitbox flag ownership, parameter-default display and hitbox distance
+fields. The example's four specials, two air jumps and authored aerials ran
+through a finite live gameplay exercise; charged Flash and Skip hit Sandbag.
+Projectile reflection and wall bounce still need broader play. The example
+does not close the collaborative acceptance checklist below.
 
 - [ ] Complete clone -> edit -> preview/test -> save/reopen -> install with the
   user, preserving the source fighter and keeping preview/cache/install distinct.
