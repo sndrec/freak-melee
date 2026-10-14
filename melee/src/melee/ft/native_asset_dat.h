@@ -1,5 +1,5 @@
-#ifndef MELEE_NATIVE_FIGHTER_COSTUME_DAT_H
-#define MELEE_NATIVE_FIGHTER_COSTUME_DAT_H
+#ifndef MELEE_NATIVE_ASSET_DAT_H
+#define MELEE_NATIVE_ASSET_DAT_H
 #include <melee/ft/native_fighter_project.h>
 extern "C" {
 #include <sysdolphin/baselib/dat.h>
@@ -7,10 +7,10 @@ extern "C" {
 #include <algorithm>
 #include <cstring>
 #include <vector>
-// Mutable costume transaction. Existing offsets stay stable; finish rebuilds
+// Mutable asset transaction. Existing offsets stay stable; finish rebuilds
 // relocation/root tables and validates the resulting archive before
 // publishing.
-struct NativeCostumeDat {
+struct NativeAssetDat {
     static void be32(uint8_t* p, uint32_t n)
     {
         p[0] = n >> 24;
@@ -35,10 +35,10 @@ struct NativeCostumeDat {
     std::vector<uint32_t> relocations;
     std::vector<uint32_t> detached_relocations;
 
-    bool open(const NativeFighterProject* project)
+    bool open(const uint8_t* bytes, size_t byte_count)
     {
-        source = project->costume_dat;
-        source_size = project->costume_size;
+        source = bytes;
+        source_size = byte_count;
         if (HSD_DatOpen(&original, source, source_size) != HSD_DAT_OK) {
             return false;
         }

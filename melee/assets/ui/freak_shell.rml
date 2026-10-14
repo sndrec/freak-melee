@@ -165,7 +165,12 @@
       <aside id="workshop-editor-browser" class="workshop-rail">
         <div id="workshop-action-browser"><div class="eyebrow">ACTIONS</div>
           <input id="workshop-action-search" class="room-input" type="text" placeholder="Find a move or state" />
-          <div id="workshop-action-list"></div>
+          <button id="workshop-action-tools-toggle" class="workshop-action-group-button">Edit name / visibility</button>
+          <div id="workshop-action-tools" style="display: none">
+            <label class="field-label">Action name</label><input id="workshop-action-name" class="room-input" type="text" maxlength="63"/>
+            <button id="workshop-action-rename" class="room-button">Save name</button><button id="workshop-action-hide" class="room-button">Hide action in editor</button>
+          </div>
+          <label class="workshop-hitbox-check"><input id="workshop-show-hidden-actions" type="checkbox"/> Show hidden actions</label><div id="workshop-action-list"></div>
           <div id="workshop-linked-resources">
             <div class="workshop-divider"></div>
             <div class="eyebrow">ACTION RESOURCES</div>
@@ -175,6 +180,14 @@
         </div>
         <div id="workshop-animation-browser"><div class="eyebrow">CLIPS</div>
           <input id="workshop-animation-search" class="room-input" type="text" placeholder="Find a clip or action" />
+          <button id="workshop-clip-tools-toggle" class="workshop-action-group-button">New / duplicate clip</button>
+          <div id="workshop-clip-tools" style="display: none">
+          <label class="field-label">Name</label><input id="workshop-clip-new-name" class="room-input" type="text" value="NewClip" maxlength="63"/>
+          <label class="field-label">Target action</label><select id="workshop-clip-target" class="room-input"></select>
+          <label class="field-label">Length (frames)</label><input id="workshop-clip-new-length" class="room-input" type="text" value="30"/>
+          <button id="workshop-clip-create" class="room-button" title="Replace this action's clip with a new rest-pose animation. Undo restores its old clip.">New from rest pose</button>
+          <button id="workshop-clip-duplicate" class="room-button" title="Copy the selected animation into the target action. Its events stay intact.">Duplicate selected clip</button>
+          </div>
           <div id="workshop-animation-clips"></div>
           <div class="workshop-divider"></div>
           <div class="eyebrow">BONE OUTLINER</div>

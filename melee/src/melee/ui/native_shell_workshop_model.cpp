@@ -2,6 +2,8 @@
 
 #include "native_shell_workshop_materials.h"
 #include "native_shell_workshop_transform.h"
+#include <melee/ft/native_fighter_authoring.h>
+#include <melee/ft/native_fighter_material_animation.h>
 
 #ifdef MELEE_NATIVE
 
@@ -46,10 +48,14 @@ struct Change {
     uint8_t after[4];
     std::vector<uint8_t> before_asset;
     std::vector<uint8_t> after_asset;
+    bool labels_saved = false;
+    std::vector<uint8_t> before_labels, after_labels;
+    std::vector<uint8_t> before_fighter,after_fighter;
 };
 
 struct ModelSession {
     NativeFighterProject* project = nullptr;
+    char path[512] = {};
     bool model_available = false;
     NativeFighterModelEditor model = {};
     const NativeFighterActionInfo* actions = nullptr;
@@ -74,7 +80,7 @@ struct ModelSession {
     std::vector<uint8_t> saved_costume;
     char import_path[MAX_PATH] = {};
     NativeGltfScan import_scan = {};
-    unsigned import_primitive = 0;
+    bool import_selected[NATIVE_GLTF_MAX_PRIMITIVES] = {};
     unsigned import_step = 0;
     unsigned import_replacement = UINT_MAX;
     unsigned import_joint = 0;
@@ -200,7 +206,7 @@ void record(uint32_t offset, unsigned count, const uint8_t before[4])
     buttons();
 }
 
-void record_asset(const std::vector<uint8_t>& before)
+void record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>& fighter = {})
 {
     if (before.size() == active->project->costume_size &&
         std::memcmp(before.data(), active->project->costume_dat,
@@ -209,6 +215,10 @@ void record_asset(const std::vector<uint8_t>& before)
     change.before_asset = before;
     change.after_asset.assign(active->project->costume_dat,
                               active->project->costume_dat + active->project->costume_size);
+    if(!fighter.empty()) {
+        change.before_fighter=fighter;
+        change.after_fighter.assign(active->project->fighter_dat,active->project->fighter_dat+active->project->fighter_size);
+    }
     active->changes.erase(active->changes.begin() + active->change_cursor, active->changes.end());
     if (active->changes.size() == 64) {
         active->changes.erase(active->changes.begin());
@@ -216,6 +226,33 @@ void record_asset(const std::vector<uint8_t>& before)
     }
     active->changes.push_back(std::move(change));
     active->change_cursor = active->changes.size();
+    buttons();
+}
+
+std::vector<uint8_t> label_snapshot()
+{
+    if (!active->project->authoring) {
+        return {};
+    }
+    auto* begin = (uint8_t*) active->project->authoring;
+    return std::vector<uint8_t>(begin, begin + sizeof(NativeFighterAuthoring));
+}
+void record_label_change(const std::vector<uint8_t>& before, bool asset)
+{
+    if (!asset) {
+        active->changes.erase(active->changes.begin() + active->change_cursor,
+                              active->changes.end());
+        if (active->changes.size() == 64) {
+            active->changes.erase(active->changes.begin());
+            --active->change_cursor;
+        }
+        active->changes.push_back(Change{});
+        active->change_cursor = active->changes.size();
+    }
+    auto& change = active->changes.back();
+    change.labels_saved = true;
+    change.before_labels = before;
+    change.after_labels = label_snapshot();
     buttons();
 }
 
@@ -385,6 +422,36 @@ void render_inspector()
                   "class='room-button primary'>Apply texture</button>"
                   "<p>The image is embedded in this costume. Meshes sharing "
                   "the material change together.</p></div>";
+        {
+            NativeMaterialTextureSequence sequences[128];
+            unsigned count = nativeFighterMaterial_Sequences(
+                &active->model, (unsigned) active->selected_material,
+                sequences, 128);
+            if (count) {
+                markup +=
+                    "<div class='workshop-model-inspector-section'><div "
+                    "class='eyebrow'>ANIMATED TEXTURE IMAGES</div><p>Replace "
+                    "an image used by expressions or texture animation. "
+                    "Animation keys keep their image indices.</p><select "
+                    "id='workshop-model-texture-image' class='room-input'>";
+                for (unsigned i = 0; i < count; ++i) {
+                    for (unsigned f = 0; f < sequences[i].frames; ++f) {
+                        markup += "<option value='" +
+                                  std::to_string(sequences[i].offset) + ":" +
+                                  std::to_string(f) + "'>Sequence " +
+                                  std::to_string(i + 1) + " · layer " +
+                                  std::to_string(sequences[i].layer) +
+                                  " · image " + std::to_string(f) +
+                                  "</option>";
+                    }
+                }
+                markup +=
+                    "</select><button id='workshop-model-texture-image-apply' "
+                    "class='room-button'>Replace selected "
+                    "image</button><small>Uses the image path in the Texture "
+                    "section above.</small></div>";
+            }
+        }
         markup += nativeWorkshopMaterials_Controls(
             active->model, (unsigned) active->selected_material);
     } else if (active->context == Context::Skinning) {
@@ -450,6 +517,29 @@ void render_inspector()
                       "<p>The selected clip drives this rig. Use Edit animation "
                       "to change its keys.</p></div>";
         }
+    }
+    unsigned category =
+        active->context == Context::Meshes      ? NativeAuthoring_Mesh
+        : active->context == Context::Materials ? NativeAuthoring_Material
+                                                : NativeAuthoring_Bone;
+    int selected = category == NativeAuthoring_Mesh ? active->selected_mesh
+                   : category == NativeAuthoring_Material
+                       ? active->selected_material
+                       : active->selected_joint;
+    if (selected >= 0) {
+        const char* label = category == NativeAuthoring_Mesh
+                                ? active->model.meshes[selected].name
+                            : category == NativeAuthoring_Material
+                                ? active->model.materials[selected].name
+                                : active->model.joints[selected].name;
+        markup = "<div "
+                 "class='workshop-model-inspector-section'><label>Name</"
+                 "label><input id='workshop-model-name' class='room-input' "
+                 "type='text' maxlength='63' value='" +
+                 escape(label) +
+                 "'/><button id='workshop-model-rename' "
+                 "class='room-button'>Save name</button></div>" +
+                 markup;
     }
     element("workshop-model-inspector")->SetInnerRML(markup);
 }
@@ -544,13 +634,17 @@ void render_import()
                "<button id='workshop-model-import-browse' class='room-button'>Browse...</button>"
                "<button id='workshop-model-import-load' class='room-button'>Load file</button>";
         if (active->import_scan.count) {
-            body += "<div class='eyebrow'>MESH PRIMITIVES</div>";
+            body +=
+                "<div class='eyebrow'>MESHES</div><button "
+                "id='workshop-import-select-all'>Select all</button><button "
+                "id='workshop-import-select-none'>Select none</button>";
             for (unsigned i = 0; i < active->import_scan.count; ++i) {
                 const NativeGltfPrimitiveInfo& info =
                     active->import_scan.primitives[i];
                 body += "<button id='workshop-model-import-mesh-" +
-                        std::to_string(i) + "' class='workshop-model-import-row" +
-                        (active->import_primitive == i ? " selected" : "") +
+                        std::to_string(i) +
+                        "' class='workshop-model-import-row" +
+                        (active->import_selected[i] ? " selected" : "") +
                         "'><span>" + escape(info.name) + "</span><small>" +
                         std::to_string(info.vertices) + " vertices · " +
                         std::to_string(info.triangles) + " triangles" +
@@ -605,16 +699,25 @@ void render_import()
                     (active->import_joint == i ? " selected" : "") + ">" +
                     escape(active->model.joints[i].name) + "</option>";
         body += "</select><p class='workshop-model-import-warning'>";
-        const NativeGltfPrimitiveInfo& info =
-            active->import_scan.primitives[active->import_primitive];
-        if (info.has_skin)
-            body += "This pass does not map source skin joints; automatic "
-                    "binding generates fresh weights on the Melee rig. ";
-        if (info.has_texture && active->import_replacement != UINT_MAX)
-            body += "Replacement keeps the existing material and texture. ";
-        if (info.has_texture && active->import_replacement == UINT_MAX)
-            body += "The base-color texture will be converted to GX RGBA8; "
-                    "other PBR channels are not converted. ";
+        unsigned selected_count = 0;
+        bool skin = false, texture = false;
+        for (unsigned i = 0; i < active->import_scan.count; ++i) {
+            if (active->import_selected[i]) {
+                ++selected_count;
+                skin |= active->import_scan.primitives[i].has_skin;
+                texture |= active->import_scan.primitives[i].has_texture;
+            }
+        }
+        body += std::to_string(selected_count) + " selected meshes. ";
+        if (skin) {
+            body +=
+                "Generated weights use the cloned rig's nearby deform bones. ";
+        }
+        if (texture) {
+            body += active->import_replacement == UINT_MAX
+                        ? "Base-color images and tints are imported. "
+                        : "The destination material is retained. ";
+        }
         body += "The fighter's existing geometry and rig stay intact "
                 "unless you chose Replace.</p>";
     }
@@ -622,13 +725,28 @@ void render_import()
     element("workshop-model-import-back")->SetProperty("display",
         active->import_step ? "block" : "none");
     text("workshop-model-import-next",
-         active->import_step == 2 ? "Import mesh" : "Continue");
+         active->import_step == 2 ? "Import selected meshes" : "Continue");
     text("workshop-model-import-note", "Native glTF 2.0 import · compatible rig");
 }
 
 void reopen_model()
 {
+    uint32_t hidden_offsets[NATIVE_MODEL_MAX_MESHES];
+    unsigned hidden_count = 0;
+    for (unsigned i = 0; i < active->model.mesh_count; ++i) {
+        if (active->hidden_meshes[i]) {
+            hidden_offsets[hidden_count++] = active->model.meshes[i].offset;
+        }
+    }
     nativeFighterModel_Open(&active->model, active->project);
+    std::memset(active->hidden_meshes, 0, sizeof(active->hidden_meshes));
+    for (unsigned i = 0; i < active->model.mesh_count; ++i) {
+        for (unsigned j = 0; j < hidden_count; ++j) {
+            if (active->model.meshes[i].offset == hidden_offsets[j]) {
+                active->hidden_meshes[i] = 1;
+            }
+        }
+    }
     active->roles_applied = false;
     active->selected_joint = std::clamp(active->selected_joint, 0,
         std::max(0, (int) active->model.joint_count - 1));
@@ -790,14 +908,15 @@ void apply_texture()
     char error[192] = {};
     const std::vector<uint8_t> before(active->project->costume_dat,
                                       active->project->costume_dat + active->project->costume_size);
-    if (!nativeFighterGltf_SetMaterialTexture(active->project,
-                                               (unsigned) active->selected_material,
-                                               path.c_str(), error,
-                                               sizeof(error))) {
+    const std::vector<uint8_t> fighter(active->project->fighter_dat,active->project->fighter_dat+active->project->fighter_size);
+    if (!nativeFighterGltf_SetTextureImage(
+            active->project, (unsigned) active->selected_material, 0, 0, 0,
+            path.c_str(), error, sizeof(error)))
+    {
         status(error[0] ? error : "Could not embed this texture.");
         return;
     }
-    record_asset(before);
+    record_asset(before,fighter);
     reopen_model();
     status(nativeShellWorkshop_RefreshPreview()
         ? "Material texture updated; refreshing the live preview."
@@ -1112,11 +1231,11 @@ void nativeShellWorkshopModel_Init(Rml::ElementDocument* shell)
     shell->AddEventListener("keydown", &camera_events, true);
 }
 
-bool nativeShellWorkshopModel_Open(unsigned member, NativeFighterProject* fighter,
+bool nativeShellWorkshopModel_Open(unsigned member,
+                                   NativeFighterProject* fighter,
                                    const NativeFighterActionInfo* moves,
-                                   const bool* available,
-                                   const float* lengths,
-                                   size_t count)
+                                   const bool* available, const float* lengths,
+                                   size_t count, const char* path)
 {
     if (member >= 2 || fighter == nullptr) return false;
     ModelSession& session = sessions[member];
@@ -1150,6 +1269,7 @@ bool nativeShellWorkshopModel_Open(unsigned member, NativeFighterProject* fighte
                     if (available[i]) { session.selected_clip = (int) i; break; }
         }
     }
+    std::snprintf(session.path, sizeof(session.path), "%s", path);
     session.actions = moves;
     session.has_clip = available;
     session.clip_frames = lengths;
@@ -1240,6 +1360,77 @@ void nativeShellWorkshopModel_Show(bool show)
 
 bool nativeShellWorkshopModel_Click(const char* id, bool shift)
 {
+    if (!std::strcmp(id, "workshop-import-select-all") ||
+        !std::strcmp(id, "workshop-import-select-none"))
+    {
+        std::fill(std::begin(active->import_selected),
+                  std::end(active->import_selected),
+                  !std::strcmp(id, "workshop-import-select-all"));
+        render_import();
+        return true;
+    }
+
+    if (!std::strcmp(id, "workshop-model-texture-image-apply")) {
+        std::string value = static_cast<Rml::ElementFormControlSelect*>(
+                                element("workshop-model-texture-image"))
+                                ->GetValue();
+        unsigned sequence = 0, frame = 0;
+        if (std::sscanf(value.c_str(), "%u:%u", &sequence, &frame) != 2) {
+            return true;
+        }
+        const std::vector<uint8_t> before(active->project->costume_dat,
+                                          active->project->costume_dat +
+                                              active->project->costume_size);
+        char error[192] = {};
+        if (nativeFighterGltf_SetTextureImage(
+                active->project, (unsigned) active->selected_material, 0,
+                sequence, frame,
+                input("workshop-model-texture-path")->GetValue().c_str(),
+                error, sizeof(error)))
+        {
+            record_asset(before);
+            reopen_model();
+            nativeShellWorkshop_RefreshPreview();
+            status("Texture-sequence image replaced. Its timing is unchanged; "
+                   "Save to keep the edit.");
+        } else {
+            status(error);
+        }
+        return true;
+    }
+    if (!std::strcmp(id, "workshop-model-rename")) {
+        unsigned category =
+            active->context == Context::Meshes      ? NativeAuthoring_Mesh
+            : active->context == Context::Materials ? NativeAuthoring_Material
+                                                    : NativeAuthoring_Bone;
+        int selected = category == NativeAuthoring_Mesh ? active->selected_mesh
+                       : category == NativeAuthoring_Material
+                           ? active->selected_material
+                           : active->selected_joint;
+        if (selected < 0) {
+            return true;
+        }
+        auto before_labels = label_snapshot();
+        bool ok = nativeFighterAuthoring_SetName(
+                      active->project, category,
+                      category == NativeAuthoring_Mesh
+                          ? active->model.meshes[selected].offset
+                      : category == NativeAuthoring_Material
+                          ? active->model.materials[selected].offset
+                          : active->model.joints[selected].offset,
+                      input("workshop-model-name")->GetValue().c_str()) &&
+                  nativeFighterAuthoring_Save(active->path, active->project);
+        if (ok) {
+            record_label_change(before_labels, false);
+        }
+        reopen_model();
+        render();
+        status(ok ? "Name saved to the draft."
+                  : "Could not save this name. Use up to 63 bytes without "
+                    "tabs or newlines.");
+        return true;
+    }
+
     if (!visible || active->project == nullptr) return false;
     const char* contexts[] = { "meshes", "materials", "skeleton", "skinning" };
     for (unsigned i = 0; i < 4; ++i)
@@ -1453,7 +1644,8 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
             if (nativeFighterGltf_Scan(active->import_path, &scan,
                                        error, sizeof(error))) {
                 active->import_scan = scan;
-                active->import_primitive = 0;
+                std::fill(std::begin(active->import_selected),
+                          std::end(active->import_selected), true);
                 render_import();
             } else {
                 active->import_scan = {};
@@ -1477,13 +1669,14 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         }
         std::memcpy(active->import_path, path.c_str(), path.size() + 1);
         active->import_scan = scan;
-        active->import_primitive = 0;
+        std::fill(std::begin(active->import_selected),
+                  std::end(active->import_selected), true);
         render_import();
         return true;
     }
     if (index(id, "workshop-model-import-mesh-", &chosen)) {
         if (chosen < active->import_scan.count) {
-            active->import_primitive = chosen;
+            active->import_selected[chosen] = !active->import_selected[chosen];
             render_import();
         }
         return true;
@@ -1539,16 +1732,34 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
             ? active->model.meshes[active->import_replacement].offset : 0;
         const std::vector<uint8_t> before(active->project->costume_dat,
             active->project->costume_dat + active->project->costume_size);
-        if (!nativeFighterGltf_Apply(active->project, active->import_path,
-                                     active->import_primitive, active->import_joint,
-                                     active->import_replacement, active->import_scale,
-                                     active->import_binding,
-                                     error, sizeof(error))) {
+        const std::vector<uint8_t> fighter(active->project->fighter_dat,active->project->fighter_dat+active->project->fighter_size);
+        auto before_labels = label_snapshot();
+        NativeGltfImportRequest requests[NATIVE_GLTF_MAX_PRIMITIVES];
+        unsigned count = 0;
+        for (unsigned i = 0; i < active->import_scan.count; ++i) {
+            if (active->import_selected[i]) {
+                requests[count++] = { i, active->import_joint,
+                                      active->import_replacement,
+                                      active->import_binding };
+            }
+        }
+        if (!count || (count > 1 && active->import_replacement != UINT_MAX)) {
+            text("workshop-model-import-note",
+                 "Select one mesh to replace an existing mesh, or choose Add "
+                 "for a multiple-mesh import.");
+            return true;
+        }
+        if (!nativeFighterGltf_ApplyBatch(
+                active->project, active->import_path, requests, count,
+                active->import_scale, error, sizeof(error)))
+        {
             text("workshop-model-import-note", error[0] ? error :
                  "Could not convert this mesh to Melee model data.");
             return true;
         }
-        record_asset(before);
+        record_asset(before,fighter);
+        record_label_change(before_labels, true);
+        nativeFighterAuthoring_Save(active->path, active->project);
         reopen_model();
         for (unsigned i = 0; i < active->model.mesh_count; ++i)
             if (destination_offset
@@ -1601,7 +1812,8 @@ void nativeShellWorkshopModel_Update()
     if (!active->roles_applied && nativeHome_WorkshopBoneCount() != 0) {
         for (unsigned i = 0; i < active->model.joint_count; ++i) {
             const char* role = nativeHome_WorkshopBoneRole(i);
-            if (role && std::strncmp(active->model.joints[i].name, "Joint ", 6) == 0)
+            const char* custom_name=nativeFighterAuthoring_Name(active->project,NativeAuthoring_Bone,active->model.joints[i].offset);
+            if (role && (!custom_name || !*custom_name) && std::strncmp(active->model.joints[i].name, "Joint ", 6) == 0)
                 std::snprintf(active->model.joints[i].name,
                               sizeof(active->model.joints[i].name),
                               "%s · joint %u", role, i);
@@ -1714,11 +1926,26 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         (redo ? active->change_cursor == active->changes.size() : active->change_cursor == 0))
         return false;
     const Change& change = active->changes[redo ? active->change_cursor : active->change_cursor - 1];
+    NativeFighterAuthoring* names = nullptr;
+    if(!change.before_fighter.empty() && (change.before_fighter.size()!=change.after_fighter.size()||active->project->fighter_size<change.before_fighter.size()))return false;
+    if (change.labels_saved) {
+        const auto& bytes = redo ? change.after_labels : change.before_labels;
+        if (!bytes.empty()) {
+            names = (NativeFighterAuthoring*) std::malloc(bytes.size());
+            if (!names) {
+                return false;
+            }
+            std::memcpy(names, bytes.data(), bytes.size());
+        }
+    }
     if (!change.before_asset.empty()) {
         const std::vector<uint8_t>& asset =
             redo ? change.after_asset : change.before_asset;
         uint8_t* copy = (uint8_t*) std::malloc(asset.size());
-        if (!copy) return false;
+        if (!copy) {
+            std::free(names);
+            return false;
+        }
         std::memcpy(copy, asset.data(), asset.size());
         std::free(active->project->costume_dat);
         active->project->costume_dat = copy;
@@ -1727,6 +1954,16 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         std::memcpy(active->project->costume_dat + change.offset,
                     redo ? change.after : change.before, change.count);
     }
+    if (change.labels_saved) {
+        std::free(active->project->authoring);
+        active->project->authoring = names;
+        nativeFighterAuthoring_Save(active->path, active->project);
+    }
+    // Restore only reference bytes changed by this model operation. Preserve
+    // unrelated action, attribute and clip edits made in the other workspaces.
+    const auto& fighter=redo?change.after_fighter:change.before_fighter;
+    for(size_t i=0;i<change.before_fighter.size();++i)
+        if(change.before_fighter[i]!=change.after_fighter[i])active->project->fighter_dat[i]=fighter[i];
     if (redo) ++active->change_cursor;
     else --active->change_cursor;
     buttons();

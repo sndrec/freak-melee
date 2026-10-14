@@ -1,5 +1,9 @@
 #include "native_fighter_gltf_import.h"
-#include "native_fighter_costume_dat.h"
+
+#include "native_asset_dat.h"
+#include "native_fighter_authoring.h"
+#include "native_fighter_material_animation.h"
+#include "native_fighter_model_references.h"
 
 #ifdef MELEE_NATIVE
 
@@ -137,9 +141,8 @@ void befloat(uint8_t* bytes, float value)
     be32(bytes, bits);
 }
 
-
-bool encode_attribute(NativeCostumeDat* dat, uint32_t descriptor,
-                      uint32_t array, unsigned count, unsigned components,
+bool encode_attribute(NativeAssetDat* dat, uint32_t descriptor, uint32_t array,
+                      unsigned count, unsigned components,
                       unsigned attribute_id, unsigned component_count)
 {
     if (array == UINT32_MAX) return false;
@@ -315,10 +318,10 @@ struct SkinChunk {
     std::vector<SkinPalette> palettes;
 };
 
-bool write_skin_chunk(NativeCostumeDat* dat, const SkinChunk& chunk,
+bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
                       uint32_t descriptors,
-                      const NativeFighterModelEditor& model,
-                      bool uv, uint32_t* polygon)
+                      const NativeFighterModelEditor& model, bool uv,
+                      uint32_t* polygon)
 {
     std::vector<uint8_t> display;
     display.reserve(3 + chunk.indices.size() * (uv ? 7 : 5));
@@ -574,11 +577,10 @@ struct TransferSkin {
     }
 };
 
-bool encode_geometry(const Primitive& primitive, NativeCostumeDat* dat,
+bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                      float scale, uint32_t joint_offset,
                      const NativeFighterModelEditor& model,
-                     const SkinBinding* skin,
-                     const TransferSkin* transfer,
+                     const SkinBinding* skin, const TransferSkin* transfer,
                      uint32_t* polygon, char* error, size_t error_size)
 {
     const cgltf_primitive* mesh = primitive.mesh;
@@ -842,8 +844,8 @@ bool load_image_bytes(const char* source_path, const cgltf_image* image,
 
 bool encode_texture_bytes(const uint8_t* bytes, size_t byte_count,
                           cgltf_wrap_mode wrap_s, cgltf_wrap_mode wrap_t,
-                          NativeCostumeDat* dat, uint32_t* tobj,
-                          char* error, size_t error_size)
+                          NativeAssetDat* dat, uint32_t* tobj, char* error,
+                          size_t error_size)
 {
     unsigned short width = 0, height = 0;
     unsigned char* tiled = nativeGxImage_Decode(bytes,
@@ -887,8 +889,8 @@ bool encode_texture_bytes(const uint8_t* bytes, size_t byte_count,
 }
 
 bool encode_texture(const char* source_path, const cgltf_texture* texture,
-                    NativeCostumeDat* dat, uint32_t* tobj,
-                    char* error, size_t error_size)
+                    NativeAssetDat* dat, uint32_t* tobj, char* error,
+                    size_t error_size)
 {
     if (!texture || !texture->image) return false;
     std::vector<uint8_t> encoded;
@@ -963,11 +965,11 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
     return true;
 }
 
-bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
-                             unsigned primitive_id, unsigned joint,
-                             unsigned replacement_mesh, float scale,
-                             NativeGltfBindingMode binding,
-                             char* error, size_t error_size)
+static bool apply_primitive(NativeFighterProject* project, const char* path,
+                            cgltf_data* source_data, unsigned primitive_id,
+                            unsigned joint, unsigned replacement_mesh,
+                            float scale, NativeGltfBindingMode binding,
+                            char* error, size_t error_size)
 {
     if (!project || !std::isfinite(scale) || scale <= 0 || scale > 1000 ||
         (binding != NATIVE_GLTF_BIND_RIGID &&
@@ -976,10 +978,8 @@ bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
         fail(error, error_size, "Choose a positive model scale.");
         return false;
     }
-    Source source;
-    if (!source.open(path, error, error_size)) return false;
     Primitive primitive;
-    if (!find_primitive(source.data, primitive_id, &primitive, nullptr)) {
+    if (!find_primitive(source_data, primitive_id, &primitive, nullptr)) {
         fail(error, error_size, "Choose a mesh from this file.");
         return false;
     }
@@ -1013,8 +1013,10 @@ bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
              "This mesh keeps a textured Melee material; the glTF replacement needs UVs.");
         return false;
     }
-    NativeCostumeDat dat;
-    if (!dat.open(project)) return false;
+    NativeAssetDat dat;
+    if (!dat.open(project->costume_dat, project->costume_size)) {
+        return false;
+    }
     SkinBinding skin;
     if (binding != NATIVE_GLTF_BIND_RIGID &&
         !prepare_skin(existing, joint, &skin, error, error_size)) return false;
@@ -1115,6 +1117,48 @@ bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
             dat.word(flags, read32(dat.data.data() + flags) | JOBJ_ROOT_OPA);
         }
     }
+    if (replacement_mesh == UINT_MAX) {
+        NativeFighterModelEditor named = {};
+        NativeFighterProject view = *project;
+        std::vector<uint8_t> staging;
+        if (dat.finish(&staging)) {
+            view.costume_dat = staging.data();
+            view.costume_size = staging.size();
+            if (nativeFighterModel_Open(&named, &view)) {
+                for (unsigned i = 0; i < named.mesh_count; ++i) {
+                    bool found = false;
+                    for (unsigned old = 0; old < existing.mesh_count; ++old) {
+                        if (existing.meshes[old].offset ==
+                            named.meshes[i].offset)
+                        {
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        char label[64];
+                        std::snprintf(label, sizeof(label), "%s [%u]",
+                                      primitive.name ? primitive.name
+                                                     : "Imported mesh",
+                                      primitive_id);
+                        nativeFighterAuthoring_SetName(
+                            project, NativeAuthoring_Mesh,
+                            named.meshes[i].offset, label);
+                        const auto* m = primitive.mesh->material;
+                        if (m && m->name &&
+                            named.meshes[i].material < named.material_count)
+                        {
+                            std::snprintf(label, sizeof(label), "%s", m->name);
+                            nativeFighterAuthoring_SetName(
+                                project, NativeAuthoring_Material,
+                                named.materials[named.meshes[i].material]
+                                    .offset,
+                                label);
+                        }
+                    }
+                }
+            }
+        }
+    }
     std::vector<uint8_t> converted;
     if (!dat.finish(&converted) ||
         !validate_costume(converted, existing.root_name, error, error_size))
@@ -1128,6 +1172,77 @@ bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
     return true;
 }
 
+bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
+                                  const char* path,
+                                  const NativeGltfImportRequest* requests,
+                                  unsigned count, float scale, char* error,
+                                  size_t error_size)
+{
+    if (!project || !requests || !count || count > NATIVE_GLTF_MAX_PRIMITIVES)
+    {
+        return false;
+    }
+    Source source;
+    if (!source.open(path, error, error_size)) {
+        return false;
+    }
+    NativeFighterProject staging = *project;
+    staging.fighter_dat = (uint8_t*)std::malloc(project->fighter_size);
+    staging.costume_dat = (uint8_t*) std::malloc(project->costume_size);
+    staging.authoring = project->authoring
+                            ? (NativeFighterAuthoring*) std::malloc(
+                                  sizeof(NativeFighterAuthoring))
+                            : nullptr;
+    if (!staging.fighter_dat || !staging.costume_dat || (project->authoring && !staging.authoring)) {
+        std::free(staging.fighter_dat);
+        std::free(staging.costume_dat);
+        std::free(staging.authoring);
+        return false;
+    }
+    std::memcpy(staging.costume_dat, project->costume_dat,
+                project->costume_size);
+    std::memcpy(staging.fighter_dat,project->fighter_dat,project->fighter_size);
+    if (staging.authoring) {
+        std::memcpy(staging.authoring, project->authoring,
+                    sizeof(NativeFighterAuthoring));
+    }
+    bool ok = true;
+    for (unsigned i = 0; i < count && ok; ++i) {
+        ok =
+            apply_primitive(&staging, path, source.data, requests[i].primitive,
+                            requests[i].joint, requests[i].replacement_mesh,
+                            scale, requests[i].binding, error, error_size);
+    }
+    if(ok) {
+        NativeFighterModelEditor before={},after={};
+        NativeAssetDat costume;
+        std::vector<uint8_t> final;
+        ok=nativeFighterModel_Open(&before,project)&&nativeFighterModel_Open(&after,&staging)&&
+            nativeFighterModel_RemapSelectors(&before,&after,&staging)&&
+            costume.open(staging.costume_dat,staging.costume_size)&&
+            nativeFighterModel_RemapMaterialAnimations(before,after,costume)&&costume.finish(&final);
+        if(ok) {
+            auto* bytes=(uint8_t*)std::malloc(final.size());
+            if(!bytes)ok=false;
+            else {std::memcpy(bytes,final.data(),final.size());std::free(staging.costume_dat);staging.costume_dat=bytes;staging.costume_size=final.size();}
+        }
+        if(!ok)fail(error,error_size,"Could not preserve costume animation and visibility references. A fighter supports up to 124 mesh draws.");
+    }
+    if (!ok) {
+        std::free(staging.fighter_dat);
+        std::free(staging.costume_dat);
+        std::free(staging.authoring);
+        return false;
+    }
+    std::free(project->costume_dat);
+    std::free(project->authoring);
+    std::memcpy(project->fighter_dat,staging.fighter_dat,project->fighter_size);
+    std::free(staging.fighter_dat);
+    project->costume_dat = staging.costume_dat;
+    project->costume_size = staging.costume_size;
+    project->authoring = staging.authoring;
+    return true;
+}
 unsigned nativeFighterGltf_SkinVertices(const NativeFighterProject* project,
                                         unsigned mesh,
                                         NativeImportedSkinVertex* output,
@@ -1234,8 +1349,10 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
     }
     if (affected) *affected = changed;
     if (!changed) return true;
-    NativeCostumeDat dat;
-    if (!dat.open(project)) return false;
+    NativeAssetDat dat;
+    if (!dat.open(project->costume_dat, project->costume_size)) {
+        return false;
+    }
     SkinChunk chunk;
     uint32_t first_polygon = 0, previous = 0;
     for (size_t start = 0; start < skin.triangles.size(); start += 3) {
@@ -1294,15 +1411,17 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
     return true;
 }
 
-bool nativeFighterGltf_SetMaterialTexture(NativeFighterProject* project,
-                                          unsigned material,
-                                          const char* image_path,
-                                          char* error, size_t error_size)
+bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
+                                       unsigned material, unsigned layer,
+                                       uint32_t sequence, unsigned frame,
+                                       const char* image_path, char* error,
+                                       size_t error_size)
 {
     NativeFighterModelEditor existing = {};
     if (!project || !image_path ||
         !nativeFighterModel_Open(&existing, project) ||
-        material >= existing.material_count) {
+        material >= existing.material_count || layer >= 8)
+    {
         fail(error, error_size, "Choose an editable fighter material.");
         return false;
     }
@@ -1327,22 +1446,70 @@ bool nativeFighterGltf_SetMaterialTexture(NativeFighterProject* project,
         fail(error, error_size, "Could not read the image file.");
         return false;
     }
-    NativeCostumeDat dat;
-    if (!dat.open(project)) return false;
+    NativeAssetDat dat;
+    if (!dat.open(project->costume_dat, project->costume_size)) {
+        return false;
+    }
     uint32_t texture;
     if (!encode_texture_bytes(encoded.data(), encoded.size(),
                               cgltf_wrap_mode_repeat, cgltf_wrap_mode_repeat,
                               &dat, &texture, error, error_size)) return false;
+    const uint32_t image = read32(dat.data.data() + texture + 76);
     const uint32_t mobj = existing.materials[material].offset;
-    dat.link(mobj + 8, texture);
-    dat.word(mobj + 4, existing.materials[material].render_mode | RENDER_TEX0);
+    if (sequence) {
+        NativeMaterialTextureSequence entries[128];
+        unsigned n =
+            nativeFighterMaterial_Sequences(&existing, material, entries, 128);
+        bool found = false;
+        for (unsigned i = 0; i < n; ++i) {
+            if (entries[i].offset == sequence && frame < entries[i].frames) {
+                found = true;
+            }
+        }
+        u32 table = 0;
+        const char* external;
+        if (!found ||
+            HSD_DatResolve(&existing.dat, sequence + 12, &table, &external) !=
+                HSD_DAT_REF_LOCAL ||
+            !HSD_DatBytes(&existing.dat, table, (frame + 1) * 4))
+        {
+            fail(error, error_size,
+                 "Choose an image in this material's texture sequence.");
+            return false;
+        }
+        dat.link(table + frame * 4, image);
+    } else {
+        uint32_t destination = existing.materials[material].texture_offset;
+        for (unsigned i = 0; destination && i < layer; ++i) {
+            destination = read32(dat.data.data() + destination + 4);
+        }
+        if (destination) {
+            dat.link(destination + 76, image);
+            dat.link(destination + 80, 0);
+        } else if (layer == 0) {
+            dat.link(mobj + 8, texture);
+        } else {
+            fail(error, error_size, "Choose an existing texture layer.");
+            return false;
+        }
+        dat.word(mobj + 4,
+                 existing.materials[material].render_mode | RENDER_TEX0);
+    }
     std::vector<uint8_t> converted;
     if (!dat.finish(&converted) ||
         !validate_costume(converted, existing.root_name, error, error_size))
         return false;
+    NativeFighterProject candidate=*project;
+    std::vector<uint8_t> fighter(project->fighter_dat,project->fighter_dat+project->fighter_size);
+    candidate.fighter_dat=fighter.data();candidate.costume_dat=converted.data();candidate.costume_size=converted.size();
+    NativeFighterModelEditor changed={};
+    if(!nativeFighterModel_Open(&changed,&candidate)||!nativeFighterModel_RemapSelectors(&existing,&changed,&candidate)) {
+        fail(error,error_size,"Could not retain the material's expression references.");return false;
+    }
     uint8_t* owned = (uint8_t*) std::malloc(converted.size());
     if (!owned) return false;
     std::memcpy(owned, converted.data(), converted.size());
+    std::memcpy(project->fighter_dat,fighter.data(),fighter.size());
     std::free(project->costume_dat);
     project->costume_dat = owned;
     project->costume_size = converted.size();

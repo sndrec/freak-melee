@@ -1274,7 +1274,7 @@ target_link_libraries(native_model_view PRIVATE aurora_main melee_runtime aurora
     aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_model_view)
 
-add_executable(native_content_tool tools/native_content_tool.c tools/native_source_content_tool.c tools/native_source_resource_tool.c
+add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/native_content_tool.c tools/native_source_content_tool.c tools/native_source_resource_tool.c
     tools/native_fighter_parameter_tool.c tools/native_fighter_cpu_tool.c)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.

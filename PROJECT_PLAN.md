@@ -168,6 +168,14 @@ through a finite live gameplay exercise; charged Flash and Skip hit Sandbag.
 Projectile reflection and wall bounce still need broader play. The example
 does not close the collaborative acceptance checklist below.
 
+The follow-up [asset authoring pass](melee/docs/native_workshop_asset_authoring.md)
+adds independent clip creation/duplication, transactional multi-mesh import,
+persistent editor names and action hiding, and replacement of individual images
+in animated material sequences. These controls stay within the existing
+workspaces. Editing a new clip preserves the target action's events; hidden
+actions retain their gameplay slots. User dogfooding remains the acceptance
+step.
+
 - [ ] Complete clone -> edit -> preview/test -> save/reopen -> install with the
   user, preserving the source fighter and keeping preview/cache/install distinct.
 - [ ] Review the real Action Editor timeline, loop unrolling, simultaneous

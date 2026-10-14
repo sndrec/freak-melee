@@ -1,6 +1,6 @@
 # Workshop: current capabilities and remaining work
 
-Updated: 2026-10-13. This is a current summary, not a chronological log.
+Updated: 2026-10-14. This is a current summary, not a chronological log.
 Use the [project plan](../../PROJECT_PLAN.md) for priorities and the
 [approved UI](native_character_workshop_ui.md) / [Model design](native_model_workspace_design.md)
 for the agreed layout. Historical bring-up is preserved in the pre-cleanup Git
@@ -39,6 +39,12 @@ review, not a claim of pixel-perfect matching. See [font inputs](../assets/fonts
 | Scripting | Separate move files and editable fighter-state source, parameter/variable controls, typed diagnostics, source checking and bytecode-backed behavior publication. |
 | Animation | Bone hierarchy, shared curves, keys/tangents, playback/scrubbing, pose transfer, G/R/S transforms, pivot/axis/plane choices and explicit key insertion / Auto Key off by default. |
 | Model | Mesh/material/skeleton/skinning contexts, Edit/Pose/Animation modes, cgltf import review, rigid/generated/transfer binding, initial painting and skinned rest-bind compensation. |
+
+[Asset authoring](native_workshop_asset_authoring.md) adds new rest-pose clips,
+independent clip duplication, multi-mesh import with one undo operation, local
+bone/mesh/material/action names, action-list hiding and individual animated
+texture-image replacement. The existing rig and motion slots remain the basis
+for new moves. Draft editor labels are saved separately from packaged assets.
 
 Model usability additions include mesh hover highlighting, viewport selection,
 editor-only eye/H/Alt+H visibility, always-visible skeletons, weight heatmaps and

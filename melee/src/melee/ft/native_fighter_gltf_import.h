@@ -41,11 +41,15 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
 // its glTF base-color texture/tint in GX form;
 // a replacement changes geometry only and keeps the chosen DObj's material.
 // Existing skin data on other meshes is untouched. UINT_MAX appends a DObj.
-bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
-                             unsigned primitive, unsigned joint,
-                             unsigned replacement_mesh, float scale,
-                             NativeGltfBindingMode binding,
-                             char* error, size_t error_size);
+typedef struct NativeGltfImportRequest {
+    unsigned primitive, joint, replacement_mesh;
+    NativeGltfBindingMode binding;
+} NativeGltfImportRequest;
+// One import transaction: a failed primitive publishes none of the batch.
+bool nativeFighterGltf_ApplyBatch(NativeFighterProject*, const char* path,
+                                  const NativeGltfImportRequest*,
+                                  unsigned count, float scale, char* error,
+                                  size_t error_size);
 
 typedef struct NativeImportedSkinVertex {
     float position[3];
@@ -71,10 +75,11 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
                                     char* error, size_t error_size);
 
 // Embeds a PNG/JPEG as a GX RGBA8 texture in an existing shared material.
-bool nativeFighterGltf_SetMaterialTexture(NativeFighterProject* project,
-                                          unsigned material,
-                                          const char* image_path,
-                                          char* error, size_t error_size);
+bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
+                                       unsigned material, unsigned layer,
+                                       uint32_t sequence, unsigned frame,
+                                       const char* image_path, char* error,
+                                       size_t error_size);
 
 #ifdef __cplusplus
 }

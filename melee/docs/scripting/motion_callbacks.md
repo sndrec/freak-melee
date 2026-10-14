@@ -1,6 +1,11 @@
 # Motion callbacks
 
 Motion callbacks let a script replace a shared phase with one of its own helpers.
+Each tick advances the animation, calls its animation helper and processes
+action events. Accessory helpers run after those events and before hit
+detection. Use an accessory helper to adjust the damage of a hitbox created
+on that tick; see [fighter hitboxes](fighter_hitboxes.md).
+
 Use a named, root-level function with no arguments and no return value, or `None`
 to clear the phase. Numeric IDs, other fighters' helpers and event callback
 declarations are not callback values.

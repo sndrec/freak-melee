@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/ft/native_fighter_model_references.h>
 
 #ifdef MELEE_NATIVE
 
@@ -644,6 +645,31 @@ void select_action(unsigned action)
     set_text("workshop-context-action", WorkshopLabels::action(session->actions[action].name));
     set_text("workshop-context-clip", session->actions[action].name);
     set_text("workshop-action-detail", "Action " + number(action));
+    const char* label = nativeFighterAuthoring_Name(
+        session->project, NativeAuthoring_Action, action);
+    set_text("workshop-action-title",
+             label && *label
+                 ? label
+                 : WorkshopLabels::action(session->actions[action].name));
+    set_text("workshop-context-action",
+             label && *label
+                 ? label
+                 : WorkshopLabels::action(session->actions[action].name));
+    const char* stored_group = nativeFighterAuthoring_Name(
+        session->project, NativeAuthoring_ActionGroup, action);
+    if (stored_group && *stored_group) {
+        session->action_group_open[std::min(
+            4u, (unsigned) std::atoi(stored_group))] = true;
+    }
+    field("workshop-action-name")
+        ->SetValue(label && *label ? label
+                                   : WorkshopLabels::action(
+                                         session->actions[action].name));
+    set_text("workshop-action-hide",
+             nativeFighterAuthoring_Hidden(session->project, action)
+                 ? "Show action in editor"
+                 : "Hide action in editor");
+
     set_text("workshop-editor-status", "");
     document->GetElementById("workshop-event-fields")
         ->SetProperty("display", "none");
@@ -958,6 +984,39 @@ void apply_history(bool redo)
     }
     const EditHistoryEntry& edit = session->edit_history[redo ? session->edit_cursor :
                                                      session->edit_cursor - 1];
+    if (edit.label_edit) {
+        const std::string& value = redo ? edit.after_name : edit.before_name;
+        bool hidden = redo ? edit.after_hidden : edit.before_hidden;
+        if (!nativeFighterAuthoring_SetName(
+                session->project, NativeAuthoring_Action, edit.label_action,
+                value.c_str()) ||
+            !nativeFighterAuthoring_SetHidden(session->project,
+                                              edit.label_action, hidden) ||
+            !nativeFighterAuthoring_Save(session->project_path,
+                                         session->project))
+        {
+            return;
+        }
+        if (redo) {
+            ++session->edit_cursor;
+        } else {
+            --session->edit_cursor;
+        }
+        update_history_buttons();
+        nativeShellWorkshopEditor_FilterActions();
+        nativeShellWorkshopEditor_FilterClips();
+        if (session->selected_action == (int) edit.label_action) {
+            field("workshop-action-name")
+                ->SetValue(value.empty()
+                               ? WorkshopLabels::action(
+                                     session->actions[edit.label_action].name)
+                               : value);
+            set_text("workshop-action-hide", hidden ? "Show action in editor"
+                                                    : "Hide action in editor");
+            set_text("workshop-context-action", value.empty() ? WorkshopLabels::action(session->actions[edit.label_action].name) : value);
+        }
+        return;
+    }
     if (!edit.poses.empty()) {
         stop_action_preview();
         session->animation_clip = edit.pose_clip;
@@ -974,13 +1033,35 @@ void apply_history(bool redo)
     nativeWorkshopPose_Clear();
     nativeHome_WorkshopPoseInvalidate();
     const auto& fighter = redo ? edit.after_fighter : edit.before_fighter;
-    if (!fighter.empty() && fighter.size() != session->project->fighter_size) return;
+    uint8_t* replacement_fighter = nullptr;
+    if (!fighter.empty()) {
+        replacement_fighter = (uint8_t*) std::malloc(fighter.size());
+        if (!replacement_fighter) {
+            return;
+        }
+        std::memcpy(replacement_fighter, fighter.data(), fighter.size());
+        NativeFighterProject candidate=*session->project;
+        candidate.fighter_dat=replacement_fighter;candidate.fighter_size=fighter.size();
+        if(!nativeFighterModel_RestoreSelectors(&candidate,session->project->fighter_dat,session->project->fighter_size)) {
+            std::free(replacement_fighter);return;
+        }
+    }
     if (!edit.before_bank.empty()) {
         const std::vector<uint8_t>& replacement =
             redo ? edit.after_bank : edit.before_bank;
         uint8_t* bank = (uint8_t*) std::malloc(replacement.size());
-        if (bank == nullptr) return;
+        if (bank == nullptr) {
+            std::free(replacement_fighter);
+            return;
+        }
         std::memcpy(bank, replacement.data(), replacement.size());
+        if(!edit.animation) {
+            NativeFighterProject candidate=*session->project;
+            candidate.fighter_dat=bank;candidate.fighter_size=replacement.size();
+            if(!nativeFighterModel_RestoreSelectors(&candidate,session->project->fighter_dat,session->project->fighter_size)) {
+                std::free(bank);std::free(replacement_fighter);return;
+            }
+        }
         if (edit.animation) {
             std::free(session->project->animation_dat);
             session->project->animation_dat = bank;
@@ -996,12 +1077,17 @@ void apply_history(bool redo)
         const size_t size = edit.animation ? session->project->animation_size :
                                            session->project->fighter_size;
         for (const EditedByte& byte : edit.bytes) {
-            if (byte.offset >= size) return;
+            if (byte.offset >= size) {
+                std::free(replacement_fighter);
+                return;
+            }
             bank[byte.offset] = redo ? byte.after : byte.before;
         }
     }
     if (!fighter.empty()) {
-        std::memcpy(session->project->fighter_dat, fighter.data(), fighter.size());
+        std::free(session->project->fighter_dat);
+        session->project->fighter_dat = replacement_fighter;
+        session->project->fighter_size = fighter.size();
         session->action_dirty = true;
     }
     if (redo) ++session->edit_cursor;
@@ -1014,6 +1100,8 @@ void apply_history(bool redo)
     }
     const int action = session->selected_action;
     const NativeFighterAnimationClip clip = session->animation_clip;
+    nativeFighterAction_List(session->project, session->actions, 1024,
+                             &session->action_count);
     const int animation_frame = session->animation_frame;
     const int track = session->selected_track;
     const int key = session->selected_key;
@@ -1051,6 +1139,7 @@ void apply_history(bool redo)
     nativeHome_WorkshopPoseInvalidate();
     session->bone_pose_refresh = true;
     session->graph_refresh = true;
+    if (!fighter.empty()) nativeShellWorkshop_RefreshPreview();
     set_text("workshop-editor-status", redo ? "Reapplied workshop edit."
                                             : "Undid workshop edit.");
 }
