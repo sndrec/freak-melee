@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <melee/ft/native_fighter_costume_dat.h>
+#include <melee/ft/native_asset_dat.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 
@@ -324,7 +324,7 @@ nativeWorkshopTextures_Controls(const NativeFighterModelEditor& model,
 
 bool nativeWorkshopTextures_Apply(Rml::ElementDocument* document,
                                   const NativeFighterModelEditor& model,
-                                  unsigned material, NativeCostumeDat& dat,
+                                  unsigned material, NativeAssetDat& dat,
                                   std::string* error)
 {
     auto checked = [&](const std::string& id) {

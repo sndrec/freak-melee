@@ -1,5 +1,7 @@
 #include "native_fighter_model_editor.h"
 
+#include "native_fighter_authoring.h"
+
 #ifdef MELEE_NATIVE
 
 #include <sysdolphin/baselib/jobj.h>
@@ -176,7 +178,33 @@ bool nativeFighterModel_Open(NativeFighterModelEditor* editor,
         return false;
     snprintf(editor->root_name, sizeof(editor->root_name), "%s",
              project->facts.costume_joint);
-    return add_joint(editor, root, -1, 0);
+    if (!add_joint(editor, root, -1, 0)) {
+        return false;
+    }
+    for (unsigned category = 0; category < 3; ++category) {
+        unsigned count = category == 0   ? editor->joint_count
+                         : category == 1 ? editor->mesh_count
+                                         : editor->material_count;
+        for (unsigned i = 0; i < count; ++i) {
+            char* target = category == 0   ? editor->joints[i].name
+                           : category == 1 ? editor->meshes[i].name
+                                           : editor->materials[i].name;
+            const char* custom = nativeFighterAuthoring_Name(
+                project, category,
+                category == 0   ? editor->joints[i].offset
+                : category == 1 ? editor->meshes[i].offset
+                                : editor->materials[i].offset);
+            if (custom && *custom) {
+                snprintf(target, 64, "%s", custom);
+            } else if (category == 0 && !strncmp(target, "Joint ", 6)) {
+                const char* role = nativeFighterAuthoring_BoneRole(project, i);
+                if (role) {
+                    snprintf(target, 64, "%s · joint %u", role, i);
+                }
+            }
+        }
+    }
+    return true;
 }
 
 bool nativeFighterModel_SetJoint(NativeFighterModelEditor* editor,

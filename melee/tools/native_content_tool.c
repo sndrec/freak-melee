@@ -15,6 +15,7 @@
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_fighter_module.h>
 #include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_gltf_import.h>
 #include <melee/ft/native_fighter_model_editor.h>
@@ -23,6 +24,7 @@
 #include <melee/ft/native_fighter_pose_editor.h>
 #include <melee/ft/native_fighter_move_copy.h>
 #include "native_source_content_tool.h"
+#include "native_workshop_authoring_tool.h"
 #include "native_source_resource_tool.h"
 #include "native_fighter_parameter_tool.h"
 #include "native_fighter_cpu_tool.h"
@@ -67,6 +69,13 @@ static void usage(void)
         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
         "  inspect-project PROJECT_DIRECTORY\n"
         "  project-model-scan SOURCE.glb\n"
+        "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid\n"
+        "  project-label PROJECT_DIRECTORY bone|mesh|material|action KEY NAME\n"
+        "  project-hide-action PROJECT_DIRECTORY ACTION_INDEX 0|1\n"
+        "  project-clip-create PROJECT_DIRECTORY ACTION_INDEX NAME END_FRAME\n"
+        "  project-clip-copy PROJECT_DIRECTORY action|demo SOURCE_INDEX TARGET_ACTION NAME\n"
+        "  project-texture-sequences PROJECT_DIRECTORY MATERIAL\n"
+        "  project-texture-image PROJECT_DIRECTORY MATERIAL SEQUENCE_OFFSET IMAGE_INDEX IMAGE_FILE\n"
         "  project-model-import PROJECT_DIRECTORY SOURCE.glb PRIMITIVE JOINT "
         "ADD_OR_MESH_INDEX SCALE rigid|auto|transfer\n"
         "  project-model-weights PROJECT_DIRECTORY\n"
@@ -1738,10 +1747,9 @@ static int project_model_import(const char* path, const char* source,
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;
     char error[192] = { 0 };
-    bool ok = nativeFighterGltf_Apply(&project, source,
-        (unsigned) primitive, (unsigned) joint,
-        (unsigned) replacement, scale, binding, error, sizeof(error)) &&
-        nativeFighterProject_SaveCostume(path, &project);
+    const NativeGltfImportRequest request={(unsigned)primitive,(unsigned)joint,(unsigned)replacement,binding};
+    bool ok = nativeFighterGltf_ApplyBatch(&project,source,&request,1,scale,error,sizeof(error)) &&
+        nativeFighterProject_SaveCostume(path,&project) && nativeFighterAuthoring_Save(path,&project);
     if (!ok) fprintf(stderr, "Model import failed: %s\n", error);
     else printf("Imported primitive %lu into %s.\n", primitive, path);
     nativeFighterProject_Close(&project);
@@ -1914,8 +1922,8 @@ static int project_model_texture(const char* path, const char* material_text,
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;
     char error[192] = { 0 };
-    const bool ok = nativeFighterGltf_SetMaterialTexture(&project,
-        (unsigned) material, image_path, error, sizeof(error)) &&
+    const bool ok = nativeFighterGltf_SetTextureImage(&project,
+        (unsigned) material, 0, 0, 0, image_path, error, sizeof(error)) &&
         nativeFighterProject_SaveCostume(path, &project);
     if (!ok) fprintf(stderr, "Texture import failed: %s\n", error);
     nativeFighterProject_Close(&project);
@@ -1937,6 +1945,8 @@ int main(int argc, char** argv)
         index += 2;
     }
     int arguments = argc - index;
+    int authoring_result;
+    if(nativeWorkshopAuthoring_Command(arguments,argv+index,&authoring_result))return authoring_result;
     if (arguments == 2 && strcmp(argv[index], "project-model-scan") == 0)
         return project_model_scan(argv[index + 1]);
     if (arguments == 8 && strcmp(argv[index], "project-model-import") == 0)

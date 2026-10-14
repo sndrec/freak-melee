@@ -1,7 +1,7 @@
 #include "native_shell_workshop_materials.h"
 #include "native_shell_workshop_textures.h"
 
-#include <melee/ft/native_fighter_costume_dat.h>
+#include <melee/ft/native_asset_dat.h>
 extern "C" {
 #include <sysdolphin/baselib/displayfunc.h>
 #include <sysdolphin/baselib/jobj.h>
@@ -237,8 +237,8 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
         *out = (unsigned) n;
         return true;
     };
-    NativeCostumeDat dat;
-    if (!dat.open(model.project)) {
+    NativeAssetDat dat;
+    if (!dat.open(model.project->costume_dat, model.project->costume_size)) {
         return false;
     }
     const auto& mat = model.materials[material];

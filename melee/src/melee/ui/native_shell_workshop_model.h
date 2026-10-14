@@ -12,7 +12,7 @@ bool nativeShellWorkshopModel_Open(unsigned member, NativeFighterProject* projec
                                    const NativeFighterActionInfo* actions,
                                    const bool* has_clip,
                                    const float* clip_frames,
-                                   size_t action_count);
+                                   size_t action_count, const char* path);
 bool nativeShellWorkshopModel_Select(unsigned member);
 void nativeShellWorkshopModel_Close();
 void nativeShellWorkshopModel_Show(bool visible);

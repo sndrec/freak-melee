@@ -19,6 +19,7 @@
 #include <windows.h>
 
 #include <melee/ft/native_fighter_action_editor.h>
+#include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_animation_editor.h>
 #include <melee/ft/native_fighter_pose_editor.h>
 #include <melee/ft/ftdrawcommon.h>
@@ -48,6 +49,8 @@
 
 namespace WorkshopEditor {
 
+bool clip_authoring_click(const char* id);
+
 struct ActionEventTemplate {
     unsigned action;
     uint32_t offset;
@@ -76,6 +79,9 @@ struct EditHistoryEntry {
     std::vector<NativeWorkshopTransformChange> poses;
     NativeFighterAnimationClip pose_clip;
     int pose_frame = 0;
+    bool label_edit = false, before_hidden = false, after_hidden = false;
+    unsigned label_action = 0;
+    std::string before_name, after_name;
 };
 enum class GraphTool { Move, Box, Rotate, Scale };
 enum class WorkshopMode { Action, Script, Animation, Model };

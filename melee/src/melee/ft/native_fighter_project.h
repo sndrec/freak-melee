@@ -40,6 +40,7 @@ typedef struct NativeFighterProject {
     size_t parameter_size;
     uint8_t* cpu_text;
     size_t cpu_size;
+    struct NativeFighterAuthoring* authoring;
 } NativeFighterProject;
 
 typedef struct NativeFighterProjectInfo {

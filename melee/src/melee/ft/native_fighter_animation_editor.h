@@ -46,6 +46,19 @@ typedef struct NativeFighterAnimationClip {
     unsigned index;
 } NativeFighterAnimationClip;
 
+// Independently replace one action's animation; existing events and other
+// clip descriptors are preserved. These operations support editor undo.
+bool nativeFighterAnimation_Duplicate(NativeFighterProject*,
+                                      NativeFighterAnimationClip source,
+                                      unsigned target_action,
+                                      const char* name);
+bool nativeFighterAnimation_CreateRest(NativeFighterProject*,
+                                       unsigned target_action,
+                                       const char* name, unsigned end_frame);
+bool nativeFighterAnimation_RestoreDescriptors(NativeFighterProject*,
+                                               const void* saved_fighter,
+                                               size_t bytes);
+
 // References select the action or demo table explicitly; track/key indices
 // retain their source order. Values
 // and spline tangents change in place only when the original quantization

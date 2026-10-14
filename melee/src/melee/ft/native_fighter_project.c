@@ -1,4 +1,7 @@
 #include "native_fighter_project.h"
+#include "native_fighter_authoring.h"
+#include "native_fighter_animation_editor.h"
+#include "native_fighter_model_references.h"
 
 #ifdef MELEE_NATIVE
 
@@ -475,7 +478,7 @@ bool nativeFighterProject_Open(const char* path, NativeFighterProject* project)
                                           &resources,NULL,0);
     NativeFighterCpuProfile cpu;
     ok = ok && nativeFighterCpu_Parse((const char*) project->cpu_text,
-                                     project->cpu_size, &cpu);
+                                     project->cpu_size, &cpu) && nativeFighterAuthoring_Load(path, project);
     if (!ok) {
         nativeFighterProject_Close(project);
     }
@@ -686,49 +689,6 @@ bool nativeFighterProject_SaveAnimation(const char* path,
     return saved;
 }
 
-// Transfer only animation addresses. Saved animation undo must not overwrite
-// later attributes, subaction commands or playback flags in fighter.dat.
-static bool restore_animation_addresses(NativeFighterProject* project,
-                                        const void* reference, size_t reference_size)
-{
-    HSD_Dat destination, source;
-    u32 destination_root, source_root, destination_tables[2], source_tables[2];
-    const char* external;
-    const unsigned counts[] = { project->action_count, project->demo_count };
-    if (HSD_DatOpen(&destination, project->fighter_dat, project->fighter_size) != HSD_DAT_OK ||
-        HSD_DatOpen(&source, reference, reference_size) != HSD_DAT_OK ||
-        !HSD_DatFindRoot(&destination, project->fighter_root, &destination_root) ||
-        !HSD_DatFindRoot(&source, project->fighter_root, &source_root)) return false;
-    for (unsigned bank = 0; bank < 2; ++bank) {
-        if (!counts[bank]) continue;
-        const unsigned field = bank ? 20 : 12;
-        if (HSD_DatResolve(&destination, destination_root + field, &destination_tables[bank], &external) != HSD_DAT_REF_LOCAL ||
-            HSD_DatResolve(&source, source_root + field, &source_tables[bank], &external) != HSD_DAT_REF_LOCAL ||
-            !HSD_DatBytes(&destination, destination_tables[bank], counts[bank] * 24) ||
-            !HSD_DatBytes(&source, source_tables[bank], counts[bank] * 24)) return false;
-        for (unsigned index = 0; index < counts[bank]; ++index) {
-            const u32 target = destination_tables[bank] + index * 24;
-            const u32 previous = source_tables[bank] + index * 24;
-            u32 target_size, previous_size, target_name, previous_name;
-            if (!HSD_DatReadU32(&destination, target + 8, &target_size) ||
-                !HSD_DatReadU32(&source, previous + 8, &previous_size) ||
-                (target_size == 0) != (previous_size == 0)) return false;
-            if (!target_size) continue;
-            if (HSD_DatResolve(&destination, target, &target_name, &external) != HSD_DAT_REF_LOCAL ||
-                HSD_DatResolve(&source, previous, &previous_name, &external) != HSD_DAT_REF_LOCAL) return false;
-            const char* a = (const char*)HSD_DatBytes(&destination, target_name, 1);
-            const char* b = (const char*)HSD_DatBytes(&source, previous_name, 1);
-            if (!a || !b || !memchr(a, 0, destination.data_size - target_name) ||
-                !memchr(b, 0, source.data_size - previous_name) || strcmp(a, b)) return false;
-        }
-    }
-    for (unsigned bank = 0; bank < 2; ++bank)
-        for (unsigned index = 0; index < counts[bank]; ++index)
-            memcpy(project->fighter_dat + 32 + destination_tables[bank] + index * 24 + 4,
-                source.data + source_tables[bank] + index * 24 + 4, 8);
-    return true;
-}
-
 bool nativeFighterProject_UndoLastAnimationSave(const char* path)
 {
     if (path == NULL) return false;
@@ -741,7 +701,7 @@ bool nativeFighterProject_UndoLastAnimationSave(const char* path)
     bool read = read_asset(path, "animation.dat.previous", &previous,
                            &previous_size) &&
         read_asset(path, "animation.fighter.previous", &previous_fighter, &previous_fighter_size) &&
-        restore_animation_addresses(&project, previous_fighter, previous_fighter_size);
+        nativeFighterAnimation_RestoreDescriptors(&project, previous_fighter, previous_fighter_size);
     free(previous_fighter);
     if (read) {
         free(project.animation_dat);
@@ -779,9 +739,28 @@ bool nativeFighterProject_SaveCostume(const char* path,
     const bool changed = disk.costume_size != project->costume_size ||
         memcmp(disk.costume_dat, project->costume_dat,
                project->costume_size) != 0;
+    if(!same_project||!changed) { nativeFighterProject_Close(&disk); return same_project; }
+    // Mesh insertion changes the costume traversal and the fighter's numeric
+    // draw/texture references together. Publish the coherent pair.
+    const char* names[]={"fighter.dat","costume.dat","costume.dat.previous"};
+    const char* temporary_names[]={"fighter.dat.model.tmp","costume.dat.tmp","costume.dat.previous.tmp"};
+    const void* bytes[]={project->fighter_dat,project->costume_dat,disk.costume_dat};
+    size_t sizes[]={project->fighter_size,project->costume_size,disk.costume_size};
+    char destinations[3][PROJECT_PATH_CAPACITY]={{0}},temporary[3][PROJECT_PATH_CAPACITY]={{0}};
+    bool saved=true;
+    for(unsigned i=0;i<3&&saved;++i)
+        saved=project_path(destinations[i],path,names[i])&&project_path(temporary[i],path,temporary_names[i])&&write_asset(path,temporary_names[i],bytes[i],sizes[i]);
+    DWORD flags=MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH;
+    if(saved)saved=MoveFileExA(temporary[2],destinations[2],flags);
+    bool replaced=saved&&MoveFileExA(temporary[0],destinations[0],flags);
+    saved=replaced&&MoveFileExA(temporary[1],destinations[1],flags);
+    if(replaced&&!saved) {
+        if(!write_asset(path,temporary_names[0],disk.fighter_dat,disk.fighter_size)||!MoveFileExA(temporary[0],destinations[0],flags))
+            fprintf(stderr,"Could not restore model references in %s\n",path);
+    }
+    for(unsigned i=0;i<3;++i)if(temporary[i][0])DeleteFileA(temporary[i]);
     nativeFighterProject_Close(&disk);
-    return same_project && (!changed || save_asset_with_previous(
-        path, "costume.dat", project->costume_dat, project->costume_size));
+    return saved;
 }
 
 bool nativeFighterProject_UndoLastCostumeSave(const char* path)
@@ -794,6 +773,13 @@ bool nativeFighterProject_UndoLastCostumeSave(const char* path)
     const bool read = read_asset(path, "costume.dat.previous", &previous,
                                  &previous_size);
     if (read) {
+        NativeFighterModelEditor* before=calloc(1,sizeof(*before));
+        NativeFighterModelEditor* after=calloc(1,sizeof(*after));
+        NativeFighterProject candidate=project;candidate.costume_dat=previous;candidate.costume_size=previous_size;
+        bool mapped=before&&after&&nativeFighterModel_Open(before,&project)&&nativeFighterModel_Open(after,&candidate)&&
+            nativeFighterModel_RemapSelectors(before,after,&project);
+        free(before);free(after);
+        if(!mapped) {free(previous);nativeFighterProject_Close(&project);return false;}
         free(project.costume_dat);
         project.costume_dat = previous;
         project.costume_size = previous_size;
@@ -820,7 +806,8 @@ bool nativeFighterProject_UndoLastSave(const char* path)
         project.fighter_size = previous_size;
         // This is fighter-data undo, not animation undo. Preserve the current
         // bank's addresses after any intervening animation save.
-        read = restore_animation_addresses(&project, current, current_size);
+        read = nativeFighterAnimation_RestoreDescriptors(&project, current, current_size) &&
+            nativeFighterModel_RestoreSelectors(&project,current,current_size);
         free(current);
     }
     bool restored = read && nativeFighterProject_Save(path, &project);
@@ -841,6 +828,7 @@ void nativeFighterProject_Close(NativeFighterProject* project)
     free(project->script_text);
     free(project->parameter_text);
     free(project->cpu_text);
+    free(project->authoring);
     *project = (NativeFighterProject){ 0 };
 }
 

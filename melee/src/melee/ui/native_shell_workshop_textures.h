@@ -1,9 +1,9 @@
 #pragma once
 #include "native_shell_workshop_materials.h"
-struct NativeCostumeDat;
+struct NativeAssetDat;
 std::string nativeWorkshopTextures_Controls(const NativeFighterModelEditor&,
                                             unsigned material);
 bool nativeWorkshopTextures_Apply(Rml::ElementDocument*,
                                   const NativeFighterModelEditor&,
-                                  unsigned material, NativeCostumeDat&,
+                                  unsigned material, NativeAssetDat&,
                                   std::string* error);

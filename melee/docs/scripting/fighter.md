@@ -119,11 +119,34 @@ hit groups, model scale, arbitrary motion rates, effects and reflection.
 
 ### `state.enter(...)`
 
-Enters the chosen authored special motion. A grounded and an airborne entry
-can select the same named special; the engine still uses the appropriate
-ground/air state. Numeric motion-state entry is also supported where a custom
-fighter needs a particular action ID. The script supplies its animation,
-interrupt, physics, and collision decisions after entry.
+Enters the chosen special motion and starts its animation. Choose the motion
+name for the fighter's current grounded or airborne state:
+
+| Special | Grounded motion | Airborne motion |
+| --- | --- | --- |
+| Neutral | `NeutralSpecial` | `AirNeutralSpecial` |
+| Side | `SideSpecial` | `AirSideSpecial` |
+| Up | `UpSpecial` | `AirUpSpecial` |
+| Down | `DownSpecial` | `AirDownSpecial` |
+
+These names select the callbacks and clip assigned to that motion.
+In an airborne move handler, names such as `UpSpecial` also select its airborne
+variant. Use the explicit `Air...` names in reusable helpers to make the choice
+clear.
+
+Changing
+ground/air state with `physics.ground_to_air()` changes movement; enter an
+airborne motion afterward to select its animation and callbacks:
+
+```text
+physics.ground_to_air()
+state.enter(AirUpSpecial)
+```
+
+Numeric motion entry selects a particular action ID. The script supplies the
+move's animation, interrupt, physics and collision decisions after entry.
+See [motion callbacks](motion_callbacks.md) for callback order and
+[fighter hitboxes](fighter_hitboxes.md) for adjusting newly created hitboxes.
 
 ### `state.wait()` and `state.fall()`
 

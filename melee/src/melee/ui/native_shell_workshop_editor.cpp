@@ -78,11 +78,13 @@ void record_structural_edit(bool animation, const uint8_t* before, size_t size,
         std::vector<uint8_t>(before, before + size),
         std::vector<uint8_t>(after, after + after_size) };
     if (animation && before_fighter != nullptr &&
-        fighter_size == session->project->fighter_size &&
-        std::memcmp(before_fighter, session->project->fighter_dat, fighter_size) != 0) {
+        (fighter_size != session->project->fighter_size ||
+         std::memcmp(before_fighter, session->project->fighter_dat,
+                     fighter_size) != 0))
+    {
         edit.before_fighter.assign(before_fighter, before_fighter + fighter_size);
         edit.after_fighter.assign(session->project->fighter_dat,
-                                 session->project->fighter_dat + fighter_size);
+                                 session->project->fighter_dat + session->project->fighter_size);
         session->action_dirty = true;
     }
     session->edit_history.erase(session->edit_history.begin() + session->edit_cursor,
@@ -119,8 +121,7 @@ void record_pose_edit(const NativeWorkshopTransformChange* changes, unsigned cou
 
 std::string bone_name(unsigned joint)
 {
-    if (joint < 512 && !session->bone_names[joint].empty() &&
-        session->bone_names[joint].compare(0, 6, "Joint ") != 0) return session->bone_names[joint];
+    if (joint < 512 && !session->bone_names[joint].empty()) return session->bone_names[joint];
     const char* role = nativeHome_WorkshopBoneRole(joint);
     if (role) return role;
     return "Joint " + std::to_string(joint);
@@ -284,6 +285,17 @@ void select_mode(WorkshopMode next)
         update_timeline_cursor();
     }
     session->mode = next;
+    if (next == WorkshopMode::Animation || next == WorkshopMode::Action) {
+        auto* model = (NativeFighterModelEditor*) std::malloc(
+            sizeof(NativeFighterModelEditor));
+        if (model && nativeFighterModel_Open(model, session->project)) {
+            for (unsigned i = 0; i < model->joint_count; ++i) {
+                session->bone_names[i] = model->joints[i].name;
+            }
+        }
+        std::free(model);
+    }
+
     ftDrawCommon_SetWorkshopOverlays(
         session->mode == WorkshopMode::Action && session->show_hitboxes,
         session->mode == WorkshopMode::Action && session->show_hurtboxes);
@@ -349,6 +361,12 @@ void select_mode(WorkshopMode next)
         ->SetProperty("display", session->mode == WorkshopMode::Animation ? "block" : "none");
     document->GetElementById("workshop-pose-fields")
         ->SetProperty("display", session->mode == WorkshopMode::Animation ? "block" : "none");
+    std::string action_name = "Select an action";
+    if (session->selected_action >= 0) {
+        const char* label = nativeFighterAuthoring_Name(session->project,
+            NativeAuthoring_Action, (unsigned)session->selected_action);
+        action_name = label && *label ? label : WorkshopLabels::action(session->actions[session->selected_action].name);
+    }
     if (session->mode == WorkshopMode::Action) {
         set_text("workshop-inspector-heading", "EVENT INSPECTOR");
         set_text("workshop-action-title",
@@ -358,7 +376,7 @@ void select_mode(WorkshopMode next)
         set_text("workshop-action-detail", "Action " +
                  number((unsigned) session->selected_action));
         if (session->selected_action >= 0) {
-            set_text("workshop-context-action", WorkshopLabels::action(session->actions[session->selected_action].name));
+            set_text("workshop-context-action", action_name);
             set_text("workshop-context-clip", session->actions[session->selected_action].name);
         }
         show_event();
@@ -371,7 +389,7 @@ void select_mode(WorkshopMode next)
                      ? WorkshopLabels::action(session->animation_name.c_str())
                      : "Select a clip");
         set_text("workshop-context-action", session->animation_clip.bank == NativeFighterAnimation_Demo
-            ? "Non-gameplay animation" : WorkshopLabels::action(session->animation_name.c_str()));
+            ? "Non-gameplay animation" : action_name);
         set_text("workshop-context-clip", session->animation_name);
         nativeShellWorkshopEditor_FilterClips();
         show_animation();
@@ -540,7 +558,8 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     read_demo_clips();
     const bool model_available = nativeShellWorkshopModel_Open(
         selected_member, session->project, session->actions,
-        session->action_has_clip, session->action_clip_frames, session->action_count);
+        session->action_has_clip, session->action_clip_frames,
+        session->action_count, session->project_path);
     show_script();
     unsigned first = 0;
     for (size_t i = 0; i < session->action_count; ++i) {
@@ -618,11 +637,27 @@ void nativeShellWorkshopEditor_FilterActions()
       std::string rows;
       unsigned matches = 0;
       for (size_t i = 0; i < session->action_count; ++i) {
+          if (nativeFighterAuthoring_Hidden(session->project, (unsigned) i) &&
+              !document->GetElementById("workshop-show-hidden-actions")
+                   ->HasAttribute("checked"))
+          {
+              continue;
+          }
         const std::string name = session->actions[i].name;
-        const unsigned group = WorkshopLabels::group(name.c_str());
+        const char* custom_label = nativeFighterAuthoring_Name(
+            session->project, NativeAuthoring_Action, (unsigned) i);
+        const std::string label = custom_label && *custom_label
+                                      ? custom_label
+                                      : WorkshopLabels::action(name.c_str());
+        const char* stored_group = nativeFighterAuthoring_Name(
+            session->project, NativeAuthoring_ActionGroup, (unsigned) i);
+        const unsigned group =
+            stored_group && *stored_group
+                ? std::min(4u, (unsigned) std::atoi(stored_group))
+                : WorkshopLabels::group(name.c_str());
         if (group != group_index) continue;
         std::string lower_name = name;
-        std::string lower_label = WorkshopLabels::action(name.c_str());
+        std::string lower_label = label;
         std::string lower_search = search;
         for (char& ch : lower_name) ch = (char) std::tolower((unsigned char) ch);
         for (char& ch : lower_label) ch = (char) std::tolower((unsigned char) ch);
@@ -643,17 +678,15 @@ void nativeShellWorkshopEditor_FilterActions()
                     ids[session->events[event].target_id] = true;
             for (bool used : ids) hitboxes += used;
         }
-        rows += "<button id='workshop-action-" + number((unsigned) i) +
-                  "' class='workshop-action-row" +
-                  (active ? " selected" : "") +
-                  "'><span>" +
-                  Rml::StringUtilities::EncodeRml(WorkshopLabels::action(name.c_str())) +
-                  "</span>" +
-                  (active && hitboxes != 0
-                      ? "<small class='workshop-action-count'>" +
-                        number(hitboxes) +
-                        (hitboxes == 1 ? " hitbox" : " hitboxes") + "</small>"
-                      : "") + "</button>";
+        rows +=
+            "<button id='workshop-action-" + number((unsigned) i) +
+            "' class='workshop-action-row" + (active ? " selected" : "") +
+            "'><span>" + Rml::StringUtilities::EncodeRml(label) + "</span>" +
+            (active && hitboxes != 0
+                 ? "<small class='workshop-action-count'>" + number(hitboxes) +
+                       (hitboxes == 1 ? " hitbox" : " hitboxes") + "</small>"
+                 : "") +
+            "</button>";
       }
       if (matches == 0) continue;
       const bool expanded = !search.empty() || session->action_group_open[group_index];
@@ -703,6 +736,79 @@ bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x)
 
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 {
+    if (!std::strcmp(id,"workshop-action-tools-toggle") || !std::strcmp(id,"workshop-clip-tools-toggle")) {
+        auto* tools = document->GetElementById(!std::strcmp(id,"workshop-action-tools-toggle") ? "workshop-action-tools" : "workshop-clip-tools");
+        const bool open = tools->IsVisible();
+        tools->SetProperty("display",open ? "none" : "block");
+        return true;
+    }
+    if (clip_authoring_click(id)) {
+        return true;
+    }
+    if (!std::strcmp(id, "workshop-show-hidden-actions")) {
+        nativeShellWorkshopEditor_FilterActions();
+        return true;
+    }
+    if (!std::strcmp(id, "workshop-action-rename") ||
+        !std::strcmp(id, "workshop-action-hide"))
+    {
+        if (session->selected_action < 0) {
+            return true;
+        }
+        const unsigned action = (unsigned) session->selected_action;
+        EditHistoryEntry edit = {};
+        edit.label_edit = true;
+        edit.label_action = action;
+        const char* previous = nativeFighterAuthoring_Name(
+            session->project, NativeAuthoring_Action, action);
+        edit.before_name = previous ? previous : "";
+        edit.before_hidden =
+            nativeFighterAuthoring_Hidden(session->project, action);
+        bool ok = !std::strcmp(id, "workshop-action-rename")
+                      ? nativeFighterAuthoring_SetName(
+                            session->project, NativeAuthoring_Action, action,
+                            field("workshop-action-name")->GetValue().c_str())
+                      : nativeFighterAuthoring_SetHidden(
+                            session->project, action,
+                            !nativeFighterAuthoring_Hidden(session->project,
+                                                           action));
+        ok = ok && nativeFighterAuthoring_Save(session->project_path,
+                                               session->project);
+        if (ok) {
+            const char* current = nativeFighterAuthoring_Name(
+                session->project, NativeAuthoring_Action, action);
+            edit.after_name = current ? current : "";
+            edit.after_hidden =
+                nativeFighterAuthoring_Hidden(session->project, action);
+            session->edit_history.erase(session->edit_history.begin() +
+                                            session->edit_cursor,
+                                        session->edit_history.end());
+            if (session->edit_history.size() == 32) {
+                session->edit_history.erase(session->edit_history.begin());
+                --session->edit_cursor;
+            }
+            session->edit_history.push_back(std::move(edit));
+            session->edit_cursor = session->edit_history.size();
+            update_history_buttons();
+        }
+        nativeShellWorkshopEditor_FilterActions();
+        nativeShellWorkshopEditor_FilterClips();
+        const char* name = nativeFighterAuthoring_Name(
+            session->project, NativeAuthoring_Action, action);
+        set_text("workshop-context-action",
+                 name && *name
+                     ? name
+                     : WorkshopLabels::action(session->actions[action].name));
+        set_text("workshop-action-hide",
+                 nativeFighterAuthoring_Hidden(session->project, action)
+                     ? "Show action in editor"
+                     : "Hide action in editor");
+        set_text("workshop-editor-status",
+                 ok ? "Action name and editor visibility saved."
+                    : "Could not save the action label.");
+        return true;
+    }
+
     if (session->mode == WorkshopMode::Model &&
         nativeShellWorkshopModel_Click(id, shift))
     {

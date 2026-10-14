@@ -86,3 +86,34 @@ Final local evidence (2026-10-14):
 
 The existing drafts and installed fighters were preserved. Glim updates replace
 its prior installed revision; temporary preview packages remain in the cache.
+
+## Follow-up authoring pass
+
+The native Workshop now has New from rest pose / Duplicate selected clip,
+multi-mesh import, saved bone/mesh/material/action names, action-list hiding and
+animated texture-image replacement. See the
+[authoring guide](../../melee/docs/native_workshop_asset_authoring.md).
+
+A batch against disposable copies of Glim checked independent clip edits,
+saved undo with an intervening attribute edit, rest-clip key insertion, invalid
+input preservation, name persistence, two-mesh import, second-mesh failure,
+single sequence-image replacement and preservation of sampler/UV settings.
+Edited drafts also passed source preparation. Those checks cover data handling;
+the user's next dogfooding pass will assess the new controls.
+
+A live multiple-mesh import exposed stale material-animation and visibility
+references after the mesh traversal changed. The importer now remaps those
+references with the meshes and saves the fighter/costume pair together. Model
+undo includes the reference edits; action/attribute undo preserves the current
+costume references. No fighter-specific exception was added.
+
+Follow-up evidence (2026-10-14):
+
+- Backend receipt: `C:/FreakMelee-review/2026-10-14-authoring/batch/run-20261014-135626/receipt.json`
+  records 34 successful operations, including reference identity checks and
+  source-package preparation.
+- Live controls exercised name/hide/show, model naming, independent rest/copy
+  clips, Undo/Redo/Save, and two-mesh import with preview refresh and Undo/Redo.
+- The saved UI test draft passed source preparation after the import. Live
+  screenshots and logs are in `C:/FreakMelee-review/2026-10-14-authoring/ui`.
+- The real Glim and Rook drafts and installed packages were left unchanged.
