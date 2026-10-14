@@ -1,0 +1,69 @@
+# Glim's tuning and rollback-owned variables.
+fighter:
+    behavior independent
+
+parameter float flash_charge_max = 42
+parameter float flash_bonus_per_frame = 0.22
+parameter float skip_speed = 3.6
+parameter float skip_vertical = 1.1
+parameter float updraft_speed = 4.1
+parameter float updraft_gravity = 0.105
+parameter float ward_radius = 8
+
+state float flash_charge
+state bool flash_released
+state bool flash_damage_applied
+state bool skip_used
+state bool skip_bounced
+state bool updraft_launched
+state float skip_x
+state float skip_y
+state float reflected_charge
+
+# Unused inherited extended states retain safe common engine policies.
+# These are unreachable from Glim's special entries. The authored motions
+# below own all four special moves and both aerial-jump phases.
+__MOTION_POLICIES__
+
+func ConfigureJumps():
+    jumps.configure_multi(8, 0.3, 0.65, 1, 1, 2.4, 1.95, 0, 0, 0, 2, 341, -1)
+
+func FinishMove():
+    if airborne: state.fall()
+    else: state.wait()
+
+func NormalAirPhysics():
+    physics.air_drift()
+
+func JumpAnimation():
+    if animation.finished:
+        if jumps.used >= jumps.max: state.fall_aerial()
+        else: state.fall()
+
+func JumpCollision():
+    if collision.check_ground_ledge(1 - 2 * int(facing.direction < 0)):
+        state.basic_landing()
+        return
+    if collision.cliff_catch(): return
+
+action AerialJumps:
+    on aerial_jump:
+        let int jump_index = jumps.used - 1
+        if input.x * facing.direction < -0.3: facing.direction = -facing.direction
+        jump.begin(341 + jump_index, input.x * 0.65, jumps.multi_vertical_speed(jump_index), 0, false, false, true)
+    on state_341_animation:
+        JumpAnimation()
+    on state_341_interrupt:
+        controls.aerial_jump_actions()
+    on state_341_physics:
+        NormalAirPhysics()
+    on state_341_collision:
+        JumpCollision()
+    on state_342_animation:
+        JumpAnimation()
+    on state_342_interrupt:
+        controls.aerial_jump_actions()
+    on state_342_physics:
+        NormalAirPhysics()
+    on state_342_collision:
+        JumpCollision()

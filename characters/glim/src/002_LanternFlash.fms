@@ -1,0 +1,56 @@
+func BeginFlash():
+    state.flash_charge = state.reflected_charge
+    state.reflected_charge = 0
+    state.flash_released = false
+    state.flash_damage_applied = false
+    state.enter(NeutralSpecial)
+
+func ChargeFlash():
+    if state.flash_released: return
+    state.flash_charge = state.flash_charge + 1
+    if state.flash_charge > attrs.flash_charge_max: state.flash_charge = attrs.flash_charge_max
+    if frame >= 6:
+        if not input.special_held or state.flash_charge >= attrs.flash_charge_max:
+            state.flash_released = true
+            state.enter_flags(348, 0)
+            animation.start()
+        elif frame >= 8:
+            animation.set_rate(0)
+
+move LanternFlash:
+    on special_n:
+        BeginFlash()
+    on special_air_n:
+        BeginFlash()
+    on ground_animation:
+        ChargeFlash()
+    on air_animation:
+        ChargeFlash()
+    on ground_interrupt:
+        pass
+    on air_interrupt:
+        pass
+    on ground_physics:
+        physics.ground_friction()
+    on air_physics:
+        physics.fall(0.035, 0.8)
+        physics.air_decel(0.015)
+    on ground_collision:
+        if collision.special_ground_lost: state.to_air()
+    on air_collision:
+        if collision.landed: state.to_ground()
+    on state_348_animation:
+        if frame >= 4 and not state.flash_damage_applied:
+            hitbox.set_damage(0, 5 + state.flash_charge * attrs.flash_bonus_per_frame)
+            state.flash_damage_applied = true
+        if animation.finished: FinishMove()
+    on state_348_interrupt:
+        pass
+    on state_348_physics:
+        if airborne: physics.air_drift()
+        else: physics.ground_friction()
+    on state_348_collision:
+        if airborne:
+            if collision.landed: physics.switch_to_ground()
+            else: collision.cliff_catch()
+        elif collision.special_ground_lost: physics.ground_to_air()

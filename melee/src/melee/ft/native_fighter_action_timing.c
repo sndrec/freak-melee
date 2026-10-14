@@ -185,8 +185,10 @@ static bool emit_block(TimingPlan* plan, int parent, unsigned depth)
                              plan->duration_edit);
             }
             if (node->lifetime) {
+                u32 following;
+                if (!HSD_DatReadU32(&plan->dat, node->source + 20, &following)) return false;
                 put_word(plan->code + node->output,
-                         (raw & 0x3ffffff) |
+                         (raw & 0x3ffffff & ~(1u << 19)) | (following & (1u << 19)) |
                              (NATIVE_HITBOX_TIMED_OPCODE << 26));
                 if (!emit_word(plan, node->lifetime)) {
                     return false;
