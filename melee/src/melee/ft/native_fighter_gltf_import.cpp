@@ -15,6 +15,7 @@ extern "C" {
 #include <melee/ft/ftcostume_assets.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mobj.h>
+#include <sysdolphin/baselib/displayfunc.h>
 #include <sysdolphin/baselib/tobj.h>
 #ifdef __cplusplus
 }
@@ -1102,6 +1103,17 @@ bool nativeFighterGltf_Apply(NativeFighterProject* project, const char* path,
         dat.link(dobj + 8, mobj);
         dat.link(dobj + 12, polygon);
         dat.link(joint_slot, dobj);
+        // JObj loading trusts the descriptor's draw-pass bits. A mesh added
+        // to a transform-only joint needs its own opaque pass and the subtree
+        // pass on every ancestor, otherwise display traversal skips it.
+        dat.word(existing.joints[joint].offset + 4,
+                 read32(dat.data.data() + existing.joints[joint].offset + 4) |
+                     JOBJ_OPA);
+        for (int parent = existing.joints[joint].parent; parent >= 0;
+             parent = existing.joints[parent].parent) {
+            const uint32_t flags = existing.joints[parent].offset + 4;
+            dat.word(flags, read32(dat.data.data() + flags) | JOBJ_ROOT_OPA);
+        }
     }
     std::vector<uint8_t> converted;
     if (!dat.finish(&converted) ||

@@ -1,6 +1,7 @@
 """Create Glim from the local ISO and the checked-in authoring sources."""
 
 import argparse
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(ROOT / "melee/tools"))
 from fighter_animation_io import Dat, joints
 from animations import author_animations
 from model import make_art
+from textures import recolor
 
 
 def facts(path):
@@ -119,7 +121,8 @@ def main():
     costume = Dat((project / "costume.dat").read_bytes())
     rig = joints(costume, costume.roots[info["joint"]])
     make_art(output, rig)
-    run("project-model-texture", project, 0, output / "glim_body.png")
+    for material, texture in recolor(costume, output):
+        run("project-model-texture", project, material, texture)
     run("project-model-import", project, output / "halo.glb", 0, 6, "add", 1, "rigid")
     run("project-hitbox-intervals", project)
     run("source-audit", project, project / "behavior.fms")
@@ -134,9 +137,9 @@ def main():
         if target.exists():
             # This exact authoring destination belongs to this recipe; preserve
             # the old draft before replacement so user edits remain recoverable.
-            backup = output / "previous-draft"
-            if backup.exists():
-                raise RuntimeError(f"An earlier draft backup already exists: {backup}")
+            backup = output / (
+                "previous-draft-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+            )
             shutil.copytree(target, backup)
         shutil.copytree(
             project,

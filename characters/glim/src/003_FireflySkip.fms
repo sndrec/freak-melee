@@ -11,7 +11,7 @@ func BeginSkip():
         state.skip_x = facing.direction * attrs.skip_speed
     state.skip_y = input.y * attrs.skip_vertical
     if not airborne: physics.ground_to_air()
-    state.enter(SideSpecial)
+    state.enter(AirSideSpecial)
     velocity.x = 0
     velocity.y = 0.4
 

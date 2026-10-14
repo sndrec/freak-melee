@@ -36,6 +36,8 @@ func NormalAirPhysics():
     physics.air_drift()
 
 func JumpAnimation():
+    # Open normal aerial inputs after the four-frame jump startup.
+    if frame >= 4: command(0) = 1
     if animation.finished:
         if jumps.used >= jumps.max: state.fall_aerial()
         else: state.fall()
@@ -48,6 +50,7 @@ func JumpCollision():
 
 action AerialJumps:
     on aerial_jump:
+        command(0) = 0
         let int jump_index = jumps.used - 1
         if input.x * facing.direction < -0.3: facing.direction = -facing.direction
         jump.begin(341 + jump_index, input.x * 0.65, jumps.multi_vertical_speed(jump_index), 0, false, false, true)

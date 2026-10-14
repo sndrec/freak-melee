@@ -3,7 +3,8 @@ func BeginFlash():
     state.reflected_charge = 0
     state.flash_released = false
     state.flash_damage_applied = false
-    state.enter(NeutralSpecial)
+    if airborne: state.enter(AirNeutralSpecial)
+    else: state.enter(NeutralSpecial)
 
 func ChargeFlash():
     if state.flash_released: return
@@ -14,8 +15,16 @@ func ChargeFlash():
             state.flash_released = true
             state.enter_flags(348, 0)
             animation.start()
+            callbacks.accessory(ApplyFlashDamage)
         elif frame >= 8:
             animation.set_rate(0)
+
+func ApplyFlashDamage():
+    # Accessory callbacks run after the subactions create the burst, before
+    # collision. Changing damage in the animation callback would be late.
+    if hitbox.state(0) == Hitbox.enabled and not state.flash_damage_applied:
+        hitbox.set_damage(0, 5 + state.flash_charge * attrs.flash_bonus_per_frame)
+        state.flash_damage_applied = true
 
 move LanternFlash:
     on special_n:
@@ -40,9 +49,6 @@ move LanternFlash:
     on air_collision:
         if collision.landed: state.to_ground()
     on state_348_animation:
-        if frame >= 4 and not state.flash_damage_applied:
-            hitbox.set_damage(0, 5 + state.flash_charge * attrs.flash_bonus_per_frame)
-            state.flash_damage_applied = true
         if animation.finished: FinishMove()
     on state_348_interrupt:
         pass
