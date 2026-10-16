@@ -18,8 +18,8 @@ their own builds; their old "remaining" lists are not the current backlog.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;
   do not continue performance experiments without a new request.
-- Next focus: design the in-game social hub, personal roster and fighter-sharing
-  flow with an interactive mockup before native UI implementation. Follow the
+- Next focus: design the in-game social hub, Quick Play, personal roster and
+  fighter-sharing flow with an interactive mockup before native UI implementation. Follow the
   [social hub design](melee/docs/native_social_hub_design.md). Workshop
   dogfooding continues when the user is ready. This document does not change
   the app's goal control.
@@ -68,7 +68,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub, first-run personal roster, local-first CSS cards, persistent accounts/friends, global and room chats, email-style inbox, room invitations and fighter delivery. Start with mockup review; later physical multi-PC testing. |
+| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub and Lobbies, first-run personal roster, local-first CSS cards, persistent accounts/friends, global and lobby chats, email-style inbox, lobby invitations, same-lobby fighter sharing and fixed-rule 1v1/2v2 Quick Play. Start with mockup review; later physical multi-PC testing. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence
@@ -257,8 +257,8 @@ identities, not grid positions. The WYSIWYG CSS edits real portrait joints in
 place; wider left tools temporarily hide the right rail and move the 4:3 canvas.
 
 The planned first launch offers a starter clone for an empty personal roster.
-The social hub leads to rooms and character selection. START in CSS enters local
-grid practice for up to four players, with a separate Sandbag. The normal
+The social hub leads to Lobbies, Quick Play and character selection. START in CSS
+enters local grid practice for up to four players, with a separate Sandbag. The normal
 pause/exit chord returns to character select; ordinary B remains Special.
 Local match and online room flows use the locked practice characters. Once
 assigned fighters are ready, the host's Start match control opens stage select;
@@ -270,12 +270,27 @@ friendly winner/loser rotation policies. Up to four active fighters, extra room
 members spectate. Active-player disconnect aborts the match to the lobby.
 Global chat spans everyone with the client open, independently of room presence.
 Room chat has its own conversation. Private messages are email-style letters
-in the inbox, available to any recipient, with optional fighter attachments.
-Friends can send room invitations. The contextual player list is visible only
+in the inbox, available to any recipient. Fighter sharing has its own confirmation
+and requires both players to be in the same lobby. Place the CSS selection cookie,
+then carry a fighter tile to another player's card, or use Roster's Send fighter
+command. Accepted fighters join the roster; match downloads remain cached.
+Friends can send lobby invitations. The contextual player list is visible only
 with global or room chat; Friends has its own menu.
 The planned hub replaces the default sidebars. Chat and room controls remain
 accessible during play; Workshop, Options and management retain dedicated space.
 All simple menus support controller navigation, with keyboard input for typing.
+
+Quick Play has 1v1 and 2v2 queues. Doubles accepts solos and premade pairs on
+one PC or separate PCs. Both modes use four stocks, six minutes, no items, and
+all six stages: Battlefield, Final Destination, Fountain of Dreams, Dream Land,
+Pokémon Stadium and Yoshi's Story. The first stage is random; the losing side
+picks subsequent stages. Opponents stay together until someone leaves. These
+queues, fixed rules and rematch flow are planned service/client work; the
+interactive mockup currently uses local sample opponents.
+
+CSS tile labels use the supplied angular glyph set, fill the name bar vertically
+and compress horizontally. Ganondorf remains on one line. Truly long names can
+use taller multiline bars. Roster icons stay compact.
 
 Connectivity is direct-first ICE with signaling and a relay when NAT requires
 it. Avoid requiring port forwarding. Losing signaling must not terminate an
