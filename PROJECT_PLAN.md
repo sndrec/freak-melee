@@ -68,7 +68,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub, first-run personal roster, local-first CSS cards, persistent account/friends/DMs, offline inbox and fighter delivery. Start with mockup review; later physical multi-PC testing. |
+| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub, first-run personal roster, local-first CSS cards, persistent accounts/friends, global and room chats, email-style inbox, room invitations and fighter delivery. Start with mockup review; later physical multi-PC testing. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence
@@ -269,6 +269,10 @@ can change their choice again. Teams/FFA assignments are manual. 1v1 supports
 friendly winner/loser rotation policies. Up to four active fighters, extra room
 members spectate. Active-player disconnect aborts the match to the lobby.
 Global chat spans everyone with the client open, independently of room presence.
+Room chat has its own conversation. Private messages are email-style letters
+in the inbox, available to any recipient, with optional fighter attachments.
+Friends can send room invitations. The contextual player list is visible only
+with global or room chat; Friends has its own menu.
 The planned hub replaces the default sidebars. Chat and room controls remain
 accessible during play; Workshop, Options and management retain dedicated space.
 All simple menus support controller navigation, with keyboard input for typing.
