@@ -20,7 +20,8 @@ their own builds; their old "remaining" lists are not the current backlog.
   do not continue performance experiments without a new request.
 - Next focus: design the in-game social hub, Quick Play, personal roster and
   fighter-sharing flow with an interactive mockup before native UI implementation. Follow the
-  [social hub design](melee/docs/native_social_hub_design.md). Workshop
+  [social hub design](melee/docs/native_social_hub_design.md), including the
+  mode → CSS → ready practice → countdown flow. Workshop
   dogfooding continues when the user is ready. This document does not change
   the app's goal control.
 - Ordinary scripts run in the native interpreter. Generated C is confined to
@@ -278,10 +279,20 @@ Friends can send lobby invitations. The contextual player list is visible only
 with global or room chat; Friends has its own menu.
 The planned hub replaces the default sidebars. Chat and room controls remain
 accessible during play; Workshop, Options and management retain dedicated space.
-All simple menus support controller navigation, with keyboard input for typing.
+All simple menus use the Melee hand for controller and optional mouse navigation,
+with keyboard input for typing. The detailed Workshop editors keep their editing
+controls. Workshop and Settings are full-size main-menu destinations. Workshop
+prominently offers fighter editing, cloning and importing. Player lists are
+compact, and player names open full profile pages with editable bios and rotating
+menu transitions.
 
 Quick Play has 1v1 and 2v2 queues. Doubles accepts solos and premade pairs on
-one PC or separate PCs. Both modes use four stocks, six minutes, no items, and
+one PC or separate PCs. The landing page shows only the two mode choices;
+choosing one goes straight to CSS. Show occupied/open participant cards and a
+separate Enter queue command. START can ready a chosen fighter into practice
+before or after queueing. Once every required player is connected and ready,
+run a three-second countdown; B unreadies and cancels it. Both modes use four
+stocks, six minutes, no items, and
 all six stages: Battlefield, Final Destination, Fountain of Dreams, Dream Land,
 Pokémon Stadium and Yoshi's Story. The first stage is random; the losing side
 picks subsequent stages. Opponents stay together until someone leaves. These
@@ -291,6 +302,12 @@ interactive mockup currently uses local sample opponents.
 CSS tile labels use the supplied angular glyph set, fill the name bar vertically
 and compress horizontally. Ganondorf remains on one line. Truly long names can
 use taller multiline bars. Roster icons stay compact.
+
+Correct the reported native GameCube-adapter stick response after a hardware
+capture. The source audit found an extra 8000-unit deadzone and SDL-to-PAD scaling
+to 127 before Melee's 80-unit clamp. Follow the input audit in the social hub
+design; the browser mockup's hand response is a separate path. The selection
+cookie should be placeable anywhere in CSS.
 
 Connectivity is direct-first ICE with signaling and a relay when NAT requires
 it. Avoid requiring port forwarding. Losing signaling must not terminate an
