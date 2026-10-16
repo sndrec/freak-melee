@@ -24,7 +24,7 @@ Preserve paired-fighter editing and packaging for Zelda/Sheik and Ice Climbers.
 Use the old StarCraft Battle.net interface as a reference for the arrangement:
 navigation on the left, conversation or selected content in the center, and
 players in the current chatroom on the right. Show that player list only with
-global or room chat. Friends, Inbox, Roster and character select use the full
+global or room chat. Friends, Inbox, Workshop and character select use the full
 remaining area for their own content.
 
 Use Melee's regular main, VS and Options menus as direct visual references,
@@ -59,11 +59,16 @@ Primary destinations:
 - Friends: presence, room invitations and access to writing letters.
 - Inbox: letters, friend requests and lobby invitations, including those
   received while offline.
-- My roster: installed fighters and access to character select and layout editing.
+- Workshop: installed fighters, cloning, importing, and a prominent Edit fighter
+  action. Keep editing visible as a central part of the client.
+- Settings: a full-size main-menu destination for controls, audio, video and profile.
 
-The hub replaces the default sidebars. Workshop and Settings continue to open
-their dedicated, larger interfaces. Chat and room controls remain accessible
-during gameplay; review that presentation separately from the hub layout.
+The hub replaces the default sidebars. The Workshop landing page presents the
+personal roster and authoring commands. Its Edit fighter action opens the
+existing detailed editor. Simple Settings pages use the game's menu presentation;
+advanced authoring workspaces keep their dedicated interfaces. Chat and room
+controls remain accessible during gameplay; review that presentation separately
+from the hub layout.
 
 Implement the new simple menus through the game renderer, with appropriate
 fonts and graphics. Keep the existing 4:3 gameplay projection.
@@ -72,8 +77,18 @@ fonts and graphics. Keep the existing 4:3 gameplay projection.
 
 Global chat and room chat are separate shared conversations. Their player lists
 show everyone in the relevant chatroom, including people outside the friends
-list and spectators. Selecting a player gives access to writing a letter,
-adding a friend or inviting an existing friend to a lobby.
+list and spectators. Keep player rows compact; the revised mockup uses 29-pixel
+rows at its desktop size. Selecting a player opens a full profile page with a
+player-written bio, presence, writing a letter, adding a friend and inviting an
+existing friend to a lobby. The signed-in player can edit their own bio.
+
+Change pages with the rotating transition used by Melee's menus: outgoing
+controls move off one side while incoming controls enter from the opposite
+side. The original implementation in `mnmain.c` plays separate enter/exit joint
+animations. Its four transition ranges are frames 320–339, 340–359, 360–379 and
+380–399. The browser study approximates the motion over a third of a second;
+native implementation should reuse the authored animation system. Honor reduced
+motion preferences in the mockup.
 
 Private correspondence uses email-style letters in the inbox. Each letter has
 a sender, recipient, subject and body. Fighter transfers have their own flow
@@ -91,10 +106,15 @@ sample data; the old Discord excerpt's chess!! is a different participant.
 
 ## Controller navigation
 
-Every screen and ordinary action must be usable with a controller. Use clear
-selection feedback and consistent Confirm/Back actions. The CSS hand can serve
-as a pointer where that suits the original menu. Keep the selected control
-visible when changing screens or opening a dialog.
+Use the Melee hand as a pointer throughout the simple hub menus. The stick moves
+the hand continuously; A activates the control underneath it and B goes back.
+Keep hover feedback visible. The mouse can use the same hand cursor, with an
+option in Settings. Text fields retain ordinary text entry. Detailed Workshop
+editors keep their mouse and keyboard editing controls.
+
+The hand's analog movement should use the original CSS response, with one input
+normalization step. Account for elapsed time in the browser prototype. The native
+input range/deadzone issue is recorded in the input audit below.
 
 Portrait delivery supports picking up a tile, choosing a recipient and
 confirming delivery with a controller. Mouse dragging performs the same action.
@@ -124,6 +144,11 @@ original-layout reference and a lobby sharing version. Keep the portrait grid
 and card arrangement as the baseline. A 1v1 lobby has two participant cards;
 2v2 has four. Local practice shows its participating local seats.
 
+The selection cookie can be placed anywhere in the viewport. Placing it over a
+fighter chooses that fighter. Placing it elsewhere preserves the selected
+fighter, if any. An empty hand can pick the cookie back up or carry a fighter
+tile for sharing. Readying requires a chosen fighter.
+
 Selecting a fighter and entering practice marks the player ready. The host's
 Start match command leads to stage select with the chosen fighters locked in,
 then the match. Preserve the existing practice room and match-exit flow.
@@ -133,14 +158,14 @@ then the match. Preserve the existing practice room and match-exit flow.
 Fighter transfers require both players to be in the same lobby. Place the CSS
 selection cookie first; with an empty hand, pick up a fighter tile and carry or
 drag it onto another player's card. Show the fighter and recipient in a dedicated
-Send fighter confirmation. The Roster's Send fighter button opens this same
+Send fighter confirmation. The Workshop landing page's Send fighter button opens this same
 confirmation and lists eligible lobby members, including spectators.
 
 Letters carry correspondence. Fighter transfers carry a selected fighter package.
 Received fighters appear as deliveries with an Accept fighter action. Accepting
 installs the fighter and adds it to the roster. The received fighter can be opened
 as an editable copy through the Workshop's draft workflow. The current mockup
-places received-fighter acceptance in Roster; review its presentation with the
+places received-fighter acceptance in Workshop; review its presentation with the
 user before native implementation.
 
 Associate a delivery with the exact package revision sent. The recipient keeps
@@ -170,8 +195,27 @@ Quick Play has separate 1v1 and 2v2 queues. Doubles accepts solo players and
 premade pairs. A pair can use two local seats on one PC or friends on separate
 PCs. Keep premade teammates on the same team. Pair solo players automatically.
 
-Both queues use four stocks, a six-minute timer and items off. Quick Play rules
-are fixed. Both modes use all six stages: Battlefield, Final Destination,
+The Quick Play landing page shows just the 1v1 and 2v2 choices. Choosing one
+opens character select immediately. Its bottom cards show the local player and
+one other slot for singles, or three other slots for doubles. Open slots have a
+distinct waiting/searching appearance. Occupied cards show the human player,
+connection status and readiness.
+
+Queue admission and readiness are independent. Enter queue begins searching;
+cancel stops the search. A player can choose a fighter and press START to ready
+before joining the queue. Readying enters the practice room while waiting. Keep
+queue controls and connection/readiness status accessible from practice.
+
+When all required players have connected and are ready, begin a three-second
+countdown. B unreadies the local player and cancels that countdown. A disconnect,
+roster change, unready or loss of required content also cancels it. Ordinary B
+outside the countdown remains the fighter's Special button in practice; retain
+the normal pause/exit flow back to CSS. Start the match flow only after the
+countdown completes with every condition still satisfied.
+
+Both queues use four stocks, a six-minute timer and items off. Enforce these
+rules without filling the landing page with rule text. Both modes use all six
+stages: Battlefield, Final Destination,
 Fountain of Dreams, Dream Land, Pokémon Stadium and Yoshi's Story.
 
 Choose the first stage randomly. After each game, the losing side chooses the
@@ -187,9 +231,36 @@ content downloads remain cached until explicitly accepted into the roster.
 
 Local acceptance covers solo/pair queue assembly, cancellation, connection
 failure, all six stages in both modes, first-stage selection, loser picks,
-rematches, and leaving/requeueing with a premade teammate. Physical multi-PC
+readiness before/after queueing, countdown cancellation, rematches, and
+leaving/requeueing with a premade teammate. Physical multi-PC
 testing remains a later user pass. The mockup's search results use local sample
 participants; a matchmaking service is still to be implemented.
+
+## Native stick input audit
+
+The user reported imprecise hand movement in the actual native game using a
+GameCube controller and USB adapter. This is separate from the browser mockup.
+The audit found the following source-level mismatches:
+
+- Aurora's default controller deadzone and the default native profile both use
+  8000 in SDL's 32767-unit range, removing roughly the first quarter of each axis.
+- `aurora/lib/dolphin/pad/pad.cpp` divides SDL stick values by 256, producing a
+  nominal 127-unit range. Remapped axes in `native_profile_input.c` do the same.
+  Melee's `gmmain.c` configures an 80-unit clamp and scale, so this path can
+  saturate well before full stick travel.
+- [The SDL 3.4.10 GameCube driver](https://github.com/libsdl-org/SDL/blob/release-3.4.10/src/joystick/hidapi/SDL_hidapi_gamecube.c)
+  maps an initial raw range of 128 ± 88 to signed 16-bit values and expands its
+  observed limits. Conversion must account for that driver behavior.
+- The original CSS uses a radial threshold of squared magnitude 200, followed
+  by a squared-magnitude response and a 0.0002 position multiplier. Preserve
+  that menu response after correcting the input conversion.
+
+The native correction remains to be implemented and checked with the actual
+controller. Capture center, small deflections, cardinal extremes and diagonals;
+then normalize once, remove unintended extra filtering, and apply the same
+conversion to default and remapped axes. Preserve explicit user calibration and
+the original gameplay's thresholds. The browser response change does not fix
+the native game.
 
 ## Mockup and implementation order
 
