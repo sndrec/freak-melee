@@ -1,6 +1,6 @@
 # Freak Melee documentation
 
-Updated: 2026-10-13. Start with the current guides below. Dated checkpoint and
+Updated: 2026-10-15. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
 sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
 owns priorities and remaining acceptance. Optimization is currently deferred.
@@ -21,6 +21,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Production rollback | [Current architecture](native_rollback_current.md), [confirmed-checkpoint policy](native_confirmed_checkpoint_plan.md) |
 | Home/practice and controls | [Home flow](native_home_flow.md), [profile UI](native_profiles_ui.md) |
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
+| Planned social interface | [Social hub, roster and offline inbox](native_social_hub_design.md) |
 | Prepare a friend build | [Release guide](native_release.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |
 

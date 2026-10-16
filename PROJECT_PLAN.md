@@ -1,6 +1,6 @@
 # Freak Melee: current project plan
 
-Updated: 2026-10-13. This is the current product contract and work list.
+Updated: 2026-10-15. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
@@ -10,16 +10,19 @@ their own builds; their old "remaining" lists are not the current backlog.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
-  the UI checks, fixed bugs and remaining gaps. Pause for the user's next pass.
+  the UI checks, fixed bugs and remaining gaps. The follow-up authoring controls
+  are ready for the user's next dogfooding pass.
   The user authorizes regular commits and pushes to the private `sndrec/freak-melee`
   repository for this work. Keep disc-derived assets and generated packages local.
 - Continue the native client and character-authoring platform.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;
   do not continue performance experiments without a new request.
-- Next implementation focus: the missing Model workspace capabilities, then
-  Workshop dogfooding with the user. Content/release integration can proceed
-  separately. This document does not change the app's goal control.
+- Next focus: design the in-game social hub, personal roster and fighter-sharing
+  flow with an interactive mockup before native UI implementation. Follow the
+  [social hub design](melee/docs/native_social_hub_design.md). Workshop
+  dogfooding continues when the user is ready. This document does not change
+  the app's goal control.
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
 - Work that requires other physical PCs is deferred to the user's testing.
@@ -43,8 +46,10 @@ uninitialized Cyclone charge and Ness's lingering yo-yo hitbox. Behavioral
 parity is acceptable where forcing original private state or RNG would require
 awkward hacks; deterministic agreement between native clients remains required.
 
-Keep the game projection 4:3. Extra window width belongs to native sidebars;
-it must not alter gameplay visibility, blast zones or magnifying-glass damage.
+Keep the game projection 4:3. The planned in-game social hub replaces the
+default native sidebars. Keep chat and room controls accessible during play;
+their presentation is part of the upcoming mockup review. Window layout must
+not alter gameplay visibility, blast zones or magnifying-glass damage.
 Trust Aurora as the rendering foundation. Inspect changed UI and obvious
 discrepancies; do not require exhaustive pixel comparison of unchanged scenes.
 
@@ -63,7 +68,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | Recheck integrated flows with current interpreted packages; later physical multi-PC testing. |
+| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub, first-run personal roster, local-first CSS cards, persistent account/friends/DMs, offline inbox and fighter delivery. Start with mockup review; later physical multi-PC testing. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence
@@ -251,18 +256,22 @@ installed content and everyone sees that chosen costume. Exchange stable package
 identities, not grid positions. The WYSIWYG CSS edits real portrait joints in
 place; wider left tools temporarily hide the right rail and move the 4:3 canvas.
 
-Home boots to the simplified CSS. START enters local grid practice for up to
-four players, with a separate Sandbag. The normal pause/exit chord returns to
-home; ordinary B remains Special. Local match and online room flows use the
-locked practice characters. Once assigned fighters are ready, the host's
-sidebar Start match button opens stage select; no automatic start or second CSS.
+The planned first launch offers a starter clone for an empty personal roster.
+The social hub leads to rooms and character selection. START in CSS enters local
+grid practice for up to four players, with a separate Sandbag. The normal
+pause/exit chord returns to character select; ordinary B remains Special.
+Local match and online room flows use the locked practice characters. Once
+assigned fighters are ready, the host's Start match control opens stage select;
+no automatic start or second CSS. Preserve the current home flow during design.
 
 Players choose fighting/waiting/spectating and the host can override; players
 can change their choice again. Teams/FFA assignments are manual. 1v1 supports
 friendly winner/loser rotation policies. Up to four active fighters, extra room
 members spectate. Active-player disconnect aborts the match to the lobby.
 Global chat spans everyone with the client open, independently of room presence.
-Sidebars hold immediately useful information; Options/management get full space.
+The planned hub replaces the default sidebars. Chat and room controls remain
+accessible during play; Workshop, Options and management retain dedicated space.
+All simple menus support controller navigation, with keyboard input for typing.
 
 Connectivity is direct-first ICE with signaling and a relay when NAT requires
 it. Avoid requiring port forwarding. Losing signaling must not terminate an
