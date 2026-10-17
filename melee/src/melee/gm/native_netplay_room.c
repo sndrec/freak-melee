@@ -330,6 +330,7 @@ bool nativeNetplayRoom_PumpLobby(NativeNetplayRoom* room)
         !nativeNetplayConnection_Pump(&room->connection)) {
         return false;
     }
+    if (room->connection.quick.state == NativeQuickState_Aborted) return true;
     if (!room->match_configured) {
         // Old input packets can arrive after a match ends. Lobby delivery
         // owns separate queues, so retire those packets here before reuse.

@@ -26,7 +26,8 @@ namespace {
         Start,
         Selection,
         Accept,
-        Decline
+        Decline,
+        Queue
     };
     struct Button {
         const char* id;
@@ -75,6 +76,12 @@ namespace {
         case Action::Start:
             nativeHome_RequestStartMatch();
             break;
+        case Action::Queue: {
+            const auto* quick = nativeOnlineSession_Quick();
+            if (quick && !nativeOnlineSession_SearchQuick(quick->state == NativeQuickState_Idle))
+                nativeHub_Notice("Could not change the Quick Play search.");
+            break;
+        }
         case Action::Selection:
             nativeHome_ReturnToSelection();
             break;
@@ -154,15 +161,24 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     if (!(selection || practice)) {
         return;
     }
+    const auto* quick = nativeOnlineSession_Quick();
+    bool searching = quick && quick->state == NativeQuickState_Searching;
+    bool assigned = quick && quick->state == NativeQuickState_Assigned;
+    const char* queue_label = assigned || (quick && quick->state == NativeQuickState_Aborted)
+        ? "Leave match" : searching ? "Cancel search" : "Enter queue";
+    bool can_queue = quick && nativeOnlineSession_State() == NativeLobbySessionState_Waiting &&
+        (assigned || nativeOnlineSession_IsOwner());
     if (selection) {
         add("play-ready", "Ready / START", 35, 207, 118, 27, Action::Ready,
             nativeCssInteraction_CanReady(), true);
         add("play-workshop", "Workshop", 419, 451, 113, 22, Action::Workshop);
         add("play-lobby", "Back", 542, 451, 83, 22, Action::Lobby);
+        if (quick) add("play-queue", queue_label, 163, 207, 128, 27, Action::Queue, can_queue, !searching);
     } else {
         add("play-lobby", "Lobby", 13, 10, 88, 22, Action::Lobby);
-        add("play-start", "Start match", 109, 10, 104, 22, Action::Start,
-            nativeHome_CanStartMatch(), true);
+        if (quick) add("play-queue", queue_label, 109, 10, 104, 22, Action::Queue, can_queue, !searching);
+        else add("play-start", "Start match", 109, 10, 104, 22, Action::Start,
+                 nativeHome_CanStartMatch(), true);
         add("play-selection", "Character select", 507, 10, 119, 22,
             Action::Selection);
     }
@@ -177,6 +193,13 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         status = nativeHome_CanStartMatch()      ? "Everyone ready"
                  : nativeOnlineSession_IsOwner() ? "Waiting for ready players"
                                                  : "Waiting for the host";
+    }
+    if (quick && state == NativeLobbySessionState_Waiting) {
+        status = assigned ? "Match found. Connecting players..."
+                 : searching ? "Searching for players..."
+                 : quick->state == NativeQuickState_Aborted ? "Match cancelled. Leave to search again."
+                 : "START to practice. Enter queue when ready to search.";
+        if (*nativeOnlineSession_QuickError()) status = nativeOnlineSession_QuickError();
     }
     const char* code = nativeOnlineSession_RoomCode();
     if (code && *code) {
@@ -322,6 +345,12 @@ extern "C" bool nativePlayMenu_Inspect(const char* id)
                      id, (size.x - 640 * scale) * .5f + u * 640 * scale,
                      (size.y - 480 * scale) * .5f + v * 480 * scale,
                      (r - u) * 640 * scale, (t - v) * 480 * scale, b.enabled);
+        if (const auto* quick = nativeOnlineSession_Quick()) {
+            std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s\n",
+                quick->mode, quick->state, (unsigned long long) quick->generation,
+                quick->team, quick->stage, nativeOnlineSession_RoomCode(),
+                nativeOnlineSession_LocalPeerId());
+        }
         return true;
     }
     return false;

@@ -42,6 +42,9 @@ typedef struct NativeNetplayConnection {
     NativeSignalingClient signaling;
     NativeRoomChat chat;
     NativeSignalingPresence presence;
+    NativeQuickAssignment quick;
+    char quick_error[129];
+    uint32_t quick_revision;
     NativeNetplayConnectionPeer
         peers[NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS];
     NativeNetplayContentChannels content;

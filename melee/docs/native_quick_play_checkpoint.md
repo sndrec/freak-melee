@@ -1,4 +1,4 @@
-# Quick Play service foundation
+# Native Quick Play queue and service foundation
 
 Updated: 2026-10-17. Tested locally; the new service class is not deployed.
 
@@ -8,10 +8,33 @@ can occupy two seats on one PC or use one seat on each of two PCs. Teammates
 remain together. Readiness and fighter selection are independent of searching;
 queue admission does not require either.
 
-The native Quick Play controls, three-second ready countdown, fixed-rule match
-construction, loser stage picks and rematches remain open. The native menu still
-reports Quick Play as unavailable. This checkpoint proves allocation and party
-handoff behavior, rather than a playable native Quick Play match.
+The native mode buttons now open CSS. Enter queue and Cancel search work from
+CSS and practice. START locks the local choices and enters practice independently
+of searching. CSS shows two or four cards, filling open seats with grey waiting
+cards. The assigned room keeps each PC's peer identity, local controller slots,
+fighter choices and readiness. Leaving an assignment returns the clients to their
+parties, where they can search again.
+
+The three-second ready countdown, fixed-rule match construction, loser stage
+picks and rematches remain open. These checks establish native queueing and
+handoff. They do not establish a playable Quick Play match.
+
+## Native session
+
+`native_online_session.c` owns the party code, assigned-room transition and
+ten-second search heartbeat. Each new room connection copies the existing peer
+identity and adds its private admission token. Room shutdown releases its ICE
+and content jobs before the new connection starts. Practice and CSS choices live
+outside that connection and publish again when the assigned room is ready.
+
+The native decoder handles the Quick Play state and rejection messages. Rejections
+are shown as queue errors. An explicit allocation cancellation returns to the
+party; ordinary signaling loss retains the established gameplay policy. The
+native build identity is `freak-melee-native-dev-quick`.
+
+For local service checks, `FREAK_MELEE_SERVICE_ENDPOINT` overrides the native
+room-service origin. Without it, the client uses the configured hosted origin.
+The new service class remains undeployed while match-start work is incomplete.
 
 ## State ownership
 
@@ -25,7 +48,7 @@ after replacement cannot cancel the new connection's search.
 `QuickPlayQueue` is a Durable Object per mode and build. Its SQLite tables own
 queue order, thirty-second search leases, duplicate-peer protection, cancelled
 search generations and pending allocations. Heartbeats renew an existing search
-without resetting its queue position. The client will send them every ten
+without resetting its queue position. The native client sends them every ten
 seconds while searching. A late request from a cancelled generation is rejected.
 
 The coordinator reserves whole parties in one synchronous storage transaction.
@@ -84,10 +107,8 @@ or preparing, 2 assigned, or 3 aborted. Assignment data is private to each PC's
 socket. Server type `0x8a` sends a string8 rejection reason. These rejections
 leave ordinary room signaling connected.
 
-The native decoder and session integration must add these types together. A
-Quick Play session will keep its peer identity across the party-to-match-room
-handoff and pass its admission token in the new room connection. The existing
-signaling transport and gameplay ICE setup can then serve the assigned room.
+The native decoder and session use those same types. The existing signaling
+transport and gameplay ICE setup serve the assigned room.
 
 ## Verification
 
@@ -98,6 +119,22 @@ two PCs, independent admission tokens, build separation, duplicate searches,
 leader authority, malformed commands, capacity checks, cancellation/requeueing,
 connection replacement, lease expiry and service hibernation. A persisted
 committed-allocation fixture verifies recovery after one party has handed off.
+
+`review_native_quick_play.py` now exercises the real native clients against a
+local Worker. The runs use hidden, muted clients and isolated fixture profiles.
+The singles run readies one player into practice before entering the queue.
+The doubles run connects two virtual controllers per PC, selects both local
+fighters, and readies one pair into practice. Both verify the search heartbeat,
+assigned-room handoff, unchanged peer identities, local-first cards, preserved
+choices and readiness, cancellation, requeueing and immediate cancellation of
+the second assignment. The doubles check also verifies the second local seat
+still maps to physical controller port 1.
+
+Final evidence is in `.local/native-quick-singles-final` and
+`.local/native-quick-doubles-final`. Their PNGs were reviewed. The native build
+and six focused CTest checks pass. The ordinary connection probe still carries
+validated rollback input after signaling closes. The content-channel probe
+still passes its four-player plus waiting/spectating recipient scenario.
 
 The existing signaling and global/lobby chat suites also pass. The empty-room
 chat check now waits for the close event's actual SQL result; an unrelated RPC

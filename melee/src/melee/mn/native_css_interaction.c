@@ -3,6 +3,7 @@
 #include "native_css_cards.h"
 #include "mncharsel.h"
 #include <melee/gm/native_home.h>
+#include <melee/gm/native_online_session.h>
 #include <melee/ui/native_hub.h>
 #include <melee/ui/native_play_menu.h>
 #include <melee/gm/native_stock_content.h>
@@ -184,6 +185,8 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
             nativeCssInteraction_Random(port);
         }
     }
+    if (nativeOnlineSession_Quick())
+        nativeCssInteraction_SetLocalPlayers(nativeOnlineSession_LocalPlayers());
 }
 void nativeCssInteraction_End(void)
 {
@@ -451,6 +454,38 @@ void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint)
     HSD_JObjSetTranslate(joint, &position);
     HSD_JObjAnimAll(joint);
 }
+bool nativeCssInteraction_SetLocalPlayers(unsigned count)
+{
+    if (!selection.css || count < 1 || count > 4) return false;
+    unsigned keep = 0;
+    for (unsigned port = 0; port < 4 && count; ++port) {
+        if (selection.css->vs.start.players[port].slot_type == Gm_PKind_Human) {
+            keep |= 1U << port;
+            --count;
+        }
+    }
+    for (unsigned port = 0; port < 4 && count; ++port) {
+        if (!(keep & (1U << port))) { keep |= 1U << port; --count; }
+    }
+    for (unsigned port = 0; port < 4; ++port) {
+        uint8_t kind = keep & (1U << port) ? Gm_PKind_Human : Gm_PKind_NA;
+        if (selection.doors->doors[port].p_kind == kind) continue;
+        selection.css->vs.start.players[port].slot_type = kind;
+        selection.doors->doors[port].p_kind = kind;
+        if (kind == Gm_PKind_Human && !chosen(port)) {
+            selection.hands[port]->x5 = 1;
+            selection.hands[port]->x6 = port;
+            selection.cookies[port]->x5 = port + 1;
+        }
+        if (kind == Gm_PKind_NA) {
+            selection.carrying[port] = false;
+            nativeCssCards_Carry(port, NULL, 0, 0);
+        }
+        mnCharSel_8025DB34(port);
+    }
+    return true;
+}
+
 bool nativeCssInteraction_CanReady(void)
 {
     if (!selection.css) {

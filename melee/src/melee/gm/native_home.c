@@ -1460,6 +1460,7 @@ bool nativeHome_LocalRosterMatchesRoom(void)
 
 bool nativeHome_CanStartMatch(void)
 {
+    if (nativeOnlineSession_Quick()) return false;
     if (home.authoring || home.preview_active ||
         !nativeHome_IsPractice() || home.enter_stage_select) {
         return false;
@@ -1558,6 +1559,18 @@ void nativeHome_EnterSelection(CSSData* css)
 
 bool nativeHome_LockSelection(CSSData* css)
 {
+    if (nativeOnlineSession_Quick()) {
+        unsigned humans = 0;
+        for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
+            unsigned kind = css->vs.start.players[port].slot_type;
+            if (kind == Gm_PKind_Human) ++humans;
+            else if (kind != Gm_PKind_NA) return false;
+        }
+        if (humans != nativeOnlineSession_LocalPlayers()) {
+            nativeHub_Notice("Use the local player slots chosen for Quick Play.");
+            return false;
+        }
+    }
     memcpy(home.local_players, css->vs.start.players, sizeof(home.local_players));
     for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
         if (home.local_players[port].slot_type == Gm_PKind_NA) {
@@ -1791,6 +1804,7 @@ void nativeHome_Tick(void)
         !nativeHome_IsPractice() || home.enter_stage_select) {
         return;
     }
+    if (nativeOnlineSession_Quick()) return;
     if (nativeOnlineSession_State() == NativeLobbySessionState_Disconnected) {
         home.enter_stage_select = home.start_requested;
     } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {

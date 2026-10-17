@@ -719,6 +719,12 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::Join:
     case HubAction::Leave:
     case HubAction::StartMatch: {
+        if (action == HubAction::StartMatch && nativeOnlineSession_Quick()) {
+            const auto* quick = nativeOnlineSession_Quick();
+            if (!nativeOnlineSession_SearchQuick(quick->state == NativeQuickState_Idle))
+                nativeHub_Notice("Could not change the Quick Play search.");
+            break;
+        }
         auto intent =
             action == HubAction::Create  ? NativeOnlineMenuAction_Create
             : action == HubAction::Join  ? NativeOnlineMenuAction_Join
@@ -857,10 +863,22 @@ void nativeHub_Activate(HubAction action, int value)
         nativeOnlineSession_DeclineGift();
         break;
     case HubAction::Singles:
-    case HubAction::Doubles:
-        nativeHub_Notice("Quick Play needs the matchmaking service. You can "
-                         "play through Lobbies now.");
+    case HubAction::Doubles: {
+        unsigned mode = action == HubAction::Singles ? NativeQuickMode_Singles
+                                                     : NativeQuickMode_Doubles;
+        unsigned players = std::clamp(unsigned(hub.local_players), 1U, mode);
+        if (nativeHome_IsPractice() && !nativeHome_ReturnToSelection()) break;
+        if (!nativeOnlineSession_EnterQuick(mode, hub.public_name, players)) {
+            nativeHub_Notice("Could not open Quick Play.");
+            break;
+        }
+        nativeCssInteraction_SetLocalPlayers(players);
+        nativeHub_Notice("");
+        hub.dismissed = true;
+        hub.visible = false;
+        text_focus(nullptr, 0);
         break;
+    }
     case HubAction::PeopleScroll:
         if (hub.page == NativeHubPage_RoomChat) {
             const auto* presence = nativeOnlineSession_Presence();

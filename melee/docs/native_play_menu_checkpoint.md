@@ -95,12 +95,13 @@ The focused run in `.local/native-play-menu-costume-escape` verifies the empty
 costume selector's instruction text and Escape returning to native Settings.
 
 These local checks do not establish hardware GameCube-adapter feel, physical
-multi-PC delivery, Quick Play, or the final authored transitions.
+multi-PC delivery or the final authored transitions. Native Quick Play queue
+checks are recorded in [its checkpoint](native_quick_play_checkpoint.md).
 
 ## Remaining integration
 
-Quick Play still needs queue admission, open/searching cards, ready-practice
-queue controls, the three-second countdown, stage selection and rematches.
-Remote portrait preparation before readying, lobby chat and authored menu
-transitions remain open. Account sign-in and offline inbox decisions remain
-deferred for the user.
+Quick Play still needs the three-second countdown, fixed-rule match launch,
+stage selection, rematches and service deployment. Remote portrait preparation
+and lobby chat have their own completed local checks. Authored menu transitions
+remain open. Account sign-in and offline inbox decisions remain deferred for
+the user.

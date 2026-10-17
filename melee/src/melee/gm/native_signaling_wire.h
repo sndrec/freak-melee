@@ -29,6 +29,8 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_SignalSent,
     NativeSignalingServerMessage_Error,
     NativeSignalingServerMessage_Chat,
+    NativeSignalingServerMessage_QuickState,
+    NativeSignalingServerMessage_QuickRejected,
 } NativeSignalingServerMessageType;
 
 typedef enum NativeRoomRotationPolicy {
@@ -94,6 +96,22 @@ typedef struct NativeRoomChatEvent {
     char reason[129];
 } NativeRoomChatEvent;
 
+typedef enum NativeQuickMode {
+    NativeQuickMode_None, NativeQuickMode_Singles, NativeQuickMode_Doubles,
+} NativeQuickMode;
+
+typedef enum NativeQuickState {
+    NativeQuickState_Idle, NativeQuickState_Searching,
+    NativeQuickState_Assigned, NativeQuickState_Aborted,
+} NativeQuickState;
+
+typedef struct NativeQuickAssignment {
+    uint64_t generation;
+    char match_room[13];
+    char admission[33];
+    uint8_t mode, state, team, stage;
+} NativeQuickAssignment;
+
 typedef struct NativeSignalingServerMessage {
     NativeSignalingServerMessageType type;
     union {
@@ -101,6 +119,7 @@ typedef struct NativeSignalingServerMessage {
         NativeSignalingPresence presence;
         NativeSignalingSignal signal;
         NativeRoomChatEvent chat;
+        NativeQuickAssignment quick;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
@@ -152,6 +171,11 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
 size_t nativeSignalingWire_EncodePostChat(uint32_t nonce, const char* text,
                                         uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeRequestChat(uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeConfigureQuick(uint8_t mode,
+                                                uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeQueueQuick(bool searching,
+                                            uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeRequestQuick(uint8_t* output, size_t capacity);
 bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output);

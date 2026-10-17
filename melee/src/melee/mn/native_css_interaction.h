@@ -16,6 +16,7 @@ void nativeCssInteraction_End(void);
 bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* trigger);
 void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint);
 bool nativeCssInteraction_CanReady(void);
+bool nativeCssInteraction_SetLocalPlayers(unsigned count);
 bool nativeCssInteraction_Random(unsigned slot);
 void nativeCssInteraction_Inspect(void);
 void nativeCssInteraction_EnablePointer(bool enabled);

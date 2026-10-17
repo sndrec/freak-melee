@@ -35,8 +35,9 @@ for at most 511 ms; existing destinations remain protected. Queued player
 actions retain peer identities, and fighter delivery retains its package ID,
 so changes to the displayed lists preserve the selected recipient and fighter.
 
-Account sign-in, offline inbox storage, persistent friends and
-Quick Play service integration remain separate work. Show their real
+Account sign-in, offline inbox storage and persistent friends remain separate
+work. Quick Play queueing and assigned-room handoff now have local native checks;
+countdown, match/rematch flow and deployment remain open. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 
