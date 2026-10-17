@@ -112,7 +112,30 @@ The minimal-PATH test also exposed the batch file's reliance on finding
 PowerShell through PATH. It now uses Windows' installed PowerShell directly and
 preserves the launcher's exit code.
 
-Fresh-source configuration and separate friend-PC acceptance remain open. These
-same-PC checks do not establish separate-network behavior, physical controller
-usability, code signing or current hosted-service compatibility. Quick Play's
-new service protocol is still local and undeployed.
+### Fresh source
+
+A Git archive of `eec1d55` was extracted into
+`.local/native-source-eec1d55`. This contains tracked source files, with no old
+build, nested Git history or untracked reference repositories. CMake configured
+a separate RelWithDebInfo build with Clang 22.1.6 / MSVC 14.44, explicit ISO and
+DSP-table inputs, and its own dependency downloads. Both `melee_native` and
+`native_content_tool` built successfully; the release-payload CTest also passed.
+
+The compile-command audit covers all 6,340 configured entries. Every source
+resides in the export or its own downloaded dependencies, and no compile flags
+refer back to the development source/build. The logs are
+`.local/native-source-configure.log`, `.local/native-source-build.log` and
+`.local/native-source-path-audit.txt`.
+
+The resulting `2026-10-17-source-eec1d55` release passed publisher dry-run
+validation and was extracted into `.local/native-source-release-extracted`.
+With a minimal PATH, the same native first-launch and Workshop suite passed
+in `.local/native-source-workshop-acceptance-1`, including Check, Build and
+Build & install. Whole-UI PNGs were reviewed, including the script workspace
+and successful installation status. The development control tool remained
+outside the installation. No build products from the old tree were copied in.
+
+Separate friend-PC acceptance remains open. These same-PC checks do not
+establish separate-network behavior, physical controller usability, code
+signing or current hosted-service compatibility. Quick Play's new service
+protocol is still local and undeployed.

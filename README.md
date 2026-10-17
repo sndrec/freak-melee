@@ -41,15 +41,17 @@ cmake --build melee/build/native --target melee_native native_content_tool -j 4
 melee\build\native\melee_native.exe --iso "C:/local/Melee-USA-v1.02.iso"
 ```
 
-Menu glyph atlases are prepared from the verified ISO, the supplied private
-font/reference assets, and Windows Impact. See [font inputs](melee/assets/fonts/README.md).
+Menu glyph atlases are prepared from the verified ISO and the supplied private
+font/reference assets. See [font inputs](melee/assets/fonts/README.md).
 Starter-fighter portraits are also extracted from the ISO into the build's
 `ui/portraits` directory.
 
 The game and content tool build together for Workshop use. No external C
-compiler is needed to execute ordinary character scripts. This snapshot has
-not yet been built in a fresh clone; existing-checkout build evidence is not
-a clean-clone acceptance claim.
+compiler is needed to execute ordinary character scripts. A tracked-source-only
+export of `eec1d55` configured and built both executables on 2026-10-17, using
+explicit ISO/DSP inputs and its own dependency downloads. Its extracted release
+passed the first-launch and Workshop check/build/install flow. See
+[local release acceptance](melee/docs/native_release.md#local-acceptance-2026-10-17).
 
 ## Native hub
 
