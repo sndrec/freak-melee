@@ -201,7 +201,7 @@ void update_gift_status()
                        std::to_string(percent) + "%";
         } else if (gift.state == NativeNetplayGift_Installed) {
             incoming = gift.kind == NativeNetplayGift_Fighter
-                ? title + " installed. Add its portrait through Edit CSS to select it."
+                ? title + " installed. Open Workshop to edit it."
                 : title + " installed. Choose its fighter, then select it in COSTUMES.";
         } else if (gift.state == NativeNetplayGift_Failed) {
             incoming = "Could not install " + title + ".";

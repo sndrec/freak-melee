@@ -25,6 +25,7 @@
 #include <melee/gm/native_profile_input.h>
 #include <melee/mn/native_online_menu.h>
 #include <melee/mn/native_css_interaction.h>
+#include <melee/mn/native_css_cards.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
 #include <SDL3/SDL_clipboard.h>
@@ -44,6 +45,7 @@ namespace {
     uint64_t nextControllerUpdate;
     uint64_t copyFeedbackUntil;
     Rml::Vector2i displayedDimensions;
+    float game_pointer_left, game_pointer_top, game_pointer_width, game_pointer_height;
     float displayedDensity;
     bool displayedCssEditing;
     bool displayedHub;
@@ -498,6 +500,10 @@ namespace {
             : (dimensions.x - gameWidth) * 0.5f;
         const float gameTop = topMargin +
                               (availableHeight - gameHeight) * 0.5f;
+        game_pointer_left = gameLeft;
+        game_pointer_top = gameTop;
+        game_pointer_width = gameWidth;
+        game_pointer_height = gameHeight;
         nativeShellCssOriginal_Resize(int(gameLeft), int(gameTop),
                                       int(gameWidth), int(gameHeight));
     }
@@ -942,6 +948,7 @@ extern "C" void nativeShell_Shutdown(void)
 extern "C" void nativeShell_InspectElement(const char* id)
 {
     if (!std::strcmp(id, "css-selection")) { nativeCssInteraction_Inspect(); return; }
+    if (!std::strcmp(id, "css-cards")) { nativeCssCards_Inspect(); return; }
     if (nativeHub_IsVisible()) { nativeHub_Inspect(id); return; }
     if (!document) return;
     auto* element = document->GetElementById(id);
@@ -962,6 +969,10 @@ extern "C" void nativeShell_InspectElement(const char* id)
 extern "C" void nativeShell_ClickAt(int x, int y, int button)
 {
     if (nativeHub_IsVisible()) { nativeHub_ClickAt(x,y,button); return; }
+    if (nativeShell_CssPointerEvent(x,y,button == 0 ? NativeCssPointer_Press : NativeCssPointer_Back)) {
+        if (button == 0) nativeShell_CssPointerEvent(x,y,NativeCssPointer_Release);
+        return;
+    }
     if (document == nullptr) {
         return;
     }
@@ -977,6 +988,11 @@ extern "C" void nativeShell_DragAt(int start_x, int start_y,
     if (nativeHub_IsVisible()) {
         nativeHub_ClickAt(start_x,start_y,0);
         nativeHub_MovePointer(end_x,end_y);
+        return;
+    }
+    if (nativeShell_CssPointerEvent(start_x,start_y,NativeCssPointer_Press)) {
+        nativeShell_CssPointerEvent(end_x,end_y,NativeCssPointer_Move);
+        nativeShell_CssPointerEvent(end_x,end_y,NativeCssPointer_Release);
         return;
     }
     if (document == nullptr) {
@@ -1004,9 +1020,20 @@ extern "C" void nativeShell_EnterText(const char* text)
 extern "C" void nativeShell_MovePointer(int x, int y)
 {
     if (nativeHub_IsVisible()) { nativeHub_MovePointer(x,y); return; }
+    if (nativeShell_CssPointerEvent(x,y,NativeCssPointer_Move)) return;
     if (document) {
         document->GetContext()->ProcessMouseMove(x, y, 0);
     }
+}
+extern "C" bool nativeShell_CssPointerEvent(int x, int y, NativeCssPointerEvent event)
+{
+    if (document && document->GetElementById("collection-panel")->IsClassSet("open")) {
+        nativeCssInteraction_EnablePointer(false);
+        return false;
+    }
+    if (game_pointer_width <= 0 || game_pointer_height <= 0) return false;
+    return nativeCssInteraction_Pointer((x-game_pointer_left)/game_pointer_width,
+        (y-game_pointer_top)/game_pointer_height, event);
 }
 
 extern "C" void nativeShell_PressKey(const char* name, unsigned modifiers)

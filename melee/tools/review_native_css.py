@@ -39,10 +39,15 @@ def main():
     def inspect(element):
         start = stderr.stat().st_size
         command('ui-inspect', element)
-        time.sleep(.1)
-        with stderr.open('r', errors='replace') as file:
-            file.seek(start)
-            return file.read()
+        for _ in range(30):
+            time.sleep(.1)
+            with stderr.open('r', errors='replace') as file:
+                file.seek(start)
+                text = file.read()
+            if re.search(r'\[(?:css-selection|hub-inspect|ui-inspect)\]', text):
+                return text
+            assert client.poll() is None, f'Native client exited {client.returncode}'
+        raise RuntimeError(f'Inspection stalled: {element}')
 
     def tap(*parts, frames=1):
         command('tap', 0, *parts, f'frames={frames}')
@@ -147,6 +152,15 @@ def main():
             _, text = state()
             assert re.search(r'\[css-slot\] slot=1 kind=1 chosen=1 .*custom=1', text), text
             screenshot()
+            # The detailed collection owns mouse input while its panel covers
+            # the game, including the close button inside the CSS viewport.
+            for element in ['collection-tab', 'collection-close']:
+                text = inspect(element)
+                match = re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', text)
+                assert match, text
+                x, y, w, h = map(float, match.groups())
+                command('ui-click', round(x+w/2), round(y+h/2))
+                time.sleep(.25)
             tap('start')
             for _ in range(180):
                 assert client.poll() is None

@@ -5,11 +5,13 @@
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
 #include "native_shell_css_original.h"
+#include "native_shell.h"
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/native_online_menu.h>
 #include <melee/mn/native_css_original.h>
+#include <melee/mn/native_css_interaction.h>
 extern "C" {
 #include <sysdolphin/baselib/controller.h>
 #include <melee/lb/lbaudio_ax.h>
@@ -45,7 +47,10 @@ namespace {
 
     void update_pointer_cursor()
     {
-        const bool hide = hub.visible && nativeHubHand_Ready() &&
+        bool css_pointer = false;
+        for (unsigned port = 0; port < 4; ++port)
+            css_pointer |= nativeCssInteraction_PointerPort(port);
+        const bool hide = ((hub.visible && nativeHubHand_Ready()) || css_pointer) &&
                           SDL_GetMouseFocus() && hub.pointer_x >= 0 &&
                           hub.pointer_x < 640 && hub.pointer_y >= 0 &&
                           hub.pointer_y < 480;
@@ -412,6 +417,67 @@ extern "C" void nativeHub_Notice(const char* text)
     std::snprintf(hub.notice, sizeof(hub.notice), "%s", text ? text : "");
     hub.notice_until = SDL_GetTicks() + 8000;
 }
+extern "C" const char* nativeHub_LocalName(void)
+{
+    return hub.public_name;
+}
+extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
+                                              const char* recipient)
+{
+    if (!fighter || !nativeHome_IsSelection() ||
+        !nativeOnlineSession_Presence())
+    {
+        return false;
+    }
+    reload_catalog();
+    const NativeHubFighter* found = nullptr;
+    for (unsigned i = 0; i < nativeHubFighterCount; ++i) {
+        if (nativeHubFighters[i].installed &&
+            !std::memcmp(&nativeHubFighters[i].id, fighter, sizeof(*fighter)))
+        {
+            found = &nativeHubFighters[i];
+            break;
+        }
+    }
+    if (!found) {
+        return false;
+    }
+    const auto* presence = nativeOnlineSession_Presence();
+    const NativeSignalingParticipant* target = nullptr;
+    if (recipient && *recipient) {
+        for (unsigned i = 0; i < presence->participant_count; ++i) {
+            const auto* candidate = &presence->participants[i];
+            if (!std::strcmp(candidate->peer_id, recipient) &&
+                std::strcmp(recipient, nativeOnlineSession_LocalPeerId()))
+            {
+                target = candidate;
+                break;
+            }
+        }
+        if (!target) {
+            return false;
+        }
+    }
+    hub.gift_id = *fighter;
+    std::snprintf(hub.gift_title, sizeof(hub.gift_title), "%s", found->title);
+    std::snprintf(hub.recipient, sizeof(hub.recipient), "%s",
+                  target ? target->peer_id : "");
+    std::snprintf(hub.recipient_name, sizeof(hub.recipient_name), "%s",
+                  target ? target->name : "");
+    show();
+    hub.send_from_css = true;
+    unsigned recipient_row = 0;
+    for (unsigned i = 0; target && &presence->participants[i] != target; ++i) {
+        if (std::strcmp(presence->participants[i].peer_id,
+                        nativeOnlineSession_LocalPeerId()))
+        {
+            ++recipient_row;
+        }
+    }
+    hub.recipient_scroll = int(recipient_row / 7 * 7);
+    nativeHub_ChangePage(HubPage::Send);
+    return true;
+}
 void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
@@ -430,6 +496,10 @@ void nativeHub_Activate(HubAction action, int value)
         if (hub.rename) {
             hub.rename = false;
             text_focus(nullptr, 0);
+        } else if (hub.page == HubPage::Send && hub.send_from_css) {
+            hub.send_from_css = false;
+            hub.dismissed = true;
+            hub.visible = false;
         } else {
             nativeHub_ChangePage(hub.page == HubPage::Profile ||
                                          hub.page == HubPage::Clone ||
@@ -669,10 +739,15 @@ void nativeHub_Activate(HubAction action, int value)
             break;
         }
         hub.gift_id = nativeHubFighters[hub.selected].id;
+        hub.send_from_css = false;
+        hub.recipient_scroll = 0;
         std::snprintf(hub.gift_title, sizeof(hub.gift_title), "%s",
                       nativeHubFighters[hub.selected].title);
         hub.recipient[0] = 0;
         nativeHub_ChangePage(HubPage::Send);
+        break;
+    case HubAction::RecipientScroll:
+        hub.recipient_scroll = std::clamp(hub.recipient_scroll + value, 0, 28);
         break;
     case HubAction::Recipient: {
         const auto* p = nativeOnlineSession_Presence();
@@ -690,12 +765,18 @@ void nativeHub_Activate(HubAction action, int value)
     }
     case HubAction::ConfirmSend:
         if (nativeOnlineSession_OfferGift(hub.recipient, &hub.gift_id)) {
-            nativeHub_ChangePage(HubPage::Workshop);
+            if (hub.send_from_css) {
+                hub.send_from_css = false;
+                hub.dismissed = true;
+                hub.visible = false;
+            } else {
+                nativeHub_ChangePage(HubPage::Workshop);
+            }
             nativeHub_Notice("Fighter offered. The recipient can accept it in "
                              "their Workshop.");
         } else {
-            nativeHub_Notice("Could not send the fighter. Both players must "
-                             "be in the lobby.");
+            nativeHub_Notice("Could not send yet. Check the recipient's "
+                             "connection and try again.");
         }
         break;
     case HubAction::AcceptGift:
@@ -773,8 +854,26 @@ extern "C" void nativeHub_Tick(void)
     }
     hub.selection_before = selection;
     hub.visible = hub.initialized && selection && !tool && !hub.dismissed;
+    nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
+    }
+    static bool installed_gift_handled;
+    NativeNetplayGiftStatus gift{};
+    if (!nativeOnlineSession_GiftStatus(true, &gift) ||
+        gift.state != NativeNetplayGift_Installed)
+    {
+        installed_gift_handled = false;
+    } else if (!installed_gift_handled) {
+        installed_gift_handled = true;
+        bool placed = gift.kind == NativeNetplayGift_Fighter &&
+                      nativeCssOriginal_AddInstalled(&gift.id);
+        nativeShellCssOriginal_RefreshInstalledFighters();
+        reload_catalog();
+        nativeHub_Notice(
+            gift.kind == NativeNetplayGift_Costume ? "Costume received."
+            : placed ? "Fighter received and added to your roster."
+                     : "Fighter received. Use Edit CSS to add its portrait.");
     }
     if (selection && !tool && hub.dismissed) {
         bool held = false;
@@ -834,17 +933,6 @@ extern "C" void nativeHub_Tick(void)
         }
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
         break;
-    }
-    static NativeContentId installed_gift{};
-    NativeNetplayGiftStatus gift{};
-    if (nativeOnlineSession_GiftStatus(true, &gift) &&
-        gift.state == NativeNetplayGift_Installed &&
-        std::memcmp(&gift.id, &installed_gift, sizeof(installed_gift)))
-    {
-        installed_gift = gift.id;
-        nativeShellCssOriginal_RefreshInstalledFighters();
-        reload_catalog();
-        nativeHub_Notice("Fighter received and added to your roster.");
     }
 }
 extern "C" void nativeHub_Draw(void)
@@ -1008,6 +1096,27 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         return;
     }
     if (!hub.visible) {
+        if (event->type == SDL_EVENT_MOUSE_MOTION) {
+            nativeHub_MovePointer(int(event->motion.x), int(event->motion.y));
+            nativeShell_CssPointerEvent(int(event->motion.x),
+                                        int(event->motion.y),
+                                        NativeCssPointer_Move);
+        } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                   (event->button.button == SDL_BUTTON_LEFT ||
+                    event->button.button == SDL_BUTTON_RIGHT))
+        {
+            nativeShell_CssPointerEvent(int(event->button.x),
+                                        int(event->button.y),
+                                        event->button.button == SDL_BUTTON_LEFT
+                                            ? NativeCssPointer_Press
+                                            : NativeCssPointer_Back);
+        } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP &&
+                   event->button.button == SDL_BUTTON_LEFT)
+        {
+            nativeShell_CssPointerEvent(int(event->button.x),
+                                        int(event->button.y),
+                                        NativeCssPointer_Release);
+        }
         return;
     }
     if (event->type == SDL_EVENT_MOUSE_MOTION) {

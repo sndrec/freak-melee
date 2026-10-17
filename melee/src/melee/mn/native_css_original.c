@@ -38,14 +38,19 @@ static NativeCssLayout saved_layout;
 static NativeCssLayout defaults;
 static float world_left, world_right, world_top, world_bottom;
 static bool fighter_available[NATIVE_CSS_LAYOUT_MAX_TILES];
-enum { PORTRAIT_JOINTS = 256 };
+enum { PORTRAIT_JOINTS = 512 };
 static struct {
     HSD_JObj* joint;
     u32 hidden;
     unsigned icon;
+    bool masked;
 } portrait_joints[PORTRAIT_JOINTS];
 static unsigned portrait_joint_count;
 static bool visibility_masked;
+static bool hide_player_cards;
+static HSD_JObj* scene_root;
+static HSD_CObj* scene_camera;
+static Mtx initial_inverse;
 
 static void capture_portrait_joints(HSD_JObj* joint, unsigned icon)
 {
@@ -56,6 +61,7 @@ static void capture_portrait_joints(HSD_JObj* joint, unsigned icon)
     }
     portrait_joints[portrait_joint_count].joint = joint;
     portrait_joints[portrait_joint_count].icon = icon;
+    portrait_joints[portrait_joint_count].masked = false;
     portrait_joints[portrait_joint_count++].hidden = joint->flags & JOBJ_HIDDEN;
     for (HSD_JObj* child = joint->child; child; child = child->next) {
         capture_portrait_joints(child, icon);
@@ -65,13 +71,19 @@ void nativeCssOriginal_BeginAnimation(void)
 {
     if (!visibility_masked) return;
     for (unsigned i = 0; i < portrait_joint_count; ++i) {
+        if (!portrait_joints[i].masked) continue;
         if (portrait_joints[i].hidden) {
             HSD_JObjSetFlags(portrait_joints[i].joint, JOBJ_HIDDEN);
         } else {
             HSD_JObjClearFlags(portrait_joints[i].joint, JOBJ_HIDDEN);
         }
+        portrait_joints[i].masked = false;
     }
     visibility_masked = false;
+}
+void nativeCssOriginal_HidePlayerCards(bool hidden)
+{
+    hide_player_cards = hidden;
 }
 
 static bool installed_fighter(const NativeContentId* id)
@@ -230,8 +242,13 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera)
 {
     scene_icons = icons;
+    scene_root = menu;
+    scene_camera = camera;
+    HSD_JObjSetupMatrix(menu);
+    C_MTXInverse(menu->mtx, initial_inverse);
     portrait_joint_count = 0;
     visibility_masked = false;
+    hide_player_cards = false;
     nativeMenuVisuals_Begin(&menu_visuals, menu, 1);
     Vec3 eye;
     HSD_CObjGetEyePosition(camera, &eye);
@@ -254,6 +271,16 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
         capture_portrait_joints(joint, i);
         root_translate[i] = joint->translate;
         root_scale[i] = joint->scale;
+    }
+    // Direct children 40 onward are the four player panels, portraits,
+    // names, CPU controls and doors in MnSelectChrDataTable's menu model.
+    static const unsigned player_groups[] = {
+        40, 45, 50, 55, 60, 86, 111, 132, 140, 148, 156, 164
+    };
+    for (unsigned i = 0; i < sizeof(player_groups)/sizeof(*player_groups); ++i) {
+        HSD_JObj* group = NULL;
+        lb_80011E24(menu, &group, player_groups[i], -1);
+        capture_portrait_joints(group, STOCK_ICONS);
     }
     nativeMenuVisuals_Text(menu_visuals, menu, world_x(300), world_y(95), 0,
                            (world_right-world_left)*0.50f,
@@ -282,7 +309,8 @@ void nativeCssOriginal_Tick(void)
     // Restore our previous mask before reapplying it. Scene animations may
     // independently hide parts of an unlocked portrait; preserve those bits.
     nativeCssOriginal_BeginAnimation();
-    bool visible[STOCK_ICONS];
+    bool visible[STOCK_ICONS + 1];
+    visible[STOCK_ICONS] = !hide_player_cards;
     for (unsigned icon = 0; icon < STOCK_ICONS; ++icon) {
         const NativeCssTile* tile = tile_for(icon);
         visible[icon] = tile != NULL;
@@ -293,7 +321,8 @@ void nativeCssOriginal_Tick(void)
     for (unsigned i = 0; i < portrait_joint_count; ++i) {
         HSD_JObj* joint = portrait_joints[i].joint;
         portrait_joints[i].hidden = joint->flags & JOBJ_HIDDEN;
-        if (!visible[portrait_joints[i].icon]) HSD_JObjSetFlags(joint, JOBJ_HIDDEN);
+        portrait_joints[i].masked = !visible[portrait_joints[i].icon];
+        if (portrait_joints[i].masked) HSD_JObjSetFlags(joint, JOBJ_HIDDEN);
     }
     visibility_masked = true;
 }
@@ -302,6 +331,8 @@ void nativeCssOriginal_Exit(void)
 {
     nativeMenuVisuals_End(&menu_visuals);
     scene_icons = NULL;
+    scene_root = NULL;
+    scene_camera = NULL;
     portrait_joint_count = 0;
     visibility_masked = false;
     memset(icon_roots, 0, sizeof(icon_roots));
@@ -412,13 +443,30 @@ bool nativeCssOriginal_AddStock(unsigned stock_index)
 
 bool nativeCssOriginal_AddInstalled(const NativeContentId* id)
 {
-    if (!nativeCssOriginal_CanEdit() || id == NULL) {
+    if (id == NULL || (scene_icons && !editable)) {
         return false;
     }
     if (!installed_fighter(id)) {
         return false;
     }
-    NativeCssLayout candidate = layout;
+    NativeCssLayout candidate = { 0 };
+    char disk_path[MAX_PATH];
+    if (scene_icons) {
+        candidate = layout;
+    } else {
+        bool missing = false;
+        if (!nativeCssLayout_DefaultPath(disk_path, sizeof(disk_path)) ||
+            (!nativeCssLayout_LoadFile(&candidate, disk_path, &missing) &&
+             !missing))
+        {
+            return false;
+        }
+    }
+    for (unsigned i = 0; i < candidate.count; ++i) {
+        if (!memcmp(&candidate.tiles[i].fighter_package_id, id, sizeof(*id))) {
+            return true;
+        }
+    }
     NativeCssTile tile = { 0 };
     tile.fighter_package_id = *id;
     tile.width = 92;
@@ -431,12 +479,16 @@ bool nativeCssOriginal_AddInstalled(const NativeContentId* id)
             for (unsigned i = 0; i < candidate.count; ++i) {
                 const NativeCssTile* other = &candidate.tiles[i];
                 occupied |= tile.x < other->x + other->width &&
-                    tile.x + tile.width > other->x &&
-                    tile.y < other->y + other->height &&
-                    tile.y + tile.height > other->y;
+                            tile.x + tile.width > other->x &&
+                            tile.y < other->y + other->height &&
+                            tile.y + tile.height > other->y;
             }
-            if (!occupied) return nativeCssLayout_Add(&candidate, &tile) &&
-                                   save_layout(&candidate);
+            if (!occupied) {
+                return nativeCssLayout_Add(&candidate, &tile) &&
+                       (scene_icons
+                            ? save_layout(&candidate)
+                            : nativeCssLayout_SaveFile(&candidate, disk_path));
+            }
         }
     }
     return false;
@@ -444,13 +496,18 @@ bool nativeCssOriginal_AddInstalled(const NativeContentId* id)
 
 bool nativeCssOriginal_HitTestTile(float x, float y, NativeCssTile* result)
 {
-    if (!scene_icons || !result) return false;
+    if (!scene_icons || !result) {
+        return false;
+    }
     for (unsigned i = layout.count; i > 0; --i) {
         unsigned index = i - 1;
         const NativeCssTile* tile = &layout.tiles[index];
-        if (!tile->stock_character_id && !fighter_available[index]) continue;
+        if (!tile->stock_character_id && !fighter_available[index]) {
+            continue;
+        }
         if (x >= world_x(tile->x) && x < world_x(tile->x + tile->width) &&
-            y <= world_y(tile->y) && y > world_y(tile->y + tile->height)) {
+            y <= world_y(tile->y) && y > world_y(tile->y + tile->height))
+        {
             *result = *tile;
             return true;
         }
@@ -475,6 +532,47 @@ void nativeCssOriginal_Viewport(float* left, float* right, float* top, float* bo
     if (right) *right = world_right;
     if (top) *top = world_top;
     if (bottom) *bottom = world_bottom;
+}
+static void menu_matrix(Mtx result)
+{
+    HSD_JObjSetupMatrix(scene_root);
+    C_MTXConcat(scene_root->mtx, initial_inverse, result);
+}
+bool nativeCssOriginal_ViewMatrix(Mtx result)
+{
+    if (!scene_root || !scene_camera) return false;
+    Mtx model, view;
+    menu_matrix(model);
+    HSD_CObjGetViewingMtx(scene_camera, view);
+    C_MTXConcat(view, model, result);
+    return true;
+}
+void nativeCssOriginal_TransformPoint(Vec3* point)
+{
+    if (!scene_root || !point) return;
+    Mtx model;
+    menu_matrix(model);
+    C_MTXMultVec(model, point, point);
+}
+bool nativeCssOriginal_PointFromCanvas(float u, float v, float* x, float* y)
+{
+    if (!scene_root || !scene_camera || !x || !y || u < 0 || u > 1 || v < 0 || v > 1)
+        return false;
+    Mtx model, inverse, camera_to_menu;
+    menu_matrix(model);
+    if (!C_MTXInverse(model, inverse)) return false;
+    C_MTXConcat(inverse, HSD_CObjGetInvViewingMtxPtr(scene_camera), camera_to_menu);
+    float half = tanf(HSD_CObjGetFov(scene_camera) * .00872664626f);
+    Vec3 origin = {0}, direction = {(2*u-1)*half*HSD_CObjGetAspect(scene_camera),
+                                  (1-2*v)*half, -1};
+    C_MTXMultVec(camera_to_menu, &origin, &origin);
+    C_MTXMultVecSR(camera_to_menu, &direction, &direction);
+    if (fabsf(direction.z) < .00001f) return false;
+    float distance = -origin.z / direction.z;
+    if (distance < 0) return false;
+    *x = origin.x + direction.x*distance;
+    *y = origin.y + direction.y*distance;
+    return true;
 }
 
 bool nativeCssOriginal_FighterBounds(const NativeContentId* id,

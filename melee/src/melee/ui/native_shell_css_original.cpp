@@ -8,6 +8,7 @@
 #include <melee/ft/native_source_asset_facts.h>
 #include <melee/gm/native_home.h>
 #include <melee/mn/native_css_original.h>
+#include <melee/mn/native_css_cards.h>
 
 #include <aurora/rmlui.hpp>
 #define WIN32_LEAN_AND_MEAN
@@ -537,6 +538,7 @@ void nativeShellCssOriginal_Update(void)
 
 void nativeShellCssOriginal_RefreshInstalledFighters(void)
 {
+    nativeCssCards_InvalidateArt();
     if (document == nullptr) return;
     nativeCssOriginal_ClearPortraits();
     portraits.clear();

@@ -21,6 +21,7 @@
 #include <melee/gm/native_home.h>
 #include "native_css_original.h"
 #include "native_css_interaction.h"
+#include "native_css_cards.h"
 #include <melee/ui/native_hub_hand.h>
 #endif
 #include <melee/lb/lb_00B0.h>
@@ -1641,9 +1642,6 @@ void fn_8025F0E0(HSD_GObj* gobj)
     int css_models;
     float fval;
 
-#ifdef MELEE_NATIVE
-    nativeCssOriginal_BeginAnimation();
-#endif
     if ((mnCharSel_804D6CEC % 10) != 0) {
         if (mnCharSel_804D6CF5 == 1) {
             lb_80011E24(jobj, &sp54, 0x27, -1);
@@ -1953,6 +1951,7 @@ void fn_8025F0E0(HSD_GObj* gobj)
     }
     HSD_JObjAnimAll(jobj);
 #ifdef MELEE_NATIVE
+    nativeCssCards_Update();
     nativeCssOriginal_Tick();
 #endif
     PAD_STACK(28);
@@ -2251,6 +2250,13 @@ static inline void updateCursorDisplay(HSD_JObj* jobj,
                 color_idx = color_idx + (port * 4);
             }
 
+#ifdef MELEE_NATIVE
+            if (nativeHome_IsSelection() && nativeCssCards_Active()) {
+                unsigned display = nativeCssCards_DisplayPort(cursor->x4);
+                color_idx = display * 4 + (cursor->x8 ?
+                    (mnCharSel_804D6CEC & 3) : display);
+            }
+#endif
             lb_80011E24(jobj, color_jobj, 3, -1);
             {
                 HSD_JObj* anim_jobj = *color_jobj;
@@ -2263,9 +2269,13 @@ static inline void updateCursorDisplay(HSD_JObj* jobj,
         }
     }
 
-    HSD_JObjSetTranslateX(jobj, cursor->xC);
-    HSD_JObjSetTranslateY(jobj, cursor->x10);
-    HSD_JObjSetTranslateZ(jobj, 0.0f);
+    Vec3 hand_position = {cursor->xC, cursor->x10, 0};
+#ifdef MELEE_NATIVE
+    if (nativeHome_IsSelection()) {
+        nativeCssOriginal_TransformPoint(&hand_position);
+    }
+#endif
+    HSD_JObjSetTranslate(jobj, &hand_position);
     HSD_JObjAnimAll(jobj);
 }
 
@@ -2375,6 +2385,12 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
     u32 buttons;
     f32 dx;
     f32 dy;
+
+#ifdef MELEE_NATIVE
+    // Hands run before the menu animation proc. Restore our mask before
+    // any cursor changes a portrait, team label or player-panel visibility.
+    nativeCssOriginal_BeginAnimation();
+#endif
     int door;
 
     if (mnCharSel_804D6CB0->match_type == TRAINING_MODE) {
@@ -2411,7 +2427,11 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
             buttons = HSD_PadCopyStatus[port].button;
             getStickDelta(port, &dx, &dy);
 
-            if (HSD_PadCopyStatus[cursor->x4].err != 0) {
+            if (HSD_PadCopyStatus[cursor->x4].err != 0
+#ifdef MELEE_NATIVE
+                && !nativeCssInteraction_PointerPort(cursor->x4)
+#endif
+            ) {
                 if (cursor->x5 != 3) {
                     cursor->xC = (f32) ((15.0f * cursor->x4) - 31.0f);
                     cursor->x10 = -21.5f;
@@ -2540,7 +2560,7 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
 #ifdef MELEE_NATIVE
         if (nativeHome_IsSelection() &&
             mnCharSel_803F0E8C[cursor->x4].data->state == 0 &&
-            nativeCssInteraction_Hand(cursor)) {
+            nativeCssInteraction_Hand(cursor, &trigger)) {
             goto update_display;
         }
 #endif
@@ -5387,7 +5407,8 @@ s32 mnCharSel_802640A0(void)
     }
     if (nativeHome_IsSelection()) {
         nativeCssInteraction_Begin(mnCharSel_804D6CB0, &mnCharSel_803F0DFC,
-            mnCharSel_804A0BC0, mnCharSel_804A0BD0, icons);
+            mnCharSel_804A0BC0, mnCharSel_804A0BD0, icons,
+            mnCharSel_804D6CC0, &css_models->menu);
     }
 #endif
     PAD_STACK(0x20);

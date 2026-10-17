@@ -1,7 +1,9 @@
 #include "native_css_interaction.h"
 #include "native_css_original.h"
+#include "native_css_cards.h"
 #include "mncharsel.h"
 #include <melee/gm/native_home.h>
+#include <melee/ui/native_hub.h>
 #include <melee/gm/native_stock_content.h>
 #include <melee/pl/forward.h>
 #include <melee/lb/lbaudio_ax.h>
@@ -22,17 +24,148 @@ static struct {
     CSSCursorData** hands;
     CSSCharModel** cookies;
     CSSIcon* icons;
+    NativeContentId carried[4];
+    bool carrying[4];
+    struct {
+        struct {
+            float u, v;
+            NativeCssPointerEvent kind;
+        } events[32];
+        unsigned count, port;
+        float press_x, press_y;
+        bool enabled, active, down, moved, place_on_release;
+    } pointer;
 } selection;
+
+void nativeCssInteraction_EnablePointer(bool enabled)
+{
+    selection.pointer.enabled = enabled && selection.css;
+    if (!selection.pointer.enabled) {
+        selection.pointer.active = selection.pointer.down = false;
+        selection.pointer.count = 0;
+    }
+}
+bool nativeCssInteraction_Pointer(float u, float v,
+                                  NativeCssPointerEvent event)
+{
+    if (!selection.pointer.enabled || !isfinite(u) || !isfinite(v)) {
+        return false;
+    }
+    bool inside = u >= 0 && u <= 1 && v >= 0 && v <= 1;
+    bool captured = selection.pointer.down;
+    for (unsigned i = 0; i < selection.pointer.count; ++i) {
+        if (selection.pointer.events[i].kind == NativeCssPointer_Press) {
+            captured = true;
+        }
+        if (selection.pointer.events[i].kind == NativeCssPointer_Release) {
+            captured = false;
+        }
+    }
+    if (!inside && !captured) {
+        return false;
+    }
+    if (!selection.pointer.active) {
+        selection.pointer.port = 0;
+        for (unsigned port = 0; port < 4; ++port) {
+            if (selection.css->vs.start.players[port].slot_type ==
+                Gm_PKind_Human)
+            {
+                selection.pointer.port = port;
+                break;
+            }
+        }
+    }
+    selection.pointer.active = true;
+    unsigned count = selection.pointer.count;
+    if (event == NativeCssPointer_Move && count &&
+        selection.pointer.events[count - 1].kind == NativeCssPointer_Move)
+    {
+        --count;
+    }
+    if (count == 32) {
+        // Preserve button boundaries. Discard motion first if the host
+        // delivered more events than a menu tick can consume.
+        unsigned drop = 32;
+        for (unsigned i = 0; i < count; ++i) {
+            if (selection.pointer.events[i].kind == NativeCssPointer_Move) {
+                drop = i;
+                break;
+            }
+        }
+        if (drop == 32) {
+            return false;
+        }
+        memmove(&selection.pointer.events[drop],
+                &selection.pointer.events[drop + 1],
+                (count - drop - 1) * sizeof(selection.pointer.events[0]));
+        --count;
+    }
+    selection.pointer.events[count].u = fmaxf(0, fminf(1, u));
+    selection.pointer.events[count].v = fmaxf(0, fminf(1, v));
+    selection.pointer.events[count].kind = event;
+    selection.pointer.count = count + 1;
+    return true;
+}
+bool nativeCssInteraction_PointerPort(unsigned port)
+{
+    return selection.pointer.enabled && selection.pointer.active &&
+           selection.pointer.port == port;
+}
+static u32 pointer_frame(CSSCursorData* hand)
+{
+    u32 trigger = 0;
+    while (selection.pointer.count) {
+        float u = selection.pointer.events[0].u,
+              v = selection.pointer.events[0].v;
+        NativeCssPointerEvent event = selection.pointer.events[0].kind;
+        memmove(selection.pointer.events, selection.pointer.events + 1,
+                (--selection.pointer.count) *
+                    sizeof(selection.pointer.events[0]));
+        nativeCssOriginal_PointFromCanvas(u, v, &hand->xC, &hand->x10);
+        if (selection.pointer.down) {
+            float dx = hand->xC - selection.pointer.press_x,
+                  dy = hand->x10 - selection.pointer.press_y;
+            selection.pointer.moved |= dx * dx + dy * dy > .25f;
+        }
+        if (event == NativeCssPointer_Press) {
+            selection.pointer.down = true;
+            selection.pointer.press_x = hand->xC;
+            selection.pointer.press_y = hand->x10;
+            selection.pointer.moved = selection.pointer.place_on_release =
+                false;
+            trigger = PAD_BUTTON_A;
+            break;
+        }
+        if (event == NativeCssPointer_Release) {
+            if (selection.pointer.down && selection.pointer.moved &&
+                selection.pointer.place_on_release)
+            {
+                trigger = PAD_BUTTON_A;
+            }
+            selection.pointer.down = false;
+            break;
+        }
+        if (event == NativeCssPointer_Back) {
+            selection.pointer.down = false;
+            selection.pointer.place_on_release = false;
+            trigger = PAD_BUTTON_B;
+            break;
+        }
+    }
+    return trigger;
+}
 
 void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
                                 CSSCursorData** hands, CSSCharModel** cookies,
-                                CSSIcon* icons)
+                                CSSIcon* icons, HSD_JObj* menu,
+                                const StaticModelDesc* source)
 {
     selection.css = css;
     selection.doors = doors;
     selection.hands = hands;
     selection.cookies = cookies;
     selection.icons = icons;
+    nativeCssCards_Begin(css, doors, menu, source);
     for (unsigned port = 0; port < 4; ++port) {
         CSSCursorData* hand = hands[port];
         CSSCharModel* cookie = cookies[port];
@@ -53,6 +186,7 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
 }
 void nativeCssInteraction_End(void)
 {
+    nativeCssCards_End();
     memset(&selection, 0, sizeof(selection));
 }
 static bool chosen(unsigned port)
@@ -65,6 +199,9 @@ static void grab(CSSCursorData* hand, unsigned slot)
     hand->x5 = 1;
     hand->x6 = slot;
     selection.cookies[slot]->x5 = hand->x4 + 1;
+    if (nativeCssInteraction_PointerPort(hand->x4) && selection.pointer.down) {
+        selection.pointer.place_on_release = true;
+    }
     lbAudioAx_800237A8(0xB7, 0x7F, 0x40);
 }
 static void choose_tile(unsigned slot, const NativeCssTile* tile)
@@ -137,15 +274,48 @@ bool nativeCssInteraction_Random(unsigned slot)
     }
     return true;
 }
-bool nativeCssInteraction_Hand(CSSCursorData* hand)
+bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
 {
     if (!selection.css) {
         return false;
     }
     unsigned port = hand->x4;
     const HSD_PadStatus* pad = &HSD_PadCopyStatus[port];
-    if (pad->err) {
+    bool pointer = nativeCssInteraction_PointerPort(port);
+    if (pad->err && !pointer) {
         return false;
+    }
+    u32 trigger = pad->err ? 0 : pad->trigger;
+    if (pointer) {
+        trigger |= pointer_frame(hand);
+    }
+    *menu_trigger = trigger;
+    if (selection.carrying[port]) {
+        nativeCssCards_Carry(port, &selection.carried[port], hand->xC,
+                             hand->x10);
+        bool finished = false;
+        if (trigger & PAD_BUTTON_B) {
+            selection.pointer.place_on_release = false;
+            finished = true;
+        } else if (trigger & PAD_BUTTON_X) {
+            finished =
+                nativeHub_OpenFighterDelivery(&selection.carried[port], NULL);
+        } else if (trigger & PAD_BUTTON_A) {
+            const NativeCssParticipant* target =
+                nativeCssCards_Hit(hand->xC, hand->x10);
+            if (target && !target->local) {
+                finished = nativeHub_OpenFighterDelivery(
+                    &selection.carried[port], target->peer);
+            } else {
+                finished = true;
+            }
+        }
+        if (finished) {
+            selection.carrying[port] = false;
+            hand->x5 = 2;
+            nativeCssCards_Carry(port, NULL, 0, 0);
+        }
+        return true;
     }
     if (hand->x5 == 1 && hand->x6 >= 4) {
         return false;
@@ -154,12 +324,12 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand)
         CSSCharModel* cookie = selection.cookies[hand->x6];
         cookie->x8 = hand->xC + 2.7f;
         cookie->xC = hand->x10 - 2;
-        if (pad->trigger & PAD_BUTTON_A) {
+        if (trigger & PAD_BUTTON_A) {
             place(hand);
         }
         return true;
     }
-    if (pad->trigger & PAD_BUTTON_B) {
+    if (trigger & PAD_BUTTON_B) {
         if (selection.doors->doors[port].p_kind == Gm_PKind_NA) {
             return false;
         }
@@ -168,11 +338,11 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand)
         }
         return true;
     }
-    if (!(pad->trigger & PAD_BUTTON_A)) {
+    if (!(trigger & PAD_BUTTON_A)) {
         if (selection.doors->doors[port].sel_icon < 25 &&
-            (pad->trigger & (PAD_BUTTON_X | PAD_BUTTON_Y)))
+            (trigger & (PAD_BUTTON_X | PAD_BUTTON_Y)))
         {
-            mnCharSel_CostumeChange(port, pad->trigger);
+            mnCharSel_CostumeChange(port, trigger);
             return true;
         }
         return false;
@@ -203,7 +373,22 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand)
     }
     NativeCssTile tile;
     if (!nativeCssOriginal_HitTestTile(hand->xC, hand->x10, &tile)) {
-        return false;
+        // Online player panels represent room members. The stock CPU controls
+        // underneath them must not change a local slot through a remote card.
+        return nativeCssCards_Active();
+    }
+    if (nativeCssCards_Active() && !tile.stock_character_id) {
+        selection.carried[port] = tile.fighter_package_id;
+        selection.carrying[port] = true;
+        hand->x5 = 1;
+        hand->x6 = 255;
+        if (pointer && selection.pointer.down) {
+            selection.pointer.place_on_release = true;
+        }
+        nativeCssCards_Carry(port, &tile.fighter_package_id, hand->xC,
+                             hand->x10);
+        lbAudioAx_800237A8(0xB7, 0x7F, 0x40);
+        return true;
     }
     CSSDoor* own = &selection.doors->doors[port];
     if (own->p_kind == Gm_PKind_NA) {
@@ -225,8 +410,9 @@ void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint)
         return;
     }
     HSD_JObjClearFlagsAll(joint, JOBJ_HIDDEN);
+    unsigned display = nativeCssCards_DisplayPort(slot);
     unsigned color =
-        selection.doors->doors[slot].p_kind == Gm_PKind_Cpu ? 8 : slot;
+        selection.doors->doors[slot].p_kind == Gm_PKind_Cpu ? 8 : display;
     if (selection.css->vs.start.rules.is_teams) {
         static const unsigned team_colors[3] = { 0, 1, 3 };
         color = team_colors[selection.doors->doors[slot].team % 3] +
@@ -237,7 +423,8 @@ void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint)
         HSD_JObj* child;
         lb_80011E24(joint, &child, 4, -1);
         HSD_ForeachAnim(child, JOBJ_TYPE, TOBJ_MASK, HSD_AObjReqAnim,
-                        AOBJ_ARG_AF, color < 4 ? (float) (slot * 4) : 16.0f);
+                        AOBJ_ARG_AF,
+                        color < 4 ? (float) (display * 4) : 16.0f);
         HSD_JObjAnimAll(child);
         HSD_ForeachAnim(child, JOBJ_TYPE, TOBJ_MASK, HSD_AObjStopAnim,
                         AOBJ_ARG_AOV, 0, 0);
@@ -254,9 +441,9 @@ void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint)
     }
     cookie->x10 = cookie->x8;
     cookie->x14 = cookie->xC;
-    HSD_JObjSetTranslateX(joint, cookie->x10);
-    HSD_JObjSetTranslateY(joint, cookie->x14);
-    HSD_JObjSetTranslateZ(joint, 1);
+    Vec3 position = { cookie->x10, cookie->x14, 1 };
+    nativeCssOriginal_TransformPoint(&position);
+    HSD_JObjSetTranslate(joint, &position);
     HSD_JObjAnimAll(joint);
 }
 bool nativeCssInteraction_CanReady(void)
@@ -265,6 +452,11 @@ bool nativeCssInteraction_CanReady(void)
         return false;
     }
     unsigned active = 0;
+    for (unsigned port = 0; port < 4; ++port) {
+        if (selection.carrying[port]) {
+            return false;
+        }
+    }
     for (unsigned slot = 0; slot < 4; ++slot) {
         if (selection.doors->doors[slot].p_kind == Gm_PKind_NA) {
             continue;

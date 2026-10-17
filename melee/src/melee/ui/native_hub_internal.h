@@ -49,6 +49,7 @@ enum class HubAction {
     EditLayout,
     SendFighter,
     Recipient,
+    RecipientScroll,
     ConfirmSend,
     Cancel,
     AcceptGift,
@@ -88,9 +89,10 @@ struct HubState {
     char* field;
     unsigned field_capacity, caret;
     int selected = -1, first_fighter = 0, template_kind = 0, local_players = 1,
-        chat_scroll = 0, people_scroll = 0;
+        chat_scroll = 0, people_scroll = 0, recipient_scroll = 0;
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
-    bool returning_from_tool, rename, select_all, profile_self = true;
+    bool returning_from_tool, rename, select_all, send_from_css,
+        profile_self = true;
     unsigned pending_action;
     int pending_value;
     char pending_peer[65], pending_name[33];
