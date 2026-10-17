@@ -178,6 +178,8 @@ def main():
                 installed_id = (draft/'installed.id').read_text().strip()
                 assert (data/'content/installed'/f'{installed_id}.fmi').is_file()
             expected_source = source_path.read_bytes()
+            if args.screenshots:
+                command('screenshot')
             click('workshop-back-drafts')
             inspect('edit-fighter', timeout=60)
             assert source_path.read_bytes() == expected_source

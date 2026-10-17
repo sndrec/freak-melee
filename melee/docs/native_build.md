@@ -86,8 +86,8 @@ live under `tests/native/`; dated receipts are linked from the
 
 No gameplay test is required for documentation-only changes. Build success does
 not establish character fidelity, UI usability, network routes or friend readiness.
-Fresh-clone build remains explicit release work. Clean extracted-install
-Workshop and launcher checks passed locally on 2026-10-17; see the release guide.
+The tracked-source-only export and clean extracted-install checks passed locally
+on 2026-10-17. See the release guide for their inputs and evidence boundaries.
 
 ## Source and release boundaries
 

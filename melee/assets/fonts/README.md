@@ -7,8 +7,9 @@ code licenses.
 
 `tools/prepare_menu_fonts.py` builds separate GX atlases for notices, the CSS
 heading, CSS tile labels, results names and the results winner banner. The last
-two reuse glyphs from the verified original disc. The heading uses the Windows
-Impact font. CSS tile labels use the user-supplied `assets/ui/fonts/angular_glyph_set.svg`.
+two reuse glyphs from the verified original disc. Headings use the supplied
+Folk Heavy font; notices use Folk Medium. CSS tile labels use the user-supplied
+`assets/ui/fonts/angular_glyph_set.svg`.
 It contains outlined capital letters, digits, punctuation and additional symbols.
 The generator preserves the shared baseline and holes within letters, and
 rasterizes at a higher resolution before reducing to the atlas size. The earlier

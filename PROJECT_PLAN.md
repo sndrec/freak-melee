@@ -109,7 +109,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
 | Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Fixed-rule Quick Play and rematches have local native evidence. | Quick Play stage-confirmation UI and deployment, lobby browsing, persistent accounts/friends, email-style inbox, invitations and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
-| Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
+| Friend release | Complete Workshop payload, fresh-source build, clean extracted-install authoring, setup/update ZIPs, isolated user data, update activation and rollback with data preserved. | Current content tests, friend-PC acceptance and presentation polish. |
 
 ### Fighter evidence
 
@@ -263,8 +263,10 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
 - [x] Include `native_content_tool.exe` and its runtime dependencies in release
   payloads. CMake supplies the exact DLL/UI lists; test fixtures and stale build
   assets are excluded. See [local release acceptance](melee/docs/native_release.md).
-- [ ] Verify source selection/configuration from a fresh source checkout with
-  explicit ISO and DSP-coefficient inputs; no hidden reference-folder dependency.
+- [x] Verify source selection/configuration and a full native build from a
+  tracked-source-only export of `eec1d55`, with explicit ISO/DSP inputs and its
+  own dependency downloads. Its extracted release also passes Workshop
+  check/build/install. No local reference repositories or old build are used.
 - [x] Verify a clean extracted install, launch, Workshop check/build/install,
   update, rollback and preservation of profiles/collections/CSS layout.
   The 2026-10-17 local acceptance used bundled tools, a minimal PATH, isolated
