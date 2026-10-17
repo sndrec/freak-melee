@@ -69,7 +69,7 @@ static void usage(void)
         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
         "  inspect-project PROJECT_DIRECTORY\n"
         "  project-model-scan SOURCE.glb\n"
-        "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid\n"
+        "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid|source\n"
         "  project-label PROJECT_DIRECTORY bone|mesh|material|action KEY NAME\n"
         "  project-hide-action PROJECT_DIRECTORY ACTION_INDEX 0|1\n"
         "  project-clip-create PROJECT_DIRECTORY ACTION_INDEX NAME END_FRAME\n"
@@ -77,7 +77,7 @@ static void usage(void)
         "  project-texture-sequences PROJECT_DIRECTORY MATERIAL\n"
         "  project-texture-image PROJECT_DIRECTORY MATERIAL SEQUENCE_OFFSET IMAGE_INDEX IMAGE_FILE\n"
         "  project-model-import PROJECT_DIRECTORY SOURCE.glb PRIMITIVE JOINT "
-        "ADD_OR_MESH_INDEX SCALE rigid|auto|transfer\n"
+        "ADD_OR_MESH_INDEX SCALE rigid|auto|transfer|source\n"
         "  project-model-weights PROJECT_DIRECTORY\n"
         "  project-model-vertices PROJECT_DIRECTORY MESH\n"
         "  project-model-joints PROJECT_DIRECTORY\n"
@@ -1743,6 +1743,8 @@ static int project_model_import(const char* path, const char* source,
         binding = NATIVE_GLTF_BIND_AUTOMATIC;
     else if (strcmp(binding_text, "transfer") == 0)
         binding = NATIVE_GLTF_BIND_TRANSFER;
+    else if (strcmp(binding_text, "source") == 0)
+        binding = NATIVE_GLTF_BIND_SOURCE;
     else return 1;
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;

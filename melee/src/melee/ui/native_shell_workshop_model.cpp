@@ -655,8 +655,8 @@ void render_import()
         }
     } else if (active->import_step == 1) {
         body = "<div class='eyebrow'>PLACEMENT</div>"
-               "<p>glTF and Melee both use Y as up. Source node transforms "
-               "are applied to the mesh before conversion.</p>"
+               "<p>glTF and Melee both use Y as up. Source skin uses its bind "
+               "data for placement. Other binding modes use the mesh node's placement.</p>"
                "<label>Scale from glTF units to Melee units</label>"
                "<input id='workshop-model-import-scale' class='room-input' "
                "type='text' value='" + decimal(active->import_scale) + "' />"
@@ -674,14 +674,18 @@ void render_import()
     } else {
         body = "<div class='eyebrow'>BINDING</div>"
                "<p>The cloned fighter's compatible Melee skeleton remains "
-               "in place. Automatic binding uses nearby deform bones for "
-               "initial weights and draws from the visible skeleton root. "
+               "in place. Source weights match named bones and compatible "
+               "bind poses. Generated weights use nearby deform bones. "
                "The joint choice below applies to rigid binding.</p>"
                "<label>Binding</label><select id='workshop-model-import-binding' "
                "class='room-input'><option value='auto'" +
                std::string(active->import_binding == NATIVE_GLTF_BIND_AUTOMATIC
                    ? " selected" : "") +
                ">Generate weights from compatible rig</option>";
+        body += "<option value='source'" +
+                std::string(active->import_binding == NATIVE_GLTF_BIND_SOURCE
+                    ? " selected" : "") +
+                ">Keep source weights (compatible rig)</option>";
         if (active->import_replacement != UINT_MAX)
             body += "<option value='transfer'" +
                 std::string(active->import_binding == NATIVE_GLTF_BIND_TRANSFER
@@ -711,7 +715,7 @@ void render_import()
         body += std::to_string(selected_count) + " selected meshes. ";
         if (skin) {
             body +=
-                "Generated weights use the cloned rig's nearby deform bones. ";
+                "Keep source weights preserves the authored skin; Generate creates a new binding from nearby fighter bones. ";
         }
         if (texture) {
             body += active->import_replacement == UINT_MAX
@@ -1709,6 +1713,16 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
                 active->import_joint = active->model.meshes[active->import_replacement].joint;
         }
         if (active->import_step < 2) {
+            if (active->import_step == 1) {
+                bool selected = false, all_skinned = true;
+                for (unsigned i = 0; i < active->import_scan.count; ++i)
+                    if (active->import_selected[i]) {
+                        selected = true;
+                        all_skinned &= active->import_scan.primitives[i].has_skin;
+                    }
+                active->import_binding = selected && all_skinned
+                    ? NATIVE_GLTF_BIND_SOURCE : NATIVE_GLTF_BIND_AUTOMATIC;
+            }
             ++active->import_step;
             render_import();
             return true;
@@ -1722,7 +1736,8 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
                 element("workshop-model-import-binding"))->GetValue();
         active->import_binding = binding_value == "transfer"
             ? NATIVE_GLTF_BIND_TRANSFER : binding_value == "auto"
-            ? NATIVE_GLTF_BIND_AUTOMATIC : NATIVE_GLTF_BIND_RIGID;
+            ? NATIVE_GLTF_BIND_AUTOMATIC : binding_value == "source"
+            ? NATIVE_GLTF_BIND_SOURCE : NATIVE_GLTF_BIND_RIGID;
         char error[192] = {};
         std::vector<uint32_t> previous_mesh_offsets;
         previous_mesh_offsets.reserve(active->model.mesh_count);

@@ -43,7 +43,7 @@ def make_glb(path):
                      struct.pack('<II', len(binary), 0x004e4942)+binary)
 
 
-def raw_mesh(path, joint_offsets, wanted=None):
+def raw_mesh(path, joint_offsets, wanted=None, expected_positions=POSITIONS, tolerance=1e-6):
     full = path.read_bytes()
     size = struct.unpack_from('>I', full, 4)[0]
     data = full[32:32+size]
@@ -76,12 +76,12 @@ def raw_mesh(path, joint_offsets, wanted=None):
             if word(descriptor+36) != 4 or half(descriptor+42) != 12:
                 break
             positions = word(descriptor+44)
-            actual = [struct.unpack_from('>3f', data, positions+i*12) for i in range(4)]
-            if any(abs(a-b)>1e-6 for p,q in zip(actual,POSITIONS) for a,b in zip(p,q)):
+            actual = [struct.unpack_from('>3f', data, positions+i*12) for i in range(len(expected_positions))]
+            if any(abs(a-b)>tolerance for p,q in zip(actual,expected_positions) for a,b in zip(p,q)):
                 break
-            positions_bytes = data[positions:positions+48]
+            positions_bytes = data[positions:positions+len(expected_positions)*12]
             normals = word(descriptor+68)
-            normals_bytes = data[normals:normals+48]
+            normals_bytes = data[normals:normals+len(expected_positions)*12]
             display, table = word(polygon+16), word(polygon+20)
             assert data[display] == 0x90
             stride = 7 if word(descriptor+72) == 13 else 5
@@ -107,7 +107,7 @@ def raw_mesh(path, joint_offsets, wanted=None):
             matches = True
             polygon = word(polygon+4)
         if matches and not polygon:
-            assert set(vertices) == set(range(4))
+            assert set(vertices) == set(range(len(expected_positions)))
             return ordinal, vertices, positions_bytes, normals_bytes, raw_entries
     raise AssertionError('The imported asymmetric four-vertex mesh was not found')
 
