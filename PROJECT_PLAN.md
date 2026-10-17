@@ -173,6 +173,10 @@ import, materials, rigging and skinning, not mesh modeling.
   unless the author explicitly replaces them.
 - [ ] Extend painting across the supported editable mesh set and remove storage
   limits that prevent useful authored models; do not introduce tick allocation.
+  Imported meshes now retain up to 16 floating-point influences through painting
+  and replacement, with proportional normalization and atomic capacity rejection.
+  [Saved DAT and live viewport checks](melee/docs/native_skin_weights_checkpoint.md)
+  pass; broader stock-layout painting and DAT compaction remain open.
 - [ ] Exercise an asymmetric imported mesh through Edit/Pose/Animation modes,
   brush edits, save/reopen/undo and Test Character.
 

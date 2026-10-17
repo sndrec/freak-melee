@@ -35,14 +35,16 @@ unrelated dormant geometry. PNG/JPEG texture replacement remains available.
 The GLB/glTF flow converts one triangle primitive at a time into real HSD
 costume geometry, with node placement, normals, UVs, base-color tint and texture.
 It can add or replace a mesh. Automatic binding generates initial per-vertex
-weights using the existing fighter rig. The first brush supports two influences
+weights using the existing fighter rig. The brush supports up to 16 influences
 per vertex in imported meshes, with add/subtract, radius and strength. Each
 stroke rebuilds the mesh's envelope groups and participates in costume undo.
 The surface displays the selected bone's weight from blue through yellow and
 orange to red; the old palette-number editor and sampled vertex dots are gone.
 Internally, an HSD envelope palette groups bone/weight combinations; it does not
-inherently quantize them. The current import/brush writer chooses two influences
-and 1/32 weight steps. Those are implementation limits, not an engine definition.
+inherently quantize them. Automatic binding starts with the two nearest deform
+bones. Painting adds influences while preserving the others' relative weights,
+using floating-point values throughout saving and replacement transfers.
+The 16-influence cap belongs to the current editor, rather than the renderer.
 Edit Mode compensates skinned inverse binds after rest-transform edits. A
 replacement can transfer weights using nearest bind-space vertices.
 
@@ -52,7 +54,7 @@ channels. Native UI checks exercised mesh hover/hide, surface weight rendering,
 pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
-Still open: source skin import, more than two painted influences, painting
+Still open: source skin import, painting
 arbitrary stock layouts, pose-aware brush picking, additional bones, preserving
 rigid attachments during rest edits, wireframe rendering, multi-mesh import,
 placement preview, source-aware reimport, and advanced texture/UV controls.
@@ -61,6 +63,9 @@ picked/highlighted/heatmapped by the editor override. DAT reconstruction on each
 painted stroke retains orphaned records; larger projects need compaction or a
 project-owned model representation. These are functional gaps, not claims of
 support inferred from the visual study.
+
+The [floating-weight checkpoint](native_skin_weights_checkpoint.md) records
+saved-DAT, replacement, capacity and live rendering checks for the current brush.
 
 The fourth mode in [the workshop study](mockups/workshop-modes.html) extends
 the existing Action Editor, Scripting, and Animation modes. It imports and

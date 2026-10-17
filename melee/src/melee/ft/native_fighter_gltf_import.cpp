@@ -166,14 +166,6 @@ struct SkinBinding {
     std::vector<SkinBone> bones;
 };
 
-struct SkinPalette {
-    uint16_t joint[2];
-    uint8_t weight; // first joint, in thirty-seconds; second gets the rest
-    bool operator==(const SkinPalette& other) const {
-        return joint[0] == other.joint[0] &&
-               joint[1] == other.joint[1] && weight == other.weight;
-    }
-};
 
 bool invert_affine(const float m[12], float out[12])
 {
@@ -261,7 +253,7 @@ bool prepare_skin(const NativeFighterModelEditor& model, unsigned owner,
     return true;
 }
 
-SkinPalette automatic_palette(const SkinBinding& skin, const float p[3])
+NativeSkinWeights automatic_palette(const SkinBinding& skin, const float p[3])
 {
     float best[2] = { std::numeric_limits<float>::infinity(),
                       std::numeric_limits<float>::infinity() };
@@ -291,31 +283,25 @@ SkinPalette automatic_palette(const SkinBinding& skin, const float p[3])
             best[1] = distance; chosen[1] = i;
         }
     }
-    SkinPalette palette = {};
-    palette.joint[0] = skin.bones[chosen[0]].joint;
-    if (skin.bones.size() == 1) {
-        palette.joint[1] = palette.joint[0];
-        palette.weight = 32;
-    } else {
-        palette.joint[1] = skin.bones[chosen[1]].joint;
+    NativeSkinWeights palette = {};
+    palette.count = skin.bones.size() == 1 ? 1 : 2;
+    palette.joints[0] = skin.bones[chosen[0]].joint;
+    palette.weights[0] = 1.0f;
+    if (palette.count == 2) {
+        palette.joints[1] = skin.bones[chosen[1]].joint;
         const float first = 1.0f / (best[0] + 0.25f);
         const float second = 1.0f / (best[1] + 0.25f);
-        palette.weight = (uint8_t) std::clamp(
-            std::lround(32.0f * first / (first + second)), 0l, 32l);
-        if (palette.weight == 0) {
-            palette.joint[0] = palette.joint[1];
-            palette.weight = 32;
-        } else if (palette.weight == 32) {
-            palette.joint[1] = palette.joint[0];
-        }
+        palette.weights[0] = first / (first + second);
+        palette.weights[1] = second / (first + second);
     }
+    nativeSkinWeights_Normalize(&palette);
     return palette;
 }
 
 struct SkinChunk {
     std::vector<uint16_t> indices;
     std::vector<uint8_t> palette_index;
-    std::vector<SkinPalette> palettes;
+    std::vector<NativeSkinWeights> palettes;
 };
 
 bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
@@ -344,20 +330,26 @@ bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
         *polygon == UINT32_MAX) return false;
     std::memcpy(dat->data.data() + commands, display.data(), display.size());
     for (unsigned i = 0; i < chunk.palettes.size(); ++i) {
-        const SkinPalette& palette = chunk.palettes[i];
-        // A skeleton-root DObj has no model-node correction. Even a single
-        // influence must take the envelope blending path so its inverse bind
-        // matrix is applied, rather than the rigid one-bone shortcut.
-        const uint32_t entries = dat->allocate(24);
+        const NativeSkinWeights& palette = chunk.palettes[i];
+        // Skeleton-root meshes need inverse binds. HSD selects its rigid
+        // shortcut from the first weight alone, including weights near 1.
+        // Put a small influence first; split a sole influence into two halves.
+        const unsigned stored_count = palette.count == 1 ? 2 : palette.count;
+        if (!palette.count || palette.count > NATIVE_SKIN_MAX_INFLUENCES)
+            return false;
+        const uint32_t entries = dat->allocate((stored_count + 1) * 8);
         if (entries == UINT32_MAX) return false;
         dat->link(table + i * 4, entries);
-        dat->link(entries, model.joints[palette.joint[0]].offset);
-        befloat(dat->data.data() + entries + 4,
-                palette.weight == 32 ? 0.5f : palette.weight / 32.0f);
-        dat->link(entries + 8, model.joints[palette.joint[1]].offset);
-        befloat(dat->data.data() + entries + 12,
-                palette.weight == 32 ? 0.5f :
-                    (32 - palette.weight) / 32.0f);
+        unsigned first = 0;
+        for (unsigned b = 1; b < palette.count; ++b)
+            if (palette.weights[b] < palette.weights[first]) first = b;
+        for (unsigned b = 0; b < stored_count; ++b) {
+            const unsigned source = palette.count == 1 ? 0
+                : b == 0 ? first : b <= first ? b - 1 : b;
+            dat->link(entries + b * 8, model.joints[palette.joints[source]].offset);
+            befloat(dat->data.data() + entries + b * 8 + 4,
+                    palette.count == 1 ? 0.5f : palette.weights[source]);
+        }
     }
     dat->link(*polygon + 8, descriptors);
     dat->half(*polygon + 12, POBJ_ENVELOPE);
@@ -372,7 +364,7 @@ struct ImportedSkinMesh {
     uint32_t positions = 0;
     bool uv = false;
     std::vector<uint16_t> triangles;
-    std::vector<SkinPalette> palettes;
+    std::vector<NativeSkinWeights> palettes;
     std::vector<uint8_t> used;
     std::vector<NativeImportedSkinVertex> vertices;
 };
@@ -430,7 +422,7 @@ bool imported_skin_mesh(const NativeFighterModelEditor& model,
         const unsigned stride = uv ? 7 : 5;
         if (count == 0 || count % 3 ||
             3 + size_t(count) * stride > bytes) return false;
-        SkinPalette groups[10] = {};
+        NativeSkinWeights groups[10] = {};
         bool loaded[10] = {};
         for (unsigned i = 0; i < count; ++i) {
             const uint8_t* entry = command + 3 + i * stride;
@@ -445,27 +437,29 @@ bool imported_skin_mesh(const NativeFighterModelEditor& model,
                 uint32_t influences;
                 if (!local_ref(dat, table + slot * 4, &influences) ||
                     !HSD_DatBytes(&dat, influences, 24)) return false;
-                uint32_t joint_offsets[2];
-                float weights[2];
-                for (unsigned b = 0; b < 2; ++b) {
-                    if (!local_ref(dat, influences + b * 8,
-                                   &joint_offsets[b])) return false;
-                    weights[b] = readfloat(dat.data + influences + b * 8 + 4);
+                double sum = 0;
+                unsigned count = 0;
+                for (;; ++count) {
+                    if (!HSD_DatBytes(&dat, influences + count * 8, 8))
+                        return false;
+                    uint32_t joint_offset;
+                    if (read32(dat.data + influences + count * 8) == 0) break;
+                    if (count == NATIVE_SKIN_MAX_INFLUENCES ||
+                        !local_ref(dat, influences + count * 8, &joint_offset))
+                        return false;
                     unsigned joint = 0;
                     while (joint < model.joint_count &&
-                           model.joints[joint].offset != joint_offsets[b])
-                        ++joint;
+                           model.joints[joint].offset != joint_offset) ++joint;
                     if (joint == model.joint_count) return false;
-                    groups[slot].joint[b] = (uint16_t) joint;
+                    const float weight = readfloat(dat.data + influences + count * 8 + 4);
+                    if (!std::isfinite(weight) || weight < 0) return false;
+                    groups[slot].joints[count] = (uint16_t) joint;
+                    groups[slot].weights[count] = weight;
+                    sum += weight;
                 }
-                if (!std::isfinite(weights[0]) ||
-                    !std::isfinite(weights[1]) ||
-                    std::fabs(weights[0] + weights[1] - 1.0f) > 0.01f)
-                    return false;
-                groups[slot].weight = groups[slot].joint[0] ==
-                                      groups[slot].joint[1] ? 32 :
-                    (uint8_t) std::clamp(std::lround(weights[0] * 32),
-                                         0l, 32l);
+                groups[slot].count = count;
+                if (std::fabs(sum - 1.0) > 0.01 ||
+                    !nativeSkinWeights_Normalize(&groups[slot])) return false;
                 loaded[slot] = true;
             }
             if (index >= out->used.size()) {
@@ -474,7 +468,7 @@ bool imported_skin_mesh(const NativeFighterModelEditor& model,
                 out->vertices.resize(index + 1);
             }
             if (out->used[index] &&
-                !(out->palettes[index] == groups[slot])) return false;
+                !nativeSkinWeights_Equal(&out->palettes[index], &groups[slot])) return false;
             out->used[index] = 1;
             out->palettes[index] = groups[slot];
             out->triangles.push_back((uint16_t) index);
@@ -494,9 +488,7 @@ bool imported_skin_mesh(const NativeFighterModelEditor& model,
                                                i * 12 + axis * 4);
             if (!std::isfinite(vertex.position[axis])) return false;
         }
-        vertex.joints[0] = out->palettes[i].joint[0];
-        vertex.joints[1] = out->palettes[i].joint[1];
-        vertex.weight = out->palettes[i].weight / 32.0f;
+        vertex.skin = out->palettes[i];
     }
     return !out->triangles.empty();
 }
@@ -568,7 +560,7 @@ struct TransferSkin {
                     distance_squared);
     }
 
-    SkinPalette palette(const float point[3]) const
+    NativeSkinWeights palette(const float point[3]) const
     {
         unsigned best = 0;
         float distance = std::numeric_limits<float>::infinity();
@@ -628,7 +620,7 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         fail(error, error_size, "Mesh node has a non-invertible transform.");
         return false;
     }
-    std::vector<SkinPalette> vertex_palette;
+    std::vector<NativeSkinWeights> vertex_palette;
     if (skin) vertex_palette.resize(vertices);
     for (unsigned i = 0; i < vertices; ++i) {
         float xyz[3], n[3], tex[2];
@@ -698,11 +690,11 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
             unsigned additional = 0;
             for (unsigned c = 0; c < 3; ++c) {
                 bool found = false;
-                for (const SkinPalette& p : chunk.palettes)
-                    if (p == vertex_palette[triangle[c]]) found = true;
+                for (const NativeSkinWeights& p : chunk.palettes)
+                    if (nativeSkinWeights_Equal(&p, &vertex_palette[triangle[c]])) found = true;
                 for (unsigned earlier = 0; earlier < c; ++earlier)
-                    if (vertex_palette[triangle[earlier]] ==
-                        vertex_palette[triangle[c]]) found = true;
+                    if (nativeSkinWeights_Equal(&vertex_palette[triangle[earlier]],
+                                               &vertex_palette[triangle[c]])) found = true;
                 if (!found) ++additional;
             }
             if (!chunk.indices.empty() &&
@@ -717,10 +709,10 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                 chunk = {};
             }
             for (unsigned c = 0; c < 3; ++c) {
-                const SkinPalette& palette = vertex_palette[triangle[c]];
+                const NativeSkinWeights& palette = vertex_palette[triangle[c]];
                 unsigned id = 0;
                 for (; id < chunk.palettes.size(); ++id)
-                    if (chunk.palettes[id] == palette) break;
+                    if (nativeSkinWeights_Equal(&chunk.palettes[id], &palette)) break;
                 if (id == chunk.palettes.size()) chunk.palettes.push_back(palette);
                 chunk.indices.push_back(triangle[c]);
                 chunk.palette_index.push_back((uint8_t) id);
@@ -1280,10 +1272,12 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
         for (unsigned axis = 0; axis < 3; ++axis)
             if (!std::isfinite(centers[i].position[axis])) return false;
     NativeFighterModelEditor model = {};
+    float inverse_bind[12];
     if (!nativeFighterModel_Open(&model, project) ||
         joint >= model.joint_count ||
-        !(model.joints[joint].flags & JOBJ_SKELETON)) {
-        fail(error, error_size, "Select a deform bone on this fighter.");
+        !(model.joints[joint].flags & JOBJ_SKELETON) ||
+        !read_bind_inverse(model, joint, inverse_bind)) {
+        fail(error, error_size, "Select a deform bone with an inverse bind matrix.");
         return false;
     }
     ImportedSkinMesh skin;
@@ -1307,45 +1301,17 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
             distance_squared = std::min(distance_squared, current);
         }
         if (distance_squared >= radius * radius) continue;
-        SkinPalette& palette = skin.palettes[i];
-        const uint8_t old_weight = palette.weight;
-        const uint16_t old_joint[2] = {
-            palette.joint[0], palette.joint[1]
-        };
+        NativeSkinWeights& palette = skin.palettes[i];
+        const NativeSkinWeights before = palette;
         const float influence = strength *
             (1.0f - std::sqrt(distance_squared) / radius);
-        if (palette.joint[0] == joint && palette.joint[1] == joint) {
-            if (!subtract) continue;
-            // There is no other influence to receive the removed weight.
-            continue;
+        const float target = std::clamp(nativeSkinWeights_Get(&palette, (uint16_t) joint) +
+            (subtract ? -influence : influence), 0.0f, 1.0f);
+        if (!nativeSkinWeights_Set(&palette, (uint16_t) joint, target)) {
+            fail(error, error_size, "A vertex already has the maximum 16 bone influences.");
+            return false;
         }
-        if (palette.joint[0] == joint || palette.joint[1] == joint) {
-            const bool first = palette.joint[0] == joint;
-            const float current = first ? palette.weight / 32.0f :
-                                          1.0f - palette.weight / 32.0f;
-            const long target = std::clamp(std::lround(32.0f *
-                std::clamp(current + (subtract ? -influence : influence),
-                           0.0f, 1.0f)), 0l, 32l);
-            palette.weight = (uint8_t) (first ? target : 32 - target);
-            if (palette.weight == 0) {
-                palette.joint[0] = palette.joint[1];
-                palette.weight = 32;
-            } else if (palette.weight == 32) {
-                palette.joint[1] = palette.joint[0];
-            }
-        } else if (!subtract) {
-            const uint16_t retained = palette.weight >= 16
-                ? palette.joint[0] : palette.joint[1];
-            const long target = std::clamp(std::lround(influence * 32.0f),
-                                            0l, 32l);
-            if (target == 0) continue;
-            palette.joint[0] = (uint16_t) joint;
-            palette.joint[1] = target == 32 ? (uint16_t) joint : retained;
-            palette.weight = (uint8_t) target;
-        }
-        if (palette.weight != old_weight ||
-            palette.joint[0] != old_joint[0] ||
-            palette.joint[1] != old_joint[1]) ++changed;
+        if (!nativeSkinWeights_Equal(&palette, &before)) ++changed;
     }
     if (affected) *affected = changed;
     if (!changed) return true;
@@ -1358,12 +1324,12 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
     for (size_t start = 0; start < skin.triangles.size(); start += 3) {
         unsigned additional = 0;
         for (unsigned c = 0; c < 3; ++c) {
-            const SkinPalette& palette = skin.palettes[skin.triangles[start + c]];
+            const NativeSkinWeights& palette = skin.palettes[skin.triangles[start + c]];
             bool found = false;
-            for (const SkinPalette& existing : chunk.palettes)
-                if (existing == palette) found = true;
+            for (const NativeSkinWeights& existing : chunk.palettes)
+                if (nativeSkinWeights_Equal(&existing, &palette)) found = true;
             for (unsigned earlier = 0; earlier < c; ++earlier)
-                if (skin.palettes[skin.triangles[start + earlier]] == palette)
+                if (nativeSkinWeights_Equal(&skin.palettes[skin.triangles[start + earlier]], &palette))
                     found = true;
             if (!found) ++additional;
         }
@@ -1380,10 +1346,10 @@ bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
         }
         for (unsigned c = 0; c < 3; ++c) {
             const uint16_t index = skin.triangles[start + c];
-            const SkinPalette& palette = skin.palettes[index];
+            const NativeSkinWeights& palette = skin.palettes[index];
             unsigned slot = 0;
             for (; slot < chunk.palettes.size(); ++slot)
-                if (chunk.palettes[slot] == palette) break;
+                if (nativeSkinWeights_Equal(&chunk.palettes[slot], &palette)) break;
             if (slot == chunk.palettes.size())
                 chunk.palettes.push_back(palette);
             chunk.indices.push_back(index);

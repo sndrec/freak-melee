@@ -4,6 +4,7 @@
 #ifdef MELEE_NATIVE
 
 #include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_skin_weights.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,15 +54,14 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject*, const char* path,
 
 typedef struct NativeImportedSkinVertex {
     float position[3];
-    uint16_t joints[2];
-    float weight;
+    NativeSkinWeights skin;
     bool used;
 } NativeImportedSkinVertex;
 typedef struct NativeSkinBrushPoint { float position[3]; } NativeSkinBrushPoint;
 
 // Returns zero for meshes outside the imported-envelope layout. When output
 // is null, returns the required number of vertices. Positions are in the
-// model's bind space, and each vertex has two editable influences.
+// model's bind space; weights retain their floating-point precision.
 unsigned nativeFighterGltf_SkinVertices(const NativeFighterProject* project,
                                         unsigned mesh,
                                         NativeImportedSkinVertex* output,
