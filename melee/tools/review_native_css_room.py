@@ -15,7 +15,7 @@ import time
 
 
 class Client:
-    def __init__(self, exe, iso, profile, folder, name, missing_first=False):
+    def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
@@ -42,6 +42,8 @@ class Client:
         env = dict(os.environ, LOCALAPPDATA=str(appdata),
                    FREAK_MELEE_CONTROL_ID=self.identity,
                    FREAK_MELEE_CHAT_ENDPOINT='http://127.0.0.1:1')
+        if live_chat:
+            env.pop('FREAK_MELEE_CHAT_ENDPOINT', None)
         with (folder / 'stdout.log').open('w') as out, self.stderr.open('w') as err:
             self.process = subprocess.Popen(
                 [str(exe), '--iso', str(iso), '--hidden', '--mute'],
@@ -79,7 +81,7 @@ class Client:
             with self.stderr.open('r', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect)\]', text):
+            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect|play-menu)\]', text):
                 return text
             if self.process.poll() is not None:
                 raise RuntimeError(f'Client exited {self.process.returncode}')
@@ -254,12 +256,12 @@ def main():
         assert 'enabled=1' in sender.inspect('confirm-gift')
         sender.click('confirm-gift')
         sender.wait_cards(1)
-        receiver.element('gift-accept', timeout=15)
+        receiver.element('play-accept', timeout=15)
         receiver.screenshot()
         installed = set((receiver.data / 'content/installed').glob('*.fmi'))
         roster_count = struct.unpack_from('<H', (receiver.data / 'css-layout.bin').read_bytes(), 4)[0]
         assert not (receiver.data / f'content/cache/{receiver.missing}.fmc').exists()
-        receiver.click('gift-accept')
+        receiver.click('play-accept')
         for _ in range(200):
             if ((receiver.data / f'content/installed/{receiver.missing}.fmi').exists() and
                 struct.unpack_from('<H', (receiver.data / 'css-layout.bin').read_bytes(), 4)[0] == roster_count+1):

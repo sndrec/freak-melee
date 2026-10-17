@@ -11,11 +11,8 @@ extern "C" {
 bool nativeShell_Init(void);
 void nativeShell_Update(void);
 void nativeShell_Shutdown(void);
-void nativeShell_FocusRoom(void);
-void nativeShell_BlurRoom(void);
-void nativeShell_NavigateRoom(int direction, bool activate);
+void nativeShell_Blur(void);
 bool nativeShell_IsEditingText(void);
-void nativeShell_ShowRoomError(const char* message);
 // Diagnostic input in native client pixels, without desktop focus or cursor
 // use.
 void nativeShell_InspectElement(const char* id);

@@ -1,20 +1,9 @@
 #pragma once
-#include "native_hub_paint.h"
+#include "native_hub.h"
 #include "native_hub_catalog.h"
+#include <melee/mn/native_menu_paint.h>
 #include <melee/ui/native_chat.h>
 
-enum class HubPage {
-    QuickPlay,
-    Lobbies,
-    Chat,
-    Friends,
-    Inbox,
-    Workshop,
-    Settings,
-    Profile,
-    Clone,
-    Send
-};
 enum class HubAction {
     None,
     QuickPlay,
@@ -26,6 +15,7 @@ enum class HubAction {
     Settings,
     Profile,
     Back,
+    Close,
     Singles,
     Doubles,
     Create,
@@ -34,6 +24,11 @@ enum class HubAction {
     Leave,
     CopyCode,
     Practice,
+    Selection,
+    Rules,
+    Costumes,
+    Packages,
+    Rotation,
     StartMatch,
     Edit,
     NewClone,
@@ -77,7 +72,8 @@ struct HubRegion {
     bool enabled;
 };
 struct HubState {
-    HubPage page = HubPage::Workshop, previous = HubPage::Workshop;
+    NativeHubPage page = NativeHubPage_Workshop,
+                  previous = NativeHubPage_Workshop;
     HubRegion regions[192];
     unsigned region_count;
     float pointer_x = 310, pointer_y = 240;
@@ -93,6 +89,8 @@ struct HubState {
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
     bool returning_from_tool, rename, select_all, send_from_css,
         profile_self = true;
+    bool opened_from_play;
+    bool consumes_input;
     unsigned pending_action;
     int pending_value;
     char pending_peer[65], pending_name[33];
@@ -111,6 +109,6 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
 void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action);
 void nativeHub_Panel(float x, float y, float w, float h);
-void nativeHub_ChangePage(HubPage page);
+void nativeHub_ChangePage(NativeHubPage page);
 void nativeHub_RenderPage(void);
 void nativeHub_Activate(HubAction action, int value);

@@ -58,10 +58,14 @@ The lobby create/join page includes a one-to-four local-player selector.
 The hidden, muted authoring acceptance run passed again with these changes;
 screenshots are under `.local/native-hub-art-acceptance`.
 
-Still to integrate after the shared pages: native room controls during CSS and
-practice, Quick Play ready-practice/countdown flow, and authored menu
-transitions. The GameCube
-adapter range/deadzone audit below remains open for hardware verification.
+CSS and practice now use native controls in the 4:3 game area. The CSS Ready
+button follows the existing START path; practice offers lobby access, host start
+and return to CSS. The hub also opens from paused practice with Z. Settings keeps
+bindings, rules, costume selection and installed packages accessible as tools.
+The [native play-menu checkpoint](native_play_menu_checkpoint.md) records the
+source ownership and local acceptance. Quick Play queue controls, countdown flow
+and authored transitions remain open. The GameCube adapter range/deadzone audit
+below remains open for hardware verification.
 
 The native CSS cookie path now separates portrait choice from cookie position.
 A places a carried cookie anywhere in the viewport. Empty-space placement

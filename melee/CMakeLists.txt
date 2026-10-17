@@ -477,8 +477,9 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub.cpp
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_catalog.cpp
-    src/melee/ui/native_hub_paint.c
+    src/melee/mn/native_menu_paint.c
     src/melee/ui/native_hub_hand.c
+    src/melee/ui/native_play_menu.cpp
     src/melee/mn/native_css_interaction.c
     src/melee/mn/native_css_cards.c
     src/melee/mn/native_css_participants.c
@@ -488,7 +489,6 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_shell_css_original.cpp
     src/melee/ui/native_shell_costumes.cpp
     src/melee/ui/native_chat.c
-    src/melee/ui/native_shell_chat.cpp
     src/melee/ui/native_shell_profiles.cpp
     src/melee/ui/native_shell_rules.cpp
     src/sysdolphin/baselib/audio_rollback.c

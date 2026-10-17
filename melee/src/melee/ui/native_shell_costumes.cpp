@@ -30,6 +30,7 @@ Rml::ElementDocument* document;
 CostumeEntry catalog[MAX_COSTUMES];
 size_t catalog_count;
 bool selection_active;
+bool opened;
 int section_visible = -1;
 int open_port = -1;
 uint8_t shown_characters[4];
@@ -204,10 +205,21 @@ bool parse_index(const Rml::String& id, const char* prefix, unsigned* index)
 class CostumeEvents final : public Rml::EventListener {
     void ProcessEvent(Rml::Event& event) override
     {
+        if (event.GetType() == "keydown") {
+            if (event.GetParameter<int>("key_identifier",0) == Rml::Input::KI_ESCAPE) {
+                nativeShellCostumes_Close();
+                event.StopPropagation();
+            }
+            return;
+        }
         if (event.GetType() != "click") {
             return;
         }
         const Rml::String& id = event.GetCurrentElement()->GetId();
+        if (id == "costume-close") {
+            nativeShellCostumes_Close();
+            return;
+        }
         unsigned index;
         if (parse_index(id, "costume-port-", &index) && index < 4) {
             open_port = open_port == int(index) ? -1 : int(index);
@@ -248,10 +260,13 @@ void rebuild(const uint8_t characters[4], const uint8_t colors[4],
         any = true;
     }
     document->GetElementById("costume-section")
-        ->SetProperty("display", any ? "block" : "none");
+        ->SetProperty("display", "block");
     section_visible = int(any);
     if (!any) {
         open_port = -1;
+        document->GetElementById("costume-players")->SetInnerRML(
+            "Select a stock fighter on character select to choose a costume.");
+        document->GetElementById("costume-choices")->SetProperty("display","none");
         return;
     }
 
@@ -331,20 +346,44 @@ void nativeShellCostumes_Init(Rml::ElementDocument* shell)
 {
     document = shell;
     section_visible = -1;
+    opened = false;
+    document->GetElementById("costume-close")->AddEventListener("click", &events);
+    document->GetElementById("costume-panel")->AddEventListener("keydown", &events);
 }
+
+void nativeShellCostumes_Open(void)
+{
+    if (!document || !nativeHome_IsSelection()) return;
+    selection_active = false;
+    section_visible = -1;
+    opened = true;
+    document->GetElementById("costume-panel")->SetProperty("display","flex");
+    document->GetElementById("costume-close")->Focus(true);
+    nativeShellCostumes_Update();
+}
+
+void nativeShellCostumes_Close(void)
+{
+    opened = false;
+    if (document) document->GetElementById("costume-panel")->SetProperty("display","none");
+}
+
+extern "C" bool nativeShellCostumes_IsOpen(void) { return opened; }
 
 void nativeShellCostumes_RefreshInstalled(void)
 {
     selection_active = false;
+    section_visible = -1;
 }
 
 void nativeShellCostumes_Update(void)
 {
-    if (document == nullptr) {
+    if (document == nullptr || !opened) {
         return;
     }
     const bool active = nativeHome_IsSelection();
     if (!active) {
+        nativeShellCostumes_Close();
         selection_active = false;
         open_port = -1;
         if (section_visible != 0) {
@@ -363,7 +402,7 @@ void nativeShellCostumes_Update(void)
     uint8_t colors[4] = {};
     NativeContentId packages[4] = {};
     bool players[4] = {};
-    bool changed = false;
+    bool changed = section_visible < 0;
     for (unsigned port = 0; port < 4; ++port) {
         players[port] = nativeHome_CssPlayer(port, &characters[port],
                                              &colors[port]);

@@ -12,27 +12,7 @@
 </head>
 <body>
   <div id="shell">
-    <aside id="left-rail" class="rail left-rail">
-      <div id="css-original-sidebar-normal">
-      <header class="brand">
-        <div class="eyebrow brand-kicker">SUPER SMASH BROS.</div>
-        <div class="brand-name">FREAK</div>
-        <div class="brand-subtitle">MELEE<span class="brand-slashes">///</span></div>
-      </header>
-      <nav class="navigation">
-        <div class="eyebrow nav-heading">MENU</div>
-        <button id="room-tab" class="nav-item active"><span class="nav-index">01</span><span>Room</span></button>
-        <button id="workshop-tab" class="nav-item"><span class="nav-index">02</span><span>Workshop</span></button>
-        <button id="collection-tab" class="nav-item"><span class="nav-index">03</span><span>Collection</span></button>
-        <button id="profiles-tab" class="nav-item"><span class="nav-index">04</span><span>Options</span></button>
-        <button id="rules-tab" class="nav-item"><span class="nav-index">05</span><span>Match rules</span></button>
-        <button id="css-original-edit" class="nav-item"><span class="nav-index">06</span><span>Edit CSS</span></button>
-      </nav>
-      <section id="local-section" class="local-section">
-        <div class="section-heading"><span class="eyebrow">ON THIS PC</span><span id="controller-count" class="small-count">0 / 4</span></div>
-        <div id="local-controllers"></div>
-      </section>
-      </div>
+    <aside id="left-rail" class="rail left-rail css-editing">
       <header id="css-original-editor-header">
         <button id="css-original-back">‹ BACK</button>
         <div class="eyebrow">CHARACTER SELECT</div>
@@ -46,58 +26,21 @@
         <button id="css-original-reset" class="room-button quiet">Restore default</button>
         <p id="css-original-status"></p>
       </section>
-
-      <div class="rail-spacer"></div>
     </aside>
-    <aside id="right-rail" class="rail right-rail">
-      <header class="room-header">
-        <div class="eyebrow">ROOM</div>
-        <div class="room-status"><span id="room-dot" class="status-dot"></span><span id="room-state">Offline</span></div>
+
+    <div id="css-original-overlay"><div id="css-original-handles"></div></div>
+    <section id="costume-panel">
+      <header class="settings-header">
+        <button id="costume-close">‹ BACK</button>
+        <div class="settings-heading"><div class="eyebrow">ON THIS PC</div><div class="settings-title">Costumes</div></div>
       </header>
-      <section class="identity">
-        <label for="local-name" class="field-label">Name</label>
-        <input id="local-name" class="room-input" type="text" maxlength="32" placeholder="Player" />
-      </section>
-      <section id="offline-room" class="offline-room">
-        <div class="field-label">Players on this PC</div>
-        <div class="local-counts"><button id="local-1" class="selected">1</button><button id="local-2">2</button><button id="local-3">3</button><button id="local-4">4</button></div>
-        <button id="create-room" class="room-button primary">Create room</button>
-        <div class="join-divider">or join</div>
-        <label for="join-code" class="field-label">Room code</label>
-        <input id="join-code" class="room-input code-input" type="text" maxlength="12" placeholder="XXXXXXXX" />
-        <button id="join-room" class="room-button">Join room</button>
-        <p id="room-unavailable" class="muted">Available at home or in practice.</p>
-      </section>
-      <section id="connected-room" class="connected-room">
-        <div class="eyebrow">INVITE CODE</div>
-        <div id="room-code" class="room-code">--------</div>
-        <button id="copy-code" class="copy-button">Copy room code</button>
-        <div class="section-heading roster-heading"><span class="eyebrow">IN THE ROOM</span><span id="room-count" class="small-count">0</span></div>
-        <div id="room-players"></div>
-        <div class="rotation-heading eyebrow">1V1 ROTATION</div>
-        <button id="rotation-policy" class="room-button quiet">Manual</button>
-        <button id="leave-room" class="room-button quiet">Leave room</button>
-      </section>
-      <button id="start-match" class="room-button primary">Start match</button>
-      <div id="start-hint" class="muted">START to practice and ready up</div>
-      <p id="content-progress"></p>
-      <div id="gift-incoming"></div>
-      <p id="room-failure" class="failure"></p>
       <section id="costume-section">
         <div class="eyebrow">COSTUMES</div>
         <div id="costume-players"></div>
         <div id="costume-choices"></div>
         <p id="costume-status"></p>
       </section>
-      <section id="global-chat" class="global-chat">
-        <header class="chat-heading"><span class="eyebrow">GLOBAL CHAT</span><button id="chat-toggle">−</button></header>
-        <div id="chat-state" class="chat-state">Connecting...</div>
-        <div id="chat-history" class="chat-history"></div>
-        <div class="chat-compose"><input id="chat-message" type="text" maxlength="512" placeholder="Message everyone" /></div>
-        <div class="chat-footer"><span id="chat-delivery"></span><button id="chat-send">Send</button></div>
-      </section>
-    </aside>
-    <div id="css-original-overlay"><div id="css-original-handles"></div></div>
+    </section>
     <section id="collection-panel">
       <header class="settings-header">
         <button id="collection-close">‹ BACK</button>

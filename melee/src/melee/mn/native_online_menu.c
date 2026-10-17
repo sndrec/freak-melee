@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #include "native_online_menu.h"
 
 #ifdef MELEE_NATIVE
@@ -43,7 +44,7 @@ bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
 void nativeOnlineMenu_Focus(void)
 {
     if (nativeOnlineMenu_IsAvailable()) {
-        nativeShell_FocusRoom();
+        nativeHub_Open(NativeHubPage_Lobbies);
     }
 }
 
@@ -64,17 +65,17 @@ void nativeOnlineMenu_Pump(void)
                     : nativeOnlineSession_JoinRoom(menu.room_code, menu.name,
                                                    menu.local_players);
             if (!started) {
-                nativeShell_ShowRoomError("Could not open the room.");
+                nativeHub_Notice("Could not open the room.");
             } else {
                 sfxForward();
             }
         }
     } else if (action == NativeOnlineMenuAction_Leave) {
         nativeOnlineSession_Stop();
-        nativeShell_BlurRoom();
+        nativeShell_Blur();
         sfxBack();
     } else if (action == NativeOnlineMenuAction_StartMatch) {
-        nativeShell_BlurRoom();
+        nativeShell_Blur();
         nativeHome_RequestStartMatch();
     }
 

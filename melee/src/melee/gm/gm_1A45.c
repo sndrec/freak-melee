@@ -37,6 +37,7 @@
 #include <melee/db/dbnativecontrol.h>
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_hub.h>
+#include <melee/ui/native_shell_costumes.h>
 #include <melee/ui/native_shell_profiles.h>
 #include <melee/ui/native_shell_rules.h>
 #include <melee/if/ifcoget.h>
@@ -510,12 +511,12 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 if (lb_80019A30(0)) {
                     nativeHome_ApplyResultsInput();
                     if (!rollback_active) nativeHub_Tick();
-                    if (nativeHome_IsSelection() &&
-                        (nativeHub_IsVisible() || nativeShellProfiles_IsOpen() ||
-                         nativeShellRules_IsOpen() || nativeShell_IsEditingText()))
+                    if ((nativeHome_IsSelection() || nativeHome_IsPractice()) &&
+                        (nativeHub_ConsumesGameInput() || nativeShellProfiles_IsOpen() ||
+                         nativeShellRules_IsOpen() || nativeShellCostumes_IsOpen() || nativeShell_IsEditingText()))
                     {
                         // Raw controller sampling remains available to rebinding;
-                        // only the CSS-facing inputs are neutral while editing.
+                        // menu-owned inputs stay out of CSS and practice.
                         for (int port = 0; port < 4; ++port) {
                             s8 error = HSD_PadCopyStatus[port].err;
                             memset(&HSD_PadCopyStatus[port], 0, sizeof(HSD_PadStatus));

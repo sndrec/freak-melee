@@ -10,6 +10,7 @@
 #include <melee/mn/types.h>
 #include <melee/sc/types.h>
 #include <melee/ui/native_hub.h>
+#include <melee/ui/native_play_menu.h>
 #include <sysdolphin/baselib/aobj.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/gobjgxlink.h>
@@ -256,6 +257,7 @@ static void draw(HSD_GObj* object, int pass)
                             carried->y - 5.5f, .8f, 13, .65f, 0xFFF3DCFF,
                             true);
     }
+    nativePlayMenu_DrawCss(view);
     HSD_StateInvalidate(-1);
     HSD_StateInitTev();
     HSD_ClearVtxDesc();

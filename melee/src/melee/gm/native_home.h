@@ -99,6 +99,7 @@ bool nativeHome_RoomRosterReady(bool* owner_requested,
                                 NativeContentId fighter_packages[4]);
 void nativeHome_RequestStartMatch(void);
 void nativeHome_CancelStartMatch(void);
+bool nativeHome_ReturnToSelection(void);
 void nativeHome_EnterSelection(CSSData* css);
 bool nativeHome_CssPlayer(unsigned port, uint8_t* character, uint8_t* color);
 const NativeContentId* nativeHome_CostumePackage(unsigned port);

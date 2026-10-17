@@ -1,11 +1,13 @@
-#include "native_hub_paint.h"
+#include "native_menu_paint.h"
+
+#include <math.h>
+
 #include <dolphin/gx.h>
 #include <dolphin/mtx.h>
+#include <sysdolphin/baselib/pobj.h>
 #include <sysdolphin/baselib/state.h>
 #include <sysdolphin/baselib/tev.h>
-#include <sysdolphin/baselib/pobj.h>
 #include <sysdolphin/baselib/video.h>
-#include <math.h>
 
 static void vertex(float x, float y, float u, float v)
 {
@@ -21,18 +23,23 @@ static void color(uint32_t rgba)
     GXSetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO,
                     GX_CA_A0);
 }
-void nativeHubPaint_Begin(void)
+void nativeMenuPaint_Begin(const Mtx view)
 {
-    Mtx44 projection;
-    Mtx model;
-    C_MTXOrtho(projection, 0, -480, 0, 640, 1, 100);
-    C_MTXIdentity(model);
-    GXSetProjection(projection, GX_ORTHOGRAPHIC);
-    GXLoadPosMtxImm(model, GX_PNMTX0);
+    if (view) {
+        GXLoadPosMtxImm(view, GX_PNMTX0);
+    } else {
+        Mtx44 projection;
+        Mtx model;
+        C_MTXOrtho(projection, 0, -480, 0, 640, 1, 100);
+        C_MTXIdentity(model);
+        GXSetProjection(projection, GX_ORTHOGRAPHIC);
+        GXLoadPosMtxImm(model, GX_PNMTX0);
+        const HSD_VIStatus* video = HSD_VIGetVIStatus();
+        GXSetViewport(0, 0, video->rmode.fbWidth, video->rmode.efbHeight, 0,
+                      1);
+        GXSetScissor(0, 0, video->rmode.fbWidth, video->rmode.efbHeight);
+    }
     GXSetCurrentMtx(GX_PNMTX0);
-    const HSD_VIStatus* video = HSD_VIGetVIStatus();
-    GXSetViewport(0, 0, video->rmode.fbWidth, video->rmode.efbHeight, 0, 1);
-    GXSetScissor(0, 0, video->rmode.fbWidth, video->rmode.efbHeight);
     GXClearVtxDesc();
     GXSetVtxDesc(GX_VA_POS, GX_DIRECT);
     GXSetVtxDesc(GX_VA_TEX0, GX_DIRECT);
@@ -58,13 +65,13 @@ void nativeHubPaint_Begin(void)
     GXSetAlphaCompare(GX_ALWAYS, 0, GX_AOP_AND, GX_ALWAYS, 0);
     GXSetFog(GX_FOG_NONE, 0, 0, 0, 1, (GXColor){ 0, 0, 0, 0 });
 }
-void nativeHubPaint_End(void)
+void nativeMenuPaint_End(void)
 {
     HSD_StateInvalidate(-1);
     HSD_StateInitTev();
     HSD_ClearVtxDesc();
 }
-void nativeHubPaint_Quad(const float xy[8], uint32_t rgba)
+void nativeMenuPaint_Quad(const float xy[8], uint32_t rgba)
 {
     color(rgba);
     GXBegin(GX_QUADS, GX_VTXFMT0, 4);
@@ -73,13 +80,13 @@ void nativeHubPaint_Quad(const float xy[8], uint32_t rgba)
     }
     GXEnd();
 }
-void nativeHubPaint_Rect(float x, float y, float w, float h, uint32_t rgba)
+void nativeMenuPaint_Rect(float x, float y, float w, float h, uint32_t rgba)
 {
     float xy[] = { x, y, x + w, y, x + w, y + h, x, y + h };
-    nativeHubPaint_Quad(xy, rgba);
+    nativeMenuPaint_Quad(xy, rgba);
 }
-void nativeHubPaint_Round(float x, float y, float w, float h, float radius,
-                          uint32_t rgba)
+void nativeMenuPaint_Round(float x, float y, float w, float h, float radius,
+                           uint32_t rgba)
 {
     float r = fminf(radius, fminf(w, h) * .5f);
     color(rgba);
@@ -95,13 +102,14 @@ void nativeHubPaint_Round(float x, float y, float w, float h, float radius,
     }
     GXEnd();
 }
-void nativeHubPaint_Text(const char* text, float x, float y, float w, float h,
-                         uint32_t rgba, NativeMenuFontFace face, bool centered)
+void nativeMenuPaint_Text(const char* text, float x, float y, float w, float h,
+                          uint32_t rgba, NativeMenuFontFace face,
+                          bool centered)
 {
     nativeMenuFont_Draw(face, text, x, -y, -5, w, h, rgba, centered);
 }
-void nativeHubPaint_Image(void* pixels, unsigned width, unsigned height,
-                          float x, float y, float w, float h)
+void nativeMenuPaint_Image(void* pixels, unsigned width, unsigned height,
+                           float x, float y, float w, float h)
 {
     if (!pixels || !width || !height) {
         return;

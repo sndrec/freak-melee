@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #include "native_home.h"
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
 
@@ -1516,6 +1517,16 @@ void nativeHome_CancelStartMatch(void)
     home.selection.start_requested = false;
 }
 
+bool nativeHome_ReturnToSelection(void)
+{
+    if (!nativeHome_IsPractice() || home.authoring || home.preview_active ||
+        home.enter_stage_select) return false;
+    home.selection.confirmed = false;
+    home.start_requested = home.selection.start_requested = false;
+    gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
+    return true;
+}
+
 void nativeHome_EnterSelection(CSSData* css)
 {
     home.css = css;
@@ -1564,13 +1575,13 @@ bool nativeHome_LockSelection(CSSData* css)
                 home.preview_candidate = home.preview_previous_candidate;
                 home.preview_previous_candidate = (NativeContentId){ 0 };
                 home.preview_restart = true;
-                nativeShell_ShowRoomError(
+                nativeHub_Notice(
                     "New preview could not load; restoring previous preview.");
                 return false;
             }
             finish_preview();
         }
-        nativeShell_ShowRoomError("Selected fighter could not load.");
+        nativeHub_Notice("Selected fighter could not load.");
         return false;
     }
     for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
@@ -1637,7 +1648,7 @@ bool nativeHome_LockSelection(CSSData* css)
                   nativeMatchLaunch_ContentRoot());
         if (!loaded) {
             nativeCostumeRuntime_Clear();
-            nativeShell_ShowRoomError("Selected costume could not load.");
+            nativeHub_Notice("Selected costume could not load.");
             return false;
         }
     }

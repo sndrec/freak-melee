@@ -23,8 +23,8 @@
 .collection-kind { color: #ea8f78; font-size: 10dp; letter-spacing: 2dp; }
 .collection-item strong { margin: 3dp 0; color: #fff1e7; font-size: 19dp; }
 .collection-id { color: #8c8795; font-size: 11dp; letter-spacing: 1dp; }
-.collection-item button, .gift-buttons button { padding: 9dp 18dp; color: #ffe2d5; background-color: #45303a; border: 1dp #ad6b67; border-radius: 3dp; }
-.collection-item button:hover, .collection-item button:focus, .gift-buttons button:hover, .gift-buttons button:focus { background-color: #71414a; border-color: #f3947b; }
+.collection-item button { padding: 9dp 18dp; color: #ffe2d5; background-color: #45303a; border: 1dp #ad6b67; border-radius: 3dp; }
+.collection-item button:hover, .collection-item button:focus { background-color: #71414a; border-color: #f3947b; }
 .collection-empty { padding: 35dp; margin-top: 10dp; color: #aea2b0; text-align: center; border: 1dp #423746; }
 .collection-sharing { flex: 0 0 310dp; padding: 0 0 0 26dp; border-left: 1dp #443743; }
 .collection-sharing > p { color: #b5a8b5; font-size: 14dp; line-height: 1.5; margin: 13dp 0 24dp; }
@@ -32,7 +32,3 @@
 #collection-recipient { width: 100%; }
 #collection-status { min-height: 35dp; margin-top: 36dp; color: #efaa90; }
 #collection-transfer { margin-top: 8dp; padding-top: 16dp; border-top: 1dp #443743; color: #dfc4bd; font-size: 14dp; }
-#gift-incoming { display: none; padding: 13dp; margin-top: 12dp; color: #fce6d8; background-color: #342630; border: 1dp #d87966; border-radius: 4dp; font-size: 13dp; line-height: 1.45; }
-#gift-incoming strong { display: block; margin-bottom: 11dp; }
-.gift-buttons { display: flex; }
-.gift-buttons button { flex: 1; padding: 7dp 4dp; margin-right: 5dp; font-size: 11dp; }

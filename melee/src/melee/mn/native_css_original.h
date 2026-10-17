@@ -42,6 +42,7 @@ bool nativeCssOriginal_HitTestTile(float x, float y, NativeCssTile* result);
 bool nativeCssOriginal_RandomTile(NativeCssTile* result);
 void nativeCssOriginal_Viewport(float* left, float* right, float* top, float* bottom);
 bool nativeCssOriginal_PointFromCanvas(float u, float v, float* x, float* y);
+bool nativeCssOriginal_PointToCanvas(float x, float y, float* u, float* v);
 void nativeCssOriginal_TransformPoint(Vec3* point);
 bool nativeCssOriginal_ViewMatrix(Mtx result);
 
