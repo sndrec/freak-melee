@@ -56,6 +56,7 @@ static struct {
     CardArt art[4];
     CarriedArt carried[4];
     bool invalidate;
+    uint32_t cache_revision;
 } cards;
 
 static bool nonzero(const NativeContentId* id)
@@ -311,6 +312,11 @@ void nativeCssCards_Update(void)
     if (!cards.css) {
         return;
     }
+    uint32_t revision = nativeOnlineSession_CacheRevision();
+    if (revision != cards.cache_revision) {
+        cards.invalidate = true;
+        cards.cache_revision = revision;
+    }
     NativeCssLocalSlot local[4] = { 0 };
     for (unsigned port = 0; port < 4; ++port) {
         const PlayerInitData* player = &cards.css->vs.start.players[port];
@@ -417,14 +423,20 @@ void nativeCssCards_InvalidateArt(void)
 }
 void nativeCssCards_Inspect(void)
 {
+    NativeNetplayContentProgress progress = {0};
+    bool downloading = nativeOnlineSession_ContentProgress(&progress);
+    fprintf(stderr, "[css-cache] revision=%u receiving=%u bytes=%u total=%u\n",
+            nativeOnlineSession_CacheRevision(), downloading,
+            progress.bytes_done, progress.bytes_total);
     fprintf(stderr, "[css-cards] online=%u count=%u\n", cards.people.online,
             cards.people.count);
     for (unsigned i = 0; i < cards.people.count; ++i) {
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
                 "[css-card] display=%u peer=%s seat=%u physical=%u "
-                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14\n",
+                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14 portrait=%u title=%s\n",
                 i, p->peer, p->seat, p->physical_port, p->canonical_port,
-                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f);
+                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f,
+                cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title);
     }
 }

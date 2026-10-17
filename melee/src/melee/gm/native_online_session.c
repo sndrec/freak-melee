@@ -24,7 +24,7 @@ static struct NativeOnlineProcessSession {
     bool match_claimed;
 } online;
 
-static const char online_build[] = "freak-melee-native-dev-content";
+static const char online_build[] = "freak-melee-native-dev-cache";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)
@@ -194,6 +194,11 @@ NativeLobbySessionState nativeOnlineSession_State(void)
                          : NativeLobbySessionState_Disconnected;
 }
 
+uint32_t nativeOnlineSession_CacheRevision(void)
+{
+    return online.active ? online.lobby.room.cache.revision : 0;
+}
+
 NativeRoomChat* nativeOnlineSession_Chat(void)
 {
     return online.active ? &online.lobby.room.connection.chat : NULL;
@@ -219,12 +224,23 @@ const char* nativeOnlineSession_LocalPeerId(void)
     return online.active ? online.peer_id : NULL;
 }
 
-bool nativeOnlineSession_ContentProgress(
-    NativeNetplayContentProgress* progress)
+bool nativeOnlineSession_ContentProgress(NativeNetplayContentProgress* progress)
 {
-    return online.active &&
-           online.lobby.state == NativeLobbySessionState_Starting &&
-           nativeNetplayRoom_ContentProgress(&online.lobby.room, progress);
+    if (!online.active || !progress) return false;
+    if (online.lobby.state == NativeLobbySessionState_Starting)
+        return nativeNetplayRoom_ContentProgress(&online.lobby.room, progress);
+    const NativeRoomCache* cache = &online.lobby.room.cache;
+    if (!cache->serial || !cache->choice_count) return false;
+    unsigned remaining = 0;
+    for (unsigned i = 0; i < cache->choice_count; ++i) remaining += !cache->choices[i].cached;
+    *progress = (NativeNetplayContentProgress) {
+        .bytes_done = (uint32_t) cache->receive.received,
+        .bytes_total = (uint32_t) cache->receive.size,
+        .package_index = cache->choice_count - remaining + 1,
+        .package_count = cache->choice_count,
+        .direction = NativeNetplayContent_Receiving,
+    };
+    return true;
 }
 
 bool nativeOnlineSession_OfferGift(const char* peer_id,

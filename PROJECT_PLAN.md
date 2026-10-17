@@ -12,8 +12,8 @@ their own builds; their old "remaining" lists are not the current backlog.
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
   the UI checks, fixed bugs and remaining gaps. The follow-up authoring controls
   are ready for the user's next dogfooding pass.
-  The user authorizes regular commits and pushes to the private `sndrec/freak-melee`
-  repository for this work. Keep disc-derived assets and generated packages local.
+  Save coherent progress in local Git commits. The active goal forbids upstream
+  pushes. Keep disc-derived assets and generated packages local.
 - Continue the native client and character-authoring platform.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;
@@ -32,14 +32,15 @@ their own builds; their old "remaining" lists are not the current backlog.
   the stock Melee hand, ISO-extracted starter portraits and a live global-chat
   player directory. Local hidden/muted authoring acceptance and two-client
   chat presence checks passed. The design document records remaining CSS,
-  matchmaking, lobby-chat and account/inbox work.
+  matchmaking and account/inbox work.
 - Native CSS now presents active lobby seats with local players first, using
   stock card artwork. Physical inputs and canonical match ports stay intact.
   Portrait dragging opens fighter-delivery confirmation. Same-lobby transfers
   use separate content connections and reach waiting players and spectators,
   including while they practice. Native CSS/practice controls now replace the
-  room rails and preserve access to the detailed tools. Early remote portrait
-  downloads and Quick Play controls remain open. See the
+  room rails and preserve access to the detailed tools. Selected remote fighters
+  now download to the cache before readying, refreshing portraits without adding
+  roster entries. Quick Play controls remain open. See the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
@@ -86,7 +87,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Native hub, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global and lobby chat, compact player directories, paged larger-lobby controls, shared-PC inputs, spectator/rotation foundations and same-lobby fighter delivery, with local evidence. | Lobby browsing, early remote portraits, persistent accounts/friends, email-style inbox, invitations, fixed-rule 1v1/2v2 Quick Play and authored transitions. Physical multi-PC testing remains deferred to the user. |
+| Rooms/social | Native hub, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global and lobby chat, compact player directories, paged larger-lobby controls, shared-PC inputs, spectator/rotation foundations and same-lobby fighter delivery and early remote portraits, with local evidence. | Lobby browsing, persistent accounts/friends, email-style inbox, invitations, fixed-rule 1v1/2v2 Quick Play and authored transitions. Physical multi-PC testing remains deferred to the user. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence

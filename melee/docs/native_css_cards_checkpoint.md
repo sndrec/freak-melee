@@ -52,9 +52,10 @@ already installed package preserves one installation.
   leaves the active set. Both endpoints then create fresh ICE sessions when
   that player returns. Descriptions that arrive after their route closes are
   discarded. This fixes the one-sided reconnection found during role testing.
-- `native_netplay_content_channel.c` owns two content connection slots, separate
+- `native_netplay_content_channel.c` owns six content connection slots, separate
   from the three gameplay connections. Offers reserve a slot; accepting an
   uncached package starts ICE using the connection's existing STUN/TURN settings.
+  Two slots cover gifts; automatic caching has one receive and three send jobs.
   The route records its peer, transfer serial and owner, so simultaneous transfers
   and delayed descriptions retain their identity. Role changes keep these routes;
   leaving or rejoining the lobby closes them. A failed content connection affects
@@ -128,8 +129,9 @@ delivery controls described in the [play-menu checkpoint](native_play_menu_check
 
 ## Remaining work
 
-- Fetch remote choice metadata and portraits before readying. Missing packages
-  currently use a placeholder until their content is cached.
+Automatic pre-ready caching and portrait refresh are covered in the
+[lobby-cache checkpoint](native_lobby_cache_checkpoint.md).
+
 - Add the Quick Play queue controls with matchmaking.
 - Complete Quick Play admission, ready practice, countdown, stage picks and
   rematches, then authored menu transitions.

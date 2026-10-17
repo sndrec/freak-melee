@@ -3,22 +3,19 @@
 #ifdef MELEE_NATIVE
 
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include <melee/ft/native_costume_package.h>
-#include <melee/ft/native_fighter_runtime.h>
-
-#include "native_netplay_room.h"
-
 #include <stdlib.h>
 #include <string.h>
+#include <windows.h>
+
+#include "native_netplay_room.h"
+#include <melee/ft/native_costume_package.h>
+#include <melee/ft/native_fighter_runtime.h>
 
 enum {
     GIFT_OFFER_BYTES = 106,
     GIFT_REPLY_BYTES = 41,
     GIFT_RETRY_MS = 250,
     GIFT_SEND_BURST = 8,
-    GIFT_RECEIVE_LIMIT = 64,
 };
 
 static const uint8_t gift_magic[4] = { 'F', 'M', 'G', '1' };
@@ -168,9 +165,9 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room, const char* peer_id,
         return false;
     }
     next.id = *id;
-    next.serial = ++room->gift_serial;
+    next.serial = ++room->content_serial;
     if (next.serial == 0) {
-        next.serial = ++room->gift_serial;
+        next.serial = ++room->content_serial;
     }
     memcpy(next.peer_id, peer_id, strlen(peer_id) + 1);
     next.bytes = bytes;
@@ -425,6 +422,58 @@ static void fail_gift(NativeNetplayRoom* room, NativeNetplayGift* gift,
                                            gift->serial, outgoing);
 }
 
+void nativeNetplayRoom_GiftControl(NativeNetplayRoom* room,
+                                   const NativeContentControl* message)
+{
+    const uint8_t* packet = message->datagram.bytes;
+    size_t size = message->datagram.size;
+    if (size < GIFT_REPLY_BYTES ||
+        memcmp(packet, gift_magic, sizeof(gift_magic)))
+    {
+        return;
+    }
+    if (packet[4] == GiftPacket_Offer && size == GIFT_OFFER_BYTES) {
+        receive_offer(room, message);
+    } else if ((packet[4] == GiftPacket_Accept ||
+                packet[4] == GiftPacket_Decline ||
+                packet[4] == GiftPacket_Installed) &&
+               size == GIFT_REPLY_BYTES)
+    {
+        receive_reply(room, message, packet[4]);
+    }
+}
+
+void nativeNetplayRoom_GiftPacket(NativeNetplayRoom* room,
+                                  const NativeContentDatagram* message)
+{
+    const uint64_t now = GetTickCount64();
+    const uint8_t* packet = message->message.datagram.bytes;
+    size_t size = message->message.datagram.size;
+    NativeContentId id;
+    NativeContentTransferPacketType type =
+        nativeContentTransfer_PacketType(packet, size, &id);
+    NativeNetplayGift* outgoing = &room->outgoing_gift;
+    NativeNetplayGift* incoming = &room->incoming_gift;
+    if (message->local_owner && message->serial == outgoing->serial &&
+        type == NativeContentTransferPacket_Ack &&
+        outgoing->state == NativeNetplayGift_Sending &&
+        !strcmp(outgoing->peer_id, message->message.peer_id) &&
+        same_id(&outgoing->id, &id))
+    {
+        nativeContentTransfer_SendPacket(&outgoing->send, packet, size, now);
+    } else if (!message->local_owner && message->serial == incoming->serial &&
+               (type == NativeContentTransferPacket_Begin ||
+                type == NativeContentTransferPacket_Data ||
+                type == NativeContentTransferPacket_Missing) &&
+               incoming->state == NativeNetplayGift_Receiving &&
+               !strcmp(incoming->peer_id, message->message.peer_id) &&
+               same_id(&incoming->id, &id))
+    {
+        nativeContentTransfer_ReceivePacket(&incoming->receive, packet, size,
+                                            now);
+    }
+}
+
 bool nativeNetplayRoom_PumpGifts(NativeNetplayRoom* room)
 {
     if (!room || !room->active || room->match_configured) {
@@ -432,61 +481,6 @@ bool nativeNetplayRoom_PumpGifts(NativeNetplayRoom* room)
     }
     NativeNetplayConnection* connection = &room->connection;
     const uint64_t now = GetTickCount64();
-    for (unsigned received = 0; received < GIFT_RECEIVE_LIMIT; ++received) {
-        NativeContentControl message;
-        if (!nativeNetplayConnection_PollControl(connection, &message)) {
-            break;
-        }
-        const uint8_t* packet = message.datagram.bytes;
-        size_t size = message.datagram.size;
-        if (size < GIFT_REPLY_BYTES ||
-            memcmp(packet, gift_magic, sizeof(gift_magic)))
-        {
-            continue;
-        }
-        if (packet[4] == GiftPacket_Offer && size == GIFT_OFFER_BYTES) {
-            receive_offer(room, &message);
-        } else if ((packet[4] == GiftPacket_Accept ||
-                    packet[4] == GiftPacket_Decline ||
-                    packet[4] == GiftPacket_Installed) &&
-                   size == GIFT_REPLY_BYTES)
-        {
-            receive_reply(room, &message, packet[4]);
-        }
-    }
-    for (unsigned received = 0; received < GIFT_RECEIVE_LIMIT; ++received) {
-        NativeContentDatagram message;
-        if (!nativeNetplayConnection_PollContent(connection, &message)) {
-            break;
-        }
-        const uint8_t* packet = message.message.datagram.bytes;
-        size_t size = message.message.datagram.size;
-        NativeContentId id;
-        NativeContentTransferPacketType type =
-            nativeContentTransfer_PacketType(packet, size, &id);
-        NativeNetplayGift* outgoing = &room->outgoing_gift;
-        NativeNetplayGift* incoming = &room->incoming_gift;
-        if (message.local_owner && message.serial == outgoing->serial &&
-            type == NativeContentTransferPacket_Ack &&
-            outgoing->state == NativeNetplayGift_Sending &&
-            !strcmp(outgoing->peer_id, message.message.peer_id) &&
-            same_id(&outgoing->id, &id))
-        {
-            nativeContentTransfer_SendPacket(&outgoing->send, packet, size,
-                                             now);
-        } else if (!message.local_owner &&
-                   message.serial == incoming->serial &&
-                   (type == NativeContentTransferPacket_Begin ||
-                    type == NativeContentTransferPacket_Data ||
-                    type == NativeContentTransferPacket_Missing) &&
-                   incoming->state == NativeNetplayGift_Receiving &&
-                   !strcmp(incoming->peer_id, message.message.peer_id) &&
-                   same_id(&incoming->id, &id))
-        {
-            nativeContentTransfer_ReceivePacket(&incoming->receive, packet,
-                                                size, now);
-        }
-    }
     NativeNetplayGift* outgoing = &room->outgoing_gift;
     if (outgoing->state == NativeNetplayGift_Offered ||
         outgoing->state == NativeNetplayGift_Sending)

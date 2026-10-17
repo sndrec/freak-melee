@@ -224,6 +224,20 @@ def main():
                 time.sleep(.1)
             else:
                 raise RuntimeError('Provisional CSS choices did not reach the other client')
+        # The remote selection arrives before readying or explicit acceptance.
+        preview = receiver.data / f'content/cache/{receiver.missing}.fmc'
+        assert not (receiver.data / f'content/installed/{receiver.missing}.fmi').exists()
+        roster_before_preview = (receiver.data / 'css-layout.bin').read_bytes()
+        for _ in range(300):
+            cards = receiver.inspect('css-cards')
+            if preview.exists() and re.search(r'\[css-card\].*local=0.*selected=1.*portrait=1', cards):
+                break
+            time.sleep(.1)
+        else:
+            raise RuntimeError('Selected remote fighter was not cached and displayed before readying')
+        assert not (receiver.data / f'content/installed/{receiver.missing}.fmi').exists()
+        assert (receiver.data / 'css-layout.bin').read_bytes() == roster_before_preview
+        receiver.screenshot()
         _, text = sender.state()
         tx, ty = map(float, re.search(r'\[css-tile\] index=0 center=([\d.-]+),([\d.-]+)', text).groups())
         sender.command('ui-drag', *sender.pixel(tx, ty), *sender.pixel(7.6, -14))
@@ -249,6 +263,9 @@ def main():
             time.sleep(.1)
         else:
             raise RuntimeError('Receiver did not enter ready practice')
+        # Evict only this test fixture's automatic cache to separately test
+        # an uncached gift while the recipient is practicing as a spectator.
+        preview.unlink()
         sender.command('ui-click', *sender.pixel(tx, ty))
         time.sleep(.3)
         sender.tap('x')
@@ -293,7 +310,7 @@ def main():
         assert len(list((receiver.data / 'content/installed').glob('*.fmi'))) == len(installed)+1
         assert struct.unpack_from('<H', (receiver.data / 'css-layout.bin').read_bytes(), 4)[0] == roster_count+1
         receiver.screenshot()
-        (output / 'result.txt').write_text('PASS: two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached spectator delivery during practice, roster insertion, spectator card exclusion, role reconnection and duplicate-install prevention.\n')
+        (output / 'result.txt').write_text('PASS: early remote package cache and portrait without roster installation; two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached spectator delivery during practice, roster insertion, spectator card exclusion, role reconnection and duplicate-install prevention.\n')
         print((output / 'result.txt').read_text().strip())
     finally:
         for client in clients:

@@ -126,9 +126,14 @@ int main(int argc, char** argv)
                                                      !owner),
               "reserve other endpoint");
     }
-    CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 24,
-                                                  true),
+    for (unsigned i = 2; i < NATIVE_CONTENT_CHANNELS; ++i) {
+        CHECK(nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 24 + i, true),
+              "reserve the remaining bounded content slots");
+    }
+    CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 100, true),
           "content route pool is bounded");
+    for (unsigned i = 2; i < NATIVE_CONTENT_CHANNELS; ++i)
+        nativeNetplayConnection_ReleaseContent(&clients[0], peers[1], 24 + i, true);
     CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], "not-a-member",
                                                   24, true),
           "require current room membership");

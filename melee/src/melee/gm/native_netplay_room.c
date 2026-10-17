@@ -341,7 +341,22 @@ bool nativeNetplayRoom_PumpLobby(NativeNetplayRoom* room)
             }
         }
     }
-    return nativeNetplayRoom_PumpGifts(room);
+    if (room->match_configured) return false;
+    for (unsigned i = 0; i < MAX_RECEIVE_PACKETS_PER_POLL; ++i) {
+        NativeContentControl control;
+        if (!nativeNetplayConnection_PollControl(&room->connection, &control)) break;
+        nativeNetplayRoom_GiftControl(room, &control);
+        nativeNetplayRoom_CacheControl(room, &control);
+    }
+    for (unsigned i = 0; i < MAX_RECEIVE_PACKETS_PER_POLL; ++i) {
+        NativeContentDatagram data;
+        if (!nativeNetplayConnection_PollContent(&room->connection, &data)) break;
+        nativeNetplayRoom_GiftPacket(room, &data);
+        nativeNetplayRoom_CachePacket(room, &data);
+    }
+    if (!nativeNetplayRoom_PumpGifts(room)) return false;
+    nativeNetplayRoom_PumpCache(room);
+    return true;
 #endif
 }
 
@@ -413,6 +428,7 @@ bool nativeNetplayRoom_ConfigureMatch(NativeNetplayRoom* room,
     }
 #ifndef MELEE_CONNECTION_PROBE
     nativeNetplayRoom_ClearGifts(room);
+    nativeNetplayRoom_ClearCacheTransfers(room);
 #endif
     nativeNetplayRoom_ClearContent(room);
     room->match = *match;
@@ -435,6 +451,7 @@ void nativeNetplayRoom_Shutdown(NativeNetplayRoom* room)
     }
 #ifndef MELEE_CONNECTION_PROBE
     nativeNetplayRoom_ClearGifts(room);
+    nativeNetplayRoom_ClearCacheTransfers(room);
 #endif
     nativeNetplayRoom_ClearContent(room);
     if (room->active) {
