@@ -59,6 +59,7 @@ def main() -> None:
     with zipfile.ZipFile(setup) as installer:
         required = {"Freak Melee.bat", "freak_launcher.ps1", "channel.txt",
                     "state.json", f"versions/{release}/melee_native.exe",
+                    f"versions/{release}/native_content_tool.exe",
                     f"versions/{release}/ui/freak_shell.rml"}
         if not required.issubset(installer.namelist()) or \
                 installer.read("channel.txt").decode("utf-8").strip() != CHANNEL or \
@@ -67,12 +68,22 @@ def main() -> None:
     entries = manifest.get("files")
     if not isinstance(entries, list) or not entries:
         parser.error("Prepared manifest has no files")
-    with zipfile.ZipFile(archive) as package:
+    with zipfile.ZipFile(archive) as package, zipfile.ZipFile(setup) as installer:
         names = package.namelist()
+        if not {"melee_native.exe", "native_content_tool.exe", "ui/freak_shell.rml",
+                "freak_launcher.ps1"}.issubset(names):
+            parser.error("Prepared ZIP is missing the game, Workshop tool, UI or launcher")
         if len(names) != len(set(names)) or len(names) != len(entries):
             parser.error("Prepared ZIP has missing or duplicate files")
         if {entry.get("path") for entry in entries if isinstance(entry, dict)} != set(names):
             parser.error("Prepared manifest does not list the ZIP exactly")
+        setup_names = installer.namelist()
+        expected_setup = {"Freak Melee.bat", "freak_launcher.ps1", "channel.txt", "state.json"}
+        expected_setup.update(f"versions/{release}/{name}" for name in names)
+        if len(setup_names) != len(set(setup_names)) or set(setup_names) != expected_setup:
+            parser.error("Friend installer does not contain the complete release exactly")
+        if json.loads(installer.read("state.json")) != dict(current=release, previous=None, blocked=None):
+            parser.error("Friend installer has an invalid initial version selection")
         for entry in entries:
             if not isinstance(entry, dict) or entry.get("path") not in names or \
                     not isinstance(entry.get("size"), int) or \
@@ -91,6 +102,15 @@ def main() -> None:
                     file_hash.update(block)
             if file_hash.hexdigest() != entry["sha256"]:
                 parser.error(f"Prepared file hash differs: {name}")
+            setup_hash = hashlib.sha256()
+            setup_member = installer.getinfo(f"versions/{release}/{name}")
+            with installer.open(setup_member) as source:
+                for block in iter(lambda: source.read(1024 * 1024), b""):
+                    setup_hash.update(block)
+            if setup_member.file_size != entry["size"] or setup_hash.hexdigest() != entry["sha256"]:
+                parser.error(f"Friend installer file differs: {name}")
+        if installer.read("freak_launcher.ps1") != package.read("freak_launcher.ps1"):
+            parser.error("Friend installer launcher differs from the release")
     if args.dry_run:
         print(f"Validated {archive_name}; no upload performed.")
         return

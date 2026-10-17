@@ -12,6 +12,7 @@ function(aurora_copy_runtime_dlls target)
 
   # Copy TARGET_RUNTIME_DLLS for each target
   foreach (_t IN ITEMS ${target} ${ARGN})
+    set_property(TARGET ${target} APPEND PROPERTY AURORA_RUNTIME_FILES "$<TARGET_RUNTIME_DLLS:${_t}>")
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${_t}> $<TARGET_FILE_DIR:${target}>
         COMMAND_EXPAND_LISTS
@@ -28,6 +29,7 @@ function(aurora_copy_runtime_dlls target)
       cmake_path(GET _dawn_loc PARENT_PATH _dawn_bin_dir)
       foreach (_dll IN ITEMS dxcompiler.dll dxil.dll)
         if (EXISTS "${_dawn_bin_dir}/${_dll}")
+          set_property(TARGET ${target} APPEND PROPERTY AURORA_RUNTIME_FILES "${_dawn_bin_dir}/${_dll}")
           add_custom_command(TARGET ${target} POST_BUILD
               COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_dawn_bin_dir}/${_dll}" $<TARGET_FILE_DIR:${target}>
           )

@@ -2,7 +2,9 @@ param(
     [string] $Iso,
     [string] $Channel,
     [switch] $CheckOnly,
-    [switch] $Rollback
+    [switch] $Rollback,
+    [switch] $Hidden,
+    [switch] $Mute
 )
 
 $ErrorActionPreference = 'Stop'
@@ -101,9 +103,10 @@ function Install-Update([string] $location, $state) {
         if (-not $names.Add([string] $entry.path)) { throw 'Duplicate release file.' }
     }
     if (-not $names.Contains('melee_native.exe') -or
+        -not $names.Contains('native_content_tool.exe') -or
         -not $names.Contains('ui/freak_shell.rml') -or
         -not $names.Contains('freak_launcher.ps1')) {
-        throw 'The release is missing its game, UI, or launcher.'
+        throw 'The release is missing its game, Workshop tool, UI, or launcher.'
     }
     if ($release -eq $state.blocked) {
         Write-Host "Skipping rolled-back release $release until a newer build is published."
@@ -207,8 +210,9 @@ try {
     $gameDir = Join-Path $versions ([string] $state.current)
     $game = Join-Path $gameDir 'melee_native.exe'
     if (-not (Test-Path -LiteralPath $game -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $gameDir 'native_content_tool.exe') -PathType Leaf) -or
         -not (Test-Path -LiteralPath (Join-Path $gameDir 'ui/freak_shell.rml') -PathType Leaf)) {
-        throw "Installed build $($state.current) is missing its game or UI. Try -Rollback."
+        throw "Installed build $($state.current) is missing its game, Workshop tool or UI. Try -Rollback."
     }
     $settings = Join-Path $env:LOCALAPPDATA 'Freak Melee'
     $isoSetting = Join-Path $settings 'iso-path.txt'
@@ -231,6 +235,8 @@ try {
     $process.StartInfo.FileName = $game
     $process.StartInfo.WorkingDirectory = $gameDir
     $process.StartInfo.Arguments = '--iso "' + $Iso.Replace('"', '') + '"'
+    if ($Hidden) { $process.StartInfo.Arguments += ' --hidden' }
+    if ($Mute) { $process.StartInfo.Arguments += ' --mute' }
     $process.StartInfo.UseShellExecute = $false
     if (-not $process.Start()) { throw 'Could not launch Freak Melee.' }
     $process.WaitForExit()

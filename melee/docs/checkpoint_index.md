@@ -176,6 +176,7 @@ it does not relabel old results as final-source acceptance.
 
 ## Other runtime checkpoints
 
+- [Extracted release, Workshop and launcher acceptance — 2026-10-17](native_release.md#local-acceptance-2026-10-17)
 
 ## Other evidence families
 

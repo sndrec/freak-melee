@@ -19,6 +19,9 @@ def main():
     parser.add_argument('--iso', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--screenshots', action='store_true')
+    parser.add_argument('--control', type=Path,
+                        help='Development control tool outside a prepared installation')
+    parser.add_argument('--script-check-build', action='store_true')
     args = parser.parse_args()
     exe, iso, output = args.exe.resolve(), args.iso.resolve(), args.output.resolve()
     if output.exists():
@@ -27,7 +30,7 @@ def main():
     appdata = output / 'appdata'
     appdata.mkdir()
     data = appdata / 'Freak Melee'
-    control = exe.with_name('melee_native_control.exe')
+    control = args.control.resolve() if args.control else exe.with_name('melee_native_control.exe')
     identity = f'hub-review-{os.getpid()}'
     env = dict(os.environ, LOCALAPPDATA=str(appdata), FREAK_MELEE_CONTROL_ID=identity)
     # These tests only exercise local authoring. Keep them out of public chat.
@@ -42,7 +45,7 @@ def main():
     def installed_count():
         return len(list((data / 'content/installed').glob('*.fmi')))
 
-    def inspect(element, timeout=20):
+    def inspect(element, timeout=20, bounds=False):
         deadline = time.monotonic() + timeout
         expression = re.compile(
             r'\[(hub-inspect|ui-inspect)\] ' + re.escape(element) +
@@ -61,6 +64,8 @@ def main():
                 if match:
                     x, y, w, h = map(float, match.groups()[1:])
                     if w > 0 and h > 0 and 'visible=0' not in match[0]:
+                        if bounds:
+                            return x, y, w, h
                         return round(x + w / 2), round(y + h / 2)
                 if '[hub-inspect]' in text or '[ui-inspect]' in text:
                     break
@@ -147,9 +152,35 @@ def main():
             click('edit-fighter')
             inspect('workshop-editor-header', timeout=60)
             wait_for(editor_ready, 'frozen fighter preview', timeout=60)
+            assert source_path.read_bytes() == windows_source
+            if args.script_check_build:
+                def script_status(expected, element='workshop-script-status'):
+                    start = stderr.stat().st_size
+                    command('ui-inspect', element)
+                    time.sleep(.15)
+                    with stderr.open('r', errors='replace') as log:
+                        log.seek(start)
+                        return expected in log.read()
+                click('workshop-mode-script')
+                click('workshop-script-validate')
+                wait_for(lambda: script_status('Source and fighter assets validated.'), 'packaged script check')
+                click('workshop-script-build')
+                wait_for(lambda: script_status('Source validated and saved to this draft.'), 'packaged script build')
+                click('workshop-package-toggle')
+                x, y, w, h = inspect('workshop-inspector', bounds=True)
+                # Inspection returns the content box. The scrollbar occupies
+                # the rail's right padding; drag its thumb to the bottom.
+                command('ui-drag', round(x+w+16), round(y-15), round(x+w+16), round(y+h+10))
+                click('workshop-install')
+                wait_for(lambda: script_status('text=Installed ', 'workshop-install-status'),
+                         'packaged fighter installation')
+                assert installed_count() == 2
+                installed_id = (draft/'installed.id').read_text().strip()
+                assert (data/'content/installed'/f'{installed_id}.fmi').is_file()
+            expected_source = source_path.read_bytes()
             click('workshop-back-drafts')
             inspect('edit-fighter', timeout=60)
-            assert source_path.read_bytes() == windows_source
+            assert source_path.read_bytes() == expected_source
 
             click('nav-6')
             enter('display-name', 'Local Hub Reviewer')
@@ -166,6 +197,9 @@ def main():
             (output / 'result.txt').write_text(
                 'PASS: empty first launch, playable clone, CSS placement, rename replacement, '
                 'independent copy, CRLF editor return, profile save, controller return.\n')
+            if args.script_check_build:
+                with (output/'result.txt').open('a') as result:
+                    result.write('PASS: packaged Workshop source check, behavior build and fighter install.\n')
             print((output / 'result.txt').read_text().strip())
         finally:
             # Only this test's child is stopped. It owns this isolated profile.
