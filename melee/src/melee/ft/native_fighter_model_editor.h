@@ -79,9 +79,10 @@ bool nativeFighterModel_Open(NativeFighterModelEditor* editor,
 bool nativeFighterModel_SetJoint(NativeFighterModelEditor* editor,
                                 unsigned joint, unsigned channel,
                                 unsigned axis, float value);
-// Preserve existing skinned geometry at rest after changing a joint. Rebuilds
-// inverse-bind matrices for that joint and its descendants using the previous
-// costume data. The caller restores the old asset if this returns false.
+// Preserve skinned and rigid geometry at rest after changing a joint. Updates
+// inverse binds and rigid vertex data in an asset transaction. Success may
+// replace/resize costume_dat and reopens the editor; failure leaves the current
+// asset unchanged. The caller restores its previous joint edits on failure.
 bool nativeFighterModel_CompensateRest(NativeFighterModelEditor* editor,
                                       const uint8_t* previous,
                                       size_t previous_size,

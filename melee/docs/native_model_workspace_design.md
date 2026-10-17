@@ -48,8 +48,13 @@ inherently quantize them. Automatic binding starts with the two nearest deform
 bones. Painting adds influences while preserving the others' relative weights,
 using floating-point values throughout saving and replacement transfers.
 The 16-influence cap belongs to the current editor, rather than the renderer.
-Edit Mode compensates skinned inverse binds after rest-transform edits. A
-replacement can transfer weights using nearest bind-space vertices.
+Edit Mode preserves skinned meshes and rigid attachments when changing the
+rest rig. It updates inverse binds and compensates vertex positions and normals
+for HSD paths that also require geometry changes. Shared polygon chains and
+vertex buffers remain intact for other meshes. Affected morph targets currently
+reject the edit. Inherited animation clips still need review after rest edits.
+See the [rest-edit checkpoint](native_model_rest_checkpoint.md). A replacement
+can transfer weights using nearest bind-space vertices.
 
 Validation: the release build and animation round-trip test pass, including
 missing-channel creation at frame zero and later frames without changing other
@@ -58,12 +63,11 @@ pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
 Still open: painting
-arbitrary stock layouts, pose-aware brush picking, additional bones, preserving
-rigid attachments during rest edits, wireframe rendering, multi-mesh import,
+arbitrary stock layouts, pose-aware brush picking, additional bones, morph-target
+compensation during rest edits, wireframe rendering, multi-mesh import,
 placement preview, source-aware reimport, and advanced texture/UV controls.
 Shape-animated PObjs currently use the original renderer and are not surface
-picked/highlighted/heatmapped by the editor override. DAT reconstruction on each
-painted stroke retains orphaned records; larger projects need compaction or a
+picked/highlighted/heatmapped by the editor override. DAT reconstruction during painting and rest edits retains orphaned records; larger projects need compaction or a
 project-owned model representation. These are functional gaps, not claims of
 support inferred from the visual study.
 

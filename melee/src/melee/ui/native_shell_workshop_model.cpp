@@ -508,7 +508,7 @@ void render_inspector()
             markup += "<button id='workshop-model-apply-transform' "
                       "class='room-button primary'>Apply transform</button><p>" +
                       std::string(active->rig_mode == RigMode::Edit
-                          ? "Compensates skinned inverse binds. Rigid attachments and inherited clips still need review."
+                          ? "Keeps skinned meshes and rigid attachments in place. Review inherited clips after changing the rest rig."
                           : "Temporary preview only; no animation keys or rest data change.") +
                       "</p></div>";
         } else {
@@ -822,13 +822,13 @@ bool apply_joint_transform()
                                            (unsigned) active->selected_joint)) {
         std::memcpy(active->project->costume_dat, before.data(), before.size());
         reopen_model();
-        status("This rest edit could not preserve the skinned bind pose.");
+        status("This rest edit could not preserve the model. Morph targets require separate compensation.");
         return false;
     }
     record_asset(before);
     nativeHome_WorkshopPoseInvalidate();
     status(nativeShellWorkshop_RefreshPreview()
-        ? "Rest rig and inverse binds updated; reviewing inherited clips is still necessary."
+        ? "Rest rig updated; meshes kept in place. Review inherited clips."
         : "Rest rig updated. Test Character to reload the preview.");
     return true;
 }
