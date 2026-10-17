@@ -895,6 +895,15 @@ void nativeNetplayMatch_Abort(const char* reason)
     fail(reason);
 }
 
+void nativeNetplayMatch_Inspect(void)
+{
+    fprintf(stderr,"[netplay-state] frame=%llu checkpoint=%llu cursor=%llu restores=%llu replay_ticks=%llu checksums=%u corrections=%u failed=%d\n",
+        (unsigned long long)netplay.current_frame,(unsigned long long)netplay.checkpoint.boundary,
+        (unsigned long long)netplay.checkpoint.cursor,(unsigned long long)netplay.checkpoint.restores,
+        (unsigned long long)netplay.checkpoint.replay_ticks,netplay.compared_digest_count,
+        netplay.correction_count,netplay.failed);
+}
+
 bool nativeNetplayMatch_IsResimulating(void)
 {
     return netplay.checkpoint.replaying;

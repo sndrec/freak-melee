@@ -74,7 +74,7 @@ void grAnime_801C65B0(UnkArchiveStruct* arg0)
         return;
     }
 #ifdef MELEE_NATIVE
-    if (arg0->native_assets != NULL) {
+    if (arg0->native_assets != NULL && !arg0->native_assets->scene_resident) {
         GrStageAssets* assets = arg0->native_assets;
         if (assets->owned_bytes != NULL) {
             lbHeap_80015CA8(0, assets->owned_bytes);

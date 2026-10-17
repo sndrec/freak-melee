@@ -13,6 +13,7 @@
 struct GrStageAssets {
     void* arena;
     void* owned_bytes;
+    bool scene_resident;
     HSD_Dat dat;
     HSD_DatImport import;
     UnkStageDat map_head;

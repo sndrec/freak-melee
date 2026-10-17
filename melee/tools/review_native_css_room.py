@@ -16,7 +16,7 @@ import time
 
 class Client:
     def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False,
-                 window_size=None, control=None, without_drafts=False):
+                 window_size=None, control=None, without_drafts=False, launch_args=()):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
@@ -52,7 +52,7 @@ class Client:
             env.pop('FREAK_MELEE_CHAT_ENDPOINT', None)
         with (folder / 'stdout.log').open('w') as out, self.stderr.open('w') as err:
             self.process = subprocess.Popen(
-                [str(exe), '--iso', str(iso), '--hidden', '--mute'],
+                [str(exe), '--iso', str(iso), '--hidden', '--mute',*map(str,launch_args)],
                 cwd=folder, env=env, stdout=out, stderr=err,
                 creationflags=subprocess.CREATE_NO_WINDOW)
         (folder / 'pid.txt').write_text(str(self.process.pid))
@@ -119,7 +119,7 @@ class Client:
             with self.stderr.open('r', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect|play-menu|quick-play)\]', text):
+            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect|play-menu|quick-play|stadium-state|netplay-state)\]', text):
                 return text
             if self.process.poll() is not None:
                 raise RuntimeError(f'Client exited {self.process.returncode}')

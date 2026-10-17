@@ -178,6 +178,8 @@ singles run had an abort breakpoint attached and did not reproduce it. An earlie
 attempt ended that test process; it is not counted as a runtime failure or pass.
 The [allocation investigation](native_stadium_allocation_checkpoint.md) reproduced
 the guard on a Stadium rematch and traced it to transformation asset import.
+The subsequent resident-asset fix now passes live transformations, reconstruction
+and another same-room Stadium match after Results.
 
 The cancellation and original-party recovery checks remain recorded in the
 [return checkpoint](native_quick_return_checkpoint.md). User visual review and
