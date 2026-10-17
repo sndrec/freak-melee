@@ -147,6 +147,7 @@ namespace {
 
 extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
 {
+    if (practice && !nativeHubHand_Ready()) nativeHubHand_Load(nullptr);
     if ((selection || practice) && !menu.fonts) {
         nativeMenuFont_Acquire();
         menu.fonts = true;
@@ -356,10 +357,10 @@ extern "C" bool nativePlayMenu_Inspect(const char* id)
         float scale = std::min(size.x / 640.f, size.y / 480.f);
         std::fprintf(stderr,
                      "[play-menu] %s origin=%.1f,%.1f size=%.1f,%.1f "
-                     "enabled=%d value=0\n",
+                     "enabled=%d value=0 hand=%d\n",
                      id, (size.x - 640 * scale) * .5f + u * 640 * scale,
                      (size.y - 480 * scale) * .5f + v * 480 * scale,
-                     (r - u) * 640 * scale, (t - v) * 480 * scale, b.enabled);
+                     (r - u) * 640 * scale, (t - v) * 480 * scale, b.enabled, nativeHubHand_Ready());
         if (const auto* quick = nativeOnlineSession_Quick()) {
             std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u completed=%llu chooser=%u votes=%u,%u,%u,%u\n",
                 quick->mode, quick->state, (unsigned long long) quick->generation,

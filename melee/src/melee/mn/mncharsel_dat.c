@@ -28,9 +28,14 @@ static void* import_graph_reference(HSD_DatImport* import, u32 slot,
     return HSD_DatImportGraph(import, offset, type);
 }
 
-static void decode_model(HSD_DatImport* import, u32 offset,
-                         StaticModelDesc* model)
+void mnCharSelAssets_DecodeModel(HSD_DatImport* import, u32 offset,
+                                  StaticModelDesc* model)
 {
+    if (HSD_DatBytes(import->dat, offset, CSS_SOURCE_MODEL_SIZE) == NULL) {
+        import->status = HSD_DAT_DESCRIPTOR;
+        import->error_offset = offset;
+        return;
+    }
     model->joint = import_graph_reference(import, offset, DAT_JOINT);
     model->animjoint =
         import_graph_reference(import, offset + 4, DAT_ANIMJOINT);
@@ -69,7 +74,7 @@ MnSelectChrDataTable* mnCharSelAssets_Decode(HSD_DatImport* import,
 
     models = &table->models.background;
     for (i = 0; i < CSS_SOURCE_MODEL_COUNT; ++i) {
-        decode_model(import, root_offset + 16 + i * CSS_SOURCE_MODEL_SIZE,
+        mnCharSelAssets_DecodeModel(import, root_offset + 16 + i * CSS_SOURCE_MODEL_SIZE,
                      &models[i]);
     }
     return import->status == HSD_DAT_OK ? table : NULL;

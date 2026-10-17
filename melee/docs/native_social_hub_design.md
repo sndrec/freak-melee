@@ -59,7 +59,10 @@ own compact player list. See [chat](native_chat.md) for controls and evidence.
 
 The native hub uses the actual CSS hand model, with its fingertip anchored
 to the pointer position, and restores the scene camera after drawing it. The
-system mouse cursor hides only inside the active hub canvas. Starter clones use
+practice scene now loads that hand independently from the CSS archive and
+releases its own buffers on exit. Both the practice strip and full hub use the
+same renderer; their hand survives the CSS-to-practice scene change.
+The system mouse cursor hides only inside the active hub canvas. Starter clones use
 portrait artwork extracted from the user's ISO during the build. The baked stock
 name and border are removed; the native name bar uses the supplied angular glyph
 set. Long names use two lines, while names such as Ganondorf remain on one line.

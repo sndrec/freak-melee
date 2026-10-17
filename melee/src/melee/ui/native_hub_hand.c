@@ -1,6 +1,9 @@
 #include "native_hub_hand.h"
 #include <melee/sc/types.h>
 #include <melee/lb/lbspdisplay.h>
+#include <melee/lb/lbfile.h>
+#include <melee/lb/lblanguage.h>
+#include <melee/mn/mncharsel_assets.h>
 #include <sysdolphin/baselib/aobj.h>
 #include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/gobj.h>
@@ -8,6 +11,7 @@
 #include <sysdolphin/baselib/gobjplink.h>
 #include <sysdolphin/baselib/gobjuserdata.h>
 #include <sysdolphin/baselib/jobj.h>
+#include <sysdolphin/baselib/memory.h>
 #include <sysdolphin/baselib/state.h>
 #include <sysdolphin/baselib/tev.h>
 #include <sysdolphin/baselib/pobj.h>
@@ -16,6 +20,8 @@
 static HSD_GObj* hand_owner;
 static HSD_GObj* camera_owner;
 static unsigned displayed_state;
+static void* owned_bytes;
+static void* owned_arena;
 
 static void forget_owner(void* owner)
 {
@@ -29,11 +35,35 @@ void nativeHubHand_Unload(void)
     if (camera_owner) {
         HSD_GObjFree(camera_owner);
     }
+    if (owned_arena) HSD_Free(owned_arena);
+    if (owned_bytes) HSD_Free(owned_bytes);
+    owned_arena = owned_bytes = NULL;
 }
 void nativeHubHand_Load(const StaticModelDesc* model)
 {
     nativeHubHand_Unload();
-    if (!model || !model->joint) {
+    StaticModelDesc imported_model = { 0 };
+    if (!model) {
+        const char* path = lbLang_IsSavedLanguageJP() ? "MnSlChr.dat" : "MnSlChr.usd";
+        size_t size = lbFileGetSize(path);
+        owned_bytes = HSD_MemAlloc((size + 31) & ~(size_t) 31);
+        owned_arena = HSD_MemAlloc(256 * 1024);
+        lbFile_8001668C(path, owned_bytes, &size);
+        HSD_Dat dat;
+        HSD_DatImport import;
+        u32 table;
+        HSD_ASSERT(0, HSD_DatOpen(&dat, owned_bytes, size) == HSD_DAT_OK);
+        HSD_ASSERT(0, HSD_DatFindRoot(&dat, "MnSelectChrDataTable", &table));
+        HSD_ASSERT(0, HSD_DatImportInit(&import, &dat, owned_arena,
+                                       256 * 1024, 512) == HSD_DAT_OK);
+        // The disc table has four scene pointers, then 16-byte model records;
+        // background is record 0 and the hand is record 1.
+        mnCharSelAssets_DecodeModel(&import, table + 32, &imported_model);
+        HSD_ASSERTREPORT(0, import.status == HSD_DAT_OK && imported_model.joint,
+                         "Hub hand conversion failed: %d at %lx", import.status, import.error_offset);
+        model = &imported_model;
+    }
+    if (!model->joint) {
         return;
     }
     HSD_WObjDesc eye = { .pos = { 0, 0, 100 } },
