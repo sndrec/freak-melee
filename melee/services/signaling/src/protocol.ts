@@ -31,6 +31,8 @@ export interface ConnectionAttachment extends Omit<Participant, "waitingRanks"> 
   chatLastPost?: number;
   chatHighestNonce?: number;
   chatLastHistory?: number;
+  quickRevision?: number;
+  quickDigest?: Uint8Array;
   waitingOrder: [number, number, number, number];
 }
 

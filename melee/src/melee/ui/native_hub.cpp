@@ -957,9 +957,12 @@ extern "C" void nativeHub_Tick(void)
         show();
     }
     if (selection && !hub.selection_before && hub.initialized && !tool) {
-        hub.dismissed = false;
         hub.opened_from_play = false;
-        show();
+        if (nativeOnlineSession_Quick()) hub.dismissed = true;
+        else {
+            hub.dismissed = false;
+            show();
+        }
     }
     hub.selection_before = selection;
     hub.visible = hub.initialized && (selection || practice) && !tool && !hub.dismissed;
@@ -1119,6 +1122,7 @@ extern "C" void nativeHub_Draw(void)
     nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
                         NativeMenuFont_Notice, true);
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed);
+    nativePlayMenu_DrawCountdown();
     nativeMenuPaint_End();
 }
 extern "C" void nativeHub_MovePointer(int x, int y)

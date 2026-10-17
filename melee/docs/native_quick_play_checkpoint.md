@@ -1,4 +1,4 @@
-# Native Quick Play queue and service foundation
+# Native Quick Play queue, countdown and match launch
 
 Updated: 2026-10-17. Tested locally; the new service class is not deployed.
 
@@ -15,9 +15,12 @@ cards. The assigned room keeps each PC's peer identity, local controller slots,
 fighter choices and readiness. Leaving an assignment returns the clients to their
 parties, where they can search again.
 
-The three-second ready countdown, fixed-rule match construction, loser stage
-picks and rematches remain open. These checks establish native queueing and
-handoff. They do not establish a playable Quick Play match.
+The service now starts a three-second countdown when every player has locked
+their choice and every PC reports connected peers and available fighter content.
+B unreadies the local players and returns directly to CSS. Readying again starts
+a new countdown. After the countdown, both clients enter the same fixed-rule
+match through the existing content and rollback handshake. Loser stage picks,
+rematches and service deployment remain open.
 
 ## Native session
 
@@ -30,11 +33,24 @@ outside that connection and publish again when the assigned room is ready.
 The native decoder handles the Quick Play state and rejection messages. Rejections
 are shown as queue errors. An explicit allocation cancellation returns to the
 party; ordinary signaling loss retains the established gameplay policy. The
-native build identity is `freak-melee-native-dev-quick`.
+native build identity is `freak-melee-native-dev-quick-countdown`.
 
 For local service checks, `FREAK_MELEE_SERVICE_ENDPOINT` overrides the native
 room-service origin. Without it, the client uses the configured hosted origin.
-The new service class remains undeployed while match-start work is incomplete.
+The new service class remains undeployed while rematch work is incomplete.
+
+The preparation report names the current presence revision and stock-content
+digest. Each PC checks its actual ICE connections, locked choices and verified
+remote cache. A selection or membership change invalidates preparation. The
+service compares all reports and persists the countdown deadline. Its alarm
+rechecks the roster and reports, then writes one canonical match proposal. An
+early or repeated alarm cannot skip the deadline or publish a second match.
+The countdown survives service hibernation.
+
+Native match adoption waits until practice has exited. The existing SSS scene
+completes the content/connection handshake without accepting a manual first-stage
+pick. Team assignment comes from the allocation. Stock fighters use their team
+costume when their choices are published for doubles.
 
 ## State ownership
 
@@ -82,9 +98,10 @@ stage from all six approved stages. The ordered stage indices are:
 | 5 | Yoshi's Story |
 
 Both modes use that list. Ordinary owner match proposals, seat overrides and
-rotation commands are rejected within the Quick Play flow. The service-owned
-ready/countdown and match-proposal construction still need implementation;
-storing the requested rule metadata does not establish those parts as complete.
+rotation commands are rejected within the Quick Play flow. The service builds
+the native FMLM proposal from locked choices and assigned teams: four stocks,
+six-minute timer, no items, handicap off, normal damage, pause off and friendly
+fire on for doubles. The native lobby codec and handshake consume that proposal.
 
 The losing team's stage-agreement interface remains a design review item for
 when the user returns. The plan already requires both teammates to agree on
@@ -100,9 +117,11 @@ New client message types are:
 | 10 ConfigureQuick | mode u8: 0 ordinary, 1 singles, 2 doubles |
 | 11 QueueQuick | searching u8: 0 cancel, 1 enter/heartbeat |
 | 12 RequestQuick | empty |
+| 13 PrepareQuick | presence revision u64, prepared u8, digest bytes16 (32 bytes when prepared, empty otherwise) |
 
 Server type `0x89` sends mode u8, state u8, generation u64, match-room string8,
-admission-token string8, team u8 and first-stage u8. State is 0 idle, 1 searching
+admission-token string8, team u8, first-stage u8, phase u8 and remaining-ms u16.
+Phase is 0 waiting, 1 countdown or 2 match proposal published. State is 0 idle, 1 searching
 or preparing, 2 assigned, or 3 aborted. Assignment data is private to each PC's
 socket. Server type `0x8a` sends a string8 rejection reason. These rejections
 leave ordinary room signaling connected.
@@ -113,7 +132,7 @@ transport and gameplay ICE setup serve the assigned room.
 ## Verification
 
 `npm run check` regenerates bindings, checks application/test types and runs the
-service tests. The current suite has 33 passing tests, including 12 Quick Play
+service tests. The current suite has 37 passing tests, including 16 Quick Play
 cases. Quick Play coverage includes all doubles group sizes, premades on one or
 two PCs, independent admission tokens, build separation, duplicate searches,
 leader authority, malformed commands, capacity checks, cancellation/requeueing,
@@ -135,6 +154,22 @@ Final evidence is in `.local/native-quick-singles-final` and
 and six focused CTest checks pass. The ordinary connection probe still carries
 validated rollback input after signaling closes. The content-channel probe
 still passes its four-player plus waiting/spectating recipient scenario.
+
+`review_native_quick_match.py` verifies the complete first-match flow, with
+evidence in `.local/native-quick-match-singles-final` and
+`.local/native-quick-match-doubles-1`. Both runs ready before searching, cancel
+the first countdown with B, return directly to CSS, ready again and enter one
+shared live netplay session. The doubles run uses two local controllers per PC.
+Both clients receive movement input and stay in gameplay without a reported
+checksum mismatch. Reviewed PNGs show the countdown, four stocks, six-minute
+timer, and all four doubles fighters.
+
+The first larger-window run reached gameplay but failed on a screenshot
+readback allocation while Windows was near its commit limit. The final checks
+use smaller hidden windows; both complete successfully. The harness resizes
+only its own process's main window and preserves visibility, focus and Z order.
+Service checks and the Wrangler deployment dry-run pass. No production deployment
+has been made for Quick Play.
 
 The existing signaling and global/lobby chat suites also pass. The empty-room
 chat check now waits for the close event's actual SQL result; an unrelated RPC

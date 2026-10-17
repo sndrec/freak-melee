@@ -10,6 +10,8 @@ extern "C" {
 void nativePlayMenu_Tick(bool selection, bool practice);
 void nativePlayMenu_DrawCss(Mtx view);
 void nativePlayMenu_DrawPractice(void);
+// Draw using the caller's current native menu transform.
+void nativePlayMenu_DrawCountdown(void);
 bool nativePlayMenu_Hand(float x, float y, uint32_t trigger);
 bool nativePlayMenu_Pointer(float u, float v, NativeCssPointerEvent event);
 bool nativePlayMenu_PointerActive(void);

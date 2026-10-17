@@ -43,8 +43,10 @@ their own builds; their old "remaining" lists are not the current backlog.
   roster entries. The Quick Play party allocator is now tested locally for solo
   and premade queue assembly, cancellation and assignment recovery. Native queue
   controls, open player cards and identity-preserving handoff now work against
-  the local service, including ready practice and shared-PC pairs. Countdown,
-  match/rematch flow and service deployment remain open. See the
+  the local service, including ready practice and shared-PC pairs. The
+  three-second countdown, B-to-unready and fixed-rule match launch now pass
+  native singles and four-player doubles checks. Loser stage picks, rematches
+  and service deployment remain open. See the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.

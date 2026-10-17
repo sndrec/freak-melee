@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
 import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
   type QuickOffer, type QuickAllocation, type QuickMember } from "./quick-play";
 
@@ -8,6 +9,9 @@ interface QuickPartyRow extends Record<string, SqlStorageValue> {
 }
 interface QuickMatchRow extends Record<string, SqlStorageValue> {
   allocation: string; aborted: number;
+}
+interface QuickFlowRow extends Record<string, SqlStorageValue> {
+  phase: number; deadline: number; revision: number;
 }
 
 import {
@@ -96,6 +100,11 @@ export class Room extends DurableObject<CloudflareBindings> {
         CREATE TABLE IF NOT EXISTS quick_match (
           id INTEGER PRIMARY KEY CHECK(id=1), allocation TEXT NOT NULL, aborted INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS quick_flow (
+          id INTEGER PRIMARY KEY CHECK(id=1), phase INTEGER NOT NULL,
+          deadline INTEGER NOT NULL, revision INTEGER NOT NULL
+        );
+        INSERT OR IGNORE INTO quick_flow VALUES (1,0,0,0);
         CREATE TABLE IF NOT EXISTS room_chat (
           sequence INTEGER PRIMARY KEY AUTOINCREMENT,
           connection TEXT NOT NULL, nonce INTEGER NOT NULL,
@@ -254,6 +263,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       MAX_MESSAGE_BYTES,
     ));
     this.broadcastPresence(counters.revision);
+    await this.refreshQuickCountdown();
     if (quick?.mode || admission) this.sendQuick(server);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -273,7 +283,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.send(socket, encodeChatRejected(0, "Malformed chat message."));
         return;
       }
-      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.RequestQuick) {
+      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.PrepareQuick) {
         this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
       }
       this.error(socket, "Malformed room message");
@@ -281,6 +291,9 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
 
     switch (parsed.type) {
+    case ClientMessageType.PrepareQuick:
+      await this.prepareQuick(socket, parsed);
+      return;
     case ClientMessageType.ConfigureQuick:
       this.configureQuickParty(socket, parsed.mode);
       return;
@@ -303,6 +316,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       return;
     case ClientMessageType.Update:
       this.updateParticipant(socket, parsed);
+      await this.refreshQuickCountdown();
       return;
     case ClientMessageType.Signal:
       this.forwardSignal(socket, parsed);
@@ -325,14 +339,95 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
   }
 
-  webSocketClose(socket: WebSocket): void {
+  async webSocketClose(socket: WebSocket): Promise<void> {
     this.removeParticipant(socket);
+    await this.refreshQuickCountdown();
     socket.close(1000, "Lobby connection closed");
   }
 
-  webSocketError(socket: WebSocket): void {
+  async webSocketError(socket: WebSocket): Promise<void> {
     this.removeParticipant(socket);
+    await this.refreshQuickCountdown();
     socket.close(1011, "Lobby connection failed");
+  }
+
+  private quickFlow(): QuickFlowRow {
+    return this.ctx.storage.sql.exec<QuickFlowRow>("SELECT phase, deadline, revision FROM quick_flow WHERE id=1").one();
+  }
+
+  private async prepareQuick(socket: WebSocket,
+    message: Extract<ClientMessage, { type: ClientMessageType.PrepareQuick }>): Promise<void> {
+    const match = this.quickMatch(), peer = this.attachment(socket);
+    if (!match || match.aborted || !peer || this.quickFlow().phase === 2) return;
+    if (message.prepared && (message.revision !== this.currentRevision() ||
+        !message.digest.some((byte) => byte !== 0) || !lockedChoices(peer.selection, peer.localPlayers))) {
+      this.send(socket, encodePresence(this.snapshot(this.currentRevision()), MAX_MESSAGE_BYTES));
+      this.sendQuick(socket);
+      return;
+    }
+    socket.serializeAttachment({ ...peer,
+      quickRevision: message.prepared ? message.revision : undefined,
+      quickDigest: message.prepared ? message.digest : undefined,
+    } satisfies ConnectionAttachment);
+    await this.refreshQuickCountdown();
+  }
+
+  private preparedQuickMatch(): { allocation: QuickAllocation; people: Participant[]; digest: Uint8Array; revision: number } | null {
+    const match = this.quickMatch();
+    if (!match || match.aborted) return null;
+    const allocation = JSON.parse(match.allocation) as QuickAllocation;
+    const revision = this.currentRevision();
+    const people = this.snapshot(revision).participants;
+    if (!quickRosterComplete(allocation, people)) return null;
+    let digest: Uint8Array | undefined;
+    for (const person of people) {
+      const socket = this.ctx.getWebSockets(`peer:${person.peerId}`).find((peer) => peer.readyState === WebSocket.OPEN);
+      const peer = socket ? this.attachment(socket) : null;
+      if (!peer || peer.quickRevision !== revision || !peer.quickDigest || peer.quickDigest.length !== 32) return null;
+      if (digest && !sameBytes(digest, peer.quickDigest)) return null;
+      digest = peer.quickDigest;
+    }
+    return digest ? { allocation, people, digest, revision } : null;
+  }
+
+  private async refreshQuickCountdown(): Promise<void> {
+    if (!this.quickMatch()) return;
+    const flow = this.quickFlow();
+    if (flow.phase === 2) return;
+    const prepared = this.preparedQuickMatch();
+    if (!prepared) {
+      if (flow.phase === 1) {
+        this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=0, deadline=0, revision=0 WHERE id=1");
+        await this.ctx.storage.deleteAlarm();
+        this.sendQuick();
+      }
+      return;
+    }
+    if (flow.phase === 1 && flow.revision === prepared.revision) return;
+    const deadline = Date.now() + QUICK_COUNTDOWN_MS;
+    this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=1, deadline=?, revision=? WHERE id=1", deadline, prepared.revision);
+    await this.ctx.storage.setAlarm(deadline);
+    this.sendQuick();
+  }
+
+  async alarm(): Promise<void> {
+    const flow = this.quickFlow();
+    if (flow.phase !== 1) return;
+    const prepared = this.preparedQuickMatch();
+    if (!prepared || prepared.revision !== flow.revision) {
+      await this.refreshQuickCountdown();
+      return;
+    }
+    if (Date.now() < flow.deadline) {
+      await this.ctx.storage.setAlarm(flow.deadline);
+      return;
+    }
+    const proposal = buildQuickMatch(prepared.allocation, prepared.people, prepared.digest);
+    this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=2, deadline=0 WHERE id=1");
+    this.ctx.storage.sql.exec("UPDATE room_match SET epoch=epoch+1, payload=? WHERE id=1", proposal);
+    this.clearReady();
+    this.broadcastPresence(this.nextRevision());
+    this.sendQuick();
   }
 
   private quickParty(): QuickPartyRow | null {
@@ -364,6 +459,7 @@ export class Room extends DurableObject<CloudflareBindings> {
   private sendQuick(socket?: WebSocket): void {
     const party = this.quickParty();
     const match = this.quickMatch();
+    const flow = this.quickFlow();
     for (const peer of socket ? [socket] : this.ctx.getWebSockets()) {
       if (peer.readyState !== WebSocket.OPEN) continue;
       const p = this.attachment(peer);
@@ -377,7 +473,9 @@ export class Room extends DurableObject<CloudflareBindings> {
         generation: party?.generation ?? 0,
         matchRoom: assigned ? allocation?.roomCode ?? "" : "",
         admission: assigned ? player?.admission ?? "" : "",
-        team: player?.team ?? 0, stage: allocation?.stage ?? 0 }));
+        team: player?.team ?? 0, stage: allocation?.stage ?? 0,
+        phase: match && !match.aborted ? flow.phase : 0,
+        remainingMs: match && !match.aborted && flow.phase === 1 ? Math.max(0, Math.min(QUICK_COUNTDOWN_MS, flow.deadline-Date.now())) : 0 }));
     }
   }
   private configureQuickParty(socket: WebSocket, mode: number): void {
@@ -496,6 +594,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     const row = this.quickMatch();
     if (!row || (JSON.parse(row.allocation) as QuickAllocation).id !== id) return;
     this.ctx.storage.sql.exec("UPDATE quick_match SET aborted=1 WHERE id=1");
+    await this.refreshQuickCountdown();
     this.sendQuick();
     for (const socket of this.ctx.getWebSockets()) socket.close(4005, "Quick Play allocation cancelled");
   }

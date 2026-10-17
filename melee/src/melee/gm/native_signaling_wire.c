@@ -21,6 +21,7 @@ enum {
     CLIENT_CONFIGURE_QUICK = 10,
     CLIENT_QUEUE_QUICK = 11,
     CLIENT_REQUEST_QUICK = 12,
+    CLIENT_PREPARE_QUICK = 13,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -469,6 +470,16 @@ size_t nativeSignalingWire_EncodeQueueQuick(bool searching,
         writer_u8(&writer, searching ? 1 : 0) ? writer_finish(&writer) : 0;
 }
 
+size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
+                                              const uint8_t* digest,
+                                              uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_PREPARE_QUICK) &&
+        writer_u64(&writer, revision) && writer_u8(&writer, prepared ? 1 : 0) &&
+        writer_bytes16(&writer, digest, prepared ? 32 : 0) ? writer_finish(&writer) : 0;
+}
+
 size_t nativeSignalingWire_EncodeRequestQuick(uint8_t* output, size_t capacity)
 {
     WireWriter writer;
@@ -519,10 +530,14 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
             !reader_string8(&reader, quick->match_room, sizeof(quick->match_room)) ||
             !reader_string8(&reader, quick->admission, sizeof(quick->admission)) ||
             !reader_u8(&reader, &quick->team) ||
-            !reader_u8(&reader, &quick->stage) || !reader_finished(&reader) ||
+            !reader_u8(&reader, &quick->stage) ||
+            !reader_u8(&reader, &quick->phase) ||
+            !reader_u16(&reader, &quick->remaining_ms) || !reader_finished(&reader) ||
             quick->mode > NativeQuickMode_Doubles ||
             quick->state > NativeQuickState_Aborted || quick->team > 1 ||
-            quick->stage >= 6) return false;
+            quick->stage >= 6 || quick->phase > 2 || quick->remaining_ms > 3000 ||
+            (quick->phase != 1 && quick->remaining_ms != 0) ||
+            (quick->phase && quick->state != NativeQuickState_Assigned)) return false;
         if (quick->state != NativeQuickState_Assigned) return true;
         if (!quick->mode || strlen(quick->match_room) != 12 ||
             strlen(quick->admission) != 32) return false;

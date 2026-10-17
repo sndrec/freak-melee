@@ -669,6 +669,18 @@ bool nativeSignalingClient_QueueQuick(NativeSignalingClient* client, bool search
     return queued;
 }
 
+bool nativeSignalingClient_PrepareQuick(NativeSignalingClient* client,
+                                        uint64_t revision, bool prepared,
+                                        const uint8_t* digest)
+{
+    uint8_t bytes[51];
+    size_t size = nativeSignalingWire_EncodePrepareQuick(revision, prepared, digest, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_RequestQuick(NativeSignalingClient* client)
 {
     uint8_t bytes[8];

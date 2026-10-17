@@ -19,6 +19,7 @@ export const enum ClientMessageType {
   ConfigureQuick = 10,
   QueueQuick = 11,
   RequestQuick = 12,
+  PrepareQuick = 13,
 }
 
 export const enum ServerMessageType {
@@ -68,6 +69,7 @@ export type ClientMessage =
   | { type: ClientMessageType.ConfigureQuick; mode: number }
   | { type: ClientMessageType.QueueQuick; searching: boolean }
   | { type: ClientMessageType.RequestQuick }
+  | { type: ClientMessageType.PrepareQuick; revision: number; prepared: boolean; digest: Uint8Array }
   | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
   | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
@@ -256,6 +258,12 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.PrepareQuick) {
+    const revision = reader.u64(), prepared = reader.u8(), digest = reader.bytes16();
+    reader.finish();
+    if (prepared > 1 || digest.length !== (prepared ? 32 : 0)) throw new Error("Invalid Quick Play preparation");
+    return { type, revision, prepared: prepared === 1, digest };
+  }
   if (type === ClientMessageType.ConfigureQuick) {
     const mode = reader.u8(); reader.finish(); return { type, mode };
   }
@@ -352,7 +360,8 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   const { type, reader } = readEnvelope(message);
   if (type === ServerMessageType.QuickState) {
     const quick = { mode: reader.u8(), state: reader.u8(), generation: reader.u64(),
-      matchRoom: reader.string8(), admission: reader.string8(), team: reader.u8(), stage: reader.u8() };
+      matchRoom: reader.string8(), admission: reader.string8(), team: reader.u8(), stage: reader.u8(),
+      phase: reader.u8(), remainingMs: reader.u16() };
     reader.finish(); return { type, quick };
   }
   if (type === ServerMessageType.QuickRejected) {
@@ -673,7 +682,13 @@ export function encodeQuickState(quick: QuickState): ArrayBuffer {
   const writer = new Writer(ServerMessageType.QuickState, 128);
   writer.u8(quick.mode); writer.u8(quick.state); writer.u64(quick.generation);
   writer.string8(quick.matchRoom); writer.string8(quick.admission);
-  writer.u8(quick.team); writer.u8(quick.stage); return writer.finish();
+  writer.u8(quick.team); writer.u8(quick.stage);
+  writer.u8(quick.phase); writer.u16(quick.remainingMs); return writer.finish();
+}
+export function encodePrepareQuick(revision: number, prepared: boolean, digest: Uint8Array): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.PrepareQuick, 51);
+  writer.u64(revision); writer.u8(prepared ? 1 : 0);
+  writer.bytes16(prepared ? digest : new Uint8Array()); return writer.finish();
 }
 export function encodeQuickRejected(reason: string): ArrayBuffer {
   const writer = new Writer(ServerMessageType.QuickRejected, 138);

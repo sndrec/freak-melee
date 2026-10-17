@@ -23,11 +23,13 @@ bool nativeOnlineSession_EnterQuick(uint8_t mode, const char* local_name,
 bool nativeOnlineSession_SearchQuick(bool searching);
 const NativeQuickAssignment* nativeOnlineSession_Quick(void);
 const char* nativeOnlineSession_QuickError(void);
+uint16_t nativeOnlineSession_QuickCountdownMs(void);
 void nativeOnlineSession_Stop(void);
 bool nativeOnlineSession_Pump(void);
 bool nativeOnlineSession_BeginMatch(const NativeLobbyMatch* selection);
 NativeLobbySessionState nativeOnlineSession_State(void);
 const NativeSignalingPresence* nativeOnlineSession_Presence(void);
+const NativeLobbyMatch* nativeOnlineSession_Match(void);
 NativeRoomChat* nativeOnlineSession_Chat(void);
 uint32_t nativeOnlineSession_CacheRevision(void);
 const char* nativeOnlineSession_Failure(void);
