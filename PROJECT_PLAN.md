@@ -246,8 +246,11 @@ starting pose. Auto Key starts off; explicit insertion remains available.
 
 - [ ] Recheck source-only single/paired fighters and edited costumes/resources
   through isolated stores, room auto-cache and explicit gifting.
-- [ ] Confirm a recipient can use/edit installed content without the author's
-  source tree, SDK, original draft directory or behavior DLL.
+- [x] Confirm a recipient can edit received single-fighter content without the
+  author's draft directory, SDK or behavior DLL. Two source-owned Mario packages
+  opened and validated from an extracted release after the author went offline;
+  see [received fighter acceptance](melee/docs/native_received_fighter_authoring_checkpoint.md).
+  Paired families and edited resources remain in the broader integration gate above.
 - [ ] Recheck current match setup, results/return, seat choices/host override,
   1v1 rotation and spectator catch-up with the new runtime.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.

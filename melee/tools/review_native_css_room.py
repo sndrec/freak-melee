@@ -15,12 +15,18 @@ import time
 
 
 class Client:
-    def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False, window_size=None):
+    def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False,
+                 window_size=None, control=None, without_drafts=False):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
         shutil.copytree(profile, appdata)
         self.data = appdata / 'Freak Melee'
+        if without_drafts:
+            projects = (self.data/'projects').resolve()
+            assert projects.is_relative_to(folder.resolve())
+            if projects.exists():
+                shutil.rmtree(projects)
         if missing_first:
             layout_path = self.data / 'css-layout.bin'
             layout = layout_path.read_bytes()
@@ -37,7 +43,7 @@ class Client:
             self.missing = missing
         (appdata / 'Freak Melee/content/hub-profile.txt').write_text(name + '\n\n')
         self.stderr = folder / 'stderr.log'
-        self.control = exe.with_name('melee_native_control.exe')
+        self.control = control if control else exe.with_name('melee_native_control.exe')
         self.identity = 'css-room-' + secrets.token_hex(6)
         env = dict(os.environ, LOCALAPPDATA=str(appdata),
                    FREAK_MELEE_CONTROL_ID=self.identity,
@@ -213,7 +219,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['exe', 'iso', 'profile', 'output']:
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--endpoint', required=True, help='Isolated local signaling service URL')
+    parser.add_argument('--control', type=Path, help='Development control tool outside the installation')
     args = parser.parse_args()
+    os.environ['FREAK_MELEE_SERVICE_ENDPOINT'] = args.endpoint
     exe, iso, profile, output = [getattr(args, n).resolve() for n in ['exe', 'iso', 'profile', 'output']]
     output.mkdir(exist_ok=False, parents=True)
     clients = []
@@ -222,7 +231,9 @@ def main():
     try:
         for index in range(2):
             client = Client(exe, iso, profile, output / str(index),
-                            f'CSS Review {index+1}', missing_first=index == 1)
+                            f'CSS Review {index+1}', missing_first=index == 1,
+                            without_drafts=index == 1, window_size=(960,540),
+                            control=args.control.resolve() if args.control else None)
             clients.append(client)
             client.click('nav-1')
             client.enter('lobby-code', room)
@@ -342,7 +353,42 @@ def main():
         assert len(list((receiver.data / 'content/installed').glob('*.fmi'))) == len(installed)+1
         assert struct.unpack_from('<H', (receiver.data / 'css-layout.bin').read_bytes(), 4)[0] == roster_count+1
         receiver.screenshot()
-        (output / 'result.txt').write_text('PASS: early remote package cache and portrait without roster installation; two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached spectator delivery during practice, roster insertion, spectator card exclusion, role reconnection and duplicate-install prevention.\n')
+        # The recipient has packages but no authoring projects. Retire the
+        # sender and its test-only draft directory before editing either one.
+        sender.stop()
+        author_projects = (sender.data/'projects').resolve()
+        assert author_projects.is_relative_to(sender.folder.resolve())
+        author_projects.rename(sender.data/'author-projects-offline')
+        assert not list((receiver.data/'projects').glob('fighter-*'))
+        receiver.click('nav-1')
+        receiver.click('leave-lobby')
+        receiver.click('nav-5')
+        for index in range(2):
+            receiver.command('ui-click', *receiver.canvas(213.5+57*index, 186.5))
+            receiver.click('edit-fighter')
+            receiver.element('workshop-editor-header')
+            deadline = time.monotonic()+60
+            while time.monotonic() < deadline:
+                if 'text=Draft preview ready.' in receiver.inspect('workshop-editor-status'):
+                    break
+            else:
+                raise RuntimeError('Received package did not open in the frozen preview')
+            receiver.click('workshop-mode-script')
+            receiver.click('workshop-script-validate')
+            deadline = time.monotonic()+30
+            while time.monotonic() < deadline:
+                if 'text=Source and fighter assets validated.' in receiver.inspect('workshop-script-status'):
+                    break
+            else:
+                raise RuntimeError('Received package source check did not finish')
+            receiver.screenshot()
+            receiver.click('workshop-back-drafts')
+            receiver.element('edit-fighter')
+        drafts = list((receiver.data/'projects').glob('fighter-*'))
+        assert len(drafts) == 2
+        assert any((draft/'installed.id').read_text().strip() == receiver.missing for draft in drafts)
+        assert all((draft/'behavior.fms').stat().st_size > 1000 for draft in drafts)
+        (output / 'result.txt').write_text('PASS: early remote package cache and portrait without roster installation; two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached spectator delivery during practice, roster insertion, spectator card exclusion, role reconnection and duplicate-install prevention.\nPASS: received fighters opened as independent Workshop drafts and passed source validation with the author offline and original test draft paths absent.\n')
         print((output / 'result.txt').read_text().strip())
     finally:
         for client in clients:
