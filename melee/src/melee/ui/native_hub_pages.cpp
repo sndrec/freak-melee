@@ -421,13 +421,9 @@ namespace {
         const auto* p = nativeOnlineSession_Presence();
         unsigned rows = 0, total = 0;
         unsigned available = 0;
-        bool local_available = false;
         for (unsigned i = 0; p && i < p->participant_count; ++i) {
-            if (!std::strcmp(p->participants[i].peer_id,
-                             nativeOnlineSession_LocalPeerId()))
-            {
-                local_available = p->participants[i].active_mask != 0;
-            } else {
+            if (std::strcmp(p->participants[i].peer_id,
+                             nativeOnlineSession_LocalPeerId())) {
                 ++available;
             }
         }
@@ -452,7 +448,7 @@ namespace {
                     ++rows;
                 }
                 if (!std::strcmp(hub.recipient, person.peer_id)) {
-                    recipient_available = person.active_mask != 0;
+                    recipient_available = true;
                 }
                 ++total;
             }
@@ -468,14 +464,13 @@ namespace {
                 "Join a lobby with another player to send your fighter.", 191,
                 193, 393, 11, muted);
         }
-        if (*hub.recipient && (!recipient_available || !local_available)) {
-            nativeHubPaint_Text("Fighter delivery currently requires both "
-                                "players to be fighting.",
+        if (*hub.recipient && !recipient_available) {
+            nativeHubPaint_Text("That player has left the lobby.",
                                 191, 342, 394, 8, muted);
         }
         nativeHub_Button("confirm-gift", "Send fighter", 382, 376, 223, 29,
                          HubAction::ConfirmSend, 0, true,
-                         recipient_available && local_available);
+                         recipient_available);
     }
 }
 void nativeHub_RenderPage(void)

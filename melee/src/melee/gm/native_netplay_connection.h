@@ -9,6 +9,7 @@
 
 #include "native_netplay_ice.h"
 #include "native_signaling_client.h"
+#include "native_netplay_content_channel.h"
 
 enum {
     NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS = 3,
@@ -41,6 +42,7 @@ typedef struct NativeNetplayConnection {
     NativeSignalingPresence presence;
     NativeNetplayConnectionPeer
         peers[NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS];
+    NativeNetplayContentChannels content;
     NativeNetplayIceConfig ice_config;
     char stun_host[NATIVE_NETPLAY_CONNECTION_SERVER_BYTES];
     char turn_host[NATIVE_NETPLAY_CONNECTION_SERVER_BYTES];

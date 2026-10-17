@@ -22,8 +22,12 @@ enum {
 };
 
 static const uint8_t gift_magic[4] = { 'F', 'M', 'G', '1' };
-enum { GiftPacket_Offer = 1, GiftPacket_Accept = 2,
-       GiftPacket_Decline = 3, GiftPacket_Installed = 4 };
+enum {
+    GiftPacket_Offer = 1,
+    GiftPacket_Accept = 2,
+    GiftPacket_Decline = 3,
+    GiftPacket_Installed = 4
+};
 
 static bool same_id(const NativeContentId* left, const NativeContentId* right)
 {
@@ -57,16 +61,19 @@ static const char* content_root(const NativeNetplayRoom* room, char path[512])
     return nativeContentStore_DefaultRoot(path, 512) ? path : NULL;
 }
 
-static bool connected_peer(const NativeNetplayRoom* room, const char* peer_id)
+static bool room_member(const NativeNetplayRoom* room, const char* peer_id)
 {
-    for (unsigned i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
-        const NativeNetplayConnectionPeer* peer = &room->connection.peers[i];
-        if (!peer->active || strcmp(peer->peer_id, peer_id) != 0) {
-            continue;
+    const NativeNetplayConnection* c = &room->connection;
+    if (!c->has_presence || !peer_id || !strcmp(peer_id, c->local_peer_id)) {
+        return false;
+    }
+    for (unsigned i = 0; i < c->presence.participant_count; ++i) {
+        const NativeSignalingParticipant* peer = &c->presence.participants[i];
+        if (!strcmp(peer->peer_id, peer_id) &&
+            !strcmp(peer->build, c->local_build))
+        {
+            return true;
         }
-        NativeNetplayIceState state = nativeNetplayIce_State(&peer->ice);
-        return state == NativeNetplayIceState_Connected ||
-               state == NativeNetplayIceState_Completed;
     }
     return false;
 }
@@ -86,13 +93,13 @@ static size_t control_packet(const NativeNetplayGift* gift, uint8_t type,
     return GIFT_REPLY_BYTES;
 }
 
-static void send_reply(NativeNetplayRoom* room,
-                       const NativeNetplayGift* gift, uint8_t type)
+static void send_reply(NativeNetplayRoom* room, const NativeNetplayGift* gift,
+                       uint8_t type)
 {
     uint8_t packet[GIFT_OFFER_BYTES];
     size_t size = control_packet(gift, type, packet);
-    nativeNetplayConnection_Send(&room->connection, gift->peer_id,
-                                 packet, size);
+    nativeNetplayConnection_SendControl(&room->connection, gift->peer_id,
+                                        packet, size);
 }
 
 static bool install_cached(NativeNetplayRoom* room);
@@ -102,23 +109,29 @@ void nativeNetplayRoom_ClearGifts(NativeNetplayRoom* room)
     if (room == NULL) {
         return;
     }
+    nativeNetplayConnection_ReleaseContent(&room->connection,
+                                           room->outgoing_gift.peer_id,
+                                           room->outgoing_gift.serial, true);
+    nativeNetplayConnection_ReleaseContent(&room->connection,
+                                           room->incoming_gift.peer_id,
+                                           room->incoming_gift.serial, false);
     free(room->outgoing_gift.bytes);
     nativeContentTransfer_StopReceive(&room->incoming_gift.receive);
     room->outgoing_gift = (NativeNetplayGift){ 0 };
     room->incoming_gift = (NativeNetplayGift){ 0 };
 }
 
-bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room,
-                                 const char* peer_id,
+bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room, const char* peer_id,
                                  const NativeContentId* id)
 {
     if (room == NULL || !room->active || room->match_configured ||
         peer_id == NULL || id == NULL || !has_id(id) ||
-        !connected_peer(room, peer_id) ||
+        !room_member(room, peer_id) ||
         (room->outgoing_gift.state != NativeNetplayGift_None &&
          room->outgoing_gift.state != NativeNetplayGift_Sent &&
          room->outgoing_gift.state != NativeNetplayGift_Declined &&
-         room->outgoing_gift.state != NativeNetplayGift_Failed)) {
+         room->outgoing_gift.state != NativeNetplayGift_Failed))
+    {
         return false;
     }
     char default_path[512];
@@ -126,7 +139,8 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room,
     uint8_t* bytes = NULL;
     size_t size = 0;
     if (root == NULL || !nativeContentStore_IsInstalled(root, id) ||
-        !nativeContentStore_Read(root, id, &bytes, &size)) {
+        !nativeContentStore_Read(root, id, &bytes, &size))
+    {
         return false;
     }
     NativeNetplayGift next = { 0 };
@@ -135,12 +149,14 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room,
     NativeFighterPackageData fighter_data;
     const uint8_t* costume_dat;
     size_t costume_size;
-    if (nativeContentStore_ParseCostume(bytes, size, &costume,
-                                        &costume_dat, &costume_size)) {
+    if (nativeContentStore_ParseCostume(bytes, size, &costume, &costume_dat,
+                                        &costume_size))
+    {
         next.kind = NativeNetplayGift_Costume;
         memcpy(next.title, costume.title, sizeof(next.title));
     } else if (nativeContentStore_ParseFighter(bytes, size, &fighter,
-                                               &fighter_data)) {
+                                               &fighter_data))
+    {
         next.kind = NativeNetplayGift_Fighter;
         memcpy(next.title, fighter.title, sizeof(next.title));
     } else {
@@ -160,6 +176,15 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room,
     next.bytes = bytes;
     next.size = size;
     next.state = NativeNetplayGift_Offered;
+    nativeNetplayConnection_ReleaseContent(&room->connection,
+                                           room->outgoing_gift.peer_id,
+                                           room->outgoing_gift.serial, true);
+    if (!nativeNetplayConnection_ReserveContent(&room->connection, peer_id,
+                                                next.serial, true))
+    {
+        free(bytes);
+        return false;
+    }
     free(room->outgoing_gift.bytes);
     room->outgoing_gift = next;
     return true;
@@ -168,7 +193,8 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room,
 bool nativeNetplayRoom_AcceptGift(NativeNetplayRoom* room)
 {
     if (room == NULL || room->match_configured ||
-        room->incoming_gift.state != NativeNetplayGift_Offered) {
+        room->incoming_gift.state != NativeNetplayGift_Offered)
+    {
         return false;
     }
     NativeNetplayGift* gift = &room->incoming_gift;
@@ -180,12 +206,25 @@ bool nativeNetplayRoom_AcceptGift(NativeNetplayRoom* room)
     }
     if (nativeContentStore_IsCached(root, &gift->id)) {
         bool installed = install_cached(room);
-        gift->state = installed ? NativeNetplayGift_Installed
-                                : NativeNetplayGift_Failed;
+        gift->state =
+            installed ? NativeNetplayGift_Installed : NativeNetplayGift_Failed;
         if (installed) {
             send_reply(room, gift, GiftPacket_Installed);
+        } else {
+            send_reply(room, gift, GiftPacket_Decline);
         }
+        nativeNetplayConnection_ReleaseContent(
+            &room->connection, gift->peer_id, gift->serial, false);
         return installed;
+    }
+    if (!nativeNetplayConnection_StartContent(&room->connection, gift->peer_id,
+                                              gift->serial, false))
+    {
+        gift->state = NativeNetplayGift_Failed;
+        send_reply(room, gift, GiftPacket_Decline);
+        nativeNetplayConnection_ReleaseContent(
+            &room->connection, gift->peer_id, gift->serial, false);
+        return false;
     }
     nativeContentTransfer_StartReceive(&gift->receive, &gift->id);
     gift->state = NativeNetplayGift_Receiving;
@@ -197,22 +236,25 @@ bool nativeNetplayRoom_AcceptGift(NativeNetplayRoom* room)
 void nativeNetplayRoom_DeclineGift(NativeNetplayRoom* room)
 {
     if (room != NULL && !room->match_configured &&
-        room->incoming_gift.state == NativeNetplayGift_Offered) {
+        room->incoming_gift.state == NativeNetplayGift_Offered)
+    {
         room->incoming_gift.state = NativeNetplayGift_Declined;
         room->incoming_gift.last_control_ms = 0;
         send_reply(room, &room->incoming_gift, GiftPacket_Decline);
+        nativeNetplayConnection_ReleaseContent(
+            &room->connection, room->incoming_gift.peer_id,
+            room->incoming_gift.serial, false);
     }
 }
 
-bool nativeNetplayRoom_GiftStatus(const NativeNetplayRoom* room,
-                                  bool incoming,
+bool nativeNetplayRoom_GiftStatus(const NativeNetplayRoom* room, bool incoming,
                                   NativeNetplayGiftStatus* status)
 {
     if (room == NULL || status == NULL) {
         return false;
     }
-    const NativeNetplayGift* gift = incoming ? &room->incoming_gift
-                                             : &room->outgoing_gift;
+    const NativeNetplayGift* gift =
+        incoming ? &room->incoming_gift : &room->outgoing_gift;
     if (gift->state == NativeNetplayGift_None) {
         return false;
     }
@@ -233,7 +275,7 @@ bool nativeNetplayRoom_GiftStatus(const NativeNetplayRoom* room,
 }
 
 static void receive_offer(NativeNetplayRoom* room,
-                          const NativeNetplayConnectionDatagram* datagram)
+                          const NativeContentControl* datagram)
 {
     const uint8_t* packet = datagram->datagram.bytes;
     NativeContentId id;
@@ -242,7 +284,8 @@ static void receive_offer(NativeNetplayRoom* room,
     if (!has_id(&id) || serial == 0 ||
         (packet[41] != NativeNetplayGift_Costume &&
          packet[41] != NativeNetplayGift_Fighter) ||
-        memchr(packet + 42, '\0', NATIVE_CONTENT_TITLE_BYTES) == NULL) {
+        memchr(packet + 42, '\0', NATIVE_CONTENT_TITLE_BYTES) == NULL)
+    {
         return;
     }
     NativeNetplayGift* gift = &room->incoming_gift;
@@ -251,11 +294,13 @@ static void receive_offer(NativeNetplayRoom* room,
         gift->state != NativeNetplayGift_Failed &&
         gift->state != NativeNetplayGift_Declined &&
         !(same_id(&gift->id, &id) && gift->serial == serial &&
-          strcmp(gift->peer_id, datagram->peer_id) == 0)) {
+          strcmp(gift->peer_id, datagram->peer_id) == 0))
+    {
         return;
     }
     if (same_id(&gift->id, &id) && gift->serial == serial &&
-        strcmp(gift->peer_id, datagram->peer_id) == 0) {
+        strcmp(gift->peer_id, datagram->peer_id) == 0)
+    {
         if (gift->state == NativeNetplayGift_Receiving) {
             send_reply(room, gift, GiftPacket_Accept);
         } else if (gift->state == NativeNetplayGift_Declined) {
@@ -265,20 +310,25 @@ static void receive_offer(NativeNetplayRoom* room,
         }
         return;
     }
+    nativeNetplayConnection_ReleaseContent(&room->connection, gift->peer_id,
+                                           gift->serial, false);
+    if (!nativeNetplayConnection_ReserveContent(
+            &room->connection, datagram->peer_id, serial, false))
+    {
+        return;
+    }
     nativeContentTransfer_StopReceive(&gift->receive);
     *gift = (NativeNetplayGift){ 0 };
     gift->id = id;
     gift->serial = serial;
     gift->kind = packet[41];
     memcpy(gift->title, packet + 42, sizeof(gift->title));
-    memcpy(gift->peer_id, datagram->peer_id,
-           strlen(datagram->peer_id) + 1);
+    memcpy(gift->peer_id, datagram->peer_id, strlen(datagram->peer_id) + 1);
     gift->state = NativeNetplayGift_Offered;
 }
 
 static void receive_reply(NativeNetplayRoom* room,
-                          const NativeNetplayConnectionDatagram* datagram,
-                          uint8_t type)
+                          const NativeContentControl* datagram, uint8_t type)
 {
     NativeNetplayGift* gift = &room->outgoing_gift;
     if ((gift->state != NativeNetplayGift_Offered &&
@@ -286,7 +336,8 @@ static void receive_reply(NativeNetplayRoom* room,
         strcmp(gift->peer_id, datagram->peer_id) != 0 ||
         memcmp(gift->id.bytes, datagram->datagram.bytes + 5,
                NATIVE_CONTENT_ID_BYTES) != 0 ||
-        gift->serial != read_u32(datagram->datagram.bytes + 37)) {
+        gift->serial != read_u32(datagram->datagram.bytes + 37))
+    {
         return;
     }
     if (type == GiftPacket_Decline || type == GiftPacket_Installed) {
@@ -294,18 +345,23 @@ static void receive_reply(NativeNetplayRoom* room,
                                                  : NativeNetplayGift_Sent;
         free(gift->bytes);
         gift->bytes = NULL;
+        nativeNetplayConnection_ReleaseContent(
+            &room->connection, gift->peer_id, gift->serial, true);
         return;
     }
     if (gift->state == NativeNetplayGift_Sending) {
         return;
     }
-    char default_path[512];
-    const char* root = content_root(room, default_path);
-    if (root == NULL ||
-        !nativeContentStore_IsInstalled(root, &gift->id) ||
-        !nativeContentTransfer_StartSend(&gift->send, &gift->id,
-                                          gift->bytes, gift->size)) {
+    if (!nativeNetplayConnection_StartContent(&room->connection, gift->peer_id,
+                                              gift->serial, true) ||
+        !nativeContentTransfer_StartSend(&gift->send, &gift->id, gift->bytes,
+                                         gift->size))
+    {
         gift->state = NativeNetplayGift_Failed;
+        free(gift->bytes);
+        gift->bytes = NULL;
+        nativeNetplayConnection_ReleaseContent(
+            &room->connection, gift->peer_id, gift->serial, true);
         return;
     }
     gift->state = NativeNetplayGift_Sending;
@@ -319,7 +375,8 @@ static bool install_cached(NativeNetplayRoom* room)
     uint8_t* bytes = NULL;
     size_t size = 0;
     if (root == NULL ||
-        !nativeContentStore_Read(root, &gift->id, &bytes, &size)) {
+        !nativeContentStore_Read(root, &gift->id, &bytes, &size))
+    {
         return false;
     }
     bool valid = false;
@@ -327,16 +384,16 @@ static bool install_cached(NativeNetplayRoom* room)
         NativeCostumePackage costume;
         const uint8_t* dat;
         size_t dat_size;
-        valid = nativeContentStore_ParseCostume(bytes, size, &costume,
-                                                &dat, &dat_size) &&
-                nativeCostumePackage_Validate(&costume, dat, dat_size,
-                                              root, NULL);
+        valid =
+            nativeContentStore_ParseCostume(bytes, size, &costume, &dat,
+                                            &dat_size) &&
+            nativeCostumePackage_Validate(&costume, dat, dat_size, root, NULL);
     } else if (gift->kind == NativeNetplayGift_Fighter) {
         NativeFighterPackage fighter;
         NativeFighterPackageData data;
-        valid = nativeContentStore_ParseFighter(bytes, size, &fighter,
-                                                &data) &&
-                nativeFighterRuntime_ValidateCached(&gift->id, root);
+        valid =
+            nativeContentStore_ParseFighter(bytes, size, &fighter, &data) &&
+            nativeFighterRuntime_ValidateCached(&gift->id, root);
     }
     free(bytes);
     return valid && nativeContentStore_Install(root, &gift->id);
@@ -354,106 +411,165 @@ static bool accept_download(NativeNetplayRoom* room)
            same_id(&cached, &gift->id) && install_cached(room);
 }
 
+static void fail_gift(NativeNetplayRoom* room, NativeNetplayGift* gift,
+                      bool outgoing)
+{
+    if (!outgoing) {
+        send_reply(room, gift, GiftPacket_Decline);
+        nativeContentTransfer_StopReceive(&gift->receive);
+    }
+    free(gift->bytes);
+    gift->bytes = NULL;
+    gift->state = NativeNetplayGift_Failed;
+    nativeNetplayConnection_ReleaseContent(&room->connection, gift->peer_id,
+                                           gift->serial, outgoing);
+}
+
 bool nativeNetplayRoom_PumpGifts(NativeNetplayRoom* room)
 {
-    if (room == NULL || !room->active || room->match_configured) {
+    if (!room || !room->active || room->match_configured) {
         return false;
     }
+    NativeNetplayConnection* connection = &room->connection;
     const uint64_t now = GetTickCount64();
     for (unsigned received = 0; received < GIFT_RECEIVE_LIMIT; ++received) {
-        NativeNetplayConnectionDatagram datagram;
-        if (!nativeNetplayConnection_PollDatagram(&room->connection,
-                                                  &datagram)) {
+        NativeContentControl message;
+        if (!nativeNetplayConnection_PollControl(connection, &message)) {
             break;
         }
-        const uint8_t* packet = datagram.datagram.bytes;
-        const size_t size = datagram.datagram.size;
-        if (size >= GIFT_REPLY_BYTES &&
-            memcmp(packet, gift_magic, sizeof(gift_magic)) == 0) {
-            if (packet[4] == GiftPacket_Offer && size == GIFT_OFFER_BYTES) {
-                receive_offer(room, &datagram);
-            } else if ((packet[4] == GiftPacket_Accept ||
-                        packet[4] == GiftPacket_Decline ||
-                        packet[4] == GiftPacket_Installed) &&
-                       size == GIFT_REPLY_BYTES) {
-                receive_reply(room, &datagram, packet[4]);
-            }
+        const uint8_t* packet = message.datagram.bytes;
+        size_t size = message.datagram.size;
+        if (size < GIFT_REPLY_BYTES ||
+            memcmp(packet, gift_magic, sizeof(gift_magic)))
+        {
             continue;
         }
+        if (packet[4] == GiftPacket_Offer && size == GIFT_OFFER_BYTES) {
+            receive_offer(room, &message);
+        } else if ((packet[4] == GiftPacket_Accept ||
+                    packet[4] == GiftPacket_Decline ||
+                    packet[4] == GiftPacket_Installed) &&
+                   size == GIFT_REPLY_BYTES)
+        {
+            receive_reply(room, &message, packet[4]);
+        }
+    }
+    for (unsigned received = 0; received < GIFT_RECEIVE_LIMIT; ++received) {
+        NativeContentDatagram message;
+        if (!nativeNetplayConnection_PollContent(connection, &message)) {
+            break;
+        }
+        const uint8_t* packet = message.message.datagram.bytes;
+        size_t size = message.message.datagram.size;
         NativeContentId id;
         NativeContentTransferPacketType type =
             nativeContentTransfer_PacketType(packet, size, &id);
-        if (type == NativeContentTransferPacket_Ack &&
-            room->outgoing_gift.state == NativeNetplayGift_Sending &&
-            strcmp(room->outgoing_gift.peer_id, datagram.peer_id) == 0 &&
-            same_id(&room->outgoing_gift.id, &id)) {
-            nativeContentTransfer_SendPacket(&room->outgoing_gift.send,
-                                              packet, size, now);
-        } else if ((type == NativeContentTransferPacket_Begin ||
+        NativeNetplayGift* outgoing = &room->outgoing_gift;
+        NativeNetplayGift* incoming = &room->incoming_gift;
+        if (message.local_owner && message.serial == outgoing->serial &&
+            type == NativeContentTransferPacket_Ack &&
+            outgoing->state == NativeNetplayGift_Sending &&
+            !strcmp(outgoing->peer_id, message.message.peer_id) &&
+            same_id(&outgoing->id, &id))
+        {
+            nativeContentTransfer_SendPacket(&outgoing->send, packet, size,
+                                             now);
+        } else if (!message.local_owner &&
+                   message.serial == incoming->serial &&
+                   (type == NativeContentTransferPacket_Begin ||
                     type == NativeContentTransferPacket_Data ||
                     type == NativeContentTransferPacket_Missing) &&
-                   room->incoming_gift.state == NativeNetplayGift_Receiving &&
-                   strcmp(room->incoming_gift.peer_id, datagram.peer_id) == 0 &&
-                   same_id(&room->incoming_gift.id, &id)) {
-            nativeContentTransfer_ReceivePacket(&room->incoming_gift.receive,
-                                                 packet, size, now);
+                   incoming->state == NativeNetplayGift_Receiving &&
+                   !strcmp(incoming->peer_id, message.message.peer_id) &&
+                   same_id(&incoming->id, &id))
+        {
+            nativeContentTransfer_ReceivePacket(&incoming->receive, packet,
+                                                size, now);
         }
     }
     NativeNetplayGift* outgoing = &room->outgoing_gift;
-    if (outgoing->state == NativeNetplayGift_Offered &&
-        connected_peer(room, outgoing->peer_id) &&
-        (outgoing->last_control_ms == 0 ||
-         now - outgoing->last_control_ms >= GIFT_RETRY_MS)) {
-        uint8_t packet[GIFT_OFFER_BYTES];
-        size_t size = control_packet(outgoing, GiftPacket_Offer, packet);
-        nativeNetplayConnection_Send(&room->connection, outgoing->peer_id,
-                                     packet, size);
-        outgoing->last_control_ms = now;
-    } else if (outgoing->state == NativeNetplayGift_Sending) {
-        uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
-        for (unsigned burst = 0; burst < GIFT_SEND_BURST; ++burst) {
-            size_t size = nativeContentTransfer_NextSend(&outgoing->send,
-                                                          now, packet);
-            if (size == 0) {
-                break;
+    if (outgoing->state == NativeNetplayGift_Offered ||
+        outgoing->state == NativeNetplayGift_Sending)
+    {
+        NativeContentChannelState state = nativeNetplayConnection_ContentState(
+            connection, outgoing->peer_id, outgoing->serial, true);
+        if (state == NativeContentChannel_None ||
+            state == NativeContentChannel_Failed)
+        {
+            fail_gift(room, outgoing, true);
+        } else if (outgoing->state == NativeNetplayGift_Offered &&
+                   (!outgoing->last_control_ms ||
+                    now - outgoing->last_control_ms >= GIFT_RETRY_MS))
+        {
+            uint8_t packet[GIFT_OFFER_BYTES];
+            size_t size = control_packet(outgoing, GiftPacket_Offer, packet);
+            if (nativeNetplayConnection_SendControl(
+                    connection, outgoing->peer_id, packet, size))
+            {
+                outgoing->last_control_ms = now;
             }
-            nativeNetplayConnection_Send(&room->connection, outgoing->peer_id,
-                                         packet, size);
-        }
-        if (outgoing->send.complete) {
-            free(outgoing->bytes);
-            outgoing->bytes = NULL;
-            outgoing->state = NativeNetplayGift_Sent;
+        } else if (outgoing->state == NativeNetplayGift_Sending &&
+                   state == NativeContentChannel_Connected)
+        {
+            uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+            for (unsigned burst = 0; burst < GIFT_SEND_BURST; ++burst) {
+                size_t size = nativeContentTransfer_NextSend(&outgoing->send,
+                                                             now, packet);
+                if (!size) {
+                    break;
+                }
+                nativeNetplayConnection_SendContent(
+                    connection, outgoing->peer_id, outgoing->serial, true,
+                    packet, size);
+            }
+            if (outgoing->send.complete) {
+                free(outgoing->bytes);
+                outgoing->bytes = NULL;
+                outgoing->state = NativeNetplayGift_Sent;
+                nativeNetplayConnection_ReleaseContent(
+                    connection, outgoing->peer_id, outgoing->serial, true);
+            }
         }
     }
     NativeNetplayGift* incoming = &room->incoming_gift;
-    if (incoming->state == NativeNetplayGift_Receiving &&
-        connected_peer(room, incoming->peer_id) &&
-        (incoming->last_control_ms == 0 ||
-         now - incoming->last_control_ms >= GIFT_RETRY_MS)) {
-        uint8_t packet[GIFT_OFFER_BYTES];
-        size_t size = control_packet(incoming, GiftPacket_Accept, packet);
-        nativeNetplayConnection_Send(&room->connection, incoming->peer_id,
-                                     packet, size);
-        incoming->last_control_ms = now;
-    }
-    if (incoming->state == NativeNetplayGift_Receiving) {
-        uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
-        size_t size = nativeContentTransfer_NextReceive(&incoming->receive,
-                                                        now, packet);
-        if (size != 0) {
-            nativeNetplayConnection_Send(&room->connection, incoming->peer_id,
-                                         packet, size);
-        }
-        if (incoming->receive.failed) {
-            incoming->state = NativeNetplayGift_Failed;
-        } else if (incoming->receive.complete) {
-            bool installed = accept_download(room);
-            nativeContentTransfer_StopReceive(&incoming->receive);
-            incoming->state = installed ? NativeNetplayGift_Installed
-                                        : NativeNetplayGift_Failed;
-            if (installed) {
-                send_reply(room, incoming, GiftPacket_Installed);
+    if (incoming->state == NativeNetplayGift_Offered ||
+        incoming->state == NativeNetplayGift_Receiving)
+    {
+        NativeContentChannelState state = nativeNetplayConnection_ContentState(
+            connection, incoming->peer_id, incoming->serial, false);
+        if (state == NativeContentChannel_None ||
+            state == NativeContentChannel_Failed)
+        {
+            fail_gift(room, incoming, false);
+        } else if (incoming->state == NativeNetplayGift_Receiving) {
+            if (!incoming->last_control_ms ||
+                now - incoming->last_control_ms >= GIFT_RETRY_MS)
+            {
+                send_reply(room, incoming, GiftPacket_Accept);
+                incoming->last_control_ms = now;
+            }
+            if (state == NativeContentChannel_Connected) {
+                uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+                size_t size = nativeContentTransfer_NextReceive(
+                    &incoming->receive, now, packet);
+                if (size) {
+                    nativeNetplayConnection_SendContent(
+                        connection, incoming->peer_id, incoming->serial, false,
+                        packet, size);
+                }
+            }
+            if (incoming->receive.failed) {
+                fail_gift(room, incoming, false);
+            } else if (incoming->receive.complete) {
+                bool installed = accept_download(room);
+                nativeContentTransfer_StopReceive(&incoming->receive);
+                incoming->state = installed ? NativeNetplayGift_Installed
+                                            : NativeNetplayGift_Failed;
+                send_reply(room, incoming,
+                           installed ? GiftPacket_Installed
+                                     : GiftPacket_Decline);
+                nativeNetplayConnection_ReleaseContent(
+                    connection, incoming->peer_id, incoming->serial, false);
             }
         }
     }

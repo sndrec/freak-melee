@@ -16,7 +16,7 @@ int main(void)
 {
     static const char description[] =
         "a=ice-ufrag:friend\r\na=ice-pwd:private\r\na=candidate:1 1 UDP";
-    uint8_t encoded[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY + 8];
+    uint8_t encoded[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY + 13];
     size_t size = nativeNetplayConnectionWire_EncodeDescription(
         description, encoded, sizeof(encoded));
     require(size == sizeof(description) - 1 + 8,
@@ -42,6 +42,47 @@ int main(void)
     require(!nativeNetplayConnectionWire_DecodeDescription(
                 encoded, size, decoded, sizeof(decoded)),
             "reject embedded terminators in text descriptions");
-    puts("Connection signaling uses a bounded versioned ICE envelope");
+    NativeConnectionMessage message;
+    size = nativeNetplayConnectionWire_EncodeContentDescription(
+        description, 0xFEDCBA98, false, encoded, sizeof(encoded));
+    require(
+        nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message) &&
+            message.type == NativeConnectionMessage_ContentDescription &&
+            message.serial == 0xFEDCBA98 && !message.sender_owns_transfer &&
+            message.size == sizeof(description) - 1 &&
+            !memcmp(message.payload, description, message.size),
+        "content descriptions retain the transfer owner and serial");
+    require(!nativeNetplayConnectionWire_DecodeDescription(
+                encoded, size, decoded, sizeof(decoded)),
+            "content descriptions cannot be applied to gameplay routes");
+    encoded[12] = 2;
+    require(
+        !nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message),
+        "reject invalid ownership");
+    encoded[12] = 0;
+    memset(encoded + 8, 0, 4);
+    require(
+        !nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message),
+        "reject zero transfer serial");
+    const uint8_t control[] = { 0, 1, 255, 0, 42 };
+    size = nativeNetplayConnectionWire_EncodeControl(control, sizeof(control),
+                                                     encoded, sizeof(encoded));
+    require(
+        nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message) &&
+            message.type == NativeConnectionMessage_Control &&
+            message.size == sizeof(control) &&
+            !memcmp(message.payload, control, sizeof(control)),
+        "control messages retain binary contents");
+    require(!nativeNetplayConnectionWire_EncodeControl(control, 0, encoded,
+                                                       sizeof(encoded)) &&
+                !nativeNetplayConnectionWire_EncodeControl(
+                    control, NATIVE_NETPLAY_INPUT_PACKET_CAPACITY + 1, encoded,
+                    sizeof(encoded)),
+            "bound control payloads");
+    require(!nativeNetplayConnectionWire_DecodeMessage(encoded, size - 1,
+                                                       &message),
+            "reject partial control payloads");
+    puts("Gameplay, content descriptions and binary controls have distinct "
+         "bounded envelopes");
     return 0;
 }

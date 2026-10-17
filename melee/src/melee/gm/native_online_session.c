@@ -24,7 +24,7 @@ static struct NativeOnlineProcessSession {
     bool match_claimed;
 } online;
 
-static const char online_build[] = "freak-melee-native-dev";
+static const char online_build[] = "freak-melee-native-dev-content";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)

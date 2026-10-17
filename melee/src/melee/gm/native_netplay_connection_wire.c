@@ -84,4 +84,78 @@ bool nativeNetplayConnectionWire_DecodeDescription(const uint8_t* message,
     return true;
 }
 
+size_t nativeNetplayConnectionWire_EncodeControl(const uint8_t* bytes,
+                                                 size_t size, uint8_t* output,
+                                                 size_t capacity)
+{
+    if (!bytes || !output || !size ||
+        size > NATIVE_NETPLAY_INPUT_PACKET_CAPACITY ||
+        capacity < CONNECTION_HEADER_BYTES + size)
+    {
+        return 0;
+    }
+    write_u32_be(output, CONNECTION_MAGIC);
+    output[4] = CONNECTION_VERSION;
+    output[5] = NativeConnectionMessage_Control;
+    write_u16_be(output + 6, (uint16_t) size);
+    memcpy(output + CONNECTION_HEADER_BYTES, bytes, size);
+    return CONNECTION_HEADER_BYTES + size;
+}
+size_t nativeNetplayConnectionWire_EncodeContentDescription(
+    const char* description, uint32_t serial, bool sender_owner,
+    uint8_t* output, size_t capacity)
+{
+    if (!description || !serial || !output) {
+        return 0;
+    }
+    size_t length =
+        strnlen(description, NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY);
+    if (!length || length >= NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY ||
+        capacity < 13 + length)
+    {
+        return 0;
+    }
+    write_u32_be(output, CONNECTION_MAGIC);
+    output[4] = CONNECTION_VERSION;
+    output[5] = NativeConnectionMessage_ContentDescription;
+    write_u16_be(output + 6, (uint16_t) (5 + length));
+    write_u32_be(output + 8, serial);
+    output[12] = sender_owner;
+    memcpy(output + 13, description, length);
+    return 13 + length;
+}
+bool nativeNetplayConnectionWire_DecodeMessage(const uint8_t* bytes,
+                                               size_t size,
+                                               NativeConnectionMessage* result)
+{
+    if (!bytes || !result || size < 8 ||
+        read_u32_be(bytes) != CONNECTION_MAGIC ||
+        bytes[4] != CONNECTION_VERSION ||
+        size != 8 + (size_t) read_u16_be(bytes + 6))
+    {
+        return false;
+    }
+    *result = (NativeConnectionMessage){ .type = bytes[5],
+                                         .payload = bytes + 8,
+                                         .size = size - 8 };
+    if (result->type == NativeConnectionMessage_Control) {
+        return result->size > 0 &&
+               result->size <= NATIVE_NETPLAY_INPUT_PACKET_CAPACITY;
+    }
+    if (result->type == NativeConnectionMessage_ContentDescription) {
+        if (result->size <= 5 || !read_u32_be(bytes + 8) || bytes[12] > 1) {
+            return false;
+        }
+        result->serial = read_u32_be(bytes + 8);
+        result->sender_owns_transfer = bytes[12];
+        result->payload += 5;
+        result->size -= 5;
+    } else if (result->type != NativeConnectionMessage_GameDescription) {
+        return false;
+    }
+    return result->size > 0 &&
+           result->size < NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY &&
+           !memchr(result->payload, 0, result->size);
+}
+
 #endif

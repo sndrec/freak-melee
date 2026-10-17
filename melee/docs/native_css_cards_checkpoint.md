@@ -52,6 +52,19 @@ already installed package preserves one installation.
   leaves the active set. Both endpoints then create fresh ICE sessions when
   that player returns. Descriptions that arrive after their route closes are
   discarded. This fixes the one-sided reconnection found during role testing.
+- `native_netplay_content_channel.c` owns two content connection slots, separate
+  from the three gameplay connections. Offers reserve a slot; accepting an
+  uncached package starts ICE using the connection's existing STUN/TURN settings.
+  The route records its peer, transfer serial and owner, so simultaneous transfers
+  and delayed descriptions retain their identity. Role changes keep these routes;
+  leaving or rejoining the lobby closes them. A failed content connection affects
+  its transfer rather than failing the gameplay connection.
+- Gift offers and replies travel through bounded room-signaling messages. Package
+  bytes and transfer acknowledgements travel through the accepted content route.
+  The recipient chooser permits every compatible lobby role. Starting a configured
+  match clears pending local gifts; delivery remains available in ready practice.
+- Lobby pumping drains stale gameplay datagrams before the next match. Content
+  polling reads its own queues and leaves gameplay packets to their owner.
 
 All presenter and pointer state belongs to the menu lifetime. These modules are
 listed with host-owned state in the native build configuration.
@@ -83,16 +96,35 @@ empty first launch, starter cloning, rename replacement, independent copying,
 opening and closing the Workshop with CRLF source preserved, profile saving and
 return from CSS. The participant and lobby-selection CTest checks both pass.
 
-The extended runs exposed two transport issues: spectators have no delivery
-route, and switching away from Fighting then back left one endpoint on its old
-ICE session. The latter is fixed in the connection lifecycle described above;
-the separate content route remains open.
+The two-client run in `.local/native-css-content-acceptance-1` extends this with
+an uncached delivery to a spectator during ready practice. Returning to CSS shows
+the new tile with no spectator match card. Switching back to Fighting restores
+the second card and permits another portrait-drop delivery. The duplicate
+acceptance preserves one installation and one tile. Both clients run hidden and
+muted with isolated profiles. Reviewed PNGs show the spectator's offer during
+practice and the roster tile after returning to CSS.
+
+`native_content_channel_probe` runs five native connection clients in a fresh
+private lobby. Four have their full three-peer gameplay topology; the fifth has
+no gameplay connections. The test passes binary controls, two simultaneous
+content transfers with equal serials and different owners, an independent
+gameplay packet, a waiting-to-spectating role change, a stale description and
+member departure cleanup. Reservations allocate no ICE agent. The bounded
+control queue and route pool reject overflow. The log is
+`.local/native-content-channel-probe.log`. This proves local direct connections;
+it does not establish physical multi-PC or forced-relay delivery.
+
+The wire, participant, lobby-selection, netplay-input and content-transfer CTest
+checks pass. The wire check covers distinct message kinds, exact lengths,
+transfer identity, embedded terminators and binary control limits.
+
+The existing `native_connection_probe` now uses the current rollback input-history
+API and links the package validators from the runtime. It passes its real-room
+check: shared-PC gameplay inputs still arrive over ICE after room signaling
+closes. The log is `.local/native-content-gameplay-regression.log`.
 
 ## Remaining work
 
-- Deliver to waiting players and spectators through a content connection that
-  stays independent of the active gameplay connection topology. The current
-  chooser explains availability and disables sending to those roles.
 - Fetch remote choice metadata and portraits before readying. Missing packages
   currently use a placeholder until their content is cached.
 - Replace the CSS and practice rails with the approved native controls, including
