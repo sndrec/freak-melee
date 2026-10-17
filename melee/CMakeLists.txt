@@ -479,6 +479,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_catalog.cpp
     src/melee/ui/native_hub_paint.c
     src/melee/ui/native_hub_hand.c
+    src/melee/mn/native_css_interaction.c
     src/melee/ui/native_shell.cpp
     src/melee/ui/native_shell_collection.cpp
     src/melee/ui/native_shell_css_original.cpp

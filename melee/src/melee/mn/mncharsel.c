@@ -7,6 +7,7 @@
 
 #include "inlines.h"
 #include "mncharsel_assets.h"
+#include "mncharsel_types.h"
 #include "mnmain.h"
 #include "mnmainrule.h"
 #include "mnname.h"
@@ -19,6 +20,7 @@
 #ifdef MELEE_NATIVE
 #include <melee/gm/native_home.h>
 #include "native_css_original.h"
+#include "native_css_interaction.h"
 #include <melee/ui/native_hub_hand.h>
 #endif
 #include <melee/lb/lb_00B0.h>
@@ -741,17 +743,6 @@ void mnCharSel_8025C020(int arg0)
     }
 }
 
-struct CSSCursorData {
-    /* 0x00 */ HSD_GObj* gobj;
-    /* 0x04 */ u8 x4;
-    /* 0x05 */ u8 x5;
-    /* 0x06 */ u8 x6;
-    /* 0x07 */ u8 x7;
-    /* 0x08 */ u16 x8;
-    /* 0x0A */ u16 xA;
-    /* 0x0C */ f32 xC;
-    /* 0x10 */ f32 x10;
-};
 
 void mnCharSel_8025D1C4(int port, int mode)
 {
@@ -1609,17 +1600,7 @@ void mnCharSel_8025EE8C(u8 idx)
 }
 
 static struct CSSCursorData* mnCharSel_804A0BC0[4];
-static struct CSSCharModel {
-    /* 0x00 */ HSD_GObj* gobj;
-    /* 0x04 */ u8 x4;
-    /* 0x05 */ u8 x5;
-    /* 0x06 */ u8 x6;
-    /* 0x07 */ u8 x7;
-    /* 0x08 */ float x8;
-    /* 0x0C */ float xC;
-    /* 0x10 */ float x10;
-    /* 0x14 */ float x14;
-}* mnCharSel_804A0BD0[4];
+static struct CSSCharModel* mnCharSel_804A0BD0[4];
 
 static inline void updateStockIcons(struct CSSDoorsData2* stock_data,
                                     HSD_JObj** stock_jobj, s32 i)
@@ -1660,6 +1641,9 @@ void fn_8025F0E0(HSD_GObj* gobj)
     int css_models;
     float fval;
 
+#ifdef MELEE_NATIVE
+    nativeCssOriginal_BeginAnimation();
+#endif
     if ((mnCharSel_804D6CEC % 10) != 0) {
         if (mnCharSel_804D6CF5 == 1) {
             lb_80011E24(jobj, &sp54, 0x27, -1);
@@ -2011,33 +1995,7 @@ static inline s32 getPlayerForDoor(u8 door)
     return door;
 }
 
-#ifdef MELEE_NATIVE
-static void selectNativeFighter(u8 door, struct CSSCursorData* cursor,
-                                const NativeContentId* fighter,
-                                float left, float top)
-{
-    const s32 player = getPlayerForDoor(door);
-    struct CSSCharModel* model = mnCharSel_804A0BD0[door];
-    nativeHome_SelectFighterPackage(player, fighter);
-    mnCharSel_804D6CB0->vs.start.players[player].ckind = ChKind_None;
-    mnCharSel_804D6CB0->vs.start.players[player].color = 0;
-    if (mnCharSel_803F0DFC.doors[door].p_kind == 3) {
-        mnCharSel_803F0DFC.doors[door].p_kind = 0;
-        mnCharSel_804D6CB0->vs.start.players[player].slot_type =
-            Gm_PKind_Human;
-    }
-    mnCharSel_803F0DFC.doors[door].sel_icon = 0x19;
-    model->x5 = 0;
-    model->x8 = model->x10 = left + 3.4f;
-    model->xC = model->x14 = top - 3.0f;
-    HSD_GObjGXLink_803909D8(
-        model->gobj, mnCharSel_804A0BC0[mnCharSel_804D6CF5 - 1]->gobj);
-    mnCharSel_803F0DFC.doors[door].selected_since_load = 1;
-    cursor->x5 = 2;
-    mnCharSel_8025DB34(door);
-    lbAudioAx_800237A8(0xB8, 0x7F, 0x40);
-}
-#endif
+
 
 void mnCharSel_8025FB50(u8 door, s32 arg1)
 {
@@ -2047,7 +2005,8 @@ void mnCharSel_8025FB50(u8 door, s32 arg1)
 
 #ifdef MELEE_NATIVE
     if (nativeHome_IsSelection()) {
-        nativeHome_SelectFighterPackage(getPlayerForDoor(door), NULL);
+        nativeCssInteraction_Random(getPlayerForDoor(door));
+        return;
     }
 #endif
 
@@ -2553,21 +2512,38 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
                     cursor->xC = -5.3f + sp88.x;
                 }
             } else {
-                if (25.0f < cursor->x10) {
-                    cursor->x10 = 25.0f;
+                float left = -35, right = 26, top = 25, bottom = -22;
+#ifdef MELEE_NATIVE
+                if (nativeHome_IsSelection()) {
+                    nativeCssOriginal_Viewport(&left, &right, &top, &bottom);
+                    left += 1;
+                right -= 1;
+                top -= 1;
+                bottom += 1;
                 }
-                if (-22.0f > cursor->x10) {
-                    cursor->x10 = -22.0f;
+#endif
+                if (top < cursor->x10) {
+                    cursor->x10 = top;
                 }
-                if (26.0f < cursor->xC) {
-                    cursor->xC = 26.0f;
+                if (bottom > cursor->x10) {
+                    cursor->x10 = bottom;
                 }
-                if (-35.0f > cursor->xC) {
-                    cursor->xC = -35.0f;
+                if (right < cursor->xC) {
+                    cursor->xC = right;
+                }
+                if (left > cursor->xC) {
+                    cursor->xC = left;
                 }
             }
         }
 
+#ifdef MELEE_NATIVE
+        if (nativeHome_IsSelection() &&
+            mnCharSel_803F0E8C[cursor->x4].data->state == 0 &&
+            nativeCssInteraction_Hand(cursor)) {
+            goto update_display;
+        }
+#endif
         {
             u8 port = cursor->x4;
             CSSTagData* tag = mnCharSel_803F0E8C[port].data;
@@ -2614,24 +2590,7 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
                             mnCharSel_8025DB34(door);
                             cursor->x5 = 2;
                         } else {
-#ifdef MELEE_NATIVE
-                            if (nativeHome_IsSelection()) {
-                                struct CSSCharModel* model =
-                                    mnCharSel_804A0BD0[door];
-                                NativeContentId fighter;
-                                float left, top;
-                                if (nativeCssOriginal_HitTestFighter(
-                                        model->x8, model->xC, &fighter,
-                                        &left, &top)) {
-                                    if (trigger & HSD_PAD_A) {
-                                        selectNativeFighter(
-                                            door, cursor, &fighter,
-                                            left, top);
-                                    }
-                                    goto update_display;
-                                }
-                            }
-#endif
+
                             a_press = trigger & HSD_PAD_A;
                             if (a_press != 0) {
                                 struct CSSCharModel* m =
@@ -2802,20 +2761,7 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
                     goto update_display;
                 }
 
-#ifdef MELEE_NATIVE
-                if (nativeHome_IsSelection() &&
-                    (trigger & HSD_PAD_A) != 0) {
-                    NativeContentId fighter;
-                    float left, top;
-                    if (nativeCssOriginal_HitTestFighter(
-                            cursor->xC, cursor->x10, &fighter,
-                            &left, &top)) {
-                        selectNativeFighter(cursor->x4, cursor, &fighter,
-                                            left, top);
-                        goto update_display;
-                    }
-                }
-#endif
+
 
                 if ((cursor->xC > 17.3f) && (cursor->x10 > 22.0f)) {
                     cursor->x8 = 1;
@@ -3482,6 +3428,13 @@ void fn_80262648(HSD_GObj* gobj)
 
     carrier.css = mnCharSel_804D6CB0;
     n_doors = getDoorCount(carrier.css);
+#ifdef MELEE_NATIVE
+    if (nativeHome_IsSelection()) {
+        nativeCssInteraction_Cookie(model, jobj);
+        return;
+    }
+#endif
+
 
     {
         u8 p_kind;
@@ -3718,6 +3671,11 @@ void fn_80262F44(HSD_GObj* gobj)
             JOBJ_HIDDEN);
     }
 
+#ifdef MELEE_NATIVE
+    if (nativeHome_IsSelection() && !nativeCssInteraction_CanReady()) {
+        goto hide;
+    }
+#endif
     if (mnCharSel_804D6CF5 == 1) {
         if (mnCharSel_804A0BC0[0]->x5 == 1 ||
             (mnCharSel_803F0DFC.doors[0].sel_icon >= 0x19 &&
@@ -5427,6 +5385,10 @@ s32 mnCharSel_802640A0(void)
             mnCharSel_803F0DFC.doors[i].selected_since_load = 1;
         }
     }
+    if (nativeHome_IsSelection()) {
+        nativeCssInteraction_Begin(mnCharSel_804D6CB0, &mnCharSel_803F0DFC,
+            mnCharSel_804A0BC0, mnCharSel_804A0BD0, icons);
+    }
 #endif
     PAD_STACK(0x20);
     return lbAudioAx_80023F28(gmMainLib_8015ECB0());
@@ -5626,6 +5588,7 @@ void mnCharSel_Scene_OnExit(void* unused)
 
     HSD_SisLib_803A5FBC();
 #ifdef MELEE_NATIVE
+    nativeCssInteraction_End();
     nativeHubHand_Unload();
     nativeCssOriginal_Exit();
 #endif
