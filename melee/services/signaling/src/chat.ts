@@ -5,8 +5,28 @@ export const CHAT_HISTORY = 64;
 export const CHAT_NAME_BYTES = 32;
 export const CHAT_TEXT_BYTES = 512;
 export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES;
+export const CHAT_PLAYERS = 128;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+interface ChatIdentity { peer: string; name: string }
+
+export function encodeChatIdentity(name: string): Uint8Array {
+  const encoded = encoder.encode(name);
+  const bytes = new Uint8Array(2 + encoded.length);
+  bytes.set([3, encoded.length]);
+  bytes.set(encoded, 2);
+  return bytes;
+}
+
+function identityPacket(identity: ChatIdentity): Uint8Array {
+  const name = encoder.encode(identity.name);
+  const bytes = new Uint8Array(34 + name.length);
+  bytes[0] = 0x86;
+  bytes.set(encoder.encode(identity.peer), 1);
+  bytes[33] = name.length;
+  bytes.set(name, 34);
+  return bytes;
+}
 
 interface ChatRow extends Record<string, SqlStorageValue> {
   id: number;
@@ -73,8 +93,11 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       return new Response("Expected WebSocket", { status: 426 });
     }
     for (const old of this.ctx.getWebSockets(peer)) old.close(4001, "Reconnected");
+    if (this.connections().length >= CHAT_PLAYERS) {
+      return new Response("Chatroom is full", { status: 503 });
+    }
     const pair = new WebSocketPair();
-    pair[1].serializeAttachment({ peer });
+    pair[1].serializeAttachment({ peer, name: "Player" } satisfies ChatIdentity);
     this.ctx.acceptWebSocket(pair[1], [peer]);
     const rows = this.ctx.storage.sql.exec<ChatRow>(
       "SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?", CHAT_HISTORY,
@@ -93,6 +116,14 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
         this.send(socket, new Uint8Array([0x84]));
         return;
       }
+      if (bytes.length >= 2 && bytes[0] === 3) {
+        const size = bytes[1];
+        if (!size || size > CHAT_NAME_BYTES || bytes.length !== 2 + size) throw new Error();
+        const name = decoder.decode(bytes.subarray(2));
+        if (!name.trim() || /[\x00-\x1f\x7f]/.test(name)) throw new Error();
+        this.identify(socket, name);
+        return;
+      }
       if (bytes.length < 8 || bytes[0] !== 1) throw new Error();
       const view = new DataView(message);
       const nonce = view.getUint32(1);
@@ -103,7 +134,8 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       const name = decoder.decode(bytes.subarray(8, 8 + nameSize));
       const text = decoder.decode(bytes.subarray(8 + nameSize));
       if (!name.trim() || !text.trim() || /[\x00-\x1f\x7f]/.test(name + text)) throw new Error();
-      const { peer } = socket.deserializeAttachment() as { peer: string };
+      const { peer } = socket.deserializeAttachment() as ChatIdentity;
+      this.identify(socket, name);
       const previous = this.ctx.storage.sql.exec<ChatRow>(
         "SELECT * FROM chat_messages WHERE peer = ? AND nonce = ?", peer, nonce,
       ).toArray()[0];
@@ -140,8 +172,23 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
 
   private presence(): void {
     const sockets = this.connections();
-    const packet = countPacket(0x83, sockets.length);
-    for (const socket of sockets) this.send(socket, packet);
+    // One ordered snapshot, published by clients only after its final marker.
+    // Small records keep native mailboxes bounded without a large variable
+    // receive buffer. Attachment identities survive hibernation.
+    const packets = [countPacket(0x85, sockets.length),
+      ...sockets.map(socket => identityPacket(socket.deserializeAttachment() as ChatIdentity)),
+      new Uint8Array([0x87])];
+    for (const socket of sockets) {
+      for (const packet of packets) this.send(socket, packet);
+    }
+  }
+
+  private identify(socket: WebSocket, name: string): void {
+    const identity = socket.deserializeAttachment() as ChatIdentity;
+    if (identity.name === name) return;
+    identity.name = name;
+    socket.serializeAttachment(identity);
+    this.presence();
   }
 
   private send(socket: WebSocket, packet: Uint8Array): void {

@@ -294,7 +294,7 @@ namespace {
         title("Chatroom", label);
         nativeHub_Panel(175, 116, 296, 234);
         nativeHub_Panel(479, 116, 126, 234);
-        nativeHubPaint_Text("Recent speakers", 489, 127, 103, 12, gold,
+        nativeHubPaint_Text("Players", 489, 127, 103, 12, gold,
                             NativeMenuFont_Heading);
         unsigned count = view->count;
         unsigned end =
@@ -321,29 +321,25 @@ namespace {
                                     : "Connecting to global chat...",
                                 186, 139, 272, 10, muted);
         }
-        // The service currently reports a count and message authors, rather
-        // than a live directory. Show the authors that actually appear in this
-        // history.
-        char seen[12][33]{};
-        unsigned seen_count = 0;
-        for (unsigned i = count; i > 0 && seen_count < 12; --i) {
-            const auto& msg = view->messages[i - 1];
-            bool found = false;
-            for (unsigned j = 0; j < seen_count; ++j) {
-                if (!std::strcmp(seen[j], msg.peer)) {
-                    found = true;
-                }
-            }
-            if (found) {
-                continue;
-            }
-            std::snprintf(seen[seen_count], sizeof(seen[0]), "%s", msg.peer);
-            nativeHub_Button(
-                "chat-author", msg.name, 487, 149 + seen_count * 15, 108, 14,
-                HubAction::ShowProfile, 0, false, true, msg.peer, msg.name);
-            ++seen_count;
+        hub.people_scroll = std::min(
+            hub.people_scroll, std::max(0, int(view->player_count) - 12));
+        unsigned last = std::min(unsigned(hub.people_scroll + 12),
+                                 unsigned(view->player_count));
+        for (unsigned i = unsigned(hub.people_scroll); i < last; ++i) {
+            const auto& person = view->players[i];
+            nativeHub_Button("chat-player", person.name, 487,
+                             149 + (i - hub.people_scroll) * 14, 108, 13,
+                             HubAction::ShowProfile, 0, false, true,
+                             person.peer, person.name);
         }
-        nativeHubPaint_Text("Recent speakers", 489, 331, 103, 7, muted);
+        if (view->player_count > 12) {
+            nativeHub_Button("people-prev", "<", 489, 324, 28, 18,
+                             HubAction::PeopleScroll, -12, false,
+                             hub.people_scroll > 0);
+            nativeHub_Button("people-next", ">", 567, 324, 28, 18,
+                             HubAction::PeopleScroll, 12, false,
+                             last < view->player_count);
+        }
         nativeHub_Field("chat-message", hub.chat, 175, 362, 328, 28,
                         HubAction::FieldChat);
         nativeHub_Button("send-chat", "Send", 512, 362, 93, 28,
@@ -359,7 +355,7 @@ namespace {
         if (view->delivery == NativeChatDelivery_Unconfirmed) {
             status = "Delivery is unconfirmed.";
         }
-        nativeHubPaint_Text(status, 181, 401, 416, 8, muted);
+        nativeHubPaint_Text(status, 181, 396, 416, 8, muted);
     }
     void settings()
     {

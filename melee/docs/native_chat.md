@@ -1,5 +1,24 @@
 # Global chat
 
+## Live player list, 2026-10-17
+
+Chatroom shows everyone connected to global chat, including players who have
+not posted. Saving a display name updates that name in the player list.
+Selecting a row opens the player's profile. The list supports 128 connected
+players, with compact rows, paging and mouse-wheel scrolling.
+
+The service sends a bounded presence snapshot on joins, leaves and name
+changes. Clients display the new list after receiving its completion marker.
+Connection loss clears the live list; reconnecting announces the saved display
+name again. WebSocket attachments retain names through service hibernation.
+The native client uses fixed storage for incoming presence and its event queue.
+
+Worker type checks and all 18 service tests pass. The native wire test covers
+presence records, name announcements, UTF-8 and size limits. Two Windows client
+probes saw each other without sending messages. A hidden, muted game connected
+to the local service and displayed both itself and a quiet probe in Chatroom;
+the PNG and logs are under `.local/hub-chat-review`.
+
 The native shell connects automatically to `/chat/connect` on the private
 service. One `GlobalChat` Durable Object owns the friends' shared conversation;
 it is independent of the existing per-room objects. Room membership and client
@@ -64,6 +83,10 @@ same native chat client without the game, sends once connected, prints received
 messages and connection changes, and succeeds only with an acknowledgement and
 the expected message. Use two processes to check independent senders. Its
 endpoint argument supports the local Worker at `http://127.0.0.1:8799`.
+
+`native_chat_probe --presence ENDPOINT NAME EXPECTED_NAME SECONDS` announces
+a player without posting. It succeeds when the directory contains both its
+own name and the expected other player.
 
 The game defaults to the deployed service. `FREAK_MELEE_CHAT_ENDPOINT` overrides
 the endpoint for local development; do not change it to join different game

@@ -18,9 +18,11 @@ typedef enum NativeChatDelivery {
 typedef struct NativeChatView {
     NativeChatMessage messages[NATIVE_CHAT_HISTORY];
     NativeChatMessage pending;
+    NativeChatPlayer players[NATIVE_CHAT_PLAYERS];
     uint64_t revision;
     uint32_t count;
     uint16_t online;
+    uint16_t player_count;
     NativeChatState state;
     NativeChatDelivery delivery;
 } NativeChatView;
@@ -29,6 +31,8 @@ typedef struct NativeChatView {
 bool nativeChat_Start(const char* endpoint);
 void nativeChat_Update(void);
 bool nativeChat_Send(const char* name, const char* text);
+bool nativeChat_Identify(const char* name);
+const char* nativeChat_LocalPeerId(void);
 const NativeChatView* nativeChat_View(void);
 void nativeChat_Stop(void);
 #ifdef __cplusplus

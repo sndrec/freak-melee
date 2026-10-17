@@ -53,6 +53,27 @@ int main(void)
     const uint8_t ready[] = { 0x82, 0, 5 };
     assert(nativeChatWire_Decode(ready, sizeof(ready), &packet));
     assert(packet.online == 5);
+    const uint8_t begin[] = { 0x85, 0, 128 }, end[] = { 0x87 };
+    assert(nativeChatWire_Decode(begin, sizeof(begin), &packet));
+    assert(packet.online == NATIVE_CHAT_PLAYERS);
+    assert(nativeChatWire_Decode(end, sizeof(end), &packet));
+    const uint8_t oversized[] = { 0x85, 0, 129 };
+    assert(!nativeChatWire_Decode(oversized, sizeof(oversized), &packet));
+    memset(bytes, 0, sizeof(bytes));
+    bytes[0] = 0x86;
+    memset(bytes + 1, 'b', 32);
+    bytes[33] = 3;
+    memcpy(bytes + 34, "A\xc3\xa9", 3);
+    assert(nativeChatWire_Decode(bytes, 37, &packet));
+    assert(!strcmp(packet.player.name, "A\xc3\xa9"));
+    assert(!nativeChatWire_Decode(bytes, 36, &packet));
+    bytes[1] = 'z';
+    assert(!nativeChatWire_Decode(bytes, 37, &packet));
+    const uint8_t identity[] = { 3, 3, 'A', 0xc3, 0xa9 };
+    assert(nativeChatWire_Identify("A\xc3\xa9", bytes, sizeof(bytes)) ==
+           sizeof(identity));
+    assert(!memcmp(bytes, identity, sizeof(identity)));
+    assert(!nativeChatWire_Identify(" ", bytes, sizeof(bytes)));
     puts("chat wire: bounded UTF-8, server fields, and exact client encoding "
          "passed");
     return 0;

@@ -40,6 +40,14 @@ Quick Play service integration remain separate work. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 
+Global Chatroom now shows the live connected-player directory, including
+players who have not posted. The service keeps names in WebSocket attachments
+and broadcasts complete bounded snapshots on joins, leaves and renames. The
+native menu supports 128 players with compact rows and paging. Local native
+probes and the actual hidden, muted game verified this path; the service's
+18 tests include hibernation and quiet-player name changes. Account identities
+remain separate work; chat peer IDs identify a running client session.
+
 The next native pass uses the actual CSS hand model, with its fingertip anchored
 to the pointer position, and restores the scene camera after drawing it. The
 system mouse cursor hides only inside the active hub canvas. Starter clones use

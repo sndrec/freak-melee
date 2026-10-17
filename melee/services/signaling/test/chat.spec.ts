@@ -1,7 +1,7 @@
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { CHAT_HISTORY, encodeChatPost } from "../src/chat";
+import { CHAT_HISTORY, encodeChatPost, encodeChatIdentity } from "../src/chat";
 
 const worker = exports.default as unknown as Fetcher;
 const firstPeer = "11111111111111111111111111111111";
@@ -56,6 +56,20 @@ function entry(bytes: Uint8Array) {
   };
 }
 
+async function players(connection: Awaited<ReturnType<typeof connect>>) {
+  const first = await connection.next(0x85);
+  const count = new DataView(first.buffer, first.byteOffset, first.byteLength).getUint16(1);
+  const result = [];
+  for (let i = 0; i < count; ++i) {
+    const record = await connection.next(0x86);
+    result.push({ peer: decoder.decode(record.subarray(1, 33)),
+                  name: decoder.decode(record.subarray(34)) });
+    expect(record[33]).toBe(record.length - 34);
+  }
+  expect(Array.from(await connection.next(0x87))).toEqual([0x87]);
+  return result;
+}
+
 describe("global chat", () => {
   it("routes everyone without a room or build requirement", async () => {
     const a = await connect(worker, firstPeer);
@@ -107,19 +121,40 @@ describe("global chat", () => {
     const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
     const a = await connect(stub, firstPeer);
     expect(Array.from(await a.next(0x82))).toEqual([0x82, 0, 1]);
-    await a.next(0x83);
+    expect(await players(a)).toEqual([{ peer: firstPeer, name: "Player" }]);
+    a.socket.send(encodeChatIdentity("Renée"));
+    expect(await players(a)).toEqual([{ peer: firstPeer, name: "Renée" }]);
+    await evictDurableObject(stub);
     const b = await connect(stub, secondPeer);
     expect(Array.from(await b.next(0x82))).toEqual([0x82, 0, 2]);
-    expect(Array.from(await a.next(0x83))).toEqual([0x83, 0, 2]);
+    expect(await players(a)).toEqual(expect.arrayContaining([
+      { peer: firstPeer, name: "Renée" }, { peer: secondPeer, name: "Player" },
+    ]));
     b.socket.close();
-    expect(Array.from(await a.next(0x83))).toEqual([0x83, 0, 1]);
+    expect(await players(a)).toEqual([{ peer: firstPeer, name: "Renée" }]);
+    a.socket.send(new Uint8Array([2]));
+    expect(Array.from(await a.next(0x84))).toEqual([0x84]);
+    a.socket.close();
+  });
+
+  it("announces players before their first message and updates their names", async () => {
+    const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
+    const a = await connect(stub, firstPeer);
+    await a.next(0x82); await players(a);
+    a.socket.send(encodeChatIdentity("Quiet player"));
+    expect(await players(a)).toEqual([{ peer: firstPeer, name: "Quiet player" }]);
+    a.socket.send(encodeChatIdentity("New name"));
+    expect(await players(a)).toEqual([{ peer: firstPeer, name: "New name" }]);
     a.socket.send(new Uint8Array([2]));
     expect(Array.from(await a.next(0x84))).toEqual([0x84]);
     a.socket.close();
   });
 
   it("rejects oversized text and invalid UTF-8 instead of corrupting history", async () => {
-    for (const post of [encodeChatPost(1, "Player", "x".repeat(513)), new Uint8Array([1, 0, 0, 0, 1, 1, 0, 1, 65, 255])]) {
+    for (const post of [encodeChatPost(1, "Player", "x".repeat(513)),
+      encodeChatIdentity("x".repeat(33)), encodeChatIdentity(" "),
+      new Uint8Array([3, 1, 255]),
+      new Uint8Array([1, 0, 0, 0, 1, 1, 0, 1, 65, 255])]) {
       const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
       const a = await connect(stub, firstPeer);
       await a.next(0x82);
