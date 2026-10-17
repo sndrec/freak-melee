@@ -54,7 +54,7 @@ choice through the current menus.
 
 ## Wire and ownership
 
-The current native build identity is `freak-melee-native-dev-quick-rematch`.
+The current native build identity is `freak-melee-native-dev-quick-return`.
 
 | Client type | Payload |
 | --- | --- |
@@ -74,7 +74,42 @@ host's clear-match command for Quick Play.
 
 ## Verification
 
-`npm run check` passes 42 service tests. The new cases cover result consensus,
+The native rematch harness now also accepts `--split-party` and `--four-solos`.
+The first option joins a second client to the first client's doubles party using
+the native lobby-code field, then matches those teammates against two players
+sharing a third client. The guest's queue control stays disabled; the party
+leader queues both teammates. The four-solo option queues four independent
+clients and lets the allocator form the teams.
+
+Both runs finish a four-stock game using ordinary controller movement, receive
+matching results from every PC, return all local controllers through Results,
+and verify each CSS has four cards with the correct number of local seats. The
+losing teammates on separate clients must both vote before the stage decision
+completes. Every client then readies into practice and starts another match in
+the same assigned room with a new session ID. Peer IDs survive the initial
+party-to-match handoff.
+
+The separate-client premade run is recorded under
+`.local/native-quick-split-party-rematch-3`: sessions `0d91a1bbd58a8c7c` then
+`514b6717d5532070` in room `4B2A86016591`. Its first client compared 2,540
+confirmed peer checksums and reconstructed 2,540 hidden frames during the first
+game. The four-solo run is under `.local/native-quick-four-solos-rematch-1`:
+sessions `8fe646949c697cf0` then `010017d0e1b245c9` in room `616ABAB3399A`,
+with 4,224 checksum comparisons and 784 hidden frames on its first client.
+Neither run reported a gameplay failure or checksum mismatch. The second-match
+PNGs were reviewed.
+
+These clients all run on this PC against a local service. They establish native
+multi-process party, team, input ownership and rematch behavior. Physical
+multi-PC/network acceptance remains the user's later pass, and stage voting
+still uses the automation command while its player-facing UI awaits review.
+
+The first harness attempts expected the ordinary two-card layout in a Quick Play
+party and tried inspecting CSS cards during practice/gameplay. The harness now
+checks the four-card layout on the actual CSS after Results. No game behavior
+needed changing for these two scenarios.
+
+`npm run check` passes 44 service tests. The rematch cases cover result consensus,
 winner/loser authority, shared-PC and separate-PC teammates, vote withdrawal,
 stale reports and votes, no-contests, disagreements, hibernation, and signaling
 loss followed by an end report. Tests wait for the relevant revision or vote

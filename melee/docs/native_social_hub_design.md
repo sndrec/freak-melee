@@ -72,8 +72,9 @@ button follows the existing START path; practice offers lobby access, host start
 and return to CSS. The hub also opens from paused practice with Z. Settings keeps
 bindings, rules, costume selection and installed packages accessible as tools.
 The [native play-menu checkpoint](native_play_menu_checkpoint.md) records the
-source ownership and local acceptance. Quick Play queue controls, countdown flow
-and authored transitions remain open. The GameCube adapter range/deadzone audit
+source ownership and local acceptance. Quick Play queue controls and countdown
+flow now have local native checks; authored transitions remain open. The GameCube
+adapter range/deadzone audit
 below remains open for hardware verification.
 
 The native CSS cookie path now separates portrait choice from cookie position.
@@ -364,6 +365,8 @@ testing remains a later user pass. The mockup's search results use local sample
 participants. The local service now has party-preserving queue allocation,
 private match admission and cancellation/recovery checks. Native queue controls,
 ready countdown, fixed-rule matches and rematches now have local runtime evidence.
+Separate-client premade teammates and four independent solo clients also finish
+a four-stock game and rematch in the same assigned room in native local checks.
 The actual stage-confirmation UI and its complete controller/mouse acceptance
 still need work. Native cancellation checks cover the deadline race, opponent
 exit and original-party recovery. Signaling-loss checks finish a viable P2P

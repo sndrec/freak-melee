@@ -35,7 +35,7 @@ outside that connection and publish again when the assigned room is ready.
 The native decoder handles the Quick Play state and rejection messages. Rejections
 are shown as queue errors. An explicit allocation cancellation returns to the
 party; ordinary signaling loss retains the established gameplay policy. The
-native build identity is `freak-melee-native-dev-quick-rematch`.
+native build identity is `freak-melee-native-dev-quick-return`.
 
 For local service checks, `FREAK_MELEE_SERVICE_ENDPOINT` overrides the native
 room-service origin. Without it, the client uses the configured hosted origin.
