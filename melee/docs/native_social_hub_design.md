@@ -48,7 +48,7 @@ probes and the actual hidden, muted game verified this path; the service's
 18 tests include hibernation and quiet-player name changes. Account identities
 remain separate work; chat peer IDs identify a running client session.
 
-The next native pass uses the actual CSS hand model, with its fingertip anchored
+The native hub uses the actual CSS hand model, with its fingertip anchored
 to the pointer position, and restores the scene camera after drawing it. The
 system mouse cursor hides only inside the active hub canvas. Starter clones use
 portrait artwork extracted from the user's ISO during the build. The baked stock
@@ -58,9 +58,9 @@ The lobby create/join page includes a one-to-four local-player selector.
 The hidden, muted authoring acceptance run passed again with these changes;
 screenshots are under `.local/native-hub-art-acceptance`.
 
-Still to integrate after the shared pages: the native CSS sharing interaction,
-participant-bound card ordering, Quick Play ready-practice/countdown flow,
-and authored menu transitions. The GameCube
+Still to integrate after the shared pages: native room controls during CSS and
+practice, Quick Play ready-practice/countdown flow, and authored menu
+transitions. The GameCube
 adapter range/deadzone audit below remains open for hardware verification.
 
 The native CSS cookie path now separates portrait choice from cookie position.
@@ -83,6 +83,33 @@ stable position, pickup, START rejection while carrying, opening a custom CPU
 slot and actual practice entry. Reviewed PNGs show only the two installed
 portraits, the free cookie and the resulting practice scene. The diagnostic
 `ui-inspect css-selection` reports hands, cookies and current choices.
+
+Online CSS cards now represent the lobby's active seats. Each client puts its
+local seats first while retaining their physical controller ports and canonical
+match ports. Waiting players and spectators stay out of the card row. The
+presenter uses the stock panel backgrounds, emblems, doors and human/CPU badges.
+Custom portraits also appear in offline player panels. Fighter choices publish
+while players are on CSS; START still locks the choice and enters ready practice.
+
+With the cookie placed, an empty hand can grab a fighter portrait. A drops it
+onto a remote player card and opens delivery confirmation. X opens the recipient
+chooser; B cancels. Mouse clicks and drags operate the same hand through the CSS
+camera. Confirmation retains the fighter package and recipient identities.
+Accepted fighters use the existing validated content transfer and roster install.
+Receipt adds the saved CSS tile while the recipient is in ready practice too;
+returning to CSS shows the new fighter. Repeated deliveries preserve one tile
+and one installation. The local acceptance covers this complete path and role
+changes that reconnect the active players.
+
+The recipient chooser pages through the whole lobby. Waiting players and
+spectators appear there with delivery availability shown explicitly. The current
+transfer uses active gameplay peer connections, so delivery to those roles still
+needs a separate content route. This remains required work. A missing remote
+portrait displays a placeholder until its package reaches the local cache;
+early preview downloads before readying remain to be implemented.
+
+The [native CSS card checkpoint](native_css_cards_checkpoint.md) records source
+ownership, local tests and remaining transport and interface work.
 
 ## Personal roster
 

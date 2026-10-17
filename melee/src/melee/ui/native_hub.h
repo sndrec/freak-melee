@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <melee/gm/native_content_store.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +12,9 @@ bool nativeHub_IsVisible(void);
 void nativeHub_Event(const union SDL_Event* event);
 void nativeHub_OpenLobbies(void);
 void nativeHub_Notice(const char* text);
+const char* nativeHub_LocalName(void);
+bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
+                                   const char* recipient);
 // Diagnostic input uses native client pixels, as ordinary mouse input does.
 void nativeHub_ClickAt(int x, int y, int button);
 void nativeHub_MovePointer(int x, int y);

@@ -480,6 +480,9 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_paint.c
     src/melee/ui/native_hub_hand.c
     src/melee/mn/native_css_interaction.c
+    src/melee/mn/native_css_cards.c
+    src/melee/mn/native_css_participants.c
+    src/melee/mn/native_menu_portrait.c
     src/melee/ui/native_shell.cpp
     src/melee/ui/native_shell_collection.cpp
     src/melee/ui/native_shell_css_original.cpp
@@ -1134,6 +1137,15 @@ if(MELEE_BUILD_TESTS)
         "LINKER:/opt:ref")
     aurora_copy_runtime_dlls(native_css_layout_test)
     add_test(NAME native_css_layout COMMAND native_css_layout_test)
+    add_executable(native_css_participants_test
+        tests/native/css_participants_test.c
+        src/melee/mn/native_css_participants.c
+        src/melee/gm/native_lobby_selection.c)
+    target_include_directories(native_css_participants_test PRIVATE
+        src extern/dolphin/include)
+    target_compile_definitions(native_css_participants_test PRIVATE
+        MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    add_test(NAME native_css_participants COMMAND native_css_participants_test)
     add_executable(native_fighter_animation_bank_test
         tests/native/fighter_animation_bank_test.c)
     target_include_directories(native_fighter_animation_bank_test PRIVATE

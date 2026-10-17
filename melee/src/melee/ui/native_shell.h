@@ -2,6 +2,7 @@
 #define MELEE_UI_NATIVE_SHELL_H
 
 #include <stdbool.h>
+#include <melee/mn/native_css_pointer.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +23,7 @@ void nativeShell_ClickAt(int x, int y, int button);
 void nativeShell_DragAt(int start_x, int start_y, int end_x, int end_y);
 void nativeShell_EnterText(const char* text);
 void nativeShell_MovePointer(int x, int y);
+bool nativeShell_CssPointerEvent(int x, int y, NativeCssPointerEvent event);
 // Control-channel modifiers: bit 0 Shift, bit 1 Ctrl, bit 2 Alt.
 void nativeShell_PressKey(const char* key, unsigned modifiers);
 

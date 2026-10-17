@@ -110,14 +110,28 @@ static bool apply_presence(NativeNetplayConnection* connection,
         return true;
     }
     connection->presence_revision = presence->revision;
+    bool local_active = false;
+    for (uint32_t i = 0; i < presence->participant_count; ++i) {
+        const NativeSignalingParticipant* participant =
+            &presence->participants[i];
+        if (strcmp(participant->peer_id, connection->local_peer_id) == 0) {
+            local_active = participant->active_mask != 0;
+            break;
+        }
+    }
+    // Gameplay routes exist between active players. When a local seat leaves
+    // that set, both ends must close their old ICE session before rejoining.
     for (uint32_t i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
         NativeNetplayConnectionPeer* peer = &connection->peers[i];
-        if (peer->active && !presence_has_peer(connection, presence, peer)) {
+        if (peer->active &&
+            (!local_active || !presence_has_peer(connection, presence, peer)))
+        {
             remove_peer(peer);
         }
     }
 
-    for (uint32_t i = 0; i < presence->participant_count; ++i) {
+    for (uint32_t i = 0; local_active && i < presence->participant_count; ++i)
+    {
         const NativeSignalingParticipant* participant =
             &presence->participants[i];
         if (!participant_is_remote_active(connection, participant)) {
@@ -143,7 +157,9 @@ static bool apply_signal(NativeNetplayConnection* connection,
 {
     NativeNetplayConnectionPeer* peer = find_peer(connection, signal->peer_id);
     if (peer == NULL) {
-        return false;
+        // A description already in transit can arrive after a seat becomes
+        // waiting/spectating and its gameplay route has closed.
+        return true;
     }
     if (peer->remote_description_applied) {
         return true;

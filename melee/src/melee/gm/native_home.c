@@ -1752,6 +1752,25 @@ void nativeHome_Tick(void)
             !nativeHome_LocalRosterMatchesRoom() ||
             !nativeHome_IsPractice()) {
             published = (NativeLobbySelection){ .player_count = count };
+            if (!home.authoring && !home.preview_active &&
+                nativeHome_IsSelection() && home.css) {
+                unsigned seat = 0;
+                for (unsigned port = 0; port < GM_MAX_PLAYERS && seat < count; ++port) {
+                    const PlayerInitData* player = &home.css->vs.start.players[port];
+                    if (player->slot_type != Gm_PKind_Human) continue;
+                    NativeLobbyPlayerSelection* choice = &published.players[seat++];
+                    const NativeContentId* package = nativeHome_FighterPackage(port);
+                    if (package) {
+                        choice->character_package_id = *package;
+                        choice->selected = true;
+                    } else if (player->ckind < CKind_Playable_Count) {
+                        choice->character_id = nativeStockContent_CharacterId(player->ckind);
+                        choice->costume_id = nativeStockContent_CostumeId(player->ckind, player->color);
+                        choice->selected = true;
+                    }
+                    if (choice->selected) choice->team = player->team;
+                }
+            }
         } else {
             published.start_requested = home.start_requested;
         }

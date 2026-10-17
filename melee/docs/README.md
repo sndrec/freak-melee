@@ -21,7 +21,8 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Production rollback | [Current architecture](native_rollback_current.md), [confirmed-checkpoint policy](native_confirmed_checkpoint_plan.md) |
 | Home/practice and controls | [Home flow](native_home_flow.md), [profile UI](native_profiles_ui.md) |
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
-| Planned social interface | [Social hub, roster and offline inbox](native_social_hub_design.md) |
+| Social interface and remaining work | [Social hub, roster and offline inbox](native_social_hub_design.md) |
+| Native CSS cards and sharing | [Participant ordering, mouse input and delivery checkpoint](native_css_cards_checkpoint.md) |
 | Prepare a friend build | [Release guide](native_release.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |
 

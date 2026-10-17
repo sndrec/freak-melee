@@ -416,33 +416,66 @@ namespace {
     {
         title("Send a fighter", "Choose someone in your lobby.");
         nativeHub_Panel(175, 117, 430, 252);
-        nativeHubPaint_Text(hub.gift_title, 191, 136, 390, 18, gold,
+        nativeHubPaint_Text(hub.gift_title, 191, 136, 335, 18, gold,
                             NativeMenuFont_Heading);
         const auto* p = nativeOnlineSession_Presence();
-        unsigned rows = 0;
+        unsigned rows = 0, total = 0;
+        unsigned available = 0;
+        bool local_available = false;
+        for (unsigned i = 0; p && i < p->participant_count; ++i) {
+            if (!std::strcmp(p->participants[i].peer_id,
+                             nativeOnlineSession_LocalPeerId()))
+            {
+                local_available = p->participants[i].active_mask != 0;
+            } else {
+                ++available;
+            }
+        }
+        hub.recipient_scroll =
+            std::min(hub.recipient_scroll,
+                     int(available ? (available - 1) / 7 * 7 : 0));
+        bool recipient_available = false;
         if (p) {
-            for (unsigned i = 0; i < p->participant_count && rows < 7; ++i) {
+            for (unsigned i = 0; i < p->participant_count; ++i) {
                 const auto& person = p->participants[i];
                 if (!std::strcmp(person.peer_id,
                                  nativeOnlineSession_LocalPeerId()))
                 {
                     continue;
                 }
-                nativeHub_Button("gift-recipient", person.name, 191,
-                                 172 + rows * 24, 394, 21,
-                                 HubAction::Recipient, int(i),
-                                 !std::strcmp(hub.recipient, person.peer_id),
-                                 true, person.peer_id, person.name);
-                ++rows;
+                if (total >= unsigned(hub.recipient_scroll) && rows < 7) {
+                    nativeHub_Button(
+                        "gift-recipient", person.name, 191, 172 + rows * 24,
+                        394, 21, HubAction::Recipient, int(i),
+                        !std::strcmp(hub.recipient, person.peer_id), true,
+                        person.peer_id, person.name);
+                    ++rows;
+                }
+                if (!std::strcmp(hub.recipient, person.peer_id)) {
+                    recipient_available = person.active_mask != 0;
+                }
+                ++total;
             }
         }
+        nativeHub_Button("recipients-prev", "<", 538, 136, 22, 20,
+                         HubAction::RecipientScroll, -7, false,
+                         hub.recipient_scroll > 0);
+        nativeHub_Button("recipients-next", ">", 567, 136, 22, 20,
+                         HubAction::RecipientScroll, 7, false,
+                         unsigned(hub.recipient_scroll + 7) < total);
         if (!rows) {
             nativeHubPaint_Text(
                 "Join a lobby with another player to send your fighter.", 191,
                 193, 393, 11, muted);
         }
+        if (*hub.recipient && (!recipient_available || !local_available)) {
+            nativeHubPaint_Text("Fighter delivery currently requires both "
+                                "players to be fighting.",
+                                191, 342, 394, 8, muted);
+        }
         nativeHub_Button("confirm-gift", "Send fighter", 382, 376, 223, 29,
-                         HubAction::ConfirmSend, 0, true, *hub.recipient);
+                         HubAction::ConfirmSend, 0, true,
+                         recipient_available && local_available);
     }
 }
 void nativeHub_RenderPage(void)

@@ -7,6 +7,7 @@
 
 #include <melee/mn/forward.h>
 #include <sysdolphin/baselib/forward.h>
+#include <dolphin/mtx.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,7 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera);
 void nativeCssOriginal_Tick(void);
 void nativeCssOriginal_BeginAnimation(void);
+void nativeCssOriginal_HidePlayerCards(bool hidden);
 void nativeCssOriginal_Exit(void);
 void nativeCssOriginal_ClearPortraits(void);
 void nativeCssOriginal_SetPortrait(unsigned index, const u8* png, unsigned bytes, const char* title);
@@ -27,6 +29,8 @@ bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile);
 void nativeCssOriginal_CancelPreview(void);
 bool nativeCssOriginal_RemoveTile(unsigned index);
 bool nativeCssOriginal_AddStock(unsigned stock_index);
+// Adds an installed fighter to the installation's roster, including when
+// practice or another scene is active. Existing tiles keep their position.
 bool nativeCssOriginal_AddInstalled(const NativeContentId* id);
 
 bool nativeCssOriginal_FighterBounds(const NativeContentId* id,
@@ -37,6 +41,9 @@ void nativeCssOriginal_ReloadInstalledFighters(void);
 bool nativeCssOriginal_HitTestTile(float x, float y, NativeCssTile* result);
 bool nativeCssOriginal_RandomTile(NativeCssTile* result);
 void nativeCssOriginal_Viewport(float* left, float* right, float* top, float* bottom);
+bool nativeCssOriginal_PointFromCanvas(float u, float v, float* x, float* y);
+void nativeCssOriginal_TransformPoint(Vec3* point);
+bool nativeCssOriginal_ViewMatrix(Mtx result);
 
 #ifdef __cplusplus
 }
