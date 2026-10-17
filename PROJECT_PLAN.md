@@ -51,7 +51,9 @@ their own builds; their old "remaining" lists are not the current backlog.
   open. Late countdown cancellation now waits for a service decision, and native
   opponent-exit checks recover to the original party and search again.
   Signaling-loss checks now finish the P2P match and enter a second match after
-  recovering both parties. See the
+  recovering both parties. Native rematches also pass with separate-client
+  premade teammates and four independent solo clients. See the
+  [rematch checkpoint](melee/docs/native_quick_rematch_checkpoint.md),
   [return checkpoint](melee/docs/native_quick_return_checkpoint.md) and the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
