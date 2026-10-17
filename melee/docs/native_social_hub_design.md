@@ -353,8 +353,9 @@ Fountain of Dreams, Dream Land, Pokémon Stadium and Yoshi's Story.
 
 Choose the first stage randomly. After each game, the losing side chooses the
 next stage from those same six. Keep opponents together for rematches until
-someone leaves. There is no fixed set length. The doubles stage-pick interface
-must let the losing team agree on one choice; review its confirmation rule.
+someone leaves. There is no fixed set length. In doubles, either losing teammate
+selects a stage and the other confirms it. Changing the selection clears the
+confirmation. Start the rematch once both teammates have agreed on that stage.
 
 The service must allocate participants atomically, preserve pair membership,
 enforce the fixed rules and stage-pick authority, and release queue entries on
