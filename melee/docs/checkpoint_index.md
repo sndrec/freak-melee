@@ -176,6 +176,7 @@ it does not relabel old results as final-source acceptance.
 
 ## Other runtime checkpoints
 
+- [Received fighter delivery and independent Workshop editing — 2026-10-17](native_received_fighter_authoring_checkpoint.md)
 - [Extracted release, Workshop and launcher acceptance — 2026-10-17](native_release.md#local-acceptance-2026-10-17)
 
 ## Other evidence families

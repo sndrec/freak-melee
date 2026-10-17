@@ -135,7 +135,7 @@ static bool new_path(char path[512])
     if (!nativeFighterFamilyProject_LocalRoot(root, sizeof(root))) {
         return false;
     }
-    int length = std::snprintf(path, 512, "%s/fighter-%016llx", root,
+    int length = std::snprintf(path, 512, "%s\\fighter-%016llx", root,
                                (unsigned long long) SDL_GetTicksNS());
     return length > 0 && length < 512;
 }
