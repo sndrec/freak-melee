@@ -3,7 +3,8 @@
 #include "native_signaling_wire.h"
 
 enum {
-    NATIVE_CONTENT_CHANNELS = 2,
+    // Two gift routes, one cache download and three cache uploads.
+    NATIVE_CONTENT_CHANNELS = 6,
     NATIVE_CONTENT_CONTROL_QUEUE = 16
 };
 typedef enum NativeContentChannelState {

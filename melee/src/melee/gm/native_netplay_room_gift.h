@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "native_content_transfer.h"
+#include "native_netplay_content_channel.h"
 #include "native_signaling_client.h"
 
 typedef enum NativeNetplayGiftKind {
@@ -59,6 +60,8 @@ void nativeNetplayRoom_DeclineGift(struct NativeNetplayRoom* room);
 bool nativeNetplayRoom_GiftStatus(const struct NativeNetplayRoom* room,
                                   bool incoming,
                                   NativeNetplayGiftStatus* status);
+void nativeNetplayRoom_GiftControl(struct NativeNetplayRoom*, const NativeContentControl*);
+void nativeNetplayRoom_GiftPacket(struct NativeNetplayRoom*, const NativeContentDatagram*);
 bool nativeNetplayRoom_PumpGifts(struct NativeNetplayRoom* room);
 void nativeNetplayRoom_ClearGifts(struct NativeNetplayRoom* room);
 

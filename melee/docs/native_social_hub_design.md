@@ -119,8 +119,11 @@ five-client test verifies that content transfers preserve the four-player
 gameplay connections. The two-client game test covers an uncached delivery to
 a spectator in practice and the new roster tile after returning to CSS.
 
-A missing remote portrait displays a placeholder until its package reaches the
-local cache; early preview downloads before readying remain to be implemented.
+Selected remote fighters and costumes now download automatically while the
+lobby is open. Their portraits refresh after the package is verified and cached,
+before readying. Receiving a preview keeps the personal roster unchanged.
+See the [lobby-cache checkpoint](native_lobby_cache_checkpoint.md) for the
+transfer boundaries and native evidence.
 
 The [native CSS card checkpoint](native_css_cards_checkpoint.md) records source
 ownership, local tests and remaining transport and interface work.

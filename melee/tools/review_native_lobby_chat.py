@@ -93,7 +93,7 @@ def main():
         # Add spectator-only sockets: chat requires no gameplay/ICE connection.
         for i in range(13):
             query = urlencode(dict(peer=f'review_spectator_{i:02}', name=f'Visitor {i:02}',
-                players=0, active=0, waiting=0, build='freak-melee-native-dev-content'))
+                players=0, active=0, waiting=0, build='freak-melee-native-dev-cache'))
             socket = connect(f'{args.endpoint}/v1/rooms/{room}/connect?{query}', max_queue=64, close_timeout=1)
             sockets.append(socket)
             assert socket.recv()[5] == 0x81

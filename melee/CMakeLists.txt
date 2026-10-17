@@ -490,6 +490,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_shell_costumes.cpp
     src/melee/ui/native_chat.c
     src/melee/gm/native_room_chat.c
+    src/melee/gm/native_netplay_room_cache.c
     src/melee/ui/native_shell_profiles.cpp
     src/melee/ui/native_shell_rules.cpp
     src/sysdolphin/baselib/audio_rollback.c
