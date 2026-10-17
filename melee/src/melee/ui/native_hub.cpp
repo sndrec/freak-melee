@@ -111,9 +111,14 @@ namespace {
         }
         bool ok = std::fprintf(file, "%s\n%s\n", hub.name, hub.bio) > 0;
         ok = std::fclose(file) == 0 && ok;
-        return ok &&
-               MoveFileExA(temporary, path,
-                           MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        ok = ok &&
+             MoveFileExA(temporary, path,
+                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+        if (ok) {
+            std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
+                          hub.name);
+        }
+        return ok;
     }
     void load_profile()
     {
@@ -559,7 +564,7 @@ void nativeHub_Activate(HubAction action, int value)
                                         : "Could not save the profile.");
         break;
     case HubAction::SendChat:
-        if (nativeChat_Send(hub.name, hub.chat)) {
+        if (nativeChat_Send(hub.public_name, hub.chat)) {
             hub.chat[0] = 0;
             hub.caret = 0;
         } else {
@@ -600,7 +605,7 @@ void nativeHub_Activate(HubAction action, int value)
             }
         }
         text_focus(nullptr, 0);
-        if (!nativeOnlineMenu_Request(intent, hub.name, hub.code,
+        if (!nativeOnlineMenu_Request(intent, hub.public_name, hub.code,
                                       uint8_t(hub.local_players)))
         {
             nativeHub_Notice("The lobby is busy. Try again shortly.");
@@ -649,7 +654,9 @@ void nativeHub_Activate(HubAction action, int value)
             std::snprintf(hub.viewed_peer, sizeof(hub.viewed_peer), "%s",
                           hub.pending_peer);
             const char* local = nativeOnlineSession_LocalPeerId();
-            hub.profile_self = local && !std::strcmp(hub.pending_peer, local);
+            hub.profile_self =
+                (local && !std::strcmp(hub.pending_peer, local)) ||
+                !std::strcmp(hub.pending_peer, nativeChat_LocalPeerId());
             nativeHub_ChangePage(HubPage::Profile);
         }
         break;
@@ -704,6 +711,11 @@ void nativeHub_Activate(HubAction action, int value)
         nativeHub_Notice("Quick Play needs the matchmaking service. You can "
                          "play through Lobbies now.");
         break;
+    case HubAction::PeopleScroll:
+        hub.people_scroll =
+            std::clamp(hub.people_scroll + value, 0,
+                       std::max(0, int(nativeChat_View()->player_count) - 12));
+        break;
     case HubAction::WriteLetter:
     case HubAction::AddFriend:
     case HubAction::Invite:
@@ -729,6 +741,8 @@ extern "C" void nativeHub_Tick(void)
                 nativeShellCssOriginal_IsEditing();
     if (!hub.initialized && selection) {
         load_profile();
+        std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
+                      hub.name);
         reload_catalog();
         // An existing saved layout or installed collection always wins. The
         // empty roster is only the first-run default for an empty
@@ -759,6 +773,9 @@ extern "C" void nativeHub_Tick(void)
     }
     hub.selection_before = selection;
     hub.visible = hub.initialized && selection && !tool && !hub.dismissed;
+    if (hub.initialized) {
+        nativeChat_Identify(hub.public_name);
+    }
     if (selection && !tool && hub.dismissed) {
         bool held = false;
         for (unsigned port = 0; port < 4; ++port) {
@@ -1016,9 +1033,15 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         key(event->key.key, event->key.mod);
     }
     if (event->type == SDL_EVENT_MOUSE_WHEEL && hub.page == HubPage::Chat) {
-        hub.chat_scroll =
-            std::clamp(hub.chat_scroll + int(event->wheel.y) * 3, 0,
-                       std::max(0, int(nativeChat_View()->count) - 8));
+        if (nativeHub_Hover(479, 116, 126, 234)) {
+            hub.people_scroll = std::clamp(
+                hub.people_scroll - int(event->wheel.y) * 3, 0,
+                std::max(0, int(nativeChat_View()->player_count) - 12));
+        } else {
+            hub.chat_scroll =
+                std::clamp(hub.chat_scroll + int(event->wheel.y) * 3, 0,
+                           std::max(0, int(nativeChat_View()->count) - 8));
+        }
     }
 }
 extern "C" void nativeHub_OpenLobbies(void)

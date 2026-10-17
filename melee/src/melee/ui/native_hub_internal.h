@@ -61,6 +61,7 @@ enum class HubAction {
     FieldChat,
     FieldTitle,
     SendChat,
+    PeopleScroll,
     Seat,
     ShowProfile,
     WriteLetter,
@@ -79,15 +80,15 @@ struct HubState {
     HubRegion regions[192];
     unsigned region_count;
     float pointer_x = 310, pointer_y = 240;
-    char notice[256], name[33] = "Player", bio[257], code[13], chat[513],
-                      title[64];
+    char notice[256], name[33] = "Player", public_name[33] = "Player",
+                      bio[257], code[13], chat[513], title[64];
     char viewed_name[33], viewed_peer[65], recipient[65], recipient_name[33];
     NativeContentId gift_id;
     char gift_title[64];
     char* field;
     unsigned field_capacity, caret;
     int selected = -1, first_fighter = 0, template_kind = 0, local_players = 1,
-        chat_scroll = 0;
+        chat_scroll = 0, people_scroll = 0;
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
     bool returning_from_tool, rename, select_all, profile_self = true;
     unsigned pending_action;

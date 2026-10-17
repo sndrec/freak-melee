@@ -11,7 +11,9 @@
 
 enum {
     COMMAND_COUNT = 8,
-    EVENT_COUNT = 128
+    // Initial history plus a complete 128-player presence snapshot fits even
+    // while the presentation thread is constructing a scene.
+    EVENT_COUNT = 256
 };
 typedef struct ChatCommand {
     uint8_t bytes[NATIVE_CHAT_PACKET_BYTES];
@@ -48,6 +50,10 @@ static struct {
 static NativeChatView view;
 static uint32_t next_nonce;
 static uint64_t pending_since;
+static char announced_name[NATIVE_CHAT_NAME_BYTES + 1];
+static NativeChatPlayer incoming_players[NATIVE_CHAT_PLAYERS];
+static unsigned incoming_count, incoming_expected;
+static bool incoming_presence;
 
 static bool push_event(const NativeChatPacket* packet)
 {
@@ -370,6 +376,8 @@ bool nativeChat_Start(const char* endpoint)
     memset(&view, 0, sizeof(view));
     view.state = NativeChat_Offline;
     next_nonce = 0;
+    announced_name[0] = 0;
+    incoming_presence = false;
     for (size_t i = 0; i < 4; ++i) {
         unsigned int random;
         if (rand_s(&random)) {
@@ -414,14 +422,38 @@ void nativeChat_Update(void)
         const NativeChatPacket* packet = &network.events[r % EVENT_COUNT];
         if (packet->type == 0xff) {
             view.state = NativeChat_Reconnecting;
+            view.online = view.player_count = 0;
+            incoming_presence = false;
+            announced_name[0] = 0;
             if (view.delivery == NativeChatDelivery_Sending) {
                 view.delivery = NativeChatDelivery_Unconfirmed;
             }
-        } else if (packet->type == 0x82 || packet->type == 0x83) {
+        } else if (packet->type == 0x82) {
             view.online = packet->online;
-            if (packet->type == 0x82) {
-                view.state = NativeChat_Online;
+            view.state = NativeChat_Online;
+        } else if (packet->type == 0x85) {
+            incoming_presence = true;
+            incoming_count = 0;
+            incoming_expected = packet->online;
+        } else if (packet->type == 0x86 && incoming_presence) {
+            for (unsigned i = 0; i < incoming_count; ++i) {
+                if (!strcmp(incoming_players[i].peer, packet->player.peer)) {
+                    incoming_presence = false;
+                    break;
+                }
             }
+            if (incoming_presence && incoming_count < incoming_expected) {
+                incoming_players[incoming_count++] = packet->player;
+            } else {
+                incoming_presence = false;
+            }
+        } else if (packet->type == 0x87) {
+            if (incoming_presence && incoming_count == incoming_expected) {
+                memcpy(view.players, incoming_players,
+                       sizeof(incoming_players[0]) * incoming_count);
+                view.online = view.player_count = (uint16_t) incoming_count;
+            }
+            incoming_presence = false;
         } else if (packet->type == 0x81) {
             const NativeChatMessage* m = &packet->message;
             if (m->nonce == view.pending.nonce &&
@@ -448,6 +480,9 @@ void nativeChat_Update(void)
         // A full event queue must not leave the UI claiming a lost connection
         // is usable while the worker reconnects and fetches recent history.
         view.state = NativeChat_Reconnecting;
+        view.online = view.player_count = 0;
+        incoming_presence = false;
+        announced_name[0] = 0;
         if (view.delivery == NativeChatDelivery_Sending) {
             view.delivery = NativeChatDelivery_Unconfirmed;
         }
@@ -459,6 +494,36 @@ void nativeChat_Update(void)
         view.delivery = NativeChatDelivery_Unconfirmed;
         ++view.revision;
     }
+}
+
+bool nativeChat_Identify(const char* name)
+{
+    if (!network.thread || !name || view.state != NativeChat_Online ||
+        !atomic_load_explicit(&network.connected, memory_order_acquire))
+    {
+        return false;
+    }
+    if (!strcmp(announced_name, name)) {
+        return true;
+    }
+    uint32_t w =
+        atomic_load_explicit(&network.command_write, memory_order_relaxed);
+    uint32_t r =
+        atomic_load_explicit(&network.command_read, memory_order_acquire);
+    if (w - r >= COMMAND_COUNT) {
+        return false;
+    }
+    ChatCommand* command = &network.commands[w % COMMAND_COUNT];
+    size_t size =
+        nativeChatWire_Identify(name, command->bytes, sizeof(command->bytes));
+    if (!size) {
+        return false;
+    }
+    command->size = (uint16_t) size;
+    atomic_store_explicit(&network.command_write, w + 1, memory_order_release);
+    strcpy(announced_name, name);
+    SetEvent(network.wake);
+    return true;
 }
 
 bool nativeChat_Send(const char* name, const char* text)
@@ -506,6 +571,10 @@ const NativeChatView* nativeChat_View(void)
 {
     return &view;
 }
+const char* nativeChat_LocalPeerId(void)
+{
+    return network.peer;
+}
 
 void nativeChat_Stop(void)
 {
@@ -522,4 +591,7 @@ void nativeChat_Stop(void)
     }
     network.thread = network.stop = network.wake = NULL;
     view.state = NativeChat_Offline;
+    view.online = view.player_count = 0;
+    incoming_presence = false;
+    announced_name[0] = 0;
 }
