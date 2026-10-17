@@ -36,8 +36,9 @@ their own builds; their old "remaining" lists are not the current backlog.
 - Native CSS now presents active lobby seats with local players first, using
   stock card artwork. Physical inputs and canonical match ports stay intact.
   Portrait dragging opens fighter-delivery confirmation. Same-lobby transfers
-  to active peers work; waiting/spectator content routes, early remote portrait
-  downloads and replacing the CSS/practice rails remain open. See the
+  use separate content connections and reach waiting players and spectators,
+  including while they practice. Early remote portrait downloads and replacing
+  the CSS/practice rails remain open. See the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.

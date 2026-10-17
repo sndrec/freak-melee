@@ -149,12 +149,29 @@ static bool apply_presence(NativeNetplayConnection* connection,
     }
     connection->presence = *presence;
     connection->has_presence = true;
+    nativeNetplayContentChannels_Reconcile(connection);
     return true;
 }
 
 static bool apply_signal(NativeNetplayConnection* connection,
                          const NativeSignalingSignal* signal)
 {
+    NativeConnectionMessage message;
+    if (!nativeNetplayConnectionWire_DecodeMessage(
+            signal->payload, signal->payload_size, &message)) {
+        return false;
+    }
+    if (message.type == NativeConnectionMessage_Control) {
+        nativeNetplayContentChannels_Control(
+            connection, signal->peer_id, message.payload, message.size);
+        return true;
+    }
+    if (message.type == NativeConnectionMessage_ContentDescription) {
+        nativeNetplayContentChannels_Description(
+            connection, signal->peer_id, message.serial,
+            message.sender_owns_transfer, message.payload, message.size);
+        return true;
+    }
     NativeNetplayConnectionPeer* peer = find_peer(connection, signal->peer_id);
     if (peer == NULL) {
         // A description already in transit can arrive after a seat becomes
@@ -200,9 +217,13 @@ static bool process_signaling(NativeNetplayConnection* connection)
         {
             connection->presence = event.message.data.presence;
             connection->has_presence = true;
+            nativeNetplayContentChannels_Reconcile(connection);
             continue;
         }
         if (connection->topology_locked) {
+            if (event.message.type == NativeSignalingServerMessage_Signal) {
+                apply_signal(connection, &event.message.data.signal);
+            }
             continue;
         }
         switch (event.message.type) {
@@ -334,6 +355,7 @@ void nativeNetplayConnection_Stop(NativeNetplayConnection* connection)
     if (connection == NULL) {
         return;
     }
+    nativeNetplayContentChannels_Clear(connection);
     for (uint32_t i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
         if (connection->peers[i].active) {
             remove_peer(&connection->peers[i]);
@@ -355,6 +377,7 @@ bool nativeNetplayConnection_Pump(NativeNetplayConnection* connection)
         return false;
     }
     count_peers(connection);
+    nativeNetplayContentChannels_Pump(connection);
     return !connection->failed;
 }
 

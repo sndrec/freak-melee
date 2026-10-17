@@ -2032,6 +2032,7 @@ add_executable(native_connection_probe
     src/melee/gm/native_lobby_topology.c
     src/melee/gm/native_netplay_exchange.c
     src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_netplay_content_channel.c
     src/melee/gm/native_netplay_connection_wire.c
     src/melee/gm/native_netplay_ice.c
     src/melee/gm/native_netplay_input.c
@@ -2045,8 +2046,23 @@ target_include_directories(native_connection_probe PRIVATE
     src extern/dolphin/include)
 target_compile_definitions(native_connection_probe PRIVATE
     MELEE_NATIVE=1 MELEE_CONNECTION_PROBE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_options(native_connection_probe PRIVATE "LINKER:/opt:ref")
 target_link_libraries(native_connection_probe PRIVATE
+    melee_runtime aurora_main aurora_os aurora_gx aurora_vi aurora_pad
+    aurora_mtx aurora_dvd aurora_card aurora_thp
     LibJuice::LibJuice winhttp bcrypt)
+
+add_executable(native_content_channel_probe
+    tools/native_content_channel_probe.c
+    src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_netplay_content_channel.c
+    src/melee/gm/native_netplay_connection_wire.c
+    src/melee/gm/native_netplay_ice.c
+    src/melee/gm/native_signaling_client.c
+    src/melee/gm/native_signaling_wire.c)
+target_include_directories(native_content_channel_probe PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_content_channel_probe PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(native_content_channel_probe PRIVATE LibJuice::LibJuice winhttp bcrypt)
 
 add_executable(melee_native_control tools/native_control.c
     src/melee/db/dbnativecontrol_protocol.c)

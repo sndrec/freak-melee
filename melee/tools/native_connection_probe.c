@@ -71,19 +71,6 @@ static NativeLobbyMatch create_match(uint64_t session_id)
     return match;
 }
 
-static void initialize_session(NativeRollbackSession* session,
-                               uint8_t local_port_mask)
-{
-    *session = (NativeRollbackSession){
-        .local_port_mask = local_port_mask,
-        .active = true,
-    };
-    if (!nativeRollbackInput_Init(&session->inputs, local_port_mask)) {
-        fprintf(stderr, "could not initialize rollback input history\n");
-        exit(1);
-    }
-}
-
 static bool pump_setup(void)
 {
     uint64_t deadline = GetTickCount64() + PROBE_TIMEOUT_MS;
@@ -130,13 +117,13 @@ static bool wait_for_first_owner(void)
     return false;
 }
 
-static bool pump_packets(NativeRollbackSession* first_session,
-                         NativeRollbackSession* second_session)
+static bool pump_packets(NativeRollbackInputHistory* first_inputs,
+                         NativeRollbackInputHistory* second_inputs)
 {
     uint64_t deadline = GetTickCount64() + PROBE_TIMEOUT_MS;
     while (GetTickCount64() < deadline) {
-        if (!nativeNetplayRoom_Receive(&first.room, first_session) ||
-            !nativeNetplayRoom_Receive(&second.room, second_session))
+        if (!nativeNetplayRoom_Receive(&first.room, first_inputs) ||
+            !nativeNetplayRoom_Receive(&second.room, second_inputs))
         {
             return false;
         }
@@ -224,10 +211,13 @@ int main(int argc, char** argv)
                  second.room.exchange.session_id == session_id;
     }
 
-    NativeRollbackSession first_session;
-    NativeRollbackSession second_session;
-    initialize_session(&first_session, first.room.exchange.local_port_mask);
-    initialize_session(&second_session, second.room.exchange.local_port_mask);
+    NativeRollbackInputHistory first_inputs;
+    NativeRollbackInputHistory second_inputs;
+    passed = passed &&
+             nativeRollbackInput_Init(&first_inputs,
+                                      first.room.exchange.local_port_mask) &&
+             nativeRollbackInput_Init(&second_inputs,
+                                      second.room.exchange.local_port_mask);
     PADStatus first_pads[4] = {
         { .button = PAD_BUTTON_A, .stickX = 10, .err = PAD_ERR_NONE },
         { 0 },
@@ -247,17 +237,17 @@ int main(int argc, char** argv)
                                                    second_pads) &&
                  nativeNetplayRoom_Send(&first.room) &&
                  nativeNetplayRoom_Send(&second.room) &&
-                 pump_packets(&first_session, &second_session);
+                 pump_packets(&first_inputs, &second_inputs);
     }
     PADStatus resolved[4];
     if (passed) {
-        passed = nativeRollbackInput_PrepareFrame(&first_session.inputs, 0,
-                                                  first_pads, resolved) &&
+        passed = nativeRollbackInput_PrepareFrame(&first_inputs, 0, first_pads,
+                                                  resolved) &&
                  resolved[0].button == PAD_BUTTON_A &&
                  resolved[1].button == PAD_BUTTON_B &&
                  resolved[2].button == PAD_BUTTON_X &&
                  resolved[3].button == PAD_BUTTON_Y &&
-                 nativeRollbackInput_PrepareFrame(&second_session.inputs, 0,
+                 nativeRollbackInput_PrepareFrame(&second_inputs, 0,
                                                   second_pads, resolved) &&
                  resolved[0].button == PAD_BUTTON_A &&
                  resolved[1].button == PAD_BUTTON_B &&

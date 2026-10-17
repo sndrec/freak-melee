@@ -101,12 +101,16 @@ returning to CSS shows the new fighter. Repeated deliveries preserve one tile
 and one installation. The local acceptance covers this complete path and role
 changes that reconnect the active players.
 
-The recipient chooser pages through the whole lobby. Waiting players and
-spectators appear there with delivery availability shown explicitly. The current
-transfer uses active gameplay peer connections, so delivery to those roles still
-needs a separate content route. This remains required work. A missing remote
-portrait displays a placeholder until its package reaches the local cache;
-early preview downloads before readying remain to be implemented.
+The recipient chooser pages through the whole lobby, including waiting players
+and spectators. Fighter delivery uses its own content connection. Accepting an
+uncached fighter starts that connection; cached fighters install immediately.
+The receiver can remain in practice while receiving the package. A local
+five-client test verifies that content transfers preserve the four-player
+gameplay connections. The two-client game test covers an uncached delivery to
+a spectator in practice and the new roster tile after returning to CSS.
+
+A missing remote portrait displays a placeholder until its package reaches the
+local cache; early preview downloads before readying remain to be implemented.
 
 The [native CSS card checkpoint](native_css_cards_checkpoint.md) records source
 ownership, local tests and remaining transport and interface work.

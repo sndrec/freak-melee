@@ -326,9 +326,22 @@ bool nativeNetplayRoom_PumpLobby(NativeNetplayRoom* room)
     return room != NULL && room->active &&
            nativeNetplayConnection_Pump(&room->connection);
 #else
-    return room != NULL && room->active &&
-           nativeNetplayConnection_Pump(&room->connection) &&
-           nativeNetplayRoom_PumpGifts(room);
+    if (!room || !room->active ||
+        !nativeNetplayConnection_Pump(&room->connection)) {
+        return false;
+    }
+    if (!room->match_configured) {
+        // Old input packets can arrive after a match ends. Lobby delivery
+        // owns separate queues, so retire those packets here before reuse.
+        NativeNetplayConnectionDatagram stale;
+        for (unsigned i = 0; i < NATIVE_NETPLAY_ICE_DATAGRAM_CAPACITY *
+                                    NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
+            if (!nativeNetplayConnection_PollDatagram(&room->connection, &stale)) {
+                break;
+            }
+        }
+    }
+    return nativeNetplayRoom_PumpGifts(room);
 #endif
 }
 

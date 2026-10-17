@@ -222,6 +222,24 @@ def main():
                 time.sleep(.1)
             else:
                 raise RuntimeError('Provisional CSS choices did not reach the other client')
+        _, text = sender.state()
+        tx, ty = map(float, re.search(r'\[css-tile\] index=0 center=([\d.-]+),([\d.-]+)', text).groups())
+        sender.command('ui-drag', *sender.pixel(tx, ty), *sender.pixel(7.6, -14))
+        sender.element('confirm-gift', timeout=10)
+        sender.screenshot()
+        sender.tap('b')
+        assert 'absent' in sender.inspect('confirm-gift')
+        # Receive an uncached fighter while spectating and running local practice.
+        receiver.tap('b', 40)
+        receiver.click('nav-1')
+        for _ in range(2):
+            receiver.command('ui-click', *receiver.canvas(406, 194.5))
+            time.sleep(.6)
+        assert 'local=1' not in receiver.wait_cards(1)
+        sender.wait_cards(1)
+        receiver.click('lobby-ready')
+        if receiver.state()[0]['holding']:
+            receiver.tap('a')
         receiver.tap('start')
         for _ in range(200):
             if '[css-selection] practice' in receiver.inspect('css-selection'):
@@ -229,18 +247,13 @@ def main():
             time.sleep(.1)
         else:
             raise RuntimeError('Receiver did not enter ready practice')
-        _, text = sender.state()
-        tx, ty = map(float, re.search(r'\[css-tile\] index=0 center=([\d.-]+),([\d.-]+)', text).groups())
-        # An empty hand drags a roster tile onto the other player's actual card.
-        sender.command('ui-drag', *sender.pixel(tx, ty), *sender.pixel(7.6, -14))
-        sender.element('confirm-gift', timeout=10)
-        sender.screenshot()
-        sender.tap('b')
-        sender.wait_cards(2)
-        assert 'absent' in sender.inspect('confirm-gift')
-        sender.command('ui-drag', *sender.pixel(tx, ty), *sender.pixel(7.6, -14))
+        sender.command('ui-click', *sender.pixel(tx, ty))
+        time.sleep(.3)
+        sender.tap('x')
+        sender.click('gift-recipient')
+        assert 'enabled=1' in sender.inspect('confirm-gift')
         sender.click('confirm-gift')
-        sender.wait_cards(2)
+        sender.wait_cards(1)
         receiver.element('gift-accept', timeout=15)
         receiver.screenshot()
         installed = set((receiver.data / 'content/installed').glob('*.fmi'))
@@ -261,43 +274,24 @@ def main():
         receiver.command('tap', 0, 'l', 'r', 'a', 'start', 'frames=2')
         receiver.click('nav-5')
         receiver.click('local-practice')
-        receiver.wait_cards(2)
+        receiver.wait_cards(1)
         receiver.screenshot()
-        # Spectators have no match card. The chooser lists them and explains
-        # current transport availability, then becomes usable when they return.
         receiver.tap('b', 40)
         receiver.click('nav-1')
-        for _ in range(2):
-            receiver.command('ui-click', *receiver.canvas(406, 194.5))
-            time.sleep(.6)
-        spectator = receiver.wait_cards(1)
-        assert 'local=1' not in spectator
-        sender.wait_cards(1)
-        sender.command('ui-click', *sender.pixel(tx, ty))
-        time.sleep(.3)
-        sender.tap('x')
-        sender.click('gift-recipient')
-        assert 'enabled=0' in sender.inspect('confirm-gift')
-        sender.screenshot()
         receiver.command('ui-click', *receiver.canvas(406, 194.5))
         receiver.wait_cards(2)
         sender.wait_cards(2)
-        for _ in range(15):
-            text = sender.inspect('confirm-gift')
-            if 'absent' in text:
-                break
-            if 'enabled=1' in text:
-                sender.click('confirm-gift')
-            time.sleep(.6)
-        else:
-            raise RuntimeError('Delivery did not reconnect after the role change')
+        # Returning to Fighting restores gameplay connections. The next gift
+        # remains on its independent content channel and uses the card drop.
+        sender.command('ui-drag', *sender.pixel(tx, ty), *sender.pixel(7.6, -14))
+        sender.click('confirm-gift')
         receiver.click('nav-5')
         receiver.click('accept-fighter')
         time.sleep(1)
         assert len(list((receiver.data / 'content/installed').glob('*.fmi'))) == len(installed)+1
         assert struct.unpack_from('<H', (receiver.data / 'css-layout.bin').read_bytes(), 4)[0] == roster_count+1
         receiver.screenshot()
-        (output / 'result.txt').write_text('PASS: two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached delivery during ready practice, roster insertion, spectator card exclusion, recipient availability, role reconnection and duplicate-install prevention.\n')
+        (output / 'result.txt').write_text('PASS: two native clients, local-first canonical identities, provisional choices, free cookies, mouse tile drop, cancel, uncached spectator delivery during practice, roster insertion, spectator card exclusion, role reconnection and duplicate-install prevention.\n')
         print((output / 'result.txt').read_text().strip())
     finally:
         for client in clients:
