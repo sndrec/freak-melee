@@ -34,7 +34,10 @@ unrelated dormant geometry. PNG/JPEG texture replacement remains available.
 
 The GLB/glTF flow converts one triangle primitive at a time into real HSD
 costume geometry, with node placement, normals, UVs, base-color tint and texture.
-It can add or replace a mesh. Automatic binding generates initial per-vertex
+It can add or replace a mesh. Keep source weights imports authored glTF skinning
+onto matching named bones in the existing fighter rig. It checks the mapped
+hierarchy and relative bind poses, and uses skin bind data for placement.
+Automatic binding generates initial per-vertex
 weights using the existing fighter rig. The brush supports up to 16 influences
 per vertex in imported meshes, with add/subtract, radius and strength. Each
 stroke rebuilds the mesh's envelope groups and participates in costume undo.
@@ -54,7 +57,7 @@ channels. Native UI checks exercised mesh hover/hide, surface weight rendering,
 pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
-Still open: source skin import, painting
+Still open: painting
 arbitrary stock layouts, pose-aware brush picking, additional bones, preserving
 rigid attachments during rest edits, wireframe rendering, multi-mesh import,
 placement preview, source-aware reimport, and advanced texture/UV controls.
@@ -66,6 +69,8 @@ support inferred from the visual study.
 
 The [floating-weight checkpoint](native_skin_weights_checkpoint.md) records
 saved-DAT, replacement, capacity and live rendering checks for the current brush.
+The [source-skin checkpoint](native_source_skin_checkpoint.md) records compatible
+GLB imports, atomic rejection checks and the native import wizard acceptance.
 
 The fourth mode in [the workshop study](mockups/workshop-modes.html) extends
 the existing Action Editor, Scripting, and Animation modes. It imports and

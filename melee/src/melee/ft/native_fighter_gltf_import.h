@@ -16,6 +16,7 @@ typedef enum NativeGltfBindingMode {
     NATIVE_GLTF_BIND_RIGID,
     NATIVE_GLTF_BIND_AUTOMATIC,
     NATIVE_GLTF_BIND_TRANSFER,
+    NATIVE_GLTF_BIND_SOURCE,
 } NativeGltfBindingMode;
 
 typedef struct NativeGltfPrimitiveInfo {
@@ -37,8 +38,8 @@ typedef struct NativeGltfScan {
 // its external buffers are never needed after Apply copies data into the DAT.
 bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
                             char* error, size_t error_size);
-// Imports one triangle primitive, using rigid attachment or generated
-// envelope weights on the fighter's compatible rig. A new mesh receives
+// Imports one triangle primitive using rigid, generated, transferred or
+// compatible source weights on the fighter's rig. A new mesh receives
 // its glTF base-color texture/tint in GX form;
 // a replacement changes geometry only and keeps the chosen DObj's material.
 // Existing skin data on other meshes is untouched. UINT_MAX appends a DObj.

@@ -108,9 +108,10 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
         NativeGltfScan scan;
         NativeGltfBindingMode binding = !strcmp(args[5], "auto")
                                             ? NATIVE_GLTF_BIND_AUTOMATIC
-                                            : NATIVE_GLTF_BIND_RIGID;
+                                            : !strcmp(args[5], "source")
+                                            ? NATIVE_GLTF_BIND_SOURCE : NATIVE_GLTF_BIND_RIGID;
         if (*args[4] && !*end && isfinite(scale) &&
-            (!strcmp(args[5], "auto") || !strcmp(args[5], "rigid")) &&
+            (!strcmp(args[5], "auto") || !strcmp(args[5], "rigid") || !strcmp(args[5], "source")) &&
             nativeFighterGltf_Scan(args[2], &scan, error, sizeof(error)))
         {
             NativeGltfImportRequest requests[NATIVE_GLTF_MAX_PRIMITIVES];

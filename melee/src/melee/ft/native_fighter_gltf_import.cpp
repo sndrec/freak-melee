@@ -4,6 +4,7 @@
 #include "native_fighter_authoring.h"
 #include "native_fighter_material_animation.h"
 #include "native_fighter_model_references.h"
+#include "native_fighter_gltf_skin.h"
 
 #ifdef MELEE_NATIVE
 
@@ -573,6 +574,7 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                      float scale, uint32_t joint_offset,
                      const NativeFighterModelEditor& model,
                      const SkinBinding* skin, const TransferSkin* transfer,
+                     const NativeGltfSourceSkin* authored,
                      uint32_t* polygon, char* error, size_t error_size)
 {
     const cgltf_primitive* mesh = primitive.mesh;
@@ -601,7 +603,8 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         uvs == UINT32_MAX) return false;
     float world[16] = { 1, 0, 0, 0, 0, 1, 0, 0,
                         0, 0, 1, 0, 0, 0, 0, 1 };
-    if (primitive.node) cgltf_node_transform_world(primitive.node, world);
+    if (authored) std::memcpy(world,authored->bind_shape,sizeof(world));
+    else if (primitive.node) cgltf_node_transform_world(primitive.node, world);
     const float cofactors[9] = {
         world[5] * world[10] - world[6] * world[9],
         world[6] * world[8] - world[4] * world[10],
@@ -620,8 +623,10 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         fail(error, error_size, "Mesh node has a non-invertible transform.");
         return false;
     }
-    std::vector<NativeSkinWeights> vertex_palette;
-    if (skin) vertex_palette.resize(vertices);
+    std::vector<NativeSkinWeights> generated;
+    if (skin && !authored) generated.resize(vertices);
+    if (authored && authored->vertices.size() != vertices) return false;
+    const auto& vertex_palette = authored ? authored->vertices : generated;
     for (unsigned i = 0; i < vertices; ++i) {
         float xyz[3], n[3], tex[2];
         if (!cgltf_accessor_read_float(position, i, xyz, 3) ||
@@ -630,15 +635,15 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
             return false;
         float world_position[3];
         for (unsigned axis = 0; axis < 3; ++axis) {
-            float p = world[12 + axis];
+            float p = authored ? 0 : world[12 + axis];
             for (unsigned k = 0; k < 3; ++k)
                 p += world[axis + k * 4] * xyz[k];
-            world_position[axis] = p * scale;
+            world_position[axis] = p * scale + (authored ? world[12+axis] : 0);
             if (!std::isfinite(world_position[axis])) return false;
             befloat(dat->data.data() + positions + i * 12 + axis * 4,
                     world_position[axis]);
         }
-        if (skin) vertex_palette[i] = transfer
+        if (skin && !authored) generated[i] = transfer
             ? transfer->palette(world_position)
             : automatic_palette(*skin, world_position);
         float transformed[3];
@@ -966,7 +971,8 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
     if (!project || !std::isfinite(scale) || scale <= 0 || scale > 1000 ||
         (binding != NATIVE_GLTF_BIND_RIGID &&
          binding != NATIVE_GLTF_BIND_AUTOMATIC &&
-         binding != NATIVE_GLTF_BIND_TRANSFER)) {
+         binding != NATIVE_GLTF_BIND_TRANSFER &&
+         binding != NATIVE_GLTF_BIND_SOURCE)) {
         fail(error, error_size, "Choose a positive model scale.");
         return false;
     }
@@ -1014,6 +1020,10 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         !prepare_skin(existing, joint, &skin, error, error_size)) return false;
     ImportedSkinMesh old_skin;
     TransferSkin transfer;
+    NativeGltfSourceSkin authored;
+    if (binding == NATIVE_GLTF_BIND_SOURCE &&
+        !nativeFighterGltf_ReadSkin(existing,joint,primitive.node,primitive.mesh,
+                                    scale,&authored,error,error_size)) return false;
     if (binding == NATIVE_GLTF_BIND_TRANSFER &&
         (replacement_mesh == UINT_MAX ||
          !imported_skin_mesh(existing, replacement_mesh, &old_skin) ||
@@ -1027,6 +1037,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
                          existing.joints[joint].offset, existing,
                          binding == NATIVE_GLTF_BIND_RIGID ? nullptr : &skin,
                          binding == NATIVE_GLTF_BIND_TRANSFER ? &transfer : nullptr,
+                         binding == NATIVE_GLTF_BIND_SOURCE ? &authored : nullptr,
                          &polygon, error, error_size)) return false;
     if (replacement_mesh != UINT_MAX) {
         const NativeModelMesh& destination = existing.meshes[replacement_mesh];

@@ -164,8 +164,11 @@ Retain the approved [Model specification](melee/docs/native_model_workspace_desi
 and [Workshop mockup](melee/docs/native_character_workshop_ui.md). This is mesh
 import, materials, rigging and skinning, not mesh modeling.
 
-- [ ] Import compatible source skin weights instead of requiring rigid or
-  generated bindings for every imported mesh.
+- [x] Import compatible source skin weights instead of requiring rigid or
+  generated bindings for every imported mesh. Named bones, mapped hierarchy and
+  relative bind poses are checked before import; authored floating-point weights
+  survive save/reopen and render in the native client. See the
+  [source-skin checkpoint](melee/docs/native_source_skin_checkpoint.md).
 - [ ] Add/edit extra bones while updating owned rig facts, hierarchy, animation,
   skin/attachment references and gameplay bone roles coherently.
 - [ ] Preserve rigid attachments as well as skinned meshes during rest-rig edits.
