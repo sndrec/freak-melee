@@ -36,7 +36,37 @@ with the same peer ID and can enter and cancel another search.
 The timeout is an expected failure in this test. Passing requires recovery to a
 usable party and a subsequent search, rather than merely keeping the process
 alive. Losing only signaling while gameplay remains viable is still governed by
-the retained-P2P policy described in the earlier checkpoints.
+the retained-P2P policy described below.
+
+## Signaling loss during a viable match
+
+An established P2P match keeps running when its signaling connection closes.
+After gameplay releases its borrowed room, the affected client reconnects to its
+original party. It does not wait for a result acknowledgement on the closed
+socket. The other client reports the completed result, allowing the service to
+retire the incomplete assigned group. Both clients can search again.
+
+The native online session performs the reconnect on its next menu pump. It
+preserves the room storage until the match releases it, keeping the live gameplay
+transport and its borrowed pointers valid through shutdown.
+
+`review_native_quick_signal_loss.py` places a local TCP forwarder in front of one
+test client's signaling service. It closes that active TCP connection during
+gameplay while leaving the native ICE transport untouched. It waits longer than
+the missing-input timeout, then uses ordinary controller input to finish the
+four-stock match. The test checks matching results, both original party codes,
+unchanged peer identities, and a second actual netplay session after requeueing.
+
+Singles evidence is in `.local/native-quick-signal-return-singles-1`: sessions
+`2c2ffff68431a846` then `d3637f8f15cbeb9d`, with 1,877 confirmed checksum
+comparisons in the first match. Shared-PC doubles evidence is in
+`.local/native-quick-signal-return-doubles-1`: sessions `afa85312ff927f33` then
+`e1851ff8a9ab9f69`, with 1,737 comparisons. Both complete without a gameplay
+failure or reported checksum mismatch. The disconnected client cannot queue its
+result, as expected; party recovery and the second match establish that it moves
+past that boundary. Reviewed PNGs show the second matches running.
+
+The native build and six focused regression checks pass after this change.
 
 ## Evidence
 

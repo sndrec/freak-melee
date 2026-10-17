@@ -364,8 +364,12 @@ testing remains a later user pass. The mockup's search results use local sample
 participants. The local service now has party-preserving queue allocation,
 private match admission and cancellation/recovery checks. Native queue controls,
 ready countdown, fixed-rule matches and rematches now have local runtime evidence.
-The actual stage-confirmation UI and remaining cancellation/return acceptance
-still need work. See the [Quick Play checkpoint](native_quick_play_checkpoint.md).
+The actual stage-confirmation UI and its complete controller/mouse acceptance
+still need work. Native cancellation checks cover the deadline race, opponent
+exit and original-party recovery. Signaling-loss checks finish a viable P2P
+match and requeue into a second match. See the
+[Quick Play checkpoint](native_quick_play_checkpoint.md) and
+[return checkpoint](native_quick_return_checkpoint.md).
 
 ## Native stick input audit
 

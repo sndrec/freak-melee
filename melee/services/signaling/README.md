@@ -207,6 +207,9 @@ its socket cleanup waits for closure before teardown. See the
 [rematch checkpoint](../../docs/native_quick_rematch_checkpoint.md).
 The [return checkpoint](../../docs/native_quick_return_checkpoint.md) records
 the cancellation protocol and native recovery evidence.
+The native client also preserves viable P2P gameplay after a signaling loss,
+then reconnects to its original party after the match releases the room. Singles
+and shared-PC doubles checks finish that match and requeue into a second one.
 
 See [the Quick Play checkpoint](../../docs/native_quick_play_checkpoint.md) for
 the wire records, state ownership, recovery model and implementation sequence.
