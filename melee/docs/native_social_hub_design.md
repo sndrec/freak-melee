@@ -358,7 +358,10 @@ failure, all six stages in both modes, first-stage selection, loser picks,
 readiness before/after queueing, countdown cancellation, rematches, and
 leaving/requeueing with a premade teammate. Physical multi-PC
 testing remains a later user pass. The mockup's search results use local sample
-participants; a matchmaking service is still to be implemented.
+participants. The local service now has party-preserving queue allocation,
+private match admission and cancellation/recovery checks. Native queue controls,
+ready countdown, fixed-rule match construction and rematches remain to be
+implemented. See the [Quick Play checkpoint](native_quick_play_checkpoint.md).
 
 ## Native stick input audit
 

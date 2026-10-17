@@ -1,4 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
+import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
+  type QuickOffer, type QuickAllocation, type QuickMember } from "./quick-play";
+
+interface QuickPartyRow extends Record<string, SqlStorageValue> {
+  mode: number; generation: number; state: number; room_code: string;
+  roster: string; allocation: string | null;
+}
+interface QuickMatchRow extends Record<string, SqlStorageValue> {
+  allocation: string; aborted: number;
+}
 
 import {
   type ConnectionAttachment,
@@ -28,6 +38,7 @@ import {
   encodeSignal,
   encodeSignalSent,
   encodeWelcome,
+  encodeQuickState, encodeQuickRejected,
   encodeChatEntry,
   encodeChatBegin,
   encodeChatEnd,
@@ -78,6 +89,13 @@ export class Room extends DurableObject<CloudflareBindings> {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS quick_party (
+          id INTEGER PRIMARY KEY CHECK(id=1), mode INTEGER NOT NULL, generation INTEGER NOT NULL,
+          state INTEGER NOT NULL, room_code TEXT NOT NULL, roster TEXT NOT NULL, allocation TEXT
+        );
+        CREATE TABLE IF NOT EXISTS quick_match (
+          id INTEGER PRIMARY KEY CHECK(id=1), allocation TEXT NOT NULL, aborted INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS room_chat (
           sequence INTEGER PRIMARY KEY AUTOINCREMENT,
           connection TEXT NOT NULL, nonce INTEGER NOT NULL,
@@ -133,6 +151,26 @@ export class Room extends DurableObject<CloudflareBindings> {
       return Response.json({ error: "Invalid room participant" }, { status: 400 });
     }
 
+    const admission = this.quickMatch();
+    if (admission) {
+      const allocation = JSON.parse(admission.allocation) as QuickAllocation;
+      const player = allocation.players.find((entry) => entry.peerId === peerId);
+      if (admission.aborted || !player || url.searchParams.get("admission") !== player.admission ||
+          build !== allocation.build || localPlayers !== player.localPlayers)
+        return new Response("Quick Play admission rejected", { status: 403 });
+    }
+    const quick = this.quickParty();
+    const current = this.snapshot(this.currentRevision());
+    const replacement = current.participants.find((peer) => peer.peerId === peerId);
+    const returning = quick?.state === 3 && (JSON.parse(quick.roster) as QuickOffer).build === build &&
+      (JSON.parse(quick.roster) as QuickOffer).members.some((member) =>
+        member.peerId === peerId && member.localPlayers === localPlayers);
+    if (quick?.mode && !replacement && !returning) {
+      const occupied = current.participants.reduce((sum, peer) => sum + peer.localPlayers, 0);
+      if (quick.state !== 0 || localPlayers === 0 || occupied + localPlayers > quick.mode ||
+          current.participants.some((peer) => peer.build !== build))
+        return new Response("Quick Play party is unavailable or full", { status: 409 });
+    }
     const previousConnections = this.ctx.getWebSockets(`peer:${peerId}`);
     if (
       previousConnections.length === 0 &&
@@ -169,6 +207,10 @@ export class Room extends DurableObject<CloudflareBindings> {
       return Response.json({ error: "Invalid local player assignment" }, { status: 400 });
     }
 
+    if ((quick?.mode || admission) && (localPlayers === 0 || activeMask !== (1 << localPlayers) - 1 || waitingMask !== 0))
+      return new Response("Quick Play uses active human seats", { status: 400 });
+
+    if (quick?.mode && replacement) this.invalidateQuickSearch();
     const counters = this.ctx.storage.sql
       .exec<RoomCounter>(`
         UPDATE room_counter
@@ -212,10 +254,11 @@ export class Room extends DurableObject<CloudflareBindings> {
       MAX_MESSAGE_BYTES,
     ));
     this.broadcastPresence(counters.revision);
+    if (quick?.mode || admission) this.sendQuick(server);
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
+  async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message === "string" || message.byteLength > MAX_MESSAGE_BYTES) {
       this.error(socket, "Messages must use the bounded binary room protocol");
       return;
@@ -230,11 +273,28 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.send(socket, encodeChatRejected(0, "Malformed chat message."));
         return;
       }
+      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.RequestQuick) {
+        this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
+      }
       this.error(socket, "Malformed room message");
       return;
     }
 
     switch (parsed.type) {
+    case ClientMessageType.ConfigureQuick:
+      this.configureQuickParty(socket, parsed.mode);
+      return;
+    case ClientMessageType.QueueQuick:
+      try { await this.queueQuick(socket, parsed.searching); }
+      catch (error) {
+        this.invalidateQuickSearch();
+        console.error(JSON.stringify({ message: "quick play search failed", error: String(error) }));
+        this.send(socket, encodeQuickRejected("Quick Play is unavailable. Please try again."));
+      }
+      return;
+    case ClientMessageType.RequestQuick:
+      this.sendQuick(socket);
+      return;
     case ClientMessageType.PostChat:
       this.postChat(socket, parsed.nonce, parsed.text);
       return;
@@ -273,6 +333,171 @@ export class Room extends DurableObject<CloudflareBindings> {
   webSocketError(socket: WebSocket): void {
     this.removeParticipant(socket);
     socket.close(1011, "Lobby connection failed");
+  }
+
+  private quickParty(): QuickPartyRow | null {
+    return this.ctx.storage.sql.exec<QuickPartyRow>("SELECT * FROM quick_party WHERE id=1").toArray()[0] ?? null;
+  }
+  private quickMatch(): QuickMatchRow | null {
+    return this.ctx.storage.sql.exec<QuickMatchRow>("SELECT * FROM quick_match WHERE id=1").toArray()[0] ?? null;
+  }
+  private quickRoster(mode: number): QuickOffer | null {
+    const connected: ConnectionAttachment[] = [];
+    let build = "";
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const p = this.attachment(socket);
+      if (!p || p.localPlayers < 1 || p.activeMask !== (1 << p.localPlayers) - 1 || p.waitingMask ||
+          (build && build !== p.build)) return null;
+      build = p.build;
+      connected.push(p);
+    }
+    connected.sort((a, b) => a.joinOrder - b.joinOrder);
+    const members: QuickMember[] = connected.map((p) => ({ peerId: p.peerId, name: p.name,
+      localPlayers: p.localPlayers, connectionId: p.connectionId }));
+    const row = this.quickParty();
+    if (!row || (mode !== 1 && mode !== 2)) return null;
+    const offer: QuickOffer = { partyId: this.ctx.id.toString(), roomCode: row.room_code,
+      generation: row.generation, mode, build, members };
+    return members.length && quickSeats(offer) <= mode ? offer : null;
+  }
+  private sendQuick(socket?: WebSocket): void {
+    const party = this.quickParty();
+    const match = this.quickMatch();
+    for (const peer of socket ? [socket] : this.ctx.getWebSockets()) {
+      if (peer.readyState !== WebSocket.OPEN) continue;
+      const p = this.attachment(peer);
+      if (!p) continue;
+      const allocation = match ? JSON.parse(match.allocation) as QuickAllocation :
+        party?.allocation ? JSON.parse(party.allocation) as QuickAllocation : null;
+      const player = allocation?.players.find((entry) => entry.peerId === p.peerId);
+      const assigned = Boolean(match || party?.state === 3);
+      this.send(peer, encodeQuickState({ mode: match ? allocation!.mode : party?.mode ?? 0,
+        state: match?.aborted ? 3 : assigned ? 2 : party && party.state > 0 ? 1 : 0,
+        generation: party?.generation ?? 0,
+        matchRoom: assigned ? allocation?.roomCode ?? "" : "",
+        admission: assigned ? player?.admission ?? "" : "",
+        team: player?.team ?? 0, stage: allocation?.stage ?? 0 }));
+    }
+  }
+  private configureQuickParty(socket: WebSocket, mode: number): void {
+    const owner = this.snapshot(this.currentRevision()).ownerPeerId;
+    const peer = this.attachment(socket);
+    const prior = this.quickParty();
+    const participants = this.snapshot(this.currentRevision()).participants;
+    const seats = participants.reduce((sum, p) => sum + p.localPlayers, 0);
+    if (!peer || owner !== peer.peerId || (mode !== 0 && mode !== 1 && mode !== 2) ||
+        this.currentMatch().payload || this.quickMatch() || (prior && prior.state !== 0) ||
+        (mode && (seats > mode || seats < 1 || participants.some((p) =>
+          p.build !== peer.build || p.activeMask !== (1 << p.localPlayers) - 1 || !p.localPlayers || p.waitingMask)))) {
+      this.send(socket, encodeQuickRejected("Create a compatible solo or two-player party first.")); return;
+    }
+    const roomCode = prior?.room_code || this.ctx.id.name;
+    if (!roomCode) throw new Error("Missing named party room");
+    this.ctx.storage.sql.exec("INSERT OR REPLACE INTO quick_party VALUES (1, ?, ?, 0, ?, '[]', NULL)",
+      mode, (prior?.generation ?? 0) + 1, roomCode);
+    this.sendQuick();
+  }
+  private invalidateQuickSearch(): void {
+    const row = this.quickParty();
+    if (!row || (row.state !== 1 && row.state !== 2)) return;
+    const offer = JSON.parse(row.roster) as QuickOffer;
+    this.ctx.storage.sql.exec("UPDATE quick_party SET state=0, generation=generation+1, allocation=NULL WHERE id=1");
+    this.sendQuick();
+    this.ctx.waitUntil(this.env.QUICK_PLAY.getByName(quickBucket(offer.mode, offer.build))
+      .cancel(offer.partyId, offer.generation).catch((error: unknown) => {
+        console.error(JSON.stringify({ message: "quick search cancellation deferred to lease", error: String(error) }));
+      }));
+  }
+  private async queueQuick(socket: WebSocket, searching: boolean): Promise<void> {
+    const row = this.quickParty();
+    const peer = this.attachment(socket);
+    if (!row?.mode || !peer || this.quickMatch() ||
+        this.snapshot(this.currentRevision()).ownerPeerId !== peer.peerId) {
+      this.send(socket, encodeQuickRejected("Only the party leader can enter or cancel the queue.")); return;
+    }
+    if (!searching) {
+      if (row.state === 3 && row.allocation) {
+        const allocation = JSON.parse(row.allocation) as QuickAllocation;
+        const previous = JSON.parse(row.roster) as QuickOffer;
+        this.ctx.storage.sql.exec("UPDATE quick_party SET state=0, generation=generation+1, allocation=NULL WHERE id=1");
+        this.sendQuick();
+        await this.env.QUICK_PLAY.getByName(quickBucket(previous.mode, previous.build)).cancel(previous.partyId, previous.generation);
+        await this.env.ROOMS.getByName(allocation.roomCode).abortQuickAllocation(allocation.id);
+      } else this.invalidateQuickSearch();
+      return;
+    }
+    if (row.state === 2 || row.state === 3) { this.sendQuick(socket); return; }
+    const offer = this.quickRoster(row.mode);
+    if (!offer) { this.send(socket, encodeQuickRejected("The party is not ready to search.")); return; }
+    if (row.state === 0) offer.generation++;
+    this.ctx.storage.sql.exec("UPDATE quick_party SET generation=?, state=1, roster=?, allocation=NULL WHERE id=1",
+      offer.generation, JSON.stringify(offer));
+    const accepted = await this.env.QUICK_PLAY.getByName(quickBucket(offer.mode, offer.build)).enqueue(offer);
+    if (this.quickParty()?.generation !== offer.generation) return;
+    if (!accepted) {
+      this.ctx.storage.sql.exec("UPDATE quick_party SET state=0 WHERE id=1");
+      this.send(socket, encodeQuickRejected("The search expired or the queue is full. Enter again."));
+    }
+    this.sendQuick();
+  }
+  async prepareQuickAllocation(generation: number, allocation: QuickAllocation): Promise<boolean> {
+    const row = this.quickParty();
+    if (row?.state === 3 && row.generation === generation && row.allocation &&
+        (JSON.parse(row.allocation) as QuickAllocation).id === allocation.id) return true;
+    const offer = row && this.quickRoster(row.mode);
+    const expected = allocation.parties.find((party) => party.partyId === this.ctx.id.toString());
+    if (!row || !offer || !expected || row.generation !== generation || expected.generation !== generation ||
+        (row.state !== 1 && row.state !== 2 && row.state !== 3) ||
+        (row.allocation && (JSON.parse(row.allocation) as QuickAllocation).id !== allocation.id) ||
+        offer.mode !== allocation.mode || offer.build !== allocation.build ||
+        !sameQuickMembers(offer.members, expected.members)) return false;
+    this.ctx.storage.sql.exec("UPDATE quick_party SET state=?, allocation=? WHERE id=1",
+      row.state === 3 ? 3 : 2, JSON.stringify(allocation));
+    return true;
+  }
+  async activateQuickAllocation(generation: number, id: string): Promise<boolean> {
+    const row = this.quickParty();
+    if (!row || row.generation !== generation || !row.allocation ||
+        (row.state !== 2 && row.state !== 3)) return false;
+    const allocation = JSON.parse(row.allocation) as QuickAllocation;
+    if (row.state === 3 && allocation.id === id) return true;
+    const expected = allocation.parties.find((party) => party.partyId === this.ctx.id.toString());
+    const current = this.quickRoster(row.mode);
+    if (allocation.id !== id || !current || !expected || !sameQuickMembers(current.members, expected.members)) return false;
+    this.ctx.storage.sql.exec("UPDATE quick_party SET state=3 WHERE id=1");
+    this.sendQuick();
+    return true;
+  }
+  async releaseQuickAllocation(generation: number, id: string): Promise<QuickOffer | null> {
+    const row = this.quickParty();
+    if (!row || row.generation !== generation || (row.allocation && (JSON.parse(row.allocation) as QuickAllocation).id !== id)) return null;
+    const offer = this.quickRoster(row.mode);
+    this.ctx.storage.sql.exec("UPDATE quick_party SET state=?, allocation=NULL WHERE id=1", offer ? 1 : 0);
+    this.sendQuick();
+    return offer;
+  }
+  async expireQuickSearch(generation: number): Promise<void> {
+    if (this.quickParty()?.generation === generation) this.invalidateQuickSearch();
+  }
+  async configureQuickMatch(allocation: QuickAllocation): Promise<boolean> {
+    const previous = this.quickMatch();
+    if (previous) return !previous.aborted && (JSON.parse(previous.allocation) as QuickAllocation).id === allocation.id;
+    if (this.ctx.getWebSockets().some((socket) => socket.readyState === WebSocket.OPEN) ||
+        this.currentMatch().payload || this.quickParty() || !allocation.players.length ||
+        allocation.players.reduce((sum, p) => sum + p.localPlayers, 0) !== allocation.mode * 2 ||
+        allocation.stage < 0 || allocation.stage > 5 ||
+        (allocation.rules.stocks !== QUICK_RULES.stocks || allocation.rules.minutes !== QUICK_RULES.minutes ||
+         allocation.rules.items !== QUICK_RULES.items)) return false;
+    this.ctx.storage.sql.exec("INSERT INTO quick_match VALUES (1, ?, 0)", JSON.stringify(allocation));
+    return true;
+  }
+  async abortQuickAllocation(id: string): Promise<void> {
+    const row = this.quickMatch();
+    if (!row || (JSON.parse(row.allocation) as QuickAllocation).id !== id) return;
+    this.ctx.storage.sql.exec("UPDATE quick_match SET aborted=1 WHERE id=1");
+    this.sendQuick();
+    for (const socket of this.ctx.getWebSockets()) socket.close(4005, "Quick Play allocation cancelled");
   }
 
   private chatHistory(socket: WebSocket): void {
@@ -353,6 +578,11 @@ export class Room extends DurableObject<CloudflareBindings> {
       selectionChanged && (activeMask !== 0 || current.activeMask !== 0);
     let ready = message.ready === undefined ? current.ready : message.ready;
     if (topologyChanged || activeSelectionChanged) ready = false;
+    const quick = this.quickParty();
+    if ((quick?.mode || this.quickMatch()) && (activeMask !== current.activeMask ||
+        waitingMask !== current.waitingMask || localPlayers !== current.localPlayers)) {
+      this.send(socket, encodeQuickRejected("Leave Quick Play before changing party seats.")); return;
+    }
     const match = this.currentMatch();
     if (
       !isBoundedUtf8(name, 1, MAX_NAME_LENGTH) ||
@@ -397,6 +627,10 @@ export class Room extends DurableObject<CloudflareBindings> {
     socket: WebSocket,
     message: Extract<ClientMessage, { type: ClientMessageType.AssignSeats }>,
   ): void {
+    if (this.quickParty()?.mode || this.quickMatch()) {
+      this.send(socket, encodeQuickRejected("Quick Play keeps its assigned players and rules.")); return;
+    }
+
     const sender = this.attachment(socket);
     const owner = this.snapshot(this.currentRevision()).ownerPeerId;
     if (sender === null || sender.peerId !== owner) {
@@ -442,6 +676,9 @@ export class Room extends DurableObject<CloudflareBindings> {
   }
 
   private setMatch(socket: WebSocket, payload: Uint8Array): void {
+    if (this.quickMatch()) {
+      this.send(socket, encodeQuickRejected("Quick Play starts through its ready countdown.")); return;
+    }
     const sender = this.attachment(socket);
     const owner = this.snapshot(this.currentRevision()).ownerPeerId;
     if (
@@ -465,6 +702,10 @@ export class Room extends DurableObject<CloudflareBindings> {
   }
 
   private setRotation(socket: WebSocket, policy: RotationPolicy): void {
+    if (this.quickParty()?.mode || this.quickMatch()) {
+      this.send(socket, encodeQuickRejected("Quick Play keeps its assigned players and rules.")); return;
+    }
+
     const sender = this.attachment(socket);
     const owner = this.snapshot(this.currentRevision()).ownerPeerId;
     if (sender === null || sender.peerId !== owner ||
@@ -484,6 +725,10 @@ export class Room extends DurableObject<CloudflareBindings> {
     socket: WebSocket,
     message: Extract<ClientMessage, { type: ClientMessageType.ReportMatch }>,
   ): void {
+    if (this.quickParty()?.mode || this.quickMatch()) {
+      this.send(socket, encodeQuickRejected("Quick Play keeps its assigned players and rules.")); return;
+    }
+
     const sender = this.attachment(socket);
     const match = this.currentMatch();
     if (sender === null || sender.activeMask === 0) {
@@ -641,6 +886,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.ctx.getWebSockets(`peer:${departing.peerId}`).some(
         (candidate) => candidate !== socket && candidate.readyState === WebSocket.OPEN,
       );
+    if (!replacement) this.invalidateQuickSearch();
     if (!replacement && departing?.activeMask !== 0) {
       this.invalidateMatch(socket);
     }

@@ -3,6 +3,7 @@ import { turnCredentialsResponse } from "./turn";
 
 export { Room } from "./room";
 export { GlobalChat } from "./chat";
+export { QuickPlayQueue } from "./quick-queue";
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });

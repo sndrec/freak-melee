@@ -178,3 +178,20 @@ cmake --build build/native --target native_connection_probe -j 8
 # Or use the current private deployment.
 .\build\native\native_connection_probe.exe https://freak-melee-signaling.sndrec32exe.workers.dev
 ```
+
+## Quick Play service work
+
+The local source now includes `QuickPlayQueue`, partitioned by mode and exact
+build. Party leaders can configure a solo or doubles party and enter/cancel a
+search through the room WebSocket. Whole parties are reserved together, so a
+shared-PC pair or two teammates on separate PCs retain their team assignment.
+Each assigned PC receives its own match-room admission token.
+
+This change has local type/test and deploy-dry-run evidence. The new Durable
+Object class has not been deployed. The native client still needs its queue
+controls and assignment handling, followed by the ready countdown, fixed-rule
+match construction, loser stage picks and rematches. The ordinary room start
+command is rejected inside a Quick Play match; its start is service-owned.
+
+See [the Quick Play checkpoint](../../docs/native_quick_play_checkpoint.md) for
+the wire records, state ownership, recovery model and implementation sequence.
