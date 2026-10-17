@@ -19,6 +19,7 @@
 #ifdef MELEE_NATIVE
 #include <melee/gm/native_home.h>
 #include "native_css_original.h"
+#include <melee/ui/native_hub_hand.h>
 #endif
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lb_013B.h>
@@ -4504,6 +4505,7 @@ s32 mnCharSel_802640A0(void)
     if (nativeHome_IsSelection()) {
         nativeCssOriginal_Enter(icons, mnCharSel_804D6CC0,
                                 GET_COBJ(mnCharSel_804D6CB8));
+        nativeHubHand_Load(&css_models->hand);
     }
 #endif
 
@@ -5624,6 +5626,7 @@ void mnCharSel_Scene_OnExit(void* unused)
 
     HSD_SisLib_803A5FBC();
 #ifdef MELEE_NATIVE
+    nativeHubHand_Unload();
     nativeCssOriginal_Exit();
 #endif
     if (mnCharSel_804D6CD0 != NULL) {

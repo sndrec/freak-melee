@@ -50,6 +50,36 @@ float nativeMenuFont_Width(NativeMenuFontFace face,const char* text,float height
     }
     return width*height/font->cap_height;
 }
+unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
+                                      float height, char lines[2][128])
+{
+    snprintf(lines[0], 128, "%s", text ? text : "");
+    lines[1][0] = 0;
+    const unsigned length = (unsigned)strlen(lines[0]);
+    if (length < 2 || nativeMenuFont_Width(NativeMenuFont_Tile, lines[0], height)
+            <= width * 2.2f) return 1;
+    unsigned split = 0;
+    float best = 1e30f;
+    bool has_space = strchr(lines[0] + 1, ' ') != NULL;
+    for (unsigned i = 1; i < length; ++i) {
+        if (((unsigned char)lines[0][i] & 0xC0) == 0x80 ||
+            (has_space && lines[0][i] != ' ')) continue;
+        char saved = lines[0][i];
+        lines[0][i] = 0;
+        float a = nativeMenuFont_Width(NativeMenuFont_Tile, lines[0], height);
+        lines[0][i] = saved;
+        float b = nativeMenuFont_Width(NativeMenuFont_Tile,
+                                      lines[0] + i + (saved == ' '), height);
+        if (a > 0 && b > 0 && (a > b ? a : b) < best) {
+            best = a > b ? a : b;
+            split = i;
+        }
+    }
+    if (!split) return 1;
+    snprintf(lines[1], 128, "%s", lines[0] + split + (lines[0][split] == ' '));
+    lines[0][split] = 0;
+    return 2;
+}
 void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
                         float x,float y,float z,float width,float height,
                         u32 rgba, bool centered)

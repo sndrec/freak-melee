@@ -23,7 +23,6 @@ void nativeHubPaint_Text(const char* text, float x, float y, float w, float h,
 #endif
 void nativeHubPaint_Image(void* pixels, unsigned width, unsigned height,
                           float x, float y, float w, float h);
-void nativeHubPaint_Hand(float x, float y, bool pressed);
 #ifdef __cplusplus
 }
 #endif

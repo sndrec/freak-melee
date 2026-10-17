@@ -220,6 +220,13 @@ bool nativeHubCatalog_CreateStock(FighterKind kind, const char* title,
     {
         return false;
     }
+    char source[560], destination[560];
+    std::snprintf(source, sizeof(source), "%sui/portraits/stock-%u.png",
+                  SDL_GetBasePath(), unsigned(kind));
+    std::snprintf(destination, sizeof(destination), "%s/portrait.png", draft);
+    if (!SDL_CopyFile(source, destination)) {
+        return false;
+    }
     if (!nativeFighterTemplate_Apply(draft)) {
         return false;
     }

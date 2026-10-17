@@ -72,16 +72,24 @@ static void draw(HSD_GObj* object,int pass)
     for(unsigned i=0;i<SPRITES;++i) {
         const MenuSprite* p=&scene->sprites[i];
         if(!p->pixels||!p->title[0]||p->w<=0||p->h<=0)continue;
+        char lines[2][128];
+        unsigned line_count = nativeMenuFont_LayoutTileName(p->title,
+            p->w*.94f, p->h*.16f, lines);
+        float name_top = line_count == 2 ? .64f : .80f;
         matrix(scene->root,scene->inverse);
         GXSetTevColor(GX_TEVREG0,(GXColor){15,10,13,255});
         GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
         GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_ZERO,GX_CA_ZERO,GX_CA_A0);
         GXBegin(GX_QUADS,GX_VTXFMT0,4);
-        GXPosition3f32(p->x,p->y-p->h*.80f,0);GXTexCoord2f32(0,0);
-        GXPosition3f32(p->x+p->w,p->y-p->h*.80f,0);GXTexCoord2f32(0,0);
+        GXPosition3f32(p->x,p->y-p->h*name_top,0);GXTexCoord2f32(0,0);
+        GXPosition3f32(p->x+p->w,p->y-p->h*name_top,0);GXTexCoord2f32(0,0);
         GXPosition3f32(p->x+p->w,p->y-p->h,0);GXTexCoord2f32(0,0);
         GXPosition3f32(p->x,p->y-p->h,0);GXTexCoord2f32(0,0);GXEnd();
-        nativeMenuFont_Draw(p->face,p->title,p->x+p->w*.03f,p->y-p->h*.83f,0,p->w*.94f,p->h*.135f,0xF5EFEAFF,true);
+        for (unsigned line = 0; line < line_count; ++line) {
+            nativeMenuFont_Draw(p->face,lines[line],p->x+p->w*.03f,
+                p->y-p->h*(name_top+.02f+line*.16f),0,p->w*.94f,p->h*.16f,
+                0xF5EFEAFF,true);
+        }
     }
     for(unsigned i=0;i<scene->count;++i) {
         const MenuLabel* label=&scene->labels[i];

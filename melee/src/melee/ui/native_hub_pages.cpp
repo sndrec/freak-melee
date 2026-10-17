@@ -71,16 +71,21 @@ namespace {
         nativeHubPaint_Round(x - 1, y - 1, 51, 52, 3,
                              selected || hover ? gold : 0xBAB6BFFF);
         nativeHubPaint_Round(x + 1, y + 1, 47, 48, 2, 0x17151FFF);
+        char lines[2][128];
+        unsigned count = nativeMenuFont_LayoutTileName(f.title, 45, 8, lines);
+        float name_y = 49 - (count == 2 ? 18 : 10);
         if (f.pixels) {
             nativeHubPaint_Image(f.pixels, f.width, f.height, x + 2, y + 2, 45,
-                                 37);
+                                 name_y - 2);
         } else {
             nativeHubPaint_Text(f.title, x + 5, y + 12, 40, 13, muted,
                                 NativeMenuFont_Heading, true);
         }
-        nativeHubPaint_Rect(x + 2, y + 39, 45, 10, 0x111019EE);
-        nativeHubPaint_Text(f.title, x + 2, y + 40, 45, 8, 0xFFF4E9FF,
-                            NativeMenuFont_Tile, true);
+        nativeHubPaint_Rect(x + 2, y + name_y, 45, 49 - name_y, 0x111019EE);
+        for (unsigned line = 0; line < count; ++line) {
+            nativeHubPaint_Text(lines[line], x + 2, y + name_y + 1 + line * 8,
+                                45, 8, 0xFFF4E9FF, NativeMenuFont_Tile, true);
+        }
         nativeHub_Region("fighter", x, y, 49, 49, HubAction::Fighter,
                          int(index));
     }
@@ -206,7 +211,7 @@ namespace {
         bool connected = state != NativeLobbySessionState_Disconnected &&
                          state != NativeLobbySessionState_Failed;
         if (!connected) {
-            nativeHub_Panel(175, 118, 430, 210);
+            nativeHub_Panel(175, 118, 430, 250);
             nativeHubPaint_Text("Create a lobby", 192, 137, 350, 15, gold,
                                 NativeMenuFont_Heading);
             nativeHubPaint_Text("Invite friends with your lobby code.", 192,
@@ -220,6 +225,15 @@ namespace {
             nativeHub_Button("join-lobby", "Join", 444, 267, 140, 27,
                              HubAction::Join, 0, true,
                              std::strlen(hub.code) >= 6);
+            nativeHubPaint_Text("Players on this PC", 192, 315, 185, 10, gold);
+            for (unsigned players = 1; players <= 4; ++players) {
+                char label[2] = { char('0' + players), 0 };
+                char id[24];
+                std::snprintf(id, sizeof(id), "local-players-%u", players);
+                nativeHub_Button(id, label, 389 + (players - 1) * 48, 307, 42,
+                                 26, HubAction::LocalPlayers, players,
+                                 unsigned(hub.local_players) == players);
+            }
             const char* failure = nativeOnlineSession_Failure();
             if (failure && *failure) {
                 nativeHubPaint_Text(failure, 190, 342, 400, 10, 0xF4A49DFF);

@@ -29,6 +29,7 @@ enum class HubAction {
     Singles,
     Doubles,
     Create,
+    LocalPlayers,
     Join,
     Leave,
     CopyCode,

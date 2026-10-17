@@ -478,6 +478,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_catalog.cpp
     src/melee/ui/native_hub_paint.c
+    src/melee/ui/native_hub_hand.c
     src/melee/ui/native_shell.cpp
     src/melee/ui/native_shell_collection.cpp
     src/melee/ui/native_shell_css_original.cpp
@@ -1950,6 +1951,8 @@ aurora_copy_runtime_dlls(melee_native)
 add_custom_target(melee_native_ui
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_fonts.py"
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/fonts"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_art.py"
+        --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/portraits"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting"
         "$<TARGET_FILE_DIR:melee_native>/ui/docs"
