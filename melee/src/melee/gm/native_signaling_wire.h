@@ -109,7 +109,9 @@ typedef struct NativeQuickAssignment {
     uint64_t generation;
     char match_room[13];
     char admission[33];
+    uint16_t remaining_ms;
     uint8_t mode, state, team, stage;
+    uint8_t phase;
 } NativeQuickAssignment;
 
 typedef struct NativeSignalingServerMessage {
@@ -176,6 +178,9 @@ size_t nativeSignalingWire_EncodeConfigureQuick(uint8_t mode,
 size_t nativeSignalingWire_EncodeQueueQuick(bool searching,
                                             uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeRequestQuick(uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
+                                              const uint8_t* digest,
+                                              uint8_t* output, size_t capacity);
 bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output);

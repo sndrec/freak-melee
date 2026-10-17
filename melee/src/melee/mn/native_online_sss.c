@@ -20,7 +20,10 @@ void nativeOnlineSss_Prepare(SSSData* sss)
     memset(&online_sss, 0, sizeof(online_sss));
     online_sss.active =
         sss != NULL &&
-        nativeOnlineSession_State() == NativeLobbySessionState_Waiting;
+        (nativeOnlineSession_State() == NativeLobbySessionState_Waiting ||
+         (nativeOnlineSession_Quick() &&
+          (nativeOnlineSession_State() == NativeLobbySessionState_Starting ||
+           nativeOnlineSession_State() == NativeLobbySessionState_Ready)));
 }
 
 bool nativeOnlineSss_IsActive(void)

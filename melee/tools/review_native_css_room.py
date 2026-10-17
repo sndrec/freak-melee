@@ -15,7 +15,7 @@ import time
 
 
 class Client:
-    def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False):
+    def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False, window_size=None):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
@@ -56,6 +56,8 @@ class Client:
                 raise RuntimeError(f'Client startup failed: {self.process.returncode}')
             if 'Native control channel ready' in (folder / 'stdout.log').read_text(errors='replace'):
                 self.command('hold', 0, 'sx=0')
+                if window_size:
+                    self.resize(*window_size)
                 break
             time.sleep(.1)
         else:
@@ -66,6 +68,36 @@ class Client:
         if self.process.poll() is None:
             self.process.terminate()
             self.process.wait(timeout=15)
+
+    def resize(self, width, height):
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        callback = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+        user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                       ctypes.c_int, ctypes.c_int, wintypes.UINT]
+        user32.EnumWindows.argtypes = [callback, wintypes.LPARAM]
+        resized, errors = [], []
+        @callback
+        def visit(window, _):
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(window, ctypes.byref(pid))
+            title = ctypes.create_unicode_buffer(128)
+            user32.GetWindowTextW(window, title, len(title))
+            if pid.value == self.process.pid and title.value == 'Freak Melee':
+                # Resize only our hidden window, preserving position, Z order and focus.
+                if not user32.SetWindowPos(window, None, 0, 0, width, height, 0x16):
+                    errors.append(ctypes.get_last_error())
+                else:
+                    resized.append(window)
+            return True
+        user32.EnumWindows(visit, 0)
+        if errors:
+            raise ctypes.WinError(errors[0])
+        if not resized:
+            raise RuntimeError('Test client has no window to resize')
 
     def command(self, *parts):
         if self.process.poll() is not None:

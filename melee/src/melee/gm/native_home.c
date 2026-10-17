@@ -1751,6 +1751,16 @@ void nativeHome_Tick(void)
     }
     NativeLobbySessionState previous_state = nativeOnlineSession_State();
     nativeOnlineMenu_Pump();
+    if (nativeHome_IsPractice() && nativeOnlineSession_QuickCountdownMs()) {
+        for (unsigned seat = 0; seat < home.physical_count; ++seat) {
+            int port = home.physical_ports[seat];
+            if (port >= 0 && port < 4 && (HSD_PadCopyStatus[port].trigger & HSD_PAD_B)) {
+                HSD_PadCopyStatus[port].trigger &= ~HSD_PAD_B;
+                nativeHome_ReturnToSelection();
+                break;
+            }
+        }
+    }
     if (nativeHome_IsSelection() && home.preview_restart &&
         home.css != NULL) {
         unsigned port = home.preview_port;
@@ -1804,7 +1814,26 @@ void nativeHome_Tick(void)
         !nativeHome_IsPractice() || home.enter_stage_select) {
         return;
     }
-    if (nativeOnlineSession_Quick()) return;
+    if (nativeOnlineSession_Quick()) {
+        const NativeLobbyMatch* match = nativeOnlineSession_Match();
+        if (match && (nativeOnlineSession_State() == NativeLobbySessionState_Starting ||
+                      nativeOnlineSession_State() == NativeLobbySessionState_Ready)) {
+            bool requested;
+            uint8_t stage;
+            VsModeData combined = *gmVsMelee_GetVsData();
+            if (collect_room_players(&combined, &requested, NULL, NULL) &&
+                nativeStockContent_StageFromId(match->stage_id, &stage)) {
+                combined.start.rules.stkind = stage;
+                combined.start.rules.is_teams = match->teams;
+                for (unsigned port = 0; port < 4; ++port)
+                    combined.start.players[port].team = match->slots[port].team;
+                *gmVsMelee_GetVsData() = combined;
+                home.enter_stage_select = home.online_match = true;
+                gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
+            }
+        }
+        return;
+    }
     if (nativeOnlineSession_State() == NativeLobbySessionState_Disconnected) {
         home.enter_stage_select = home.start_requested;
     } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {

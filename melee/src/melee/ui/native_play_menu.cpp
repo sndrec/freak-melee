@@ -107,6 +107,7 @@ namespace {
     }
     void draw()
     {
+        nativePlayMenu_DrawCountdown();
         if (menu.practice) {
             nativeMenuPaint_Round(7, 5, 626, 32, 5, 0x11101DDC);
             nativeMenuPaint_Text(menu.status, 220, 17, 275, 9, 0xEBDDAEFF);
@@ -269,6 +270,18 @@ extern "C" void nativePlayMenu_DrawCss(Mtx view)
     draw();
     nativeMenuPaint_End();
 }
+extern "C" void nativePlayMenu_DrawCountdown(void)
+{
+    uint16_t remaining = nativeOnlineSession_QuickCountdownMs();
+    if (!remaining) return;
+    char label[64];
+    std::snprintf(label, sizeof(label), "Match starts in %u", (remaining + 999) / 1000);
+    nativeMenuPaint_Round(195, 112, 250, 74, 8, 0xD6BC79FF);
+    nativeMenuPaint_Round(197, 114, 246, 70, 7, 0x191421F5);
+    nativeMenuPaint_Text(label, 210, 128, 220, 17, 0xFFF4E9FF, NativeMenuFont_Notice, true);
+    nativeMenuPaint_Text("B to unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
+}
+
 extern "C" void nativePlayMenu_DrawPractice(void)
 {
     if (!menu.practice) {
@@ -346,10 +359,10 @@ extern "C" bool nativePlayMenu_Inspect(const char* id)
                      (size.y - 480 * scale) * .5f + v * 480 * scale,
                      (r - u) * 640 * scale, (t - v) * 480 * scale, b.enabled);
         if (const auto* quick = nativeOnlineSession_Quick()) {
-            std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s\n",
+            std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u\n",
                 quick->mode, quick->state, (unsigned long long) quick->generation,
                 quick->team, quick->stage, nativeOnlineSession_RoomCode(),
-                nativeOnlineSession_LocalPeerId());
+                nativeOnlineSession_LocalPeerId(), quick->phase, nativeOnlineSession_QuickCountdownMs());
         }
         return true;
     }

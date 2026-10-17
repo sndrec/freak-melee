@@ -41,12 +41,14 @@ export interface QuickAllocation {
 }
 export interface QuickState {
   mode: number;
-  state: number; // 0 idle, 1 searching/preparing, 2 assigned
+  state: number; // 0 idle, 1 searching/preparing, 2 assigned, 3 aborted
   generation: number;
   matchRoom: string;
   admission: string;
   team: number;
   stage: number;
+  phase: number; // 0 waiting, 1 countdown, 2 match proposal published
+  remainingMs: number;
 }
 export function quickBucket(mode: QuickMode, build: string): string {
   return `${mode}:${build}`;

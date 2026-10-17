@@ -4,6 +4,7 @@ import { decodeServerMessage, ServerMessageType, type ServerMessage,
 import type { QuickState } from "../src/quick-play";
 const worker = exports.default as unknown as Fetcher;
 export class QuickClient {
+  peerId = "";
   private messages: ServerMessage[] = [];
   private receiving = Promise.resolve();
   private changed?: () => void;
@@ -42,8 +43,19 @@ export class QuickClient {
   async configure(mode: number) { this.socket.send(encodeConfigureQuick(mode)); return this.state(0); }
   async search() { this.socket.send(encodeQueueQuick(true)); }
   async cancel() { this.socket.send(encodeQueueQuick(false)); return this.state(0); }
-  async refresh() { this.socket.send(encodeRequestQuick()); return this.state(); }
-  close() { this.socket.close(1000, "Test finished"); }
+  async refresh() {
+    await this.receiving;
+    this.messages = this.messages.filter((message) => message.type !== ServerMessageType.QuickState);
+    this.socket.send(encodeRequestQuick()); return this.state();
+  }
+  async close(): Promise<void> {
+    if (this.socket.readyState === WebSocket.CLOSED) return;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Quick socket close timed out")), 3000);
+      this.socket.addEventListener("close", () => { clearTimeout(timer); resolve(); }, { once: true });
+      this.socket.close(1000, "Test finished");
+    });
+  }
 }
 export async function quickConnect(room: string, peer: string, players = 1,
   build = "quick-test", admission?: string): Promise<Response> {
@@ -55,7 +67,7 @@ export async function quickJoin(room: string, peer: string, players = 1, build =
   const response = await quickConnect(room, peer, players, build, admission);
   if (response.status !== 101 || !response.webSocket) throw new Error(`Quick join failed ${response.status}: ${await response.text()}`);
   const client = new QuickClient(response.webSocket);
-  await client.next(ServerMessageType.Welcome);
+  client.peerId = (await client.next(ServerMessageType.Welcome)).peerId;
   await client.next(ServerMessageType.Presence);
   return client;
 }

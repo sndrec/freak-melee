@@ -58,10 +58,10 @@ describe("Quick Play assembly", () => {
         expect((await joined.state(2)).matchRoom).toBe(first.matchRoom);
         joined.socket.send(encodeSetMatch(new Uint8Array([1,2,3]), 16384));
         await joined.next(ServerMessageType.QuickRejected);
-      } finally { joined.close(); }
+      } finally { await joined.close(); }
       await a.search();
       expect((await a.state(2)).matchRoom).toBe(first.matchRoom);
-    } finally { a.close(); b.close(); }
+    } finally { await a.close(); await b.close(); }
   });
 
   it("combines a shared-PC pair with two solo players", async () => {
@@ -75,8 +75,8 @@ describe("Quick Play assembly", () => {
       expect(p.matchRoom).toBe(x.matchRoom); expect(x.matchRoom).toBe(y.matchRoom);
       expect(x.team).toBe(y.team); expect(p.team).not.toBe(x.team);
       const game = await quickJoin(p.matchRoom, "local_pair", 2, "quick-test", p.admission);
-      game.close();
-    } finally { pair.close(); a.close(); b.close(); }
+      await game.close();
+    } finally { await pair.close(); await a.close(); await b.close(); }
   });
 
   it("keeps teammates on separate PCs together and permits only the leader to queue", async () => {
@@ -94,7 +94,7 @@ describe("Quick Play assembly", () => {
       expect(a.matchRoom).toBe(b.matchRoom); expect(b.matchRoom).toBe(c.matchRoom);
       expect(a.team).toBe(b.team); expect(a.team).not.toBe(c.team);
       expect(a.admission).not.toBe(b.admission);
-    } finally { leader.close(); mate.close(); other.close(); }
+    } finally { await leader.close(); await mate.close(); await other.close(); }
   });
 
   it("fences cancelled searches against delayed enqueue and permits a new search", async () => {
@@ -109,7 +109,7 @@ describe("Quick Play assembly", () => {
       await b.search(); await b.state(1);
       await a.search();
       expect((await a.state(2)).matchRoom).toBe((await b.state(2)).matchRoom);
-    } finally { a.close(); b.close(); }
+    } finally { await a.close(); await b.close(); }
   });
 
   it("expires a lease after hibernation instead of matching an abandoned search", async () => {
@@ -124,7 +124,7 @@ describe("Quick Play assembly", () => {
       await runDurableObjectAlarm(queue(1));
       await a.state(0);
       expect(await queue(1).enqueue(stale)).toBe(false);
-    } finally { a.close(); }
+    } finally { await a.close(); }
   });
 
   it("restores queued parties and memberships after hibernation", async () => {
@@ -135,7 +135,7 @@ describe("Quick Play assembly", () => {
       await evictDurableObject(room("QHIBERNA")); await evictDurableObject(queue(1));
       await b.search();
       expect((await a.state(2)).matchRoom).toBe((await b.state(2)).matchRoom);
-    } finally { a.close(); b.close(); }
+    } finally { await a.close(); await b.close(); }
   });
 
   it("separates builds and prevents a peer from searching in two parties", async () => {
@@ -152,7 +152,7 @@ describe("Quick Play assembly", () => {
       expect(await runInDurableObject(queue(1, "other-build"), async (_instance, state) =>
         state.storage.sql.exec("SELECT * FROM queue_entries").toArray().length)).toBe(1);
       await a.cancel(); await duplicate.search(); await duplicate.state(1);
-    } finally { a.close(); duplicate.close(); other.close(); }
+    } finally { await a.close(); await duplicate.close(); await other.close(); }
   });
 
   it("rejects malformed commands and incompatible party seats without losing signaling", async () => {
@@ -164,7 +164,7 @@ describe("Quick Play assembly", () => {
       await a.next(ServerMessageType.QuickRejected);
       await a.configure(2);
       expect((await a.refresh()).mode).toBe(2);
-    } finally { a.close(); }
+    } finally { await a.close(); }
   });
 
   it("replaces a queued connection without letting its stale close cancel the new search", async () => {
@@ -178,7 +178,7 @@ describe("Quick Play assembly", () => {
       await replacement.state(0); await replacement.search(); await replacement.state(1);
       await b.search();
       expect((await replacement.state(2)).matchRoom).toBe((await b.state(2)).matchRoom);
-    } finally { old.close(); replacement?.close(); b.close(); }
+    } finally { await old.close(); await replacement?.close(); await b.close(); }
   });
 
   it("lets a handed-off party return, cancel its assignment and search again", async () => {
@@ -189,7 +189,7 @@ describe("Quick Play assembly", () => {
       await a.configure(1); await b.configure(1);
       await a.search(); await a.state(1); await b.search();
       const first = await a.state(2); await b.state(2);
-      a.close();
+      await a.close();
       returned = await quickJoin("QRETURNA", "return_a");
       await returned.state(2); await returned.cancel();
       await b.cancel();
@@ -198,7 +198,7 @@ describe("Quick Play assembly", () => {
       expect(next.matchRoom).not.toBe(first.matchRoom);
       expect(next.matchRoom).toBe((await b.state(2)).matchRoom);
       expect((await quickConnect(first.matchRoom, "return_a", 1, "quick-test", first.admission)).status).toBe(403);
-    } finally { a.close(); returned?.close(); b.close(); }
+    } finally { await a.close(); await returned?.close(); await b.close(); }
   });
 
   it("recovers a committed allocation after partial handoff and service eviction", async () => {
@@ -236,13 +236,13 @@ describe("Quick Play assembly", () => {
       });
       expect(await room("QRECOVERA").activateQuickAllocation(first.generation, allocation.id)).toBe(true);
       const assignment = await a.state(2);
-      a.close();
+      await a.close();
       await evictDurableObject(room("QRECOVERB"));
       await evictDurableObject(queue(1));
       await runDurableObjectAlarm(queue(1));
       expect((await b.state(2)).matchRoom).toBe(assignment.matchRoom);
       const game = await quickJoin(assignment.matchRoom, "recover_a", 1, "quick-test", assignment.admission);
-      game.close();
-    } finally { a.close(); b.close(); }
+      await game.close();
+    } finally { await a.close(); await b.close(); }
   });
 });

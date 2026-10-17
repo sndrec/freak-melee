@@ -11,6 +11,9 @@
 
 #include "native_match_launch.h"
 #include "native_services.h"
+#include "native_stock_content.h"
+#include "native_home.h"
+#include "gm_1601.h"
 #include "gmresult.h"
 #include "types.h"
 
@@ -31,11 +34,13 @@ static struct NativeQuickSession {
     NativeQuickAssignment assignment;
     char party_room[NATIVE_SIGNALING_ROOM_ID_BYTES + 1];
     uint64_t heartbeat_ms;
+    uint64_t countdown_end_ms, prepared_revision;
     uint32_t seen_revision;
     bool configure_sent, assigned_room, cancelling, cancel_sent;
+    bool prepared_sent, prepared_value;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-quick";
+static const char online_build[] = "freak-melee-native-dev-quick-countdown";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)
@@ -194,6 +199,7 @@ static bool switch_quick_room(const char* room, const char* admission)
     bool started = start_room(code, name, players, peer, token);
     quick = retained;
     quick.seen_revision = 0;
+    quick.prepared_sent = false;
     quick.cancel_sent = false;
     return started;
 }
@@ -229,6 +235,45 @@ const char* nativeOnlineSession_QuickError(void)
     return online.lobby.room.connection.quick_error;
 }
 
+uint16_t nativeOnlineSession_QuickCountdownMs(void)
+{
+    uint64_t now = GetTickCount64();
+    return quick.assignment.phase == 1 && quick.countdown_end_ms > now
+        ? (uint16_t) (quick.countdown_end_ms - now) : 0;
+}
+
+static void prepare_quick(void)
+{
+    NativeNetplayConnection* c = &online.lobby.room.connection;
+    NativeLobbySelection local;
+    bool prepared = nativeLobbySelection_Decode(&local, online.local_selection,
+                                                online.local_selection_size) && local.confirmed &&
+        c->connected_count == c->remote_count &&
+        online.lobby.room.cache.presence_revision == c->presence.revision;
+    unsigned seats = 0;
+    for (unsigned i = 0; i < c->presence.participant_count; ++i) {
+        const NativeSignalingParticipant* p = &c->presence.participants[i];
+        NativeLobbySelection selected;
+        seats += p->local_players;
+        prepared &= p->active_mask == (1U << p->local_players) - 1 && !p->waiting_mask &&
+            !strcmp(p->build, c->local_build) &&
+            nativeLobbySelection_Decode(&selected, p->selection, p->selection_size) &&
+            selected.player_count == p->local_players && selected.confirmed;
+    }
+    prepared &= seats == quick.assignment.mode * 2 &&
+        c->remote_count + 1 == c->presence.participant_count;
+    for (unsigned i = 0; i < online.lobby.room.cache.choice_count; ++i)
+        prepared &= online.lobby.room.cache.choices[i].cached;
+    if ((!quick.prepared_sent || quick.prepared_revision != c->presence.revision ||
+         quick.prepared_value != prepared) &&
+        nativeSignalingClient_PrepareQuick(&c->signaling, c->presence.revision,
+                                           prepared, nativeStockContent_Digest())) {
+        quick.prepared_revision = c->presence.revision;
+        quick.prepared_value = prepared;
+        quick.prepared_sent = true;
+    }
+}
+
 static bool pump_quick(void)
 {
     NativeNetplayConnection* connection = &online.lobby.room.connection;
@@ -240,6 +285,7 @@ static bool pump_quick(void)
                 memcpy(quick.party_room, online.room_code, sizeof(quick.party_room));
             }
             quick.assignment = connection->quick;
+            quick.countdown_end_ms = GetTickCount64() + quick.assignment.remaining_ms;
         }
         if (quick.cancelling && connection->quick.state == NativeQuickState_Idle)
             quick.cancelling = quick.cancel_sent = false;
@@ -272,6 +318,8 @@ static bool pump_quick(void)
         nativeSignalingClient_QueueQuick(&connection->signaling, true)) {
         quick.heartbeat_ms = now;
     }
+    if (quick.assigned_room && quick.assignment.phase < 2 &&
+        online.lobby.state == NativeLobbySessionState_Waiting) prepare_quick();
     return true;
 }
 
@@ -284,7 +332,7 @@ bool nativeOnlineSession_Pump(void)
     }
     if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
     if (online.lobby.state == NativeLobbySessionState_Ready &&
-        !online.launch_ready)
+        !online.launch_ready && (!quick.assignment.mode || !nativeHome_IsPractice()))
     {
         if (!nativeMatchLaunch_AdoptLobbyRoom(&online.lobby.room)) {
             return fail_launch("could not apply the agreed room match");
@@ -334,6 +382,11 @@ NativeRoomChat* nativeOnlineSession_Chat(void)
 const NativeSignalingPresence* nativeOnlineSession_Presence(void)
 {
     return online.active ? nativeLobbySession_Presence(&online.lobby) : NULL;
+}
+
+const NativeLobbyMatch* nativeOnlineSession_Match(void)
+{
+    return online.active && online.lobby.room.match_configured ? &online.lobby.room.match : NULL;
 }
 
 const char* nativeOnlineSession_Failure(void)
@@ -404,6 +457,22 @@ bool nativeOnlineSession_GiftStatus(bool incoming,
 bool nativeOnlineSession_UpdateSelection(
     const NativeLobbySelection* selection)
 {
+    NativeLobbySelection normalized;
+    if (selection && quick.assigned_room) {
+        normalized = *selection;
+        for (unsigned i = 0; i < normalized.player_count; ++i) {
+            NativeLobbyPlayerSelection* p = &normalized.players[i];
+            if (!p->selected) continue;
+            p->team = quick.assignment.team;
+            uint8_t character;
+            if (quick.assignment.mode == NativeQuickMode_Doubles &&
+                nativeStockContent_CharacterFromId(p->character_id, &character)) {
+                uint8_t color = p->team == 0 ? gm_80169264(character) : gm_801692BC(character);
+                p->costume_id = nativeStockContent_CostumeId(character, color);
+            }
+        }
+        selection = &normalized;
+    }
     uint8_t bytes[NATIVE_LOBBY_SELECTION_MAX_WIRE_BYTES];
     size_t size = nativeLobbySelection_Encode(selection, bytes, sizeof(bytes));
     if (!online.active || size == 0) {
@@ -424,6 +493,9 @@ bool nativeOnlineSession_UpdateSelection(
     }
     memcpy(online.local_selection, bytes, size);
     online.local_selection_size = (uint16_t) size;
+    if (quick.assignment.phase == 1 && !selection->confirmed)
+        nativeSignalingClient_PrepareQuick(&online.lobby.room.connection.signaling,
+            online.lobby.room.connection.presence.revision, false, NULL);
     return true;
 }
 

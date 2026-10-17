@@ -36,8 +36,9 @@ actions retain peer identities, and fighter delivery retains its package ID,
 so changes to the displayed lists preserve the selected recipient and fighter.
 
 Account sign-in, offline inbox storage and persistent friends remain separate
-work. Quick Play queueing and assigned-room handoff now have local native checks;
-countdown, match/rematch flow and deployment remain open. Show their real
+work. Quick Play queueing, assigned-room handoff, cancellable countdown and
+fixed-rule first matches now have local native checks. Loser stage picks,
+rematches and deployment remain open. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 

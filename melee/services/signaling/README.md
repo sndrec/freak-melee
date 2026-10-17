@@ -188,10 +188,14 @@ shared-PC pair or two teammates on separate PCs retain their team assignment.
 Each assigned PC receives its own match-room admission token.
 
 This change has local type/test and deploy-dry-run evidence. The new Durable
-Object class has not been deployed. The native client still needs its queue
-controls and assignment handling, followed by the ready countdown, fixed-rule
-match construction, loser stage picks and rematches. The ordinary room start
-command is rejected inside a Quick Play match; its start is service-owned.
+Object class has not been deployed. Native queue controls, assigned-room handoff,
+ready practice, B-to-unready and the three-second countdown now reach live
+singles and shared-PC doubles matches in local checks. PCs prepare against the
+current roster revision with matching content digests. The service persists the
+countdown and constructs the fixed-rule native proposal after its deadline.
+The ordinary owner start command is rejected inside a Quick Play match. Loser
+stage picks and rematches remain open. The current service suite has 37 passing
+tests; its socket cleanup waits for closure before teardown.
 
 See [the Quick Play checkpoint](../../docs/native_quick_play_checkpoint.md) for
 the wire records, state ownership, recovery model and implementation sequence.
