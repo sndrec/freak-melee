@@ -361,6 +361,7 @@ extern "C" void nativeShell_Shutdown(void)
 
 extern "C" void nativeShell_InspectElement(const char* id)
 {
+    if (!std::strcmp(id,"quick-play") && nativePlayMenu_Inspect(id)) return;
     if (!std::strcmp(id, "css-selection")) {
         nativeCssInteraction_Inspect();
         return;

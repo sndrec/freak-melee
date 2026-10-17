@@ -49,8 +49,10 @@ their own builds; their old "remaining" lists are not the current backlog.
   three-second countdown, B-to-unready and fixed-rule match launch now pass
   native singles and four-player doubles checks. Result agreement, per-seat
   loser stage votes and same-opponent rematches now pass service and native
-  automation checks. The stage-confirmation UI and service deployment remain
-  open. Late countdown cancellation now waits for a service decision, and native
+  automation checks. The native six-stage page now supports losing-player picks
+  and teammate confirmation, including shared-PC and separate-client doubles.
+  Service deployment and the user's visual review remain open. Late countdown
+  cancellation now waits for a service decision, and native
   opponent-exit checks recover to the original party and search again.
   Signaling-loss checks now finish the P2P match and enter a second match after
   recovering both parties. Native rematches also pass with separate-client
@@ -264,6 +266,9 @@ starting pose. Auto Key starts off; explicit insertion remains available.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
   entire roster after every small change.
+- [ ] Trace the retained-history OS heap allocation abort seen in both clients
+  during the `native-quick-stage-singles-2` Battlefield run. Other stage-page
+  runs passed; the allocation caller is still unknown.
 
 Existing room/content features are not assumed absent. Their older compiled-C
 receipts are historical; the purpose is closing integrated current-backend gaps.
@@ -283,6 +288,8 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
   user data and local release manifests. This is not a friend-PC acceptance.
 - [ ] Replace placeholder original-style UI text with reusable Melee-style
   dynamic lettering; derive glyphs/metrics from available textures if needed.
+  Expand the hub's current ASCII glyph coverage and decode UTF-8 for accented
+  names and messages.
 - [ ] Finish labels/icons, clipping, usable layouts and actionable errors with
   the user. Preserve 4:3 scaling during resizing/fullscreen.
 - [ ] Recheck profile binding/calibration and default-control equivalence,

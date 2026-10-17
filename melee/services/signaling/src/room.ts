@@ -547,6 +547,12 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (!player || player.team !== round.chooser) {
       this.send(socket, encodeQuickRejected("The losing side chooses the next stage.")); return;
     }
+    const pending = this.stageVotes()[0];
+    if (stage !== 255 && pending && (pending.peer !== peer.peerId || pending.seat !== seat) &&
+        pending.stage !== stage) {
+      this.send(socket, encodeQuickRejected("Your teammate picked another stage. Confirm that stage or wait for a new selection."));
+      return;
+    }
     if (stage === 255) this.ctx.storage.sql.exec("DELETE FROM quick_stage_votes WHERE peer=? AND seat=?", peer.peerId, seat);
     else this.ctx.storage.sql.exec("INSERT OR REPLACE INTO quick_stage_votes VALUES (?,?,?)", peer.peerId, seat, stage);
     const agreed = agreedQuickStage(ports, round.chooser, this.stageVotes());

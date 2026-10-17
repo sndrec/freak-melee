@@ -68,7 +68,12 @@ enum class HubAction {
     ShowProfile,
     WriteLetter,
     AddFriend,
-    Invite
+    Invite,
+    StageSeat,
+    PickStage,
+    ConfirmStage,
+    WithdrawStage,
+    LeaveQuick
 };
 struct HubRegion {
     float x, y, w, h;
@@ -104,6 +109,7 @@ struct HubState {
     int pending_value;
     char pending_peer[65], pending_name[33];
     unsigned back_frames;
+    unsigned stage_seat;
     uint64_t notice_until;
 };
 extern HubState hub;

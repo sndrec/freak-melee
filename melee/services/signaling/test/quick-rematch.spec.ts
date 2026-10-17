@@ -46,7 +46,7 @@ describe("Quick Play round results and next stage", () => {
     } finally { await game.close(); }
   });
 
-  it("needs both shared-PC teammates to agree and supports retracting a vote", async () => {
+  it("lets one shared-PC teammate pick, change or withdraw, and the other confirm", async () => {
     const game = await setup(2);
     try {
       const epoch = await launch(game), losing = game.assigned[0].team;
@@ -56,11 +56,20 @@ describe("Quick Play round results and next stage", () => {
       let current = await phase(game.clients[0], 3, (state) => state.votes[0] === 0);
       expect(current.phase).toBe(3); expect(current.votes[0]).toBe(0);
       game.clients[0].socket.send(encodeVoteQuickStage(epoch, 1, 1));
-      current = await phase(game.clients[0], 3, (state) => state.votes[1] === 1);
-      expect(current.phase).toBe(3); expect(current.votes.slice(0,2)).toEqual([0,1]);
+      await game.clients[0].next(ServerMessageType.QuickRejected);
+      current = await game.clients[0].refresh();
+      expect(current.phase).toBe(3); expect(current.votes.slice(0,2)).toEqual([0,255]);
+      game.clients[0].socket.send(encodeVoteQuickStage(epoch, 0, 2));
+      current = await phase(game.clients[0], 3, (state) => state.votes[0] === 2);
+      expect(current.votes.slice(0,2)).toEqual([2,255]);
+      // A delayed confirmation of the previous selection cannot start play.
+      game.clients[0].socket.send(encodeVoteQuickStage(epoch, 1, 0));
+      await game.clients[0].next(ServerMessageType.QuickRejected);
       game.clients[0].socket.send(encodeVoteQuickStage(epoch, 0, 255));
       current = await phase(game.clients[0], 3, (state) => state.votes[0] === 255);
-      expect(current.votes.slice(0,2)).toEqual([255,1]);
+      expect(current.votes.slice(0,2)).toEqual([255,255]);
+      game.clients[0].socket.send(encodeVoteQuickStage(epoch, 1, 1));
+      await phase(game.clients[0], 3, (state) => state.votes[1] === 1);
       game.clients[0].socket.send(encodeVoteQuickStage(epoch, 0, 1));
       current = await phase(game.clients[0], 0);
       expect(current.stage).toBe(1);
