@@ -39,7 +39,6 @@ int drag_start_x, drag_start_y;
 int canvas_width, canvas_height;
 NativeCssTile drag_origin{};
 bool catalog_loaded;
-int displayed_availability = -1;
 
 struct InstalledPortrait {
     NativeContentId id;
@@ -331,9 +330,6 @@ class CssOriginalEvents final : public Rml::EventListener {
             event.StopPropagation();
         } else if (id == "css-original-back") {
             nativeShellCssOriginal_Close();
-        } else if (id == "css-original-edit") {
-            if (editing) nativeShellCssOriginal_Close();
-            else nativeShellCssOriginal_Open();
         } else if (id == "css-original-remove") {
             if (selected >= 0 &&
                 nativeCssOriginal_RemoveTile(unsigned(selected))) {
@@ -480,7 +476,6 @@ void nativeShellCssOriginal_Init(Rml::ElementDocument* shell)
     document = shell;
     portraits.clear();
     catalog_loaded = false;
-    displayed_availability = -1;
     aurora::rmlui::register_texture_provider(
         "fighter", [](std::string_view source)
             -> std::optional<aurora::rmlui::RuntimeTexture> {
@@ -502,7 +497,7 @@ void nativeShellCssOriginal_Init(Rml::ElementDocument* shell)
                 false, false,
             };
         });
-    for (const char* id : { "css-original-edit", "css-original-back",
+    for (const char* id : { "css-original-back",
                             "css-original-remove",
                             "css-original-collection", "css-original-reset" }) {
         document->GetElementById(id)->AddEventListener("click", &events);
@@ -523,13 +518,6 @@ void nativeShellCssOriginal_Update(void)
     } else if (!available && catalog_loaded) {
         portraits.clear();
         catalog_loaded = false;
-    }
-    // RmlUI property assignment dirties layout even when the value is unchanged.
-    // Apply visibility on selection/match transitions, not on every game frame.
-    if (displayed_availability != int(available)) {
-        displayed_availability = int(available);
-        document->GetElementById("css-original-edit")
-            ->SetProperty("display", available ? "block" : "none");
     }
     if (!available && editing) {
         nativeShellCssOriginal_Close();
@@ -582,7 +570,6 @@ void nativeShellCssOriginal_Open(void)
     editing = true;
     collection_open = false;
     selected = -1;
-    document->GetElementById("css-original-edit")->SetClass("active", true);
     document->GetElementById("css-original-tools")->SetProperty("display", "block");
     document->GetElementById("css-original-overlay")->SetProperty("display", "block");
     load_portraits();
@@ -599,8 +586,6 @@ void nativeShellCssOriginal_Close(void)
     dragging = -1;
     nativeCssOriginal_CancelPreview();
     if (document != nullptr) {
-        document->GetElementById("css-original-edit")
-            ->SetClass("active", false);
         document->GetElementById("css-original-tools")
             ->SetProperty("display", "none");
         document->GetElementById("css-original-overlay")

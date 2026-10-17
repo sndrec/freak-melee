@@ -7,6 +7,7 @@ namespace Rml {
 class ElementDocument;
 }
 void nativeShellRules_Init(Rml::ElementDocument* document);
+void nativeShellRules_Open();
 void nativeShellRules_Update();
 void nativeShellRules_Close();
 extern "C" {

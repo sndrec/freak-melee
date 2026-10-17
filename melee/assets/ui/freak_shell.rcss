@@ -9,90 +9,23 @@ p { margin: 0; }
   background-color: #10111b; pointer-events: auto; overflow: auto;
 }
 .left-rail { left: 0; border-right: 1dp #665258; }
-.right-rail { right: 0; border-left: 1dp #665258; }
 scrollbarvertical { width: 7dp; margin-left: 3dp; }
 scrollbarvertical slidertrack { background-color: #191823; }
 scrollbarvertical sliderbar { width: 7dp; min-height: 20dp; background-color: #64505f; border-radius: 3dp; }
 scrollbarvertical sliderbar:hover, scrollbarvertical sliderbar:active { background-color: #bf7c75; }
 scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { display: none; }
 .eyebrow { color: #9a98aa; font-size: 10dp; font-weight: bold; letter-spacing: 1.2dp; }
-.brand { margin-bottom: 34dp; }
-.brand-kicker { font-size: 8dp; letter-spacing: 1.5dp; color: #bbb5c5; }
-.brand-name { margin-top: 4dp; font-family: Arial; font-style: italic; font-weight: bold; font-size: 33dp; letter-spacing: -1dp; line-height: 1.1; }
-.brand-subtitle { color: #fa6456; font-weight: bold; font-size: 14dp; letter-spacing: 5dp; }
-.brand-slashes { margin-left: 16dp; color: #776570; letter-spacing: 0; font-family: Arial; font-style: italic; }
-.nav-heading { margin-bottom: 12dp; }
-.nav-item { display: flex; align-items: center; height: 39dp; padding: 10dp 8dp; margin-bottom: 4dp; font-size: 13dp; border-left: 2dp transparent; }
-.nav-index { margin-right: 9dp; font-size: 9dp; color: #79798b; }
-.nav-item.active { background-color: #29212b; color: #fff4ec; border-left-color: #fa6456; font-weight: bold; }
-.nav-item.active .nav-index { color: #fa8a75; }
-.nav-item.unavailable { color: #777686; }
-.local-section { margin-top: 24dp; padding-top: 19dp; border-top: 1dp #31303d; }
 .section-heading { display: flex; align-items: center; margin-bottom: 11dp; }
 .small-count { margin-left: auto; font-size: 10dp; color: #9994a7; }
-.controller-row { display: flex; align-items: center; margin-bottom: 10dp; min-height: 35dp; }
 .port { display: block; width: 29dp; height: 29dp; flex: 0 0 29dp; margin-right: 9dp; padding-top: 6dp; text-align: center; font-size: 11dp; font-weight: bold; color: #827c8f; border: 1dp #393542; border-radius: 3dp; }
-.controller-row.connected .port { color: #f9a395; border-color: #6d443f; background-color: #34232a; }
-.controller-copy { flex: 1; }
-.controller-name { font-size: 11dp; font-weight: bold; line-height: 1.4; }
-.controller-detail { color: #a29aaa; font-size: 10dp; line-height: 1.5; }
-.controller-row.empty .controller-name { color: #777384; font-weight: normal; }
-.rail-spacer { flex: 1 1 20dp; min-height: 24dp; }
 .muted { color: #918a9e; font-size: 10dp; line-height: 1.65; }
-.room-header { padding-bottom: 19dp; border-bottom: 1dp #31303d; }
-.room-status { display: flex; align-items: center; margin-top: 9dp; font-size: 13dp; font-weight: bold; }
-.status-dot { display: inline-block; width: 6dp; height: 6dp; margin-right: 7dp; border-radius: 3dp; background-color: #9390a1; }
-.status-dot.online { background-color: #86caa7; }
-.status-dot.failed { background-color: #fa6456; }
-.identity { padding-top: 12dp; }
-.offline-room { padding-bottom: 20dp; }
-.connected-room { display: none; padding-top: 23dp; }
-.room-code { margin: 7dp 0 12dp; font-size: 21dp; font-weight: bold; color: #f2bd82; letter-spacing: 1dp; }
-.copy-button { display: block; width: 100%; padding: 9dp 5dp; color: #e9cdc2; background-color: #352831; border: 1dp #6e4b4a; border-radius: 3dp; text-align: center; font-size: 11dp; cursor: pointer; }
-.copy-button:hover, .copy-button:focus { color: #ffffff; background-color: #50333c; border-color: #f5907b; }
-.copy-button:active { background-color: #724049; }
-.roster-heading { margin-top: 28dp; padding-bottom: 10dp; border-bottom: 1dp #31303d; }
-.player-row { padding: 11dp 0; border-bottom: 1dp #292734; }
-.player-name { font-size: 12dp; color: #eee4e9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.player-role { margin-top: 4dp; font-size: 10dp; color: #a59bae; }
-.seat-list { margin-top: 5dp; }
-.seat-action, .seat-status { display: block; width: 100%; padding: 4dp 6dp; margin-top: 2dp; text-align: left; color: #cfc1d0; background-color: #25212e; border: 1dp #403743; border-radius: 2dp; font-size: 10dp; }
-.seat-action:hover, .seat-action:focus { color: #fff1e5; background-color: #52323b; border-color: #ef9c80; }
-.seat-status { color: #a59bae; background-color: transparent; border-color: transparent; }
-#room-players { max-height: 240dp; overflow-y: auto; }
-.rotation-heading { margin-top: 12dp; }
-#rotation-policy { margin-top: 5dp; min-height: 29dp; text-align: left; padding-left: 7dp; }
-.owner-tag { color: #eab586; }
 .failure { display: none; margin-top: 15dp; font-size: 11dp; line-height: 1.6; color: #ffa397; }
-.global-chat { display: flex; flex-direction: column; flex: 1 1 0; min-height: 220dp; padding-top: 17dp; border-top: 1dp #54414a; }
-.chat-heading { display: flex; align-items: center; }
-.chat-history { flex: 1 1 0; min-height: 80dp; overflow-y: auto; margin: 8dp 0 10dp; }
-.chat-state { color: #9990a6; font-size: 10dp; margin-top: 5dp; }
-.chat-entry { margin-bottom: 12dp; }
-.chat-name { color: #f0ad8b; font-size: 11dp; font-weight: bold; margin-bottom: 3dp; }
-.chat-text { color: #e3dbe9; font-size: 12dp; line-height: 1.45; word-break: break-word; }
-.chat-compose { display: flex; align-items: center; height: 35dp; background-color: #191823; border: 1dp #37303f; border-radius: 3dp; }
-.chat-compose input { width: 100%; padding: 8dp; color: #eee5f0; font-size: 11dp; background-color: transparent; border-width: 0; }
-.chat-compose input:focus { background-color: #28202e; }
-.chat-footer { display: flex; align-items: center; min-height: 30dp; margin-top: 5dp; }
-#chat-delivery { flex: 1; font-size: 10dp; color: #e1ad93; }
-#chat-send { margin-left: auto; padding: 5dp 8dp; color: #ffdacb; background-color: #4b2d36; border: 1dp #925b52; border-radius: 3dp; font-size: 11dp; }
-#chat-send:hover, #chat-send:focus { background-color: #744036; border-color: #f4ad85; }
-#chat-send[disabled] { color: #827487; border-color: #423444; background-color: #211c29; }
-#chat-toggle { margin-left: auto; width: 22dp; height: 20dp; color: #c7b4c9; background-color: transparent; border: 0dp; font-size: 16dp; }
-#chat-toggle:hover, #chat-toggle:focus { color: #ffdacb; background-color: #4b2d36; }
-.global-chat.collapsed { flex: 0 0 auto; min-height: 0; }
-.collapsed .chat-history, .collapsed .chat-compose, .collapsed .chat-footer { display: none; }
-.room-header, .identity, .offline-room, .connected-room, .failure, .chat-heading, .chat-state, .chat-compose, .chat-footer { flex-shrink: 0; }
 
 
 .soon { margin-left: auto; color: #75697c; font-size: 8dp; }
 
 button { font-family: Segoe UI; cursor: pointer; }
 button[disabled] { cursor: default; }
-.navigation .nav-item { width: 100%; background-color: transparent; border: 0dp transparent; border-left: 2dp transparent; text-align: left; }
-.navigation .nav-item.active { background-color: #29212b; border-left-color: #fa6456; }
-.navigation .nav-item.active:hover, .navigation .nav-item.active:focus { background-color: #3a2934; }
 .field-label { display: block; margin: 12dp 0 6dp; color: #aca2b6; font-size: 11dp; }
 .room-input { display: block; width: 100%; height: 33dp; padding: 8dp; color: #f2e6ee; background-color: #1d1b28; border: 1dp #423746; border-radius: 3dp; font-size: 12dp; }
 .room-input:focus { border-color: #ef8a77; background-color: #25202e; }
@@ -108,11 +41,6 @@ button[disabled] { cursor: default; }
 .room-button[disabled] { color: #716776; background-color: #211c29; border-color: #39303c; }
 .room-button.quiet { background-color: transparent; color: #a99aa8; border-color: #41353f; font-weight: normal; }
 .room-button.quiet:hover, .room-button.quiet:focus { border-color: #e0aa92; color: #f7d5c9; }
-.join-divider { margin-top: 17dp; color: #796a83; text-align: center; font-size: 10dp; }
-#room-unavailable { display: none; margin-top: 10dp; }
-#start-hint { margin-top: 8dp; }
-#content-progress { display: none; margin-top: 8dp; color: #f2bd82; font-size: 11dp; line-height: 1.4; }
-.global-chat { margin-top: 15dp; }
 
 
 button { tab-index: auto; }

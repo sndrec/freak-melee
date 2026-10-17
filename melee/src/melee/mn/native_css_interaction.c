@@ -4,6 +4,7 @@
 #include "mncharsel.h"
 #include <melee/gm/native_home.h>
 #include <melee/ui/native_hub.h>
+#include <melee/ui/native_play_menu.h>
 #include <melee/gm/native_stock_content.h>
 #include <melee/pl/forward.h>
 #include <melee/lb/lbaudio_ax.h>
@@ -290,6 +291,10 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         trigger |= pointer_frame(hand);
     }
     *menu_trigger = trigger;
+    if (!selection.carrying[port] &&
+        nativePlayMenu_Hand(hand->xC, hand->x10, trigger)) {
+        return true;
+    }
     if (selection.carrying[port]) {
         nativeCssCards_Carry(port, &selection.carried[port], hand->xC,
                              hand->x10);

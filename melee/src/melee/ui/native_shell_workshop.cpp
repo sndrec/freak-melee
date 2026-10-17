@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #include "native_shell_workshop_docs.h"
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_editor.h"
@@ -644,7 +645,7 @@ void preview_draft()
     }
     while (nativeWorkshopDocs_Close()) {}
     testing = true;
-    nativeShell_BlurRoom();
+    nativeShell_Blur();
     document->GetElementById("workshop-panel")->SetClass("testing", true);
     document->GetElementById("workshop-inspector")
         ->SetProperty("display", "none");
@@ -817,9 +818,8 @@ class WorkshopEvents final : public Rml::EventListener {
         if (nativeShellWorkshopEditor_Click(
                 id.c_str(), event.GetParameter<int>("shift_key", 0) != 0))
             return;
-        if (id == "workshop-open" || id == "workshop-tab") {
-            nativeShellWorkshop_Open(nullptr, id == "workshop-open"
-                ? NativeWorkshopOrigin::Collection : NativeWorkshopOrigin::Library);
+        if (id == "workshop-open") {
+            nativeShellWorkshop_Open(nullptr, NativeWorkshopOrigin::Collection);
         } else if (id == "workshop-close") {
             nativeShellWorkshop_Close();
         } else if (id == "workshop-back-drafts") {
@@ -867,7 +867,7 @@ bool nativeShellWorkshop_RefreshPreview()
 void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origin)
 {
     if (!nativeHome_IsSelection() && !nativeHome_IsPractice()) {
-        nativeShell_ShowRoomError("Return home to edit a fighter.");
+        nativeHub_Notice("Return home to edit a fighter.");
         return;
     }
     if (opened && !confirm_discard()) return;
@@ -908,8 +908,6 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
     testing = false;
     project_loaded = false;
     nativeShellWorkshopEditor_Init(shell);
-    document->GetElementById("workshop-tab")->AddEventListener("click", &events);
-    document->GetElementById("workshop-tab")->AddEventListener("keydown", &events);
     document->GetElementById("workshop-open")
         ->AddEventListener("click", &events);
     document->GetElementById("workshop-open")
@@ -972,7 +970,7 @@ void nativeShellWorkshop_Close()
     nativeHome_SetAuthoring(false);
     document->GetElementById("workshop-panel")
         ->SetProperty("display", "none");
-    nativeShell_BlurRoom();
+    nativeShell_Blur();
     if (return_destination == NativeWorkshopOrigin::Collection && (nativeHome_IsSelection() || nativeHome_IsPractice())) {
         nativeShellCollection_Open();
     }

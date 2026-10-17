@@ -1,6 +1,6 @@
 # Freak Melee documentation
 
-Updated: 2026-10-15. Start with the current guides below. Dated checkpoint and
+Updated: 2026-10-17. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
 sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
 owns priorities and remaining acceptance. Optimization is currently deferred.
@@ -23,6 +23,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
 | Social interface and remaining work | [Social hub, roster and offline inbox](native_social_hub_design.md) |
 | Native CSS cards and sharing | [Participant ordering, mouse input and delivery checkpoint](native_css_cards_checkpoint.md) |
+| Native CSS/practice controls | [Readiness, lobby access, delivery and tool return](native_play_menu_checkpoint.md) |
 | Prepare a friend build | [Release guide](native_release.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |
 

@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #include "native_shell_collection.h"
 
 #ifdef MELEE_NATIVE
@@ -41,7 +42,7 @@ size_t item_count;
 uint64_t displayed_revision;
 uint64_t hide_after_slide;
 bool opened;
-std::string displayed_incoming;
+bool installed_gift_seen;
 std::string displayed_outgoing;
 
 const char* content_root(char path[512])
@@ -182,45 +183,13 @@ std::string peer_name(const char* peer_id)
 void update_gift_status()
 {
     NativeNetplayGiftStatus gift;
-    std::string incoming;
-    const bool has_incoming = nativeOnlineSession_GiftStatus(true, &gift);
-    if (has_incoming) {
-        const std::string title =
-            Rml::StringUtilities::EncodeRml(gift.title);
-        const std::string sender = Rml::StringUtilities::EncodeRml(
-            peer_name(gift.peer_id));
-        if (gift.state == NativeNetplayGift_Offered) {
-            incoming = "<strong>" + sender + " offered " + title +
-                "</strong><div class='gift-buttons'><button id='gift-accept'>"
-                "Accept &amp; install</button><button id='gift-decline'>"
-                "No thanks</button></div>";
-        } else if (gift.state == NativeNetplayGift_Receiving) {
-            const unsigned percent = gift.bytes_total == 0 ? 0 :
-                unsigned(uint64_t(gift.bytes_done) * 100 / gift.bytes_total);
-            incoming = "Installing " + title + " · " +
-                       std::to_string(percent) + "%";
-        } else if (gift.state == NativeNetplayGift_Installed) {
-            incoming = gift.kind == NativeNetplayGift_Fighter
-                ? title + " installed. Open Workshop to edit it."
-                : title + " installed. Choose its fighter, then select it in COSTUMES.";
-        } else if (gift.state == NativeNetplayGift_Failed) {
-            incoming = "Could not install " + title + ".";
-        }
+    bool installed = nativeOnlineSession_GiftStatus(true, &gift) &&
+                     gift.state == NativeNetplayGift_Installed;
+    if (installed && !installed_gift_seen) {
+        if (opened) load_items();
+        if (gift.kind == NativeNetplayGift_Costume) nativeShellCostumes_RefreshInstalled();
     }
-    Rml::Element* card = document->GetElementById("gift-incoming");
-    if (incoming != displayed_incoming) {
-        displayed_incoming = incoming;
-        card->SetInnerRML(incoming);
-        card->SetProperty("display", incoming.empty() ? "none" : "block");
-        if (opened && has_incoming &&
-            gift.state == NativeNetplayGift_Installed) {
-            load_items();
-        }
-        if (has_incoming && gift.state == NativeNetplayGift_Installed &&
-            gift.kind == NativeNetplayGift_Costume) {
-            nativeShellCostumes_RefreshInstalled();
-        }
-    }
+    installed_gift_seen = installed;
     std::string outgoing;
     if (nativeOnlineSession_GiftStatus(false, &gift)) {
         const std::string title =
@@ -273,16 +242,8 @@ class CollectionEvents final : public Rml::EventListener {
             }
             return;
         }
-        if (id == "collection-tab") {
-            nativeShellCollection_Open();
-        } else if (id == "collection-close") {
+        if (id == "collection-close") {
             nativeShellCollection_Close();
-        } else if (id == "gift-accept") {
-            if (!nativeOnlineSession_AcceptGift()) {
-                status("Could not install the offered package.");
-            }
-        } else if (id == "gift-decline") {
-            nativeOnlineSession_DeclineGift();
         } else if (id.compare(0, 17, "collection-draft-") == 0) {
             char* end = nullptr;
             const long index = std::strtol(id.c_str() + 17, &end, 10);
@@ -315,7 +276,7 @@ class CollectionEvents final : public Rml::EventListener {
 void nativeShellCollection_Open()
 {
     if (!nativeHome_IsSelection() && !nativeHome_IsPractice()) {
-        nativeShell_ShowRoomError("Return home to manage your collection.");
+        nativeHub_Notice("Return home to manage your collection.");
         return;
     }
     nativeShellProfiles_Close();
@@ -337,10 +298,9 @@ void nativeShellCollection_Init(Rml::ElementDocument* shell)
     document = shell;
     opened = false;
     displayed_revision = UINT64_MAX;
-    displayed_incoming.clear();
+    installed_gift_seen = false;
     displayed_outgoing.clear();
-    for (const char* id : { "collection-tab", "collection-panel",
-                            "gift-incoming" }) {
+    for (const char* id : { "collection-panel" }) {
         Rml::Element* element = document->GetElementById(id);
         element->AddEventListener("click", &events);
         element->AddEventListener("keydown", &events);
@@ -359,9 +319,14 @@ void nativeShellCollection_Update()
             nativeShellCollection_Close();
         } else {
             update_recipients();
+            update_gift_status();
         }
     }
-    update_gift_status();
+}
+
+bool nativeShellCollection_IsOpen()
+{
+    return opened;
 }
 
 void nativeShellCollection_Close()
@@ -372,7 +337,7 @@ void nativeShellCollection_Close()
     opened = false;
     hide_after_slide = SDL_GetTicks() + 250;
     document->GetElementById("collection-panel")->SetClass("open", false);
-    nativeShell_BlurRoom();
+    nativeShell_Blur();
 }
 
 #endif

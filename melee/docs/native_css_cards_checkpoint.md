@@ -123,12 +123,14 @@ API and links the package validators from the runtime. It passes its real-room
 check: shared-PC gameplay inputs still arrive over ICE after room signaling
 closes. The log is `.local/native-content-gameplay-regression.log`.
 
+CSS/practice rails are replaced by the native Ready, lobby, host-start and
+delivery controls described in the [play-menu checkpoint](native_play_menu_checkpoint.md).
+
 ## Remaining work
 
 - Fetch remote choice metadata and portraits before readying. Missing packages
   currently use a placeholder until their content is cached.
-- Replace the CSS and practice rails with the approved native controls, including
-  room access, sharing feedback and Quick Play queue controls.
+- Add the Quick Play queue controls with matchmaking.
 - Complete Quick Play admission, ready practice, countdown, stage picks and
   rematches, then authored menu transitions.
 - Recheck GameCube adapter movement with captured hardware samples. Mouse input

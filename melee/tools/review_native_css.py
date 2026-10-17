@@ -44,10 +44,18 @@ def main():
             with stderr.open('r', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-selection|hub-inspect|ui-inspect)\]', text):
+            if re.search(r'\[(?:css-selection|hub-inspect|ui-inspect|play-menu)\]', text):
                 return text
             assert client.poll() is None, f'Native client exited {client.returncode}'
         raise RuntimeError(f'Inspection stalled: {element}')
+
+    def click(element):
+        text = inspect(element)
+        match = re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', text)
+        assert match, text
+        x, y, w, h = map(float, match.groups())
+        command('ui-click', round(x+w/2), round(y+h/2))
+        time.sleep(.35)
 
     def tap(*parts, frames=1):
         command('tap', 0, *parts, f'frames={frames}')
@@ -154,14 +162,17 @@ def main():
             screenshot()
             # The detailed collection owns mouse input while its panel covers
             # the game, including the close button inside the CSS viewport.
-            for element in ['collection-tab', 'collection-close']:
-                text = inspect(element)
-                match = re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', text)
-                assert match, text
-                x, y, w, h = map(float, match.groups())
-                command('ui-click', round(x+w/2), round(y+h/2))
-                time.sleep(.25)
-            tap('start')
+            click('play-workshop')
+            click('nav-6')
+            click('settings-costumes')
+            click('costume-close')
+            click('settings-rules')
+            click('rules-close')
+            click('settings-packages')
+            click('collection-close')
+            click('hub-close')
+            assert 'absent' in inspect('right-rail')
+            click('play-ready')
             for _ in range(180):
                 assert client.poll() is None
                 if '[css-selection] practice' in inspect('css-selection'):
@@ -170,9 +181,33 @@ def main():
             else:
                 raise RuntimeError('Confirmed selection did not enter practice')
             screenshot()
+            # The practice strip opens the controller-navigable hub without
+            # taking over ordinary match buttons. Return by the same native UI.
+            click('play-lobby')
+            tap('b')
+            inspect('play-selection')
+            # Retail's Ready/Go countdown rejects pause input. The screenshot
+            # above records that intro; allow it to finish before opening pause.
+            time.sleep(4)
+            tap('start')
+            time.sleep(.4)
+            tap('z')
+            click('hub-close')
+            click('play-selection')
+            for _ in range(180):
+                if 'absent' not in inspect('nav-5'):
+                    break
+                time.sleep(.15)
+            else:
+                raise RuntimeError('Native practice return did not reach home CSS')
+            click('nav-5')
+            click('local-practice')
+            assert state()[0] is not None
+            screenshot()
             (output / 'result.txt').write_text(
                 'PASS: custom cookie selection, empty-space placement, stable position, '
-                'pick-up, ready guard, custom CPU selection and playable practice entry.\n')
+                'pick-up, ready guard, custom CPU, native ready/practice/return controls, paused controller hub, '
+                'costumes/rules/packages tool return, and removed room rails.\n')
             print((output / 'result.txt').read_text().strip())
         finally:
             if client.poll() is None:

@@ -23,6 +23,7 @@
 #include "native_css_interaction.h"
 #include "native_css_cards.h"
 #include <melee/ui/native_hub_hand.h>
+#include <melee/ui/native_play_menu.h>
 #endif
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lb_013B.h>
@@ -3784,6 +3785,12 @@ void fn_80262F44(HSD_GObj* gobj)
             }
         }
 
+#ifdef MELEE_NATIVE
+        if (nativeHome_IsSelection()) {
+            HSD_JObjSetFlagsAll(jobj, JOBJ_HIDDEN);
+            if (nativePlayMenu_TakeReadyRequest()) trigger |= HSD_PAD_START;
+        }
+#endif
         if (mnCharSel_804D6CF2 == 0 && (trigger & HSD_PAD_START)) {
             if (mnCharSel_804D6CF7 != 0) {
                 mnCharSel_804D6CF6 = 1;

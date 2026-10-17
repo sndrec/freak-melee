@@ -575,6 +575,19 @@ bool nativeCssOriginal_PointFromCanvas(float u, float v, float* x, float* y)
     return true;
 }
 
+bool nativeCssOriginal_PointToCanvas(float x, float y, float* u, float* v)
+{
+    Mtx view;
+    if (!u || !v || !nativeCssOriginal_ViewMatrix(view)) return false;
+    Vec3 point = { x, y, 0 };
+    C_MTXMultVec(view, &point, &point);
+    if (point.z >= -.00001f) return false;
+    float half = tanf(HSD_CObjGetFov(scene_camera) * .00872664626f);
+    *u = .5f + point.x / (-2 * point.z * half * HSD_CObjGetAspect(scene_camera));
+    *v = .5f - point.y / (-2 * point.z * half);
+    return true;
+}
+
 bool nativeCssOriginal_FighterBounds(const NativeContentId* id,
                                       float* left, float* right,
                                       float* top, float* bottom)

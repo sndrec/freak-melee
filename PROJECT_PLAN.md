@@ -37,8 +37,9 @@ their own builds; their old "remaining" lists are not the current backlog.
   stock card artwork. Physical inputs and canonical match ports stay intact.
   Portrait dragging opens fighter-delivery confirmation. Same-lobby transfers
   use separate content connections and reach waiting players and spectators,
-  including while they practice. Early remote portrait downloads and replacing
-  the CSS/practice rails remain open. See the
+  including while they practice. Native CSS/practice controls now replace the
+  room rails and preserve access to the detailed tools. Early remote portrait
+  downloads and Quick Play controls remain open. See the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
@@ -85,7 +86,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Room setup, ready practice, host start, shared-PC inputs, chat, spectator/rotation/content foundations and local evidence. | In-game social hub and Lobbies, first-run personal roster, local-first CSS cards, persistent accounts/friends, global and lobby chats, email-style inbox, lobby invitations, same-lobby fighter sharing and fixed-rule 1v1/2v2 Quick Play. Start with mockup review; later physical multi-PC testing. |
+| Rooms/social | Native hub, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global chat/directory, shared-PC inputs, spectator/rotation foundations and same-lobby fighter delivery, with local evidence. | Lobby browsing/chat and larger-lobby controls, early remote portraits, persistent accounts/friends, email-style inbox, invitations, fixed-rule 1v1/2v2 Quick Play and authored transitions. Physical multi-PC testing remains deferred to the user. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence

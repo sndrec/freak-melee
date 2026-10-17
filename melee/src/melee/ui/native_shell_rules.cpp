@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #include "native_shell_rules.h"
 
 #ifdef MELEE_NATIVE
@@ -160,30 +161,6 @@ void save_rules()
     set_status("Rules saved. They apply to the next match.");
 }
 
-void open_rules()
-{
-    if (!nativeHome_IsSelection()) {
-        nativeShell_ShowRoomError("Return to character select to edit rules.");
-        return;
-    }
-    if (!can_edit()) {
-        nativeShell_ShowRoomError("Only the room host can edit match rules.");
-        return;
-    }
-    nativeShellProfiles_Close();
-    nativeShellCollection_Close();
-    draft_rules = *gmMainLib_GetGameRules();
-    draft_prefs = *gmMainLib_GetGamePrefs();
-    render_choices();
-    render_inputs();
-    set_status("");
-    hide_after_slide = 0;
-    opened = true;
-    document->GetElementById("rules-panel")
-        ->SetProperty("visibility", "visible");
-    document->GetElementById("rules-panel")->SetClass("open", true);
-    document->GetElementById("rules-close")->Focus(true);
-}
 
 class RuleEvents final : public Rml::EventListener {
     void ProcessEvent(Rml::Event& event) override
@@ -208,10 +185,6 @@ class RuleEvents final : public Rml::EventListener {
                 target->Click();
                 event.StopPropagation();
             }
-            return;
-        }
-        if (id == "rules-tab") {
-            open_rules();
             return;
         }
         if (!opened || !can_edit()) {
@@ -275,12 +248,37 @@ class RuleEvents final : public Rml::EventListener {
 
 } // namespace
 
+void nativeShellRules_Open()
+{
+    if (!nativeHome_IsSelection()) {
+        nativeHub_Notice("Return to character select to edit rules.");
+        return;
+    }
+    if (!can_edit()) {
+        nativeHub_Notice("Only the room host can edit match rules.");
+        return;
+    }
+    nativeShellProfiles_Close();
+    nativeShellCollection_Close();
+    draft_rules = *gmMainLib_GetGameRules();
+    draft_prefs = *gmMainLib_GetGamePrefs();
+    render_choices();
+    render_inputs();
+    set_status("");
+    hide_after_slide = 0;
+    opened = true;
+    document->GetElementById("rules-panel")
+        ->SetProperty("visibility", "visible");
+    document->GetElementById("rules-panel")->SetClass("open", true);
+    document->GetElementById("rules-close")->Focus(true);
+}
+
 void nativeShellRules_Init(Rml::ElementDocument* shell)
 {
     document = shell;
     opened = false;
     hide_after_slide = 0;
-    for (const char* id : { "rules-tab", "rules-panel" }) {
+    for (const char* id : { "rules-panel" }) {
         Rml::Element* element = document->GetElementById(id);
         element->AddEventListener("click", &events);
         element->AddEventListener("keydown", &events);
@@ -295,7 +293,7 @@ void nativeShellRules_Close()
     opened = false;
     hide_after_slide = SDL_GetTicks() + 250;
     document->GetElementById("rules-panel")->SetClass("open", false);
-    nativeShell_BlurRoom();
+    nativeShell_Blur();
 }
 
 void nativeShellRules_Update()

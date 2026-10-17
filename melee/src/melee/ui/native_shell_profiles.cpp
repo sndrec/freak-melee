@@ -1,3 +1,4 @@
+#include <melee/ui/native_hub.h>
 #define _CRT_RAND_S
 #include "native_shell_profiles.h"
 
@@ -427,10 +428,6 @@ namespace {
                 status("");
                 return;
             }
-            if (id == "profiles-tab") {
-                nativeShellProfiles_Open();
-                return;
-            }
             if (!opened || !nativeHome_IsSelection()) {
                 return;
             }
@@ -548,7 +545,7 @@ void nativeShellProfiles_Init(Rml::ElementDocument* shell)
     port = 0;
     lastController = -2;
     stop_capture();
-    for (const char* id : { "profiles-tab", "profiles-panel" }) {
+    for (const char* id : { "profiles-panel" }) {
         auto* element = document->GetElementById(id);
         element->AddEventListener("click", &events);
         element->AddEventListener("keydown", &events);
@@ -567,7 +564,7 @@ void nativeShellProfiles_Close()
     opened = false;
     hideAfterSlide = SDL_GetTicks() + 250;
     document->GetElementById("profiles-panel")->SetClass("open", false);
-    nativeShell_BlurRoom();
+    nativeShell_Blur();
 }
 
 extern "C" bool nativeShellProfiles_IsOpen(void)
@@ -665,7 +662,7 @@ void nativeShellProfiles_Update()
 void nativeShellProfiles_Open()
 {
     if (!nativeHome_IsSelection()) {
-        nativeShell_ShowRoomError("Return to character select to edit profiles.");
+        nativeHub_Notice("Return to character select to edit profiles.");
         return;
     }
     nativeShellRules_Close();
