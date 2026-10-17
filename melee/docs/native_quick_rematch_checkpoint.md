@@ -173,11 +173,11 @@ uses ASCII Pokemon while the current hub glyph sheets cover ASCII characters.
 The first singles harness timed out while both fighters jostled at the ledge.
 Its revised input jumps past the opponent while retaining rightward movement.
 One intermediate run stopped on the retained-history OS heap allocation guard
-in both clients during Battlefield gameplay (`native-quick-stage-singles-2`).
-The caller is not yet identified. The successful singles run had an abort
-breakpoint attached and did not reproduce it. An earlier debugger command-line
+in both clients on Pokemon Stadium (`native-quick-stage-singles-2`). The successful
+singles run had an abort breakpoint attached and did not reproduce it. An earlier debugger command-line
 attempt ended that test process; it is not counted as a runtime failure or pass.
-The guarded allocation remains a separate runtime investigation.
+The [allocation investigation](native_stadium_allocation_checkpoint.md) reproduced
+the guard on a Stadium rematch and traced it to transformation asset import.
 
 The cancellation and original-party recovery checks remain recorded in the
 [return checkpoint](native_quick_return_checkpoint.md). User visual review and
