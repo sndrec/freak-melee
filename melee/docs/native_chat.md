@@ -19,6 +19,13 @@ probes saw each other without sending messages. A hidden, muted game connected
 to the local service and displayed both itself and a quiet probe in Chatroom;
 the PNG and logs are under `.local/hub-chat-review`.
 
+Private service deployment `f76ecd50-8d96-4fb4-940e-704c0cf20468` contains the
+presence update. Existing chat history and room signaling remain in their
+current Durable Objects.
+A native presence-only probe also connected to that deployment and received its
+own directory entry without posting a chat message. Its log is local under
+`.local/native-chat-presence-live.log`.
+
 The native shell connects automatically to `/chat/connect` on the private
 service. One `GlobalChat` Durable Object owns the friends' shared conversation;
 it is independent of the existing per-room objects. Room membership and client

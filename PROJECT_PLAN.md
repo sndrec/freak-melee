@@ -28,6 +28,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the
   existing Workshop workspaces usable throughout the transition.
+- Native hub checkpoints now cover first-run cloning and collection edits,
+  the stock Melee hand, ISO-extracted starter portraits and a live global-chat
+  player directory. Local hidden/muted authoring acceptance and two-client
+  chat presence checks passed. The design document records remaining CSS,
+  matchmaking, lobby-chat and account/inbox work.
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
 - Work that requires other physical PCs is deferred to the user's testing.
