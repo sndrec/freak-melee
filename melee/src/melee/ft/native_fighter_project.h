@@ -83,6 +83,8 @@ bool nativeFighterProject_CreateFromMember(const char* path, const char* title,
 // Reads only the manifest and asset sizes for project-library listing.
 bool nativeFighterProject_ReadInfo(const char* path,
                                    NativeFighterProjectInfo* info);
+// Rename the primary project manifest. Family titles come from their primary member.
+bool nativeFighterProject_Rename(const char* path, const char* title);
 bool nativeFighterProject_Open(const char* path, NativeFighterProject* project);
 bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
                                        size_t property, double* value);

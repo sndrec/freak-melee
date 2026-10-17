@@ -474,6 +474,10 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_home.c
     src/melee/mn/native_online_menu.c
     src/melee/mn/native_online_sss.c
+    src/melee/ui/native_hub.cpp
+    src/melee/ui/native_hub_pages.cpp
+    src/melee/ui/native_hub_catalog.cpp
+    src/melee/ui/native_hub_paint.c
     src/melee/ui/native_shell.cpp
     src/melee/ui/native_shell_collection.cpp
     src/melee/ui/native_shell_css_original.cpp

@@ -1,3 +1,4 @@
+#include <melee/ft/native_fighter_template.h>
 #include "native_shell_workshop_editor_internal.h"
 
 #ifdef MELEE_NATIVE
@@ -71,66 +72,12 @@ void show_script()
         session->saved_script.assign((const char*) session->project->script_text,
                             session->project->script_size);
     bool template_loaded = false;
-    const char* template_name = nullptr;
-    if (session->project != nullptr) {
-        switch (session->project->base_kind) {
-        case Ft_Kind_Mario: template_name = "mario_full.fms"; break;
-        case Ft_Kind_DrMario: template_name = "drmario_full.fms"; break;
-        case Ft_Kind_Captain: template_name = "captain_wip.fms"; break;
-        case Ft_Kind_Ganon: template_name = "ganon_wip.fms"; break;
-        case Ft_Kind_Luigi: template_name = "luigi_wip.fms"; break;
-        case Ft_Kind_Purin: template_name = "purin_wip.fms"; break;
-        case Ft_Kind_Fox: template_name = "fox_wip.fms"; break;
-        case Ft_Kind_Falco: template_name = "falco_wip.fms"; break;
-        case Ft_Kind_Mars: template_name = "marth_wip.fms"; break;
-        case Ft_Kind_Emblem: template_name = "roy_wip.fms"; break;
-        case Ft_Kind_Donkey: template_name = "donkey_wip.fms"; break;
-        case Ft_Kind_Koopa: template_name = "koopa_wip.fms"; break;
-        case Ft_Kind_Pikachu: template_name = "pikachu_wip.fms"; break;
-        case Ft_Kind_Pichu: template_name = "pichu_wip.fms"; break;
-        case Ft_Kind_Samus: template_name = "samus_full.fms"; break;
-        case Ft_Kind_Link: template_name = "link_full.fms"; break;
-        case Ft_Kind_CLink: template_name = "young_link_full.fms"; break;
-        case Ft_Kind_Mewtwo: template_name = "mewtwo_wip.fms"; break;
-        case Ft_Kind_Yoshi: template_name = "yoshi_wip.fms"; break;
-        case Ft_Kind_Ness: template_name = "ness_wip.fms"; break;
-        case Ft_Kind_Peach: template_name = "peach_full.fms"; break;
-        case Ft_Kind_GameWatch: template_name = "gamewatch_full.fms"; break;
-        case Ft_Kind_Zelda: template_name = "zelda_full.fms"; break;
-        case Ft_Kind_Seak: template_name = "sheik_full.fms"; break;
-        case Ft_Kind_Popo: template_name = "popo_full.fms"; break;
-        case Ft_Kind_Nana: template_name = "nana_full.fms"; break;
-        default: break;
-        }
-    }
-    if (!draft_loaded && session->saved_script.empty() && session->project != nullptr &&
-        template_name != nullptr) {
-        char template_path[MAX_PATH];
-        const DWORD path_length = GetModuleFileNameA(nullptr, template_path,
-                                                      sizeof(template_path));
-        char* basename = path_length > 0 && path_length < sizeof(template_path)
-            ? std::strrchr(template_path, '\\') : nullptr;
-        FILE* template_file = nullptr;
-        if (basename != nullptr &&
-            size_t(basename - template_path) + 5 + std::strlen(template_name) <
-                sizeof(template_path)) {
-            std::snprintf(basename, sizeof(template_path) -
-                size_t(basename - template_path), "\\ui\\%s", template_name);
-            template_file = std::fopen(template_path, "rb");
-        }
-        if (template_file != nullptr) {
-            long bytes = 0;
-            if (std::fseek(template_file, 0, SEEK_END) == 0 &&
-                (bytes = std::ftell(template_file)) > 0 &&
-                bytes <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY &&
-                std::fseek(template_file, 0, SEEK_SET) == 0) {
-                session->saved_script.resize((size_t) bytes);
-                template_loaded = std::fread(session->saved_script.data(), 1,
-                    (size_t) bytes, template_file) == (size_t) bytes;
-                if (!template_loaded) session->saved_script.clear();
-            }
-            std::fclose(template_file);
-        }
+    if (!draft_loaded && session->saved_script.empty() && session->project != nullptr) {
+        char* source = nullptr;
+        size_t size = 0;
+        template_loaded = nativeFighterTemplate_Read(session->project->base_kind, &source, &size);
+        if (template_loaded) session->saved_script.assign(source, size);
+        std::free(source);
     }
     WorkshopScriptFiles::open(session->script_files, session->project_path, session->saved_script);
     bool imported_parameters = false;

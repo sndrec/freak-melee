@@ -592,6 +592,19 @@ static bool save_asset_with_previous(const char* path, const char* name,
     return saved;
 }
 
+bool nativeFighterProject_Rename(const char* path, const char* title)
+{
+    NativeFighterProjectInfo info;
+    if (path == NULL || title == NULL || !title_valid(title) ||
+        !nativeFighterProject_ReadInfo(path, &info))
+        return false;
+    char manifest[160];
+    int size = snprintf(manifest, sizeof(manifest), "title=%s\ntemplate=%s\n",
+                        title, info.template_key);
+    return size > 0 && size < sizeof(manifest) &&
+        save_asset_with_previous(path, "project.txt", manifest, (size_t)size);
+}
+
 bool nativeFighterProject_Save(const char* path,
                                const NativeFighterProject* project)
 {

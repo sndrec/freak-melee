@@ -36,6 +36,7 @@
 #include <melee/db/db.h>
 #include <melee/db/dbnativecontrol.h>
 #include <melee/ui/native_shell.h>
+#include <melee/ui/native_hub.h>
 #include <melee/ui/native_shell_profiles.h>
 #include <melee/ui/native_shell_rules.h>
 #include <melee/if/ifcoget.h>
@@ -445,6 +446,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             dbNativeControl_Poll();
             const AuroraEvent* event = aurora_update();
             for (; event && event->type != AURORA_NONE; ++event) {
+                if (event->type == AURORA_SDL_EVENT) nativeHub_Event(&event->sdl);
                 if (event->type == AURORA_EXIT) {
                     gmMain_ExitRequested = true;
                 } else if (event->type == AURORA_SDL_EVENT &&
@@ -507,8 +509,9 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 lb_80019900();
                 if (lb_80019A30(0)) {
                     nativeHome_ApplyResultsInput();
+                    if (!rollback_active) nativeHub_Tick();
                     if (nativeHome_IsSelection() &&
-                        (nativeShellProfiles_IsOpen() ||
+                        (nativeHub_IsVisible() || nativeShellProfiles_IsOpen() ||
                          nativeShellRules_IsOpen() || nativeShell_IsEditingText()))
                     {
                         // Raw controller sampling remains available to rebinding;
@@ -644,6 +647,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         // must not leave a preceding frame's vertex bindings as its cache.
         if (skip_model_resim) HSD_ClearVtxDesc();
         HSD_Init_803755A8();
+        if (!hidden_rollback_frame) nativeHub_Draw();
         if(compact_timing)nativeSnapshotCensus_EndTiming(NativeCompactTiming_HsdDraw);
         if(netplay_timing)nativeNetplayTiming_End(NativeNetplayTiming_HsdDraw);
         if (rollback_census) {

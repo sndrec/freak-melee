@@ -363,25 +363,6 @@ namespace {
             ->SetProperty("display", "block");
     }
 
-    void open_profiles()
-    {
-        if (!nativeHome_IsSelection()) {
-            nativeShell_ShowRoomError("Return to character select to edit profiles.");
-            return;
-        }
-        nativeShellRules_Close();
-        nativeShellCollection_Close();
-        opened = true;
-        hideAfterSlide = 0;
-        lastLiveUpdate = 0;
-        hide_delete_confirmation();
-        document->GetElementById("profiles-panel")
-            ->SetProperty("visibility", "visible");
-        document->GetElementById("profiles-panel")->SetClass("open", true);
-        refresh_catalog();
-        document->GetElementById("profile-close")->Focus(true);
-    }
-
     class ProfileEvents final : public Rml::EventListener {
         void ProcessEvent(Rml::Event& event) override
         {
@@ -447,7 +428,7 @@ namespace {
                 return;
             }
             if (id == "profiles-tab") {
-                open_profiles();
+                nativeShellProfiles_Open();
                 return;
             }
             if (!opened || !nativeHome_IsSelection()) {
@@ -679,4 +660,23 @@ void nativeShellProfiles_Update()
     captureRelease = true;
     render_bindings();
     status("Release the control to finish.");
+}
+
+void nativeShellProfiles_Open()
+{
+    if (!nativeHome_IsSelection()) {
+        nativeShell_ShowRoomError("Return to character select to edit profiles.");
+        return;
+    }
+    nativeShellRules_Close();
+    nativeShellCollection_Close();
+    opened = true;
+    hideAfterSlide = 0;
+    lastLiveUpdate = 0;
+    hide_delete_confirmation();
+    document->GetElementById("profiles-panel")
+        ->SetProperty("visibility", "visible");
+    document->GetElementById("profiles-panel")->SetClass("open", true);
+    refresh_catalog();
+    document->GetElementById("profile-close")->Focus(true);
 }

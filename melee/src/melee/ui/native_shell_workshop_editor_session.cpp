@@ -264,9 +264,18 @@ bool nativeShellWorkshopEditor_ScriptChanged(unsigned member)
     auto& target = sessions[member];
     if (member == selected_member) combined_script();
     const std::string text = WorkshopScriptFiles::compose(target.script_files);
-    return text.size() != target.project->script_size ||
-        (!text.empty() && (target.project->script_text == nullptr ||
-         std::memcmp(text.data(), target.project->script_text, text.size()) != 0));
+    const uint8_t* compiled = target.project->script_text;
+    if (!compiled) return !text.empty();
+    // The text widget uses LF. Compare source text with the same line endings
+    // so opening a CRLF-authored package keeps its validated behavior status.
+    size_t edited = 0, accepted = 0;
+    for (;;) {
+        while (edited < text.size() && text[edited] == '\r') ++edited;
+        while (accepted < target.project->script_size && compiled[accepted] == '\r') ++accepted;
+        if (edited == text.size() || accepted == target.project->script_size)
+            return edited != text.size() || accepted != target.project->script_size;
+        if ((uint8_t)text[edited++] != compiled[accepted++]) return true;
+    }
 }
 
 #endif

@@ -5,8 +5,9 @@ namespace Rml {
 class ElementDocument;
 }
 void nativeShellWorkshop_Init(Rml::ElementDocument* document);
+enum class NativeWorkshopOrigin { Library,Collection,Hub };
 void nativeShellWorkshop_Open(const char* draft_path = nullptr,
-                               bool from_collection = false);
+                               NativeWorkshopOrigin origin = NativeWorkshopOrigin::Library);
 void nativeShellWorkshop_Update();
 void nativeShellWorkshop_Close();
 bool nativeShellWorkshop_IsOpen();

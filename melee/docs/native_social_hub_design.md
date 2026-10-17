@@ -1,8 +1,49 @@
 # Social hub, personal roster and fighter sharing
 
-Design direction revised with user feedback on 2026-10-15. The first
-deliverable is an interactive mockup of the connected screens. Native
-implementation follows layout and flow review with the user.
+Design direction revised with user feedback on 2026-10-15. The user approved
+the connected-screen mockup and native integration on 2026-10-17. The approved
+mockup remains the layout and flow reference during implementation.
+
+## Native integration
+
+The first implementation slice moves the hub pages into GX rendering and
+connects the existing local collection, editable drafts, global chat, lobby
+membership and fighter-delivery APIs. The detailed Workshop and binding editor
+remain accessible from this hub. F1 or holding B returns to the hub from home
+character select. Opening a fighter from this landing page returns directly
+to it when the detailed editor closes.
+
+First-run setup must preserve existing collections and saved CSS layouts.
+When both are absent, save an empty CSS layout and offer a stock template.
+The new clone flow prepares the copied behavior and parameters, installs the
+result, and adds its portrait to an available CSS position. The independent
+draft remains available for editing.
+
+The hidden, muted `review_native_hub.py` run passed on 2026-10-17. Its isolated
+installation exercised empty first launch, a playable Mario clone, CSS placement,
+rename replacing the installed identity, an independent copy, opening and closing
+the editor with CRLF source, profile saving and controller return from CSS.
+It preserves the CRLF source file while displaying it with LF line endings.
+The run and PNG screenshots are local under `.local/native-hub-acceptance-5`.
+This check does not establish online matchmaking, offline inbox delivery or
+the final controller feel on hardware.
+
+The clone flow saves the proven hitbox-duration conversion before installation.
+The shared script-template reader supplies owned behavior for fresh clones and
+the editor. Directory publication retries brief Windows sharing/access failures
+for at most 511 ms; existing destinations remain protected. Queued player
+actions retain peer identities, and fighter delivery retains its package ID,
+so changes to the displayed lists preserve the selected recipient and fighter.
+
+Account sign-in, offline inbox storage, persistent friends, lobby chat and
+Quick Play service integration remain separate work. Show their real
+availability in the native menus. Browser sample players, messages and queue
+results are examples, not native service evidence.
+
+Still to integrate after the shared pages: the native CSS sharing interaction,
+participant-bound card ordering, Quick Play ready-practice/countdown flow,
+authored menu transitions and the final Melee hand presentation. The GameCube
+adapter range/deadzone audit below remains open for hardware verification.
 
 ## Personal roster
 

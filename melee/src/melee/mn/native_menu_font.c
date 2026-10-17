@@ -39,8 +39,20 @@ void nativeMenuFont_Release(void)
     if(!references||--references)return;
     for(unsigned i=0;i<NativeMenuFont_Count;++i){_aligned_free(fonts[i].pixels);memset(&fonts[i],0,sizeof(Font));}
 }
+float nativeMenuFont_Width(NativeMenuFontFace face,const char* text,float height)
+{
+    if((unsigned)face>=NativeMenuFont_Count||!text||!fonts[face].cap_height)return 0;
+    const Font* font=&fonts[face];unsigned width=0;
+    for(const unsigned char* p=(const unsigned char*)text;*p;++p){
+        unsigned c=*p;
+        if(c>=0x80){if((c&0xC0)==0x80)continue;c='?';}
+        if(c<32||c>126)c='?';width+=font->glyphs[c-32].advance;
+    }
+    return width*height/font->cap_height;
+}
 void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
-                        float x,float y,float z,float width,float height)
+                        float x,float y,float z,float width,float height,
+                        u32 rgba, bool centered)
 {
     if(face>=NativeMenuFont_Count||!text||!*text)return;
     const Font* font=&fonts[face];if(!font->pixels)return;
@@ -50,13 +62,11 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
         if(c<32||c>126)c='?';advance+=font->glyphs[c-32].advance;
     }
     float scale=height/font->cap_height;
-    if(advance*scale>width)scale=width/advance;
-    // Stock name/banner rectangles are centered; keep the original typography
-    // and the available width rather than stretching every title to fill it.
-    x+=(width-advance*scale)*0.5f;
+    float horizontal=advance*scale>width?width/advance:scale;
+    if(centered)x+=(width-advance*horizontal)*0.5f;
     GXTexObj texture;GXInitTexObj(&texture,font->pixels,font->width,font->height,GX_TF_I4,GX_CLAMP,GX_CLAMP,GX_FALSE);
     GXLoadTexObj(&texture,GX_TEXMAP0);
-    GXSetTevColor(GX_TEVREG0,face==NativeMenuFont_ResultWinner?(GXColor){245,204,103,255}:(GXColor){245,239,234,255});
+    GXSetTevColor(GX_TEVREG0,(GXColor){rgba>>24,rgba>>16,rgba>>8,rgba});
     GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
     GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_TEXA,GX_CA_A0,GX_CA_ZERO);
     GXSetTevColorOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
@@ -66,14 +76,14 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
         const Glyph* g=&font->glyphs[c-32];
         const float u=(float)g->x/font->width,v=(float)g->y/font->height;
         const float r=(float)(g->x+g->w)/font->width,b=(float)(g->y+g->h)/font->height;
-        float w=g->w*scale,h=g->h*scale;
+        float w=g->w*horizontal,h=g->h*scale;
         float shear=face==NativeMenuFont_ResultWinner?height*.22f:0;
         GXBegin(GX_QUADS,GX_VTXFMT0,4);
         GXPosition3f32(x+shear,y,z);GXTexCoord2f32(u,v);
         GXPosition3f32(x+w+shear,y,z);GXTexCoord2f32(r,v);
         GXPosition3f32(x+w,y-h,z);GXTexCoord2f32(r,b);
         GXPosition3f32(x,y-h,z);GXTexCoord2f32(u,b);GXEnd();
-        x+=g->advance*scale;
+        x+=g->advance*horizontal;
     }
 }
 #endif

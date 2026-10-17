@@ -9,6 +9,7 @@ void nativeShellCssOriginal_Init(Rml::ElementDocument* document);
 void nativeShellCssOriginal_Update(void);
 void nativeShellCssOriginal_RefreshInstalledFighters(void);
 void nativeShellCssOriginal_Resize(int left, int top, int width, int height);
+void nativeShellCssOriginal_Open(void);
 void nativeShellCssOriginal_Close(void);
 bool nativeShellCssOriginal_IsEditing(void);
 

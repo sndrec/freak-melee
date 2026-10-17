@@ -48,7 +48,7 @@ int selected = -1;
 bool opened;
 bool testing;
 bool preview_loading;
-bool return_to_collection;
+NativeWorkshopOrigin return_destination;
 NativeFighterFamilyProject active_family;
 NativeFighterProject* active_project;
 unsigned active_member;
@@ -818,11 +818,13 @@ class WorkshopEvents final : public Rml::EventListener {
                 id.c_str(), event.GetParameter<int>("shift_key", 0) != 0))
             return;
         if (id == "workshop-open" || id == "workshop-tab") {
-            nativeShellWorkshop_Open(nullptr, id == "workshop-open");
+            nativeShellWorkshop_Open(nullptr, id == "workshop-open"
+                ? NativeWorkshopOrigin::Collection : NativeWorkshopOrigin::Library);
         } else if (id == "workshop-close") {
             nativeShellWorkshop_Close();
         } else if (id == "workshop-back-drafts") {
-            if (confirm_discard()) refresh_drafts();
+            if (return_destination == NativeWorkshopOrigin::Hub) nativeShellWorkshop_Close();
+            else if (confirm_discard()) refresh_drafts();
         } else if (id == "workshop-package-toggle") {
             package_open = !package_open;
             document->GetElementById("workshop-inspector")
@@ -862,7 +864,7 @@ bool nativeShellWorkshop_RefreshPreview()
            nativeHome_RequestPreview(&id, false);
 }
 
-void nativeShellWorkshop_Open(const char* draft_path, bool from_collection)
+void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origin)
 {
     if (!nativeHome_IsSelection() && !nativeHome_IsPractice()) {
         nativeShell_ShowRoomError("Return home to edit a fighter.");
@@ -874,11 +876,13 @@ void nativeShellWorkshop_Open(const char* draft_path, bool from_collection)
     nativeShellCssOriginal_Close();
     nativeShellCollection_Close();
     refresh_drafts();
-    return_to_collection = from_collection;
+    return_destination = origin;
     opened = true;
     nativeHome_SetAuthoring(true);
     document->GetElementById("workshop-panel")->SetProperty("display", "block");
-    document->GetElementById("workshop-close")->SetInnerRML(from_collection ? "&lt; BACK TO COLLECTION" : "&lt; BACK");
+    document->GetElementById("workshop-close")->SetInnerRML(origin == NativeWorkshopOrigin::Collection ? "&lt; BACK TO COLLECTION" : "&lt; BACK");
+    document->GetElementById("workshop-back-drafts")->SetAttribute("title",
+        origin == NativeWorkshopOrigin::Hub ? "Back to Workshop" : "Fighter drafts");
     input("workshop-new-name")->Focus(true);
     if (draft_path != nullptr) {
         for (size_t i = 0; i < draft_count; ++i)
@@ -969,7 +973,7 @@ void nativeShellWorkshop_Close()
     document->GetElementById("workshop-panel")
         ->SetProperty("display", "none");
     nativeShell_BlurRoom();
-    if (return_to_collection && (nativeHome_IsSelection() || nativeHome_IsPractice())) {
+    if (return_destination == NativeWorkshopOrigin::Collection && (nativeHome_IsSelection() || nativeHome_IsPractice())) {
         nativeShellCollection_Open();
     }
 }
