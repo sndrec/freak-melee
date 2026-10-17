@@ -29,6 +29,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                                  const char* local_peer,
                                  const char* local_name,
                                  const NativeCssLocalSlot local[4],
+                                 unsigned expected_players, bool searching,
                                  NativeCssParticipants* result);
 #ifdef __cplusplus
 }

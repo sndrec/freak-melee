@@ -18,6 +18,11 @@ bool nativeOnlineSession_CreateRoom(const char* local_name,
 bool nativeOnlineSession_JoinRoom(const char* room_code,
                                   const char* local_name,
                                   uint8_t local_players);
+bool nativeOnlineSession_EnterQuick(uint8_t mode, const char* local_name,
+                                    uint8_t local_players);
+bool nativeOnlineSession_SearchQuick(bool searching);
+const NativeQuickAssignment* nativeOnlineSession_Quick(void);
+const char* nativeOnlineSession_QuickError(void);
 void nativeOnlineSession_Stop(void);
 bool nativeOnlineSession_Pump(void);
 bool nativeOnlineSession_BeginMatch(const NativeLobbyMatch* selection);

@@ -18,6 +18,9 @@ enum {
     CLIENT_REPORT_MATCH = 7,
     CLIENT_POST_CHAT = 8,
     CLIENT_REQUEST_CHAT = 9,
+    CLIENT_CONFIGURE_QUICK = 10,
+    CLIENT_QUEUE_QUICK = 11,
+    CLIENT_REQUEST_QUICK = 12,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -26,6 +29,8 @@ enum {
     SERVER_CHAT_BEGIN = 0x86,
     SERVER_CHAT_END = 0x87,
     SERVER_CHAT_REJECTED = 0x88,
+    SERVER_QUICK_STATE = 0x89,
+    SERVER_QUICK_REJECTED = 0x8A,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -447,6 +452,30 @@ static bool decode_participant(WireReader* reader,
     return true;
 }
 
+size_t nativeSignalingWire_EncodeConfigureQuick(uint8_t mode,
+                                                uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return mode <= NativeQuickMode_Doubles &&
+        writer_begin(&writer, output, capacity, CLIENT_CONFIGURE_QUICK) &&
+        writer_u8(&writer, mode) ? writer_finish(&writer) : 0;
+}
+
+size_t nativeSignalingWire_EncodeQueueQuick(bool searching,
+                                            uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_QUEUE_QUICK) &&
+        writer_u8(&writer, searching ? 1 : 0) ? writer_finish(&writer) : 0;
+}
+
+size_t nativeSignalingWire_EncodeRequestQuick(uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_REQUEST_QUICK)
+        ? writer_finish(&writer) : 0;
+}
+
 size_t nativeSignalingWire_EncodeRequestChat(uint8_t* output, size_t capacity)
 {
     WireWriter writer;
@@ -481,6 +510,35 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_QUICK_STATE: {
+        NativeQuickAssignment* quick = &output->data.quick;
+        output->type = NativeSignalingServerMessage_QuickState;
+        if (!reader_u8(&reader, &quick->mode) ||
+            !reader_u8(&reader, &quick->state) ||
+            !reader_u64(&reader, &quick->generation) ||
+            !reader_string8(&reader, quick->match_room, sizeof(quick->match_room)) ||
+            !reader_string8(&reader, quick->admission, sizeof(quick->admission)) ||
+            !reader_u8(&reader, &quick->team) ||
+            !reader_u8(&reader, &quick->stage) || !reader_finished(&reader) ||
+            quick->mode > NativeQuickMode_Doubles ||
+            quick->state > NativeQuickState_Aborted || quick->team > 1 ||
+            quick->stage >= 6) return false;
+        if (quick->state != NativeQuickState_Assigned) return true;
+        if (!quick->mode || strlen(quick->match_room) != 12 ||
+            strlen(quick->admission) != 32) return false;
+        for (unsigned i = 0; i < 12; ++i) {
+            char c = quick->match_room[i];
+            if (!(c >= 'A' && c <= 'F') && !(c >= '0' && c <= '9')) return false;
+        }
+        for (unsigned i = 0; i < 32; ++i) {
+            char c = quick->admission[i];
+            if (!(c >= 'a' && c <= 'f') && !(c >= '0' && c <= '9')) return false;
+        }
+        return true;
+    }
+    case SERVER_QUICK_REJECTED:
+        output->type = NativeSignalingServerMessage_QuickRejected;
+        return reader_string8(&reader, output->data.error, 129) && reader_finished(&reader);
     case SERVER_CHAT_ENTRY: {
         NativeRoomChatEntry* entry = &output->data.chat.entry;
         uint16_t length;

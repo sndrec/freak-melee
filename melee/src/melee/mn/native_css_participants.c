@@ -3,13 +3,27 @@
 #include <stdio.h>
 #include <string.h>
 
+static void open_slots(NativeCssParticipants* result, unsigned expected,
+                        bool searching)
+{
+    if (!expected) return;
+    result->online = true;
+    while (result->count < expected) {
+        NativeCssParticipant* card = &result->cards[result->count++];
+        card->kind = Gm_PKind_NA;
+        card->physical_port = card->canonical_port = card->seat = NATIVE_CSS_NO_PORT;
+        snprintf(card->name, sizeof(card->name), "%s", searching ? "Searching..." : "Open slot");
+    }
+}
+
 bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                                  const char* local_peer,
                                  const char* local_name,
                                  const NativeCssLocalSlot local[4],
+                                 unsigned expected_players, bool searching,
                                  NativeCssParticipants* result)
 {
-    if (!local || !result) {
+    if (!local || !result || expected_players > 4) {
         return false;
     }
     memset(result, 0, sizeof(*result));
@@ -31,6 +45,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                      : local_name               ? local_name
                                                 : "Player");
         }
+        open_slots(result, expected_players, searching);
         return true;
     }
     if (!local_peer ||
@@ -94,5 +109,6 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
         }
     }
     result->online = true;
+    open_slots(result, expected_players, searching);
     return true;
 }

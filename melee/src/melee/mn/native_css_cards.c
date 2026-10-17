@@ -231,12 +231,14 @@ static void draw(HSD_GObj* object, int pass)
             }
             nativeMenuFont_Draw(NativeMenuFont_Notice, person->name, x + .4f,
                                 -4.8f, .8f, 13.2f, 1, 0xF5EFEAFF, true);
-            const char* title = person->choice.selected ? art->portrait.title
+            const char* title = person->kind == Gm_PKind_NA ? "Waiting for player"
+                                : person->choice.selected ? art->portrait.title
                                                         : "Choose a fighter";
             nativeMenuFont_Draw(NativeMenuFont_Tile, title, x + .4f, -20.5f,
                                 .8f, 13.2f, 1.15f, 0xF5EFEAFF, true);
             nativeMenuFont_Draw(NativeMenuFont_Notice,
-                                person->ready             ? "Ready"
+                                person->kind == Gm_PKind_NA ? "Quick Play"
+                                : person->ready             ? "Ready"
                                 : person->choice.selected ? "Selected"
                                                           : "Choosing...",
                                 x + .4f, -22, .8f, 13.2f, .75f,
@@ -337,9 +339,11 @@ void nativeCssCards_Update(void)
             choice->team = player->team;
         }
     }
+    const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
     if (!nativeCssParticipants_Build(
             nativeOnlineSession_Presence(), nativeOnlineSession_LocalPeerId(),
-            nativeHub_LocalName(), local, &cards.people))
+            nativeHub_LocalName(), local, quick ? quick->mode * 2 : 0,
+            quick && quick->state == NativeQuickState_Searching, &cards.people))
     {
         memset(&cards.people, 0, sizeof(cards.people));
     }
@@ -394,7 +398,7 @@ const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
     }
     for (unsigned i = 0; i < cards.people.count; ++i) {
         if (x >= card_left(i) && x < card_left(i) + 14.8f) {
-            return &cards.people.cards[i];
+            return cards.people.cards[i].kind == Gm_PKind_NA ? NULL : &cards.people.cards[i];
         }
     }
     return NULL;

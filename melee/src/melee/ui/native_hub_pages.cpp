@@ -201,9 +201,6 @@ namespace {
                          HubAction::Singles, 0, true);
         nativeHub_Button("quick-doubles", "2 vs 2", 397, 157, 190, 109,
                          HubAction::Doubles, 0, true);
-        nativeMenuPaint_Text(
-            "Matchmaking is being connected to the online service.", 188, 299,
-            405, 9, muted, NativeMenuFont_Notice, true);
     }
     void lobbies()
     {
@@ -252,6 +249,7 @@ namespace {
                          HubAction::CopyCode);
         nativeHub_Panel(175, 150, 430, 170);
         const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+        const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
         float y = 161;
         hub.lobby_scroll = std::clamp(hub.lobby_scroll, 0, p && p->participant_count ? int((p->participant_count - 1) / 6 * 6) : 0);
         if (p) {
@@ -288,18 +286,23 @@ namespace {
         }
         nativeHub_Button("lobby-ready", nativeHome_IsPractice() ? "Return to practice" : "Choose fighter", 175, 337, 141, 31,
                          HubAction::Practice, 0, true);
-        nativeHub_Button("start-match", "Start match", 325, 337, 141, 31,
+        const char* start_label = !quick ? "Start match"
+            : quick->state == NativeQuickState_Searching ? "Cancel search"
+            : quick->state == NativeQuickState_Idle ? "Enter queue" : "Leave match";
+        nativeHub_Button("start-match", start_label, 325, 337, 141, 31,
                          HubAction::StartMatch, 0, false,
-                         nativeHome_CanStartMatch());
-        nativeHub_Button("leave-lobby", "Leave lobby", 476, 337, 129, 31,
+                         quick ? (quick->state == NativeQuickState_Assigned || nativeOnlineSession_IsOwner())
+                               : nativeHome_CanStartMatch());
+        nativeHub_Button("leave-lobby", quick && quick->state >= NativeQuickState_Assigned
+            ? "Leave match" : "Leave lobby", 476, 337, 129, 31,
                          HubAction::Leave);
         nativeHub_Button("lobby-selection", "Character select", 175, 376, 141, 22,
                          HubAction::Selection, 0, false, nativeHome_IsPractice());
         const char* rotations[] = { "Manual", "Winner stays", "Winner out" };
-        nativeHub_Button("rotation-policy", p ? rotations[unsigned(p->rotation_policy)%3] : "Manual", 325, 376, 141, 22,
-                         HubAction::Rotation, 0, false, nativeOnlineSession_IsOwner());
+        nativeHub_Button("rotation-policy", quick ? "Quick Play" : p ? rotations[unsigned(p->rotation_policy)%3] : "Manual", 325, 376, 141, 22,
+                         HubAction::Rotation, 0, false, !quick && nativeOnlineSession_IsOwner());
         nativeHub_Button("match-rules", "Match rules", 476, 376, 129, 22,
-                         HubAction::Rules, 0, false, nativeHome_IsSelection() && nativeOnlineSession_IsOwner());
+                         HubAction::Rules, 0, false, !quick && nativeHome_IsSelection() && nativeOnlineSession_IsOwner());
     }
     void chat(bool room = false)
     {

@@ -185,10 +185,11 @@ static bool build_url(const NativeSignalingClient* client, wchar_t* wide_url,
     size_t endpoint_length = strlen(client->endpoint);
     int written = snprintf(
         url, sizeof(url),
-        "%.*s/v1/rooms/%s/connect?peer=%s&name=%s&build=%s&players=%u",
+        "%.*s/v1/rooms/%s/connect?peer=%s&name=%s&build=%s&players=%u%s%s",
         (int) (endpoint_length - (client->endpoint[endpoint_length - 1] == '/')),
         client->endpoint, client->room_id, client->peer_id, name, build,
-        client->local_players);
+        client->local_players, client->admission[0] ? "&admission=" : "",
+        client->admission);
     if (written <= 0 || (size_t) written >= sizeof(url)) {
         return false;
     }
@@ -494,6 +495,15 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     {
         return false;
     }
+    client->admission[0] = 0;
+    if (config->admission && config->admission[0]) {
+        if (strnlen(config->admission, 33) != 32) return false;
+        for (unsigned i = 0; i < 32; ++i) {
+            char c = config->admission[i];
+            if (!(c >= 'a' && c <= 'f') && !(c >= '0' && c <= '9')) return false;
+        }
+        memcpy(client->admission, config->admission, 33);
+    }
     memset(&client->commands, 0, sizeof(client->commands));
     memset(&client->events, 0, sizeof(client->events));
     memset(&client->chat, 0, sizeof(client->chat));
@@ -635,6 +645,36 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
     bool queued = client != NULL && size != 0 &&
                   nativeSignalingClient_IsRunning(client) &&
                   command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_ConfigureQuick(NativeSignalingClient* client, uint8_t mode)
+{
+    uint8_t bytes[9];
+    size_t size = nativeSignalingWire_EncodeConfigureQuick(mode, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_QueueQuick(NativeSignalingClient* client, bool searching)
+{
+    uint8_t bytes[9];
+    size_t size = nativeSignalingWire_EncodeQueueQuick(searching, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_RequestQuick(NativeSignalingClient* client)
+{
+    uint8_t bytes[8];
+    size_t size = nativeSignalingWire_EncodeRequestQuick(bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
     if (queued) SetEvent((HANDLE) client->wake_event);
     return queued;
 }

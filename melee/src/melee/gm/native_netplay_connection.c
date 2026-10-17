@@ -204,7 +204,8 @@ static bool process_signaling(NativeNetplayConnection* connection)
         }
         if (event.type == NativeSignalingClientEvent_Disconnected) {
             connection->signaling_connected = false;
-            if (connection->topology_locked) {
+            if (connection->topology_locked ||
+                connection->quick.state == NativeQuickState_Aborted) {
                 continue;
             }
             fail(connection, event.detail[0] == '\0'
@@ -218,6 +219,18 @@ static bool process_signaling(NativeNetplayConnection* connection)
             connection->presence = event.message.data.presence;
             connection->has_presence = true;
             nativeNetplayContentChannels_Reconcile(connection);
+            continue;
+        }
+        if (event.message.type == NativeSignalingServerMessage_QuickState) {
+            connection->quick = event.message.data.quick;
+            connection->quick_error[0] = 0;
+            ++connection->quick_revision;
+            continue;
+        }
+        if (event.message.type == NativeSignalingServerMessage_QuickRejected) {
+            snprintf(connection->quick_error, sizeof(connection->quick_error),
+                     "%s", event.message.data.error);
+            ++connection->quick_revision;
             continue;
         }
         if (connection->topology_locked) {
@@ -372,9 +385,17 @@ bool nativeNetplayConnection_Pump(NativeNetplayConnection* connection)
     if (connection == NULL || !connection->active || connection->failed) {
         return false;
     }
-    if (!process_signaling(connection) ||
-        (!connection->topology_locked && !send_local_descriptions(connection)))
+    if (!process_signaling(connection))
     {
+        nativeRoomChat_Update(&connection->chat, false);
+        fail(connection, "connection setup failed");
+        return false;
+    }
+    if (connection->quick.state == NativeQuickState_Aborted) {
+        nativeRoomChat_Update(&connection->chat, false);
+        return true;
+    }
+    if (!connection->topology_locked && !send_local_descriptions(connection)) {
         nativeRoomChat_Update(&connection->chat, false);
         fail(connection, "connection setup failed");
         return false;

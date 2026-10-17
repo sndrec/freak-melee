@@ -249,11 +249,61 @@ static void test_chat_wire(void)
     assert(decoded.data.chat.kind == NativeRoomChatEvent_Rejected);
 }
 
+static void test_quick_wire(void)
+{
+    uint8_t bytes[160];
+    NativeSignalingServerMessage decoded;
+    size_t size = nativeSignalingWire_EncodeConfigureQuick(2, bytes, sizeof(bytes));
+    assert(size == 9 && bytes[5] == 10 && bytes[8] == 2);
+    assert(!nativeSignalingWire_EncodeConfigureQuick(3, bytes, sizeof(bytes)));
+    assert(!nativeSignalingWire_EncodeConfigureQuick(1, bytes, 8));
+    size = nativeSignalingWire_EncodeQueueQuick(true, bytes, sizeof(bytes));
+    assert(size == 9 && bytes[5] == 11 && bytes[8] == 1);
+    size = nativeSignalingWire_EncodeQueueQuick(false, bytes, sizeof(bytes));
+    assert(size == 9 && bytes[8] == 0);
+    assert(nativeSignalingWire_EncodeRequestQuick(bytes, sizeof(bytes)) == 8 && bytes[5] == 12);
+
+    size = header(bytes, 0x89);
+    bytes[size++] = 2; bytes[size++] = 2;
+    put_u64(bytes + size, UINT64_C(0x0102030405060708)); size += 8;
+    size = string8(bytes, size, "ABCDEF123456");
+    size = string8(bytes, size, "0123456789abcdef0123456789abcdef");
+    bytes[size++] = 1; bytes[size++] = 5; finish(bytes, size);
+    assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    assert(decoded.type == NativeSignalingServerMessage_QuickState);
+    assert(decoded.data.quick.generation == UINT64_C(0x0102030405060708));
+    assert(decoded.data.quick.team == 1 && decoded.data.quick.stage == 5);
+    assert(!strcmp(decoded.data.quick.match_room, "ABCDEF123456"));
+    assert(!strcmp(decoded.data.quick.admission, "0123456789abcdef0123456789abcdef"));
+    for (size_t i = 0; i < size; ++i) assert(!nativeSignalingWire_DecodeServer(bytes, i, &decoded));
+    bytes[size - 1] = 6;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[size - 1] = 5; bytes[size - 2] = 2;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[size - 2] = 1; bytes[19] = '/';
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[19] = 'A'; bytes[32] = '&';
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+
+    size = header(bytes, 0x89);
+    bytes[size++] = 1; bytes[size++] = 1; put_u64(bytes + size, 9); size += 8;
+    bytes[size++] = 0; bytes[size++] = 0; bytes[size++] = 0; bytes[size++] = 0;
+    finish(bytes, size);
+    assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    assert(decoded.data.quick.state == NativeQuickState_Searching);
+    size = header(bytes, 0x8A);
+    size = string8(bytes, size, "Only the party owner can enter the queue."); finish(bytes, size);
+    assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    assert(decoded.type == NativeSignalingServerMessage_QuickRejected);
+    assert(strstr(decoded.data.error, "party owner"));
+}
+
 int main(void)
 {
     test_client_encoding();
     test_server_decoding();
     test_chat_wire();
+    test_quick_wire();
     puts("native signaling wire tests passed");
     return 0;
 }

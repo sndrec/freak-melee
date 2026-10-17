@@ -136,31 +136,31 @@ class Client:
             time.sleep(.1)
         raise RuntimeError('Screenshot did not complete')
 
-    def state(self):
+    def state(self, port=0):
         text = self.inspect('css-selection')
-        match = re.search(r'\[css-slot\] slot=0 kind=(\d+) chosen=(\d+) hand=(\d+) holding=(\d+) '
+        match = re.search(r'\[css-slot\] slot='+str(port)+r' kind=(\d+) chosen=(\d+) hand=(\d+) holding=(\d+) '
                           r'hand_pos=([\d.-]+),([\d.-]+) cookie_pos=([\d.-]+),([\d.-]+)', text)
         if not match:
             raise RuntimeError(text)
         return dict(zip(['kind', 'chosen', 'hand', 'holding', 'x', 'y', 'cx', 'cy'], map(float, match.groups()))), text
 
-    def move(self, x, y):
+    def move(self, x, y, port=0):
         for axis, target in [('x', x), ('y', y)]:
             for _ in range(50):
-                state, _ = self.state()
+                state, _ = self.state(port)
                 error = target - state[axis]
                 if abs(error) < .25:
                     break
                 magnitude = 80 if abs(error) > 3 else 40 if abs(error) > .8 else 20
                 speed = (magnitude*magnitude-200)*.0002
                 frames = min(20, max(1, round(abs(error)/speed)))
-                self.command('tap', 0, f's{axis}={magnitude if error > 0 else -magnitude}', f'frames={frames}')
+                self.command('tap', port, f's{axis}={magnitude if error > 0 else -magnitude}', f'frames={frames}')
                 time.sleep(frames/60+.1)
             else:
                 raise RuntimeError(f'Hand did not reach {axis}={target}')
 
-    def tap(self, key, frames=1):
-        self.command('tap', 0, key, f'frames={frames}')
+    def tap(self, key, frames=1, port=0):
+        self.command('tap', port, key, f'frames={frames}')
         time.sleep(frames/60+.2)
 
     def pixel(self, x, y):

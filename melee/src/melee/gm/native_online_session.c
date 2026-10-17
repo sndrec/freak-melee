@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #include "native_match_launch.h"
 #include "native_services.h"
@@ -16,6 +18,7 @@ static struct NativeOnlineProcessSession {
     NativeLobbySession lobby;
     char room_code[NATIVE_SIGNALING_ROOM_ID_BYTES + 1];
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    char local_name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
     uint8_t local_selection[NATIVE_LOBBY_SELECTION_MAX_WIRE_BYTES];
     uint16_t local_selection_size;
     uint8_t local_players;
@@ -24,7 +27,15 @@ static struct NativeOnlineProcessSession {
     bool match_claimed;
 } online;
 
-static const char online_build[] = "freak-melee-native-dev-cache";
+static struct NativeQuickSession {
+    NativeQuickAssignment assignment;
+    char party_room[NATIVE_SIGNALING_ROOM_ID_BYTES + 1];
+    uint64_t heartbeat_ms;
+    uint32_t seen_revision;
+    bool configure_sent, assigned_room, cancelling, cancel_sent;
+} quick;
+
+static const char online_build[] = "freak-melee-native-dev-quick";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)
@@ -87,7 +98,8 @@ static bool fail_launch(const char* reason)
 }
 
 static bool start_room(const char* room_code, const char* local_name,
-                       uint8_t local_players)
+                       uint8_t local_players, const char* existing_peer,
+                       const char* admission)
 {
     if (online.active || !valid_room_code(room_code) || local_players == 0 ||
         local_players > 4)
@@ -95,7 +107,9 @@ static bool start_room(const char* room_code, const char* local_name,
         return false;
     }
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
-    if (!generate_peer_id(peer_id)) {
+    if (existing_peer) {
+        snprintf(peer_id, sizeof(peer_id), "%s", existing_peer);
+    } else if (!generate_peer_id(peer_id)) {
         return false;
     }
     if (local_name == NULL || local_name[0] == '\0') {
@@ -103,17 +117,21 @@ static bool start_room(const char* room_code, const char* local_name,
     }
     NativeNetplayConnectionConfig config = {
         .signaling = {
-            .endpoint = NATIVE_SERVICE_ENDPOINT,
+            .endpoint = getenv("FREAK_MELEE_SERVICE_ENDPOINT"),
             .room_id = room_code,
             .peer_id = peer_id,
             .name = local_name,
             .build = online_build,
+            .admission = admission,
             .local_players = local_players,
         },
     };
+    if (!config.signaling.endpoint || !config.signaling.endpoint[0])
+        config.signaling.endpoint = NATIVE_SERVICE_ENDPOINT;
     memset(&online, 0, sizeof(online));
     memcpy(online.room_code, room_code, strlen(room_code) + 1);
     memcpy(online.peer_id, peer_id, strlen(peer_id) + 1);
+    snprintf(online.local_name, sizeof(online.local_name), "%s", local_name);
     online.local_players = local_players;
     online.active = true;
     if (!nativeLobbySession_Start(&online.lobby, &config)) {
@@ -131,14 +149,14 @@ bool nativeOnlineSession_CreateRoom(const char* local_name,
 {
     char room_code[9];
     return generate_room_code(room_code) &&
-           start_room(room_code, local_name, local_players);
+           start_room(room_code, local_name, local_players, NULL, NULL);
 }
 
 bool nativeOnlineSession_JoinRoom(const char* room_code,
                                   const char* local_name,
                                   uint8_t local_players)
 {
-    return start_room(room_code, local_name, local_players);
+    return start_room(room_code, local_name, local_players, NULL, NULL);
 }
 
 void nativeOnlineSession_Stop(void)
@@ -147,6 +165,114 @@ void nativeOnlineSession_Stop(void)
         nativeLobbySession_Shutdown(&online.lobby);
     }
     memset(&online, 0, sizeof(online));
+    memset(&quick, 0, sizeof(quick));
+}
+
+bool nativeOnlineSession_EnterQuick(uint8_t mode, const char* local_name,
+                                    uint8_t local_players)
+{
+    if (mode < NativeQuickMode_Singles || mode > NativeQuickMode_Doubles ||
+        local_players == 0 || local_players > mode || online.match_claimed)
+        return false;
+    nativeOnlineSession_Stop();
+    if (!nativeOnlineSession_CreateRoom(local_name, local_players)) return false;
+    quick.assignment.mode = mode;
+    memcpy(quick.party_room, online.room_code, sizeof(quick.party_room));
+    return true;
+}
+
+static bool switch_quick_room(const char* room, const char* admission)
+{
+    struct NativeQuickSession retained = quick;
+    char code[13], token[33], peer[65], name[33];
+    snprintf(code, sizeof(code), "%s", room);
+    snprintf(token, sizeof(token), "%s", admission ? admission : "");
+    memcpy(peer, online.peer_id, sizeof(peer));
+    memcpy(name, online.local_name, sizeof(name));
+    uint8_t players = online.local_players;
+    nativeOnlineSession_Stop();
+    bool started = start_room(code, name, players, peer, token);
+    quick = retained;
+    quick.seen_revision = 0;
+    quick.cancel_sent = false;
+    return started;
+}
+
+bool nativeOnlineSession_SearchQuick(bool searching)
+{
+    if (!online.active || !quick.assignment.mode || online.match_claimed)
+        return false;
+    if (!searching && quick.assigned_room) {
+        quick.cancelling = true;
+        quick.assigned_room = false;
+        return switch_quick_room(quick.party_room, NULL);
+    }
+    if (!nativeOnlineSession_IsOwner() || quick.cancelling ||
+        quick.assignment.state == NativeQuickState_Assigned ||
+        online.lobby.room.connection.quick.mode != quick.assignment.mode)
+        return false;
+    if (!nativeSignalingClient_QueueQuick(&online.lobby.room.connection.signaling,
+                                         searching)) return false;
+    quick.cancelling = !searching;
+    quick.cancel_sent = !searching;
+    quick.heartbeat_ms = GetTickCount64();
+    return true;
+}
+
+const NativeQuickAssignment* nativeOnlineSession_Quick(void)
+{
+    return quick.assignment.mode ? &quick.assignment : NULL;
+}
+
+const char* nativeOnlineSession_QuickError(void)
+{
+    return online.lobby.room.connection.quick_error;
+}
+
+static bool pump_quick(void)
+{
+    NativeNetplayConnection* connection = &online.lobby.room.connection;
+    if (connection->quick_revision != quick.seen_revision) {
+        quick.seen_revision = connection->quick_revision;
+        if (connection->quick.mode) {
+            if (!quick.assignment.mode) {
+                // A second PC joining a doubles party learns its mode here.
+                memcpy(quick.party_room, online.room_code, sizeof(quick.party_room));
+            }
+            quick.assignment = connection->quick;
+        }
+        if (quick.cancelling && connection->quick.state == NativeQuickState_Idle)
+            quick.cancelling = quick.cancel_sent = false;
+    }
+    if (!quick.assignment.mode || !connection->has_presence) return true;
+    if (quick.assigned_room && quick.assignment.state == NativeQuickState_Aborted) {
+        quick.cancelling = true;
+        quick.assigned_room = false;
+        return switch_quick_room(quick.party_room, NULL);
+    }
+    if (quick.cancelling) {
+        if (!quick.cancel_sent && nativeOnlineSession_IsOwner()) {
+            quick.cancel_sent = nativeSignalingClient_QueueQuick(&connection->signaling, false);
+        }
+        return true;
+    }
+    if (quick.assignment.state == NativeQuickState_Assigned &&
+        strcmp(quick.assignment.match_room, online.room_code)) {
+        quick.assigned_room = true;
+        return switch_quick_room(quick.assignment.match_room, quick.assignment.admission);
+    }
+    if (!quick.assigned_room && !connection->quick.mode &&
+        !quick.configure_sent && nativeOnlineSession_IsOwner()) {
+        quick.configure_sent = nativeSignalingClient_ConfigureQuick(
+            &connection->signaling, quick.assignment.mode);
+    }
+    uint64_t now = GetTickCount64();
+    if (!quick.assigned_room && quick.assignment.state == NativeQuickState_Searching &&
+        nativeOnlineSession_IsOwner() && now - quick.heartbeat_ms >= 10000 &&
+        nativeSignalingClient_QueueQuick(&connection->signaling, true)) {
+        quick.heartbeat_ms = now;
+    }
+    return true;
 }
 
 bool nativeOnlineSession_Pump(void)
@@ -156,6 +282,7 @@ bool nativeOnlineSession_Pump(void)
     {
         return false;
     }
+    if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
     if (online.lobby.state == NativeLobbySessionState_Ready &&
         !online.launch_ready)
     {
@@ -371,7 +498,7 @@ bool nativeOnlineSession_IsOwner(void)
 
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy)
 {
-    return online.active && nativeOnlineSession_IsOwner() &&
+    return online.active && !quick.assignment.mode && nativeOnlineSession_IsOwner() &&
            online.lobby.state == NativeLobbySessionState_Waiting &&
            nativeSignalingClient_SetRotation(
                &online.lobby.room.connection.signaling, policy);

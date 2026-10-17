@@ -34,7 +34,7 @@ int main(void)
     local[2].choice.character_package_id.bytes[0] = 91;
     local[3].kind = Gm_PKind_Cpu;
     NativeCssParticipants shown;
-    assert(nativeCssParticipants_Build(NULL, NULL, "Twilight", local, &shown));
+    assert(nativeCssParticipants_Build(NULL, NULL, "Twilight", local, 0, false, &shown));
     assert(!shown.online && shown.count == 2);
     assert(shown.cards[0].physical_port == 2 &&
            shown.cards[0].canonical_port == 2);
@@ -49,7 +49,7 @@ int main(void)
     local[3].choice.selected = true;
     local[3].choice.character_package_id.bytes[0] = 92;
     NativeSignalingPresence before = room;
-    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local,
+    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                        &shown));
     assert(shown.online && shown.count == 3);
     assert(shown.cards[0].local && shown.cards[0].seat == 1);
@@ -63,19 +63,31 @@ int main(void)
     assert(shown.cards[2].seat == 1 && shown.cards[2].canonical_port == 1);
     assert(!memcmp(&before, &room, sizeof(room)));
     room.participants[0].selection[0] = 0;
-    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local,
+    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                        &shown));
     assert(!shown.cards[1].choice.selected && !shown.cards[1].ready);
     room.participants[1].active_mask = 1;
-    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local,
+    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                        &shown) &&
            shown.count == 4);
     room.participants[3].active_mask = 1;
-    assert(!nativeCssParticipants_Build(&room, "local", "Twilight", local,
+    assert(!nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                         &shown));
     room.participants[3].active_mask = 2;
-    assert(!nativeCssParticipants_Build(&room, "local", "Twilight", local,
+    assert(!nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                         &shown));
+    room.participant_count = 1;
+    participant(&room.participants[0], "local", 1, 1, 0, false);
+    assert(nativeCssParticipants_Build(&room, "local", "Twilight", local,
+                                       4, true, &shown));
+    assert(shown.online && shown.count == 4 && shown.cards[0].local);
+    for (unsigned i = 1; i < 4; ++i) {
+        assert(shown.cards[i].kind == Gm_PKind_NA);
+        assert(shown.cards[i].canonical_port == NATIVE_CSS_NO_PORT);
+        assert(!shown.cards[i].peer[0] && !strcmp(shown.cards[i].name, "Searching..."));
+    }
+    assert(!nativeCssParticipants_Build(&room, "local", "Twilight", local,
+                                        5, true, &shown));
     puts("CSS participant identity and presentation checks passed.");
     return 0;
 }

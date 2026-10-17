@@ -71,7 +71,13 @@ void nativeOnlineMenu_Pump(void)
             }
         }
     } else if (action == NativeOnlineMenuAction_Leave) {
-        nativeOnlineSession_Stop();
+        const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
+        if (quick && (quick->state == NativeQuickState_Assigned ||
+                      quick->state == NativeQuickState_Aborted)) {
+            nativeOnlineSession_SearchQuick(false);
+        } else {
+            nativeOnlineSession_Stop();
+        }
         nativeShell_Blur();
         sfxBack();
     } else if (action == NativeOnlineMenuAction_StartMatch) {
