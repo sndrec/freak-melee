@@ -35,6 +35,9 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--endpoint', required=True)
     parser.add_argument('--control',type=Path)
+    parser.add_argument('--next-stage',type=int,choices=range(6))
+    parser.add_argument('--rematch-seconds',type=float,default=3)
+    parser.add_argument('--jump-in-place',action='store_true',help='Exercise repeated jump/landing in the rematch')
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--doubles', action='store_true')
     modes.add_argument('--split-party', action='store_true',
@@ -133,7 +136,7 @@ def main():
             if doubles:
                 cards = c.wait_cards(4)
                 assert len(re.findall(r'\[css-card\].*local=1', cards)) == players[index], cards
-        stage = (int(assignments[0]['stage'])+1) % 6
+        stage = args.next_stage if args.next_stage is not None else (int(assignments[0]['stage'])+1) % 6
         for c in clients:
             c.element('stage-leave')
         clients[losers[0]].tap('b')
@@ -183,7 +186,15 @@ def main():
         second = [live_session(c, first[0][0]) for c in clients]
         assert all(session == second[0] for session in second)
         assert second[0][0] != first[0][0] and second[0][1] == first[0][1]
-        time.sleep(3)
+        deadline=time.monotonic()+max(3,args.rematch_seconds)
+        next_jump=time.monotonic()
+        while time.monotonic()<deadline:
+            if args.jump_in_place and time.monotonic()>=next_jump:
+                clients[0].command('tap',0,'x','frames=2')
+                next_jump=time.monotonic()+3
+            for c in clients:
+                assert c.process.poll() is None, f'{c.folder}: exited {c.process.returncode}'
+            time.sleep(.1)
         for c in clients:
             c.screenshot()
             log = (c.folder/'stdout.log').read_text(errors='replace')

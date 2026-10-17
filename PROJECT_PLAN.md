@@ -266,9 +266,12 @@ starting pose. Auto Key starts off; explicit insertion remains available.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
   entire roster after every small change.
-- [ ] Trace the retained-history OS heap allocation abort seen in both clients
-  during the `native-quick-stage-singles-2` Battlefield run. Other stage-page
-  runs passed; the allocation caller is still unknown.
+- [ ] Prepare Pokemon Stadium transformation assets before retained rollback
+  history. A debugger trace identifies the mid-match fragment import as the
+  retained-history OS heap allocation abort. Preload all four forms, activate
+  resident assets during transitions, and retire their storage at scene exit.
+  Preserve rollback ownership and test actual transformations and reconstruction.
+  See the [allocation investigation](melee/docs/native_stadium_allocation_checkpoint.md).
 
 Existing room/content features are not assumed absent. Their older compiled-C
 receipts are historical; the purpose is closing integrated current-backend gaps.

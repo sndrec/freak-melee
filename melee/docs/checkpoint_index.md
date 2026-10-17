@@ -178,6 +178,7 @@ it does not relabel old results as final-source acceptance.
 
 - [Floating-point model skin weights — 2026-10-17](native_skin_weights_checkpoint.md)
 - [Compatible glTF source skin import — 2026-10-17](native_source_skin_checkpoint.md)
+- [Pokemon Stadium transformation allocation — 2026-10-17](native_stadium_allocation_checkpoint.md)
 - [Received fighter delivery and independent Workshop editing — 2026-10-17](native_received_fighter_authoring_checkpoint.md)
 - [Extracted release, Workshop and launcher acceptance — 2026-10-17](native_release.md#local-acceptance-2026-10-17)
 
