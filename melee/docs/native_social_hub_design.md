@@ -73,8 +73,9 @@ and return to CSS. The hub also opens from paused practice with Z. Settings keep
 bindings, rules, costume selection and installed packages accessible as tools.
 The [native play-menu checkpoint](native_play_menu_checkpoint.md) records the
 source ownership and local acceptance. Quick Play queue controls and countdown
-flow now have local native checks; authored transitions remain open. The GameCube
-adapter range/deadzone audit
+flow now have local native checks. The hub now uses the stock menu's authored
+enter/exit animations, with forward/back, profile and scene-return checks in the
+[play-menu checkpoint](native_play_menu_checkpoint.md). The GameCube adapter range/deadzone audit
 below remains open for hardware verification.
 
 The native CSS cookie path now separates portrait choice from cookie position.
@@ -215,8 +216,9 @@ controls move off one side while incoming controls enter from the opposite
 side. The original implementation in `mnmain.c` plays separate enter/exit joint
 animations. Its four transition ranges are frames 320–339, 340–359, 360–379 and
 380–399. The browser study approximates the motion over a third of a second;
-native implementation should reuse the authored animation system. Honor reduced
-motion preferences in the mockup.
+native implementation now uses those authored joint tracks through HSD and GX.
+Windows' client-area animation preference supplies the native default, with a
+per-process override for testing. The mockup honors reduced-motion preferences.
 
 Private correspondence uses email-style letters in the inbox. Each letter has
 a sender, recipient, subject and body. Fighter transfers have their own flow

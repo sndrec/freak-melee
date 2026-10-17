@@ -15,6 +15,8 @@
 #include <melee/mn/native_online_menu.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_css_interaction.h>
+#include <melee/mn/native_menu_motion.h>
+#include <dolphin/gx.h>
 extern "C" {
 #include <sysdolphin/baselib/controller.h>
 #include <melee/lb/lbaudio_ax.h>
@@ -94,6 +96,7 @@ namespace {
     {
         hub.dismissed = false;
         hub.visible = nativeHome_IsSelection() || nativeHome_IsPractice();
+        if (hub.visible) nativeMenuMotion_Load();
         hub.region_count = 0;
         text_focus(nullptr, 0);
         if (auto* context = aurora::rmlui::get_context()) {
@@ -194,7 +197,7 @@ namespace {
     void queue(HubAction action, int value = 0, const char* peer = nullptr,
                const char* name = nullptr)
     {
-        if (hub.pending_action) {
+        if (hub.pending_action || nativeMenuMotion_Active()) {
             return;
         }
         hub.pending_action = unsigned(action);
@@ -332,13 +335,14 @@ namespace {
 }
 bool nativeHub_Hover(float x, float y, float w, float h)
 {
-    return hub.pointer_x >= x && hub.pointer_x < x + w && hub.pointer_y >= y &&
+    return !hub.passive_page && hub.pointer_x >= x && hub.pointer_x < x + w && hub.pointer_y >= y &&
            hub.pointer_y < y + h;
 }
 void nativeHub_Region(const char* id, float x, float y, float w, float h,
                       HubAction action, int value, bool enabled,
                       const char* peer, const char* name)
 {
+    if (hub.passive_page || nativeMenuMotion_Active()) return;
     if (hub.region_count == sizeof(hub.regions) / sizeof(hub.regions[0])) {
         return;
     }
@@ -408,9 +412,14 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
     }
     nativeHub_Region(id, x, y, w, h, action);
 }
-void nativeHub_ChangePage(NativeHubPage page)
+void nativeHub_ChangePage(NativeHubPage page, bool backwards)
 {
     if (hub.page != page) {
+        hub.motion_from = hub.page;
+        BOOL animations = TRUE;
+        SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0);
+        if (hub.visible && SDL_GetHintBoolean("FREAK_MELEE_MENU_MOTION", animations))
+            nativeMenuMotion_Start(backwards);
         hub.previous = hub.page;
         hub.page = page;
     }
@@ -511,7 +520,7 @@ void nativeHub_Activate(HubAction action, int value)
             hub.dismissed = true;
             hub.visible = false;
         } else if (hub.page == NativeHubPage_RoomChat) {
-            nativeHub_ChangePage(NativeHubPage_Lobbies);
+            nativeHub_ChangePage(NativeHubPage_Lobbies, true);
         } else if (hub.opened_from_play && hub.page <= NativeHubPage_Settings) {
             hub.dismissed = true;
             hub.visible = false;
@@ -521,7 +530,7 @@ void nativeHub_Activate(HubAction action, int value)
                                          hub.page == NativeHubPage_Clone ||
                                          hub.page == NativeHubPage_Send
                                      ? hub.previous
-                                     : NativeHubPage_Workshop);
+                                     : NativeHubPage_Workshop, true);
         }
         break;
     case HubAction::Close:
@@ -1112,7 +1121,23 @@ extern "C" void nativeHub_Draw(void)
             id, 33, y, 124, 31,
             static_cast<HubAction>(unsigned(HubAction::QuickPlay) + i));
     }
-    nativeHub_RenderPage();
+    if (nativeMenuMotion_Active()) {
+        Mtx view;
+        Mtx44 projection;
+        hub.passive_page = true;
+        if (nativeMenuMotion_Sample(true, view, projection)) {
+            GXSetProjection(projection, GX_PERSPECTIVE);
+            nativeMenuPaint_Begin(view);
+            nativeHub_RenderPage(hub.motion_from);
+        }
+        if (nativeMenuMotion_Sample(false, view, projection)) {
+            GXSetProjection(projection, GX_PERSPECTIVE);
+            nativeMenuPaint_Begin(view);
+        } else nativeMenuPaint_Begin(nullptr);
+        nativeHub_RenderPage(hub.page);
+        hub.passive_page = false;
+        nativeMenuPaint_Begin(nullptr);
+    } else nativeHub_RenderPage(hub.page);
     nativeHub_Panel(38, 408, 565, 32);
     const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
                        : unsigned(hub.page) < 7
@@ -1303,6 +1328,11 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strcmp(id, "hub-motion")) {
+        std::fprintf(stderr, "[hub-inspect] hub-motion from=%u to=%u active=%d frame=%.3f\n",
+            unsigned(hub.motion_from), unsigned(hub.page), nativeMenuMotion_Active(), nativeMenuMotion_Frame());
+        return;
+    }
     if (!std::strcmp(id, "lobby-chat-state")) {
         const auto* chat = nativeOnlineSession_Chat();
         std::fprintf(stderr, "[hub-inspect] lobby-chat-state page=%u connected=%d ready=%d count=%u delivery=%u sequence=%llu\n",
@@ -1342,6 +1372,7 @@ extern "C" void nativeHub_Shutdown(void)
     mouse_pressed = false;
     text_focus(nullptr, 0);
     nativeHubCatalog_Clear();
+    nativeMenuMotion_Unload();
     nativePlayMenu_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();

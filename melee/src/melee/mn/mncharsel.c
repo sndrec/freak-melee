@@ -23,6 +23,7 @@
 #include "native_css_interaction.h"
 #include "native_css_cards.h"
 #include <melee/ui/native_hub_hand.h>
+#include <melee/mn/native_menu_motion.h>
 #include <melee/ui/native_play_menu.h>
 #endif
 #include <melee/lb/lb_00B0.h>
@@ -5618,6 +5619,7 @@ void mnCharSel_Scene_OnExit(void* unused)
 #ifdef MELEE_NATIVE
     nativeCssInteraction_End();
     nativeHubHand_Unload();
+    nativeMenuMotion_Unload();
     nativeCssOriginal_Exit();
 #endif
     if (mnCharSel_804D6CD0 != NULL) {

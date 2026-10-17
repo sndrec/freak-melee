@@ -1,5 +1,6 @@
 #include <melee/ui/native_hub.h>
 #include "native_home.h"
+#include <melee/mn/native_menu_motion.h>
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
 
 #include <melee/gr/forward.h>
@@ -1696,6 +1697,7 @@ void nativeHome_EnterPractice(StartMeleeData* start)
 
 void nativeHome_ExitPractice(void)
 {
+    nativeMenuMotion_Unload();
     nativeHome_WorkshopPoseRelease();
     if (home.preview_active && !home.preview_restart) {
         finish_preview();

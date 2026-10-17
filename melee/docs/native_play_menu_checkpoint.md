@@ -61,6 +61,42 @@ separate tool page, with the existing package-selection and DAT-import functions
 
 ## Verification
 
+### Authored hub page changes
+
+The hub now plays Melee's main-menu transition tracks from `MnMaAll`.
+`native_menu_motion.c` reads the transform animation on joint 3 of
+`MenMainConTop_Top`, retaining its tilted parent orientation and the stock
+camera's perspective. Forward navigation plays frames 340–359 on the outgoing
+page and 320–339 on the incoming page. Back uses 380–399 and 360–379. Both pages
+draw through GX while the frame, navigation and pointer keep their layout.
+
+Each change lasts 20 frames at 60 Hz. Moving controls ignore clicks until the
+transition ends, including clicks sent using their old positions. The motion
+uses two small joint trees and a bounded import arena. Their animation streams
+reference the scene's disc buffer. CSS and practice release these resources
+explicitly before retiring their scene heaps; opening the next hub loads them
+for that scene. No allocations are made while sampling a transition.
+
+The default follows Windows' client-area animation preference.
+`FREAK_MELEE_MENU_MOTION=1` enables motion for a process, and `0` selects instant
+page changes. The test harness uses this override for its own isolated clients,
+leaving the Windows setting unchanged.
+
+`review_native_hub_motion.py` passes with animated mode in
+`.local/native-hub-motion-2` and with `--reduced-motion` in
+`.local/native-hub-reduced-motion-1`. Both cover forward/back navigation, profile
+editing and return, stale clicks, opening the paused-practice hub, and rebuilding
+the hub after returning to CSS. The animated run's first attempt exposed stale
+joint pointers across scene resets; explicit cleanup at CSS/practice exit fixed
+it. Mid-transition and settled PNGs were reviewed.
+
+The existing authoring check also passes with motion enabled in
+`.local/native-hub-motion-authoring-regression-1`: first-run clone creation,
+rename replacement, independent copying, frozen Workshop entry/return with CRLF
+source preserved, profile save and controller return. The native build passes.
+
+### Earlier control checks
+
 `review_native_css.py` passed in `.local/native-play-menu-acceptance-2`. It checks
 cookie selection and free placement, carried-cookie readiness rejection, CPU
 selection, native Ready-button practice entry, native practice return, opening
@@ -95,7 +131,7 @@ The focused run in `.local/native-play-menu-costume-escape` verifies the empty
 costume selector's instruction text and Escape returning to native Settings.
 
 These local checks do not establish hardware GameCube-adapter feel, physical
-multi-PC delivery or the final authored transitions. Native Quick Play queue
+multi-PC delivery or the user's final visual acceptance. Native Quick Play queue
 checks are recorded in [its checkpoint](native_quick_play_checkpoint.md).
 
 ## Remaining integration
@@ -105,5 +141,5 @@ shared-PC doubles checks. Result agreement and rematches now have local native
 automation checks; stage-confirmation controls and service deployment remain
 open. Remote portrait preparation
 and lobby chat have their own completed local checks. Authored menu transitions
-remain open. Account sign-in and offline inbox decisions remain deferred for
-the user.
+now have native runtime evidence above. Account sign-in and offline inbox
+decisions remain deferred for the user.
