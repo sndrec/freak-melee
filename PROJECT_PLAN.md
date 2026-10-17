@@ -260,12 +260,15 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
 
 ### 4. Local release readiness and presentation
 
-- [ ] Include `native_content_tool.exe` in release payloads: current Workshop
-  validation invokes it beside the client, but preparation currently omits it.
+- [x] Include `native_content_tool.exe` and its runtime dependencies in release
+  payloads. CMake supplies the exact DLL/UI lists; test fixtures and stale build
+  assets are excluded. See [local release acceptance](melee/docs/native_release.md).
 - [ ] Verify source selection/configuration from a fresh source checkout with
   explicit ISO and DSP-coefficient inputs; no hidden reference-folder dependency.
-- [ ] Verify a clean extracted install, launch, Workshop check/build/install,
+- [x] Verify a clean extracted install, launch, Workshop check/build/install,
   update, rollback and preservation of profiles/collections/CSS layout.
+  The 2026-10-17 local acceptance used bundled tools, a minimal PATH, isolated
+  user data and local release manifests. This is not a friend-PC acceptance.
 - [ ] Replace placeholder original-style UI text with reusable Melee-style
   dynamic lettering; derive glyphs/metrics from available textures if needed.
 - [ ] Finish labels/icons, clipping, usable layouts and actionable errors with

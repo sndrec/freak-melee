@@ -1,66 +1,118 @@
 # Prepared Windows releases
 
-> Current release-readiness gap (2026-10-13): Workshop source checking requires native_content_tool.exe beside the client, but prepare_native_release.py currently omits it. Older preview/update checks below are dated evidence, not acceptance of the current interpreted Workshop release or a verified latest hosted version.
+Updated: 2026-10-17. Current local acceptance covers a clean extracted installation,
+Workshop authoring and launcher updates. These local builds have not been uploaded.
+The hosted preview is older; its earlier receipts do not establish current readiness.
 
-Build `melee_native` in release mode first, then prepare a release from that
-build folder using the commands below.
+## Prepare
 
-The preparation command creates an update ZIP, `latest.json`, an `install/`
-folder, and a `freak-melee-setup-<release>.zip` first-install download. Friends
-extract the setup ZIP once and run `Freak Melee.bat` from it.
-Their `Freak Melee.bat` checks `channel.txt` before each launch, installs any
-complete new release, and starts the selected version. Host `latest.json` and
-the ZIP in the same HTTPS directory; the manifest uses the ZIP filename
-relative to its own location. Publishing a new release means uploading the ZIP
-first and replacing `latest.json` last. No update is applied to a running game.
+Build both `melee_native` and `native_content_tool` in Release or RelWithDebInfo.
+See [the build guide](native_build.md) for toolchain and private input requirements.
+CMake generates `native_release_runtime.txt` from the executables' DLL dependencies
+and `native_release_ui.txt` from the current UI, documentation, fonts, portraits and
+fighter templates. Preparation requires these lists and every declared file.
 
-The Cloudflare release channel is
-`https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/latest.json`.
-Its private R2 bucket is named `freak-melee-releases`; the Worker streams only
-the channel manifest and release ZIPs. The channel path is an unlisted invite
-link for friends, rather than a user login. Before the first publication, the
-empty channel returned 404. The current private preview,
-`2026-09-24-preview-4`, is now published. Its [one-time setup ZIP](https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/freak-melee-setup-2026-09-24-preview-4.zip)
-can be shared with a friend for testing. To prepare a later build, use
-the following commands from the `melee` checkout:
+The payload includes the game, Workshop tool, their runtime DLLs, current UI assets
+and launcher. Test DLLs, stale build assets, debug tools, ISO and user data stay out
+of the release. The setup ZIP contains a complete first installation; the update
+ZIP contains one complete version. Each needs a new release ID and output folder.
+
+Run from the `melee` checkout, substituting the intended release ID:
 
 ```powershell
-python tools/prepare_native_release.py --build build/native --output build/native/releases/2026-09-24-a --release 2026-09-24-a --channel https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/latest.json
-python tools/publish_native_release.py build/native/releases/2026-09-24-a --dry-run
-python tools/publish_native_release.py build/native/releases/2026-09-24-a
+cmake --build build/native --target melee_native native_content_tool -j 4
+python tools/prepare_native_release.py --build build/native --output build/native/releases/2026-10-17-a --release 2026-10-17-a --channel https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/latest.json
+python tools/publish_native_release.py build/native/releases/2026-10-17-a --dry-run
 ```
 
-The final command uploads both ZIPs to R2, downloads each to verify its hash,
-then publishes the manifest. Run it only for a build intended for friends.
-Send friends the unlisted setup URL
-`https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/freak-melee-setup-<release>.zip`.
-The ISO is absent from both ZIPs. The release service lives in `services/releases`;
-run `npm ci` there before publishing. A new release ID and output directory
-are required for each build. Once the first release is published, the channel
-URL above can be placed in existing friends' `install/channel.txt` as well.
+Preparation creates an update ZIP, `latest.json`, an `install/` folder and
+`freak-melee-setup-<release>.zip`. The publisher's dry run verifies both archives,
+their exact file lists, initial version selection and every version-file hash.
+It performs no upload.
 
-The ISO is deliberately absent from every release. On first launch the friend
-selects their own USA v1.02 ISO. Its path is remembered under
-`%LOCALAPPDATA%\Freak Melee\iso-path.txt`; profiles and content already live
-under that user-data directory. Builds remain under `install/versions/` and
-can be replaced without touching user data. The game starts with its version
-folder as its working directory so its `ui/` files resolve normally.
+## Launch and update
 
-To recover the previous build, run `Freak Melee.bat -Rollback`. This switches
-to the retained version and launches it. The rejected release is skipped on
-subsequent launches until the channel points to a newer release. To download
-and activate without opening the game, use `Freak Melee.bat -CheckOnly`.
+Extract the setup ZIP and run `Freak Melee.bat`. On first launch choose a local
+Melee USA v1.02 ISO. Its path is stored in
+`%LOCALAPPDATA%\Freak Melee\iso-path.txt`. Profiles, installed fighters, drafts and
+the CSS layout live in the same user-data directory. Replaceable builds live
+under `install/versions/`. The launcher uses the selected version as the game's
+working directory so its assets resolve beside the executable.
 
-The preview's HTTPS manifest and setup ZIP were fetched successfully, and the
-downloaded setup hash matched the prepared archive. A fresh extraction ran the
-friend-facing launcher and loaded the game executable's help path. An isolated
-earlier installation updated through the batch launcher, rolled back, and
-skipped the rejected version on its next check. Update archives now carry the
-launcher script, which replaces the installed script on activation. The first
-two previews shipped an older launcher that can fail to find Windows
-PowerShell's `Get-FileHash` through the batch path on this machine; use the
-preview-4 setup ZIP for a fresh install. A clean preview-3 install updated to
-preview 4 through its batch launcher and retained preview 3 for rollback;
-the installed launcher script matched the new version. The build has no code signature or
-publisher identity; test it on a separate Windows PC before calling it
-friend-ready.
+Before launch, the launcher reads `channel.txt`, verifies a complete update and
+activates it while retaining the previous build. It refuses concurrent launcher
+runs. To download and activate without starting the game:
+
+```powershell
+.\Freak Melee.bat -CheckOnly
+```
+
+To restore the previous version:
+
+```powershell
+.\Freak Melee.bat -Rollback
+```
+
+The rejected version is skipped until the channel offers another release.
+`-Rollback -CheckOnly` changes the selected version without launching.
+`-Hidden -Mute` launches a hidden, muted client for automated checks.
+An explicit `-Channel <local latest.json>` supports isolated local update tests.
+
+## Publish
+
+The private channel uses the `services/releases` Worker and the
+`freak-melee-releases` R2 bucket. The channel URL above is an unlisted invite link.
+Install its service dependencies with `npm ci` before publishing. For an approved
+build intended for friends, run:
+
+```powershell
+python tools/publish_native_release.py build/native/releases/2026-10-17-a
+```
+
+This uploads both ZIPs, downloads and hashes each, and publishes `latest.json`
+last. Share the setup URL ending in `freak-melee-setup-<release>.zip`.
+The earlier `2026-09-24-preview-4` publication is historical evidence; the hosted
+channel has not been refreshed as part of the current local checks.
+
+## Local acceptance — 2026-10-17
+
+The current native build and Workshop helper built successfully. Seven packaging
+contract tests passed, including missing tools/assets, fixture exclusion, corrupt
+setup assets and matching update/setup payloads. Both prepared local releases
+passed the publisher's dry run. Their 165 payload files include seven runtime DLLs
+and 26 fighter-form script templates.
+
+`review_native_hub.py --script-check-build` ran the actual executable from an
+extracted setup ZIP in `.local/native friend install`, with the development control
+tool outside that installation. Its child PATH contained only Windows and
+System32. In `.local/native-release-workshop-acceptance-3`, it verified:
+
+- Empty first launch; playable starter clone and CSS placement.
+- Rename replacing the installed revision; an independent second fighter copy.
+- CRLF source remaining unchanged when merely opened in the frozen preview.
+- Workshop Check, Build and Build & install using the packaged helper.
+- Reinstallation keeping two installed fighters rather than adding a duplicate.
+- Profile saving and controller return from local character select.
+
+The first expanded test missed the attributes drawer's scrollbar because UI
+inspection reports its content box. Correcting the test's scrollbar coordinates
+allowed the actual install button to be exercised. An earlier screenshot run in
+`.local/native-release-workshop-acceptance-1` was visually reviewed.
+
+`review_native_release.py` extracted a fresh setup ZIP into a path with spaces,
+launched through the PowerShell launcher, reached the native hub and closed its
+own hidden window normally. It then used the batch entry point to update from
+`2026-10-17-local-c` to `2026-10-17-local-d`, verify all installed file hashes,
+roll back, and skip the rejected version on a subsequent update check.
+All 36 player-data files retained their hashes, including profiles, installed
+content, drafts and CSS layout. Evidence is in
+`.local/native-release-launcher-acceptance-2`.
+
+The minimal-PATH test also exposed the batch file's reliance on finding
+PowerShell through PATH. It now uses Windows' installed PowerShell directly and
+preserves the launcher's exit code.
+
+Fresh-source configuration and separate friend-PC acceptance remain open. These
+same-PC checks do not establish separate-network behavior, physical controller
+usability, code signing or current hosted-service compatibility. Quick Play's
+new service protocol is still local and undeployed.

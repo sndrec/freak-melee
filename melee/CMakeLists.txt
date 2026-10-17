@@ -46,8 +46,7 @@ add_custom_command(
     VERBATIM)
 add_custom_target(melee_embedded_assets DEPENDS ${MELEE_GENERATED_FONTS})
 
-# Compile the existing source tree in place. This object target deliberately
-# exposes every portability failure; it is not yet a runnable game client.
+# Compile the full gameplay/HSD tree in place for the native runtime.
 file(GLOB_RECURSE MELEE_GAME_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/*.cpp"
@@ -1973,48 +1972,9 @@ target_link_libraries(melee_native PRIVATE aurora_main melee_runtime aurora_os a
 target_link_options(melee_native PRIVATE "LINKER:/errorlimit:0" "LINKER:/opt:ref")
 include(cmake/NativeOptimization.cmake)
 aurora_copy_runtime_dlls(melee_native)
-add_custom_target(melee_native_ui
-    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_fonts.py"
-        --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/fonts"
-    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_art.py"
-        --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/portraits"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting"
-        "$<TARGET_FILE_DIR:melee_native>/ui/docs"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui"
-        "$<TARGET_FILE_DIR:melee_native>/ui"
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/mario_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/drmario_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/captain_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/ganon_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/luigi_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/purin_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/fox_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/falco_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/marth_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/roy_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/donkey_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/koopa_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/pikachu_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/pichu_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/samus_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/link_clink_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/mewtwo_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/link_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/young_link_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/peach_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/gamewatch_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/zelda_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/sheik_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/popo_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/nana_full.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/yoshi_wip.fms"
-        "${CMAKE_CURRENT_SOURCE_DIR}/examples/ness_wip.fms"
-        "$<TARGET_FILE_DIR:melee_native>/ui"
-    VERBATIM)
-add_dependencies(melee_native melee_native_ui)
+file(GENERATE OUTPUT "$<TARGET_FILE_DIR:melee_native>/native_release_runtime.txt"
+    CONTENT "$<JOIN:$<TARGET_GENEX_EVAL:melee_native,$<TARGET_PROPERTY:melee_native,AURORA_RUNTIME_FILES>>,\n>\n$<JOIN:$<TARGET_GENEX_EVAL:native_content_tool,$<TARGET_PROPERTY:native_content_tool,AURORA_RUNTIME_FILES>>,\n>\n")
+include(cmake/NativeUi.cmake)
 
 add_test(NAME native_samus_template_source COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/samus_grapple_constructor/compose.py"

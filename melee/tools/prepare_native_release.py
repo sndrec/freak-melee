@@ -36,12 +36,45 @@ def main() -> None:
         parser.error("channel must be an HTTPS manifest URL")
 
     build = args.build.resolve(strict=True)
-    payload = [build / "melee_native.exe", *sorted(build.glob("*.dll"))]
-    payload += sorted(path for path in (build / "ui").rglob("*") if path.is_file())
-    if not (build / "melee_native.exe").is_file() or not (build / "ui/freak_shell.rml").is_file():
-        parser.error("build must contain melee_native.exe and ui/freak_shell.rml")
-    if not list(build.glob("*.dll")):
-        parser.error("build has no runtime DLLs")
+    required = ["melee_native.exe", "native_content_tool.exe", "ui/freak_shell.rml",
+                "ui/docs/index.md", "ui/mario_full.fms",
+                *[f"ui/fonts/{name}.bin" for name in
+                  ["menu-heading", "result-name", "result-winner", "notice", "css-tile"]]]
+    for name in required:
+        if not (build / name).is_file():
+            parser.error(f"build is missing {name}; build melee_native and native_content_tool first")
+    runtime_list = build / "native_release_runtime.txt"
+    if not runtime_list.is_file():
+        parser.error("build is missing its runtime dependency list; reconfigure and build the current CMake targets")
+    runtime = {}
+    for entry in runtime_list.read_text(encoding="utf-8").splitlines():
+        if not entry:
+            continue
+        name = Path(entry).name
+        if not name.lower().endswith(".dll"):
+            parser.error(f"invalid runtime dependency: {entry}")
+        source = build / name
+        if not source.is_file():
+            parser.error(f"runtime DLL {name} is missing beside the client; rebuild its targets")
+        runtime[name.casefold()] = source
+    if not runtime:
+        parser.error("build has no runtime dependencies")
+    payload = [build / "melee_native.exe", build / "native_content_tool.exe", *runtime.values()]
+    ui_list = build / "native_release_ui.txt"
+    if not ui_list.is_file():
+        parser.error("build is missing its UI asset list; reconfigure and build the current CMake targets")
+    ui_names = ui_list.read_text(encoding="utf-8").splitlines()
+    if not ui_names or len(ui_names) != len(set(ui_names)):
+        parser.error("build UI list is empty or contains duplicate paths")
+    for name in ui_names:
+        if not name.startswith("ui/") or "\\" in name or ":" in name or \
+                any(part in (".", "..", "") for part in name.split("/")):
+            parser.error(f"invalid UI asset path: {name}")
+        if not (build / name).is_file():
+            parser.error(f"UI asset {name} is missing; rebuild melee_native_ui")
+        payload.append(build / name)
+    if not set(required[2:]).issubset(ui_names):
+        parser.error("build UI list is missing required Workshop or menu assets")
     scripts = Path(__file__).resolve().parent
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
