@@ -137,9 +137,9 @@ describe("private lobby chat", () => {
       } finally { b.close(); }
     } finally { a.close(); }
     const stub = env.ROOMS.get(env.ROOMS.idFromName(room));
-    await runInDurableObject(stub, async (_instance, state) => {
-      expect(state.storage.sql.exec("SELECT * FROM room_chat").toArray()).toHaveLength(0);
-    });
+    // A local RPC can arrive before the socket close event reaches the object.
+    await expect.poll(() => runInDurableObject(stub, async (_instance, state) =>
+      state.storage.sql.exec("SELECT * FROM room_chat").toArray().length)).toBe(0);
     const fresh = await join(room, "fresh_reader", "Fresh");
     try { expect(await fresh.history()).toEqual([]); } finally { fresh.close(); }
   });

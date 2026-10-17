@@ -3,12 +3,18 @@
   "name": "freak-melee-signaling",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-21",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "durable_objects": {
     "bindings": [
       {
         "name": "ROOMS",
         "class_name": "Room"
+      },
+      {
+        "name": "QUICK_PLAY",
+        "class_name": "QuickPlayQueue"
       },
       {
         "name": "GLOBAL_CHAT",
@@ -19,11 +25,21 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["Room"]
+      "new_sqlite_classes": [
+        "Room"
+      ]
     },
     {
       "tag": "chat",
-      "new_sqlite_classes": ["GlobalChat"]
+      "new_sqlite_classes": [
+        "GlobalChat"
+      ]
+    },
+    {
+      "tag": "quick-play",
+      "new_sqlite_classes": [
+        "QuickPlayQueue"
+      ]
     }
   ],
   "observability": {
