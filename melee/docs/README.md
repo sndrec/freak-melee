@@ -13,7 +13,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Current scope / what's next | [Project plan](../../PROJECT_PLAN.md) |
 | This PC's tooling | [Local tooling](../../TOOLING.md) |
 | Workshop capabilities and gaps | [Current Workshop status](native_character_workshop_progress.md) |
-| Implement the approved editor | [Handoff](native_character_editor_handoff.md), [UI specification](native_character_workshop_ui.md), [Model specification](native_model_workspace_design.md) |
+| Implement the approved editor | [Handoff](native_character_editor_handoff.md), [UI specification](native_character_workshop_ui.md), [Model specification](native_model_workspace_design.md), [rest-edit verification](native_model_rest_checkpoint.md) |
 | Author a fighter | [Scripting guide](scripting/index.md) and [fighter-owned parameters](fighter_owned_parameters.md) |
 | Try a custom fighter example | [Glim](../../characters/glim/README.md), [Workshop observations](../../characters/glim/WORKSHOP_NOTES.md) |
 | Interpreter decisions | [Current contract](native_interpreter_transition.md) |
