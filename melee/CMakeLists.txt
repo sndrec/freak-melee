@@ -1975,6 +1975,7 @@ aurora_copy_runtime_dlls(melee_native)
 file(GENERATE OUTPUT "$<TARGET_FILE_DIR:melee_native>/native_release_runtime.txt"
     CONTENT "$<JOIN:$<TARGET_GENEX_EVAL:melee_native,$<TARGET_PROPERTY:melee_native,AURORA_RUNTIME_FILES>>,\n>\n$<JOIN:$<TARGET_GENEX_EVAL:native_content_tool,$<TARGET_PROPERTY:native_content_tool,AURORA_RUNTIME_FILES>>,\n>\n")
 include(cmake/NativeUi.cmake)
+include(cmake/NativeModelTests.cmake)
 
 add_test(NAME native_samus_template_source COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/samus_grapple_constructor/compose.py"

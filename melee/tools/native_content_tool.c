@@ -1847,12 +1847,15 @@ static int project_model_vertices(const char* path, const char* mesh_text)
         count = nativeFighterGltf_SkinVertices(&project,
             (unsigned) mesh, vertices, count);
     for (unsigned i = 0; vertices && i < count; ++i)
-        if (vertices[i].used)
-            printf("vertex %u: (%g, %g, %g) joint %u %.3f, joint %u %.3f\n",
+        if (vertices[i].used) {
+            printf("vertex %u: (%g, %g, %g)",
                 i, vertices[i].position[0], vertices[i].position[1],
-                vertices[i].position[2], vertices[i].joints[0],
-                vertices[i].weight, vertices[i].joints[1],
-                1.0f - vertices[i].weight);
+                vertices[i].position[2]);
+            for (unsigned b = 0; b < vertices[i].skin.count; ++b)
+                printf(" joint %u %.9g", vertices[i].skin.joints[b],
+                       vertices[i].skin.weights[b]);
+            putchar('\n');
+        }
     free(vertices);
     nativeFighterProject_Close(&project);
     return count ? 0 : 1;
