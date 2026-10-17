@@ -81,12 +81,12 @@ static void draw(HSD_GObj* object,int pass)
         GXPosition3f32(p->x+p->w,p->y-p->h*.80f,0);GXTexCoord2f32(0,0);
         GXPosition3f32(p->x+p->w,p->y-p->h,0);GXTexCoord2f32(0,0);
         GXPosition3f32(p->x,p->y-p->h,0);GXTexCoord2f32(0,0);GXEnd();
-        nativeMenuFont_Draw(p->face,p->title,p->x+p->w*.03f,p->y-p->h*.83f,0,p->w*.94f,p->h*.135f);
+        nativeMenuFont_Draw(p->face,p->title,p->x+p->w*.03f,p->y-p->h*.83f,0,p->w*.94f,p->h*.135f,0xF5EFEAFF,true);
     }
     for(unsigned i=0;i<scene->count;++i) {
         const MenuLabel* label=&scene->labels[i];
         matrix(label->anchor,(float(*)[4])label->inverse);
-        nativeMenuFont_Draw(label->face,label->text,label->x,label->y,label->z,label->width,label->height);
+        nativeMenuFont_Draw(label->face,label->text,label->x,label->y,label->z,label->width,label->height,label->face==NativeMenuFont_ResultWinner?0xF5CC67FF:0xF5EFEAFF,true);
     }
     HSD_StateInvalidate(-1);HSD_StateInitTev();HSD_ClearVtxDesc();
 }

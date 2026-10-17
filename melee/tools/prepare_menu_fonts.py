@@ -61,12 +61,23 @@ def complete_caps(glyphs):
     if missing:raise ValueError('Unaccounted original glyphs '+str(missing))
 
 def raster_font(path, size):
-    font=ImageFont.truetype(str(path),size);glyphs={}
-    for code in range(32,127):
-        c=chr(code);box=font.getbbox(c);w=max(1,math.ceil(font.getlength(c)))
-        im=Image.new('L',(w,max(1,box[3]-box[1])));ImageDraw.Draw(im).text((-box[0],-box[1]),c,font=font,fill=255)
-        glyphs[c]=im
+    font = ImageFont.truetype(str(path), size)
+    # Every glyph shares the same cap line and baseline. Cropping each letter
+    # to its ink bounds lifts lowercase letters and punctuation to the cap line.
+    baseline = -font.getbbox('H', anchor='ls')[1]
+    bottom = max(font.getbbox(chr(c), anchor='ls')[3] for c in range(32, 127))
+    glyphs = {}
+    for code in range(32, 127):
+        c = chr(code)
+        left, top, right, _ = font.getbbox(c, anchor='ls')
+        origin = -min(0, left)
+        width = max(1, math.ceil(font.getlength(c)) + origin, right + origin)
+        image = Image.new('L', (width, baseline + bottom))
+        ImageDraw.Draw(image).text((origin, baseline), c, font=font,
+                                  anchor='ls', fill=255)
+        glyphs[c] = image
     return glyphs
+
 
 def angular_glyphs(path, cap_height=24):
     """Rasterize the provided angular outline glyphs with their shared baseline.

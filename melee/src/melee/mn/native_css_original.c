@@ -58,10 +58,11 @@ static bool installed_fighter(const NativeContentId* id)
         nativeContentStore_ParseFighter(package, package_size, &fighter,
                                         &data);
     NativeSourceAssetFacts facts;
-    valid = valid && fighter.mode == NativeFighterFamily_Single &&
-        fighter.member_count == 1 && data.members[0].script_size != 0 &&
-        nativeSourceAssets_Read(data.members[0].asset_record,
-                               data.members[0].asset_record_size, &facts, NULL);
+    for (unsigned member = 0; valid && member < fighter.member_count; ++member) {
+        valid = data.members[member].script_size != 0 &&
+            nativeSourceAssets_Read(data.members[member].asset_record,
+                                   data.members[member].asset_record_size, &facts, NULL);
+    }
     free(package);
     return valid;
 }
@@ -369,11 +370,25 @@ bool nativeCssOriginal_AddInstalled(const NativeContentId* id)
     NativeCssLayout candidate = layout;
     NativeCssTile tile = { 0 };
     tile.fighter_package_id = *id;
-    tile.x = 45;
-    tile.y = 405;
     tile.width = 92;
     tile.height = 120;
-    return nativeCssLayout_Add(&candidate, &tile) && save_layout(&candidate);
+    for (unsigned row = 0; row < 3; ++row) {
+        tile.y = 205 + row * 145;
+        for (unsigned column = 0; column < 9; ++column) {
+            tile.x = 45 + column * 101;
+            bool occupied = false;
+            for (unsigned i = 0; i < candidate.count; ++i) {
+                const NativeCssTile* other = &candidate.tiles[i];
+                occupied |= tile.x < other->x + other->width &&
+                    tile.x + tile.width > other->x &&
+                    tile.y < other->y + other->height &&
+                    tile.y + tile.height > other->y;
+            }
+            if (!occupied) return nativeCssLayout_Add(&candidate, &tile) &&
+                                   save_layout(&candidate);
+        }
+    }
+    return false;
 }
 
 bool nativeCssOriginal_HitTestFighter(float x, float y,

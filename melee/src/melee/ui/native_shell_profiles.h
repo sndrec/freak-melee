@@ -5,6 +5,7 @@ namespace Rml {
     class ElementDocument;
 }
 void nativeShellProfiles_Init(Rml::ElementDocument* document);
+void nativeShellProfiles_Open();
 void nativeShellProfiles_Update();
 void nativeShellProfiles_Close();
 extern "C" {

@@ -1,4 +1,5 @@
 #include "native_shell.h"
+#include "native_hub.h"
 #include "native_shell_chat.h"
 #include "native_shell_collection.h"
 #include "native_shell_css_original.h"
@@ -44,6 +45,7 @@ namespace {
     Rml::Vector2i displayedDimensions;
     float displayedDensity;
     bool displayedCssEditing;
+    bool displayedHub;
     bool displayedWorkshop;
     bool displayedWorkshopEditor;
     bool displayedWorkshopScript;
@@ -333,6 +335,7 @@ namespace {
         const Rml::Vector2i dimensions = context->GetDimensions();
         const float density = context->GetDensityIndependentPixelRatio();
         const bool editing = nativeShellCssOriginal_IsEditing();
+        const bool hubVisible = nativeHub_IsVisible();
         const bool workshopOpen = nativeShellWorkshop_IsOpen();
         const bool workshop = workshopOpen &&
             !nativeShellWorkshop_IsTesting();
@@ -349,7 +352,7 @@ namespace {
         const float workshopTimelineFraction = workshopEditor
             ? nativeShellWorkshopEditor_TimelineFraction() : 0.0f;
         if (dimensions == displayedDimensions && density == displayedDensity &&
-            editing == displayedCssEditing &&
+            editing == displayedCssEditing && hubVisible == displayedHub &&
             workshop == displayedWorkshop &&
             workshopEditor == displayedWorkshopEditor &&
             workshopScript == displayedWorkshopScript &&
@@ -362,6 +365,7 @@ namespace {
         displayedDimensions = dimensions;
         displayedDensity = density;
         displayedCssEditing = editing;
+        displayedHub = hubVisible;
         displayedWorkshop = workshop;
         displayedWorkshopEditor = workshopEditor;
         displayedWorkshopScript = workshopScript;
@@ -408,12 +412,12 @@ namespace {
                              int((workshopAnimation ? 220 : 170) * density))))
             : 0;
         Rml::Element* leftRail = document->GetElementById("left-rail");
-        leftRail->SetProperty("display", visible && !workshopOpen ? "flex" : "none");
+        leftRail->SetProperty("display", visible && !workshopOpen && !hubVisible ? "flex" : "none");
         leftRail->SetProperty(Rml::PropertyId::Width,
                               Rml::Property(float(leftWidth), Rml::Unit::PX));
         leftRail->SetClass("css-editing", editing);
         Rml::Element* rightRail = document->GetElementById("right-rail");
-        rightRail->SetProperty("display", visible && !editing && !workshopOpen
+        rightRail->SetProperty("display", visible && !editing && !workshopOpen && !hubVisible
                                              ? "flex" : "none");
         rightRail->SetProperty(Rml::PropertyId::Width,
                                Rml::Property(float(railWidth), Rml::Unit::PX));
@@ -821,6 +825,7 @@ extern "C" void nativeShell_Update(void)
 
 extern "C" void nativeShell_FocusRoom(void)
 {
+    if (nativeHome_IsSelection()) { nativeHub_OpenLobbies(); return; }
     if (document == nullptr) {
         return;
     }
@@ -907,6 +912,7 @@ extern "C" void nativeShell_NavigateRoom(int direction, bool activate)
 
 extern "C" void nativeShell_ShowRoomError(const char* message)
 {
+    nativeHub_Notice(message);
     if (document == nullptr) {
         return;
     }
@@ -919,6 +925,7 @@ extern "C" void nativeShell_ShowRoomError(const char* message)
 
 extern "C" void nativeShell_Shutdown(void)
 {
+    nativeHub_Shutdown();
     if (document != nullptr) {
         nativeShellProfiles_Close();
         nativeShellRules_Close();
@@ -933,6 +940,7 @@ extern "C" void nativeShell_Shutdown(void)
 
 extern "C" void nativeShell_InspectElement(const char* id)
 {
+    if (nativeHub_IsVisible()) { nativeHub_Inspect(id); return; }
     if (!document) return;
     auto* element = document->GetElementById(id);
     if (!element) { std::fprintf(stderr, "[ui-inspect] %s: absent\n", id); return; }
@@ -951,6 +959,7 @@ extern "C" void nativeShell_InspectElement(const char* id)
 
 extern "C" void nativeShell_ClickAt(int x, int y, int button)
 {
+    if (nativeHub_IsVisible()) { nativeHub_ClickAt(x,y,button); return; }
     if (document == nullptr) {
         return;
     }
@@ -963,6 +972,11 @@ extern "C" void nativeShell_ClickAt(int x, int y, int button)
 extern "C" void nativeShell_DragAt(int start_x, int start_y,
                                      int end_x, int end_y)
 {
+    if (nativeHub_IsVisible()) {
+        nativeHub_ClickAt(start_x,start_y,0);
+        nativeHub_MovePointer(end_x,end_y);
+        return;
+    }
     if (document == nullptr) {
         return;
     }
@@ -978,6 +992,7 @@ extern "C" void nativeShell_DragAt(int start_x, int start_y,
 
 extern "C" void nativeShell_EnterText(const char* text)
 {
+    if (nativeHub_IsVisible()) { nativeHub_EnterText(text); return; }
     if (document == nullptr || text == nullptr) {
         return;
     }
@@ -986,6 +1001,7 @@ extern "C" void nativeShell_EnterText(const char* text)
 
 extern "C" void nativeShell_MovePointer(int x, int y)
 {
+    if (nativeHub_IsVisible()) { nativeHub_MovePointer(x,y); return; }
     if (document) {
         document->GetContext()->ProcessMouseMove(x, y, 0);
     }
@@ -993,6 +1009,7 @@ extern "C" void nativeShell_MovePointer(int x, int y)
 
 extern "C" void nativeShell_PressKey(const char* name, unsigned modifiers)
 {
+    if (nativeHub_IsVisible()) { nativeHub_PressKey(name,modifiers); return; }
     if (!document || !name) {
         return;
     }

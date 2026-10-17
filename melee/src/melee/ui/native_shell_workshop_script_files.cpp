@@ -29,6 +29,7 @@ bool read_file(const std::string& path, std::string* text)
     }
     std::fclose(input);
     if (!ok) text->clear();
+    else text->erase(std::remove(text->begin(), text->end(), '\r'), text->end());
     return ok;
 }
 
@@ -86,7 +87,10 @@ void split_seed(Session& session, const std::string& seed)
         session.files[current].text += line;
         start = end;
     }
-    for (SourceFile& file : session.files) file.saved = file.text;
+    for (SourceFile& file : session.files) {
+        file.text.erase(std::remove(file.text.begin(), file.text.end(), '\r'), file.text.end());
+        file.saved = file.text;
+    }
 }
 }
 

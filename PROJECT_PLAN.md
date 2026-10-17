@@ -1,6 +1,6 @@
 # Freak Melee: current project plan
 
-Updated: 2026-10-15. This is the current product contract and work list.
+Updated: 2026-10-17. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
@@ -18,12 +18,16 @@ their own builds; their old "remaining" lists are not the current backlog.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;
   do not continue performance experiments without a new request.
-- Next focus: design the in-game social hub, Quick Play, personal roster and
-  fighter-sharing flow with an interactive mockup before native UI implementation. Follow the
+- Current focus: integrate the approved social-hub mockup into the native game.
+  Build the personal roster, cloning, lobby and sharing flows through the game renderer. Follow the
   [social hub design](melee/docs/native_social_hub_design.md), including the
   mode → CSS → ready practice → countdown flow. Workshop
   dogfooding continues when the user is ready. This document does not change
   the app's goal control.
+- The user approved native integration and delegated routine decisions while
+  away. Keep unresolved product and account-service decisions for their return.
+  Track verified native behavior separately from the browser mockup. Keep the
+  existing Workshop workspaces usable throughout the transition.
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
 - Work that requires other physical PCs is deferred to the user's testing.

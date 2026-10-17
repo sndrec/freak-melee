@@ -238,8 +238,11 @@ static bool publish(const char* destination, const char* staging,
                      const char* primary_key, const char* partner_key)
 {
     if (!mode_valid(mode, count) || !key_valid(primary_key) ||
-        (count == 2 && (!key_valid(partner_key) || !strcmp(primary_key, partner_key))))
+        (count == 2 && (!key_valid(partner_key) || !strcmp(primary_key, partner_key)))) {
+        fprintf(stderr, "Cannot publish fighter family: mode=%u members=%u primary=%.31s partner=%.31s\n",
+                (unsigned)mode, count, primary_key, partner_key);
         return false;
+    }
     if (count == 2 || strcmp(primary_key, "main")) {
         char descriptor[256];
         int size = count == 1
@@ -251,7 +254,27 @@ static bool publish(const char* destination, const char* staging,
         if (size <= 0 || (size_t)size >= sizeof(descriptor) ||
             !write_file(staging, "family.txt", descriptor, (size_t)size)) return false;
     }
-    if (!MoveFileExA(staging, destination, MOVEFILE_WRITE_THROUGH)) return false;
+    // Windows can retain a short-lived lock on a newly written directory.
+    // Publishing is a load transition, so allow a bounded retry without
+    // replacing a destination or exposing an incomplete project.
+    bool published = false;
+    DWORD publish_error = 0;
+    for (unsigned attempt = 0; attempt < 10; ++attempt) {
+        if (MoveFileExA(staging, destination, MOVEFILE_WRITE_THROUGH)) {
+            published = true;
+            break;
+        }
+        publish_error = GetLastError();
+        if ((publish_error != ERROR_ACCESS_DENIED &&
+             publish_error != ERROR_SHARING_VIOLATION) ||
+            attempt == 9 || !absent(destination)) break;
+        Sleep(1U << attempt);
+    }
+    if (!published) {
+        fprintf(stderr, "Cannot publish fighter directory %s: Windows error %lu\n",
+                destination, publish_error);
+        return false;
+    }
     char marker[PATH_BYTES];
     return join_path(marker, destination, "creation.pending") && DeleteFileA(marker);
 }
@@ -281,7 +304,17 @@ static bool publish_primary_files(const char* staging)
     } while (FindNextFileA(search, &entry));
     if (ok && GetLastError() != ERROR_NO_MORE_FILES) ok = false;
     ok = FindClose(search) && ok;
-    return ok && RemoveDirectoryA(primary);
+    if (!ok) {
+        fprintf(stderr, "Cannot transfer primary fighter files from %s: Windows error %lu\n",
+                primary, GetLastError());
+        return false;
+    }
+    if (!RemoveDirectoryA(primary)) {
+        fprintf(stderr, "Cannot remove empty staging directory %s: Windows error %lu\n",
+                primary, GetLastError());
+        return false;
+    }
+    return true;
 }
 
 bool nativeFighterFamilyProject_CreateStockFromDisc(

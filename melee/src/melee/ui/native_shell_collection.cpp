@@ -287,7 +287,7 @@ class CollectionEvents final : public Rml::EventListener {
             char* end = nullptr;
             const long index = std::strtol(id.c_str() + 17, &end, 10);
             if (*end == '\0' && index >= 0 && size_t(index) < local_draft_count)
-                nativeShellWorkshop_Open(local_drafts[index].path, true);
+                nativeShellWorkshop_Open(local_drafts[index].path, NativeWorkshopOrigin::Collection);
         } else if (id.compare(0, 16, "collection-send-") == 0) {
             char* end = nullptr;
             const long index = std::strtol(id.c_str() + 16, &end, 10);

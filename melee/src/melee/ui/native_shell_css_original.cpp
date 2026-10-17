@@ -144,10 +144,9 @@ void load_portraits()
             root, &ids[index], &package, &package_size) &&
             nativeContentStore_ParseFighter(package, package_size,
                                             &metadata, &data);
-        valid = valid && metadata.mode == NativeFighterFamily_Single && metadata.member_count == 1;
-        if (valid) {
+        for (unsigned i = 0; valid && i < metadata.member_count; ++i) {
             NativeSourceAssetFacts facts;NativeScriptDiagnostic diagnostic = {};
-            const NativeFighterMemberData& member = data.members[0];
+            const NativeFighterMemberData& member = data.members[i];
             valid = member.script_text != nullptr && member.script_size != 0 &&
                 nativeSourceAssets_Read(member.asset_record, member.asset_record_size, &facts, &diagnostic);
         }
@@ -332,25 +331,8 @@ class CssOriginalEvents final : public Rml::EventListener {
         } else if (id == "css-original-back") {
             nativeShellCssOriginal_Close();
         } else if (id == "css-original-edit") {
-            if (!editing && !nativeCssOriginal_CanEdit()) {
-                set_status("Layout unavailable; repair its saved file first.");
-                return;
-            }
-            editing = !editing;
-            collection_open = false;
-            selected = -1;
-            document->GetElementById("css-original-edit")
-                ->SetClass("active", editing);
-            document->GetElementById("css-original-tools")
-                ->SetProperty("display", editing ? "block" : "none");
-            document->GetElementById("css-original-overlay")
-                ->SetProperty("display", editing ? "block" : "none");
-            if (editing) {
-                load_portraits();
-                build_portraits();
-                build_handles();
-            }
-            update_selected();
+            if (editing) nativeShellCssOriginal_Close();
+            else nativeShellCssOriginal_Open();
         } else if (id == "css-original-remove") {
             if (selected >= 0 &&
                 nativeCssOriginal_RemoveTile(unsigned(selected))) {
@@ -587,6 +569,24 @@ void nativeShellCssOriginal_Resize(int left, int top, int width, int height)
             }
         }
     }
+}
+
+void nativeShellCssOriginal_Open(void)
+{
+    if (!nativeCssOriginal_CanEdit()) {
+        set_status("Layout unavailable; repair its saved file first.");
+        return;
+    }
+    editing = true;
+    collection_open = false;
+    selected = -1;
+    document->GetElementById("css-original-edit")->SetClass("active", true);
+    document->GetElementById("css-original-tools")->SetProperty("display", "block");
+    document->GetElementById("css-original-overlay")->SetProperty("display", "block");
+    load_portraits();
+    build_portraits();
+    build_handles();
+    update_selected();
 }
 
 void nativeShellCssOriginal_Close(void)
