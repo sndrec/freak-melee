@@ -368,6 +368,18 @@ static DWORD receive_message(NativeSignalingClient* client, HINTERNET socket,
         return ERROR_INVALID_DATA;
     }
     *buffered = 0;
+    if (event.message.type == NativeSignalingServerMessage_Chat) {
+        NativeSignalingChatQueue* queue = &client->chat;
+        uint32_t write = atomic_load_explicit(&queue->write, memory_order_relaxed);
+        uint32_t read = atomic_load_explicit(&queue->read, memory_order_acquire);
+        if (write - read >= NATIVE_SIGNALING_CHAT_CAPACITY) {
+            atomic_store_explicit(&queue->overflow, true, memory_order_release);
+        } else {
+            queue->slots[write % NATIVE_SIGNALING_CHAT_CAPACITY] = event.message.data.chat;
+            atomic_store_explicit(&queue->write, write + 1, memory_order_release);
+        }
+        return ERROR_SUCCESS;
+    }
     if (!event_push(&client->events, &event)) {
         return ERROR_NOT_ENOUGH_QUOTA;
     }
@@ -484,6 +496,7 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     }
     memset(&client->commands, 0, sizeof(client->commands));
     memset(&client->events, 0, sizeof(client->events));
+    memset(&client->chat, 0, sizeof(client->chat));
     client->local_players = config->local_players;
     atomic_store_explicit(&client->stop_requested, false, memory_order_relaxed);
     atomic_store_explicit(&client->worker_error, ERROR_SUCCESS,
@@ -624,6 +637,38 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                   command_push(&client->commands, bytes, size);
     if (queued) SetEvent((HANDLE) client->wake_event);
     return queued;
+}
+
+bool nativeSignalingClient_RequestChat(NativeSignalingClient* client)
+{
+    uint8_t bytes[8];
+    size_t size = nativeSignalingWire_EncodeRequestChat(bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_PostChat(NativeSignalingClient* client, uint32_t nonce, const char* text)
+{
+    uint8_t bytes[NATIVE_ROOM_CHAT_TEXT_BYTES + 14];
+    size_t size = nativeSignalingWire_EncodePostChat(nonce, text, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_PollChat(NativeSignalingClient* client, NativeRoomChatEvent* event)
+{
+    if (!client || !event) return false;
+    NativeSignalingChatQueue* queue = &client->chat;
+    uint32_t read = atomic_load_explicit(&queue->read, memory_order_relaxed);
+    uint32_t write = atomic_load_explicit(&queue->write, memory_order_acquire);
+    if (read == write) return false;
+    *event = queue->slots[read % NATIVE_SIGNALING_CHAT_CAPACITY];
+    atomic_store_explicit(&queue->read, read + 1, memory_order_release);
+    return true;
 }
 
 bool nativeSignalingClient_Poll(NativeSignalingClient* client,

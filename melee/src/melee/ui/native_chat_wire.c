@@ -1,4 +1,5 @@
 #include "native_chat_wire.h"
+#include "../lb/native_utf8.h"
 
 #include <string.h>
 
@@ -11,52 +12,6 @@ static uint64_t read_be(const uint8_t* p, size_t size)
     return result;
 }
 
-// Reject truncated/overlong UTF-8, surrogates, embedded NUL, and controls.
-static bool valid_text(const uint8_t* p, size_t size)
-{
-    bool visible = false;
-    for (size_t i = 0; i < size;) {
-        uint32_t c = p[i++];
-        if (c < 0x20 || c == 0x7f) {
-            return false;
-        }
-        if (c < 0x80) {
-            visible |= c != ' ';
-            continue;
-        }
-        size_t extra;
-        uint32_t minimum;
-        if (c >= 0xc2 && c <= 0xdf) {
-            extra = 1;
-            minimum = 0x80;
-            c &= 31;
-        } else if (c >= 0xe0 && c <= 0xef) {
-            extra = 2;
-            minimum = 0x800;
-            c &= 15;
-        } else if (c >= 0xf0 && c <= 0xf4) {
-            extra = 3;
-            minimum = 0x10000;
-            c &= 7;
-        } else {
-            return false;
-        }
-        if (i + extra > size) {
-            return false;
-        }
-        while (extra--) {
-            if ((p[i] & 0xc0) != 0x80) {
-                return false;
-            }
-            c = (c << 6) | (p[i++] & 63);
-        }
-        if (c < minimum || c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff)) {
-            return false;
-        }
-        visible = true;
-    }
-    return visible;
-}
 
 bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
                            NativeChatPacket* packet)
@@ -78,7 +33,7 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
     }
     if (bytes[0] == 0x86) {
         if (size < 35 || !bytes[33] || bytes[33] > NATIVE_CHAT_NAME_BYTES ||
-            size != 34 + bytes[33] || !valid_text(bytes + 34, bytes[33]))
+            size != 34 + bytes[33] || !nativeUtf8_IsVisibleText(bytes + 34, bytes[33]))
         {
             return false;
         }
@@ -101,8 +56,8 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
     if (!name_size || name_size > NATIVE_CHAT_NAME_BYTES || !text_size ||
         text_size > NATIVE_CHAT_TEXT_BYTES ||
         size != 48 + name_size + text_size ||
-        !valid_text(bytes + 48, name_size) ||
-        !valid_text(bytes + 48 + name_size, text_size))
+        !nativeUtf8_IsVisibleText(bytes + 48, name_size) ||
+        !nativeUtf8_IsVisibleText(bytes + 48 + name_size, text_size))
     {
         return false;
     }
@@ -130,7 +85,7 @@ size_t nativeChatWire_Identify(const char* name, uint8_t* bytes,
     }
     size_t size = strnlen(name, NATIVE_CHAT_NAME_BYTES + 1);
     if (!size || size > NATIVE_CHAT_NAME_BYTES || capacity < 2 + size ||
-        !valid_text((const uint8_t*) name, size))
+        !nativeUtf8_IsVisibleText((const uint8_t*) name, size))
     {
         return 0;
     }
@@ -149,8 +104,8 @@ size_t nativeChatWire_Post(uint32_t nonce, const char* name, const char* text,
     size_t n = strnlen(name, NATIVE_CHAT_NAME_BYTES + 1);
     size_t t = strnlen(text, NATIVE_CHAT_TEXT_BYTES + 1);
     if (!n || n > NATIVE_CHAT_NAME_BYTES || !t || t > NATIVE_CHAT_TEXT_BYTES ||
-        capacity < 8 + n + t || !valid_text((const uint8_t*) name, n) ||
-        !valid_text((const uint8_t*) text, t))
+        capacity < 8 + n + t || !nativeUtf8_IsVisibleText((const uint8_t*) name, n) ||
+        !nativeUtf8_IsVisibleText((const uint8_t*) text, t))
     {
         return 0;
     }

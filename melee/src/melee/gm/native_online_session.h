@@ -23,6 +23,7 @@ bool nativeOnlineSession_Pump(void);
 bool nativeOnlineSession_BeginMatch(const NativeLobbyMatch* selection);
 NativeLobbySessionState nativeOnlineSession_State(void);
 const NativeSignalingPresence* nativeOnlineSession_Presence(void);
+NativeRoomChat* nativeOnlineSession_Chat(void);
 const char* nativeOnlineSession_Failure(void);
 const char* nativeOnlineSession_RoomCode(void);
 const char* nativeOnlineSession_LocalPeerId(void);

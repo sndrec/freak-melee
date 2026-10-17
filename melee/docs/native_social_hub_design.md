@@ -35,7 +35,7 @@ for at most 511 ms; existing destinations remain protected. Queued player
 actions retain peer identities, and fighter delivery retains its package ID,
 so changes to the displayed lists preserve the selected recipient and fighter.
 
-Account sign-in, offline inbox storage, persistent friends, lobby chat and
+Account sign-in, offline inbox storage, persistent friends and
 Quick Play service integration remain separate work. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
@@ -47,6 +47,12 @@ native menu supports 128 players with compact rows and paging. Local native
 probes and the actual hidden, muted game verified this path; the service's
 18 tests include hibernation and quiet-player name changes. Account identities
 remain separate work; chat peer IDs identify a running client session.
+
+Lobby chat uses the existing room connection and includes fighting, waiting and
+spectating members. Its recent history survives server hibernation while the
+room is occupied. Leaving the last connection clears that conversation. The
+Lobbies page now pages through all 32 supported members, and lobby chat has its
+own compact player list. See [chat](native_chat.md) for controls and evidence.
 
 The native hub uses the actual CSS hand model, with its fingertip anchored
 to the pointer position, and restores the scene camera after drawing it. The

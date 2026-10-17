@@ -346,6 +346,7 @@ bool nativeNetplayConnection_Start(NativeNetplayConnection* connection,
     {
         return false;
     }
+    nativeRoomChat_Init(&connection->chat, &connection->signaling);
     connection->active = true;
     return true;
 }
@@ -362,6 +363,7 @@ void nativeNetplayConnection_Stop(NativeNetplayConnection* connection)
         }
     }
     nativeSignalingClient_Stop(&connection->signaling);
+    nativeRoomChat_Update(&connection->chat, false);
     connection->active = false;
 }
 
@@ -373,9 +375,11 @@ bool nativeNetplayConnection_Pump(NativeNetplayConnection* connection)
     if (!process_signaling(connection) ||
         (!connection->topology_locked && !send_local_descriptions(connection)))
     {
+        nativeRoomChat_Update(&connection->chat, false);
         fail(connection, "connection setup failed");
         return false;
     }
+    nativeRoomChat_Update(&connection->chat, connection->signaling_connected && connection->has_presence);
     count_peers(connection);
     nativeNetplayContentChannels_Pump(connection);
     return !connection->failed;
@@ -421,6 +425,7 @@ void nativeNetplayConnection_CloseSignaling(
     }
     nativeSignalingClient_Stop(&connection->signaling);
     connection->signaling_connected = false;
+    nativeRoomChat_Update(&connection->chat, false);
 }
 
 bool nativeNetplayConnection_Send(NativeNetplayConnection* connection,

@@ -3,6 +3,7 @@
 #ifdef MELEE_NATIVE
 
 #include <string.h>
+#include "../lb/native_utf8.h"
 
 enum {
     SIGNALING_MAGIC = 0x464D5331,
@@ -15,10 +16,16 @@ enum {
     CLIENT_ASSIGN_SEATS = 5,
     CLIENT_SET_ROTATION = 6,
     CLIENT_REPORT_MATCH = 7,
+    CLIENT_POST_CHAT = 8,
+    CLIENT_REQUEST_CHAT = 9,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
     SERVER_SIGNAL_SENT = 0x84,
+    SERVER_CHAT_ENTRY = 0x85,
+    SERVER_CHAT_BEGIN = 0x86,
+    SERVER_CHAT_END = 0x87,
+    SERVER_CHAT_REJECTED = 0x88,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -88,6 +95,12 @@ static bool writer_u16(WireWriter* writer, uint16_t value)
 {
     uint8_t bytes[2];
     write_u16(bytes, value);
+    return writer_raw(writer, bytes, sizeof(bytes));
+}
+
+static bool writer_u32(WireWriter* writer, uint32_t value)
+{
+    uint8_t bytes[4]; write_u32(bytes, value);
     return writer_raw(writer, bytes, sizeof(bytes));
 }
 
@@ -175,6 +188,13 @@ static bool reader_u16(WireReader* reader, uint16_t* output)
     }
     *output = read_u16(bytes);
     return true;
+}
+
+static bool reader_u32(WireReader* reader, uint32_t* output)
+{
+    uint8_t bytes[4];
+    if (!reader_raw(reader, bytes, sizeof(bytes))) return false;
+    *output = read_u32(bytes); return true;
 }
 
 static bool reader_u64(WireReader* reader, uint64_t* output)
@@ -427,6 +447,27 @@ static bool decode_participant(WireReader* reader,
     return true;
 }
 
+size_t nativeSignalingWire_EncodeRequestChat(uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_REQUEST_CHAT)
+        ? writer_finish(&writer) : 0;
+}
+
+size_t nativeSignalingWire_EncodePostChat(uint32_t nonce, const char* text,
+                                        uint8_t* output, size_t capacity)
+{
+    if (!text || !nonce) return 0;
+    size_t length = strnlen(text, NATIVE_ROOM_CHAT_TEXT_BYTES + 1);
+    WireWriter writer;
+    if (length > NATIVE_ROOM_CHAT_TEXT_BYTES ||
+        !nativeUtf8_IsVisibleText((const uint8_t*) text, length) ||
+        !writer_begin(&writer, output, capacity, CLIENT_POST_CHAT) ||
+        !writer_u32(&writer, nonce) ||
+        !writer_bytes16(&writer, (const uint8_t*) text, (uint16_t) length)) return 0;
+    return writer_finish(&writer);
+}
+
 bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output)
@@ -440,6 +481,34 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_CHAT_ENTRY: {
+        NativeRoomChatEntry* entry = &output->data.chat.entry;
+        uint16_t length;
+        output->type = NativeSignalingServerMessage_Chat;
+        output->data.chat.kind = NativeRoomChatEvent_Entry;
+        if (!reader_u64(&reader, &entry->sequence) || !entry->sequence ||
+            !reader_u32(&reader, &entry->nonce) || !entry->nonce ||
+            !reader_string8(&reader, entry->peer_id, sizeof(entry->peer_id)) ||
+            !reader_string8(&reader, entry->name, sizeof(entry->name)) ||
+            !reader_bytes16(&reader, (uint8_t*) entry->text, NATIVE_ROOM_CHAT_TEXT_BYTES, &length)) return false;
+        entry->text[length] = 0;
+        return entry->peer_id[0] && entry->name[0] &&
+            nativeUtf8_IsVisibleText((const uint8_t*) entry->text, length) && reader_finished(&reader);
+    }
+    case SERVER_CHAT_BEGIN:
+        output->type = NativeSignalingServerMessage_Chat;
+        output->data.chat.kind = NativeRoomChatEvent_Begin;
+        return reader_u8(&reader, &output->data.chat.count) &&
+            output->data.chat.count <= NATIVE_ROOM_CHAT_HISTORY && reader_finished(&reader);
+    case SERVER_CHAT_END:
+        output->type = NativeSignalingServerMessage_Chat;
+        output->data.chat.kind = NativeRoomChatEvent_End;
+        return reader_u64(&reader, &output->data.chat.entry.sequence) && reader_finished(&reader);
+    case SERVER_CHAT_REJECTED:
+        output->type = NativeSignalingServerMessage_Chat;
+        output->data.chat.kind = NativeRoomChatEvent_Rejected;
+        return reader_u32(&reader, &output->data.chat.entry.nonce) &&
+            reader_string8(&reader, output->data.chat.reason, sizeof(output->data.chat.reason)) && reader_finished(&reader);
     case SERVER_WELCOME:
         output->type = NativeSignalingServerMessage_Welcome;
         return reader_string8(&reader, output->data.welcome.connection_id,

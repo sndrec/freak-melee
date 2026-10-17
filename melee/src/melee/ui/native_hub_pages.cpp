@@ -245,15 +245,17 @@ namespace {
         char heading[96];
         std::snprintf(heading, sizeof(heading), "Lobby %s",
                       code && *code ? code : "connecting...");
-        nativeMenuPaint_Text(heading, 181, 119, 289, 17, gold,
+        nativeMenuPaint_Text(heading, 181, 119, 194, 17, gold,
                             NativeMenuFont_Heading);
+        nativeHub_Button("lobby-chat", "Chat", 388, 115, 94, 25, HubAction::RoomChat);
         nativeHub_Button("copy-code", "Copy code", 490, 115, 114, 25,
                          HubAction::CopyCode);
         nativeHub_Panel(175, 150, 430, 170);
         const NativeSignalingPresence* p = nativeOnlineSession_Presence();
         float y = 161;
+        hub.lobby_scroll = std::clamp(hub.lobby_scroll, 0, p && p->participant_count ? int((p->participant_count - 1) / 6 * 6) : 0);
         if (p) {
-            for (unsigned i = 0; i < p->participant_count && y < 294; ++i) {
+            for (unsigned i = unsigned(hub.lobby_scroll); i < p->participant_count && i < unsigned(hub.lobby_scroll + 6); ++i) {
                 const auto& person = p->participants[i];
                 nativeHub_Button("lobby-player", person.name, 187, y, 182, 19,
                                  HubAction::ShowProfile, 0, false, true,
@@ -276,6 +278,14 @@ namespace {
             nativeMenuPaint_Text("Connecting to the lobby...", 190, 171, 380,
                                 11, muted);
         }
+        if (p && p->participant_count > 6) {
+            char page[40];
+            std::snprintf(page, sizeof(page), "%d-%u / %u", hub.lobby_scroll + 1,
+                std::min(unsigned(hub.lobby_scroll + 6), unsigned(p->participant_count)), p->participant_count);
+            nativeMenuPaint_Text(page, 241, 308, 290, 8, muted);
+            nativeHub_Button("lobby-prev", "<", 187, 303, 35, 17, HubAction::LobbyScroll, -6, false, hub.lobby_scroll > 0);
+            nativeHub_Button("lobby-next", ">", 558, 303, 35, 17, HubAction::LobbyScroll, 6, false, hub.lobby_scroll + 6 < p->participant_count);
+        }
         nativeHub_Button("lobby-ready", nativeHome_IsPractice() ? "Return to practice" : "Choose fighter", 175, 337, 141, 31,
                          HubAction::Practice, 0, true);
         nativeHub_Button("start-match", "Start match", 325, 337, 141, 31,
@@ -291,77 +301,69 @@ namespace {
         nativeHub_Button("match-rules", "Match rules", 476, 376, 129, 22,
                          HubAction::Rules, 0, false, nativeHome_IsSelection() && nativeOnlineSession_IsOwner());
     }
-    void chat()
+    void chat(bool room = false)
     {
-        const NativeChatView* view = nativeChat_View();
+        const auto* global = nativeChat_View();
+        const auto* lobby = nativeOnlineSession_Chat();
+        const auto* presence = nativeOnlineSession_Presence();
+        unsigned people = room ? (presence ? presence->participant_count : 0) : global->player_count;
+        unsigned count = room ? (lobby ? lobby->count : 0) : global->count;
+        bool ready = room ? lobby && lobby->connected && lobby->ready : global->state == NativeChat_Online;
         char label[80];
-        std::snprintf(label, sizeof(label), "Global chat - %u online",
-                      view->online);
-        title("Chatroom", label);
+        if (room) std::snprintf(label, sizeof(label), "Lobby %s - %u players", nativeOnlineSession_RoomCode() ? nativeOnlineSession_RoomCode() : "", people);
+        else std::snprintf(label, sizeof(label), "Global chat - %u online", global->online);
+        title(room ? "Lobby chat" : "Chatroom", label);
         nativeHub_Panel(175, 116, 296, 234);
         nativeHub_Panel(479, 116, 126, 234);
-        nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold,
-                            NativeMenuFont_Heading);
-        unsigned count = view->count;
-        unsigned end =
-            count > unsigned(hub.chat_scroll) ? count - hub.chat_scroll : 0;
-        unsigned start = end > 8 ? end - 8 : 0;
-        float bottom = 340;
-        for (unsigned i = end; i > start; --i) {
-            const NativeChatMessage& msg = view->messages[i - 1];
-            MessageLines lines = wrap_message(msg.text);
-            float top = bottom - 16 - lines.count * 11;
-            if (top < 126) {
-                break;
+        nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold, NativeMenuFont_Heading);
+        int& scroll = room ? hub.room_chat_scroll : hub.chat_scroll;
+        unsigned total_lines = 0;
+        for (unsigned i = 0; i < count; ++i)
+            total_lines += wrap_message(room ? lobby->messages[i].text : global->messages[i].text).count + 2;
+        scroll = std::clamp(scroll, 0, std::max(0, int(total_lines) - 17));
+        nativeMenuPaint_Text("Messages", 186, 127, 172, 12, gold, NativeMenuFont_Heading);
+        nativeHub_Button("chat-older", "Older", 371, 122, 43, 18,
+            HubAction::ChatScroll, 16, false, scroll + 17 < int(total_lines));
+        nativeHub_Button("chat-newer", "Newer", 420, 122, 43, 18,
+            HubAction::ChatScroll, -16, false, scroll > 0);
+        unsigned skip = unsigned(scroll);
+        float y = 335;
+        for (unsigned i = count; i > 0 && y >= 151; --i) {
+            const char* text = room ? lobby->messages[i - 1].text : global->messages[i - 1].text;
+            const char* name = room ? lobby->messages[i - 1].name : global->messages[i - 1].name;
+            MessageLines lines = wrap_message(text);
+            for (int row = int(lines.count) + 1; row >= 0 && y >= 151; --row) {
+                if (skip) { --skip; continue; }
+                if (!row) nativeMenuPaint_Text(name, 186, y, 270, 9, gold);
+                else if (unsigned(row) <= lines.count) nativeMenuPaint_Text(lines.lines[row - 1], 186, y, 270, 8);
+                y -= 11;
             }
-            nativeMenuPaint_Text(msg.name, 186, top, 270, 9, gold);
-            for (unsigned row = 0; row < lines.count; ++row) {
-                nativeMenuPaint_Text(lines.lines[row], 186, top + 14 + row * 11,
-                                    270, 8);
-            }
-            bottom = top - 5;
         }
-        if (!count) {
-            nativeMenuPaint_Text(view->state == NativeChat_Online
-                                    ? "Be the first to say hello."
-                                    : "Connecting to global chat...",
-                                186, 139, 272, 10, muted);
+        if (!count) nativeMenuPaint_Text(ready ? "Be the first to say hello." : room ? "Connecting to lobby chat..." : "Connecting to global chat...", 186, 155, 272, 10, muted);
+        int& people_scroll = room ? hub.room_people_scroll : hub.people_scroll;
+        people_scroll = std::clamp(people_scroll, 0, std::max(0, int(people) - 12));
+        unsigned last = std::min(unsigned(people_scroll + 12), people);
+        for (unsigned i = unsigned(people_scroll); i < last; ++i) {
+            const char* name = room ? presence->participants[i].name : global->players[i].name;
+            const char* peer = room ? presence->participants[i].peer_id : global->players[i].peer;
+            nativeHub_Button("chat-player", name, 487, 149 + (i - people_scroll) * 14, 108, 13,
+                HubAction::ShowProfile, 0, false, true, peer, name);
         }
-        hub.people_scroll = std::min(
-            hub.people_scroll, std::max(0, int(view->player_count) - 12));
-        unsigned last = std::min(unsigned(hub.people_scroll + 12),
-                                 unsigned(view->player_count));
-        for (unsigned i = unsigned(hub.people_scroll); i < last; ++i) {
-            const auto& person = view->players[i];
-            nativeHub_Button("chat-player", person.name, 487,
-                             149 + (i - hub.people_scroll) * 14, 108, 13,
-                             HubAction::ShowProfile, 0, false, true,
-                             person.peer, person.name);
+        if (people > 12) {
+            nativeHub_Button("people-prev", "<", 489, 324, 28, 18, HubAction::PeopleScroll, -12, false, people_scroll > 0);
+            nativeHub_Button("people-next", ">", 567, 324, 28, 18, HubAction::PeopleScroll, 12, false, last < people);
         }
-        if (view->player_count > 12) {
-            nativeHub_Button("people-prev", "<", 489, 324, 28, 18,
-                             HubAction::PeopleScroll, -12, false,
-                             hub.people_scroll > 0);
-            nativeHub_Button("people-next", ">", 567, 324, 28, 18,
-                             HubAction::PeopleScroll, 12, false,
-                             last < view->player_count);
-        }
-        nativeHub_Field("chat-message", hub.chat, 175, 362, 328, 28,
-                        HubAction::FieldChat);
-        nativeHub_Button("send-chat", "Send", 512, 362, 93, 28,
-                         HubAction::SendChat, 0, true,
-                         *hub.chat && view->state == NativeChat_Online);
-        const char* status = view->state == NativeChat_Online ? "Connected"
-                             : view->state == NativeChat_Offline
-                                 ? "Offline"
-                                 : "Connecting...";
-        if (view->delivery == NativeChatDelivery_Sending) {
-            status = "Sending...";
-        }
-        if (view->delivery == NativeChatDelivery_Unconfirmed) {
-            status = "Delivery is unconfirmed.";
-        }
-        nativeMenuPaint_Text(status, 181, 396, 416, 8, muted);
+        nativeHub_Field(room ? "lobby-message" : "chat-message", room ? hub.room_chat : hub.chat,
+            175, 362, 328, 28, room ? HubAction::FieldRoomChat : HubAction::FieldChat);
+        bool sending = room ? lobby && lobby->delivery == NativeRoomChatDelivery_Sending : global->delivery == NativeChatDelivery_Sending;
+        bool unconfirmed = room ? lobby && lobby->delivery == NativeRoomChatDelivery_Unconfirmed : global->delivery == NativeChatDelivery_Unconfirmed;
+        nativeHub_Button(room ? "send-lobby-chat" : "send-chat", "Send", 512, 362, 93, 28,
+            room ? HubAction::SendRoomChat : HubAction::SendChat, 0, true,
+            *(room ? hub.room_chat : hub.chat) && ready && !sending);
+        const char* status = sending ? "Sending..." : unconfirmed ? "Delivery is unconfirmed." : ready ? "Connected" : "Connecting...";
+        if (room && lobby && lobby->failure[0]) status = lobby->failure;
+        nativeMenuPaint_Text(status, 181, 396, room && unconfirmed ? 325 : 416, 8, muted);
+        if (room && unconfirmed) nativeHub_Button("retry-lobby-chat", "Retry", 536, 393, 69, 14, HubAction::RetryRoomChat, 0, false, ready);
     }
     void settings()
     {
@@ -499,6 +501,9 @@ void nativeHub_RenderPage(void)
         break;
     case NativeHubPage_Lobbies:
         lobbies();
+        break;
+    case NativeHubPage_RoomChat:
+        chat(true);
         break;
     case NativeHubPage_Chat:
         chat();

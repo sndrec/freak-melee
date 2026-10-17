@@ -31,7 +31,9 @@ and practice. Delivery progress and results appear in the same area. A received
 fighter is added to the saved roster. The native hub's Workshop page also keeps
 its acceptance controls.
 
-Lobbies includes seat choices, host start, rotation policy and match rules.
+Lobbies includes seat choices, host start, rotation policy, match rules and lobby
+chat. Its player list pages through larger rooms. [Chat](native_chat.md) describes
+its private-room delivery and history.
 Settings opens bindings, rules, costumes and installed packages. Editing fighters
 and rules requires returning to character select. The costume selector is now a
 separate tool page, with the existing package-selection and DAT-import functions.
