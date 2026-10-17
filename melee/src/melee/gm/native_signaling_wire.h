@@ -17,6 +17,8 @@ enum {
     NATIVE_SIGNALING_MAX_MATCH_BYTES = 4096,
     NATIVE_SIGNALING_MAX_CONNECTION_ID_BYTES = 64,
     NATIVE_SIGNALING_MAX_ERROR_BYTES = 512,
+    NATIVE_ROOM_CHAT_HISTORY = 64,
+    NATIVE_ROOM_CHAT_TEXT_BYTES = 512,
 };
 
 typedef enum NativeSignalingServerMessageType {
@@ -26,6 +28,7 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_Signal,
     NativeSignalingServerMessage_SignalSent,
     NativeSignalingServerMessage_Error,
+    NativeSignalingServerMessage_Chat,
 } NativeSignalingServerMessageType;
 
 typedef enum NativeRoomRotationPolicy {
@@ -71,12 +74,33 @@ typedef struct NativeSignalingSignal {
     uint16_t payload_size;
 } NativeSignalingSignal;
 
+typedef enum NativeRoomChatEventKind {
+    NativeRoomChatEvent_Entry, NativeRoomChatEvent_Begin,
+    NativeRoomChatEvent_End, NativeRoomChatEvent_Rejected,
+} NativeRoomChatEventKind;
+
+typedef struct NativeRoomChatEntry {
+    uint64_t sequence;
+    uint32_t nonce;
+    char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    char name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
+    char text[NATIVE_ROOM_CHAT_TEXT_BYTES + 1];
+} NativeRoomChatEntry;
+
+typedef struct NativeRoomChatEvent {
+    NativeRoomChatEventKind kind;
+    NativeRoomChatEntry entry;
+    uint8_t count;
+    char reason[129];
+} NativeRoomChatEvent;
+
 typedef struct NativeSignalingServerMessage {
     NativeSignalingServerMessageType type;
     union {
         NativeSignalingWelcome welcome;
         NativeSignalingPresence presence;
         NativeSignalingSignal signal;
+        NativeRoomChatEvent chat;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
@@ -125,6 +149,9 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
                                              bool eligible,
                                              uint8_t* output,
                                              size_t output_capacity);
+size_t nativeSignalingWire_EncodePostChat(uint32_t nonce, const char* text,
+                                        uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeRequestChat(uint8_t* output, size_t capacity);
 bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output);

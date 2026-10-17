@@ -194,6 +194,11 @@ NativeLobbySessionState nativeOnlineSession_State(void)
                          : NativeLobbySessionState_Disconnected;
 }
 
+NativeRoomChat* nativeOnlineSession_Chat(void)
+{
+    return online.active ? &online.lobby.room.connection.chat : NULL;
+}
+
 const NativeSignalingPresence* nativeOnlineSession_Presence(void)
 {
     return online.active ? nativeLobbySession_Presence(&online.lobby) : NULL;

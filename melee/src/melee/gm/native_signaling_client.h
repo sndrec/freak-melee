@@ -12,6 +12,7 @@
 enum {
     NATIVE_SIGNALING_COMMAND_CAPACITY = 16,
     NATIVE_SIGNALING_EVENT_CAPACITY = 16,
+    NATIVE_SIGNALING_CHAT_CAPACITY = 128,
     NATIVE_SIGNALING_ENDPOINT_BYTES = 512,
     NATIVE_SIGNALING_ROOM_ID_BYTES = 12,
 };
@@ -55,9 +56,17 @@ typedef struct NativeSignalingEventQueue {
     _Atomic uint32_t write;
 } NativeSignalingEventQueue;
 
+typedef struct NativeSignalingChatQueue {
+    NativeRoomChatEvent slots[NATIVE_SIGNALING_CHAT_CAPACITY];
+    _Atomic uint32_t read;
+    _Atomic uint32_t write;
+    _Atomic bool overflow;
+} NativeSignalingChatQueue;
+
 typedef struct NativeSignalingClient {
     NativeSignalingCommandQueue commands;
     NativeSignalingEventQueue events;
+    NativeSignalingChatQueue chat;
     uintptr_t thread_handle;
     uintptr_t wake_event;
     _Atomic bool stop_requested;
@@ -96,6 +105,9 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        const char* winner_peer_id,
                                        uint8_t winner_seat,
                                        bool eligible);
+bool nativeSignalingClient_RequestChat(NativeSignalingClient* client);
+bool nativeSignalingClient_PostChat(NativeSignalingClient* client, uint32_t nonce, const char* text);
+bool nativeSignalingClient_PollChat(NativeSignalingClient* client, NativeRoomChatEvent* event);
 bool nativeSignalingClient_Poll(NativeSignalingClient* client,
                                 NativeSignalingClientEvent* event);
 bool nativeSignalingClient_IsRunning(const NativeSignalingClient* client);

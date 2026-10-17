@@ -16,7 +16,8 @@ typedef enum NativeHubPage {
     NativeHubPage_Settings,
     NativeHubPage_Profile,
     NativeHubPage_Clone,
-    NativeHubPage_Send
+    NativeHubPage_Send,
+    NativeHubPage_RoomChat
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

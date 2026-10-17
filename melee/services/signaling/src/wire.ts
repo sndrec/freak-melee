@@ -13,6 +13,8 @@ export const enum ClientMessageType {
   AssignSeats = 5,
   SetRotation = 6,
   ReportMatch = 7,
+  PostChat = 8,
+  RequestChat = 9,
 }
 
 export const enum ServerMessageType {
@@ -20,6 +22,10 @@ export const enum ServerMessageType {
   Presence = 0x82,
   Signal = 0x83,
   SignalSent = 0x84,
+  ChatEntry = 0x85,
+  ChatBegin = 0x86,
+  ChatEnd = 0x87,
+  ChatRejected = 0x88,
   Error = 0xff,
 }
 
@@ -30,6 +36,14 @@ const enum UpdateField {
   Ready = 1 << 3,
   Selection = 1 << 4,
   WaitingMask = 1 << 5,
+}
+
+export interface RoomChatEntry {
+  sequence: number;
+  nonce: number;
+  peerId: string;
+  name: string;
+  text: string;
 }
 
 export type ClientMessage =
@@ -44,6 +58,8 @@ export type ClientMessage =
     }
   | { type: ClientMessageType.Signal; to: string; payload: Uint8Array }
   | { type: ClientMessageType.RequestPresence }
+  | { type: ClientMessageType.RequestChat }
+  | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
   | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
   | { type: ClientMessageType.SetRotation; policy: RotationPolicy }
@@ -59,6 +75,10 @@ export type ServerMessage =
   | { type: ServerMessageType.Presence; snapshot: RoomSnapshot }
   | { type: ServerMessageType.Signal; from: string; payload: Uint8Array }
   | { type: ServerMessageType.SignalSent; to: string }
+  | { type: ServerMessageType.ChatEntry; entry: RoomChatEntry }
+  | { type: ServerMessageType.ChatBegin; count: number }
+  | { type: ServerMessageType.ChatEnd; sequence: number }
+  | { type: ServerMessageType.ChatRejected; nonce: number; reason: string }
   | { type: ServerMessageType.Error; message: string };
 
 class Reader {
@@ -82,6 +102,13 @@ class Reader {
     this.require(2);
     const value = this.view.getUint16(this.offset, false);
     this.offset += 2;
+    return value;
+  }
+
+  u32(): number {
+    this.require(4);
+    const value = this.view.getUint32(this.offset, false);
+    this.offset += 4;
     return value;
   }
 
@@ -151,6 +178,12 @@ class Writer {
     this.offset += 2;
   }
 
+  u32(value: number): void {
+    this.require(4);
+    this.view.setUint32(this.offset, value, false);
+    this.offset += 4;
+  }
+
   u64(value: number): void {
     if (!Number.isSafeInteger(value) || value < 0) {
       throw new Error("Invalid protocol integer");
@@ -212,6 +245,16 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.RequestChat) {
+    reader.finish();
+    return { type };
+  }
+  if (type === ClientMessageType.PostChat) {
+    const nonce = reader.u32();
+    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(reader.bytes16());
+    reader.finish();
+    return { type, nonce, text };
+  }
   if (type === ClientMessageType.RequestPresence) {
     reader.finish();
     return { type };
@@ -285,6 +328,22 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
 
 export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ServerMessageType.ChatEntry) {
+    const entry = { sequence: reader.u64(), nonce: reader.u32(), peerId: reader.string8(),
+      name: reader.string8(), text: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(reader.bytes16()) };
+    reader.finish();
+    return { type, entry };
+  }
+  if (type === ServerMessageType.ChatBegin) {
+    const count = reader.u8(); reader.finish(); return { type, count };
+  }
+  if (type === ServerMessageType.ChatEnd) {
+    const sequence = reader.u64(); reader.finish(); return { type, sequence };
+  }
+  if (type === ServerMessageType.ChatRejected) {
+    const nonce = reader.u32(), reason = reader.string8();
+    reader.finish(); return { type, nonce, reason };
+  }
   if (type === ServerMessageType.Welcome) {
     const result: ServerMessage = {
       type,
@@ -532,4 +591,39 @@ function readParticipant(reader: Reader): Participant {
     selection,
   };
   return participant;
+}
+
+export function encodePostChat(nonce: number, text: string): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.PostChat, 16 * 1024);
+  writer.u32(nonce);
+  writer.bytes16(new TextEncoder().encode(text));
+  return writer.finish();
+}
+export function encodeRequestChat(): ArrayBuffer {
+  return new Writer(ClientMessageType.RequestChat, 8).finish();
+}
+export function encodeChatEntry(entry: RoomChatEntry): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.ChatEntry, 1024);
+  writer.u64(entry.sequence);
+  writer.u32(entry.nonce);
+  writer.string8(entry.peerId);
+  writer.string8(entry.name);
+  writer.bytes16(new TextEncoder().encode(entry.text));
+  return writer.finish();
+}
+export function encodeChatBegin(count: number): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.ChatBegin, 9);
+  writer.u8(count);
+  return writer.finish();
+}
+export function encodeChatEnd(sequence: number): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.ChatEnd, 16);
+  writer.u64(sequence);
+  return writer.finish();
+}
+export function encodeChatRejected(nonce: number, reason: string): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.ChatRejected, 141);
+  writer.u32(nonce);
+  writer.string8(reason);
+  return writer.finish();
 }

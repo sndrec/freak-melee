@@ -489,6 +489,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_shell_css_original.cpp
     src/melee/ui/native_shell_costumes.cpp
     src/melee/ui/native_chat.c
+    src/melee/gm/native_room_chat.c
     src/melee/ui/native_shell_profiles.cpp
     src/melee/ui/native_shell_rules.cpp
     src/sysdolphin/baselib/audio_rollback.c
@@ -777,6 +778,15 @@ if(MELEE_BUILD_TESTS)
     target_compile_definitions(native_signaling_wire_test PRIVATE
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     add_test(NAME native_signaling_wire COMMAND native_signaling_wire_test)
+    add_executable(native_room_chat_test
+        tests/native/room_chat_test.c
+        src/melee/gm/native_room_chat.c
+        src/melee/gm/native_signaling_client.c
+        src/melee/gm/native_signaling_wire.c)
+    target_include_directories(native_room_chat_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_room_chat_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(native_room_chat_test PRIVATE winhttp)
+    add_test(NAME native_room_chat COMMAND native_room_chat_test)
     add_executable(native_chat_wire_test
         tests/native/chat_wire_test.c src/melee/ui/native_chat_wire.c)
     target_include_directories(native_chat_wire_test PRIVATE src)
@@ -2032,6 +2042,7 @@ add_executable(native_connection_probe
     src/melee/gm/native_lobby_topology.c
     src/melee/gm/native_netplay_exchange.c
     src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_content_channel.c
     src/melee/gm/native_netplay_connection_wire.c
     src/melee/gm/native_netplay_ice.c
@@ -2055,6 +2066,7 @@ target_link_libraries(native_connection_probe PRIVATE
 add_executable(native_content_channel_probe
     tools/native_content_channel_probe.c
     src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_content_channel.c
     src/melee/gm/native_netplay_connection_wire.c
     src/melee/gm/native_netplay_ice.c

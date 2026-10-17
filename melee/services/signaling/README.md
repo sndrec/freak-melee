@@ -6,18 +6,18 @@ WebSockets for presence and directed connection-setup messages; gameplay input
 continues over the native client's UDP data plane and does not depend on this
 service after peers establish a direct or relayed route.
 
-Repository builds do not deploy the service automatically. The current private
-deployment is `https://freak-melee-signaling.sndrec32exe.workers.dev`; deployment
-version `b11bb19c-ccc4-487d-8794-4b8302c502df` was published on 2026-09-23.
-It accepts protocol v3 per-seat assignments and owner overrides. The native
-3+3 probe passed against this deployment, including a host override followed
-by that player's own reassignment and a directed signaling exchange. The
-health route and two-peer ICE/rollback probe also passed against this version.
-The same Worker now routes `/chat/connect?peer=<32 hex digits>` to a separate
-`GlobalChat` object for the one shared friends' conversation. Its independent
-WebSocket carries bounded binary chat messages, 64 persisted recent entries,
-and online counts. Room joins/leaves never switch the chat. See
-`../../docs/native_chat.md` for the client, delivery semantics, and test evidence.
+Repository builds do not deploy the service automatically. The private deployment
+is `https://freak-melee-signaling.sndrec32exe.workers.dev`. The 2026-10-17 room-chat
+checkpoint is deployment `47e0897b-fb0e-42b3-8873-694ab6764d3e`. It accepts the
+native client's protocol v5 seat assignments, owner overrides, match rotation,
+opaque content controls and subscribed lobby chat.
+
+`/chat/connect?peer=<32 hex digits>` serves the separate global conversation.
+Its WebSocket carries recent chat history and the connected-player directory.
+Lobby chat uses each room's existing WebSocket and retains messages while that
+room remains occupied. See [chat](../../docs/native_chat.md) for controls,
+delivery semantics and current test evidence.
+
 Local checks:
 
 ```powershell
@@ -54,9 +54,8 @@ fetches a fresh configuration, and clients reject malformed or oversized
 responses before starting ICE. Direct candidates remain preferred by ICE; TURN
 is available when the peers cannot establish a direct route.
 
-The current private deployment has no TURN secrets and therefore returns the
-same bounded STUN-only configuration. Its health and credential routes both
-respond successfully. A live two-client `native_connection_probe` against the
+The recorded September 2026 deployment returned STUN-only configuration.
+A live two-client `native_connection_probe` against the
 deployed origin joined a Durable Object room, agreed on an owner proposal,
 closed both signaling sockets, and exchanged validated shared-PC rollback input
 over ICE. Forced-relay validation remains pending TURN provisioning.
@@ -92,7 +91,10 @@ The server sends:
   current match-proposal epoch and opaque payload;
 - `signal`: opaque connection candidate or negotiation payload from a named
   peer;
-- `signal_sent`: acknowledgement that the target was connected; and
+- `signal_sent`: acknowledgement that the target was connected;
+- `chat_begin`, `chat_entry`, `chat_end`: a subscribed history response and live
+  messages, with sequence, nonce, sender peer, name and text;
+- `chat_rejected`: a chat error and its nonce, independent of room errors; and
 - `error`: rejected client message with a human-readable reason.
 
 Clients send:
@@ -105,7 +107,20 @@ Clients send:
   or an empty payload to clear it; or
 - `assign_seats` from the current room owner, naming a connected peer and its
   new active and waiting seat masks. The named peer may subsequently send its
-  own `update`; the last accepted assignment wins.
+  own `update`; the last accepted assignment wins;
+- `set_rotation` selects Manual, Winner stays or Winner out;
+- `report_match` reports a completed eligible 1v1 result for rotation;
+- `request_chat` subscribes to lobby messages and requests recent history;
+- `post_chat` supplies a nonzero, increasing 32-bit nonce and up to 512 UTF-8
+  bytes of text. The server gets the sender's peer and name from its socket.
+
+Lobby history contains at most 64 messages. SQLite writes precede broadcasts.
+Retries reuse their nonce and are deduplicated while retained; expired retries
+are rejected. Posting is limited to one new message every 500 ms per connection;
+history requests are limited to one per second. Subscription and rate-limit
+state live in connection attachments. The last socket leaving clears the
+history. Room chat includes waiting players and spectators.
+
 
 A PC with an active seat can become ready only while a proposal exists. Publishing,
 replacing, or clearing the proposal resets every participant's ready state.
@@ -119,7 +134,7 @@ without ending the match. Replacing a connection with the same peer ID retains
 its assignment.
 
 WebSocket messages use a versioned binary protocol with a fixed eight-byte
-header: ASCII `FMS1`, protocol version 3, message type, and a big-endian payload
+header: ASCII `FMS1`, protocol version 5, message type, and a big-endian payload
 length. Strings use length-prefixed UTF-8, revisions and join order use
 big-endian 64-bit integers, and signaling and selection payloads remain opaque
 bytes. Per-PC selections are limited to 512 bytes. The protocol has no legacy

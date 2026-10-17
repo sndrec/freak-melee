@@ -37,7 +37,7 @@ namespace {
     const char* page_names[] = { "Quick Play",  "Lobbies", "Chatroom",
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
-                                 "Send fighter" };
+                                 "Send fighter", "Lobby chat" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -262,6 +262,8 @@ namespace {
         if (key == SDLK_RETURN) {
             if (field == hub.chat) {
                 queue(HubAction::SendChat);
+            } else if (field == hub.room_chat) {
+                queue(HubAction::SendRoomChat);
             } else if (field == hub.code) {
                 queue(HubAction::Join);
             } else if (field == hub.title) {
@@ -389,7 +391,7 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
         nativeMenuPaint_Rect(x + 5, y + 4, w - 10, 17, 0x725730FF);
     }
     nativeMenuPaint_Text(*value                           ? value
-                        : action == HubAction::FieldChat ? "Write a message..."
+                        : (action == HubAction::FieldChat || action == HubAction::FieldRoomChat) ? "Write a message..."
                         : action == HubAction::FieldCode ? "Lobby code"
                                                          : "",
                         x + 7, y + 7, w - 14, 10, *value ? white : 0x81778EFF);
@@ -508,6 +510,8 @@ void nativeHub_Activate(HubAction action, int value)
             hub.send_from_css = false;
             hub.dismissed = true;
             hub.visible = false;
+        } else if (hub.page == NativeHubPage_RoomChat) {
+            nativeHub_ChangePage(NativeHubPage_Lobbies);
         } else if (hub.opened_from_play && hub.page <= NativeHubPage_Settings) {
             hub.dismissed = true;
             hub.visible = false;
@@ -665,6 +669,9 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::FieldChat:
         text_focus(hub.chat, sizeof(hub.chat));
         break;
+    case HubAction::FieldRoomChat:
+        text_focus(hub.room_chat, sizeof(hub.room_chat));
+        break;
     case HubAction::FieldCode:
         text_focus(hub.code, sizeof(hub.code));
         break;
@@ -685,6 +692,26 @@ void nativeHub_Activate(HubAction action, int value)
                 "Chat is unavailable. Your message is still here.");
         }
         break;
+    case HubAction::RoomChat:
+        nativeHub_ChangePage(NativeHubPage_RoomChat);
+        break;
+    case HubAction::SendRoomChat:
+        if (nativeRoomChat_Post(nativeOnlineSession_Chat(), hub.room_chat)) {
+            hub.room_chat[0] = 0;
+            hub.caret = 0;
+            hub.room_chat_scroll = 0;
+        } else nativeHub_Notice("Could not send yet. Your message is still here.");
+        break;
+    case HubAction::RetryRoomChat:
+        if (!nativeRoomChat_Retry(nativeOnlineSession_Chat()))
+            nativeHub_Notice("Chat is reconnecting. Try again shortly.");
+        break;
+    case HubAction::LobbyScroll: {
+        const auto* presence = nativeOnlineSession_Presence();
+        int last = presence && presence->participant_count ? (presence->participant_count - 1) / 6 * 6 : 0;
+        hub.lobby_scroll = std::clamp(hub.lobby_scroll + value, 0, last);
+        break;
+    }
     case HubAction::LocalPlayers:
         hub.local_players = std::clamp(value, 1, 4);
         break;
@@ -835,10 +862,22 @@ void nativeHub_Activate(HubAction action, int value)
                          "play through Lobbies now.");
         break;
     case HubAction::PeopleScroll:
+        if (hub.page == NativeHubPage_RoomChat) {
+            const auto* presence = nativeOnlineSession_Presence();
+            hub.room_people_scroll = std::clamp(hub.room_people_scroll + value, 0,
+                std::max(0, presence ? int(presence->participant_count) - 12 : 0));
+            break;
+        }
         hub.people_scroll =
             std::clamp(hub.people_scroll + value, 0,
                        std::max(0, int(nativeChat_View()->player_count) - 12));
         break;
+    case HubAction::ChatScroll: {
+        int& scroll = hub.page == NativeHubPage_RoomChat
+                          ? hub.room_chat_scroll : hub.chat_scroll;
+        scroll = std::clamp(scroll + value, 0, 64 * 34);
+        break;
+    }
     case HubAction::WriteLetter:
     case HubAction::AddFriend:
     case HubAction::Invite:
@@ -1032,7 +1071,7 @@ extern "C" void nativeHub_Draw(void)
                          352, 21, 132, 19, HubAction::Close);
     for (unsigned i = 0; i < 7; ++i) {
         float y = 64 + i * 38;
-        bool selected = unsigned(hub.page) == i;
+        bool selected = unsigned(hub.page) == i || (hub.page == NativeHubPage_RoomChat && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
         float outer[] = { 42, y, 140, y, 140, y + 31, 33, y + 31 };
         float inner[] = { 44, y + 3, 140, y + 3, 140, y + 28, 38, y + 28 };
@@ -1214,22 +1253,26 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
     if (event->type == SDL_EVENT_KEY_DOWN) {
         key(event->key.key, event->key.mod);
     }
-    if (event->type == SDL_EVENT_MOUSE_WHEEL && hub.page == NativeHubPage_Chat) {
+    if (event->type == SDL_EVENT_MOUSE_WHEEL &&
+        (hub.page == NativeHubPage_Chat || hub.page == NativeHubPage_RoomChat)) {
+        bool room = hub.page == NativeHubPage_RoomChat;
+        const auto* presence = nativeOnlineSession_Presence();
+        const auto* chat = nativeOnlineSession_Chat();
+        int people = room ? (presence ? presence->participant_count : 0) : nativeChat_View()->player_count;
+        int messages = room ? (chat ? chat->count : 0) : nativeChat_View()->count;
         if (nativeHub_Hover(479, 116, 126, 234)) {
-            hub.people_scroll = std::clamp(
-                hub.people_scroll - int(event->wheel.y) * 3, 0,
-                std::max(0, int(nativeChat_View()->player_count) - 12));
+            int& scroll = room ? hub.room_people_scroll : hub.people_scroll;
+            scroll = std::clamp(scroll - int(event->wheel.y) * 3, 0, std::max(0, people - 12));
         } else {
-            hub.chat_scroll =
-                std::clamp(hub.chat_scroll + int(event->wheel.y) * 3, 0,
-                           std::max(0, int(nativeChat_View()->count) - 8));
+            int& scroll = room ? hub.room_chat_scroll : hub.chat_scroll;
+            scroll = std::clamp(scroll + int(event->wheel.y) * 3, 0, std::max(0, messages * 34 - 1));
         }
     }
 }
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_Send) {
+        page > NativeHubPage_RoomChat) {
         return;
     }
     hub.opened_from_play = true;
@@ -1238,6 +1281,18 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strcmp(id, "lobby-chat-state")) {
+        const auto* chat = nativeOnlineSession_Chat();
+        std::fprintf(stderr, "[hub-inspect] lobby-chat-state page=%u connected=%d ready=%d count=%u delivery=%u sequence=%llu\n",
+            unsigned(hub.page), chat && chat->connected, chat && chat->ready,
+            chat ? chat->count : 0, chat ? unsigned(chat->delivery) : 0,
+            chat ? (unsigned long long) chat->last_sequence : 0);
+        for (unsigned i = 0; chat && i < chat->count; ++i)
+            std::fprintf(stderr, "[lobby-chat-entry] %llu peer=%s name=%s text=%s\n",
+                (unsigned long long) chat->messages[i].sequence, chat->messages[i].peer_id,
+                chat->messages[i].name, chat->messages[i].text);
+        return;
+    }
     for (unsigned i = 0; i < hub.region_count; ++i) {
         const auto& r = hub.regions[i];
         if (std::strcmp(id, r.id)) {

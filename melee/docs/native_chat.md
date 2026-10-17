@@ -1,110 +1,116 @@
-# Global chat
+# Chat
 
-## Live player list, 2026-10-17
+Updated: 2026-10-17.
 
-Chatroom shows everyone connected to global chat, including players who have
-not posted. Saving a display name updates that name in the player list.
-Selecting a row opens the player's profile. The list supports 128 connected
-players, with compact rows, paging and mouse-wheel scrolling.
+## Using chat
 
-The service sends a bounded presence snapshot on joins, leaves and name
-changes. Clients display the new list after receiving its completion marker.
-Connection loss clears the live list; reconnecting announces the saved display
-name again. WebSocket attachments retain names through service hibernation.
-The native client uses fixed storage for incoming presence and its event queue.
+**Chatroom** opens the global conversation and lists everyone connected to it.
+**Lobbies > Chat** opens the conversation for your current lobby. Fighting,
+waiting and spectating members can all participate. Enter sends the text in the
+message field; the Send button does the same. Global and lobby chat keep separate
+drafts and scroll positions. The mouse wheel scrolls messages by text line, so
+long messages remain readable. Older and Newer buttons also scroll history with
+the controller hand. The compact player lists have paging controls and
+mouse-wheel scrolling. Selecting a player opens their profile.
 
-Worker type checks and all 18 service tests pass. The native wire test covers
-presence records, name announcements, UTF-8 and size limits. Two Windows client
-probes saw each other without sending messages. A hidden, muted game connected
-to the local service and displayed both itself and a quiet probe in Chatroom;
-the PNG and logs are under `.local/hub-chat-review`.
+Lobby chat is available from character select and ready practice. Pause practice
+and press Z to open the hub, or use F1 or its Lobby button. B returns from lobby
+chat to the lobby controls. **Return to practice** resumes the practice view.
 
-Private service deployment `f76ecd50-8d96-4fb4-940e-704c0cf20468` contains the
-presence update. Existing chat history and room signaling remain in their
-current Durable Objects.
-A native presence-only probe also connected to that deployment and received its
-own directory entry without posting a chat message. Its log is local under
-`.local/native-chat-presence-live.log`.
+Both conversations retain their latest 64 messages. Lobby history lasts while
+someone remains connected; it clears when the last member leaves. Global history
+persists between sessions. Each message supports up to 512 UTF-8 bytes. Names
+support up to 32 bytes. Control characters and malformed UTF-8 are rejected.
 
-The native shell connects automatically to `/chat/connect` on the private
-service. One `GlobalChat` Durable Object owns the friends' shared conversation;
-it is independent of the existing per-room objects. Room membership and client
-build do not partition this conversation. The editable Name field supplies the
-sender name. Enter or Send submits a message; the header button collapses chat.
+A message appears after the service confirms delivery. **Sending...** indicates
+that confirmation is pending. An unconfirmed lobby message has an explicit Retry
+button. Retry sends the same message identifier, preventing a second copy while
+the original remains in history. If that entry has expired, the service reports
+that it is no longer retained. You can write a fresh message after that.
 
-The service keeps the latest 64 messages in SQLite. The upgrade sends that
-history followed by a ready marker and the connected-client count. Broadcasts
-include the original sender, which serves as the delivery acknowledgement only
-after the database write commits. A process-random peer ID and incrementing
-nonce identify an attempted message. Retrying an unconfirmed message reuses its
-nonce and is deduplicated while that message remains in the retained history.
-Names are limited to 32 UTF-8 bytes and text to 512; malformed UTF-8 and control
-characters are rejected. Rml markup is escaped when displaying names and text.
+Accounts, persistent friends, letters and offline fighter gifts remain planned.
+The current peer identifiers belong to running client sessions. Display names
+come from the local profile.
 
-The client uses a dedicated I/O worker with asynchronous WinHTTP operations.
-The worker owns network handles and fixed receive/send storage. Bounded SPSC
-queues exchange copied commands and events with the presentation thread; the
-callbacks never access RmlUi or game state. Chat and shell sources are excluded
-from the rollback section. Hidden rollback frames do not update the shell, and
-chat outages do not stop gameplay or room signaling.
+## Native implementation
 
-Disconnects reconnect with a 1–30 second backoff. A liveness probe every 20
-seconds detects an unresponsive connection after 60 seconds. A pending message
-becomes unconfirmed after ten seconds or a disconnect. It is never inserted
-into displayed history before the service echoes it. Reconnect history can
-confirm it; otherwise Retry is explicit. Shutdown cancels async operations and
-waits for final handle callbacks before releasing their storage.
+`native_chat.c` owns the global connection, reconnects and fixed message storage.
+`native_shell.cpp` starts, updates and stops it. `native_hub_pages.cpp` draws the
+native Chatroom and lobby-chat pages. The original sidebar presenter has been
+removed. These native pages remain inside the game's 4:3 canvas.
 
-## Verification, 2026-09-22
+`native_room_chat.c` owns the lobby history, staged history replacement, pending
+message and retry state. The existing room-signaling worker carries lobby chat.
+Its receive queue holds 128 chat records separately from the 16-event signaling
+queue. If chat overflows, the client requests a complete history replacement;
+gameplay signaling continues. History becomes visible only after its completion
+marker agrees with the received records. This storage belongs to the online
+session and is excluded from rollback snapshots. No additional network thread
+or gameplay ICE route is created for chat.
 
-- Release client and native probe build successfully. All 354 native tests pass
-  serially, with `-UNDEBUG` now applied to native test executables so Release
-  builds actually execute their assertion checks.
-- Worker type checking and all 12 service tests pass. Chat coverage includes
-  cross-client delivery, persisted history after hibernation, idempotent retry,
-  the 64-message limit, presence, ping/pong, oversized messages and invalid UTF-8.
-- Two separate native probe processes exchanged messages through the local
-  Worker; both recorded acknowledgement and the other process's message.
-- A native probe observed Online → Reconnecting → Online across a local Worker
-  restart, retaining history without duplicate display. Clean shutdown reported
-  zero milliseconds in that run.
-- Private deployment `9ef54a9a-89f6-4c4d-a848-f17005513890` exposes chat alongside
-  the existing room and TURN endpoints. A native probe acknowledged a message
-  through that deployment. The actual game received it, sent a message through
-  the sidebar, and retained chat while creating/leaving a room and entering CSS.
-  Sending during a four-player local match also succeeded, with the acknowledged
-  message retained after restarting the game.
-- Full-window screenshots reviewed: `build/native/chat-live.png`,
-  `chat-room.png`, `chat-left-room.png`, `chat-collapsed.png`, and `chat-css.png`.
-  Chat does not cover or resize the 4:3 game viewport.
-- Overflowing history exposed an unstyled RmlUi scrollbar consuming the text
-  width. Explicit scrollbar sizing fixes this; `chat-scrollbar-final.png` shows
-  the overflowing history with readable text and a working-width scroll thumb.
-- Object-file section inspection found no `.mstate` or `.maudio` section in
-  either chat client or chat UI state.
+The per-room Durable Object stores lobby messages in SQLite before broadcasting
+them. The sender's name and peer identifier come from its connection attachment.
+Attachments also retain subscription, rate-limit and message-number state across
+hibernation. New posts are limited to one every 500 ms per connection; history
+requests are limited to one per second. Duplicate retries are checked first.
+Chat rejections have their own packet and leave room signaling connected.
+
+The server sends history only after a client subscribes. Messages use additional
+room-protocol packet types, with the existing presence and gameplay signaling
+records unchanged. History and live entries include a sequence number, nonce,
+sender identifier, name and text. The client's fixed chat queue keeps incoming
+history bursts out of the gameplay-signaling queue. Closing a room socket sends
+a WebSocket close response and updates membership.
+
+## Verification
+
+The service's type generation, application/test type checks and all 21 tests
+pass. The three lobby-chat cases cover cross-client and spectator delivery,
+room isolation, authoritative sender names, idempotent retry, invalid text,
+rate limits, history retention, server hibernation and empty-room cleanup.
+The final private deployment is recorded in
+`.local/native-room-chat-service-final-deploy.log`.
+
+The native signaling-wire test covers chat encoding, UTF-8 rejection, truncation,
+history limits and the new packet types. The room-chat state test covers staged
+history publication, acknowledgments, duplicate delivery, disconnect state,
+history-based confirmation and chat overflow recovery. Global chat wire,
+participant ordering and the existing connection wire checks also pass.
+
+`review_native_lobby_chat.py` starts two hidden, muted native game clients in
+isolated profiles and a fresh private lobby. Additional spectator connections
+exercise the compact player list and the final page of a 15-member lobby.
+Messages are sent only to that private lobby. Global chat is disabled in these
+test clients. The run checks both native send controls, server echoes, switching
+between global and room views, spectator delivery without gameplay links,
+profile navigation and return to character select. PNG screenshots and logs from
+the completed run are under `.local/native-room-chat-acceptance-2`.
+
+The content-channel and gameplay-connection probes also pass after chat was
+added. Four gameplay players retained their routes while a waiting/spectating
+recipient received content; the shared-PC input probe still delivered rollback
+input after its signaling sockets closed. Logs are under
+`.local/native-room-chat-content-regression.log` and
+`.local/native-room-chat-gameplay-regression.log`.
+
+The extended run in `.local/native-room-chat-acceptance-3` also selects a fighter,
+enters ready practice, opens lobby chat with pause/Z and receives a fourth
+message there. Reviewed screenshots show that practice retains its room and chat.
+The history-only run in `.local/native-room-chat-history-3` sends four long
+messages, uses controller A on Older, and returns to the newest text with Newer.
+Its reviewed screenshots show wrapped text staying inside the message panel.
+Physical multi-PC acceptance remains deferred to user testing.
 
 ## Diagnostics
 
-`native_chat_probe ENDPOINT NAME MESSAGE EXPECTED_MESSAGE SECONDS` starts the
-same native chat client without the game, sends once connected, prints received
-messages and connection changes, and succeeds only with an acknowledgement and
-the expected message. Use two processes to check independent senders. Its
-endpoint argument supports the local Worker at `http://127.0.0.1:8799`.
+`native_chat_probe --presence ENDPOINT NAME EXPECTED_NAME SECONDS` checks the
+quiet global player directory. It posts no message.
 
-`native_chat_probe --presence ENDPOINT NAME EXPECTED_NAME SECONDS` announces
-a player without posting. It succeeds when the directory contains both its
-own name and the expected other player.
+`native_chat_probe ENDPOINT NAME MESSAGE EXPECTED_MESSAGE SECONDS` exchanges
+messages through the global endpoint. Use a local service for automated message
+tests. `FREAK_MELEE_CHAT_ENDPOINT` selects that global endpoint for development.
+Room chat uses the selected room-signaling service.
 
-The game defaults to the deployed service. `FREAK_MELEE_CHAT_ENDPOINT` overrides
-the endpoint for local development; do not change it to join different game
-rooms. Ordinary application launches need no environment overrides.
-
-## Remaining limits
-
-This is a small shared text conversation, not yet a persistent identity or
-social system. Names are currently session-only. There is no account system,
-message editing, notification sound, controller-only text entry, or unread
-counter. Retrying a message older than the 64-message retention window can
-post it again. Chat is hidden along with the native rails in narrow windows.
-Portable spectator integration and chat activity during a live rollback
-correction still need broader end-to-end acceptance.
+`ui-inspect lobby-chat-state` reports the active room-chat connection, history
+and delivery state, followed by its retained entries. It is an explicit local
+diagnostic; normal UI updates do not print message contents.

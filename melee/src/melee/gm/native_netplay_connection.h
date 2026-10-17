@@ -9,6 +9,7 @@
 
 #include "native_netplay_ice.h"
 #include "native_signaling_client.h"
+#include "native_room_chat.h"
 #include "native_netplay_content_channel.h"
 
 enum {
@@ -39,6 +40,7 @@ typedef struct NativeNetplayConnectionDatagram {
 
 typedef struct NativeNetplayConnection {
     NativeSignalingClient signaling;
+    NativeRoomChat chat;
     NativeSignalingPresence presence;
     NativeNetplayConnectionPeer
         peers[NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS];

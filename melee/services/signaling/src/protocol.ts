@@ -27,6 +27,10 @@ export interface Participant {
 
 export interface ConnectionAttachment extends Omit<Participant, "waitingRanks"> {
   connectionId: string;
+  chatSubscribed?: boolean;
+  chatLastPost?: number;
+  chatHighestNonce?: number;
+  chatLastHistory?: number;
   waitingOrder: [number, number, number, number];
 }
 

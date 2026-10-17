@@ -28,7 +28,14 @@ import {
   encodeSignal,
   encodeSignalSent,
   encodeWelcome,
+  encodeChatEntry,
+  encodeChatBegin,
+  encodeChatEnd,
+  encodeChatRejected,
+  type RoomChatEntry,
 } from "./wire";
+
+interface RoomChatRow extends RoomChatEntry, Record<string, SqlStorageValue> {}
 
 interface RoomCounter extends Record<string, SqlStorageValue> {
   revision: number;
@@ -71,6 +78,12 @@ export class Room extends DurableObject<CloudflareBindings> {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS room_chat (
+          sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+          connection TEXT NOT NULL, nonce INTEGER NOT NULL,
+          peer TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
+          UNIQUE(connection, nonce)
+        );
         CREATE TABLE IF NOT EXISTS room_counter (
           id INTEGER PRIMARY KEY CHECK (id = 1),
           revision INTEGER NOT NULL,
@@ -212,11 +225,22 @@ export class Room extends DurableObject<CloudflareBindings> {
     try {
       parsed = decodeClientMessage(message);
     } catch {
+      const bytes = new Uint8Array(message);
+      if (bytes[5] === ClientMessageType.PostChat || bytes[5] === ClientMessageType.RequestChat) {
+        this.send(socket, encodeChatRejected(0, "Malformed chat message."));
+        return;
+      }
       this.error(socket, "Malformed room message");
       return;
     }
 
     switch (parsed.type) {
+    case ClientMessageType.PostChat:
+      this.postChat(socket, parsed.nonce, parsed.text);
+      return;
+    case ClientMessageType.RequestChat:
+      this.chatHistory(socket);
+      return;
     case ClientMessageType.Update:
       this.updateParticipant(socket, parsed);
       return;
@@ -243,10 +267,66 @@ export class Room extends DurableObject<CloudflareBindings> {
 
   webSocketClose(socket: WebSocket): void {
     this.removeParticipant(socket);
+    socket.close(1000, "Lobby connection closed");
   }
 
   webSocketError(socket: WebSocket): void {
     this.removeParticipant(socket);
+    socket.close(1011, "Lobby connection failed");
+  }
+
+  private chatHistory(socket: WebSocket): void {
+    const participant = this.attachment(socket);
+    if (participant === null) return;
+    const now = Date.now();
+    if (participant.chatLastHistory !== undefined && now - participant.chatLastHistory < 1000) {
+      this.send(socket, encodeChatRejected(0, "Please wait a moment before reloading chat."));
+      return;
+    }
+    socket.serializeAttachment({ ...participant, chatSubscribed: true, chatLastHistory: now });
+    const rows = this.ctx.storage.sql.exec<RoomChatRow>(
+      "SELECT sequence, nonce, peer AS peerId, name, text FROM room_chat ORDER BY sequence",
+    ).toArray();
+    this.send(socket, encodeChatBegin(rows.length));
+    for (const row of rows) this.send(socket, encodeChatEntry(row));
+    this.send(socket, encodeChatEnd(rows.at(-1)?.sequence ?? 0));
+  }
+
+  private postChat(socket: WebSocket, nonce: number, text: string): void {
+    const participant = this.attachment(socket);
+    if (participant === null) return;
+    const reject = (reason: string) => this.send(socket, encodeChatRejected(nonce, reason));
+    if (nonce === 0 || !participant.chatSubscribed || !isBoundedUtf8(text, 1, 512) ||
+        /[\u0000-\u001f\u007f]/u.test(text) || !/[^ ]/u.test(text)) {
+      reject("Write a message of up to 512 bytes."); return;
+    }
+    const previous = this.ctx.storage.sql.exec<RoomChatRow>(
+      "SELECT sequence, nonce, peer AS peerId, name, text FROM room_chat WHERE connection = ? AND nonce = ?",
+      participant.connectionId, nonce,
+    ).toArray()[0];
+    if (previous !== undefined) {
+      if (previous.text !== text) reject("That message number has already been used.");
+      else this.send(socket, encodeChatEntry(previous));
+      return;
+    }
+    if (nonce <= (participant.chatHighestNonce ?? 0)) {
+      reject("That message is no longer in the lobby history."); return;
+    }
+    const now = Date.now();
+    if (participant.chatLastPost !== undefined && now - participant.chatLastPost < 500) {
+      reject("Please wait a moment before sending another message."); return;
+    }
+    const row = this.ctx.storage.sql.exec<RoomChatRow>(
+      "INSERT INTO room_chat (connection, nonce, peer, name, text) VALUES (?, ?, ?, ?, ?) RETURNING sequence, nonce, peer AS peerId, name, text",
+      participant.connectionId, nonce, participant.peerId, participant.name, text,
+    ).one();
+    this.ctx.storage.sql.exec("DELETE FROM room_chat WHERE sequence <= ?", row.sequence - 64);
+    socket.serializeAttachment({ ...participant, chatLastPost: now, chatHighestNonce: nonce });
+    const bytes = encodeChatEntry(row);
+    for (const recipient of this.ctx.getWebSockets()) {
+      if (recipient.readyState === WebSocket.OPEN && this.attachment(recipient)?.chatSubscribed)
+        this.send(recipient, bytes);
+    }
   }
 
   private updateParticipant(
@@ -564,6 +644,8 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (!replacement && departing?.activeMask !== 0) {
       this.invalidateMatch(socket);
     }
+    if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN))
+      this.ctx.storage.sql.exec("DELETE FROM room_chat");
     this.broadcastPresence(this.nextRevision(), socket);
   }
 
