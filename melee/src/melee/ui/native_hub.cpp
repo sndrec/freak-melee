@@ -1,4 +1,5 @@
 #include "native_hub.h"
+#include "native_hub_hand.h"
 #include "native_hub_internal.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
@@ -39,6 +40,25 @@ namespace {
     };
     SDL_Window* text_window;
     bool wants_text;
+    bool hand_cursor_hidden;
+    bool mouse_pressed;
+
+    void update_pointer_cursor()
+    {
+        const bool hide = hub.visible && nativeHubHand_Ready() &&
+                          SDL_GetMouseFocus() && hub.pointer_x >= 0 &&
+                          hub.pointer_x < 640 && hub.pointer_y >= 0 &&
+                          hub.pointer_y < 480;
+        if (hide == hand_cursor_hidden) {
+            return;
+        }
+        if (hide) {
+            SDL_HideCursor();
+        } else {
+            SDL_ShowCursor();
+        }
+        hand_cursor_hidden = hide;
+    }
 
     void text_focus(char* field, unsigned capacity)
     {
@@ -547,6 +567,9 @@ void nativeHub_Activate(HubAction action, int value)
                 "Chat is unavailable. Your message is still here.");
         }
         break;
+    case HubAction::LocalPlayers:
+        hub.local_players = std::clamp(value, 1, 4);
+        break;
     case HubAction::Create:
     case HubAction::Join:
     case HubAction::Leave:
@@ -750,6 +773,7 @@ extern "C" void nativeHub_Tick(void)
     } else {
         hub.back_frames = 0;
     }
+    update_pointer_cursor();
     if (!hub.visible) {
         return;
     }
@@ -764,6 +788,7 @@ extern "C" void nativeHub_Tick(void)
     }
     // The hub consumes the same already-normalized sample as original menus.
     // Avoid applying a second deadzone or turning the stick into focus steps.
+    hub.pressed = mouse_pressed;
     for (unsigned port = 0; port < 4; ++port) {
         const HSD_PadStatus& pad = HSD_PadCopyStatus[port];
         if (pad.err) {
@@ -790,7 +815,7 @@ extern "C" void nativeHub_Tick(void)
         if (pad.trigger & PAD_BUTTON_START && hub.page == HubPage::Lobbies) {
             queue(HubAction::Practice);
         }
-        hub.pressed = (pad.button & PAD_BUTTON_A) != 0;
+        hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
         break;
     }
     static NativeContentId installed_gift{};
@@ -863,7 +888,7 @@ extern "C" void nativeHub_Draw(void)
     nativeHubPaint_Text(hint, 48, 419, 425, 8, white);
     nativeHubPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
                         NativeMenuFont_Notice, true);
-    nativeHubPaint_Hand(hub.pointer_x, hub.pointer_y, hub.pressed);
+    nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed);
     nativeHubPaint_End();
 }
 extern "C" void nativeHub_MovePointer(int x, int y)
@@ -949,6 +974,10 @@ extern "C" void nativeHub_PressKey(const char* name, unsigned modifiers)
 }
 extern "C" void nativeHub_Event(const SDL_Event* event)
 {
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        mouse_pressed = false;
+        hub.pressed = false;
+    }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F1 &&
         !event->key.repeat && hub.initialized && nativeHome_IsSelection())
     {
@@ -971,6 +1000,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         if (event->button.button == SDL_BUTTON_LEFT ||
             event->button.button == SDL_BUTTON_RIGHT)
         {
+            mouse_pressed = true;
             hub.pressed = true;
             nativeHub_ClickAt(int(event->button.x), int(event->button.y),
                               event->button.button == SDL_BUTTON_LEFT ? 0 : 1);
@@ -1021,6 +1051,11 @@ extern "C" void nativeHub_Inspect(const char* id)
 }
 extern "C" void nativeHub_Shutdown(void)
 {
+    if (hand_cursor_hidden) {
+        SDL_ShowCursor();
+    }
+    hand_cursor_hidden = false;
+    mouse_pressed = false;
     text_focus(nullptr, 0);
     nativeHubCatalog_Clear();
     if (hub.fonts) {

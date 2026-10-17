@@ -118,13 +118,3 @@ void nativeHubPaint_Image(void* pixels, unsigned width, unsigned height,
     vertex(x, y + h, 0, 1);
     GXEnd();
 }
-void nativeHubPaint_Hand(float x, float y, bool pressed)
-{
-    // A white pointing glove remains legible over both portraits and ribbons.
-    nativeHubPaint_Round(x + 2, y + 4, 15, 18, 4, 0x101018FF);
-    nativeHubPaint_Round(x, y + 2, 13, 17, 4,
-                         pressed ? 0xFFE275FF : 0xF9F6F3FF);
-    nativeHubPaint_Round(x + 1, y - 5, 4, 16, 2, 0xF9F6F3FF);
-    nativeHubPaint_Round(x + 5, y + 1, 4, 11, 2, 0xE1E1EAFF);
-    nativeHubPaint_Round(x + 9, y + 3, 4, 9, 2, 0xCECEDAFF);
-}

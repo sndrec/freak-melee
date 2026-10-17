@@ -40,9 +40,19 @@ Quick Play service integration remain separate work. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 
+The next native pass uses the actual CSS hand model, with its fingertip anchored
+to the pointer position, and restores the scene camera after drawing it. The
+system mouse cursor hides only inside the active hub canvas. Starter clones use
+portrait artwork extracted from the user's ISO during the build. The baked stock
+name and border are removed; the native name bar uses the supplied angular glyph
+set. Long names use two lines, while names such as Ganondorf remain on one line.
+The lobby create/join page includes a one-to-four local-player selector.
+The hidden, muted authoring acceptance run passed again with these changes;
+screenshots are under `.local/native-hub-art-acceptance`.
+
 Still to integrate after the shared pages: the native CSS sharing interaction,
 participant-bound card ordering, Quick Play ready-practice/countdown flow,
-authored menu transitions and the final Melee hand presentation. The GameCube
+and authored menu transitions. The GameCube
 adapter range/deadzone audit below remains open for hardware verification.
 
 ## Personal roster
