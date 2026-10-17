@@ -49,7 +49,9 @@ their own builds; their old "remaining" lists are not the current backlog.
   loser stage votes and same-opponent rematches now pass service and native
   automation checks. The stage-confirmation UI and service deployment remain
   open. Late countdown cancellation now waits for a service decision, and native
-  opponent-exit checks recover to the original party and search again. See the
+  opponent-exit checks recover to the original party and search again.
+  Signaling-loss checks now finish the P2P match and enter a second match after
+  recovering both parties. See the
   [return checkpoint](melee/docs/native_quick_return_checkpoint.md) and the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to

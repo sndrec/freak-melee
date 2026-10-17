@@ -379,6 +379,16 @@ static bool pump_quick(void)
 bool nativeOnlineSession_Pump(void)
 {
     if (!online.active || online.match_claimed) return false;
+    if (quick.assigned_room &&
+        !nativeSignalingClient_IsRunning(&online.lobby.room.connection.signaling)) {
+        // A borrowed room remains intact through gameplay, even after signaling
+        // stops. Once released, reconnect to the source party instead of waiting
+        // for a result acknowledgement that this closed socket cannot receive.
+        quick.cancelling = true;
+        quick.assigned_room = false;
+        return switch_quick_room(quick.party_room, NULL) ||
+            fail_launch("could not return to the Quick Play party");
+    }
     bool pumped = nativeLobbySession_Pump(&online.lobby);
     if (!pumped && online.lobby.room.connection.quick.state != NativeQuickState_Aborted) return false;
     if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
@@ -709,7 +719,9 @@ void nativeOnlineSession_FinishMatch(void)
     if (!online.active) {
         return;
     }
-    nativeLobbySession_FinishMatch(&online.lobby);
+    if (!quick.assigned_room ||
+        nativeSignalingClient_IsRunning(&online.lobby.room.connection.signaling))
+        nativeLobbySession_FinishMatch(&online.lobby);
     online.launch_ready = false;
     online.match_claimed = false;
     online.local_selection_size = 0;
