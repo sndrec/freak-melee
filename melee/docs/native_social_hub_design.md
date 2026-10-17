@@ -63,6 +63,27 @@ participant-bound card ordering, Quick Play ready-practice/countdown flow,
 and authored menu transitions. The GameCube
 adapter range/deadzone audit below remains open for hardware verification.
 
+The native CSS cookie path now separates portrait choice from cookie position.
+A places a carried cookie anywhere in the viewport. Empty-space placement
+retains its selected fighter. A near a placed cookie, or B, picks it up again.
+Custom-fighter cookies draw through the stock cookie model, keep player/team
+colors and remain at their placed positions. START requires every active slot
+to have both a selected fighter and a placed cookie. Existing CPU controls,
+costume controls and sliders retain their input paths.
+
+Native CPU random selection samples the personal roster. This replaces the
+retail loop that keeps looking for a stock portrait when no stock portraits
+are present. CSS hands can reach the full viewport. The roster visibility mask
+covers each portrait's whole hierarchy and restores its authored visibility
+before menu animation updates, including for the six unlocked portrait groups.
+
+The hidden, muted `review_native_css.py` run passed in
+`.local/native-css-cookie-acceptance-3`: custom selection, free placement,
+stable position, pickup, START rejection while carrying, opening a custom CPU
+slot and actual practice entry. Reviewed PNGs show only the two installed
+portraits, the free cookie and the resulting practice scene. The diagnostic
+`ui-inspect css-selection` reports hands, cookies and current choices.
+
 ## Personal roster
 
 A new installation starts with an empty character-select screen. The first

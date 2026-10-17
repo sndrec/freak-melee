@@ -43,11 +43,26 @@ melee\build\native\melee_native.exe --iso "C:/local/Melee-USA-v1.02.iso"
 
 Menu glyph atlases are prepared from the verified ISO, the supplied private
 font/reference assets, and Windows Impact. See [font inputs](melee/assets/fonts/README.md).
+Starter-fighter portraits are also extracted from the ISO into the build's
+`ui/portraits` directory.
 
 The game and content tool build together for Workshop use. No external C
 compiler is needed to execute ordinary character scripts. This snapshot has
 not yet been built in a fresh clone; existing-checkout build evidence is not
 a clean-clone acceptance claim.
+
+## Native hub
+
+Ordinary launches open the game-rendered hub. Workshop lists installed fighters
+and editable drafts. Clone fighter creates a playable, independent copy of a
+supported vanilla fighter. New installations start with an empty personal
+roster; existing collections and saved CSS layouts are preserved.
+
+Lobbies provides room creation and joining. Chatroom shows global messages and
+the players currently connected. The Melee hand supports analog controller
+navigation; text entry uses the keyboard. F1 or holding B returns from home
+character select to the hub. Detailed Workshop editing retains its existing
+mouse and keyboard interface.
 
 ## Provenance
 
@@ -57,7 +72,8 @@ its MIT license is retained at `aurora/LICENSE`. Third-party code retains its
 own notices, including cgltf. See `SOURCE_PROVENANCE.json` for the exact local
 base commits. No blanket license is asserted for the whole combined tree.
 
-Current priorities: Model workspace completion, collaborative Workshop review,
-source-only content/release acceptance and presentation polish. Optimization,
+Current priorities: native social-hub integration, CSS participant and sharing
+flows, Quick Play, and the planned account/inbox service. Collaborative Workshop
+review continues alongside this work. Optimization,
 Kirby cloning and whole-move transfer are deferred. See the
 [project plan](PROJECT_PLAN.md) and [documentation index](melee/docs/README.md).

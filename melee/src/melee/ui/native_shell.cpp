@@ -24,6 +24,7 @@
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_profile_input.h>
 #include <melee/mn/native_online_menu.h>
+#include <melee/mn/native_css_interaction.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
 #include <SDL3/SDL_clipboard.h>
@@ -940,6 +941,7 @@ extern "C" void nativeShell_Shutdown(void)
 
 extern "C" void nativeShell_InspectElement(const char* id)
 {
+    if (!std::strcmp(id, "css-selection")) { nativeCssInteraction_Inspect(); return; }
     if (nativeHub_IsVisible()) { nativeHub_Inspect(id); return; }
     if (!document) return;
     auto* element = document->GetElementById(id);

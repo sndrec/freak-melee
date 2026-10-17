@@ -15,6 +15,7 @@
 #include <melee/mn/types.h>
 #include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/jobj.h>
+#include <sysdolphin/baselib/random.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -37,6 +38,41 @@ static NativeCssLayout saved_layout;
 static NativeCssLayout defaults;
 static float world_left, world_right, world_top, world_bottom;
 static bool fighter_available[NATIVE_CSS_LAYOUT_MAX_TILES];
+enum { PORTRAIT_JOINTS = 256 };
+static struct {
+    HSD_JObj* joint;
+    u32 hidden;
+    unsigned icon;
+} portrait_joints[PORTRAIT_JOINTS];
+static unsigned portrait_joint_count;
+static bool visibility_masked;
+
+static void capture_portrait_joints(HSD_JObj* joint, unsigned icon)
+{
+    if (!joint) return;
+    if (portrait_joint_count == PORTRAIT_JOINTS) {
+        fprintf(stderr, "CSS portrait hierarchy exceeds visibility capacity\n");
+        abort();
+    }
+    portrait_joints[portrait_joint_count].joint = joint;
+    portrait_joints[portrait_joint_count].icon = icon;
+    portrait_joints[portrait_joint_count++].hidden = joint->flags & JOBJ_HIDDEN;
+    for (HSD_JObj* child = joint->child; child; child = child->next) {
+        capture_portrait_joints(child, icon);
+    }
+}
+void nativeCssOriginal_BeginAnimation(void)
+{
+    if (!visibility_masked) return;
+    for (unsigned i = 0; i < portrait_joint_count; ++i) {
+        if (portrait_joints[i].hidden) {
+            HSD_JObjSetFlags(portrait_joints[i].joint, JOBJ_HIDDEN);
+        } else {
+            HSD_JObjClearFlags(portrait_joints[i].joint, JOBJ_HIDDEN);
+        }
+    }
+    visibility_masked = false;
+}
 
 static bool installed_fighter(const NativeContentId* id)
 {
@@ -167,6 +203,7 @@ static void apply_layout(void)
     if (scene_icons == NULL) {
         return;
     }
+    nativeCssOriginal_BeginAnimation();
     for (unsigned i=0;i<layout.count;++i) {
         const NativeCssTile* t=&layout.tiles[i];
         nativeMenuVisuals_Rect(menu_visuals,i,world_x(t->x),world_y(t->y),
@@ -175,26 +212,26 @@ static void apply_layout(void)
     }
     for (unsigned icon = 0; icon < STOCK_ICONS; ++icon) {
         const NativeCssTile* tile = tile_for(icon);
-        HSD_JObj* root = icon_roots[icon];
         if (tile == NULL) {
             scene_icons[icon].state = 0;
-            HSD_JObjSetFlags(root, JOBJ_HIDDEN);
             continue;
         }
         scene_icons[icon].state = 2;
-        HSD_JObjClearFlags(root, JOBJ_HIDDEN);
         scene_icons[icon].bound_l = world_x(tile->x);
         scene_icons[icon].bound_r = world_x(tile->x + tile->width);
         scene_icons[icon].bound_u = world_y(tile->y);
         scene_icons[icon].bound_d = world_y(tile->y + tile->height);
         set_portrait_transform(icon, tile);
     }
+    nativeCssOriginal_Tick();
 }
 
 void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera)
 {
     scene_icons = icons;
+    portrait_joint_count = 0;
+    visibility_masked = false;
     nativeMenuVisuals_Begin(&menu_visuals, menu, 1);
     Vec3 eye;
     HSD_CObjGetEyePosition(camera, &eye);
@@ -214,6 +251,7 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
             break;
         }
         icon_roots[i] = joint;
+        capture_portrait_joints(joint, i);
         root_translate[i] = joint->translate;
         root_scale[i] = joint->scale;
     }
@@ -241,18 +279,31 @@ void nativeCssOriginal_Tick(void)
     if (scene_icons == NULL) {
         return;
     }
+    // Restore our previous mask before reapplying it. Scene animations may
+    // independently hide parts of an unlocked portrait; preserve those bits.
+    nativeCssOriginal_BeginAnimation();
+    bool visible[STOCK_ICONS];
     for (unsigned icon = 0; icon < STOCK_ICONS; ++icon) {
         const NativeCssTile* tile = tile_for(icon);
+        visible[icon] = tile != NULL;
         if (tile != NULL) {
             set_portrait_transform(icon, tile);
         }
     }
+    for (unsigned i = 0; i < portrait_joint_count; ++i) {
+        HSD_JObj* joint = portrait_joints[i].joint;
+        portrait_joints[i].hidden = joint->flags & JOBJ_HIDDEN;
+        if (!visible[portrait_joints[i].icon]) HSD_JObjSetFlags(joint, JOBJ_HIDDEN);
+    }
+    visibility_masked = true;
 }
 
 void nativeCssOriginal_Exit(void)
 {
     nativeMenuVisuals_End(&menu_visuals);
     scene_icons = NULL;
+    portrait_joint_count = 0;
+    visibility_masked = false;
     memset(icon_roots, 0, sizeof(icon_roots));
 }
 
@@ -391,31 +442,39 @@ bool nativeCssOriginal_AddInstalled(const NativeContentId* id)
     return false;
 }
 
-bool nativeCssOriginal_HitTestFighter(float x, float y,
-                                      NativeContentId* id, float* left,
-                                      float* top)
+bool nativeCssOriginal_HitTestTile(float x, float y, NativeCssTile* result)
 {
-    if (scene_icons == NULL || id == NULL) {
-        return false;
-    }
+    if (!scene_icons || !result) return false;
     for (unsigned i = layout.count; i > 0; --i) {
-        const unsigned index = i - 1;
+        unsigned index = i - 1;
         const NativeCssTile* tile = &layout.tiles[index];
-        if (fighter_available[index] &&
-            x >= world_x(tile->x) && x < world_x(tile->x + tile->width) &&
-            y <= world_y(tile->y) &&
-            y > world_y(tile->y + tile->height)) {
-            *id = tile->fighter_package_id;
-            if (left != NULL) {
-                *left = world_x(tile->x);
-            }
-            if (top != NULL) {
-                *top = world_y(tile->y);
-            }
+        if (!tile->stock_character_id && !fighter_available[index]) continue;
+        if (x >= world_x(tile->x) && x < world_x(tile->x + tile->width) &&
+            y <= world_y(tile->y) && y > world_y(tile->y + tile->height)) {
+            *result = *tile;
             return true;
         }
     }
     return false;
+}
+bool nativeCssOriginal_RandomTile(NativeCssTile* result)
+{
+    if (!scene_icons || !result) return false;
+    unsigned count = 0;
+    for (unsigned i = 0; i < layout.count; ++i) {
+        const NativeCssTile* tile = &layout.tiles[i];
+        if (tile->stock_character_id || fighter_available[i]) {
+            if (HSD_Randi(++count) == 0) *result = *tile;
+        }
+    }
+    return count != 0;
+}
+void nativeCssOriginal_Viewport(float* left, float* right, float* top, float* bottom)
+{
+    if (left) *left = world_left;
+    if (right) *right = world_right;
+    if (top) *top = world_top;
+    if (bottom) *bottom = world_bottom;
 }
 
 bool nativeCssOriginal_FighterBounds(const NativeContentId* id,
