@@ -1522,6 +1522,9 @@ bool nativeHome_ReturnToSelection(void)
 {
     if (!nativeHome_IsPractice() || home.authoring || home.preview_active ||
         home.enter_stage_select) return false;
+    const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
+    if (quick && quick->state == NativeQuickState_Assigned && quick->phase <= 2)
+        return nativeOnlineSession_UnreadyQuick();
     home.selection.confirmed = false;
     home.start_requested = home.selection.start_requested = false;
     gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
@@ -1751,6 +1754,11 @@ void nativeHome_Tick(void)
     }
     NativeLobbySessionState previous_state = nativeOnlineSession_State();
     nativeOnlineMenu_Pump();
+    if (nativeHome_IsPractice() && nativeOnlineSession_TakeQuickUnready()) {
+        home.selection.confirmed = false;
+        home.start_requested = home.selection.start_requested = false;
+        gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
+    }
     if (nativeHome_IsPractice() && nativeOnlineSession_QuickCountdownMs()) {
         for (unsigned seat = 0; seat < home.physical_count; ++seat) {
             int port = home.physical_ports[seat];

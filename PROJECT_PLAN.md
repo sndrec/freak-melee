@@ -48,7 +48,9 @@ their own builds; their old "remaining" lists are not the current backlog.
   native singles and four-player doubles checks. Result agreement, per-seat
   loser stage votes and same-opponent rematches now pass service and native
   automation checks. The stage-confirmation UI and service deployment remain
-  open. See the
+  open. Late countdown cancellation now waits for a service decision, and native
+  opponent-exit checks recover to the original party and search again. See the
+  [return checkpoint](melee/docs/native_quick_return_checkpoint.md) and the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
@@ -324,8 +326,9 @@ Pokémon Stadium and Yoshi's Story. The first stage is random; the losing side
 picks subsequent stages. Opponents stay together until someone leaves. These
 queues and fixed rules now have native local checks. Result agreement and
 rematches also have native checks using stage-vote automation. The player-facing
-stage-confirmation controls and complete cancellation/return acceptance remain
-open. The interactive mockup uses local sample opponents.
+stage-confirmation controls and their full controller/mouse acceptance remain
+open. Late cancellation and opponent-exit party recovery have local native
+checks. The interactive mockup uses local sample opponents.
 
 CSS tile labels use the supplied angular glyph set, fill the name bar vertically
 and compress horizontally. Ganondorf remains on one line. Truly long names can

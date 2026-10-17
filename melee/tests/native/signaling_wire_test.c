@@ -320,6 +320,11 @@ static void test_quick_wire(void)
     assert(size == 18 && bytes[5] == 15 && bytes[15] == 42 && bytes[16] == 1 && bytes[17] == 5);
     assert(!nativeSignalingWire_EncodeVoteQuickStage(42, 2, 0, bytes, sizeof(bytes)));
     assert(!nativeSignalingWire_EncodeVoteQuickStage(42, 0, 6, bytes, sizeof(bytes)));
+    size = nativeSignalingWire_EncodeUnreadyQuick(0, bytes, sizeof(bytes));
+    assert(size == 16 && bytes[5] == 16 && bytes[15] == 0);
+    size = nativeSignalingWire_EncodeUnreadyQuick(42, bytes, sizeof(bytes));
+    assert(size == 16 && bytes[15] == 42);
+    assert(!nativeSignalingWire_EncodeUnreadyQuick(42, bytes, 15));
 }
 
 int main(void)

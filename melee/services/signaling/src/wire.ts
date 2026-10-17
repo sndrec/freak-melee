@@ -22,6 +22,7 @@ export const enum ClientMessageType {
   PrepareQuick = 13,
   ReportQuick = 14,
   VoteQuickStage = 15,
+  UnreadyQuick = 16,
 }
 
 export const enum ServerMessageType {
@@ -74,6 +75,7 @@ export type ClientMessage =
   | { type: ClientMessageType.PrepareQuick; revision: number; prepared: boolean; digest: Uint8Array }
   | { type: ClientMessageType.ReportQuick; epoch: number; winner: number }
   | { type: ClientMessageType.VoteQuickStage; epoch: number; seat: number; stage: number }
+  | { type: ClientMessageType.UnreadyQuick; completedEpoch: number }
   | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
   | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
@@ -262,6 +264,10 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.UnreadyQuick) {
+    const completedEpoch = reader.u64(); reader.finish();
+    return { type, completedEpoch };
+  }
   if (type === ClientMessageType.ReportQuick) {
     const epoch = reader.u64(), winner = reader.u8(); reader.finish();
     if (winner > 1 && winner !== 255) throw new Error("Invalid Quick Play winner");
@@ -710,6 +716,10 @@ export function encodeReportQuick(epoch: number, winner: number): ArrayBuffer {
 export function encodeVoteQuickStage(epoch: number, seat: number, stage: number): ArrayBuffer {
   const writer = new Writer(ClientMessageType.VoteQuickStage, 18);
   writer.u64(epoch); writer.u8(seat); writer.u8(stage); return writer.finish();
+}
+export function encodeUnreadyQuick(completedEpoch: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.UnreadyQuick, 16);
+  writer.u64(completedEpoch); return writer.finish();
 }
 export function encodePrepareQuick(revision: number, prepared: boolean, digest: Uint8Array): ArrayBuffer {
   const writer = new Writer(ClientMessageType.PrepareQuick, 51);

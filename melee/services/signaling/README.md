@@ -198,9 +198,15 @@ PC reports a completed result; agreement gives stage choice to the losing side.
 Each losing seat must vote for the same stage before the next ready countdown.
 Stale reports cannot clear a newer match. Native singles and shared-PC doubles
 round/rematch checks pass using stage-vote automation. The player-facing stage
-confirmation UI remains open. The current service suite has 42 passing tests;
+confirmation UI remains open. Countdown cancellation now receives a service
+decision before the client exits practice. A committed match wins a late request;
+an earlier round's request cannot cancel a later one. Native singles and doubles
+checks also recover to the original party and requeue after an opponent exits.
+The current service suite has 44 passing tests;
 its socket cleanup waits for closure before teardown. See the
 [rematch checkpoint](../../docs/native_quick_rematch_checkpoint.md).
+The [return checkpoint](../../docs/native_quick_return_checkpoint.md) records
+the cancellation protocol and native recovery evidence.
 
 See [the Quick Play checkpoint](../../docs/native_quick_play_checkpoint.md) for
 the wire records, state ownership, recovery model and implementation sequence.
