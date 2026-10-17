@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <melee/ft/fighter_collision_state.h>
 #include <melee/gr/native_green_grid.h>
+#include <melee/gr/grdatfiles.h>
 #include <melee/it/native_article_resource_snapshot.h>
 #include <melee/it/native_article_model_scene.h>
 #include <melee/mp/native_collision_snapshot.h>
@@ -22,6 +23,7 @@ bool nativeMatchControls_AdmitHistory(NativeMatchArena* arena)
     if(!nativeCameraSubjects_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeCameraSubjects refused\n");valid=false;}
     if(!nativeCamera_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeCamera refused\n");valid=false;}
     if(!nativeStage_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeStage refused\n");valid=false;}
+    if(!grDatFiles_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=stage-archives refused\n");valid=false;}
     if(!nativeStageHazards_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeStageHazards refused\n");valid=false;}
     if(!nativeStageGenerator_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeStageGenerator refused\n");valid=false;}
     if(!nativeStageSpawn_AdmitHistory(arena)){fprintf(stderr,"[snapshot-census] control-admission owner=nativeStageSpawn refused\n");valid=false;}

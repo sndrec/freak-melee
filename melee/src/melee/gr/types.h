@@ -870,8 +870,7 @@ struct grInishie2_GroundVars3 {
 struct grStadium_GroundVars {
     /* +0 gp+C4:0 */ u8 xC4_b0 : 1;
     /* +0 gp+C4:1 */ u8 xC4_b1 : 1;
-    /* +0 gp+C8:0 */ size_t transformation_file_size;
-    /* +4 gp+CC   */ void* transformation_file_buffer;
+    unsigned pending_fragment;
     /* +4 gp+D0   */ UnkArchiveStruct* loaded_transformation;
     /* +4 gp+D4   */ float debris_path_length;
     /* +4 gp+D8   */ int transition_timer;

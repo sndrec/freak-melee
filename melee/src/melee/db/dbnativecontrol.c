@@ -12,6 +12,8 @@
 #include <melee/db/db.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_signaling_wire.h>
+#include <melee/gm/native_netplay_match.h>
+#include <melee/gr/grpstadium.h>
 #include <melee/ui/native_shell.h>
 #include <sysdolphin/baselib/debug.h>
 #include <dolphin/pad.h>
@@ -73,8 +75,11 @@ static void apply_message(const DbNativeControlMessage* message)
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_INSPECT) {
-        if (memchr(message->text, '\0', sizeof(message->text)))
-            nativeShell_InspectElement(message->text);
+        if (memchr(message->text, '\0', sizeof(message->text))) {
+            if (!strcmp(message->text,"stadium-state")) grStadium_Inspect();
+            else if (!strcmp(message->text,"netplay-state")) nativeNetplayMatch_Inspect();
+            else nativeShell_InspectElement(message->text);
+        }
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_TEXT) {

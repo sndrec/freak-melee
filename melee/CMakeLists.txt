@@ -678,7 +678,8 @@ if(MELEE_BUILD_TESTS)
     add_test(NAME native_match_history COMMAND native_match_history_test)
     add_executable(native_stage_start_snapshot_test tests/native/stage_start_snapshot_test.c
         src/melee/gr/stage_start_state.c src/melee/gr/native_stage_start_snapshot.c
-        src/melee/gm/native_match_pool.c src/melee/gm/native_match_snapshot_pool.c)
+        src/melee/gm/native_match_pool.c src/melee/gm/native_match_snapshot_pool.c
+        src/melee/gm/native_match_arena.c)
     target_include_directories(native_stage_start_snapshot_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_stage_start_snapshot_test PRIVATE MELEE_NATIVE=1)
     add_test(NAME native_stage_start_snapshot COMMAND native_stage_start_snapshot_test)

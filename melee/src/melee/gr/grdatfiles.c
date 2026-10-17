@@ -15,12 +15,26 @@
 #include <sysdolphin/baselib/debug.h>
 #include <sysdolphin/baselib/particle.h>
 #include <sysdolphin/baselib/psstructs.h>
+#include <melee/gm/native_match_arena.h>
 
 #ifdef MELEE_NATIVE
 typedef struct NativeStageArchiveSpec {
     const char* filename;
     GrStageImportOptions options;
+    const char* const* fragments;
+    unsigned fragment_count;
+    const GrStageImportOptions* fragment_options;
 } NativeStageArchiveSpec;
+
+// Construction-owned residents. Active archive registrations below are mutable
+// gameplay state; these decoded assets keep stable scene-lifetime addresses.
+#pragma clang section data = "" bss = ""
+static struct {
+    const char* filename;
+    GrStageAssets* assets;
+} native_fragments[8];
+static unsigned native_fragment_count;
+#pragma clang section data = ".mstate$m" bss = ""
 
 // grLast.c addresses joint 16 in the first animation group of map 4,
 // joint 1 in each group's primary animation, and joint 2 in the
@@ -115,6 +129,9 @@ static const GrStageImportOptions pokemon_stadium_fragment_options = {
     .yakumono_size = 0x54,
     .stage_fragment = true,
 };
+static const char* const pokemon_stadium_fragments[] = {
+    "GrPs1.dat", "GrPs2.dat", "GrPs3.dat", "GrPs4.dat",
+};
 static const GrStageParamPointer battlefield_pointers[] = {
     { 0, GrStageParamPointer_ColorScript },
     { 4, GrStageParamPointer_ColorScript },
@@ -189,7 +206,9 @@ static const NativeStageArchiveSpec native_stage_archives[] = {
     // grOnett's yakumono parameter is 26 contiguous floats.
     { "/GrOt", { 0x68, NULL, 0 } },
     { "/GrPs", { 0x54, NULL, 0, pokemon_stadium_halfword_offsets,
-                  ARRAY_SIZE(pokemon_stadium_halfword_offsets) } },
+                  ARRAY_SIZE(pokemon_stadium_halfword_offsets) },
+      pokemon_stadium_fragments, ARRAY_SIZE(pokemon_stadium_fragments),
+      &pokemon_stadium_fragment_options },
     { "/GrKr.dat", { 0x34, brinstar_depths_animation_layouts,
                       ARRAY_SIZE(brinstar_depths_animation_layouts) } },
     { "/GrFs.dat", { 0x4C, NULL, 0, fourside_halfword_offsets,
@@ -300,14 +319,14 @@ void grDatFiles_801C6038(void* arg0, s32 arg1, s32 arg2)
         size_t length = 0;
         bool preloaded = arg2 != 0 &&
             lbDvd_GetPreloadedFile(filename, &bytes, &length);
-        const GrStageImportOptions* options = NULL;
+        const NativeStageArchiveSpec* spec = NULL;
         for (u32 i = 0; i < ARRAY_SIZE(native_stage_archives); ++i) {
             if (strcmp(filename, native_stage_archives[i].filename) == 0) {
-                options = &native_stage_archives[i].options;
+                spec = &native_stage_archives[i];
                 break;
             }
         }
-        HSD_ASSERTREPORT(0, options != NULL,
+        HSD_ASSERTREPORT(0, spec != NULL,
                          "Native stage import does not support %s", filename);
         if (!preloaded) {
             length = lbFileGetSize(filename);
@@ -316,8 +335,22 @@ void grDatFiles_801C6038(void* arg0, s32 arg1, s32 arg2)
             lbFile_8001668C(filename, bytes, &length);
         }
         GrStageAssets* assets = grDatFiles_ImportNativeAssets(
-            bytes, length, options, preloaded ? NULL : bytes, filename);
+            bytes, length, &spec->options, preloaded ? NULL : bytes, filename);
         grDatFiles_RegisterNativeAssets(temp_r3, assets);
+        HSD_ASSERT(0, spec->fragment_count <= ARRAY_SIZE(native_fragments)-native_fragment_count);
+        for (unsigned i=0;i<spec->fragment_count;++i) {
+            const char* name=spec->fragments[i];
+            size_t fragment_size=lbFileGetSize(name);
+            void* fragment_bytes=lbHeap_80015BD0(0,OSRoundUp32B(fragment_size));
+            HSD_ASSERT(0,fragment_bytes && fragment_size);
+            lbFile_8001668C(name,fragment_bytes,&fragment_size);
+            GrStageAssets* fragment=grDatFiles_ImportNativeAssets(fragment_bytes,
+                fragment_size,spec->fragment_options,fragment_bytes,name);
+            fragment->scene_resident=true;
+            grDatFiles_801C6228(&fragment->map_head);
+            native_fragments[native_fragment_count].filename=name;
+            native_fragments[native_fragment_count++].assets=fragment;
+        }
         if (arg1 == 0) {
             stage_info.coll_data = &assets->collision;
             stage_info.param = &assets->ground_param;
@@ -412,9 +445,17 @@ void grDatFiles_801C6228(UnkStageDat* arg0)
 
 static UnkArchiveStruct grDatFiles_8049EE10[4];
 
+bool grDatFiles_AdmitHistory(NativeMatchArena* arena)
+{
+    return nativeMatchArena_AddRoot(arena,grDatFiles_8049EE10,sizeof(grDatFiles_8049EE10));
+}
+
 void grDatFiles_801C6288(void)
 {
     memzero(&grDatFiles_8049EE10, sizeof(grDatFiles_8049EE10));
+    // The scene heap owns their storage and resets it with the other assets.
+    memzero(native_fragments,sizeof(native_fragments));
+    native_fragment_count=0;
 }
 
 UnkArchiveStruct* grDatFiles_801C62B4(void)
@@ -459,30 +500,17 @@ UnkArchiveStruct* grDatFiles_801C6330(s32 arg0)
     return NULL;
 }
 
-UnkArchiveStruct* grDatFiles_801C6478(void* data, s32 length)
+UnkArchiveStruct* grDatFiles_ActivateFragment(const char* filename)
 {
-    UnkArchiveStruct* arc;
-
-#ifdef MELEE_NATIVE
-    GrStageAssets* assets = grDatFiles_ImportNativeAssets(
-        data, length, &pokemon_stadium_fragment_options, NULL,
-        "Pokemon Stadium transformation");
-    arc = grDatFiles_801C62B4();
-    HSD_ASSERT(290, arc);
-    grDatFiles_RegisterNativeAssets(arc, assets);
-#else
-    HSD_Archive* archive = lbHeap_80015BD0(0, sizeof(HSD_Archive));
-    lbArchive_InitializeDAT(archive, data, length);
-    arc = grDatFiles_801C62B4();
-    HSD_ASSERT(290, arc);
-    arc->unk0 = archive;
-    arc->unk4 = HSD_ArchiveGetPublicAddress(archive, "map_head");
-    arc->unk8 = 1;
-
-#endif
-    grDatFiles_801C6228(arc->unk4);
-
-    return arc;
+    for (unsigned i=0;i<native_fragment_count;++i)
+        if (!strcmp(filename,native_fragments[i].filename)) {
+            UnkArchiveStruct* arc=grDatFiles_801C62B4();
+            HSD_ASSERT(0,arc);
+            grDatFiles_RegisterNativeAssets(arc,native_fragments[i].assets);
+            return arc;
+        }
+    HSD_ASSERTREPORT(0,0,"Stage fragment was not prepared: %s",filename);
+    return NULL;
 }
 
 static StageParam grDatFiles_803E07E4 = {

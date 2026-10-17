@@ -78,7 +78,8 @@
 /* 1D410C */ UNK_RET grStadium_801D410C(UNK_PARAMS);
 /* 1D4150 */ UNK_RET grStadium_801D4150(UNK_PARAMS);
 /* 1D4194 */ void grStadium_801D4194(Ground_GObj*);
-bool grStadium_TryImportTransformation(void);
+void grStadium_ActivateTransformation(void);
+void grStadium_Inspect(void);
 void grStadium_SpawnTransformationDebris(Ground_GObj*);
 void grStadium_UpdateTransformation(Ground_GObj*);
 /* 1D4FF8 */ bool grStadium_801D4FF8(int pl_slot);

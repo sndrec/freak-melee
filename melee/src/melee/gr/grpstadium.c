@@ -18,7 +18,6 @@
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lb_00F9.h>
 #include <melee/lb/lbdvd.h>
-#include <melee/lb/lbfile.h>
 #include <melee/lb/lblanguage.h>
 #include <melee/lb/lbspdisplay.h>
 #include <melee/lb/lbvector.h>
@@ -39,6 +38,7 @@
 #include <sysdolphin/baselib/random.h>
 #include <sysdolphin/baselib/sislib.h>
 #include <sysdolphin/baselib/wobj.h>
+#include <stdio.h>
 
 static struct grPStadium_YakumonoParam {
     int x0;
@@ -311,7 +311,6 @@ static inline int randi(int i)
 
 void grStadium_801D13E0(Ground_GObj* gobj)
 {
-    void* transformation_buffer;
     s32 minimum_delay;
     s32 initial_delay;
     Ground* controller = GET_GROUND(gobj);
@@ -319,11 +318,7 @@ void grStadium_801D13E0(Ground_GObj* gobj)
 
     Ground_801C2ED0(jobj, controller->map_id);
     grAnime_801C8138(gobj, controller->map_id, 0);
-    transformation_buffer = lbDvd_GetPreloadedArchive(0x7D5);
-    if (transformation_buffer == NULL) {
-        transformation_buffer = HSD_MemAlloc(0x50000);
-    }
-    controller->u.stadium.transformation_file_buffer = transformation_buffer;
+    controller->u.stadium.pending_fragment = 0;
     controller->u.stadium.xC4_b1 = false;
     controller->u.stadium.loaded_transformation = NULL;
     controller->u.stadium.debris_path_length = 0.0F;
@@ -1877,26 +1872,11 @@ void grStadium_801D4194(Ground_GObj* arg0)
     HSD_SisLib_803A6368(gp2->win_static_p, 3);
 }
 
-/// HSD_DevComCallback
-static void grStadium_OnTransformationLoaded(int dcreq, void* args, void* buf,
-                                             bool cancelflag)
-{
-    Ground_GObj* map_gobj;
-    Ground* gp;
+static const char* const grStadium_TransformationFilenames[] = {
+    "GrPs1.dat", "GrPs2.dat", "GrPs3.dat", "GrPs4.dat",
+};
 
-    HSD_ASSERT(0x969, !cancelflag);
-    map_gobj = Ground_GetMapGObj(2);
-    HSD_ASSERT(0x96A, map_gobj);
-    gp = GET_GROUND(map_gobj);
-    HSD_ASSERT(0x96B, gp);
-    gp->u.stadium.xC4_b1 = false;
-}
-
-#ifdef MUST_MATCH
-#pragma push
-#pragma dont_inline on
-#endif
-bool grStadium_TryImportTransformation(void)
+void grStadium_ActivateTransformation(void)
 {
     HSD_GObj* map_gobj;
     Ground* gp;
@@ -1905,24 +1885,20 @@ bool grStadium_TryImportTransformation(void)
     HSD_ASSERT(0x978, map_gobj);
     gp = GET_GROUND(map_gobj);
     HSD_ASSERT(0x979, gp);
-    if (gp->u.stadium.xC4_b1) {
-        return false;
-    }
-    gp->u.stadium.loaded_transformation = grDatFiles_801C6478(
-        gp->u.stadium.transformation_file_buffer,
-        gp->u.stadium.transformation_file_size);
-    return true;
+    HSD_ASSERT(0,gp->u.stadium.pending_fragment < ARRAY_SIZE(grStadium_TransformationFilenames));
+    gp->u.stadium.loaded_transformation = grDatFiles_ActivateFragment(
+        grStadium_TransformationFilenames[gp->u.stadium.pending_fragment]);
 }
-#ifdef MUST_MATCH
-#pragma pop
-#endif
 
-static const char* const grStadium_TransformationFilenames[] = {
-    "GrPs1.dat",
-    "GrPs2.dat",
-    "GrPs3.dat",
-    "GrPs4.dat",
-};
+void grStadium_Inspect(void)
+{
+    Ground_GObj* object=stage_info.grkind==Gr_Kind_PStadium ? Ground_GetMapGObj(2) : NULL;
+    if (!object) {fprintf(stderr,"[stadium-state] unavailable\n");return;}
+    const struct grStadium_GroundVars* state=&GET_GROUND(object)->u.stadium;
+    fprintf(stderr,"[stadium-state] type=%d phase=%d timer=%d pending=%u archive=%p ground=%p incoming=%p\n",
+        state->current_type,state->transition_state,state->transition_timer,
+        state->pending_fragment,state->loaded_transformation,state->current_ground,state->incoming_ground);
+}
 
 typedef struct StadiumDebrisPathPoint {
     Vec3 position;
@@ -2097,22 +2073,15 @@ void grStadium_UpdateTransformation(Ground_GObj* gobj)
             HSD_ASSERT(0x99A, map_gobj);
             gp = GET_GROUND(map_gobj);
             HSD_ASSERT(0x99B, gp);
-            gp->u.stadium.xC4_b1 = true;
-            lbFile_80016580(
-                grStadium_TransformationFilenames[var_r29],
-                gp->u.stadium.transformation_file_buffer,
-                &gp->u.stadium.transformation_file_size,
-                grStadium_OnTransformationLoaded, NULL);
+            gp->u.stadium.pending_fragment = var_r29;
             temp_r31->u.stadium.transition_state = 1;
             return;
         }
         break;
     case 1:
-        if (grStadium_TryImportTransformation()) {
-            temp_r31->u.stadium.transition_state = 2;
-            return;
-        }
-        break;
+        grStadium_ActivateTransformation();
+        temp_r31->u.stadium.transition_state = 2;
+        return;
     case 2:
         temp_r31->u.stadium.transition_timer = 0;
         temp_r3_6 = Ground_GetMapGObj(1);
@@ -2229,8 +2198,6 @@ void grStadium_UpdateTransformation(Ground_GObj* gobj)
         if (temp_r31->u.stadium.current_type == 5) {
             temp_r31->u.stadium.transition_timer =
                 randi_between_2(yakumono_param->x0, yakumono_param->x4);
-            // The native scratch buffer is retained and overwritten by the
-            // next asynchronous transformation load.
             mpLib_800575B0(0x55);
             mpLib_800575B0(0x6F);
         } else {
@@ -2297,5 +2264,4 @@ void grStadium_801D511C(void)
     size = GXGetTexBufferSize(0x7C, 0x50, 4, 0, 0);
     lbDvd_80017740(0, 0x7D4, 4, 4, OSRoundUp32B(size), 0, 7, 0x10, 0);
 
-    lbDvd_80017740(0, 0x7D5, 4, 4, 0x50000, 0, 7, 0x10, 0);
 }

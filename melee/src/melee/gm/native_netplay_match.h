@@ -20,6 +20,7 @@ void nativeNetplayMatch_Abort(const char* reason);
 bool nativeNetplayMatch_IsResimulating(void);
 bool nativeNetplayMatch_HasFailed(void);
 bool nativeNetplayMatch_ConsumeLobbyReturn(void);
+void nativeNetplayMatch_Inspect(void);
 
 #endif
 #endif
