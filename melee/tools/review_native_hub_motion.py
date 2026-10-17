@@ -65,6 +65,7 @@ def main():
         client.element('local-practice')
         client.click('local-practice'); choose(client)
         client.click('play-ready'); client.element('play-selection')
+        assert 'hand=1' in client.inspect('play-selection')
         time.sleep(3)
         client.tap('start'); client.tap('z')
         client.element('nav-6')

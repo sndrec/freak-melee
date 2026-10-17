@@ -26,6 +26,8 @@ typedef struct MnSelectChrDataTable {
 
 MnSelectChrDataTable* mnCharSelAssets_Decode(HSD_DatImport* import,
                                              u32 root_offset);
+void mnCharSelAssets_DecodeModel(HSD_DatImport* import, u32 offset,
+                                  StaticModelDesc* model);
 MnSelectChrDataTable* mnCharSelAssets_Load(const char* filename);
 
 #endif

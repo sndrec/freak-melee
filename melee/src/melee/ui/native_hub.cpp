@@ -97,6 +97,7 @@ namespace {
         hub.dismissed = false;
         hub.visible = nativeHome_IsSelection() || nativeHome_IsPractice();
         if (hub.visible) nativeMenuMotion_Load();
+        if (hub.visible && !nativeHubHand_Ready()) nativeHubHand_Load(nullptr);
         hub.region_count = 0;
         text_focus(nullptr, 0);
         if (auto* context = aurora::rmlui::get_context()) {
@@ -1372,6 +1373,7 @@ extern "C" void nativeHub_Shutdown(void)
     mouse_pressed = false;
     text_focus(nullptr, 0);
     nativeHubCatalog_Clear();
+    nativeHubHand_Unload();
     nativeMenuMotion_Unload();
     nativePlayMenu_Shutdown();
     if (hub.fonts) {

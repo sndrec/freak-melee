@@ -59,6 +59,19 @@ separate tool page, with the existing package-selection and DAT-import functions
 - The native menu and tool state remains host-owned in the build's snapshot
   classification. The new button list uses fixed storage.
 
+The Melee hand is available in both CSS and practice. CSS lends its already
+decoded model to `native_hub_hand.c`. Practice imports only the hand's model and
+material animation from the disc's CSS table into its own scene buffers. It
+uses the same hand renderer, pressed pose, fingertip anchor and orthographic
+camera. The compact practice strip loads it before the full hub opens.
+
+`mnCharSelAssets_DecodeModel` is the shared decoder for a single model record;
+the full CSS table calls it directly too. The practice import keeps its disc
+bytes and bounded conversion arena alive for texture and geometry references.
+CSS exit, practice exit and application shutdown release the hand before its
+source buffers are freed. The practice model uses no references to the retired
+CSS scene.
+
 ## Verification
 
 ### Authored hub page changes
@@ -94,6 +107,14 @@ The existing authoring check also passes with motion enabled in
 `.local/native-hub-motion-authoring-regression-1`: first-run clone creation,
 rename replacement, independent copying, frozen Workshop entry/return with CRLF
 source preserved, profile save and controller return. The native build passes.
+
+The hand follow-up passes in `.local/native-practice-hand-motion-1`, including
+the `hand=1` diagnostic on the compact practice controls before opening the hub,
+paused-practice navigation and return to CSS. Reviewed PNGs show the actual hand
+in the practice hub. A two-client shared-PC doubles check also passes in
+`.local/native-practice-hand-quick-doubles-1`: practice, B-to-unready, countdown
+restart, and live session `b380ac738f8a9fc0` in room `8CC800DAE9DF`. It reports
+no gameplay failure or checksum mismatch after the scene-owned hand cleanup.
 
 ### Earlier control checks
 

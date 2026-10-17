@@ -33,6 +33,8 @@ their own builds; their old "remaining" lists are not the current backlog.
   player directory. Local hidden/muted authoring acceptance and two-client
   chat presence checks passed. The design document records remaining CSS,
   matchmaking and account/inbox work.
+  The hand now has an independent practice-scene import, with native practice,
+  scene-return and Quick Play doubles checks in the play-menu checkpoint.
 - Native CSS now presents active lobby seats with local players first, using
   stock card artwork. Physical inputs and canonical match ports stay intact.
   Portrait dragging opens fighter-delivery confirmation. Same-lobby transfers
