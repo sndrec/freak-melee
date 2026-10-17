@@ -56,6 +56,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   [rematch checkpoint](melee/docs/native_quick_rematch_checkpoint.md),
   [return checkpoint](melee/docs/native_quick_return_checkpoint.md) and the
   [CSS checkpoint](melee/docs/native_css_cards_checkpoint.md).
+- The hub now uses the stock main menu's authored 20-frame enter/exit animations.
+  Forward/back navigation, profile return, reduced motion and CSS/practice scene
+  reconstruction pass native checks. The detailed Workshop-entry regression
+  also passes with motion enabled. See the
+  [play-menu checkpoint](melee/docs/native_play_menu_checkpoint.md).
 - Ordinary scripts run in the native interpreter. Generated C is confined to
   reference comparisons, not ordinary authoring, sharing or execution.
 - Work that requires other physical PCs is deferred to the user's testing.
@@ -101,7 +106,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Native hub, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global and lobby chat, compact player directories, paged larger-lobby controls, shared-PC inputs, spectator/rotation foundations and same-lobby fighter delivery and early remote portraits, with local evidence. | Lobby browsing, persistent accounts/friends, email-style inbox, invitations, fixed-rule 1v1/2v2 Quick Play and authored transitions. Physical multi-PC testing remains deferred to the user. |
+| Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Fixed-rule Quick Play and rematches have local native evidence. | Quick Play stage-confirmation UI and deployment, lobby browsing, persistent accounts/friends, email-style inbox, invitations and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
 | Friend release | Setup/update ZIPs, isolated user data, update activation and rollback to the previous release. | Complete Workshop payload, fresh-clone/fresh-install checks, current content tests and presentation polish. |
 
 ### Fighter evidence

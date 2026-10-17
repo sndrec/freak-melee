@@ -490,9 +490,9 @@ namespace {
                          recipient_available);
     }
 }
-void nativeHub_RenderPage(void)
+void nativeHub_RenderPage(NativeHubPage page)
 {
-    switch (hub.page) {
+    switch (page) {
     case NativeHubPage_Workshop:
         collection();
         break;

@@ -79,7 +79,8 @@ struct HubRegion {
 };
 struct HubState {
     NativeHubPage page = NativeHubPage_Workshop,
-                  previous = NativeHubPage_Workshop;
+                  previous = NativeHubPage_Workshop,
+                  motion_from = NativeHubPage_Workshop;
     HubRegion regions[192];
     unsigned region_count;
     float pointer_x = 310, pointer_y = 240;
@@ -98,6 +99,7 @@ struct HubState {
         profile_self = true;
     bool opened_from_play;
     bool consumes_input;
+    bool passive_page;
     unsigned pending_action;
     int pending_value;
     char pending_peer[65], pending_name[33];
@@ -116,6 +118,6 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
 void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action);
 void nativeHub_Panel(float x, float y, float w, float h);
-void nativeHub_ChangePage(NativeHubPage page);
-void nativeHub_RenderPage(void);
+void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);
+void nativeHub_RenderPage(NativeHubPage page);
 void nativeHub_Activate(HubAction action, int value);
