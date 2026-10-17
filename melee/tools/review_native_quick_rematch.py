@@ -1,7 +1,7 @@
 """Exercise a real four-stock Quick Play result and rematch against a local service.
 
-Stage votes use the native automation command while the stage-confirmation UI
-awaits design review. All gameplay uses normal controller input. Clients are
+Stage selection uses the native page and teammate confirmation controls.
+All gameplay uses normal controller input. Clients are
 hidden, muted, resized and isolated from the installation's actual profile.
 """
 import argparse
@@ -34,6 +34,7 @@ def main():
     for name in ['exe', 'iso', 'profile', 'output']:
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--endpoint', required=True)
+    parser.add_argument('--control',type=Path)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--doubles', action='store_true')
     modes.add_argument('--split-party', action='store_true',
@@ -51,7 +52,8 @@ def main():
     try:
         for index, seats in enumerate(players):
             c = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(), output/str(index),
-                       f'Rematch Review {index+1}', window_size=(960,540))
+                       f'Rematch Review {index+1}', window_size=(960,540),
+                       control=args.control.resolve() if args.control else None)
             clients.append(c)
             if seats == 2:
                 c.command('hold', 1, 'sx=0'); c.click('nav-1'); c.click('local-players-2')
@@ -82,17 +84,27 @@ def main():
             assert assignments[0]['team'] == assignments[1]['team'] != assignments[2]['team']
         first = [live_session(c) for c in clients]
         assert all(session == first[0] for session in first)
-        # Walk one side off stage until all four stocks are used.
+        # Move one side off stage, jumping past opponents that block the ledge.
         for index in losers:
             for port in range(players[index]):
                 clients[index].command('hold', port, 'sx=80')
         reports = []
         deadline = time.monotonic() + 90
+        next_jump = time.monotonic()+2
         while time.monotonic() < deadline:
             reports = [re.search(r'\[quick-play\] result epoch=(\d+) winner=(\d+) queued=(\d+)',
                                  c.stderr.read_text(errors='replace')) for c in clients]
             if all(reports):
                 break
+            if time.monotonic() >= next_jump:
+                for index in losers:
+                    for port in range(players[index]):
+                        clients[index].command('hold',port,'x','sx=80')
+                time.sleep(.08)
+                for index in losers:
+                    for port in range(players[index]):
+                        clients[index].command('hold',port,'sx=80')
+                next_jump=time.monotonic()+3
             for c in clients:
                 assert c.process.poll() is None
                 log = (c.folder/'stdout.log').read_text(errors='replace')
@@ -111,7 +123,7 @@ def main():
             for _ in range(30):
                 for port in range(players[index]):
                     c.tap('start', port=port)
-                text = c.inspect('play-queue')
+                text = c.inspect('quick-play')
                 if f'completed={epoch}' in text and 'phase=3' in text:
                     break
                 time.sleep(.25)
@@ -122,18 +134,46 @@ def main():
                 cards = c.wait_cards(4)
                 assert len(re.findall(r'\[css-card\].*local=1', cards)) == players[index], cards
         stage = (int(assignments[0]['stage'])+1) % 6
-        clients[winner].command('room-stage', 0, stage)  # Winner has no pick authority.
-        for index in losers:
-            for seat in range(players[index]):
-                clients[index].command('room-stage', seat, stage)
-            if len(losers) > 1 and index == losers[0]:
-                # One teammate cannot complete the stage decision alone.
-                text = clients[losers[1]].inspect('play-queue')
-                assert 'phase=3' in text, text
+        for c in clients:
+            c.element('stage-leave')
+        clients[losers[0]].tap('b')
+        clients[losers[0]].element('play-stage')
+        clients[losers[0]].click('play-stage')
+        clients[losers[0]].element('stage-leave')
+        for candidate in range(6):
+            assert 'enabled=0' in clients[winner].inspect(f'stage-pick-{candidate}')
+        clients[winner].command('room-stage', 0, stage)  # Service also rejects a winner.
+        picker=clients[losers[0]]
+        pick_seat=players[losers[0]]-1
+        if pick_seat:picker.click(f'stage-seat-{pick_seat}')
+        if doubles:
+            for candidate in range(6):
+                picker.click(f'stage-pick-{candidate}')
+                deadline=time.monotonic()+10
+                while time.monotonic()<deadline:
+                    text=picker.inspect('quick-play')
+                    if re.search(r'votes=(?:\d+,)*'+str(candidate)+r'(?:,|\s)',text):break
+                    time.sleep(.1)
+                else:raise RuntimeError('Stage selection did not arrive: '+text)
+            picker.screenshot()
+            picker.click(f'stage-withdraw-{pick_seat}')
+            assert 'phase=3' in picker.inspect('quick-play')
+        picker.click(f'stage-pick-{stage}')
+        if doubles:
+            confirmer=picker if len(losers)==1 else clients[losers[1]]
+            confirm_seat=0
+            confirmer.element(f'stage-confirm-{confirm_seat}')
+            confirmer.screenshot()
+            # Hover with the ordinary pointer; A comes from the confirming pad.
+            confirmer.command('ui-move',*confirmer.element(f'stage-confirm-{confirm_seat}'))
+            if pick_seat and confirmer is picker:
+                confirmer.tap('a',port=pick_seat)
+                assert 'phase=3' in confirmer.inspect('quick-play'), 'Picker confirmed for their teammate'
+            confirmer.tap('a',port=confirm_seat)
         for c in clients:
             deadline = time.monotonic()+15
             while time.monotonic() < deadline:
-                text = c.inspect('play-queue')
+                text = c.inspect('quick-play')
                 if 'phase=0' in text and f'stage={stage}' in text:
                     break
                 time.sleep(.1)

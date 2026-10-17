@@ -1,4 +1,5 @@
 #include "native_hub_internal.h"
+#include "native_hub_quick_stage.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -525,6 +526,9 @@ void nativeHub_RenderPage(NativeHubPage page)
         break;
     case NativeHubPage_Send:
         send();
+        break;
+    case NativeHubPage_QuickStage:
+        nativeHubQuickStage_Render();
         break;
     }
 }

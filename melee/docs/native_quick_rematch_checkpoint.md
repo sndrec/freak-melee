@@ -1,7 +1,7 @@
 # Quick Play results and rematches
 
-Updated: 2026-10-17. Tested locally. The stage-confirmation UI still needs design
-review, and Quick Play has not been deployed.
+Updated: 2026-10-17. Tested locally, including the native stage-confirmation page.
+User visual review and Quick Play deployment remain open.
 
 Quick Play now keeps the same opponents after a completed match. Every PC
 reports the winning side. When those reports agree, the service clears the
@@ -38,19 +38,35 @@ Stage choices belong to local seats. The service checks the sender, seat, losing
 side, completed epoch and six-stage pool. A winner cannot override the losing
 side's choice, including when the winner owns the room.
 
-Every losing teammate must submit the same stage. Two players sharing a PC each
-have a vote. Teammates on separate PCs vote independently. A pending vote can be
-changed or withdrawn. When all losing seats agree, the service saves the chosen
-stage and permits the next ready countdown. Old votes cannot alter a later round.
+In doubles, either losing teammate selects a stage. That player can change or
+clear the selection. The other teammate confirms that stage. The service rejects
+a confirmation for a different stage and keeps the existing selection. This
+also rejects a delayed confirmation after the selector has changed the stage.
+When both seats agree, the service saves it and permits the next ready countdown.
+Old votes cannot alter a later round. Singles accepts the losing player's choice
+immediately.
 
 `nativeOnlineSession_PickQuickStage` is the native entry point for these choices.
 The test command `melee_native_control room-stage <local-seat> <0..5|none>` calls
 it using the live local session. Stage indices follow the existing Quick Play
 stage table. `none` withdraws a pending vote.
 
-The user-facing confirmation controls remain open for review. The tests use the
-automation command; they do not establish that players can complete the stage
-choice through the current menus.
+## Native stage page
+
+The page opens after Results and offers the same six stages to singles and
+doubles. Winners see the pending selection with disabled stage controls. In
+doubles, the selected stage and player name appear above the confirmation
+controls. Two players sharing a PC have separate controls; the mouse can select
+which local player it acts for. Each controller can confirm only its own seat.
+
+B returns to character select. Next stage reopens the pending selection. Leave
+match returns to the original party. After agreement the page closes, and players
+can ready into practice and the normal three-second countdown.
+
+The page uses the hub's GX renderer, fonts and Melee hand. Its buttons use the
+existing menu enter/exit animation. `native_hub_quick_stage.cpp` owns presentation
+and input validation. The service owns the selection and confirmation. No local
+selection can bypass its losing-side, seat or epoch checks.
 
 ## Wire and ownership
 
@@ -101,8 +117,9 @@ PNGs were reviewed.
 
 These clients all run on this PC against a local service. They establish native
 multi-process party, team, input ownership and rematch behavior. Physical
-multi-PC/network acceptance remains the user's later pass, and stage voting
-still uses the automation command while its player-facing UI awaits review.
+multi-PC/network acceptance remains the user's later pass. These older runs used
+the automation command for stage choices; the native-page runs below exercise
+the visible controls.
 
 The first harness attempts expected the ordinary two-card layout in a Quick Play
 party and tried inspecting CSS cards during practice/gameplay. The harness now
@@ -117,7 +134,7 @@ state instead of accepting an older queued broadcast as a new response.
 
 `review_native_quick_rematch.py` runs real hidden, muted clients with isolated
 profiles. It walks one side off stage until all four stocks are used, reads the
-normal result reports, confirms the results screen, submits losing-side votes,
+normal result reports, confirms the results screen, uses the native stage page,
 readies again and verifies a second live session in the same room. The doubles
 run confirms the results screen with both local controllers. All gameplay uses
 ordinary controller input.
@@ -134,6 +151,34 @@ match PNGs were reviewed. Native protocol checks, ordinary connection and
 content-transfer regressions, and the service deployment dry-run are recorded
 alongside those runs.
 
-Remaining acceptance includes the actual stage-confirmation UI and its complete
-controller/mouse flow, late countdown cancellation, leaving/requeueing after
-in-game disconnects, and production deployment.
+The native-page checks additionally passed:
+
+- `.local/native-quick-stage-shared-1`: two shared-PC pairs, session
+  `ca69fca66dc21072` to `64d172008f620432`, room `DC97E15601B0`.
+  Local P2 selected each of the six stages and cleared the choice. P2 could not
+  confirm for P1; P1's controller confirmed and the rematch started.
+- `.local/native-quick-stage-split-1`: separate-client premade teammates against
+  a shared-PC pair, session `56f6d558d7ccf095` to `1f7b046f8ea6da42`, room
+  `6AEA9400CE06`. One client selected and the teammate confirmed using A.
+- `.local/native-quick-stage-singles-4`: final native build, session
+  `8b0bfbf554705704` to `b95db070984d9954`, room `D375576559B4`. B returned to CSS,
+  Next stage reopened the page, and the losing player's pick started a rematch.
+
+Both runs retained the same opponents and room, reported no checksum mismatch,
+and stopped all test clients. Their native page and rematch PNGs were reviewed.
+Service type checks and all 44 tests pass, including changed selections, stale
+confirmations, withdrawal and separate-client ownership. The final label pass
+uses ASCII Pokemon while the current hub glyph sheets cover ASCII characters.
+
+The first singles harness timed out while both fighters jostled at the ledge.
+Its revised input jumps past the opponent while retaining rightward movement.
+One intermediate run stopped on the retained-history OS heap allocation guard
+in both clients during Battlefield gameplay (`native-quick-stage-singles-2`).
+The caller is not yet identified. The successful singles run had an abort
+breakpoint attached and did not reproduce it. An earlier debugger command-line
+attempt ended that test process; it is not counted as a runtime failure or pass.
+The guarded allocation remains a separate runtime investigation.
+
+The cancellation and original-party recovery checks remain recorded in the
+[return checkpoint](native_quick_return_checkpoint.md). User visual review and
+production deployment remain open.

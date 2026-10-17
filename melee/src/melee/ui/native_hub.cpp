@@ -1,6 +1,7 @@
 #include "native_hub.h"
 #include "native_hub_hand.h"
 #include "native_hub_internal.h"
+#include "native_hub_quick_stage.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -39,7 +40,7 @@ namespace {
     const char* page_names[] = { "Quick Play",  "Lobbies", "Chatroom",
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
-                                 "Send fighter", "Lobby chat" };
+                                 "Send fighter", "Lobby chat", "Stage select" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -208,13 +209,20 @@ namespace {
         std::snprintf(hub.pending_name, sizeof(hub.pending_name), "%s",
                       name ? name : "");
     }
-    void click()
+    void click(unsigned port = 255)
     {
         for (unsigned i = hub.region_count; i > 0; --i) {
             const auto& r = hub.regions[i - 1];
             if (nativeHub_Hover(r.x, r.y, r.w, r.h)) {
                 if (r.enabled) {
-                    queue(r.action, r.value, r.peer, r.peer_name);
+                    int value = r.value;
+                    if (r.action == HubAction::PickStage) {
+                        const unsigned seat = port < 4 ? port : hub.stage_seat;
+                        value += int(seat*256);
+                    } else if ((r.action == HubAction::ConfirmStage ||
+                                r.action == HubAction::WithdrawStage) &&
+                               port < 4 && unsigned(value)/256 != port) return;
+                    queue(r.action, value, r.peer, r.peer_name);
                 }
                 return;
             }
@@ -501,6 +509,7 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
 void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
+    if (nativeHubQuickStage_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
             unsigned(action) - unsigned(HubAction::QuickPlay)));
@@ -518,6 +527,9 @@ void nativeHub_Activate(HubAction action, int value)
             text_focus(nullptr, 0);
         } else if (hub.page == NativeHubPage_Send && hub.send_from_css) {
             hub.send_from_css = false;
+            hub.dismissed = true;
+            hub.visible = false;
+        } else if (hub.page == NativeHubPage_QuickStage) {
             hub.dismissed = true;
             hub.visible = false;
         } else if (hub.page == NativeHubPage_RoomChat) {
@@ -975,6 +987,19 @@ extern "C" void nativeHub_Tick(void)
         }
     }
     hub.selection_before = selection;
+    if ((selection || practice) && !tool && nativeHubQuickStage_OpenRound()) {
+        show();
+        nativeHub_ChangePage(NativeHubPage_QuickStage);
+        hub.opened_from_play = true;
+    }
+    if (hub.page == NativeHubPage_QuickStage) {
+        const auto* quick = nativeOnlineSession_Quick();
+        if (!quick || quick->state != NativeQuickState_Assigned || quick->phase != 3) {
+            nativeHub_ChangePage(NativeHubPage_QuickPlay);
+            hub.dismissed = true;
+            hub.visible = false;
+        }
+    }
     hub.visible = hub.initialized && (selection || practice) && !tool && !hub.dismissed;
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
@@ -1044,6 +1069,8 @@ extern "C" void nativeHub_Tick(void)
         if (pad.err) {
             continue;
         }
+        if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
+            (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
         if (magnitude >= 200) {
             float scale = (magnitude - 200) / std::sqrt(magnitude) * .0016f;
@@ -1053,7 +1080,7 @@ extern "C" void nativeHub_Tick(void)
                 std::clamp(hub.pointer_y - y * scale, 4.0f, 470.0f);
         }
         if (pad.trigger & PAD_BUTTON_A) {
-            click();
+            click(port);
         }
         if (pad.trigger & PAD_BUTTON_B) {
             if (hub.field) {
@@ -1066,7 +1093,7 @@ extern "C" void nativeHub_Tick(void)
             queue(HubAction::Practice);
         }
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
-        break;
+        if (hub.page != NativeHubPage_QuickStage) break;
     }
 }
 extern "C" void nativeHub_Draw(void)
@@ -1320,7 +1347,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_RoomChat) {
+        page > NativeHubPage_QuickStage) {
         return;
     }
     hub.opened_from_play = true;

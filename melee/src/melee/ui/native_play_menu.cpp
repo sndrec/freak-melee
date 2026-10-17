@@ -27,7 +27,8 @@ namespace {
         Selection,
         Accept,
         Decline,
-        Queue
+        Queue,
+        Stage
     };
     struct Button {
         const char* id;
@@ -69,6 +70,9 @@ namespace {
             break;
         case Action::Workshop:
             nativeHub_Open(NativeHubPage_Workshop);
+            break;
+        case Action::Stage:
+            nativeHub_Open(NativeHubPage_QuickStage);
             break;
         case Action::Ready:
             menu.ready_requested = true;
@@ -166,16 +170,18 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     const auto* quick = nativeOnlineSession_Quick();
     bool searching = quick && quick->state == NativeQuickState_Searching;
     bool assigned = quick && quick->state == NativeQuickState_Assigned;
+    bool stage_choice = assigned && quick->phase == 3;
     const char* queue_label = assigned || (quick && quick->state == NativeQuickState_Aborted)
         ? "Leave match" : searching ? "Cancel search" : "Enter queue";
     bool can_queue = quick && (assigned ||
         (nativeOnlineSession_State() == NativeLobbySessionState_Waiting && nativeOnlineSession_IsOwner()));
     if (selection) {
         add("play-ready", "Ready / START", 35, 207, 118, 27, Action::Ready,
-            nativeCssInteraction_CanReady(), true);
+            nativeCssInteraction_CanReady() && !stage_choice, true);
         add("play-workshop", "Workshop", 419, 451, 113, 22, Action::Workshop);
         add("play-lobby", "Back", 542, 451, 83, 22, Action::Lobby);
         if (quick) add("play-queue", queue_label, 163, 207, 128, 27, Action::Queue, can_queue, !searching);
+        if (stage_choice) add("play-stage", "Next stage", 301, 207, 120, 27, Action::Stage, true, true);
     } else {
         add("play-lobby", "Lobby", 13, 10, 88, 22, Action::Lobby);
         if (quick) add("play-queue", queue_label, 109, 10, 104, 22, Action::Queue, can_queue, !searching);
@@ -183,6 +189,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
                  nativeHome_CanStartMatch(), true);
         add("play-selection", "Character select", 507, 10, 119, 22,
             Action::Selection);
+        if (stage_choice) add("play-stage", "Next stage", 302, 10, 120, 22, Action::Stage, true, true);
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
     const char* status = selection ? "Choose a fighter. START to ready."
@@ -338,6 +345,17 @@ extern "C" bool nativePlayMenu_TakeReadyRequest(void)
 }
 extern "C" bool nativePlayMenu_Inspect(const char* id)
 {
+    if (!std::strcmp(id,"quick-play")) {
+        const auto* quick = nativeOnlineSession_Quick();
+        if (quick) std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u completed=%llu chooser=%u votes=%u,%u,%u,%u\n",
+            quick->mode, quick->state, (unsigned long long) quick->generation,
+            quick->team, quick->stage, nativeOnlineSession_RoomCode(),
+            nativeOnlineSession_LocalPeerId(), quick->phase, nativeOnlineSession_QuickCountdownMs(),
+            (unsigned long long) quick->completed_epoch, quick->chooser,
+            quick->votes[0],quick->votes[1],quick->votes[2],quick->votes[3]);
+        else std::fprintf(stderr,"[quick-play] unavailable\n");
+        return true;
+    }
     for (unsigned i = 0; i < menu.count; ++i) {
         const Button& b = menu.buttons[i];
         if (std::strcmp(b.id, id)) {

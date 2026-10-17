@@ -38,8 +38,9 @@ so changes to the displayed lists preserve the selected recipient and fighter.
 Account sign-in, offline inbox storage and persistent friends remain separate
 work. Quick Play queueing, assigned-room handoff, cancellable countdown and
 fixed-rule matches now have local native checks. Result agreement and rematches
-also work through native stage-vote automation. The stage-confirmation UI and
-deployment remain open. Show their real
+also work through the native six-stage page, with a pick and teammate confirmation
+in doubles. Local mouse/controller checks cover shared-PC and separate-client
+teams. User visual review and deployment remain open. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 
@@ -373,8 +374,8 @@ private match admission and cancellation/recovery checks. Native queue controls,
 ready countdown, fixed-rule matches and rematches now have local runtime evidence.
 Separate-client premade teammates and four independent solo clients also finish
 a four-stock game and rematch in the same assigned room in native local checks.
-The actual stage-confirmation UI and its complete controller/mouse acceptance
-still need work. Native cancellation checks cover the deadline race, opponent
+The native stage-confirmation page now passes local mouse/controller checks;
+the user will review its presentation. Native cancellation checks cover the deadline race, opponent
 exit and original-party recovery. Signaling-loss checks finish a viable P2P
 match and requeue into a second match. See the
 [Quick Play checkpoint](native_quick_play_checkpoint.md) and
