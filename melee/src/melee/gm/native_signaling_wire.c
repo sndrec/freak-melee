@@ -22,6 +22,8 @@ enum {
     CLIENT_QUEUE_QUICK = 11,
     CLIENT_REQUEST_QUICK = 12,
     CLIENT_PREPARE_QUICK = 13,
+    CLIENT_REPORT_QUICK = 14,
+    CLIENT_VOTE_QUICK_STAGE = 15,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -470,6 +472,26 @@ size_t nativeSignalingWire_EncodeQueueQuick(bool searching,
         writer_u8(&writer, searching ? 1 : 0) ? writer_finish(&writer) : 0;
 }
 
+size_t nativeSignalingWire_EncodeReportQuick(uint64_t epoch, uint8_t winner,
+                                            uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return epoch && (winner <= 1 || winner == 255) &&
+        writer_begin(&writer, output, capacity, CLIENT_REPORT_QUICK) &&
+        writer_u64(&writer, epoch) && writer_u8(&writer, winner) ? writer_finish(&writer) : 0;
+}
+
+size_t nativeSignalingWire_EncodeVoteQuickStage(uint64_t epoch, uint8_t seat,
+                                               uint8_t stage, uint8_t* output,
+                                               size_t capacity)
+{
+    WireWriter writer;
+    return epoch && seat < 2 && (stage < 6 || stage == 255) &&
+        writer_begin(&writer, output, capacity, CLIENT_VOTE_QUICK_STAGE) &&
+        writer_u64(&writer, epoch) && writer_u8(&writer, seat) &&
+        writer_u8(&writer, stage) ? writer_finish(&writer) : 0;
+}
+
 size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
                                               const uint8_t* digest,
                                               uint8_t* output, size_t capacity)
@@ -532,12 +554,18 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
             !reader_u8(&reader, &quick->team) ||
             !reader_u8(&reader, &quick->stage) ||
             !reader_u8(&reader, &quick->phase) ||
-            !reader_u16(&reader, &quick->remaining_ms) || !reader_finished(&reader) ||
+            !reader_u16(&reader, &quick->remaining_ms) ||
+            !reader_u64(&reader, &quick->completed_epoch) ||
+            !reader_u8(&reader, &quick->chooser) ||
+            !reader_raw(&reader, quick->votes, sizeof(quick->votes)) || !reader_finished(&reader) ||
             quick->mode > NativeQuickMode_Doubles ||
             quick->state > NativeQuickState_Aborted || quick->team > 1 ||
-            quick->stage >= 6 || quick->phase > 2 || quick->remaining_ms > 3000 ||
+            quick->stage >= 6 || quick->phase > 4 || quick->remaining_ms > 3000 ||
+            (quick->chooser > 1 && quick->chooser != 255) ||
             (quick->phase != 1 && quick->remaining_ms != 0) ||
             (quick->phase && quick->state != NativeQuickState_Assigned)) return false;
+        for (unsigned i = 0; i < 4; ++i)
+            if (quick->votes[i] > 5 && quick->votes[i] != 255) return false;
         if (quick->state != NativeQuickState_Assigned) return true;
         if (!quick->mode || strlen(quick->match_room) != 12 ||
             strlen(quick->admission) != 32) return false;

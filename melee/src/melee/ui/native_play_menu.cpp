@@ -167,8 +167,8 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     bool assigned = quick && quick->state == NativeQuickState_Assigned;
     const char* queue_label = assigned || (quick && quick->state == NativeQuickState_Aborted)
         ? "Leave match" : searching ? "Cancel search" : "Enter queue";
-    bool can_queue = quick && nativeOnlineSession_State() == NativeLobbySessionState_Waiting &&
-        (assigned || nativeOnlineSession_IsOwner());
+    bool can_queue = quick && (assigned ||
+        (nativeOnlineSession_State() == NativeLobbySessionState_Waiting && nativeOnlineSession_IsOwner()));
     if (selection) {
         add("play-ready", "Ready / START", 35, 207, 118, 27, Action::Ready,
             nativeCssInteraction_CanReady(), true);
@@ -196,12 +196,14 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
                                                  : "Waiting for the host";
     }
     if (quick && state == NativeLobbySessionState_Waiting) {
-        status = assigned ? "Match found. Connecting players..."
+        status = quick->phase == 3 ? (quick->chooser == quick->team ? "Your side picks the next stage" : "Waiting for the losing side's stage")
+                 : assigned ? "Match found. Connecting players..."
                  : searching ? "Searching for players..."
                  : quick->state == NativeQuickState_Aborted ? "Match cancelled. Leave to search again."
                  : "START to practice. Enter queue when ready to search.";
         if (*nativeOnlineSession_QuickError()) status = nativeOnlineSession_QuickError();
     }
+    if (quick && state == NativeLobbySessionState_Returning) status = "Agreeing the match result...";
     const char* code = nativeOnlineSession_RoomCode();
     if (code && *code) {
         std::snprintf(menu.status, sizeof(menu.status), "%s  |  %s", code,
@@ -359,10 +361,12 @@ extern "C" bool nativePlayMenu_Inspect(const char* id)
                      (size.y - 480 * scale) * .5f + v * 480 * scale,
                      (r - u) * 640 * scale, (t - v) * 480 * scale, b.enabled);
         if (const auto* quick = nativeOnlineSession_Quick()) {
-            std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u\n",
+            std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u completed=%llu chooser=%u votes=%u,%u,%u,%u\n",
                 quick->mode, quick->state, (unsigned long long) quick->generation,
                 quick->team, quick->stage, nativeOnlineSession_RoomCode(),
-                nativeOnlineSession_LocalPeerId(), quick->phase, nativeOnlineSession_QuickCountdownMs());
+                nativeOnlineSession_LocalPeerId(), quick->phase, nativeOnlineSession_QuickCountdownMs(),
+                (unsigned long long) quick->completed_epoch, quick->chooser,
+                quick->votes[0], quick->votes[1], quick->votes[2], quick->votes[3]);
         }
         return true;
     }

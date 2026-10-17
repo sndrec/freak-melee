@@ -20,6 +20,8 @@ export const enum ClientMessageType {
   QueueQuick = 11,
   RequestQuick = 12,
   PrepareQuick = 13,
+  ReportQuick = 14,
+  VoteQuickStage = 15,
 }
 
 export const enum ServerMessageType {
@@ -70,6 +72,8 @@ export type ClientMessage =
   | { type: ClientMessageType.QueueQuick; searching: boolean }
   | { type: ClientMessageType.RequestQuick }
   | { type: ClientMessageType.PrepareQuick; revision: number; prepared: boolean; digest: Uint8Array }
+  | { type: ClientMessageType.ReportQuick; epoch: number; winner: number }
+  | { type: ClientMessageType.VoteQuickStage; epoch: number; seat: number; stage: number }
   | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
   | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
@@ -258,6 +262,16 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.ReportQuick) {
+    const epoch = reader.u64(), winner = reader.u8(); reader.finish();
+    if (winner > 1 && winner !== 255) throw new Error("Invalid Quick Play winner");
+    return { type, epoch, winner };
+  }
+  if (type === ClientMessageType.VoteQuickStage) {
+    const epoch = reader.u64(), seat = reader.u8(), stage = reader.u8(); reader.finish();
+    if (seat > 1 || (stage > 5 && stage !== 255)) throw new Error("Invalid Quick Play stage vote");
+    return { type, epoch, seat, stage };
+  }
   if (type === ClientMessageType.PrepareQuick) {
     const revision = reader.u64(), prepared = reader.u8(), digest = reader.bytes16();
     reader.finish();
@@ -361,7 +375,8 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   if (type === ServerMessageType.QuickState) {
     const quick = { mode: reader.u8(), state: reader.u8(), generation: reader.u64(),
       matchRoom: reader.string8(), admission: reader.string8(), team: reader.u8(), stage: reader.u8(),
-      phase: reader.u8(), remainingMs: reader.u16() };
+      phase: reader.u8(), remainingMs: reader.u16(), completedEpoch: reader.u64(),
+      chooser: reader.u8(), votes: [reader.u8(), reader.u8(), reader.u8(), reader.u8()] };
     reader.finish(); return { type, quick };
   }
   if (type === ServerMessageType.QuickRejected) {
@@ -683,7 +698,18 @@ export function encodeQuickState(quick: QuickState): ArrayBuffer {
   writer.u8(quick.mode); writer.u8(quick.state); writer.u64(quick.generation);
   writer.string8(quick.matchRoom); writer.string8(quick.admission);
   writer.u8(quick.team); writer.u8(quick.stage);
-  writer.u8(quick.phase); writer.u16(quick.remainingMs); return writer.finish();
+  writer.u8(quick.phase); writer.u16(quick.remainingMs);
+  writer.u64(quick.completedEpoch); writer.u8(quick.chooser);
+  for (const vote of quick.votes) writer.u8(vote);
+  return writer.finish();
+}
+export function encodeReportQuick(epoch: number, winner: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.ReportQuick, 17);
+  writer.u64(epoch); writer.u8(winner); return writer.finish();
+}
+export function encodeVoteQuickStage(epoch: number, seat: number, stage: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.VoteQuickStage, 18);
+  writer.u64(epoch); writer.u8(seat); writer.u8(stage); return writer.finish();
 }
 export function encodePrepareQuick(revision: number, prepared: boolean, digest: Uint8Array): ArrayBuffer {
   const writer = new Writer(ClientMessageType.PrepareQuick, 51);

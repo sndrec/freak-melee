@@ -28,11 +28,12 @@ static void usage(const char* executable)
             "  %s [--id NAME] ui-key <letter|escape|enter|delete> "
             "[shift|ctrl|alt]...\n"
             "  %s [--id NAME] room-rotation <manual|winner-stays|winner-out>\n"
+            "  %s [--id NAME] room-stage <local-seat> <0..5|none>\n"
             "Inputs: a b x y z l r start up down left right\n"
             "        short-hop no-tap-jump tilt-stick\n"
             "        sx=N sy=N cx=N cy=N lt=N rt=N aa=N ab=N\n",
             executable, executable, executable, executable, executable,
-            executable, executable, executable, executable, executable, executable);
+            executable, executable, executable, executable, executable, executable, executable);
 }
 
 static bool parse_long(const char* text, long minimum, long maximum,
@@ -227,6 +228,15 @@ int main(int argc, char** argv)
         }
         message.command = DB_NATIVE_CONTROL_UI_TEXT;
         memcpy(message.text, command[1], strlen(command[1]) + 1);
+    } else if (_stricmp(command[0], "room-stage") == 0 && command_args == 3) {
+        long seat, stage;
+        if (!parse_long(command[1], 0, 1, &seat) ||
+            (_stricmp(command[2], "none") && !parse_long(command[2], 0, 5, &stage))) {
+            usage(argv[0]); return 1;
+        }
+        message.command = DB_NATIVE_CONTROL_ROOM_STAGE;
+        message.port = (u32) seat;
+        message.ui_x = !_stricmp(command[2], "none") ? 255 : (s32) stage;
     } else if (_stricmp(command[0], "room-rotation") == 0 && command_args == 2)
     {
         if (_stricmp(command[1], "manual") == 0) {

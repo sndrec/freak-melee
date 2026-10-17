@@ -21,6 +21,7 @@ bool nativeOnlineSession_JoinRoom(const char* room_code,
 bool nativeOnlineSession_EnterQuick(uint8_t mode, const char* local_name,
                                     uint8_t local_players);
 bool nativeOnlineSession_SearchQuick(bool searching);
+bool nativeOnlineSession_PickQuickStage(uint8_t local_seat, uint8_t stage);
 const NativeQuickAssignment* nativeOnlineSession_Quick(void);
 const char* nativeOnlineSession_QuickError(void);
 uint16_t nativeOnlineSession_QuickCountdownMs(void);

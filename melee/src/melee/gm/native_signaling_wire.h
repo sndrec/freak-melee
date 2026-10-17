@@ -107,11 +107,13 @@ typedef enum NativeQuickState {
 
 typedef struct NativeQuickAssignment {
     uint64_t generation;
+    uint64_t completed_epoch;
     char match_room[13];
     char admission[33];
     uint16_t remaining_ms;
     uint8_t mode, state, team, stage;
     uint8_t phase;
+    uint8_t chooser, votes[4];
 } NativeQuickAssignment;
 
 typedef struct NativeSignalingServerMessage {
@@ -181,6 +183,11 @@ size_t nativeSignalingWire_EncodeRequestQuick(uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
                                               const uint8_t* digest,
                                               uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeReportQuick(uint64_t epoch, uint8_t winner,
+                                            uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeVoteQuickStage(uint64_t epoch, uint8_t seat,
+                                               uint8_t stage, uint8_t* output,
+                                               size_t capacity);
 bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output);

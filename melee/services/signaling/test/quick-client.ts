@@ -5,6 +5,7 @@ import type { QuickState } from "../src/quick-play";
 const worker = exports.default as unknown as Fetcher;
 export class QuickClient {
   peerId = "";
+  presenceRevision = 0;
   private messages: ServerMessage[] = [];
   private receiving = Promise.resolve();
   private changed?: () => void;
@@ -17,7 +18,10 @@ export class QuickClient {
         if (ArrayBuffer.isView(data)) bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice().buffer;
         else if (typeof data === "object" && data !== null && "arrayBuffer" in data && typeof data.arrayBuffer === "function") bytes = await data.arrayBuffer() as ArrayBuffer;
         else bytes = data as ArrayBuffer;
-        this.messages.push(decodeServerMessage(bytes));
+        const message = decodeServerMessage(bytes);
+        if (message.type === ServerMessageType.Presence)
+          this.presenceRevision = Math.max(this.presenceRevision, message.snapshot.revision);
+        this.messages.push(message);
         this.changed?.();
       }).catch((error: unknown) => { this.error = error; this.changed?.(); });
     });

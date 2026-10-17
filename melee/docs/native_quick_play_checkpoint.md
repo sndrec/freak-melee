@@ -19,8 +19,10 @@ The service now starts a three-second countdown when every player has locked
 their choice and every PC reports connected peers and available fighter content.
 B unreadies the local players and returns directly to CSS. Readying again starts
 a new countdown. After the countdown, both clients enter the same fixed-rule
-match through the existing content and rollback handshake. Loser stage picks,
-rematches and service deployment remain open.
+match through the existing content and rollback handshake. Result agreement and
+same-opponent rematches now pass local checks using native stage-vote automation;
+the player-facing stage-confirmation UI and deployment remain open. See the
+[rematch checkpoint](native_quick_rematch_checkpoint.md).
 
 ## Native session
 
@@ -33,11 +35,11 @@ outside that connection and publish again when the assigned room is ready.
 The native decoder handles the Quick Play state and rejection messages. Rejections
 are shown as queue errors. An explicit allocation cancellation returns to the
 party; ordinary signaling loss retains the established gameplay policy. The
-native build identity is `freak-melee-native-dev-quick-countdown`.
+native build identity is `freak-melee-native-dev-quick-rematch`.
 
 For local service checks, `FREAK_MELEE_SERVICE_ENDPOINT` overrides the native
 room-service origin. Without it, the client uses the configured hosted origin.
-The new service class remains undeployed while rematch work is incomplete.
+The new service class remains undeployed while the stage-confirmation UI is incomplete.
 
 The preparation report names the current presence revision and stock-content
 digest. Each PC checks its actual ICE connections, locked choices and verified
@@ -104,7 +106,7 @@ six-minute timer, no items, handicap off, normal damage, pause off and friendly
 fire on for doubles. The native lobby codec and handshake consume that proposal.
 
 The losing team's stage-agreement interface remains a design review item for
-when the user returns. The plan already requires both teammates to agree on
+when the user returns. The service already requires both teammates to agree on
 one stage; its confirmation controls have not been selected.
 
 ## Wire additions
@@ -118,10 +120,14 @@ New client message types are:
 | 11 QueueQuick | searching u8: 0 cancel, 1 enter/heartbeat |
 | 12 RequestQuick | empty |
 | 13 PrepareQuick | presence revision u64, prepared u8, digest bytes16 (32 bytes when prepared, empty otherwise) |
+| 14 ReportQuick | current epoch u64, winning side u8; 255 means no contest |
+| 15 VoteQuickStage | completed epoch u64, local seat u8, stage u8; 255 withdraws |
 
 Server type `0x89` sends mode u8, state u8, generation u64, match-room string8,
 admission-token string8, team u8, first-stage u8, phase u8 and remaining-ms u16.
-Phase is 0 waiting, 1 countdown or 2 match proposal published. State is 0 idle, 1 searching
+These are followed by completed epoch u64, choosing side u8 and four vote bytes
+in canonical-port order; 255 means no choosing side or no vote. Phase is 0
+waiting, 1 countdown, 2 playing, 3 stage choice or 4 result agreement. State is 0 idle, 1 searching
 or preparing, 2 assigned, or 3 aborted. Assignment data is private to each PC's
 socket. Server type `0x8a` sends a string8 rejection reason. These rejections
 leave ordinary room signaling connected.
@@ -132,7 +138,7 @@ transport and gameplay ICE setup serve the assigned room.
 ## Verification
 
 `npm run check` regenerates bindings, checks application/test types and runs the
-service tests. The current suite has 37 passing tests, including 16 Quick Play
+service tests. The current suite has 42 passing tests, including 21 Quick Play
 cases. Quick Play coverage includes all doubles group sizes, premades on one or
 two PCs, independent admission tokens, build separation, duplicate searches,
 leader authority, malformed commands, capacity checks, cancellation/requeueing,
@@ -182,12 +188,10 @@ no matchmaking or public chat traffic was sent to the deployed service.
 
 ## Next implementation
 
-1. Add the native wire records and persistent Quick Play session ownership.
-2. Connect mode selection to CSS, expected empty/occupied player cards, queue
-   controls and ready practice. Preserve the identity and selected character
-   across assignment and reconnect to the allocated room with its private token.
-3. Add service-owned content/connectivity receipts and the cancellable three-second
-   countdown. Publish a validated native match proposal with the fixed rules.
-4. Connect results, losing-side stage selection, rematches and party return.
-5. Run the native multi-client acceptance for the full approved flow before
-   deploying the new service class and enabling the menu controls.
+1. Review and build the player-facing losing-side stage-confirmation controls.
+   Result agreement, per-seat stage authority, rematches and party return have
+   local service/native automation evidence.
+2. Exercise the complete controller/mouse flow, late countdown cancellation and
+   leaving/requeueing after in-game disconnects.
+3. Run the full native multi-client acceptance before deploying the new service
+   class. Physical multi-PC testing remains the user's later pass.

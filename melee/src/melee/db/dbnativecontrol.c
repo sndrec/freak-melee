@@ -43,6 +43,13 @@ static void apply_message(const DbNativeControlMessage* message)
         }
         return;
     }
+    if (message->command == DB_NATIVE_CONTROL_ROOM_STAGE) {
+        bool queued = message->port < 2 && (message->ui_x >= 0 && message->ui_x < 6 || message->ui_x == 255) &&
+            nativeOnlineSession_PickQuickStage(message->port, (uint8_t) message->ui_x);
+        OSReport("[native-control] Stage vote seat=%u stage=%d %s.\n", message->port, message->ui_x,
+                 queued ? "queued" : "rejected");
+        return;
+    }
     if (message->port >= PAD_MAX_CONTROLLERS) {
         return;
     }

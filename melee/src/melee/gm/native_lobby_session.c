@@ -149,7 +149,8 @@ bool nativeLobbySession_FinishMatch(NativeLobbySession* session)
     session->state = NativeLobbySessionState_Returning;
     const NativeSignalingPresence* presence =
         &session->room.connection.presence;
-    if (strcmp(presence->owner_peer_id,
+    if (!session->room.connection.quick.mode &&
+        strcmp(presence->owner_peer_id,
                session->room.connection.local_peer_id) == 0 &&
         presence->match_epoch == session->finished_match_epoch &&
         presence->match_size != 0 &&

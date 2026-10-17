@@ -25,6 +25,7 @@ typedef enum DbNativeControlCommand {
     DB_NATIVE_CONTROL_UI_KEY = 8,
     DB_NATIVE_CONTROL_UI_MOVE = 9,
     DB_NATIVE_CONTROL_UI_INSPECT = 10,
+    DB_NATIVE_CONTROL_ROOM_STAGE = 11,
 } DbNativeControlCommand;
 
 typedef struct DbNativeControlMessage {

@@ -101,8 +101,9 @@ checks are recorded in [its checkpoint](native_quick_play_checkpoint.md).
 ## Remaining integration
 
 Quick Play's countdown and fixed-rule first match now pass native singles and
-shared-PC doubles checks. Loser stage selection, rematches and service deployment
-remain open. Remote portrait preparation
+shared-PC doubles checks. Result agreement and rematches now have local native
+automation checks; stage-confirmation controls and service deployment remain
+open. Remote portrait preparation
 and lobby chat have their own completed local checks. Authored menu transitions
 remain open. Account sign-in and offline inbox decisions remain deferred for
 the user.

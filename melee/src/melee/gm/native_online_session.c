@@ -40,7 +40,7 @@ static struct NativeQuickSession {
     bool prepared_sent, prepared_value;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-quick-countdown";
+static const char online_build[] = "freak-melee-native-dev-quick-rematch";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)
@@ -230,6 +230,16 @@ const NativeQuickAssignment* nativeOnlineSession_Quick(void)
     return quick.assignment.mode ? &quick.assignment : NULL;
 }
 
+bool nativeOnlineSession_PickQuickStage(uint8_t local_seat, uint8_t stage)
+{
+    return online.active && !online.match_claimed && quick.assigned_room &&
+        online.lobby.state == NativeLobbySessionState_Waiting &&
+        quick.assignment.phase == 3 && quick.assignment.chooser == quick.assignment.team &&
+        local_seat < online.local_players && (stage < 6 || stage == 255) &&
+        nativeSignalingClient_VoteQuickStage(&online.lobby.room.connection.signaling,
+            quick.assignment.completed_epoch, local_seat, stage);
+}
+
 const char* nativeOnlineSession_QuickError(void)
 {
     return online.lobby.room.connection.quick_error;
@@ -325,12 +335,11 @@ static bool pump_quick(void)
 
 bool nativeOnlineSession_Pump(void)
 {
-    if (!online.active || online.match_claimed ||
-        !nativeLobbySession_Pump(&online.lobby))
-    {
-        return false;
-    }
+    if (!online.active || online.match_claimed) return false;
+    bool pumped = nativeLobbySession_Pump(&online.lobby);
+    if (!pumped && online.lobby.room.connection.quick.state != NativeQuickState_Aborted) return false;
     if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
+    if (!pumped) return online.lobby.state != NativeLobbySessionState_Failed;
     if (online.lobby.state == NativeLobbySessionState_Ready &&
         !online.launch_ready && (!quick.assignment.mode || !nativeHome_IsPractice()))
     {
@@ -585,6 +594,20 @@ bool nativeOnlineSession_ReportMatch(const MatchEnd* result)
         return false;
     }
     const NativeLobbyMatch* match = &online.lobby.room.match;
+    if (quick.assigned_room) {
+        uint8_t winner = 255;
+        if (result && !gm_WasMatchCanceled(result->outcome)) {
+            if (match->teams && result->n_team_winners == 1 && result->team_winners[0] < 2)
+                winner = result->team_winners[0];
+            else if (!match->teams && result->n_winners == 1 && result->winners[0] < 4)
+                winner = match->slots[result->winners[0]].team;
+        }
+        bool queued = nativeSignalingClient_ReportQuick(&online.lobby.room.connection.signaling,
+            online.lobby.room.agreed_match_epoch, winner);
+        fprintf(stderr, "[quick-play] result epoch=%llu winner=%u queued=%u\n",
+            (unsigned long long) online.lobby.room.agreed_match_epoch, winner, queued);
+        return queued;
+    }
     uint8_t human_count = 0;
     bool eligible = result != NULL && !gm_WasMatchCanceled(result->outcome) &&
                     result->n_winners == 1 && !match->teams;
@@ -645,6 +668,8 @@ void nativeOnlineSession_FinishMatch(void)
     online.launch_ready = false;
     online.match_claimed = false;
     online.local_selection_size = 0;
+    quick.prepared_sent = false;
+    quick.countdown_end_ms = 0;
 }
 
 #endif

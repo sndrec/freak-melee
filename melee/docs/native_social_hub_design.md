@@ -37,8 +37,9 @@ so changes to the displayed lists preserve the selected recipient and fighter.
 
 Account sign-in, offline inbox storage and persistent friends remain separate
 work. Quick Play queueing, assigned-room handoff, cancellable countdown and
-fixed-rule first matches now have local native checks. Loser stage picks,
-rematches and deployment remain open. Show their real
+fixed-rule matches now have local native checks. Result agreement and rematches
+also work through native stage-vote automation. The stage-confirmation UI and
+deployment remain open. Show their real
 availability in the native menus. Browser sample players, messages and queue
 results are examples, not native service evidence.
 
@@ -362,8 +363,9 @@ leaving/requeueing with a premade teammate. Physical multi-PC
 testing remains a later user pass. The mockup's search results use local sample
 participants. The local service now has party-preserving queue allocation,
 private match admission and cancellation/recovery checks. Native queue controls,
-ready countdown, fixed-rule match construction and rematches remain to be
-implemented. See the [Quick Play checkpoint](native_quick_play_checkpoint.md).
+ready countdown, fixed-rule matches and rematches now have local runtime evidence.
+The actual stage-confirmation UI and remaining cancellation/return acceptance
+still need work. See the [Quick Play checkpoint](native_quick_play_checkpoint.md).
 
 ## Native stick input audit
 
