@@ -2,12 +2,61 @@ import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { digest, choices, phase, setup, select, revision, prepare, expire } from "./quick-fixture";
 import { quickJoin } from "./quick-client";
-import { encodePrepareQuick, encodeRequestPresence, ServerMessageType } from "../src/wire";
+import { encodePrepareQuick, encodeRequestPresence, encodeUnreadyQuick, ServerMessageType } from "../src/wire";
 import { lockedChoices, buildQuickMatch } from "../src/quick-match";
 import type { QuickAllocation } from "../src/quick-play";
 import { publicParticipant } from "../src/protocol";
 
 describe("Quick Play ready countdown", () => {
+  it("acknowledges unready before commit and preserves a proposal that won the deadline race", async () => {
+    const game = await setup();
+    try {
+      for (const c of game.clients) await select(c, 1);
+      await prepare(game);
+      const before = await revision(game);
+      game.clients[0].socket.send(encodeUnreadyQuick(0));
+      await phase(game.clients[1], 0);
+      await runInDurableObject(game.room, async (_instance, state) => {
+        const peer = state.getWebSockets(`peer:${game.clients[0].peerId}`)[0].deserializeAttachment() as import("../src/protocol").ConnectionAttachment;
+        expect(peer.selection[6]).toBe(0);
+        expect(peer.quickRevision).toBeUndefined();
+        expect(state.storage.sql.exec<{revision: number}>("SELECT revision FROM room_counter").one().revision).toBeGreaterThan(before);
+        expect(state.storage.sql.exec<{payload: ArrayBuffer | null}>("SELECT payload FROM room_match").one().payload).toBeNull();
+        expect(await state.storage.getAlarm()).toBeNull();
+      });
+      await select(game.clients[0], 1);
+      await prepare(game); await expire(game); await phase(game.clients[0], 2);
+      const committed = await runInDurableObject(game.room, async (_instance, state) =>
+        state.storage.sql.exec<{epoch: number}>("SELECT epoch FROM room_match").one().epoch);
+      game.clients[0].socket.send(encodeUnreadyQuick(0));
+      expect((await game.clients[0].refresh()).phase).toBe(2);
+      await runInDurableObject(game.room, async (_instance, state) => {
+        const peer = state.getWebSockets(`peer:${game.clients[0].peerId}`)[0].deserializeAttachment() as import("../src/protocol").ConnectionAttachment;
+        expect(peer.selection[6]).toBe(1);
+        const match = state.storage.sql.exec<{epoch: number; payload: ArrayBuffer | null}>("SELECT epoch, payload FROM room_match").one();
+        expect(match.epoch).toBe(committed); expect(match.payload).not.toBeNull();
+      });
+      expect(game.clients[0].socket.readyState).toBe(WebSocket.OPEN);
+    } finally { await game.close(); }
+  });
+
+  it("ignores an unready request from an earlier round", async () => {
+    const game = await setup();
+    try {
+      await runInDurableObject(game.room, async (_instance, state) => {
+        state.storage.sql.exec("UPDATE quick_round SET completed_epoch=7 WHERE id=1");
+      });
+      for (const c of game.clients) await select(c, 1);
+      await prepare(game);
+      game.clients[0].socket.send(encodeUnreadyQuick(0));
+      expect((await game.clients[0].refresh()).phase).toBe(1);
+      await runInDurableObject(game.room, async (_instance, state) => {
+        const peer = state.getWebSockets(`peer:${game.clients[0].peerId}`)[0].deserializeAttachment() as import("../src/protocol").ConnectionAttachment;
+        expect(peer.selection[6]).toBe(1);
+      });
+    } finally { await game.close(); }
+  });
+
   it("requires complete locked selections and parses every shared-PC choice", () => {
     const bytes = choices(2);
     expect(lockedChoices(bytes, 2)).toHaveLength(2);

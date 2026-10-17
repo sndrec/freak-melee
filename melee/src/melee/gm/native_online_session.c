@@ -38,9 +38,11 @@ static struct NativeQuickSession {
     uint32_t seen_revision;
     bool configure_sent, assigned_room, cancelling, cancel_sent;
     bool prepared_sent, prepared_value;
+    bool unready_pending, unready_accepted;
+    uint64_t unready_revision, unready_epoch;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-quick-rematch";
+static const char online_build[] = "freak-melee-native-dev-quick-return";
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)
@@ -201,6 +203,7 @@ static bool switch_quick_room(const char* room, const char* admission)
     quick.seen_revision = 0;
     quick.prepared_sent = false;
     quick.cancel_sent = false;
+    quick.unready_pending = quick.unready_accepted = false;
     return started;
 }
 
@@ -252,6 +255,27 @@ uint16_t nativeOnlineSession_QuickCountdownMs(void)
         ? (uint16_t) (quick.countdown_end_ms - now) : 0;
 }
 
+bool nativeOnlineSession_UnreadyQuick(void)
+{
+    if (!online.active || online.match_claimed || !quick.assigned_room ||
+        quick.assignment.phase >= 2 ||
+        online.lobby.state != NativeLobbySessionState_Waiting) return false;
+    if (quick.unready_pending || quick.unready_accepted) return true;
+    if (!nativeSignalingClient_UnreadyQuick(&online.lobby.room.connection.signaling,
+                                            quick.assignment.completed_epoch)) return false;
+    quick.unready_pending = true;
+    quick.unready_revision = online.lobby.room.connection.presence.revision;
+    quick.unready_epoch = quick.assignment.completed_epoch;
+    return true;
+}
+
+bool nativeOnlineSession_TakeQuickUnready(void)
+{
+    bool accepted = quick.unready_accepted;
+    quick.unready_accepted = false;
+    return accepted;
+}
+
 static void prepare_quick(void)
 {
     NativeNetplayConnection* c = &online.lobby.room.connection;
@@ -301,6 +325,24 @@ static bool pump_quick(void)
             quick.cancelling = quick.cancel_sent = false;
     }
     if (!quick.assignment.mode || !connection->has_presence) return true;
+    if (quick.unready_pending) {
+        if (quick.assignment.phase >= 2 ||
+            quick.assignment.completed_epoch != quick.unready_epoch) {
+            quick.unready_pending = false;
+        } else if (connection->presence.revision > quick.unready_revision) {
+            for (unsigned i = 0; i < connection->presence.participant_count; ++i) {
+                const NativeSignalingParticipant* peer = &connection->presence.participants[i];
+                NativeLobbySelection selected;
+                if (!strcmp(peer->peer_id, online.peer_id) &&
+                    nativeLobbySelection_Decode(&selected, peer->selection, peer->selection_size) &&
+                    !selected.confirmed) {
+                    quick.unready_pending = false;
+                    quick.unready_accepted = true;
+                    break;
+                }
+            }
+        }
+    }
     if (quick.assigned_room && quick.assignment.state == NativeQuickState_Aborted) {
         quick.cancelling = true;
         quick.assigned_room = false;
@@ -329,6 +371,7 @@ static bool pump_quick(void)
         quick.heartbeat_ms = now;
     }
     if (quick.assigned_room && quick.assignment.phase < 2 &&
+        !quick.unready_pending && !quick.unready_accepted &&
         online.lobby.state == NativeLobbySessionState_Waiting) prepare_quick();
     return true;
 }
@@ -466,6 +509,8 @@ bool nativeOnlineSession_GiftStatus(bool incoming,
 bool nativeOnlineSession_UpdateSelection(
     const NativeLobbySelection* selection)
 {
+    // Retain the locked local choice until the service decides the cancellation.
+    if (quick.unready_pending) return true;
     NativeLobbySelection normalized;
     if (selection && quick.assigned_room) {
         normalized = *selection;

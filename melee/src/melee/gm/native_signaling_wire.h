@@ -185,6 +185,8 @@ size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
                                               uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeReportQuick(uint64_t epoch, uint8_t winner,
                                             uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeUnreadyQuick(uint64_t completed_epoch,
+                                              uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeVoteQuickStage(uint64_t epoch, uint8_t seat,
                                                uint8_t stage, uint8_t* output,
                                                size_t capacity);

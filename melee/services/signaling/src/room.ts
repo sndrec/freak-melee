@@ -299,7 +299,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.send(socket, encodeChatRejected(0, "Malformed chat message."));
         return;
       }
-      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.VoteQuickStage) {
+      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.UnreadyQuick) {
         this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
       }
       this.error(socket, "Malformed room message");
@@ -307,6 +307,9 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
 
     switch (parsed.type) {
+    case ClientMessageType.UnreadyQuick:
+      await this.unreadyQuick(socket, parsed.completedEpoch);
+      return;
     case ClientMessageType.ReportQuick:
       await this.reportQuick(socket, parsed.epoch, parsed.winner);
       return;
@@ -375,6 +378,25 @@ export class Room extends DurableObject<CloudflareBindings> {
 
   private quickFlow(): QuickFlowRow {
     return this.ctx.storage.sql.exec<QuickFlowRow>("SELECT phase, deadline, revision FROM quick_flow WHERE id=1").one();
+  }
+
+  private async unreadyQuick(socket: WebSocket, completedEpoch: number): Promise<void> {
+    const match = this.quickMatch(), peer = this.attachment(socket);
+    if (!match || match.aborted || !peer) return;
+    if (this.quickFlow().phase < 2 && this.quickRound().completed_epoch === completedEpoch) {
+      const selection = peer.selection.slice();
+      if (selection.length >= 7) selection[6] = 0;
+      socket.serializeAttachment({ ...peer, ready: false, selection,
+        quickRevision: undefined, quickDigest: undefined } satisfies ConnectionAttachment);
+      this.clearReady();
+      this.broadcastPresence(this.nextRevision());
+      await this.refreshQuickCountdown();
+    } else {
+      // The committed proposal wins a late cancellation. Return its authoritative
+      // selection and phase so the sender continues through the shared launch.
+      this.send(socket, encodePresence(this.snapshot(this.currentRevision()), MAX_MESSAGE_BYTES));
+    }
+    this.sendQuick(socket);
   }
 
   private async prepareQuick(socket: WebSocket,

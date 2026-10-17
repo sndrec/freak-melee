@@ -188,6 +188,10 @@ no matchmaking or public chat traffic was sent to the deployed service.
 
 ## Next implementation
 
+The [return checkpoint](native_quick_return_checkpoint.md) supersedes the late
+cancellation and opponent-exit portion of the work below. The current build waits
+for the service's unready decision and passes native party-return/requeue checks.
+
 1. Review and build the player-facing losing-side stage-confirmation controls.
    Result agreement, per-seat stage authority, rematches and party return have
    local service/native automation evidence.

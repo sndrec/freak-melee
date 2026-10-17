@@ -24,6 +24,7 @@ enum {
     CLIENT_PREPARE_QUICK = 13,
     CLIENT_REPORT_QUICK = 14,
     CLIENT_VOTE_QUICK_STAGE = 15,
+    CLIENT_UNREADY_QUICK = 16,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -490,6 +491,14 @@ size_t nativeSignalingWire_EncodeVoteQuickStage(uint64_t epoch, uint8_t seat,
         writer_begin(&writer, output, capacity, CLIENT_VOTE_QUICK_STAGE) &&
         writer_u64(&writer, epoch) && writer_u8(&writer, seat) &&
         writer_u8(&writer, stage) ? writer_finish(&writer) : 0;
+}
+
+size_t nativeSignalingWire_EncodeUnreadyQuick(uint64_t completed_epoch,
+                                              uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_UNREADY_QUICK) &&
+        writer_u64(&writer, completed_epoch) ? writer_finish(&writer) : 0;
 }
 
 size_t nativeSignalingWire_EncodePrepareQuick(uint64_t revision, bool prepared,
