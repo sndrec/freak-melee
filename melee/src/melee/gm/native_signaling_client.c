@@ -669,6 +669,28 @@ bool nativeSignalingClient_QueueQuick(NativeSignalingClient* client, bool search
     return queued;
 }
 
+bool nativeSignalingClient_ReportQuick(NativeSignalingClient* client, uint64_t epoch,
+                                       uint8_t winner)
+{
+    uint8_t bytes[17];
+    size_t size = nativeSignalingWire_EncodeReportQuick(epoch, winner, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_VoteQuickStage(NativeSignalingClient* client,
+                                          uint64_t epoch, uint8_t seat, uint8_t stage)
+{
+    uint8_t bytes[18];
+    size_t size = nativeSignalingWire_EncodeVoteQuickStage(epoch, seat, stage, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_PrepareQuick(NativeSignalingClient* client,
                                         uint64_t revision, bool prepared,
                                         const uint8_t* digest)

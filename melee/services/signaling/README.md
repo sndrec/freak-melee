@@ -193,9 +193,14 @@ ready practice, B-to-unready and the three-second countdown now reach live
 singles and shared-PC doubles matches in local checks. PCs prepare against the
 current roster revision with matching content digests. The service persists the
 countdown and constructs the fixed-rule native proposal after its deadline.
-The ordinary owner start command is rejected inside a Quick Play match. Loser
-stage picks and rematches remain open. The current service suite has 37 passing
-tests; its socket cleanup waits for closure before teardown.
+The ordinary owner start command is rejected inside a Quick Play match. Every
+PC reports a completed result; agreement gives stage choice to the losing side.
+Each losing seat must vote for the same stage before the next ready countdown.
+Stale reports cannot clear a newer match. Native singles and shared-PC doubles
+round/rematch checks pass using stage-vote automation. The player-facing stage
+confirmation UI remains open. The current service suite has 42 passing tests;
+its socket cleanup waits for closure before teardown. See the
+[rematch checkpoint](../../docs/native_quick_rematch_checkpoint.md).
 
 See [the Quick Play checkpoint](../../docs/native_quick_play_checkpoint.md) for
 the wire records, state ownership, recovery model and implementation sequence.

@@ -268,21 +268,26 @@ static void test_quick_wire(void)
     put_u64(bytes + size, UINT64_C(0x0102030405060708)); size += 8;
     size = string8(bytes, size, "ABCDEF123456");
     size = string8(bytes, size, "0123456789abcdef0123456789abcdef");
+    size_t controls = size;
     bytes[size++] = 1; bytes[size++] = 5; bytes[size++] = 1;
-    put_u16(bytes + size, 3000); size += 2; finish(bytes, size);
+    put_u16(bytes + size, 3000); size += 2;
+    put_u64(bytes + size, 42); size += 8;
+    bytes[size++] = 0; bytes[size++] = 3; bytes[size++] = 255; bytes[size++] = 255; bytes[size++] = 255;
+    finish(bytes, size);
     assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
     assert(decoded.type == NativeSignalingServerMessage_QuickState);
     assert(decoded.data.quick.generation == UINT64_C(0x0102030405060708));
     assert(decoded.data.quick.team == 1 && decoded.data.quick.stage == 5);
     assert(decoded.data.quick.phase == 1 && decoded.data.quick.remaining_ms == 3000);
+    assert(decoded.data.quick.completed_epoch == 42 && decoded.data.quick.chooser == 0 && decoded.data.quick.votes[0] == 3);
     assert(!strcmp(decoded.data.quick.match_room, "ABCDEF123456"));
     assert(!strcmp(decoded.data.quick.admission, "0123456789abcdef0123456789abcdef"));
     for (size_t i = 0; i < size; ++i) assert(!nativeSignalingWire_DecodeServer(bytes, i, &decoded));
-    bytes[size - 4] = 6;
+    bytes[controls + 1] = 6;
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
-    bytes[size - 4] = 5; bytes[size - 5] = 2;
+    bytes[controls + 1] = 5; bytes[controls] = 2;
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
-    bytes[size - 5] = 1; bytes[19] = '/';
+    bytes[controls] = 1; bytes[19] = '/';
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
     bytes[19] = 'A'; bytes[32] = '&';
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
@@ -291,6 +296,8 @@ static void test_quick_wire(void)
     bytes[size++] = 1; bytes[size++] = 1; put_u64(bytes + size, 9); size += 8;
     bytes[size++] = 0; bytes[size++] = 0; bytes[size++] = 0; bytes[size++] = 0;
     bytes[size++] = 0; bytes[size++] = 0; bytes[size++] = 0;
+    put_u64(bytes + size, 0); size += 8;
+    memset(bytes + size, 255, 5); size += 5;
     finish(bytes, size);
     assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
     assert(decoded.data.quick.state == NativeQuickState_Searching);
@@ -305,6 +312,14 @@ static void test_quick_wire(void)
     assert(bytes[17] == 0 && bytes[18] == 32 && bytes[19] == 1);
     assert(nativeSignalingWire_EncodePrepareQuick(7, false, NULL, bytes, sizeof(bytes)) == 19);
     assert(!nativeSignalingWire_EncodePrepareQuick(7, true, NULL, bytes, sizeof(bytes)));
+    size = nativeSignalingWire_EncodeReportQuick(42, 1, bytes, sizeof(bytes));
+    assert(size == 17 && bytes[5] == 14 && bytes[15] == 42 && bytes[16] == 1);
+    assert(!nativeSignalingWire_EncodeReportQuick(42, 2, bytes, sizeof(bytes)));
+    assert(!nativeSignalingWire_EncodeReportQuick(0, 255, bytes, sizeof(bytes)));
+    size = nativeSignalingWire_EncodeVoteQuickStage(42, 1, 5, bytes, sizeof(bytes));
+    assert(size == 18 && bytes[5] == 15 && bytes[15] == 42 && bytes[16] == 1 && bytes[17] == 5);
+    assert(!nativeSignalingWire_EncodeVoteQuickStage(42, 2, 0, bytes, sizeof(bytes)));
+    assert(!nativeSignalingWire_EncodeVoteQuickStage(42, 0, 6, bytes, sizeof(bytes)));
 }
 
 int main(void)

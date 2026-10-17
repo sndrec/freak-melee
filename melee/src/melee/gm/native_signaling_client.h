@@ -114,6 +114,10 @@ bool nativeSignalingClient_RequestQuick(NativeSignalingClient* client);
 bool nativeSignalingClient_PrepareQuick(NativeSignalingClient* client,
                                         uint64_t revision, bool prepared,
                                         const uint8_t* digest);
+bool nativeSignalingClient_ReportQuick(NativeSignalingClient* client, uint64_t epoch,
+                                       uint8_t winner);
+bool nativeSignalingClient_VoteQuickStage(NativeSignalingClient* client,
+                                          uint64_t epoch, uint8_t seat, uint8_t stage);
 bool nativeSignalingClient_PostChat(NativeSignalingClient* client, uint32_t nonce, const char* text);
 bool nativeSignalingClient_PollChat(NativeSignalingClient* client, NativeRoomChatEvent* event);
 bool nativeSignalingClient_Poll(NativeSignalingClient* client,

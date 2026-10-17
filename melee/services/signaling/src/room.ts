@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
+import { quickPorts, quickStageVotes, agreedQuickStage, type QuickPort, type QuickStageVote } from "./quick-round";
 import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
   type QuickOffer, type QuickAllocation, type QuickMember } from "./quick-play";
 
@@ -12,6 +13,9 @@ interface QuickMatchRow extends Record<string, SqlStorageValue> {
 }
 interface QuickFlowRow extends Record<string, SqlStorageValue> {
   phase: number; deadline: number; revision: number;
+}
+interface QuickRoundRow extends Record<string, SqlStorageValue> {
+  completed_epoch: number; chooser: number; ports: string;
 }
 
 import {
@@ -105,6 +109,18 @@ export class Room extends DurableObject<CloudflareBindings> {
           deadline INTEGER NOT NULL, revision INTEGER NOT NULL
         );
         INSERT OR IGNORE INTO quick_flow VALUES (1,0,0,0);
+        CREATE TABLE IF NOT EXISTS quick_round (
+          id INTEGER PRIMARY KEY CHECK(id=1), completed_epoch INTEGER NOT NULL,
+          chooser INTEGER NOT NULL, ports TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO quick_round VALUES (1,0,255,'[]');
+        CREATE TABLE IF NOT EXISTS quick_results (
+          peer TEXT PRIMARY KEY, epoch INTEGER NOT NULL, winner INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS quick_stage_votes (
+          peer TEXT NOT NULL, seat INTEGER NOT NULL, stage INTEGER NOT NULL,
+          PRIMARY KEY(peer, seat)
+        );
         CREATE TABLE IF NOT EXISTS room_chat (
           sequence INTEGER PRIMARY KEY AUTOINCREMENT,
           connection TEXT NOT NULL, nonce INTEGER NOT NULL,
@@ -283,7 +299,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.send(socket, encodeChatRejected(0, "Malformed chat message."));
         return;
       }
-      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.PrepareQuick) {
+      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.VoteQuickStage) {
         this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
       }
       this.error(socket, "Malformed room message");
@@ -291,6 +307,12 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
 
     switch (parsed.type) {
+    case ClientMessageType.ReportQuick:
+      await this.reportQuick(socket, parsed.epoch, parsed.winner);
+      return;
+    case ClientMessageType.VoteQuickStage:
+      await this.voteQuickStage(socket, parsed.epoch, parsed.seat, parsed.stage);
+      return;
     case ClientMessageType.PrepareQuick:
       await this.prepareQuick(socket, parsed);
       return;
@@ -358,7 +380,7 @@ export class Room extends DurableObject<CloudflareBindings> {
   private async prepareQuick(socket: WebSocket,
     message: Extract<ClientMessage, { type: ClientMessageType.PrepareQuick }>): Promise<void> {
     const match = this.quickMatch(), peer = this.attachment(socket);
-    if (!match || match.aborted || !peer || this.quickFlow().phase === 2) return;
+    if (!match || match.aborted || !peer || this.quickFlow().phase >= 2) return;
     if (message.prepared && (message.revision !== this.currentRevision() ||
         !message.digest.some((byte) => byte !== 0) || !lockedChoices(peer.selection, peer.localPlayers))) {
       this.send(socket, encodePresence(this.snapshot(this.currentRevision()), MAX_MESSAGE_BYTES));
@@ -393,7 +415,7 @@ export class Room extends DurableObject<CloudflareBindings> {
   private async refreshQuickCountdown(): Promise<void> {
     if (!this.quickMatch()) return;
     const flow = this.quickFlow();
-    if (flow.phase === 2) return;
+    if (flow.phase >= 2) return;
     const prepared = this.preparedQuickMatch();
     if (!prepared) {
       if (flow.phase === 1) {
@@ -423,6 +445,10 @@ export class Room extends DurableObject<CloudflareBindings> {
       return;
     }
     const proposal = buildQuickMatch(prepared.allocation, prepared.people, prepared.digest);
+    const ports = quickPorts(prepared.allocation, prepared.people);
+    this.ctx.storage.sql.exec("UPDATE quick_round SET ports=? WHERE id=1", JSON.stringify(ports));
+    this.ctx.storage.sql.exec("DELETE FROM quick_results");
+    this.ctx.storage.sql.exec("DELETE FROM quick_stage_votes");
     this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=2, deadline=0 WHERE id=1");
     this.ctx.storage.sql.exec("UPDATE room_match SET epoch=epoch+1, payload=? WHERE id=1", proposal);
     this.clearReady();
@@ -432,6 +458,85 @@ export class Room extends DurableObject<CloudflareBindings> {
 
   private quickParty(): QuickPartyRow | null {
     return this.ctx.storage.sql.exec<QuickPartyRow>("SELECT * FROM quick_party WHERE id=1").toArray()[0] ?? null;
+  }
+  private quickRound(): QuickRoundRow {
+    return this.ctx.storage.sql.exec<QuickRoundRow>("SELECT completed_epoch, chooser, ports FROM quick_round WHERE id=1").one();
+  }
+  private stageVotes(): QuickStageVote[] {
+    return this.ctx.storage.sql.exec<QuickStageVote & Record<string, SqlStorageValue>>(
+      "SELECT peer, seat, stage FROM quick_stage_votes").toArray();
+  }
+
+  private async reportQuick(socket: WebSocket, epoch: number, winner: number): Promise<void> {
+    const assigned = this.quickMatch(), peer = this.attachment(socket), current = this.currentMatch();
+    if (!assigned || assigned.aborted || !peer || !current.payload || current.epoch !== epoch) return;
+    const round = this.quickRound(), flow = this.quickFlow();
+    const ports = JSON.parse(round.ports) as QuickPort[];
+    if ((flow.phase !== 2 && flow.phase !== 4) || !ports.some((p) => p.peerId === peer.peerId) ||
+        (winner !== 255 && !ports.some((p) => p.team === winner))) return;
+    const allocation = JSON.parse(assigned.allocation) as QuickAllocation;
+    if (allocation.players.some((player) => !this.ctx.getWebSockets(`peer:${player.peerId}`)
+        .some((s) => s.readyState === WebSocket.OPEN))) {
+      // A lost signaling socket does not stop a viable P2P game. An end-of-game
+      // report establishes the boundary at which the incomplete group retires.
+      await this.abortQuickAllocation(allocation.id);
+      return;
+    }
+    const previous = this.ctx.storage.sql.exec<{winner: number}>(
+      "SELECT winner FROM quick_results WHERE peer=? AND epoch=?", peer.peerId, epoch).toArray()[0];
+    if (previous && previous.winner !== winner) {
+      this.send(socket, encodeQuickRejected("A reported match result cannot change. Leave this match to search again."));
+      return;
+    }
+    this.ctx.storage.sql.exec("INSERT OR IGNORE INTO quick_results VALUES (?,?,?)", peer.peerId, epoch, winner);
+    const reports = this.ctx.storage.sql.exec<{peer: string; winner: number}>(
+      "SELECT peer, winner FROM quick_results WHERE epoch=?", epoch).toArray();
+    this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=4 WHERE id=1");
+    if (reports.some((report) => report.winner !== winner)) {
+      this.sendQuick();
+      for (const member of this.ctx.getWebSockets())
+        this.send(member, encodeQuickRejected("Players reported different results. Leave this match to search again."));
+      return;
+    }
+    if (reports.length !== allocation.players.length) {
+      this.sendQuick();
+      return;
+    }
+    this.ctx.storage.sql.exec("UPDATE room_match SET epoch=epoch+1, payload=NULL WHERE id=1");
+    this.ctx.storage.sql.exec("UPDATE quick_round SET completed_epoch=?, chooser=? WHERE id=1", epoch, winner === 255 ? 255 : 1-winner);
+    this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=?, deadline=0, revision=0 WHERE id=1", winner === 255 ? 0 : 3);
+    this.ctx.storage.sql.exec("DELETE FROM quick_stage_votes");
+    for (const member of this.ctx.getWebSockets()) {
+      const p = this.attachment(member);
+      if (!p) continue;
+      const selection = p.selection.slice();
+      if (selection.length >= 7) selection[6] = 0;
+      member.serializeAttachment({ ...p, ready: false, selection, quickRevision: undefined, quickDigest: undefined } satisfies ConnectionAttachment);
+    }
+    this.broadcastPresence(this.nextRevision());
+    this.sendQuick();
+  }
+
+  private async voteQuickStage(socket: WebSocket, epoch: number, seat: number, stage: number): Promise<void> {
+    const assigned = this.quickMatch(), peer = this.attachment(socket), round = this.quickRound();
+    if (!assigned || assigned.aborted || !peer || this.quickFlow().phase !== 3 || epoch !== round.completed_epoch) return;
+    const ports = JSON.parse(round.ports) as QuickPort[];
+    const player = ports.find((p) => p.peerId === peer.peerId && p.seat === seat);
+    if (!player || player.team !== round.chooser) {
+      this.send(socket, encodeQuickRejected("The losing side chooses the next stage.")); return;
+    }
+    if (stage === 255) this.ctx.storage.sql.exec("DELETE FROM quick_stage_votes WHERE peer=? AND seat=?", peer.peerId, seat);
+    else this.ctx.storage.sql.exec("INSERT OR REPLACE INTO quick_stage_votes VALUES (?,?,?)", peer.peerId, seat, stage);
+    const agreed = agreedQuickStage(ports, round.chooser, this.stageVotes());
+    if (agreed !== null) {
+      const allocation = JSON.parse(assigned.allocation) as QuickAllocation;
+      allocation.stage = agreed;
+      this.ctx.storage.sql.exec("UPDATE quick_match SET allocation=? WHERE id=1", JSON.stringify(allocation));
+      this.ctx.storage.sql.exec("UPDATE quick_round SET chooser=255 WHERE id=1");
+      this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=0 WHERE id=1");
+    }
+    this.sendQuick();
+    await this.refreshQuickCountdown();
   }
   private quickMatch(): QuickMatchRow | null {
     return this.ctx.storage.sql.exec<QuickMatchRow>("SELECT * FROM quick_match WHERE id=1").toArray()[0] ?? null;
@@ -460,6 +565,8 @@ export class Room extends DurableObject<CloudflareBindings> {
     const party = this.quickParty();
     const match = this.quickMatch();
     const flow = this.quickFlow();
+    const round = this.quickRound();
+    const votes = quickStageVotes(JSON.parse(round.ports) as QuickPort[], this.stageVotes());
     for (const peer of socket ? [socket] : this.ctx.getWebSockets()) {
       if (peer.readyState !== WebSocket.OPEN) continue;
       const p = this.attachment(peer);
@@ -475,7 +582,8 @@ export class Room extends DurableObject<CloudflareBindings> {
         admission: assigned ? player?.admission ?? "" : "",
         team: player?.team ?? 0, stage: allocation?.stage ?? 0,
         phase: match && !match.aborted ? flow.phase : 0,
-        remainingMs: match && !match.aborted && flow.phase === 1 ? Math.max(0, Math.min(QUICK_COUNTDOWN_MS, flow.deadline-Date.now())) : 0 }));
+        remainingMs: match && !match.aborted && flow.phase === 1 ? Math.max(0, Math.min(QUICK_COUNTDOWN_MS, flow.deadline-Date.now())) : 0,
+        completedEpoch: round.completed_epoch, chooser: round.chooser, votes }));
     }
   }
   private configureQuickParty(socket: WebSocket, mode: number): void {
@@ -986,7 +1094,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         (candidate) => candidate !== socket && candidate.readyState === WebSocket.OPEN,
       );
     if (!replacement) this.invalidateQuickSearch();
-    if (!replacement && departing?.activeMask !== 0) {
+    if (!replacement && departing?.activeMask !== 0 && !this.quickMatch()) {
       this.invalidateMatch(socket);
     }
     if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN))

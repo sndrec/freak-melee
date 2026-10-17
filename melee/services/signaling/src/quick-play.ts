@@ -47,8 +47,11 @@ export interface QuickState {
   admission: string;
   team: number;
   stage: number;
-  phase: number; // 0 waiting, 1 countdown, 2 match proposal published
+  phase: number; // 0 waiting, 1 countdown, 2 playing, 3 stage choice, 4 results
   remainingMs: number;
+  completedEpoch: number;
+  chooser: number; // Team 0 or 1; 255 when no stage choice is pending.
+  votes: number[]; // Canonical controller ports; 255 means no vote.
 }
 export function quickBucket(mode: QuickMode, build: string): string {
   return `${mode}:${build}`;

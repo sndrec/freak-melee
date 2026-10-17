@@ -1,66 +1,11 @@
-import { env } from "cloudflare:workers";
-import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { quickJoin, QuickClient } from "./quick-client";
-import { encodePrepareQuick, encodeRequestPresence, encodeUpdate, ServerMessageType } from "../src/wire";
+import { digest, choices, phase, setup, select, revision, prepare, expire } from "./quick-fixture";
+import { quickJoin } from "./quick-client";
+import { encodePrepareQuick, encodeRequestPresence, ServerMessageType } from "../src/wire";
 import { lockedChoices, buildQuickMatch } from "../src/quick-match";
 import type { QuickAllocation } from "../src/quick-play";
 import { publicParticipant } from "../src/protocol";
-
-const digest = new Uint8Array(32).fill(0x42);
-function choices(players: number, confirmed = true): Uint8Array {
-  const bytes = new Uint8Array(7 + 50 * players);
-  const view = new DataView(bytes.buffer);
-  view.setUint32(0, 0x464d534c); bytes[4] = 1; bytes[5] = players; bytes[6] = confirmed ? 1 : 0;
-  for (let i = 0; i < players; ++i) {
-    bytes[7 + i * 50] = 3;
-    bytes.fill(i + 1, 25 + i * 50, 57 + i * 50);
-  }
-  return bytes;
-}
-async function phase(client: QuickClient, expected: number) {
-  for (;;) {
-    const state = await client.state(2);
-    if (state.phase === expected) return state;
-  }
-}
-async function setup(mode: 1 | 2 = 1) {
-  const names = [0, 1].map(() => crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase());
-  const parties = [await quickJoin(names[0], "countdown_a", mode), await quickJoin(names[1], "countdown_b", mode)];
-  await parties[0].configure(mode); await parties[1].configure(mode);
-  await parties[0].search(); await parties[1].search();
-  const assigned = [await parties[0].state(2), await parties[1].state(2)];
-  const room = env.ROOMS.getByName(assigned[0].matchRoom);
-  const clients = [await quickJoin(assigned[0].matchRoom, "countdown_a", mode, "quick-test", assigned[0].admission),
-    await quickJoin(assigned[1].matchRoom, "countdown_b", mode, "quick-test", assigned[1].admission)];
-  return { room, clients, assigned, mode, async close() { await Promise.all([...clients, ...parties].map((c) => c.close())); } };
-}
-async function select(client: QuickClient, players: number, confirmed = true) {
-  const selection = choices(players, confirmed);
-  client.socket.send(encodeUpdate({ selection }, 16384));
-  client.socket.send(encodeRequestPresence(16384));
-  for (;;) {
-    const presence = (await client.next(ServerMessageType.Presence)).snapshot;
-    if (presence.participants.some((p) => p.peerId === client.peerId &&
-        p.selection.length === selection.length && p.selection[6] === selection[6])) return;
-  }
-}
-async function revision(game: Awaited<ReturnType<typeof setup>>) {
-  return runInDurableObject(game.room, async (_instance, state) =>
-    state.storage.sql.exec<{revision: number}>("SELECT revision FROM room_counter").one().revision);
-}
-async function prepare(game: Awaited<ReturnType<typeof setup>>) {
-  const current = await revision(game);
-  for (const client of game.clients) client.socket.send(encodePrepareQuick(current, true, digest));
-  return phase(game.clients[0], 1);
-}
-async function expire(game: Awaited<ReturnType<typeof setup>>) {
-  await runInDurableObject(game.room, async (_instance, state) => {
-    state.storage.sql.exec("UPDATE quick_flow SET deadline=? WHERE id=1", Date.now() - 1);
-  });
-  await evictDurableObject(game.room);
-  await runDurableObjectAlarm(game.room);
-}
 
 describe("Quick Play ready countdown", () => {
   it("requires complete locked selections and parses every shared-PC choice", () => {
@@ -125,7 +70,7 @@ describe("Quick Play ready countdown", () => {
       await game.clients[1].close();
       await phase(game.clients[0], 0);
       const a = game.assigned[1];
-      game.clients[1] = await quickJoin(a.matchRoom, "countdown_b", 1, "quick-test", a.admission);
+      game.clients[1] = await quickJoin(a.matchRoom, game.clients[1].peerId, 1, "quick-test", a.admission);
       await select(game.clients[1], 1);
       expect((await game.clients[1].refresh()).phase).toBe(0);
       await prepare(game);
