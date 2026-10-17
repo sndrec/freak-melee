@@ -138,7 +138,7 @@ transport and gameplay ICE setup serve the assigned room.
 ## Verification
 
 `npm run check` regenerates bindings, checks application/test types and runs the
-service tests. The current suite has 42 passing tests, including 21 Quick Play
+service tests. The initial rematch suite had 42 passing tests, including 21 Quick Play
 cases. Quick Play coverage includes all doubles group sizes, premades on one or
 two PCs, independent admission tokens, build separation, duplicate searches,
 leader authority, malformed commands, capacity checks, cancellation/requeueing,
