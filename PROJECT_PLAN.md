@@ -209,8 +209,11 @@ import, materials, rigging and skinning, not mesh modeling.
   the current viewport comparison now has zero changed pixels after fixing
   an unintended physics tick during refresh. See the
   [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
-- [ ] Add rest-edit compensation for morph targets. Affected edits currently
-  reject atomically, preserving the complete asset.
+- [x] Add rest-edit compensation for morph targets. Complete-shape blends and
+  additive offsets retain their surfaces through rest translation, rotation and
+  scale. The combined 1,008-case geometry suite and both native Model workflows
+  pass; both viewport comparisons have zero changed pixels. See the
+  [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
 - [ ] Reimport by source identity, retaining project-owned materials and weights
   unless the author explicitly replaces them.
 - [ ] Extend painting across the supported editable mesh set and remove storage

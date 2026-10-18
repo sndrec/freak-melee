@@ -51,8 +51,9 @@ The 16-influence cap belongs to the current editor, rather than the renderer.
 Edit Mode preserves skinned meshes and rigid attachments when changing the
 rest rig. It updates inverse binds and compensates vertex positions and normals
 for HSD paths that also require geometry changes. Shared polygon chains and
-vertex buffers remain intact for other meshes. Affected morph targets currently
-reject the edit. Inherited animation clips still need review after rest edits.
+vertex buffers remain intact for other meshes. Shape-animated meshes also
+preserve their base shapes, target shapes and additive offsets. Inherited
+animation clips still need review after rest edits.
 See the [rest-edit checkpoint](native_model_rest_checkpoint.md). A replacement
 can transfer weights using nearest bind-space vertices.
 
@@ -63,8 +64,8 @@ pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
 Still open: painting
-arbitrary stock layouts, pose-aware brush picking, additional bones, morph-target
-compensation during rest edits, wireframe rendering, multi-mesh import,
+arbitrary stock layouts, pose-aware brush picking, additional bones,
+wireframe rendering, multi-mesh import,
 placement preview, source-aware reimport, and advanced texture/UV controls.
 Shape-animated PObjs currently use the original renderer and are not surface
 picked/highlighted/heatmapped by the editor override. DAT reconstruction during painting and rest edits retains orphaned records; larger projects need compaction or a

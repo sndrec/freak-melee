@@ -1,9 +1,9 @@
 # Model rest-edit checkpoint — 2026-10-17
 
-Rest edits now compensate rigid attachments and ordinary skinned polygons in
+Rest edits now compensate rigid attachments, skinned polygons and morph targets in
 an asset transaction. The release client and content tool build successfully.
 Ordinary rigid/skinned rest edits pass the current viewport and workflow checks.
-Morph-target compensation remains open.
+Morph-target rest edits pass the geometry and native workflow checks below.
 
 ## Behavior
 
@@ -20,7 +20,7 @@ nonuniform scaling. Shared inverse-bind records are copied before editing.
 
 The existing costume undo history stores the complete expanded asset. Failed
 compensation publishes no asset changes. The caller restores its initial bone
-edit. Affected morph targets reject the operation pending their own support.
+edit. Invalid morph descriptors also reject the complete operation.
 Inherited animation clips still need review after changing the rest rig.
 
 ## Verification
@@ -88,7 +88,46 @@ alongside its full PNGs. Test clients are hidden, muted, isolated and terminated
 by the harness. User usability review and inherited-animation retargeting remain
 separate from the rest-geometry acceptance above.
 
-Morph targets, inherited animation retargeting, extra bones and source-aware
+Inherited animation retargeting, extra bones and source-aware
 reimport remain separate tasks. Rebuilt records currently retain old storage;
 DAT compaction is still in the Model backlog. All changes here happen while
 editing assets, with no added per-tick allocation or gameplay behavior change.
+
+## Morph-target rest edits — 2026-10-18
+
+HSD supports interpolation between complete shapes and a base shape with
+weighted offsets. Rest edits transform complete positions with the compensating
+matrix, and additive offsets with its rotation/scale part. Normals and NBT
+lighting vectors use the inverse transpose. The original blend weights and
+display-list indices retain their meaning.
+
+Each affected polygon gets private shape descriptors, index lists and float
+arrays. Shared source entries remain shared within the new arrays; a position
+used as both a base position and an additive offset receives separate entries.
+Unchanged meshes keep their original storage. Output indices use the existing
+16-bit shape format. Invalid descriptors, nonfinite values and format-capacity
+failures leave the asset unchanged.
+
+The combined `native_model_rest` suite passes 1,008 format/transform cases and
+15,275,668 checks, including 360 morph cases and six malformed-shape rejection
+cases. Independent world-space evaluation checks eight blend settings, unsigned
+and signed quantization, floats, 8/16-bit source indices, optional XYZ/NBT normals,
+shared targets/polygons, parent/child edits, translation, rotation, nonuniform
+scale and reopening. Shape graphs are imported through the native asset loader
+before and after compensation. `native_skin_weights` also passes. Evidence:
+`.local/native-morph-rest-tests-1.log`; release build:
+`.local/native-morph-rest-build-4.log`.
+
+`review_native_rest.py --shape-mode average` and `--shape-mode additive` each
+convert the imported asymmetric fixture into a three-target shape mesh. Both
+saved-asset and hidden/muted native Model runs pass rotation, scale, translation,
+invalid-scale rejection, Apply/Save, byte-exact Undo/Redo, Pose/Animation modes,
+Test Character and editor return. Receipts:
+`.local/native-morph-rest-average-2/passed.json` and
+`.local/native-morph-rest-additive-1/passed.json`.
+
+Both `surface-images.json` comparisons report **zero changed pixels**, with
+matching camera and actor reports. The native captures exercise each format at
+its default blend; the independent geometry suite covers the other blend
+settings. Native viewport PNGs were inspected. Shape-specific editor picking,
+highlighting and weight heatmaps remain separate from rest compensation.
