@@ -15,7 +15,7 @@ static unsigned references;
 void nativeMenuFont_Acquire(void)
 {
     if(references++)return;
-    const char* names[]={"menu-heading","result-name","result-winner","notice","css-tile","menu-option"};
+    const char* names[]={"menu-heading","result-name","result-winner","notice","css-tile","menu-option","menu-caption"};
     char path[512];DWORD length=GetModuleFileNameA(NULL,path,sizeof(path));
     char* basename=length>0&&length<sizeof(path)?strrchr(path,'\\'):NULL;
     if(!basename)return;
@@ -120,7 +120,8 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
         const float u=(float)g->x/font->width,v=(float)g->y/font->height;
         const float r=(float)(g->x+g->w)/font->width,b=(float)(g->y+g->h)/font->height;
         float w=g->w*horizontal,h=g->h*scale;
-        float shear=face==NativeMenuFont_ResultWinner?height*.22f:0;
+        float shear=face==NativeMenuFont_ResultWinner?height*.22f:
+            face==NativeMenuFont_MenuCaption?h*.30f:0;
         GXBegin(GX_QUADS,GX_VTXFMT0,4);
         GXPosition3f32(x+shear,y,z);GXTexCoord2f32(u,v);
         GXPosition3f32(x+w+shear,y,z);GXTexCoord2f32(r,v);

@@ -56,10 +56,8 @@ namespace {
         }
         return result;
     }
-    void title(const char* text, const char* subtitle)
+    void description(const char* subtitle)
     {
-        nativeMenuPaint_Text(text, 175, 70, 420, 17, 0xF5EFEAFF,
-                            NativeMenuFont_Heading);
         if (subtitle) {
             nativeMenuPaint_Text(subtitle, 175, 94, 420, 8, muted);
         }
@@ -80,7 +78,7 @@ namespace {
                                  name_y - 2);
         } else {
             nativeMenuPaint_Text(f.title, x + 5, y + 12, 40, 13, muted,
-                                NativeMenuFont_Heading, true);
+                                NativeMenuFont_MenuOption, true);
         }
         nativeMenuPaint_Rect(x + 2, y + name_y, 45, 49 - name_y, 0x111019EE);
         for (unsigned line = 0; line < count; ++line) {
@@ -92,7 +90,7 @@ namespace {
     }
     void collection()
     {
-        title("Your fighters", "Clone a fighter. Make it yours.");
+        description("Clone a fighter. Make it yours.");
         nativeHub_Button("clone-fighter", "Clone fighter", 175, 110, 100, 26,
                          HubAction::NewClone, 0, true, nativeHome_IsSelection());
         nativeHub_Button("import-fighter", "Import model / fighter", 282, 110,
@@ -106,7 +104,7 @@ namespace {
         }
         if (!nativeHubFighterCount) {
             nativeMenuPaint_Text("Start your roster", 200, 179, 380, 20, gold,
-                                NativeMenuFont_Heading);
+                                NativeMenuFont_MenuOption);
             nativeMenuPaint_Text(
                 "Choose a vanilla fighter to make your first editable copy.",
                 200, 212, 380, 9);
@@ -117,7 +115,7 @@ namespace {
         {
             const NativeHubFighter& f = nativeHubFighters[hub.selected];
             nativeMenuPaint_Text(f.title, 194, 290, 260, 17, 0xF5EFEAFF,
-                                NativeMenuFont_Heading);
+                                NativeMenuFont_MenuOption);
             nativeMenuPaint_Text(f.installed
                                     ? "Moves - Scripts - Animation - Model"
                                     : "Editable draft",
@@ -170,8 +168,7 @@ namespace {
     }
     void clone_page()
     {
-        title("Clone a fighter",
-              "Your copy owns its moves, scripts, animations and model.");
+        description("Your copy owns its moves, scripts, animations and model.");
         nativeHub_Panel(175, 115, 430, 228);
         unsigned number = 0;
         for (int k = Ft_Kind_Mario; k < Ft_Kind_StockCount; ++k) {
@@ -197,7 +194,6 @@ namespace {
     }
     void quick_play()
     {
-        title("Quick Play", nullptr);
         nativeHub_Button("quick-singles", "1 vs 1", 190, 157, 190, 109,
                          HubAction::Singles, 0, true);
         nativeHub_Button("quick-doubles", "2 vs 2", 397, 157, 190, 109,
@@ -205,7 +201,7 @@ namespace {
     }
     void lobbies()
     {
-        title("Lobbies", "Play together. Share your fighters.");
+        description("Play together. Share your fighters.");
         auto state = nativeOnlineSession_State();
         const char* code = nativeOnlineSession_RoomCode();
         bool connected = state != NativeLobbySessionState_Disconnected &&
@@ -213,13 +209,13 @@ namespace {
         if (!connected) {
             nativeHub_Panel(175, 118, 430, 250);
             nativeMenuPaint_Text("Create a lobby", 192, 137, 350, 15, gold,
-                                NativeMenuFont_Heading);
+                                NativeMenuFont_MenuOption);
             nativeMenuPaint_Text("Invite friends with your lobby code.", 192,
                                 161, 350, 9, muted);
             nativeHub_Button("create-lobby", "Create lobby", 192, 185, 148, 30,
                              HubAction::Create, 0, true);
             nativeMenuPaint_Text("Join a lobby", 192, 239, 350, 15, gold,
-                                NativeMenuFont_Heading);
+                                NativeMenuFont_MenuOption);
             nativeHub_Field("lobby-code", hub.code, 192, 267, 240, 27,
                             HubAction::FieldCode);
             nativeHub_Button("join-lobby", "Join", 444, 267, 140, 27,
@@ -244,7 +240,7 @@ namespace {
         std::snprintf(heading, sizeof(heading), "Lobby %s",
                       code && *code ? code : "connecting...");
         nativeMenuPaint_Text(heading, 181, 119, 194, 17, gold,
-                            NativeMenuFont_Heading);
+                            NativeMenuFont_MenuOption);
         nativeHub_Button("lobby-chat", "Chat", 388, 115, 94, 25, HubAction::RoomChat);
         nativeHub_Button("copy-code", "Copy code", 490, 115, 114, 25,
                          HubAction::CopyCode);
@@ -316,16 +312,16 @@ namespace {
         char label[80];
         if (room) std::snprintf(label, sizeof(label), "Lobby %s - %u players", nativeOnlineSession_RoomCode() ? nativeOnlineSession_RoomCode() : "", people);
         else std::snprintf(label, sizeof(label), "Global chat - %u online", global->online);
-        title(room ? "Lobby chat" : "Chatroom", label);
+        description(label);
         nativeHub_Panel(175, 116, 296, 234);
         nativeHub_Panel(479, 116, 126, 234);
-        nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold, NativeMenuFont_Heading);
+        nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold, NativeMenuFont_MenuOption);
         int& scroll = room ? hub.room_chat_scroll : hub.chat_scroll;
         unsigned total_lines = 0;
         for (unsigned i = 0; i < count; ++i)
             total_lines += wrap_message(room ? lobby->messages[i].text : global->messages[i].text).count + 2;
         scroll = std::clamp(scroll, 0, std::max(0, int(total_lines) - 17));
-        nativeMenuPaint_Text("Messages", 186, 127, 172, 12, gold, NativeMenuFont_Heading);
+        nativeMenuPaint_Text("Messages", 186, 127, 172, 12, gold, NativeMenuFont_MenuOption);
         nativeHub_Button("chat-older", "Older", 371, 122, 43, 18,
             HubAction::ChatScroll, 16, false, scroll + 17 < int(total_lines));
         nativeHub_Button("chat-newer", "Newer", 420, 122, 43, 18,
@@ -371,7 +367,7 @@ namespace {
     }
     void settings()
     {
-        title("Settings", "Your controls and profile.");
+        description("Your controls and profile.");
         nativeHub_Panel(175, 116, 430, 256);
         nativeHub_Button("controls", "Controls & bindings", 193, 135, 392, 36,
                          HubAction::Controls, 0, true, nativeHome_IsSelection());
@@ -391,11 +387,10 @@ namespace {
     }
     void profile()
     {
-        title(hub.profile_self ? hub.name : hub.viewed_name,
-              hub.profile_self ? "Your profile" : "Player profile");
+        description(hub.profile_self ? "Your profile" : "Player profile");
         nativeHub_Panel(175, 118, 430, 240);
         nativeMenuPaint_Text("About", 194, 138, 370, 15, gold,
-                            NativeMenuFont_Heading);
+                            NativeMenuFont_MenuOption);
         if (hub.profile_self) {
             nativeHub_Field("profile-bio", hub.bio, 194, 171, 390, 68,
                             HubAction::FieldBio);
@@ -414,12 +409,11 @@ namespace {
     }
     void social(bool inbox)
     {
-        title(inbox ? "Inbox" : "Friends",
-              inbox ? "Letters, friend requests and invitations."
+        description(inbox ? "Letters, friend requests and invitations."
                     : "Find your people. Invite them to play.");
         nativeHub_Panel(175, 119, 430, 226);
         nativeMenuPaint_Text(inbox ? "Your mailbox" : "Your friends", 194, 143,
-                            370, 20, gold, NativeMenuFont_Heading);
+                            370, 20, gold, NativeMenuFont_MenuOption);
         nativeMenuPaint_Text(
             "Account sign-in and offline delivery are being connected.", 194,
             187, 382, 10, muted);
@@ -432,10 +426,10 @@ namespace {
     }
     void send()
     {
-        title("Send a fighter", "Choose someone in your lobby.");
+        description("Choose someone in your lobby.");
         nativeHub_Panel(175, 117, 430, 252);
         nativeMenuPaint_Text(hub.gift_title, 191, 136, 335, 18, gold,
-                            NativeMenuFont_Heading);
+                            NativeMenuFont_MenuOption);
         const auto* p = nativeOnlineSession_Presence();
         unsigned rows = 0, total = 0;
         unsigned available = 0;

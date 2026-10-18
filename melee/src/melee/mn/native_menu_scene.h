@@ -8,7 +8,7 @@ extern "C" {
 // before CSS/practice retires its scene heap.
 void nativeMenuScene_Load(void);
 void nativeMenuScene_Inspect(void);
-void nativeMenuScene_DrawBackdrop(void);
+void nativeMenuScene_DrawBackdrop(const char* caption);
 // Nine-slice stock panel border; corners retain their authored proportions.
 void nativeMenuScene_DrawFrame(float x, float y, float width, float height, u32 rgba);
 void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,

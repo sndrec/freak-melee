@@ -174,8 +174,12 @@ They do not establish timing on friends' machines. See
   pass. See the [menu asset checkpoint](melee/docs/native_menu_assets_checkpoint.md).
 - [ ] Review the adapted controls and carry their source colors, gradients,
   border proportions and sliced artwork through the remaining hub/CSS pages.
-- [ ] Adapt new labels with typefaces appropriate to each original component.
-  Folk notice text alone does not establish menu-ribbon typography parity.
+- [x] Recover separate menu-caption and ribbon alphabets from stock textures,
+  retain the notice/results/tile faces, and place page captions through their
+  original joint and material. Native navigation and full first-launch authoring
+  checks pass with the new captions.
+- [ ] Review reconstructed glyphs and adapt the remaining CSS control labels to
+  their surrounding components.
 - [ ] Move the hub's content through scene anchors/cameras and keep hand hit
   testing aligned with the edited components, including during transitions.
 - [ ] Recheck CSS/practice/editor scene lifetimes and the working online flows,
