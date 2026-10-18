@@ -46,7 +46,9 @@ add_custom_command(OUTPUT ${FIGHTER_POSE_RUNTIME_BODIES} "${FIGHTER_POSE_RUNTIME
         src/melee/ft/ftanim.c VERBATIM)
 add_executable(native_engine_fighter_pose_test
     tests/native/fighter_pose_graph_runtime/test.c ${FIGHTER_POSE_RUNTIME_BODIES}
-    src/melee/ft/native_fighter_pose.c src/melee/ft/native_fighter_pose_path.c src/melee/ft/native_callback_lifetime.c src/melee/ft/ftparts_table.c)
+    src/melee/ft/native_fighter_pose.c src/melee/ft/native_fighter_pose_path.c
+    src/melee/ft/native_fighter_pose_mapping.c src/melee/ft/native_fighter_rig.c
+    src/sysdolphin/baselib/dat.c src/melee/ft/native_callback_lifetime.c src/melee/ft/ftparts_table.c)
 target_include_directories(native_engine_fighter_pose_test PRIVATE
     "${FIGHTER_POSE_RUNTIME}" src extern/dolphin/include)
 target_compile_definitions(native_engine_fighter_pose_test PRIVATE

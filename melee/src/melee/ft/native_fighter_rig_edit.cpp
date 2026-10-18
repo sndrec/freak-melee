@@ -488,9 +488,8 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
         if(!tree_nodes(metal.original,metal_root,8,12,64,old_metal,parents))return false;
         for(unsigned n=0;n<plan.count;++n)if(plan.order[n]!=absent)retained_metal.push_back(old_metal[plan.order[n]]);
     }
-    // Partial action/pose graphs need their own interval maps. Never publish
-    // an insertion through a graph whose positional correspondence is unknown.
-    if(project->facts.pose_count)return fail(error,capacity,"This fighter has alternate pose graphs that still need hierarchy remapping.");
+    // Alternate poses own stable target IDs. Asset admission rebinds those
+    // descriptors to the new physical parts and rejects deleted targets.
     if(!partial_animations(metal,*project,plan,error,capacity))return false;
     std::vector<uint8_t> bytes;
     if(!costume.finish(&bytes)||!copy_bytes(bytes.data(),bytes.size(),&next.costume_dat))return false;

@@ -4,7 +4,7 @@
 python tests/native/source_pose_metadata/run.py --compiler A:/FreakMelee-test-archives/baseline72/compiler/clang.exe --output A:/FreakMelee-test-archives/source-pose-metadata-review
 ```
 
-Use a fresh A: output directory. Subprocesses are hidden; all compiled units use
+Use a fresh output directory. Subprocesses are hidden; all compiled units use
 -Wall -Wextra -Werror. Input hashes are checked before/after the bounded run.
 No game/global build, template or user-project write is performed.
 

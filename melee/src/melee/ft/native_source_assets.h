@@ -7,6 +7,7 @@
 #include "ftdat.h"
 #include "native_source_asset_facts.h"
 #include "native_fighter_rig.h"
+#include "native_fighter_pose.h"
 
 typedef struct NativeSourceAssetInput {
     const void* fighter;size_t fighter_bytes;
@@ -16,6 +17,7 @@ typedef struct NativeSourceAssetInput {
 typedef struct NativeSourceImportedAssets {
     NativeSourceAssetFacts facts;
     NativeFighterRig rig;
+    NativeFighterPoseBinding poses[NATIVE_SOURCE_POSE_GRAPHS];
     FtCharacterAssets character;
     FtCostumeAssets costume;
     void* character_arena;

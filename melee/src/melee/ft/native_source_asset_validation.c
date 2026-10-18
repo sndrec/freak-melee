@@ -68,7 +68,13 @@ bool nativeSourceAssets_Validate(const NativeSourceAssetFacts* f,NativeScriptDia
         const NativeSourcePoseGraph* row=&f->poses[i];
         if(!row->name || row->slot>=FT_CHARACTER_ITEM_CAPACITY ||
            !(f->layout.joint_graph_mask&(1u<<row->slot)) || !name(row->path,true) ||
-           !nativeFighterPose_PathValid(row->path))return error(d,"Invalid source pose graph");
+           !nativeFighterPose_PathValid(row->path) || !row->bone_count || row->bone_count>MAX_FT_PARTS)
+            return error(d,"A pose needs a valid graph and a bone ID for each descriptor.");
+        for(unsigned b=0;b<row->bone_count;++b){
+            if(row->bone_ids[b]<0)return error(d,"A pose target needs a nonnegative bone ID.");
+            for(unsigned j=0;j<b;++j)if(row->bone_ids[b]==row->bone_ids[j])
+                return error(d,"A pose cannot target the same bone twice.");
+        }
         for(unsigned j=0;j<i;++j)if(f->poses[j].name==row->name)return error(d,"Duplicate source pose graph identity");
     }
     for(unsigned i=0;i<f->moves.count;++i)if(f->motions[i].animation < -1 ||

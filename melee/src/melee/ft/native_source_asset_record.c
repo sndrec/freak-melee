@@ -80,7 +80,13 @@ static void record(Cursor* c,NativeSourceAssetFacts* f)
     for(unsigned i=0;i<f->article_count;++i){string(c,f->articles[i].declaration);int32_t kind=f->articles[i].kind;uint16_t offset;memcpy(&offset,&f->articles[i].kind_attribute_offset,2);
         i32(c,&kind);word16(c,&f->articles[i].slot);word16(c,&offset);
         if(c->mode==Reading){f->articles[i].kind=kind;memcpy(&f->articles[i].kind_attribute_offset,&offset,2);}}
-    for(unsigned i=0;i<f->pose_count;++i){word32(c,&f->poses[i].name);word16(c,&f->poses[i].slot);string(c,f->poses[i].path);}
+    for(unsigned i=0;i<f->pose_count;++i){
+        NativeSourcePoseGraph* pose=&f->poses[i];
+        word32(c,&pose->name);word16(c,&pose->slot);string(c,pose->path);
+        word16(c,&pose->bone_count);
+        if(!pose->bone_count || pose->bone_count>MAX_FT_PARTS){c->ok=false;return;}
+        for(unsigned b=0;b<pose->bone_count;++b)i32(c,&pose->bone_ids[b]);
+    }
     for(unsigned i=0;i<f->sound_rule_count;++i){NativeFighterSoundIdRule* row=&f->sound_rules[i];
         word32(c,&row->costume_mask);i32(c,&row->bank);i32(c,&row->first);i32(c,&row->last);i32(c,&row->offset);}
     for(unsigned i=0;i<f->ko_cue_count;++i){word32(c,&f->ko_cues[i].costume_mask);i32(c,&f->ko_cues[i].sound_id);}

@@ -387,23 +387,23 @@ func chain_pose(bool air_pose, float phase):
         pose.evaluate(Pose.blend)
         if state.chain_magnitude < 1:
             if air_pose:
-                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainAirRest, 1 - state.chain_magnitude, state.chain_magnitude)
+                pose.blend_graph(Pose.blend, ChainAirRest, 1 - state.chain_magnitude, state.chain_magnitude)
             else:
-                pose.blend_graph(Pose.blend, attrs.chain_raw_pose_start, ChainGroundRest, 1 - state.chain_magnitude, state.chain_magnitude)
+                pose.blend_graph(Pose.blend, ChainGroundRest, 1 - state.chain_magnitude, state.chain_magnitude)
         if phase < 1:
             pose.blend_to_live(attrs.chain_raw_pose_start, phase, 1 - phase)
         else:
             pose.copy_to_live(attrs.chain_raw_pose_start)
     elif phase < 1:
         if air_pose:
-            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest, phase, 1 - phase)
+            pose.blend_graph(Pose.live, ChainAirRest, phase, 1 - phase)
         else:
-            pose.blend_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest, phase, 1 - phase)
+            pose.blend_graph(Pose.live, ChainGroundRest, phase, 1 - phase)
     else:
         if air_pose:
-            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainAirRest)
+            pose.copy_graph(Pose.live, ChainAirRest)
         else:
-            pose.copy_graph(Pose.live, attrs.chain_raw_pose_start, ChainGroundRest)
+            pose.copy_graph(Pose.live, ChainGroundRest)
 
 func chain_input():
     state.chain_delta_x = input.x - input.previous_x

@@ -97,7 +97,7 @@ static bool index(const NativeScriptValue* value,uint32_t limit,int32_t* result)
     if(bits>=limit || bits>INT32_MAX)return false;*result=(int32_t)bits;return true;
 }
 
-static HSD_Joint* graph(const PoseSource* source,const NativeScriptValue* value,NativeScriptDiagnostic* d)
+static const NativeFighterPoseBinding* graph(const PoseSource* source,const NativeScriptValue* value,NativeScriptDiagnostic* d)
 {
     const NativeScriptCompileBank* bank=source->program->bank;
     if(value->type!=NativeScriptType_PoseGraph || value->as.u64>=bank->pose_graph_count ||
@@ -108,8 +108,12 @@ static HSD_Joint* graph(const PoseSource* source,const NativeScriptValue* value,
     for(unsigned i=0;i<bank->pose_symbol_count;++i)
         if(bank->pose_symbols[i].row==value->as.u64){declared=true;break;}
     if(!declared){error(d,"Pose graph selector has no prepared declaration");return NULL;}
-    HSD_Joint* selected=nativeFighterRuntime_PoseGraph(source->context->source,(int32_t)value->as.u64);
-    if(!selected)error(d,"Owned pose graph is unavailable");return selected;
+    const NativeFighterPoseBinding* selected=&source->package->assets.poses[value->as.u64];
+    if(!selected->count||selected->count>MAX_FT_PARTS||
+       selected->count!=source->package->assets.facts.poses[value->as.u64].bone_count){
+        error(d,"The pose has no matching prepared bone mapping.");return NULL;
+    }
+    return selected;
 }
 
 bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t semantic,
@@ -128,6 +132,7 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t
     Fighter* fighter=source.fighter;HSD_GObj* object=context->source;
     int32_t destination=NativeFighterPose_Live,start=0,clip_index=0;
     HSD_Joint* selected=NULL;FigaTree* clip=NULL;NativeFighterPoseOperation operation;
+    const NativeFighterPoseBinding* mapped=NULL;
     if(semantic!=NativeScriptBinding_PoseBlendToLive && semantic!=NativeScriptBinding_PoseCopyToLive) {
         if(arguments[0].type!=NativeScriptType_PoseDestination || arguments[0].as.u64>NativeFighterPose_Blend)
             return error(d,"Pose destination must be Live or Blend");
@@ -148,7 +153,7 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t
     case NativeScriptBinding_PoseCopyToLive:operation=NativeFighterPose_CopyToLive;break;
     default:return error(d,"Unsupported pose operation");
     }
-    if(operation>=NativeFighterPose_CopyCostume) {
+    if(operation>=NativeFighterPose_CopyCostume&&operation!=NativeFighterPose_CopyGraph&&operation!=NativeFighterPose_BlendGraph) {
         unsigned argument=operation==NativeFighterPose_BlendToLive || operation==NativeFighterPose_CopyToLive?0:1;
         unsigned id;
         if(!index(&arguments[argument],(unsigned)INT32_MAX+1u,&id))return error(d,"Pose start needs a bone ID");
@@ -157,9 +162,9 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t
         start=(unsigned)part;
     }
     if(operation==NativeFighterPose_CopyGraph || operation==NativeFighterPose_BlendGraph) {
-        selected=graph(&source,&arguments[2],d);if(!selected)return false;
+        mapped=graph(&source,&arguments[1],d);if(!mapped)return false;
     }
-    if(!current(&source,d) || !nativeFighterPose_Validate(object,operation,destination,start,selected,clip))
+    if(!current(&source,d) || (!mapped&&!nativeFighterPose_Validate(object,operation,destination,start,selected,clip)))
         return error(d,"Pose operation has invalid owned rig, clip or descriptor topology");
     if(!current(&source,d))return false;
     switch(operation) {
@@ -174,11 +179,13 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t
         else ftAnim_8006FA58(fighter,(Fighter_Part)start,selected);
         break;
     case NativeFighterPose_CopyGraph:
-        if(destination)ftAnim_8006FB88(fighter,(Fighter_Part)start,selected);
-        else ftAnim_8006FA58(fighter,(Fighter_Part)start,selected);break;
+        if(!nativeFighterPose_ApplyMapped(fighter,destination,mapped,false,0,0))
+            return error(d,"The pose's mapped destination bones are unavailable.");
+        break;
     case NativeFighterPose_BlendGraph:
-        if(destination)ftAnim_80070108(fighter,(Fighter_Part)start,arguments[3].as.f32,arguments[4].as.f32,selected);
-        else ftAnim_80070010(fighter,(Fighter_Part)start,arguments[3].as.f32,arguments[4].as.f32,selected);break;
+        if(!nativeFighterPose_ApplyMapped(fighter,destination,mapped,true,arguments[2].as.f32,arguments[3].as.f32))
+            return error(d,"The pose's mapped destination bones are unavailable.");
+        break;
     case NativeFighterPose_BlendToLive:ftAnim_8006FE9C(fighter,(Fighter_Part)start,arguments[1].as.f32,arguments[2].as.f32);break;
     case NativeFighterPose_CopyToLive:ftAnim_8006FF74(fighter,(Fighter_Part)start);break;
     }

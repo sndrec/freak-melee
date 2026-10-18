@@ -60,9 +60,10 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
        !ftCharacterAssets_ValidateVisibility(&output->character,facts->layout.visibility_mask,output->costume.joint)) {
         error(d,"Source costume graph, rig count or visibility data is invalid");goto failure;
     }
-    for(unsigned i=0;i<facts->pose_count;++i)if(!nativeFighterPose_SelectGraph(&output->character,
-            facts->poses[i].slot,facts->poses[i].path)) {
-        error(d,"Source pose graph target is absent from the owned imported graph");goto failure;
+    for(unsigned i=0;i<facts->pose_count;++i)if(!nativeFighterPose_BindGraph(&output->character,
+            facts->poses[i].slot,facts->poses[i].path,&output->rig,facts->poses[i].bone_ids,
+            facts->poses[i].bone_count,&output->poses[i])) {
+        error(d,"A pose's descriptor count or target bone IDs do not match its owned assets.");goto failure;
     }
     u32 root,attribute_begin;const char* external;
     if(!HSD_DatFindRoot(&output->character.dat,facts->fighter_root,&root) ||
