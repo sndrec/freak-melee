@@ -1,5 +1,6 @@
 #include "native_script_resource_metadata.h"
 #include "native_source_asset_facts.h"
+#include "native_fighter_rig.h"
 #include "ftparts.h"
 #include <stdio.h>
 #include <string.h>
@@ -32,7 +33,8 @@ static bool number(Cursor* c,uint32_t* output)
     if(!digits)return false;*output=value;return true;
 }
 static bool parse(const NativeScriptSourceTree* tree,const NativeScriptSourceNode* node,
-    const NativeSourceAssetFacts* facts,NativeScriptResourceRecipe* output,NativeScriptDiagnostic* d)
+    const NativeSourceAssetFacts* facts,const NativeFighterRig* rig,
+    NativeScriptResourceRecipe* output,NativeScriptDiagnostic* d)
 {
     NativeScriptSourceSpan span=node->value;
     if(node->opens||node->first_child!=UINT32_MAX||span.offset>tree->source_bytes||span.length>tree->source_bytes-span.offset)
@@ -43,8 +45,11 @@ static bool parse(const NativeScriptSourceTree* tree,const NativeScriptSourceNod
     NativeScriptResourceRecipe recipe={(uint16_t)capacity,-1};
     while(cursor.at<cursor.length&&space(cursor.text[cursor.at]))++cursor.at;
     if(cursor.at<cursor.length){
-        if(!token(&cursor,"reserve_part")||!number(&cursor,&part)||part>=MAX_FT_PARTS)
-            return error(d,node->source,"Resources reserve_part must be one exact native part index");
+        if(!token(&cursor,"reserve_part")||!number(&cursor,&part)||part>INT32_MAX)
+            return error(d,node->source,"Resources reserve_part must be one exact bone ID");
+        int mapped=rig?nativeFighterRig_Resolve(rig,part):(int)part;
+        if(mapped<0||mapped>=MAX_FT_PARTS)return error(d,node->source,"Resources reserved bone ID has no native part slot");
+        part=(uint32_t)mapped;
         if(!facts||!facts->joints||facts->joints>MAX_FT_PARTS||
            facts->omission_count>NATIVE_SOURCE_OMISSIONS||
            facts->omission_count>MAX_FT_PARTS-facts->joints||
@@ -57,7 +62,8 @@ static bool parse(const NativeScriptSourceTree* tree,const NativeScriptSourceNod
     *output=recipe;return true;
 }
 bool nativeScriptResourceMetadata_Prepare(const NativeScriptSourceTree* tree,uint32_t owner,
-    const NativeSourceAssetFacts* facts,NativeScriptResourceRecipe* output,NativeScriptDiagnostic* d)
+    const NativeSourceAssetFacts* facts,const NativeFighterRig* rig,
+    NativeScriptResourceRecipe* output,NativeScriptDiagnostic* d)
 {
     if(!tree||!tree->source||!tree->nodes||tree->count>tree->capacity||!output||!owner||owner>=tree->count||
        (tree->nodes[owner].kind!=NativeScriptSource_Article&&tree->nodes[owner].kind!=NativeScriptSource_Item))
@@ -74,7 +80,7 @@ bool nativeScriptResourceMetadata_Prepare(const NativeScriptSourceTree* tree,uin
         }
         if(at!=owner)continue;
         if(field->parent!=owner||seen)return error(d,field->source,"Resources recipe must be a singleton directly inside its entity");
-        if(!parse(tree,field,facts,&recipe,d))return false;seen=true;
+        if(!parse(tree,field,facts,rig,&recipe,d))return false;seen=true;
     }
     *output=recipe;return true;
 }

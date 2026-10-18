@@ -18,6 +18,11 @@ def main():
  birth=ROOT/'tests/native/script_bindings_unavailable_item_birth.c';bs=importlib.util.spec_from_file_location('body',ROOT/'tests/native/script_form_feedback/extract.py');bm=importlib.util.module_from_spec(bs);bs.loader.exec_module(bm)
  text=birth.read_text();(out/'unavailable_birth.c').write_text(text.replace(bm.body(text,'nativeScriptItem_GetCreationValue'),''));units.append(out/'unavailable_birth.c')
  units += [ROOT/'tests/native/script_receiver_unavailable_identity.c',ROOT/'tests/native/script_effect_actor_absent.c',HERE/'test.c',HERE/'boundary.c',out/'native_bodies.c']
+ units += [ROOT/'src/melee/ft/native_fighter_rig.c']
+ units += [ROOT/'tests/native/script_bindings_unavailable_presentation.c',ROOT/'tests/native/script_graph_observers.c']
+ units += [ROOT/'src/melee/gm'/(n+'.c') for n in ['native_match_arena','native_match_scene']]
+ units += [ROOT/'src/melee/gr'/(n+'.c') for n in ['native_ground_pool','native_green_grid','native_green_grid_snapshot']]
+ units += [ROOT/'src/melee/it'/(n+'.c') for n in ['native_item_pool','native_item_link_pool']]
  sha=lambda f:hashlib.sha256(f.read_bytes()).hexdigest()
  inputs=units+list(HERE.glob('*.py'))+list(HERE.glob('*.h'))+[HERE/'README.md',ROOT/'docs/scripting/target_bone_queries.md',ROOT/'docs/scripting/targets.md',ROOT/'docs/scripting/fighter_hitboxes.md',ROOT/'examples/link_full.fms',ROOT/'examples/young_link_full.fms',a.compiler,birth]+list(out.glob('*.inc'))+list((ROOT/'src').rglob('*.h'))+list((ROOT/'extern/dolphin/include').rglob('*.h'))
  hashes.update({str(f):sha(f) for f in inputs});(out/'input_sha256.json').write_text(json.dumps(hashes,indent=2)+'\n')

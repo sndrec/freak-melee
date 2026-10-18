@@ -38,6 +38,11 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
             FT_CHARACTER_IMPORT_ARENA_SIZE,FT_CHARACTER_IMPORT_RECORD_CAPACITY,&output->character)) {
         error(d,"Source fighter DAT graph import failed");goto failure;
     }
+    char rig_error[192];
+    if (!nativeFighterRig_Read(&output->character.dat, facts->joints + facts->omission_count,
+                              &output->rig, rig_error, sizeof(rig_error))) {
+        error(d,rig_error);goto failure;
+    }
     FtAnimationBankStats animation;
     const FtAnimationBankTable tables[]={
         {output->character.data.xC,facts->actions,false},

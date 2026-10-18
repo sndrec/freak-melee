@@ -33,7 +33,7 @@ typedef struct Field {const char* name;uint16_t offset;uint8_t type;int32_t min,
 #define FLOAT_FIELD(name) {#name,offsetof(NativeScriptHitboxDefinition,name),NativeScriptType_F32,0,0}
 #define BOOL_FIELD(name) {#name,offsetof(NativeScriptHitboxDefinition,name),NativeScriptType_Bool,0,0}
 static const Field fields[]={
-    INT_FIELD(bone,0,MAX_FT_PARTS-1),INT_FIELD(damage,0,INT32_MAX),INT_FIELD(angle,0,INT32_MAX),
+    INT_FIELD(bone,0,INT32_MAX),INT_FIELD(damage,0,INT32_MAX),INT_FIELD(angle,0,INT32_MAX),
     INT_FIELD(growth,0,INT32_MAX),INT_FIELD(weight_knockback,0,INT32_MAX),INT_FIELD(base_knockback,0,INT32_MAX),
     INT_FIELD(group,0,INT32_MAX),INT_FIELD(element,0,31),INT_FIELD(shield_damage,INT32_MIN,INT32_MAX),
     INT_FIELD(sound_severity,0,7),INT_FIELD(sound_kind,0,31),FLOAT_FIELD(radius),

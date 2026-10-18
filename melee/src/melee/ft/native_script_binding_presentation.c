@@ -47,6 +47,9 @@ static bool joint(Fighter* fighter,int64_t selector,bool semantic_part,bool rota
         if(selector<0||selector>=FT_COMMON_PART_COUNT||!table->part_to_joint)
             return error(diagnostic,"Semantic fighter part is outside the native part schema.");
         selector=ftParts_GetBoneIndex(fighter,(Fighter_Part)selector);
+    } else {
+        const NativeSourcePackage* source=nativeFighterRuntime_SourcePackage(fighter->kind);
+        if(source)selector=nativeFighterRig_Resolve(&source->assets.rig,selector);
     }
     if(selector<0||(uint64_t)selector>=table->parts_num||!fighter->parts[selector].joint)
         return error(diagnostic,"Requested fighter part is unmapped or its joint is absent.");
@@ -142,6 +145,8 @@ static bool query_select(BoneQuery* query,const NativeScriptValue* value,bool se
         if(selected<0||selected>=FT_COMMON_PART_COUNT||!query->forward)
             return error(diagnostic,"Semantic fighter part is outside the native part schema");
         selected=ftParts_GetBoneIndex(query->lifetime.data,(Fighter_Part)selected);
+    } else if(query->package) {
+        selected=nativeFighterRig_Resolve(&query->package->assets.rig,selected);
     }
     if(selected<0||(uint64_t)selected>=query->count||!query->parts[selected].joint)
         return error(diagnostic,"Requested fighter part is unmapped or its joint is absent");
@@ -190,12 +195,11 @@ bool nativeScriptBindingPresentation_Invoke(NativeScriptRuntimeContext* context,
            values[0].as.i64<INT32_MIN||values[0].as.i64>INT32_MAX||
            values[1].type!=NativeScriptType_F32||values[2].type!=NativeScriptType_F32||
            values[3].type!=NativeScriptType_F32)
-            return error(diagnostic,"Joint translation requires a signed Int raw joint and three Floats");
+            return error(diagnostic,"Joint translation requires a signed Int bone ID and three Floats");
         BoneQuery query;if(!query_capture(context,&query,diagnostic))return false;
         if(!query.lifetime.source_owned)return error(diagnostic,"Joint translation requires its owned Fighter rig");
-        // Native source operations ignore absent numeric slots. Do not remap
-        // an exact costume index through the semantic role table a second time.
-        if(values[0].as.i64<0||(uint64_t)values[0].as.i64>=query.count) {
+        int part=query.package?nativeFighterRig_Resolve(&query.package->assets.rig,values[0].as.i64):(int)values[0].as.i64;
+        if(part<0||(unsigned)part>=query.count) {
             if(!query_current(&query,diagnostic))return false;
             *result=(NativeScriptValue){.type=NativeScriptType_Void};return true;
         }
@@ -225,7 +229,8 @@ bool nativeScriptBindingPresentation_Invoke(NativeScriptRuntimeContext* context,
             if(values[i].type!=NativeScriptType_F32)return error(diagnostic,"Bone world-position arguments need Float slots");
         BoneQuery query;if(!query_capture(context,&query,diagnostic)||
            !query_select(&query,&values[0],index_query,diagnostic))return false;
-        if(index_query){*result=(NativeScriptValue){.type=NativeScriptType_I32,.as.i64=query.index};return true;}
+        if(index_query){*result=(NativeScriptValue){.type=NativeScriptType_I32,
+            .as.i64=query.package?nativeFighterRig_Id(&query.package->assets.rig,query.index):(int32_t)query.index};return true;}
         Vec3 offset={0},position;
         if(offset_query)offset=(Vec3){values[4].as.f32,values[5].as.f32,values[6].as.f32};
         lb_8000B1CC(query.selected,offset_query?&offset:NULL,&position);

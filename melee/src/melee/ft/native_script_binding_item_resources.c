@@ -1,6 +1,7 @@
 #include "native_script_binding_item_resources.h"
 #include "native_script_compile.h"
 #include "native_script_item_program.h"
+#include "native_source_package.h"
 #include <melee/it/native_article_resource_internal.h>
 #include <melee/it/native_article_resource_animation.h>
 #include <melee/it/native_script_item_actor.h>
@@ -172,12 +173,22 @@ bool nativeScriptBindingItemResources_Invoke(NativeScriptRuntimeContext* c,uint3
     case ID(Release):nativeArticleResource_Release(c->source);break;
     case ID(Create):case ID(CreateAt):{
         if(!unsigned_value(&arguments[0],&a)||!unsigned_value(&arguments[2],&b))break;
+        if(s.collection && s.collection->attachment.source_owned) {
+            const NativeSourcePackage* p=nativeFighterRuntime_SourcePackage(s.collection->attachment.kind);
+            if(p)a=(unsigned)nativeFighterRig_Resolve(&p->assets.rig,a);
+        }
         NativeArticleResourceInit init={.attachment_part=a,.radius=arguments[1].as.f32,.collision_category=b};
         if(count==6)init.position=(Vec3){arguments[3].as.f32,arguments[4].as.f32,arguments[5].as.f32};
         result=nativeArticleResource_CreateNode(c->source,s.index,&init);changed=result;break;}
     case ID(LoadModel):if(arguments[0].as.i64<0||(uint64_t)arguments[0].as.i64>=s.item.program->model_root_count)return error(d,"Resource root ordinal is outside its immutable owner table");result=nativeArticleResource_LoadModel(c->source,s.index,(uint32_t)arguments[0].as.i64);changed=result;break;
     case ID(SetDraw):result=nativeArticleResource_SetDraw(c->source,s.index,arguments[0].as.u64!=0);break;
-    case ID(BindPart):if(unsigned_value(&arguments[0],&a))result=nativeArticleResource_BindExternalPart(c->source,s.index,a);break;
+    case ID(BindPart):if(unsigned_value(&arguments[0],&a)) {
+        if(s.collection && s.collection->attachment.source_owned) {
+            const NativeSourcePackage* p=nativeFighterRuntime_SourcePackage(s.collection->attachment.kind);
+            if(p)a=(unsigned)nativeFighterRig_Resolve(&p->assets.rig,a);
+        }
+        result=nativeArticleResource_BindExternalPart(c->source,s.index,a);
+    }break;
     case ID(CaptureAnchor):result=nativeArticleResource_SetCaptureAnchor(c->source,s.index);break;
     case ID(SweepStage):result=nativeArticleResource_SweepStage(c->source,s.index);break;
     case ID(SweepPoint):result=nativeArticleResource_SweepPoint(c->source,s.index);break;

@@ -33,7 +33,7 @@ capsules directly.
 
 | Field | Meaning | Default and range |
 | --- | --- | --- |
-| `bone` | Raw fighter joint index, or its declared live article reservation | Required; integer 0..139 |
+| `bone` | Fighter [bone ID](bone_queries.md#bone-ids), or its declared live article reservation | Required; nonnegative signed 32-bit integer |
 | `damage` | Damage before the common scale, charge and stale-move rules | Required; integer 0..2147483647 |
 | `radius` | Native capsule radius, in model units | Required; finite, nonnegative Float |
 | `offset_x`, `offset_y`, `offset_z` | Local offset from the joint | 0; finite Float |

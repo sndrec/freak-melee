@@ -150,7 +150,11 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* context,uint32_t
     }
     if(operation>=NativeFighterPose_CopyCostume) {
         unsigned argument=operation==NativeFighterPose_BlendToLive || operation==NativeFighterPose_CopyToLive?0:1;
-        if(!index(&arguments[argument],source.package->assets.parts.parts_num,&start))return error(d,"Pose start exceeds the owned raw parts array");
+        unsigned id;
+        if(!index(&arguments[argument],(unsigned)INT32_MAX+1u,&id))return error(d,"Pose start needs a bone ID");
+        int part=nativeFighterRig_Resolve(&source.package->assets.rig,id);
+        if(part<0||(unsigned)part>=source.package->assets.parts.parts_num)return error(d,"Pose start bone is absent from the owned rig");
+        start=(unsigned)part;
     }
     if(operation==NativeFighterPose_CopyGraph || operation==NativeFighterPose_BlendGraph) {
         selected=graph(&source,&arguments[2],d);if(!selected)return false;

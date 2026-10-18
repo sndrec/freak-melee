@@ -6,10 +6,10 @@ primitives; the script owns timing and move decisions.
 | Method | Meaning |
 | --- | --- |
 | `effects.spawn(effect, part)` | Spawn an effect using a semantic bone role such as `LeftHand`. |
-| `effects.spawn_on_part(effect, raw_part)` | Spawn using an exact index in this fighter's owned rig. |
-| `effects.spawn_between(effect, first_part, second_part)` | Synchronously construct an admitted two-joint effect using two exact owned rig indices. |
+| `effects.spawn_on_part(effect, bone)` | Spawn an effect attached to the supplied bone ID. |
+| `effects.spawn_between(effect, first_part, second_part)` | Spawn a two-joint effect between the supplied bone IDs. |
 | `effects.spawn_with_scalar(effect, part, value)` | Semantic bone role plus one copied Float consumed by the native effect. |
-| `effects.spawn_on_joint_with_scalar(effect, joint, value)` | Exact rig index plus one copied Float. |
+| `effects.spawn_on_joint_with_scalar(effect, joint, value)` | Bone ID plus one copied Float. |
 | `effects.spawn_async_attached(effect, part)` | Queue a joint-only effect on a semantic bone role, using the engine's immediate/deferred effect timing. |
 | `effects.spawn_async_with_scalar(effect, part, value)` | Queue a joint plus one copied Float on a semantic bone role. |
 | `effects.spawn_async_position_on_part(effect, raw_part)` | Queue a numeric engine effect or a declared position `model_effect` at the eventual world position of an exact owned rig joint. |
@@ -17,18 +17,17 @@ primitives; the script owns timing and move decisions.
 | `effects.wind_at_position(x, y, z, frames, strength, decay, frequency)` | Create wind at the supplied world position; frequency is already radians. |
 | `state.enter_at_speed(motion, flags, frame, rate)` | Enter an owned/common motion preserving all four values. |
 
-Semantic roles are mapped through the owning rig. Raw joint indices are not
-mapped again: part 104 means that exact joint, not semantic role 104.
+Semantic roles identify familiar body parts. [Bone IDs](bone_queries.md#bone-ids)
+identify individual joints and remain attached to them when the hierarchy changes.
 `spawn_on_part` retains the integral effect ID until signature admission and takes
-a signed Int raw part. Negative or out-of-range raw parts and absent joints are
-healthy no-ops, matching the native raw-part operation. Incompatible effect
+a signed Int bone ID. A missing bone produces no effect. Incompatible effect
 signatures or unavailable source ownership produce a diagnostic.
 No operation borrows another fighter's model or behavior.
 
 ## Deferred positions on raw joints
 
-The two `spawn_async_position` methods use a signed Int index in your fighter's
-current costume. They admit native position-only or position-plus-scalar recipes,
+The two `spawn_async_position` methods use a signed Int bone ID in your fighter's
+rig. They admit native position-only or position-plus-scalar recipes,
 respectively. Use `bones.index(Hip)` for the owning rig's mapped Hip joint.
 The scalar's meaning belongs to the effect recipe; it must be a finite Float.
 
@@ -43,7 +42,7 @@ not change the queued value. Native process links below 9 defer execution; other
 contexts execute immediately. Queue order, allocation failure and clearing keep
 their native behavior. A failed allocation produces no effect.
 
-An absent raw joint index or unmapped joint is a healthy no-op. An incompatible
+A missing bone produces no effect. An incompatible
 effect signature, malformed type, nonfinite scalar or unavailable owned source
 is an error. These methods borrow the joint until native queue processing; they
 do not promise safety for arbitrary rig replacement while effects are pending.

@@ -42,7 +42,7 @@ NativeScriptVMStatus nativeScriptEffect_ProcessDeferred(Fighter_GObj* object,
         .scene_epoch=queued->native_script_epoch};
     NativeScriptDiagnostic diagnostic={0};
     NativeScriptVMStatus status=nativeScriptEffect_Spawn(&context,
-        queued->native_script_owner,true,part,false,&diagnostic);
+        queued->native_script_owner,true,nativeFighterRig_Id(&package->assets.rig,(unsigned)part),false,&diagnostic);
     if(status==NativeScriptVM_Error)
         OSReport("[script] Source %u deferred effect %u: %s\n",
             context.generation,queued->native_script_owner,diagnostic.message);

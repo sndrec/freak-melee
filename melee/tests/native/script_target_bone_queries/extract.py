@@ -72,4 +72,7 @@ def extract(root,out):
  descriptor=re.search(r'const itSamusGrapple_Hitbox it_803B8660 = \{.*?^\};',h,re.M|re.S).group()
  names=['lbColl_80008428','lbColl_80008434','lbColl_80008440','lbColl_CopyHitCapsule']
  (out/'native_hitbox_create.inc').write_text(descriptor+'\n'+'\n'.join(m.body(l,n) for n in names)+'\n'+m.body(c,'ftColl_800768A0')+'\n'+m.body(c,'ftColl_8007B8A8')+'\n'+m.body(c,'ftColl_8007AFF8')+'\n'+m.body(h,'it_802B7160').replace('it_802B7160','hitbox_native_reference',1)+'\n')
+ lifetime=read('src/melee/ft/native_hitbox_lifetime.c')
+ with (out/'native_hitbox_create.inc').open('a') as f:
+  f.write('\n'+m.body(lifetime,'nativeHitboxLifetime_Clear')+'\n')
  return hashes

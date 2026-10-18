@@ -1150,11 +1150,10 @@ query does not choose a fighter-specific landing or recovery state.
 
 `bones.world_position(index: int, x: float output, y: float output, z: float output [, offset_x: float, offset_y: float, offset_z: float])`
 
-Reads the indexed joint's world position into three distinct declared float
+Reads the bone's world position into three distinct declared float
 variables: local variables, `state.NAME` fields, or a mixture of both.
-The index refers to the fighter package's skeleton, rather
-than a stock fighter's named-part table. Invalid indices write zero. This
-performs one joint calculation using stack storage.
+The integer is the fighter's [bone ID](bone_queries.md#bone-ids). A missing bone
+produces a script error and leaves the output variables unchanged.
 
 ```text
 bones.world_position(48, state.muzzle_x, state.muzzle_y, state.muzzle_z)
@@ -1174,7 +1173,7 @@ sample the origin first, then add to the output variables. The three output
 arguments must be distinct float variables in either form; arrays and arbitrary
 expressions are not output destinations. The index must be an integer;
 `bones.index(Top)` resolves a semantic bone role to that integer. Inputs are
-evaluated once, in index then X/Y/Z offset order. Missing joints also write zero.
+evaluated once, in bone-ID then X/Y/Z offset order.
 
 Use locals when the position is only needed during this callback:
 

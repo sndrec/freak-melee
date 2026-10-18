@@ -161,7 +161,8 @@ add_custom_command(OUTPUT "${SCRIPT_KINETICS_FIXTURE}"
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/script_kinetics/extract_primitives.py"
         --source-root "${CMAKE_CURRENT_SOURCE_DIR}" --output "${SCRIPT_KINETICS_FIXTURE}"
     DEPENDS tests/native/script_kinetics/extract_primitives.py src/melee/ft/ftmovement.c
-        src/melee/ft/ftcommon.c src/melee/ft/ft_084E.c src/melee/ft/ft_081B.c src/melee/ft/ftanim.c src/melee/ft/native_script_moves.c VERBATIM)
+        src/melee/ft/ftcommon.c src/melee/ft/ft_084E.c src/melee/ft/ft_081B.c src/melee/ft/ftanim.c src/melee/ft/native_script_moves.c
+        src/melee/ft/native_hitbox_lifetime.c src/melee/ft/ftcoll.c src/melee/lb/lbcollision.c VERBATIM)
 set(NATIVE_SCRIPT_ENGINE_TEST_UNITS
     src/melee/ft/native_script_bindings.c tests/native/script_bindings_unavailable_item.c src/melee/ft/native_script_binding_properties.c
     src/melee/ft/native_script_binding_kinetics.c src/melee/ft/native_script_math.c
@@ -817,7 +818,18 @@ add_custom_command(OUTPUT "${SCRIPT_ITEM_SCHEDULER_FIXTURE}"
         src/melee/it/item.c src/melee/it/it_26B1.c src/melee/it/itgroundcoll.c VERBATIM)
 add_executable(native_script_item_scheduler_test tests/native/script_item_scheduler/test.c tests/native/script_item_scheduler/boundary.c
     "${SCRIPT_ITEM_SCHEDULER_FIXTURE}" ${NATIVE_SCRIPT_ITEM_ACTOR_TEST_UNITS})
+set(SCRIPT_RANDOM_TRACE "${CMAKE_CURRENT_BINARY_DIR}/script_item_scheduler_fixture/random_trace.c")
+add_custom_command(OUTPUT "${SCRIPT_RANDOM_TRACE}"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/extract_random_trace.py"
+        --source "${CMAKE_CURRENT_SOURCE_DIR}/src/sysdolphin/baselib/random.c"
+        --output "${SCRIPT_RANDOM_TRACE}"
+    DEPENDS tests/native/extract_random_trace.py src/sysdolphin/baselib/random.c VERBATIM)
+add_custom_target(native_script_random_trace_fixture DEPENDS "${SCRIPT_RANDOM_TRACE}")
 foreach(target native_script_item_actor_test native_script_item_scheduler_test)
+    add_dependencies(${target} native_script_random_trace_fixture)
+    target_sources(${target} PRIVATE "${SCRIPT_RANDOM_TRACE}" src/sysdolphin/baselib/native_callback_profile.c)
+    target_link_libraries(${target} PRIVATE ${AURORA_SDL3_TARGET})
+    aurora_copy_runtime_dlls(${target})
     target_include_directories(${target} PRIVATE src extern/dolphin/include "${SCRIPT_ITEM_SCHEDULER_DIR}")
     target_compile_definitions(${target} PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
     target_compile_options(${target} PRIVATE -ffp-contract=off -ffunction-sections -fdata-sections -fno-zero-initialized-in-bss
@@ -834,6 +846,7 @@ add_custom_command(OUTPUT "${SCRIPT_ITEM_PROGRAM_FIXTURE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/script_item_program" "${CMAKE_CURRENT_SOURCE_DIR}" "${SCRIPT_ITEM_PROGRAM_DIR}"
     DEPENDS tests/native/script_item_program/run.py src/melee/ft/native_script_execution.c VERBATIM)
 add_executable(native_script_item_program_test tests/native/script_item_program/test.c tests/native/script_item_program/boundary.c
+    tests/native/script_bindings_unavailable_presentation.c
     "${SCRIPT_ITEM_PROGRAM_FIXTURE}" ${NATIVE_SCRIPT_FRONTEND_UNITS} src/melee/ft/native_script_bytecode.c
     src/melee/ft/native_script_math.c src/melee/ft/native_script_constants.c src/melee/ft/native_script_bindings.c
     src/melee/ft/native_script_compile.c src/melee/ft/native_script_moves.c src/melee/ft/native_script_move_lowering.c

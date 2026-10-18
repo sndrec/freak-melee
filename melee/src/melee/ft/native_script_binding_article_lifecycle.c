@@ -113,8 +113,7 @@ static bool attach(Actor* caller,const NativeScriptValue* args,uint32_t count,Na
        package->assets.parts.parts_num!=package->assets.facts.joints+package->assets.facts.omission_count ||
        !package->assets.parts.parts_num || package->assets.parts.parts_num>MAX_FT_PARTS)
         return error(d,"Article attachment owner has no exact imported rig");
-    // Legacy raw joint indices were tested as unsigned against parts_num. An
-    // ordinary negative/out-of-range index is a healthy no-op, never an alias.
+    raw=nativeFighterRig_Resolve(&package->assets.rig,raw);
     if(raw<0 || (uint64_t)raw>=package->assets.parts.parts_num)return true;
     if(!fighter->parts[raw].joint || !caller->context.source ||
        !((HSD_GObj*)caller->context.source)->hsd_obj || !item->xC4_article_data ||

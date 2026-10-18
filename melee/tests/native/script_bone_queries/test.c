@@ -168,7 +168,7 @@ static void native_pairs(void)
   CHECK(helper(object,offsets==0?"Query":offsets==1?"Offset":"NamedOffset")==NativeScriptVM_Ok);
   const char* names[]={"x","y","z"};float components[]={expected.x,expected.y,expected.z};
   for(unsigned i=0;i<3;++i){NativeScriptValue got=presentation_state(object,names[i],NULL);CHECK(got.type==NativeScriptType_F32&&!memcmp(&got.as.f32,&components[i],4));}
-  if(!offsets){CHECK(presentation_state(object,"index",NULL).as.i64==2);CHECK(presentation_state(object,"count",NULL).as.i64==4);}
+  if(!offsets){CHECK(presentation_state(object,"index",NULL).as.i64==nativeFighterRig_Id(&source.assets.rig,2));CHECK(presentation_state(object,"count",NULL).as.i64==4);}
   ++comparisons;++cases;HSD_GObjFree(object);
  }
  HSD_GObj* object=presentation_create(source.target,true);rig(object,1);Vec3 expected;lb_8000B1CC(&joints[1],NULL,&expected);
@@ -324,9 +324,33 @@ static void input_ages(void)
  HSD_GObjFree(object);
 }
 
+static void stable_ids(void)
+{
+ NativeFighterRig* map=&source.assets.rig;
+ map->count=4;map->next_id=500001;
+ for(unsigned n=0;n<MAX_FT_PARTS;++n)map->ids[n]=n;
+ map->ids[2]=500000;map->ids[139]=2;
+ CHECK(nativeFighterRig_Index(map,diagnostic.message,sizeof(diagnostic.message)));
+ // Run the same real compiler/actor/VM/matrix comparisons through an ID that
+ // differs from its physical slot, including semantic-role -> ID -> joint.
+ native_pairs();
+ HSD_GObj* object=presentation_create(source.target,true);rig(object,1);
+ NativeScriptValue value=integer(500000);presentation_state(object,"index",&value);
+ seed(object);CHECK(helper(object,"Translate")==NativeScriptVM_Ok);
+ CHECK(joints[2].translate.x==91&&joints[2].translate.y==92&&joints[2].translate.z==93);
+ CHECK(joints[1].translate.x==2.25f);++cases;
+ // The original numeric ID now refers to the reserved external slot, not
+ // the physical body joint. Neither that ID nor a deleted ID may alias it.
+ for(unsigned n=0;n<2;++n){value=integer(n?139:2);presentation_state(object,"index",&value);
+  HSD_JObj before[4];memcpy(before,joints,sizeof(joints));
+  CHECK(helper(object,"Translate")==NativeScriptVM_Ok&&!memcmp(before,joints,sizeof(joints)));++cases;}
+ HSD_GObjFree(object);
+ memset(map,0,sizeof(*map));
+}
+
 #include "throw_angle_cases.h"
 int main(void)
 {
- HSD_GObjLibInitDataType config={.p_link_max=32,.gx_link_max=8,.gproc_pri_max=31};HSD_GObj_80391304(&config);compiler_negatives();prepare();native_pairs();throw_angle_cases();retirement();direct_negatives();root_scale_cases();translations();input_ages();
+ HSD_GObjLibInitDataType config={.p_link_max=32,.gx_link_max=8,.gproc_pri_max=31};HSD_GObj_80391304(&config);compiler_negatives();prepare();native_pairs();throw_angle_cases();retirement();direct_negatives();root_scale_cases();translations();input_ages();stable_ids();
  CHECK(nativeScriptRuntime_Idle());printf("{\"status\":\"PASS bone queries\",\"checks\":%u,\"cases\":%u,\"native_comparisons\":%u,\"retirement_mutations\":%u,\"actor_vm_calls\":%u}\n",presentation_checks,cases,comparisons,mutations,helper_calls);return 0;
 }

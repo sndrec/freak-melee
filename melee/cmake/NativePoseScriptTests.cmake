@@ -220,6 +220,9 @@ add_custom_command(OUTPUT "${SCRIPT_POSE_RUNTIME_CONTRACT}"
         src/melee/ft/native_script_binding_properties.c VERBATIM)
 add_executable(native_script_pose_runtime_test tests/native/script_pose_runtime/test.c
     "${SCRIPT_POSE_RUNTIME_CONTRACT}" src/melee/ft/native_script_binding_pose.c
+    src/melee/ft/native_fighter_rig.c src/sysdolphin/baselib/dat.c
+    src/melee/ft/native_script_binding_item_resources_catalog.c
+    src/melee/ft/native_script_binding_spawn_catalog.c
     src/melee/ft/native_callback_lifetime.c src/melee/gm/native_match_pool.c)
 target_include_directories(native_script_pose_runtime_test PRIVATE src extern/dolphin/include "${SCRIPT_POSE_RUNTIME_DIR}")
 target_compile_definitions(native_script_pose_runtime_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)

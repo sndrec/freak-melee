@@ -67,9 +67,13 @@ bool nativeScriptBindingGuard_Read(NativeScriptRuntimeContext* c,uint32_t semant
     case NativeScriptBinding_GuardPowershieldWindow:value.type=NativeScriptType_Bool;value.as.u64=f->x221C_b2;break;
     case NativeScriptBinding_ShieldHealth:value.type=NativeScriptType_F32;value.as.f32=f->shield_health;break;
     case NativeScriptBinding_ShieldLightAmount:value.type=NativeScriptType_F32;value.as.f32=f->lightshield_amount;break;
-    case NativeScriptBinding_ShieldBone:
+    case NativeScriptBinding_ShieldBone: {
         if(!f->ft_data||!f->ft_data->x8)return error(d,"Shield bone data is unavailable");
-        value.type=NativeScriptType_U32;value.as.u64=f->ft_data->x8->x11;break;
+        const NativeSourcePackage* p=nativeFighterRuntime_SourcePackage(f->kind);
+        int32_t id=p?nativeFighterRig_Id(&p->assets.rig,f->ft_data->x8->x11):f->ft_data->x8->x11;
+        if(id<0)return error(d,"Shield bone ID is unavailable");
+        value.type=NativeScriptType_U32;value.as.u64=(uint32_t)id;break;
+    }
     case NativeScriptBinding_ShieldInitialSize:value.type=NativeScriptType_F32;value.as.f32=f->co_attrs.initial_shield_size;break;
     default:return error(d,"Unknown guard property");
     }
@@ -143,7 +147,7 @@ static bool joint_index(const NativeScriptValue* value,uint64_t* index,bool* neg
         if(value->as.u64>UINT32_MAX)return error(d,"Guard joint U32 exceeds its declared width");
         // fall through
     case NativeScriptType_U64:*index=value->as.u64;return true;
-    default:return error(d,"Guard raw joint index must be integral");
+    default:return error(d,"Guard bone ID must be integral");
     }
 }
 
@@ -281,7 +285,8 @@ bool nativeScriptBindingGuard_Invoke(NativeScriptRuntimeContext* c,uint32_t sema
         return error(d,"Guard requires its exact imported costume joint table");
     // Native source admission deliberately makes invalid numeric volumes a
     // healthy no-op. Do not narrow a wide index into a valid different joint.
-    if(negative||index>=p->assets.parts.parts_num||!isfinite(args[4].as.f32)||args[4].as.f32<0) {
+    index=negative||index>INT32_MAX?UINT64_MAX:(uint64_t)nativeFighterRig_Resolve(&p->assets.rig,(int64_t)index);
+    if(index>=p->assets.parts.parts_num||!isfinite(args[4].as.f32)||args[4].as.f32<0) {
         if(!nativeFighterLifetime_Current(&saved))return error(d,"Guard source retired before no-op publication");
         *out=(NativeScriptValue){.type=NativeScriptType_Void};return true;
     }

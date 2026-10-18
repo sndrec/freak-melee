@@ -166,8 +166,9 @@ bool nativeScriptBindingAttachments_Invoke(NativeScriptRuntimeContext* c, uint32
     NativeScriptValue result={.type=has?NativeScriptType_Bool:NativeScriptType_Void};
     if(has)result.as.u64=nativeFighterAttachment_HasRoot(s.life.object,root);
     else if(load) {
+        int part=nativeFighterRig_Resolve(&s.package->assets.rig,args[2].as.i64);
         (void)nativeFighterAttachment_Load(s.life.object,(unsigned)args[0].as.i64,root,
-            (unsigned)args[2].as.i64,(int)args[3].as.i64,(unsigned)args[4].as.i64);
+            (unsigned)part,(int)args[3].as.i64,(unsigned)args[4].as.i64);
     } else if(dynamics) {
         (void)nativeFighterAttachment_AddDynamics(s.life.object,(unsigned)args[0].as.i64,
             (unsigned)args[1].as.i64,(unsigned)args[2].as.i64);

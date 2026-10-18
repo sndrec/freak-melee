@@ -1,8 +1,21 @@
 # Fighter bone queries
 
-`bones.count` is the current rig slot count. `bones.index(semantic_part)` returns the raw joint slot from the admitted Fighter part map; for example, `bones.index(LeftThumb)`. Semantic parts and raw joint slots are different selectors.
+## Bone IDs
 
-`bones.world_position(raw_joint, x, y, z)` writes three distinct mutable Float destinations. An optional XYZ offset is accepted as the final three arguments, or by the explicit `bones.world_position_offset(raw_joint, x, y, z, offset_x, offset_y, offset_z)` spelling. The selector must be integral. Positions and offsets are F32. These methods use the actual native `lb_8000B1CC` sampling and HSD matrix construction, including native root-joint and parent-matrix behavior.
+Each bone has a numeric ID belonging to its fighter. These IDs let scripts keep
+referring to the same bones when the rig's hierarchy changes. A removed bone's
+ID stays unused. `bones.index(LeftThumb)` returns the ID for the left thumb role.
+Cloning a stock fighter starts with its original bone numbers.
+
+`bones.count` reports how many joints the fighter has. Bone IDs can have gaps.
+Use an ID obtained from the fighter whose bones you are querying.
+
+## World position
+
+`bones.world_position(bone, x, y, z)` writes the bone's world coordinates into
+three different Float variables. You can also supply an offset in the bone's
+local coordinates: `bones.world_position_offset(bone, x, y, z, offset_x,
+offset_y, offset_z)`.
 
 ```text
 let float x = 0
@@ -11,7 +24,8 @@ let float z = 0
 bones.world_position(bones.index(LeftThumb), x, y, z)
 ```
 
-The queries retain physical Fighter generation, scene lifetime, current interpreted program/storage when attached, selected source rig tables, and selected joint class/extent/identity. Invalid or unmapped joints reject; no zero position is fabricated. A selected source package requires its real attached program and matching owned rig. Existing retained Fighter receiver projections also admit physical stock recipients under their native lifetime contract; no caller/recipient program equality is introduced.
+Querying a missing bone produces a script error. The output variables keep their
+previous values if the query fails.
 
 ## Rendered root scale
 

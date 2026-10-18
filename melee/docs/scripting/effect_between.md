@@ -1,8 +1,8 @@
-# Synchronous effects between raw joints
+# Synchronous effects between bones
 
-`effects.spawn_between(effect, first_part, second_part)` is a Fighter-only source operation returning Void. The effect ID accepts an integral value without narrowing before admission; both raw rig slots are signed Int. The admitted native two-joint ABI currently covers IDs 1167, 1211, 1212 and 1291. Unsupported IDs or malformed arguments fault before native work. These are raw indices, so use `bones.index(role)` explicitly when starting from a semantic role.
+`effects.spawn_between(effect, first_part, second_part)` creates a synchronous effect spanning two bones. It returns Void. Supply an integer effect ID and two signed Int [bone IDs](bone_queries.md#bone-ids) belonging to the fighter. Use `bones.index(role)` to get a named role's ID. The supported two-joint effects have IDs 1167, 1211, 1212 and 1291. An unsupported effect ID or malformed argument produces a script error.
 
-Both slots and the creator scale root belong to the selected source rig and remain retained through native dispatch. Negative, out-of-range or NULL slots are healthy no-ops under the canonical raw-part policy. NULL admission avoids the original attachment primitive's invalid NULL-position dereference; no placeholder joint is supplied. Retained receiver projection is unavailable because this operation is SourceOnly.
+Both bones belong to the source fighter. A missing bone produces no effect. Call this from the fighter's own callback.
 
 The operation calls actual synchronous `efSync_Spawn`. Native construction creates the first model, attempts the second only when the first succeeded, then evaluates queued initial model animations in native LIFO order. First allocation absence creates neither; second absence preserves the first. This is neither an async request nor an atomic two-model replacement. Native effects already created remain created if retirement during animation evaluation prevents returning to authored code.
 

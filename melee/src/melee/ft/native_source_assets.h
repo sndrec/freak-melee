@@ -6,6 +6,7 @@
 #include "ftparts.h"
 #include "ftdat.h"
 #include "native_source_asset_facts.h"
+#include "native_fighter_rig.h"
 
 typedef struct NativeSourceAssetInput {
     const void* fighter;size_t fighter_bytes;
@@ -14,6 +15,7 @@ typedef struct NativeSourceAssetInput {
 } NativeSourceAssetInput;
 typedef struct NativeSourceImportedAssets {
     NativeSourceAssetFacts facts;
+    NativeFighterRig rig;
     FtCharacterAssets character;
     FtCostumeAssets costume;
     void* character_arena;

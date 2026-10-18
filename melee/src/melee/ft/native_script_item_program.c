@@ -1,6 +1,7 @@
 #include "native_script_item_program.h"
 #include "native_script_pose_metadata.h"
 #include "native_script_resource_metadata.h"
+#include "native_source_assets.h"
 #include "native_source_declarations.h"
 #include "native_source_motion_policy.h"
 #include "native_script_binding_item_model_resolve.h"
@@ -267,7 +268,8 @@ bool nativeScriptItemMetadata_Validate(void* opaque,const NativeScriptSourceTree
     // itself remains required by the common constructor and dynamics setup.
     if(!staticModelRoots(tree,owner,binding,diagnostic)||!staticModelAnimations(tree,owner,binding,diagnostic))return false;
     NativeScriptResourceRecipe resources;
-    if(!nativeScriptResourceMetadata_Prepare(tree,owner,context?context->source_facts:NULL,&resources,diagnostic))return false;
+    if(!nativeScriptResourceMetadata_Prepare(tree,owner,context?context->source_facts:NULL,
+        context&&context->source_assets?&context->source_assets->rig:NULL,&resources,diagnostic))return false;
     if(!header(tree,owner,&count,&recipe))return error(diagnostic,tree->nodes[owner].source,"Entity declaration header exceeds the supported numeric schema");
     bool workshop=tree->nodes[owner].kind==NativeScriptSource_Item;
     if((workshop && binding->kind!=It_Kind_NativeHoldable) || (!workshop && binding->kind==It_Kind_NativeHoldable))
@@ -359,7 +361,8 @@ bool nativeScriptItemPrograms_Prepare(const NativeScriptCompileBank* bank,Fighte
             states>NATIVE_SCRIPT_ENTITY_STATE_LIMIT-candidate->state_count)
             {error(diagnostic,tree->nodes[node].source,"Entity asset/state storage preparation failed");goto failure;}
         NativeScriptResourceRecipe resources;
-        if(!nativeScriptResourceMetadata_Prepare(tree,node,context->source_facts,&resources,diagnostic))goto failure;
+        if(!nativeScriptResourceMetadata_Prepare(tree,node,context->source_facts,
+            context->source_assets?&context->source_assets->rig:NULL,&resources,diagnostic))goto failure;
         unsigned entry=candidate->count++;NativeScriptItemProgram* program=&candidate->programs[entry];
         *program=(NativeScriptItemProgram){.bank=bank,.identity=identity^(UINT64_C(0x9e3779b97f4a7c15)*node),.author_kind=author,
             .kind=binding->kind,.recipe_index=workshop?recipe_index++:UINT32_MAX,.owner=node,.article=binding->article,

@@ -63,8 +63,8 @@ scripts still decide what to do when creation returns `-1`.
 
 ## Attach and inherit scale
 
-`items.attach(handle, rawpart, notify_holder)` returns Bool. The first two arguments must be Int; the
-part is an actual runtime part-table index. Use `bones.index(Name)` to resolve
+`items.attach(handle, bone, notify_holder)` returns Bool. The first two arguments must be Int; the
+bone is the holder's [bone ID](bone_queries.md#bone-ids). Use `bones.index(Name)` to resolve
 a semantic bone when appropriate. The engine rejects missing, foreign,
 retired or mismatched item ownership and invalid parts. Attachment uses the
 real shared held-item engine operation. `notify_holder` must be Bool. Set it

@@ -32,8 +32,8 @@ the imported graph allocation.
 
 `Pose.live` and `Pose.blend` are literal destinations. Operations do not accept
 an arbitrary integer destination or a dynamically selected graph name. Direct
-part starts are Int expressions and refer to the runtime parts array, without
-semantic bone remapping. Omission parts are a separate mapping that the shared
+part starts are Int expressions containing the fighter's
+[bone IDs](bone_queries.md#bone-ids). Omission parts are a separate mapping that the shared
 traversals consume. A graph path is not an omission or a new runtime part.
 
 | Operation | Behavior |

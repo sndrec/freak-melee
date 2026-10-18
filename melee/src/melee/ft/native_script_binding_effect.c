@@ -100,6 +100,7 @@ static bool spawn_parts(NativeScriptRuntimeContext* context,NativeScriptValue* a
     // The canonical raw-part policy treats absent slots as healthy no-ops.
     // Check every slot before admitting classes or constructing either effect.
     for(unsigned i=0;i<selected_count;++i) {
+        indices[i]=nativeFighterRig_Resolve(&source.package->assets.rig,indices[i]);
         if(indices[i]<0||(uint32_t)indices[i]>=source.count)return true;
         selected[i]=source.parts[indices[i]].joint;
         if(!selected[i])return true;

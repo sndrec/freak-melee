@@ -153,9 +153,10 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
         }
         // Match the engine part-spawn contract: a valid rig with an absent
         // optional slot is a healthy no-op, without allocating effect storage.
-        if(raw_part<0||(uint32_t)raw_part>=package->assets.parts.parts_num||!fp->parts[raw_part].joint)return NativeScriptVM_Ok;
-        origin=fp->parts[raw_part].joint;
-        selected.part=(uint32_t)raw_part;
+        int part=nativeFighterRig_Resolve(&package->assets.rig,raw_part);
+        if(part<0||(uint32_t)part>=package->assets.parts.parts_num||!fp->parts[part].joint)return NativeScriptVM_Ok;
+        origin=fp->parts[part].joint;
+        selected.part=(uint32_t)part;
         selected.parts=fp->parts;selected.package=package;
         selected.info=HSD_CLASS_METHOD(origin);
         if(object->obj_kind!=HSD_GObj_JObjKind||!selected.info||
@@ -168,7 +169,7 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
         EF_QueuedEffect* queued=HSD_ObjAlloc(&efAsync_AllocData);
         if(!queued){if(d)snprintf(d->message,sizeof(d->message),"Deferred effect queue capacity exhausted");return NativeScriptVM_Error;}
         *queued=(EF_QueuedEffect){.spawn_kind=EF_SPAWN_POS,.gfx_id=p->gfx_id,.jobj=origin,
-            .native_creator_generation=context->generation,.native_sample_part=(s16)raw_part,
+            .native_creator_generation=context->generation,.native_sample_part=(s16)selected.part,
             .native_script_owner=owner,.native_script_epoch=context->scene_epoch,
             .native_script_program_identity=p->identity,
             .native_script_layout_identity=view.storage->layout->identity,
