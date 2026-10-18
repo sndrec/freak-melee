@@ -93,6 +93,14 @@ bool nativeFighterProject_SetAttribute(NativeFighterProject* project,
 // Save fighter DAT edits atomically and retain the immediately previous file.
 bool nativeFighterProject_Save(const char* path,
                                const NativeFighterProject* project);
+// Save the matching fighter, animation, costume and owned rig facts together.
+// Validates the complete candidate before staging files. A failed replacement
+// restores the previous files; a successful save retains one complete asset
+// predecessor. This is operation-level rollback, not power-loss recovery.
+bool nativeFighterProject_SaveAssets(const char* path,
+    const NativeFighterProject* project, char* error, size_t error_size);
+bool nativeFighterProject_UndoLastAssetSave(const char* path,
+    char* error, size_t error_size);
 // Swap the saved fighter DAT with the previous saved version. Repeating this
 // operation toggles between the two states; current animation addresses are
 // retained and other projects are never affected.

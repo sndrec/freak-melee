@@ -1,8 +1,8 @@
 # Extra-bone authoring checkpoint
 
-The animation-node remapper is implemented and checked against the retail
-animation corpus. Adding, removing and reparenting bones in the Workshop remain
-open. The Model workspace does not expose a partial structural edit.
+The animation-node remapper and coordinated core-asset save are implemented.
+Adding, removing and reparenting bones in the Workshop remain open. The Model
+workspace does not expose a partial structural edit.
 
 ## Animation remapping
 
@@ -42,6 +42,68 @@ existing C implementation. The remapper and its test use that decoder directly.
 The existing reusable rest-transform and painting operations remain available.
 They do not change traversal order and do not imply structural editing is ready.
 
+## Coordinated core-asset saving
+
+The Workshop Save button now calls `nativeFighterProject_SaveAssets` once per
+edited family member. This publishes `fighter.dat`, `animation.dat`,
+`costume.dat` and `assets.fma` together. It imports the complete candidate and
+checks that the in-memory facts match the serialized facts before writing.
+Counts and bone mappings may change while the draft's identity remains the same.
+The editor marks its animation, action and model state saved after the save flow
+succeeds. The old UI helpers that performed separate animation/model saves were
+removed; the command-line tool retains its explicitly scoped editing operations.
+
+The save stages all four candidate files and their four matching predecessors.
+It then moves original destinations aside and replaces them. If any replacement
+fails, it restores the destinations in reverse order, including predecessor
+files already replaced. A no-change save keeps the existing predecessor.
+Files left by an interrupted operation are retained for inspection. This is
+rollback for a failed save operation; it does not promise crash/power-loss
+recovery or an atomic save of an entire two-member family.
+
+`nativeFighterProject_UndoLastAssetSave`, also exposed as
+`native_content_tool.exe project-assets-undo PROJECT_DIRECTORY`, restores the
+matching four-file predecessor. Repeating it toggles the two coherent asset
+sets. The files use the suffix `.rig.previous`. Scripts, parameter files and
+editor names keep their existing save paths; a future structural edit must also
+preserve their references and participate in in-memory editor Undo.
+
+`native_project_asset_save_test` creates simultaneous changes in all four
+assets: a new clip and its descriptor, a rest transform, and an owned gameplay
+option. It checks Save/reopen, no-change saves, invalid candidates, mismatched
+draft identity, pre-existing staging/recovery files, complete-asset Undo/Redo
+and unrelated-file preservation. It locks each of the eight destination files
+in turn to force failure at every replacement position, then compares all eight
+files with their exact pre-save contents.
+
+Results on copied Mario and Yoshi drafts: **424 checks each**, passing. Source
+draft hashes remain unchanged. The native Model workflow also passes through
+the new Save path: posed/animated painting, rest compensation, byte-exact
+Undo/Redo, reopen without the source GLB, and Test Character. The command-line
+complete-asset Undo/Redo round trip passes.
+
+Receipts:
+
+- `.local/native-project-assets-mario-1/receipt.json`
+- `.local/native-project-assets-yoshi-1/receipt.json`
+- `.local/native-project-assets-model-workflow-1/receipt.json`
+- `.local/native-project-assets-cli-1/receipt.json`
+
+Game SHA-256: `c49d27c674f20baccbd4f4fc7662f805286f7ceb9027c5ea79b2ba3e497f72fc`.
+Tool SHA-256: `cbe942dd1000880f7316368ee1c1fb8c0f3594df8bab229c5053035646612aee`.
+
+Reproduce the save-failure checks with a fresh output directory:
+
+```powershell
+python melee/tools/review_native_project_asset_save.py `
+  --exe melee/build/native/native_project_asset_save_test.exe `
+  --draft PATH_TO_DRAFT --output .local/project-asset-save-review
+```
+
+The review copies the draft before running the native test and checks that the
+source files remain unchanged. All validation/import and filesystem work happens
+at authoring transitions, with no added match-tick work.
+
 ## Verification
 
 `native_animation_nodes_test` compares decoded trees and retained serialized
@@ -74,5 +136,6 @@ python melee/tools/review_native_animation_nodes.py `
 
 The output directory must be new. The review records every bank failure, uses
 temporary extraction and does not change installed fighters or project drafts.
-These checks establish archive remapping; live extra-bone animation, skinning,
-gameplay and Save/Undo/Redo still require the complete rig transaction.
+The animation checks establish archive remapping. Live extra-bone animation,
+skinning, gameplay references and structural editor Undo/Redo still require
+the complete rig-edit transaction.

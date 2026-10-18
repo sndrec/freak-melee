@@ -1557,20 +1557,10 @@ void nativeShellWorkshopEditor_Update()
         std::max(height, 140) != session->graph_height)) show_animation_graph();
 }
 
-bool nativeShellWorkshopEditor_SaveAnimation(const char* path)
+void nativeShellWorkshopEditor_MarkAssetsSaved()
 {
-    if (!session->animation_dirty) return true;
-    if (session->project == nullptr ||
-        !nativeFighterProject_SaveAnimation(path, session->project))
-        return false;
+    session->action_dirty = false;
     session->animation_dirty = false;
-    session->action_dirty = false;
-    return true;
-}
-
-void nativeShellWorkshopEditor_MarkFighterSaved()
-{
-    session->action_dirty = false;
 }
 
 bool nativeShellWorkshopEditor_SaveScriptDraft()
