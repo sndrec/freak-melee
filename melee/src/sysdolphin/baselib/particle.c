@@ -28,6 +28,7 @@ typedef struct {
 #include "gobjobject.h"
 #include "mtx.h"
 #include "particle_state_internal.h"
+#include "psdisp_state_internal.h"
 #include "psappsrt.h"
 #include "psstructs.h"
 #include "random.h"
@@ -339,6 +340,10 @@ void hsd_80398A08(u32 unused)
     for (i = 0; i < 16; i++) {
         hsd_804D0908[i] = NULL;
     }
+    // The allocator reset invalidates the previous scene's sorted-list cache.
+    particle_display_frame = PS_DISPLAY_FRAME_INITIAL;
+    memset(particle_sort_frames, 0, sizeof(particle_sort_frames));
+    memset(particle_non_edge_heads, 0, sizeof(particle_non_edge_heads));
     particle_count = 0;
     particle_peak_count = 0;
     for (i = 0; i < 0x41; i++) {

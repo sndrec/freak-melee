@@ -73,12 +73,16 @@ def main():
     display_source='#include <sysdolphin/baselib/psdisp.h>\n#include <sysdolphin/baselib/psdisp_state_internal.h>\n#include <sysdolphin/baselib/particle_state_internal.h>\n#include <string.h>\ntypedef struct { HSD_Particle* head; HSD_Particle* tail; } psdisp_ParticleSortBucket;\n'
     (out/'particle_sort.c').write_text(display_source+function(display.read_text(),'particleSort')+'\n')
     units += [out/'particle_sort.c']
+    particle=base/'particle.c'
+    reset_source='#include <sysdolphin/baselib/particle.h>\n#include <sysdolphin/baselib/particle_state_internal.h>\n#include <sysdolphin/baselib/psdisp_state_internal.h>\n#include <string.h>\n'
+    (out/'particle_reset.c').write_text(reset_source+function(particle.read_text(),'hsd_80398A08')+'\n')
+    units += [out/'particle_reset.c']
     os_source = ROOT.parent/'aurora/lib/dolphin/os/OSAlloc.cpp'
     os = os_source.read_text().replace(function(os_source.read_text(),'OSDumpHeap'),'')
     os = os.replace('#include "../../logging.hpp"','').replace('static aurora::Module AllocLog("aurora::os::alloc");','')
     (out/'OSAlloc.cpp').write_text(os)
     inputs = units + [HERE/'snapshot_cases.h',HERE/'objalloc_cases.h',HERE/'objalloc_heap_cases.h',HERE/'class_cases.h',HERE/'class_arena_cases.h',HERE/'camera_cases.h',HERE/'stage_cases.h',HERE/'hazard_cases.h',HERE/'bubble_cases.h',HERE/'moving_cases.h',HERE/'grid_cases.h',HERE/'car_wind_cases.h',HERE/'pura_cases.h',HERE/'big_blue_cases.h',HERE/'generator_cases.h',HERE/'spawn_cases.h',HERE/'rainbow_cases.h',HERE/'fountain_cases.h',HERE/'effect_control_cases.h',HERE/'particle_control_cases.h',HERE/'versus_control_cases.h',HERE/'reference_benchmark.h',HERE/'id_cases.h',HERE/'os_heap_cases.h',HERE/'run.py',HERE/'README.md',HERE.parent/'hsd_reservation/extract.py',os_source,out/'OSAlloc.cpp',car,generator,generator_id,rainbow,effects,ROOT/'src/melee/gr/grizumi.c',args.compiler]
-    inputs += [display,lighting,HERE/'light_control_cases.h',HERE/'scene_history_cases.h']
+    inputs += [display,particle,lighting,HERE/'light_control_cases.h',HERE/'scene_history_cases.h']
     inputs += [material,HERE/'material_texture_cases.h']
     inputs += list(base.rglob('*.h')) + list((ROOT/'src/Runtime').rglob('*.h'))
     inputs += list((ROOT/'extern/dolphin/include').rglob('*.h')) + list((ROOT.parent/'aurora/include').rglob('*.h'))
