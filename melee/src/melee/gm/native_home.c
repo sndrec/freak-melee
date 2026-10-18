@@ -54,6 +54,8 @@
 #include <sysdolphin/baselib/dobj.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/jobj.h>
+#include <sysdolphin/baselib/mtx.h>
+#include <sysdolphin/baselib/quatlib.h>
 #include <sysdolphin/baselib/native_model_view.h>
 #include <sysdolphin/baselib/rumble_output.h>
 
@@ -634,6 +636,17 @@ void nativeHome_InspectWorkshop(void)
         OSReport("[workshop-member] member=%u id=%u kind=%u dormant=%u visible=%u procs=%u paused=%u frame=%.6f pos=%.6f,%.6f,%.6f\n",
             member, id, fp->kind, fp->x221F_b3, nativeHome_WorkshopFighterVisible(actor),
             procs, paused, fp->cur_anim_frame, fp->cur_pos.x, fp->cur_pos.y, fp->cur_pos.z);
+        if (member == home.workshop_member && fp->parts != NULL) {
+            const unsigned count = nativeHome_WorkshopBoneCount();
+            for (unsigned bone = 0; bone < count; ++bone) {
+                HSD_JObj* joint = fp->parts[bone].joint;
+                if (!joint) continue;
+                OSReport("[workshop-bone-runtime] index=%u flags=%08x rotation=%.9f,%.9f,%.9f,%.9f has_scale=%u accumulated=%.9f,%.9f,%.9f constraints=%u\n",
+                    bone, joint->flags, joint->rotate.x, joint->rotate.y, joint->rotate.z, joint->rotate.w,
+                    joint->scl != NULL, joint->scl ? joint->scl->x : 0.0f,
+                    joint->scl ? joint->scl->y : 0.0f, joint->scl ? joint->scl->z : 0.0f, joint->robj != NULL);
+            }
+        }
     }
 }
 
@@ -1043,9 +1056,20 @@ bool nativeHome_WorkshopBoneLocal(unsigned joint,
         GET_FIGHTER(gobj)->parts == NULL) return false;
     HSD_JObj* bone = GET_FIGHTER(gobj)->parts[joint].joint;
     if (bone == NULL) return false;
-    result->rotation[0] = bone->rotate.x;
-    result->rotation[1] = bone->rotate.y;
-    result->rotation[2] = bone->rotate.z;
+    Vec3 rotation = { bone->rotate.x, bone->rotate.y, bone->rotate.z };
+    if (bone->flags & JOBJ_USE_QUATERNION) {
+        const Quaternion* q = &bone->rotate;
+        if (!isfinite(q->x) || !isfinite(q->y) || !isfinite(q->z) ||
+            !isfinite(q->w) || !(q->x || q->y || q->z || q->w)) return false;
+        Mtx matrix;
+        Vec3 unit = { 1, 1, 1 }, origin = { 0, 0, 0 };
+        HSD_MtxSRTQuat(matrix, &unit, &bone->rotate, &origin, NULL);
+        HSD_QuatLib_8037EB28(matrix, &rotation);
+        if (!isfinite(rotation.x) || !isfinite(rotation.y) || !isfinite(rotation.z)) return false;
+    }
+    result->rotation[0] = rotation.x;
+    result->rotation[1] = rotation.y;
+    result->rotation[2] = rotation.z;
     result->scale[0] = bone->scale.x;
     result->scale[1] = bone->scale.y;
     result->scale[2] = bone->scale.z;
@@ -1073,6 +1097,10 @@ bool nativeHome_WorkshopSetBoneLocal(unsigned joint,
     bone->rotate.x = value->rotation[0];
     bone->rotate.y = value->rotation[1];
     bone->rotate.z = value->rotation[2];
+    // Workshop rotations are Euler channels. Animation blending may have left
+    // this joint in quaternion mode; its old W must not affect a manual pose.
+    bone->rotate.w = 0.0f;
+    HSD_JObjClearFlags(bone, JOBJ_USE_QUATERNION);
     bone->scale.x = value->scale[0];
     bone->scale.y = value->scale[1];
     bone->scale.z = value->scale[2];

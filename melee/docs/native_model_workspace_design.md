@@ -44,9 +44,8 @@ stroke rebuilds the mesh's envelope groups and participates in costume undo.
 The brush targets the current deformed vertices in Edit, Pose and Animation
 modes and writes weights in bind space. A stroke pauses clip playback. Temporary
 poses survive mesh rebuilds and mode switches. The
-[Model workflow checkpoint](native_model_workflow_checkpoint.md) records the
-saved-weight, Undo/Redo, reopen and practice checks, plus a small unresolved
-projection discrepancy after refresh.
+[Model workflow checkpoint](native_model_workflow_checkpoint.md) records passing
+saved-weight, Undo/Redo, reopen, practice and strict pose-refresh checks.
 The surface displays the selected bone's weight from blue through yellow and
 orange to red; the old palette-number editor and sampled vertex dots are gone.
 Internally, an HSD envelope palette groups bone/weight combinations; it does not

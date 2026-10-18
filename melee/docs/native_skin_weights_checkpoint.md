@@ -66,7 +66,7 @@ Compatible source JOINTS/WEIGHTS now import through the
 [rest compensation](native_model_rest_checkpoint.md) covers rigid, skinned and
 morph geometry. Imported skins also support posed and animated brush targeting.
 The [Model workflow checkpoint](native_model_workflow_checkpoint.md) records its
-native editing checks and the unresolved projection discrepancy after refresh.
+passing native editing and pose-refresh checks.
 
 Arbitrary stock DAT layouts, continuous triangle-surface brush hits, additional
 bones and DAT compaction remain open. User usability acceptance and the broader

@@ -21,6 +21,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['exe', 'tool', 'control', 'iso', 'draft', 'output']:
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--pose-refresh-only', action='store_true',
+                        help='Capture the pose/paint refresh state, without claiming workflow acceptance')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -148,6 +150,11 @@ def main():
             report_before=posed_report, report_after=report,
             state_before=posed_state, state_after=preview_state(client))
         (output/'pose-refresh.json').write_text(json.dumps(receipt['pose_refresh'], indent=2))
+        if args.pose_refresh_only:
+            (output/'receipt.json').write_text(json.dumps(dict(status='CAPTURED',
+                scope='pose refresh diagnostic only', pose_refresh=receipt['pose_refresh']), indent=2))
+            print('CAPTURED: pose refresh diagnostic; full workflow not run')
+            return
         if abs(retained[1]['screen'][0]-posed[1]['screen'][0]) >= 1e-6:
             receipt['failures'].append('Untouched vertex shifted after pose painting')
         painted = save(client)
