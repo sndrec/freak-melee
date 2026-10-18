@@ -4,6 +4,7 @@ import argparse, json, math, os, struct
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageFilter
 from prepare_menu_lettering import option_glyphs, caption_glyphs
+from prepare_menu_unicode import expand
 import re, xml.etree.ElementTree as ET
 from prepare_native_assets import extract_dol
 
@@ -125,17 +126,24 @@ def angular_glyphs(path, cap_height=24):
     if missing:raise ValueError('Missing angular glyphs '+str(missing))
     return glyphs
 
-def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False):
-    sheet=Image.new('LA' if outline else 'L',(1024,384));metrics=[]
-    for index,code in enumerate(range(32,127)):
-        c=chr(code);g=glyphs[c.upper() if caps and c.isalpha() else c]
-        if g.width>62 or g.height>62:raise ValueError('Oversized glyph '+c)
-        advance=g.width+tracking
+def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False,
+          font_path=None, font_size=24, raster=False):
+    glyphs, compositions = expand(glyphs, cap_height, tracking, caps,
+                                  font_path, font_size, raster)
+    if len(glyphs)>512 or len(compositions)>256:raise ValueError('GX font metadata capacity')
+    sheet=Image.new('LA' if outline else 'L',(1024,1024));metrics=[]
+    x=y=1;row_height=0
+    for c,(g,left,top,advance) in sorted(glyphs.items()):
         if outline:
             fill=Image.new('L',(g.width+4,g.height+4));fill.paste(g,(2,2))
             g=Image.merge('LA',(fill,fill.filter(ImageFilter.MaxFilter(5))))
-        x=index%16*64+1;y=index//16*64+1
-        sheet.paste(g,(x,y));metrics.append((x,y,g.width,g.height,advance))
+        if g.width>128 or g.height>96 or advance>160:raise ValueError('Oversized glyph '+ascii(c))
+        if x+g.width+1>1024:
+            x=1;y+=row_height+2;row_height=0
+        if y+g.height+1>1024:raise ValueError('GX font atlas capacity')
+        sheet.paste(g,(x,y));metrics.append((ord(c),x,y,g.width,g.height,advance,left,top,0))
+        x+=g.width+2;row_height=max(row_height,g.height)
+    sheet=sheet.crop((0,0,1024,(y+row_height+8)//8*8))
     raw=bytearray()
     for by in range(0,sheet.height,4 if outline else 8):
         for bx in range(0,sheet.width,8):
@@ -147,7 +155,9 @@ def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False):
                 else:
                     for xx in range(0,8,2):
                         raw.append((sheet.getpixel((bx+xx,by+yy))>>4)<<4 | sheet.getpixel((bx+xx+1,by+yy))>>4)
-    data=struct.pack('<5H',sheet.width,sheet.height,cap_height,95,2 if outline else 0)+b''.join(struct.pack('<5H',*m)for m in metrics)+raw
+    data=(struct.pack('<6H',sheet.width,sheet.height,cap_height,len(metrics),2 if outline else 0,len(compositions))+
+          b''.join(struct.pack('<I5H2hH',*m)for m in metrics)+
+          b''.join(struct.pack('<3I',*pair)for pair in compositions)+raw)
     path.parent.mkdir(parents=True,exist_ok=True)
     if not path.exists() or path.read_bytes()!=data:path.write_bytes(data)
     sheet.save(path.with_suffix('.png'))
@@ -163,11 +173,12 @@ if __name__=='__main__':
     name_seeds=[(0x29d80,'KIRBY'),(0x29d98,'BOWSER'),(0x29dc8,'LUIGI'),(0x29de0,'MARIO'),(0x29df8,'MARTH'),(0x29e28,'NESS'),(0x29e40,'PEACH'),(0x29ed0,'ZELDA'),(0x29ee8,'FALCO'),(0x2a05c,'FOX')]
     winner_seeds=[(0x2ab5c,'KIRBY'),(0x2ab74,'BOWSER'),(0x2abbc,'MARIO'),(0x2abd4,'MARTH'),(0x2ac04,'NESS'),(0x2ac1c,'PEACH'),(0x2acac,'ZELDA'),(0x2ab2c,'FOX'),(0x2ac7c,'SAMUS'),(0x2aba4,'LUIGI'),(0x2ab14,'DK')]
     fallback=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',24)
+    heavy=root/'assets/fonts/FolkPro-Heavy.otf'
     menu=disc_file(args.iso,'MnMaAll.usd')
     glyphs,height=option_glyphs(menu,fallback)
-    atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True)
+    atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True,font_path=heavy)
     glyphs,height=caption_glyphs(menu,fallback)
-    atlas(args.output/'menu-caption.bin',glyphs,height,1)
+    atlas(args.output/'menu-caption.bin',glyphs,height,1,font_path=heavy)
     for face,seeds,height,tracking in [('result-name',name_seeds,15,4),('result-winner',winner_seeds,28,5)]:
         glyphs={}
         for offset,letters in seeds:collect(mask(data,offset),letters,glyphs)
@@ -177,12 +188,12 @@ if __name__=='__main__':
             if c not in glyphs:
                 h=height if c.isalnum() else min(height,im.height)
                 glyphs[c]=im.resize((max(1,round(im.width*h/im.height)),h),Image.Resampling.LANCZOS)
-        atlas(args.output/(face+'.bin'),glyphs,height,tracking,True)
+        atlas(args.output/(face+'.bin'),glyphs,height,tracking,True,font_path=heavy)
     # The home prompt is a menu notice. Use the supplied game notice family;
     # the Melee logo's compressed lettering has a separate visual role.
     heading=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',32)
-    atlas(args.output/'menu-heading.bin',heading,24,1)
+    atlas(args.output/'menu-heading.bin',heading,24,1,font_path=heavy,font_size=32,raster=True)
     folk=raster_font(root/'assets/fonts/FolkPro-Medium.otf',32)
-    atlas(args.output/'notice.bin',folk,24,1)
+    atlas(args.output/'notice.bin',folk,24,1,font_path=root/'assets/fonts/FolkPro-Medium.otf',font_size=32,raster=True)
     glyphs=angular_glyphs(root/'assets/ui/fonts/angular_glyph_set.svg')
-    atlas(args.output/'css-tile.bin',glyphs,24,3,True)
+    atlas(args.output/'css-tile.bin',glyphs,24,3,True,font_path=heavy)
