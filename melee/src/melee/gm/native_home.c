@@ -3,6 +3,7 @@
 #include "native_home.h"
 #include <melee/mn/native_menu_scene.h>
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
+#include <sysdolphin/baselib/gobjproc.h>
 
 #include <melee/gr/forward.h>
 #include <melee/pl/forward.h>
@@ -82,6 +83,9 @@ static struct {
     ftData* workshop_pose_data;
     const NativeSourcePackage* workshop_pose_source;
     NativeFighterLifetime workshop_pose_lifetime;
+    NativeFighterLifetime workshop_companion_lifetime;
+    NativeMatchPoolReference workshop_companion_procs[32];
+    unsigned workshop_companion_proc_count;
     NativeFighterAnimationClip workshop_pose_clip;
     FigaTree* workshop_pose_tree;
     const struct FtCostumeAssets* workshop_pose_costume;
@@ -468,6 +472,16 @@ static bool workshop_pose_tree_valid(Fighter_GObj* object,
 
 void nativeHome_WorkshopPoseRelease(void)
 {
+    if (home.workshop_companion_lifetime.object && nativeHome_IsPractice() &&
+        nativeFighterLifetime_Current(&home.workshop_companion_lifetime)) {
+        for (unsigned i = 0; i < home.workshop_companion_proc_count; ++i) {
+            HSD_GObjProc* proc = nativeMatchPool_Resolve(home.workshop_companion_procs[i]);
+            if (proc && proc->gobj == home.workshop_companion_lifetime.object)
+                proc->flags_1 = 0;
+        }
+    }
+    home.workshop_companion_lifetime = (NativeFighterLifetime){0};
+    home.workshop_companion_proc_count = 0;
     nativeWorkshopGizmo_Clear();
     nativeModelView_Clear();
     if (home.workshop_camera_owned && nativeHome_IsPractice() &&
@@ -567,6 +581,75 @@ bool nativeHome_WorkshopCameraActive(void)
            workshop_preview_actor(false) == home.workshop_pose_gobj &&
            nativeCallbackSource_Alive(home.workshop_pose_gobj,
                home.workshop_pose_generation, NativeCallbackSource_Fighter);
+}
+
+bool nativeHome_WorkshopFighterVisible(Fighter_GObj* actor)
+{
+    if (!home.authoring || !home.preview_active || home.preview_live_test ||
+        !nativeHome_IsPractice()) return true;
+    return !home.preview_transitioning && actor == home.workshop_pose_gobj &&
+        nativeCallbackSource_Alive(actor, home.workshop_pose_generation,
+                                   NativeCallbackSource_Fighter) &&
+        nativeFighterLifetime_Current(&home.workshop_pose_lifetime);
+}
+
+void nativeHome_InspectWorkshop(void)
+{
+    OSReport("[workshop-preview] editing=%u live=%u transitioning=%u selected=%u\n",
+        home.authoring && home.preview_active, home.preview_live_test,
+        home.preview_transitioning, home.workshop_member);
+    if (!nativeHome_IsPractice() || home.preview_port >= GM_MAX_PLAYERS) return;
+    Fighter_GObj* leader = Player_GetEntityAtIndex((int)home.preview_port, 0);
+    uint32_t generation;
+    if (!nativeCallbackSource_Snapshot(leader, NativeCallbackSource_Fighter, &generation)) return;
+    for (unsigned member = 0; member < NATIVE_FIGHTER_FAMILY_MEMBERS; ++member) {
+        uint32_t id = nativeFighterRuntime_MemberId(leader, member);
+        Fighter_GObj* actor = id ? ftLib_8008741C(id) : NULL;
+        if (!nativeCallbackSource_Alive(actor, id, NativeCallbackSource_Fighter)) continue;
+        Fighter* fp = GET_FIGHTER(actor);
+        unsigned procs = 0, paused = 0;
+        for (HSD_GObjProc* p = actor->proc; p; p = p->child) {
+            ++procs;
+            paused += p->flags_1 != 0;
+        }
+        OSReport("[workshop-member] member=%u id=%u kind=%u dormant=%u visible=%u procs=%u paused=%u frame=%.6f pos=%.6f,%.6f,%.6f\n",
+            member, id, fp->kind, fp->x221F_b3, nativeHome_WorkshopFighterVisible(actor),
+            procs, paused, fp->cur_anim_frame, fp->cur_pos.x, fp->cur_pos.y, fp->cur_pos.z);
+    }
+}
+
+static bool workshop_hold_companion(Fighter_GObj* posed)
+{
+    if (home.workshop_companion_lifetime.object &&
+        nativeFighterLifetime_Current(&home.workshop_companion_lifetime)) return true;
+    home.workshop_companion_lifetime = (NativeFighterLifetime){0};
+    home.workshop_companion_proc_count = 0;
+    uint32_t id = nativeFighterRuntime_MemberId(posed, home.workshop_member ^ 1U);
+    Fighter_GObj* other = id ? ftLib_8008741C(id) : NULL;
+    if (!other || other == posed) return true;
+    if (!nativeCallbackSource_Alive(other, id, NativeCallbackSource_Fighter)) return false;
+    if (GET_FIGHTER(other)->x221F_b3) return true;
+    NativeFighterLifetime lifetime;
+    if (!nativeFighterLifetime_Capture(GET_FIGHTER(other), &lifetime)) return false;
+    // Fighter construction installs fifteen processes. Retain only processes
+    // suspended here, so pre-existing pauses survive release and member changes.
+    HSD_GObjProc* procs[32];
+    NativeMatchPoolReference refs[32];
+    unsigned count = 0;
+    for (HSD_GObjProc* proc = other->proc; proc; proc = proc->child) {
+        if (proc->flags_1) continue;
+        if (count == ARRAY_SIZE(procs) ||
+            !nativeMatchPool_Reference(&nativeGObjProcPool, proc, &refs[count])) return false;
+        procs[count++] = proc;
+    }
+    if (!nativeFighterLifetime_Current(&lifetime)) return false;
+    home.workshop_companion_lifetime = lifetime;
+    home.workshop_companion_proc_count = count;
+    for (unsigned i = 0; i < count; ++i) {
+        home.workshop_companion_procs[i] = refs[i];
+        procs[i]->flags_1 = 1;
+    }
+    return true;
 }
 
 static void workshop_preview_presentation_begin(void)
@@ -738,6 +821,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
     if (home.workshop_pose_gobj != gobj ||
         home.workshop_pose_generation != generation)
         nativeHome_WorkshopPoseRelease();
+    if (!workshop_hold_companion(gobj)) return false;
     if (!home.workshop_camera_active) {
         HSD_GObj* camera = Camera_80030A50();
         if (camera != NULL && camera->hsd_obj != NULL) {

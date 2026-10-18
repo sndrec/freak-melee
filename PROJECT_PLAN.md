@@ -274,8 +274,10 @@ step.
 - [ ] Review shared animation curves, hierarchy, pose copying, keys/tangents,
   playback, root motion and attachment edits through the native evaluator.
 - [ ] Verify Blender animation interchange and preservation of untouched tracks.
-- [ ] Finish paired-member preview presentation; show the chosen member while
-  editing and run the complete family during Test Character.
+- [x] Show the chosen member while editing paired fighters, holding both
+  companion actors, and run the complete family during Test Character.
+  [Native family checks](melee/docs/native_family_preview_checkpoint.md) cover
+  member switching, frozen frames/positions, live processing and editor return.
 - [ ] Exercise undo/recovery and coherent multi-file saves; claim only the
   failure/recovery boundaries actually tested.
 

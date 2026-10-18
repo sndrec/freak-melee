@@ -31,6 +31,7 @@ static U8Vec4 ftDrawCommon_804D3A90 = { 0x80, 0x80, 0x80, 0x80 };
 
 #ifdef MELEE_NATIVE
 #include "native_fighter_attachment.h"
+#include <melee/gm/native_home.h>
 
 static bool workshop_hitboxes;
 static bool workshop_hurtboxes;
@@ -306,6 +307,9 @@ void ftDrawCommon_800805C8(HSD_GObj* gobj, s32 arg1, bool arg2)
 
 void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
 {
+#ifdef MELEE_NATIVE
+    if (!nativeHome_WorkshopFighterVisible(gobj)) return;
+#endif
     Mtx sp70;
     Mtx sp18;
     f32* unused;
@@ -426,6 +430,9 @@ static inline void ftDrawCommon_80080E18_inline2(HSD_GObj* gobj, Fighter* old)
 
 void ftDrawCommon_80080E18(HSD_GObj* gobj, int arg1)
 {
+#ifdef MELEE_NATIVE
+    if (!nativeHome_WorkshopFighterVisible(gobj)) return;
+#endif
     Fighter* fp = gobj->user_data;
 
     if (!fp->x221F_b3 && ftLib_80086A8C(gobj)) {

@@ -1,4 +1,4 @@
-"""Extract actual home Action/Demo pose, release and shared figatree loader."""
+"""Extract actual home pose, companion hold, visibility and figatree loader."""
 import argparse
 import hashlib
 import json
@@ -33,6 +33,7 @@ def main():
     anim = ROOT/'src/melee/ft/ftanim.c'
     bodies = [body(home.read_text(encoding='utf-8'), name) for name in
         ['workshop_pose_span', 'workshop_pose_tree_valid', 'nativeHome_WorkshopPoseRelease',
+         'nativeHome_WorkshopFighterVisible', 'workshop_hold_companion',
          'nativeHome_WorkshopPose', 'nativeHome_WorkshopPoseInvalidate']]
     bodies.insert(0, body(anim.read_text(encoding='utf-8'), 'ftAnim_8006F7C8'))
     (out/'bodies.inc').write_text('\n\n'.join(bodies)+'\n', encoding='utf-8')
@@ -49,7 +50,7 @@ def main():
     inputs += list((ROOT/'src').rglob('*.h')) + list((ROOT/'extern/dolphin/include').rglob('*.h')) + list(compiler.parent.rglob('*'))
     receipt = {'status':'PENDING', 'command':list(map(str,command)),
         'inputs':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs if p.is_file()},
-        'scope':'actual home Pose/Release/Invalidate/tree validation and ftAnim loader; actual NativeFighterLifetime header and native_match_pool.c fixed storage; controlled source registry/program publication/actor view/callback generation, asset lookup/rig-validation, HSD animation allocation/evaluation, motion entry and camera; no companion mapping, VM execution, gameplay, renderer or UI claim'}
+        'scope':'actual home Pose/Release/Invalidate, companion process hold, fighter visibility, tree validation and ftAnim loader; actual NativeFighterLifetime header and native_match_pool.c fixed storage; controlled source registry/program publication/member IDs/actor view/callback generation, asset lookup/rig-validation, HSD animation allocation/evaluation, motion entry and camera; no actual family mapping, VM execution, gameplay, renderer pixels or UI claim'}
     try:
         for command, name in [(['cmd','/c',out/'compile.cmd'], 'compile'), ([out/'test.exe'], 'test')]:
             result = subprocess.run(list(map(str,command)), cwd=ROOT, capture_output=True,

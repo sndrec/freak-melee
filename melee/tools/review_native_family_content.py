@@ -278,6 +278,7 @@ class Review:
                     wait(lambda: 'text=Draft preview ready.' in receiver.inspect('workshop-editor-status'), 'partner preview')
                 receiver.click('workshop-mode-script'); receiver.click('workshop-script-validate')
                 wait(lambda: 'text=Source and fighter assets validated.' in receiver.inspect('workshop-script-status'), 'source closure '+case['label'])
+                case.setdefault('frozen_members', []).append(self.frozen(receiver, case, member))
                 receiver.screenshot()
                 self.cli(receiver, case['label']+f'-received-{member}', 'source-check', directory, directory/'behavior.fms')
             rebuilt = self.cli(receiver, case['label']+'-recipient-package', 'package-project', draft, draft/'portrait.png')
@@ -286,19 +287,58 @@ class Review:
             receiver.click('workshop-test-character')
             receiver.element('workshop-return-editor')
             time.sleep(4)
-            for _ in range(3):
-                receiver.tap('b', frames=2)
-                time.sleep(1)
+            # This fixture pulls unconditionally into an empty hand. One press
+            # exercises its owned item; another would fail with an occupied hand.
+            receiver.tap('b', frames=2)
+            time.sleep(1)
             image = receiver.screenshot()
             assert receiver.process.poll() is None
+            errors = re.findall(r'\[script\] Fighter .* event .* source .*',
+                                (receiver.folder/'stdout.log').read_text(errors='replace'))
+            assert not errors, errors
+            live = self.preview(receiver, case['count'])
+            assert live['live'] == 1
+            active = [m for m in live['members'] if not m['dormant']]
+            assert len(active) == (2 if case['mode'] == 2 else 1), live
+            assert all(m['visible'] and m['paused'] < m['procs'] for m in active), live
+            case['live_members'] = live
             receiver.click('workshop-return-editor')
             wait(lambda: 'text=Draft preview ready.' in receiver.inspect('workshop-editor-status'), 'return from received live test')
+            case['returned_preview'] = self.frozen(receiver, case, case['count']-1)
             case['live_test_capture'] = str(image)
             receiver.click('workshop-back-drafts'); receiver.element('edit-fighter')
             case['received_draft'] = str(draft)
             case['recipient_members_validated'] = case['count']
             self.save()
             print(case['label'] + ': every received member opens and validates with author offline', flush=True)
+
+    def preview(self, client, count):
+        log = client.folder/'stdout.log'
+        start = log.stat().st_size
+        client.command('ui-inspect', 'workshop-preview')
+        def sample():
+            with log.open(errors='replace') as file:
+                file.seek(start)
+                text = file.read()
+            header = re.search(r'\[workshop-preview\] editing=(\d+) live=(\d+) transitioning=(\d+) selected=(\d+)', text)
+            rows = re.findall(r'\[workshop-member\] member=(\d+) id=(\d+) kind=(\d+) dormant=(\d+) visible=(\d+) procs=(\d+) paused=(\d+) frame=([^ ]+) pos=([^\r\n]+)', text)
+            if not header or len(rows) != count:
+                return None
+            result = dict(zip(['editing', 'live', 'transitioning', 'selected'], map(int, header.groups())))
+            result['members'] = [dict(zip(['member', 'id', 'kind', 'dormant', 'visible', 'procs', 'paused'], map(int, row[:7])),
+                                      frame=row[7], position=row[8]) for row in rows]
+            return result
+        return wait(sample, 'family preview state', 5)
+
+    def frozen(self, client, case, member):
+        first = self.preview(client, case['count'])
+        assert first['editing'] and not first['live'] and not first['transitioning'] and first['selected'] == member, first
+        assert [m['member'] for m in first['members'] if m['visible']] == [member], first
+        assert all(m['dormant'] or (m['procs'] > 0 and m['paused'] == m['procs']) for m in first['members']), first
+        time.sleep(.7)
+        second = self.preview(client, case['count'])
+        assert first == second, (first, second)
+        return first
 
     def header(self, client):
         modes = [('action', 'workshop-action-viewport'), ('script', 'workshop-script-pane'),

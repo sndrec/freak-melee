@@ -6,6 +6,7 @@
 #include <melee/ft/native_fighter_animation_editor.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/mn/forward.h>
+#include <melee/ft/forward.h>
 
 typedef struct NativeFighterHitbox NativeFighterHitbox;
 
@@ -36,6 +37,9 @@ unsigned nativeHome_WorkshopInitialMember(unsigned port);
 bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame);
 void nativeHome_WorkshopSceneStarted(void);
 bool nativeHome_WorkshopCameraActive(void);
+// Frozen editing displays the selected actor. Live practice displays the family.
+bool nativeHome_WorkshopFighterVisible(Fighter_GObj* actor);
+void nativeHome_InspectWorkshop(void);
 void nativeHome_WorkshopCameraDrag(float dx, float dy, bool pan);
 void nativeHome_WorkshopCameraZoom(float wheel_steps);
 void nativeHome_WorkshopCameraReset(bool front);
