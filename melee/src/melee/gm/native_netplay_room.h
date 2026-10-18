@@ -12,6 +12,7 @@
 #include "native_netplay_exchange.h"
 #include "native_netplay_room_gift.h"
 #include "native_netplay_room_cache.h"
+#include "native_match_stream.h"
 
 typedef struct NativeNetplayRoomPeer {
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
@@ -46,6 +47,8 @@ typedef struct NativeNetplayRoom {
     NativeNetplayGift outgoing_gift;
     NativeNetplayGift incoming_gift;
     NativeRoomCache cache;
+    NativeMatchStream stream;
+    uint8_t* stream_storage;
     NativeContentId needed_content[8];
     char needed_sources[8][NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char content_failure[NATIVE_NETPLAY_CONNECTION_FAILURE_BYTES];

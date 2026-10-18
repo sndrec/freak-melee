@@ -73,6 +73,7 @@ typedef struct NativeMatchLaunch {
     bool netplay_local_peer_explicit;
     bool netplay_local_mask_explicit;
     bool netplay_delay_explicit;
+    uint8_t artificial_delay_frames;
     bool netplay_room_explicit;
     bool netplay_room_id_explicit;
     bool netplay_peer_id_explicit;
@@ -861,7 +862,7 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
                                  NativeConfirmedCheckpoint_MaxPrediction - 1,
                                  &frames);
             if (valid) {
-                launch.netplay.artificial_delay_frames = (uint8_t) frames;
+                launch.artificial_delay_frames = (uint8_t) frames;
                 launch.netplay_delay_explicit = true;
             }
         } else if (strcmp(key,"--script-kind")==0) {
@@ -1098,6 +1099,7 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
             return -1;
         }
         launch.netplay.room.enabled = has_room_netplay;
+        launch.netplay.artificial_delay_frames = launch.artificial_delay_frames;
         launch.netplay.enabled = true;
     }
     if (launch.stage == St_Kind_Practice && launch.netplay.enabled) {
@@ -1306,7 +1308,7 @@ bool nativeMatchLaunch_DirectPreparationFailed(void)
 
 uint8_t nativeMatchLaunch_ArtificialDelayFrames(void)
 {
-    return launch.netplay.artificial_delay_frames;
+    return launch.artificial_delay_frames;
 }
 
 bool nativeMatchLaunch_PrepareSuddenDeathFighters(void)

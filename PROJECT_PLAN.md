@@ -323,8 +323,10 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   in a second live match.
 - [ ] Implement and verify spectator match viewing and live catch-up. On a PC
   with no active fighters, keep local practice running until the player chooses
-  Watch match. Existing spectator roles and content connections do not yet
-  provide a match-viewing stream.
+  Watch match. The [confirmed input history](melee/docs/native_match_stream_checkpoint.md)
+  records the seed, exact match packages and corrected inputs. Viewer requests,
+  transport, playback and live catch-up remain open, including match start by
+  a room owner with no active fighter.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
