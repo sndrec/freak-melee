@@ -162,8 +162,7 @@ static bool workshop_motion_for_action(Fighter* fighter, unsigned action,
 bool nativeHome_CssPlayer(unsigned port, uint8_t* character, uint8_t* color)
 {
     if (port >= GM_MAX_PLAYERS || home.css == NULL ||
-        !nativeHome_IsSelection() ||
-        has_package_id(&home.fighter_packages[port])) {
+        !nativeHome_IsSelection()) {
         return false;
     }
     const PlayerInitData* player = &home.css->vs.start.players[port];
@@ -171,11 +170,13 @@ bool nativeHome_CssPlayer(unsigned port, uint8_t* character, uint8_t* color)
         player->slot_type != Gm_PKind_Cpu) {
         return false;
     }
+    if (!has_package_id(&home.fighter_packages[port]) &&
+        player->ckind >= CKind_Playable_Count) return false;
     if (character != NULL) {
-        *character = player->ckind;
+        *character = has_package_id(&home.fighter_packages[port]) ? 0 : player->ckind;
     }
     if (color != NULL) {
-        *color = player->color;
+        *color = has_package_id(&home.fighter_packages[port]) ? 0 : player->color;
     }
     return true;
 }
@@ -191,7 +192,9 @@ const NativeContentId* nativeHome_FighterPackage(unsigned port)
 void nativeHome_SelectFighterPackage(unsigned port, const NativeContentId* id)
 {
     if (port < GM_MAX_PLAYERS) {
-        home.fighter_packages[port] = id != NULL ? *id : (NativeContentId){ 0 };
+        NativeContentId next = id != NULL ? *id : (NativeContentId){0};
+        if (!memcmp(&home.fighter_packages[port], &next, sizeof(next))) return;
+        home.fighter_packages[port] = next;
         home.costume_packages[port] = (NativeContentId){ 0 };
         home.costume_fighters[port] = (NativeContentId){ 0 };
     }
@@ -275,12 +278,10 @@ bool nativeHome_SelectCostumePackage(unsigned port, const NativeContentId* id)
     uint8_t* package = NULL;
     size_t package_size;
     NativeCostumePackage metadata;
-    const uint8_t* dat;
-    size_t dat_size;
+    NativeCostumePackageData metadata_data;
     bool valid = nativeContentStore_IsInstalled(root, id) &&
                  nativeContentStore_Read(root, id, &package, &package_size) &&
-                 nativeContentStore_ParseCostume(package, package_size,
-                                                 &metadata, &dat, &dat_size) &&
+                 nativeContentStore_ParseCostume(package, package_size, &metadata, &metadata_data) &&
                  metadata.character == character &&
                  metadata.base_costume == color &&
                  memcmp(&metadata.fighter_id,

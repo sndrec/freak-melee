@@ -142,12 +142,10 @@ bool nativeNetplayRoom_OfferGift(NativeNetplayRoom* room, const char* peer_id,
     }
     NativeNetplayGift next = { 0 };
     NativeCostumePackage costume;
+    NativeCostumePackageData costume_data;
     NativeFighterPackage fighter;
     NativeFighterPackageData fighter_data;
-    const uint8_t* costume_dat;
-    size_t costume_size;
-    if (nativeContentStore_ParseCostume(bytes, size, &costume, &costume_dat,
-                                        &costume_size))
+    if (nativeContentStore_ParseCostume(bytes, size, &costume, &costume_data))
     {
         next.kind = NativeNetplayGift_Costume;
         memcpy(next.title, costume.title, sizeof(next.title));
@@ -379,12 +377,10 @@ static bool install_cached(NativeNetplayRoom* room)
     bool valid = false;
     if (gift->kind == NativeNetplayGift_Costume) {
         NativeCostumePackage costume;
-        const uint8_t* dat;
-        size_t dat_size;
+    NativeCostumePackageData costume_data;
         valid =
-            nativeContentStore_ParseCostume(bytes, size, &costume, &dat,
-                                            &dat_size) &&
-            nativeCostumePackage_Validate(&costume, dat, dat_size, root, NULL);
+            nativeContentStore_ParseCostume(bytes, size, &costume, &costume_data) &&
+            nativeCostumePackage_Validate(&costume, &costume_data, root, NULL);
     } else if (gift->kind == NativeNetplayGift_Fighter) {
         NativeFighterPackage fighter;
         NativeFighterPackageData data;

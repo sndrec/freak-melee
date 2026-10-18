@@ -13,16 +13,17 @@ extern "C" {
 #endif
 
 typedef struct NativeCostumeValidation {
+    unsigned member;
     unsigned import_status;
     size_t error_offset;
     size_t imported_records;
     size_t arena_used;
 } NativeCostumeValidation;
 
-// Checks the original costume DAT against the selected stock costume's required
-// symbols and typed model/material graph before it enters the collection.
+// Checks every outfit model against its parent's required symbols, skeleton
+// size and typed model/material graph before it enters the collection.
 bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
-                                   const void* dat, size_t dat_size,
+                                   const NativeCostumePackageData* data,
                                    const char* root,
                                    NativeCostumeValidation* result);
 

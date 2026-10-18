@@ -1,101 +1,76 @@
-# Native costume packages (foundation)
+# Outfit packages
 
-> Current cache/install semantics below remain relevant; dated compiled-module checkpoints are historical. Ordinary authored fighters now carry source/assets and run interpreted bytecode. Current source-only gifting/recipient-editing acceptance is still open; see [project plan](../../PROJECT_PLAN.md).
+The collection belongs to this installation. Choose a fighter on character
+select, then use X/Y to cycle its installed outfits. The player card shows the
+chosen outfit's name. The default choice uses the model included with the
+fighter.
 
-The local content store is per installation, under
-`%LOCALAPPDATA%\Freak Melee\content`. Its content-addressed `cache` directory
-holds complete packages, while `installed` contains separate collection
-markers. Receiving a package only caches it. An explicit acceptance installs
-the marker without transferring the DAT again. A verified SHA-256 package ID
-covers the costume metadata and the original DAT bytes, and files are staged
-and atomically moved into place. A bad cache file is rejected and can be
-repaired by receiving the valid package again.
+Open Settings > Costumes to import or choose outfits for local players. Select
+a player, then Import DAT. A custom outfit belongs to that exact fighter
+package. For paired custom fighters, the picker asks for each family member's
+model in order. Zelda/Sheik and Popo/Nana each use one coordinated outfit.
+Every model must match its member's skeleton. The import finishes after all
+models pass validation. The first filename supplies the outfit name.
 
-At the home CSS, select a fighter and base color, open that player's COSTUMES
-picker, and choose **Import DAT**. The Windows file picker accepts an
-original-format `.dat`; the client validates it for that fighter and color,
-uses the filename as its collection name, installs it, and selects it for that
-player. Import runs only in the menu, before match simulation. The developer
-tool also supports scripted import and package inspection:
+Stock character costumes use their original character and base color. Custom
+outfits have a separate model variant value that scripts can read for cosmetic
+choices. Selecting an outfit preserves the fighter's moves and parameters.
+
+## Receiving and accepting
+
+Packages are stored in `%LOCALAPPDATA%\Freak Melee\content`. Downloaded
+packages enter `cache`. Explicit acceptance adds them to the installed
+collection. A custom outfit requires its exact parent fighter package;
+accepting it installs that cached parent too. Another clone with the same
+skeleton does not satisfy this dependency.
+
+The package ID covers the title, member mapping, model variant and complete
+model data. Corrupt cached files are rejected. Repeated acceptance keeps one
+installation. Failed outfit installation preserves a parent that was already
+installed and removes a parent marker newly added by that failed attempt.
+
+A room selection carries the fighter and outfit package IDs. Remote match
+setup can load cached outfits without adding them to the local collection.
+Gift transfer currently requests the outfit alone. Requesting a missing parent
+fighter during that transfer remains implementation work.
+See the [current plan](../../PROJECT_PLAN.md) for the remaining room and release
+acceptance.
+
+## Developer commands
+
+Run `native_content_tool.exe` from the native build directory. Use `--root
+DIRECTORY` before the command to select an isolated content store.
 
 ```powershell
-build/native/native_content_tool.exe import-costume "C:\skins\PlMrNr.dat" Mario 0 "My Mario skin"
-build/native/native_content_tool.exe list
-build/native/native_content_tool.exe export <package-id> "C:\skins\mario.fmc"
-build/native/native_content_tool.exe cache "C:\skins\mario.fmc"
-build/native/native_content_tool.exe accept <package-id>
+.\native_content_tool.exe import-costume "C:\skins\PlMrNr.dat" Mario 0 "My Mario outfit"
+.\native_content_tool.exe import-custom-costume "C:\skins\custom.dat" FIGHTER_ID "My outfit" 3
+.\native_content_tool.exe import-custom-costume "C:\skins\paired-outfit" FIGHTER_ID "Coordinated outfit" 7
+.\native_content_tool.exe list
+.\native_content_tool.exe export PACKAGE_ID "C:\skins\outfit.fmc"
+.\native_content_tool.exe cache "C:\skins\outfit.fmc"
+.\native_content_tool.exe accept PACKAGE_ID
 ```
 
-`import-costume` validates the selected stock character and base costume's
-required joint/material symbols through the same typed DAT importer used by
-the native fighter loader. It then caches and installs the package. `cache`
-preflights stock DATs but leaves packages non-selectable. A custom-fighter
-costume can be cached before its parent arrives; its graph is checked when
-accepted or selected;
-`accept` preflights a cached package and installs it. The optional `--root
-DIRECTORY` flag isolates a store for testing. `extract-stock ISO Mario 0
-OUTPUT.dat` extracts a known original costume for authoring or diagnosis.
-Names with spaces must be quoted.
+For a single-member custom fighter, import a DAT or a directory. Paired imports
+use a directory containing `MEMBER_KEY.dat` for every member, such as `main.dat`
+and `partner.dat`. `list` prints the parent fighter's member keys. The optional
+last number is the model variant, from 0 to 255.
 
-An installed costume can now be selected for a direct-start match with
-`--p1-skin <package-id>` through `--p4-skin <package-id>`. `--content-root
-DIRECTORY` can point a test run at an isolated collection. The loader imports
-the selected model and material animation once at startup, then resolves them
-per fighter slot during model creation. The original stock costume index stays
-in the fighter for gameplay-specific color logic. The replay signature includes
-the package ID. A package must be installed and match the selected character
-and base costume; cached-only local selections, mismatched packages, and raw
-UDP netplay selections are refused. For room-signaled direct matches, the
-proposal carries the costume package ID. Each peer can load the exact cached
-package for rendering without installing it into their collection. During
-room match setup, an absent selected costume is requested from its owning
-peer over the room connection, verified against its package ID, and cached
-before that peer marks the match ready.
+Import validates model symbols, skeleton size and material data. Cache verifies
+the package structure and identity. Acceptance validates every model against the
+cached parent before adding both packages to the collection. Imports and model
+loading run at menu or scene transitions.
 
-The home character-select screen now shows compatible installed costume
-packages for each local fighter. Choose a stock character and base costume,
-then use COSTUMES in the right rail before pressing Start for practice. The
-selection follows that player into practice and is published with the room
-selection. When the owner starts a room match, stage select carries the exact
-package ID into the canonical match; peers receive missing packages during
-match setup. The picker refreshes its installed collection after an in-client
-import; external imports made while the client is running appear on the next
-CSS entry.
-Installed custom fighter bundles also appear on the original CSS; their
-package identities follow room selection and are cached automatically by
-other match peers. The Collection menu lists installed fighter and costume
-packages and lets a player offer one to another connected room member. The
-recipient can decline or accept and install it. If the package is already in
-their verified cache, acceptance installs it without transferring the bytes
-again. Otherwise the room connection transfers it, verifies the package ID,
-then installs it. An offer alone does not create a cache or installed entry.
+Custom outfits now carry a member directory. Rebuild earlier development custom
+outfit packets from their DATs. The stock costume packet encoding is unchanged.
+Fighter packages are unchanged.
 
-The current preflight
-verifies the named DAT model/material graph; it does not yet prove a custom
-skeleton is fully compatible with every fighter animation or that a costume
-changes no gameplay assets. Ice Climbers and other multi-asset cases need
-explicit dependency handling before full selectable support.
+The [coordinated outfit checkpoint](native_family_outfit_checkpoint.md) records
+current local import, runtime and CSS-to-practice checks.
 
-The room-selection and canonical match packets now have separate full SHA-256
-package identities for a fighter definition and its costume, alongside their
-stable character and base-costume IDs. Stock selections remain compact in room
-presence; custom IDs use explicit optional fields. The signaling service source
-allows a complete four-player selection with both IDs. The home CSS publishes
-selected installed costume and custom fighter identities. The online client
-requires the exact cached fighter bundle and a matching native behavior
-definition before the game begins. A costume package also requires the exact
-cached package. This prevents an apparently agreed custom selection from
-silently appearing as stock on another PC. Custom-fighter costumes now carry
-the exact parent fighter package ID. Their DAT is checked against that
-fighter's costume symbols and bone count rather than a stock character table.
-An installed parent can receive an extra costume through
-`import-custom-costume DAT FIGHTER_ID TITLE`. Recipients may cache the costume
-first, but explicit installation requires the parent bundle in cache. A
-costume for another clone is rejected even when both clones share Mario's
-skeleton. Direct matches and room match assembly load the matching extra
-costume after both packages are present. The original CSS picker does not yet
-expose extra costumes for custom fighters; its UI remains for the collaborative
-pass.
+## Earlier checkpoints
+
+The records below describe the builds and fixtures tested on their stated dates.
 
 On 2026-09-23, the release build and all 357 serial CTests passed. A real
 Mario costume DAT was extracted from the USA v1.02 ISO, imported into an

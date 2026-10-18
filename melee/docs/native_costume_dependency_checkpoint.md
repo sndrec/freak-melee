@@ -28,3 +28,6 @@ and model validation. Receipt, input hashes and command logs are in
 These checks cover cached dependency retention. They do not establish automatic
 dependency transfer, coordinated paired outfits, CSS outfit cycling or match
 rendering. Those remain part of the current content integration task.
+
+The later [coordinated outfit checkpoint](native_family_outfit_checkpoint.md)
+adds paired custom outfits, X/Y selection and native practice checks.

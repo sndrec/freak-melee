@@ -3,6 +3,7 @@
 #include "native_menu_font.h"
 #include "native_menu_portrait.h"
 #include <melee/gm/native_home.h>
+#include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_stock_content.h>
 #include <melee/pl/forward.h>
@@ -22,6 +23,7 @@
 #include <sysdolphin/baselib/tev.h>
 #include <dolphin/gx.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 enum {
@@ -40,6 +42,7 @@ typedef struct CardArt {
     CardPart parts[PARTS];
     NativeMenuPortrait portrait;
     NativeLobbyPlayerSelection loaded_choice;
+    char outfit[NATIVE_CONTENT_TITLE_BYTES];
     float original_left;
     unsigned appearance;
     bool attempted;
@@ -236,6 +239,9 @@ static void draw(HSD_GObj* object, int pass)
                                                         : "Choose a fighter";
             nativeMenuFont_Draw(NativeMenuFont_Tile, title, x + .4f, -20.5f,
                                 .8f, 13.2f, 1.15f, 0xF5EFEAFF, true, true);
+            if (art->outfit[0])
+                nativeMenuFont_Draw(NativeMenuFont_Notice, art->outfit,
+                    x + .4f, -23.2f, .8f, 13.2f, .65f, 0xF5EFEAFF, true, true);
             nativeMenuFont_Draw(NativeMenuFont_Notice,
                                 person->kind == Gm_PKind_NA ? "Quick Play"
                                 : person->ready             ? "Ready"
@@ -337,6 +343,8 @@ void nativeCssCards_Update(void)
         }
         if (choice->selected) {
             choice->team = player->team;
+            const NativeContentId* outfit = nativeHome_CostumePackage(port);
+            if (outfit) choice->costume_package_id = *outfit;
         }
     }
     const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
@@ -358,6 +366,20 @@ void nativeCssCards_Update(void)
         {
             art->attempted = true;
             art->loaded_choice = person->choice;
+            art->outfit[0] = 0;
+            if (nonzero(&person->choice.costume_package_id)) {
+                char default_root[512];
+                const char* root = nativeMatchLaunch_ContentRoot();
+                if (!root && nativeContentStore_DefaultRoot(default_root, sizeof(default_root))) root = default_root;
+                uint8_t* bytes = NULL;
+                size_t size;
+                NativeCostumePackage metadata;
+                NativeCostumePackageData data;
+                if (root && nativeContentStore_Read(root, &person->choice.costume_package_id, &bytes, &size) &&
+                    nativeContentStore_ParseCostume(bytes, size, &metadata, &data))
+                    memcpy(art->outfit, metadata.title, sizeof(art->outfit));
+                free(bytes);
+            }
             nativeMenuPortrait_Load(&art->portrait,
                                     &person->choice.character_package_id,
                                     person->choice.character_id);
@@ -438,9 +460,9 @@ void nativeCssCards_Inspect(void)
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
                 "[css-card] display=%u peer=%s seat=%u physical=%u "
-                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14 portrait=%u title=%s\n",
+                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14 portrait=%u title=%s outfit=%s\n",
                 i, p->peer, p->seat, p->physical_port, p->canonical_port,
                 p->local, p->ready, p->choice.selected, card_left(i) + 7.4f,
-                cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title);
+                cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title, cards.art[i].outfit);
     }
 }

@@ -14,7 +14,10 @@
 
 enum {
     COSTUME_HEADER_BYTES = 76,
-    CUSTOM_COSTUME_HEADER_BYTES = COSTUME_HEADER_BYTES + NATIVE_CONTENT_ID_BYTES,
+    CUSTOM_COSTUME_DIRECTORY = COSTUME_HEADER_BYTES + NATIVE_CONTENT_ID_BYTES,
+    COSTUME_MEMBER_BYTES = NATIVE_FIGHTER_CODE_KEY_BYTES + 4,
+    CUSTOM_COSTUME_HEADER_BYTES = CUSTOM_COSTUME_DIRECTORY +
+        NATIVE_FIGHTER_FAMILY_MEMBERS * COSTUME_MEMBER_BYTES,
     INSTALLED_MARKER_BYTES = 4 + NATIVE_CONTENT_ID_BYTES,
 };
 
@@ -101,50 +104,64 @@ bool nativeContentStore_IdFromHex(const char* hex, NativeContentId* id)
     return true;
 }
 
+static bool costume_key(const char* key)
+{
+    size_t length = strnlen(key, NATIVE_FIGHTER_CODE_KEY_BYTES);
+    if (length == 0 || length == NATIVE_FIGHTER_CODE_KEY_BYTES) return false;
+    for (size_t i = 0; i < length; ++i) {
+        char c = key[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '_' || c == '-')) return false;
+    }
+    return true;
+}
+
 bool nativeContentStore_BuildCostume(const NativeCostumePackage* costume,
-                                    const void* dat, size_t dat_size,
+                                    const NativeCostumePackageData* data,
                                     uint8_t** package, size_t* package_size,
                                     NativeContentId* id)
 {
-    const NativeContentId empty_id = { 0 };
-    bool custom = costume != NULL &&
-                  memcmp(&costume->fighter_id, &empty_id,
-                         sizeof(empty_id)) != 0;
-    size_t header_size = custom ? CUSTOM_COSTUME_HEADER_BYTES
-                                : COSTUME_HEADER_BYTES;
-    if (costume == NULL || dat == NULL || dat_size < 32 ||
-        dat_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - header_size ||
-        (custom && (costume->character != 0 ||
-                    costume->base_costume != 0)) ||
-        package == NULL || package_size == NULL || id == NULL) {
-        return false;
+    if (!costume || !data || !package || !package_size || !id) return false;
+    const NativeContentId empty_id = {0};
+    bool custom = memcmp(&costume->fighter_id, &empty_id, sizeof(empty_id)) != 0;
+    unsigned count = costume->member_count;
+    size_t header = custom ? CUSTOM_COSTUME_HEADER_BYTES : COSTUME_HEADER_BYTES;
+    size_t title = strnlen(costume->title, NATIVE_CONTENT_TITLE_BYTES);
+    if (!count || count > NATIVE_FIGHTER_FAMILY_MEMBERS || !title ||
+        title == NATIVE_CONTENT_TITLE_BYTES ||
+        (custom ? (costume->character || costume->base_costume) : count != 1)) return false;
+    size_t total = header;
+    for (unsigned m = 0; m < count; ++m) {
+        if (!data->members[m].dat || data->members[m].size < 32 ||
+            data->members[m].size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - total ||
+            (custom && (!costume_key(costume->member_keys[m]) ||
+                (m && !strcmp(costume->member_keys[0], costume->member_keys[m]))))) return false;
+        total += data->members[m].size;
     }
-    size_t title_size = strnlen(costume->title, NATIVE_CONTENT_TITLE_BYTES);
-    if (title_size == 0 || title_size >= NATIVE_CONTENT_TITLE_BYTES) {
-        return false;
-    }
-    size_t total = header_size + dat_size;
-    uint8_t* built = malloc(total);
-    if (built == NULL) {
-        return false;
-    }
-    memset(built, 0, header_size);
+    for (unsigned m = count; m < NATIVE_FIGHTER_FAMILY_MEMBERS; ++m)
+        if (data->members[m].dat || data->members[m].size || costume->member_keys[m][0]) return false;
+    if (!custom && costume->member_keys[0][0]) return false;
+    uint8_t* built = calloc(1, total);
+    if (!built) return false;
     memcpy(built, package_magic, sizeof(package_magic));
     built[4] = custom ? 3 : 1;
     built[5] = custom ? costume->model_variant : costume->character;
-    built[6] = costume->base_costume;
-    built[7] = (uint8_t) title_size;
-    write_u32(built + 8, (uint32_t) dat_size);
-    memcpy(built + 12, costume->title, title_size);
-    if (custom) {
-        memcpy(built + COSTUME_HEADER_BYTES, costume->fighter_id.bytes,
-               NATIVE_CONTENT_ID_BYTES);
+    built[6] = custom ? count : costume->base_costume;
+    built[7] = title;
+    write_u32(built + 8, (uint32_t)(total - header));
+    memcpy(built + 12, costume->title, title);
+    if (custom) memcpy(built + COSTUME_HEADER_BYTES, costume->fighter_id.bytes, NATIVE_CONTENT_ID_BYTES);
+    size_t offset = header;
+    for (unsigned m = 0; m < count; ++m) {
+        if (custom) {
+            uint8_t* entry = built + CUSTOM_COSTUME_DIRECTORY + m * COSTUME_MEMBER_BYTES;
+            memcpy(entry, costume->member_keys[m], strlen(costume->member_keys[m]));
+            write_u32(entry + NATIVE_FIGHTER_CODE_KEY_BYTES, data->members[m].size);
+        }
+        memcpy(built + offset, data->members[m].dat, data->members[m].size);
+        offset += data->members[m].size;
     }
-    memcpy(built + header_size, dat, dat_size);
-    if (!nativeContent_Hash(built, total, id)) {
-        free(built);
-        return false;
-    }
+    if (!nativeContent_Hash(built, total, id)) { free(built); return false; }
     *package = built;
     *package_size = total;
     return true;
@@ -152,47 +169,49 @@ bool nativeContentStore_BuildCostume(const NativeCostumePackage* costume,
 
 bool nativeContentStore_ParseCostume(const void* package, size_t package_size,
                                     NativeCostumePackage* costume,
-                                    const uint8_t** dat, size_t* dat_size)
+                                    NativeCostumePackageData* data)
 {
-    if (package == NULL || package_size < COSTUME_HEADER_BYTES + 32 ||
-        package_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES || costume == NULL ||
-        dat == NULL || dat_size == NULL) {
-        return false;
-    }
+    if (!package || !costume || !data || package_size < COSTUME_HEADER_BYTES + 32 ||
+        package_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES) return false;
     const uint8_t* bytes = package;
     bool custom = bytes[4] == 3;
-    size_t header_size = custom ? CUSTOM_COSTUME_HEADER_BYTES
-                                : COSTUME_HEADER_BYTES;
-    unsigned title_size = bytes[7];
-    if (memcmp(bytes, package_magic, sizeof(package_magic)) != 0 ||
-        (bytes[4] != 1 && !custom) ||
-        package_size < header_size + 32 ||
-        (custom && (bytes[6] != 0 ||
-                    zero_padding(bytes, COSTUME_HEADER_BYTES,
-                                 CUSTOM_COSTUME_HEADER_BYTES))) ||
-        title_size == 0 ||
-        title_size >= NATIVE_CONTENT_TITLE_BYTES ||
-        read_u32(bytes + 8) != package_size - header_size ||
-        bytes[12 + title_size] != 0 ||
-        memchr(bytes + 12, 0, title_size) != NULL) {
-        return false;
-    }
-    for (unsigned i = title_size; i < NATIVE_CONTENT_TITLE_BYTES; ++i) {
-        if (bytes[12 + i] != 0) {
-            return false;
+    size_t header = custom ? CUSTOM_COSTUME_HEADER_BYTES : COSTUME_HEADER_BYTES;
+    unsigned count = custom ? bytes[6] : 1;
+    unsigned title = bytes[7];
+    if (memcmp(bytes, package_magic, sizeof(package_magic)) ||
+        (bytes[4] != 1 && !custom) || package_size < header + 32 ||
+        !count || count > NATIVE_FIGHTER_FAMILY_MEMBERS || !title ||
+        title >= NATIVE_CONTENT_TITLE_BYTES || memchr(bytes + 12, 0, title) ||
+        !zero_padding(bytes, 12 + title, COSTUME_HEADER_BYTES) ||
+        read_u32(bytes + 8) != package_size - header ||
+        (custom && zero_padding(bytes, COSTUME_HEADER_BYTES, CUSTOM_COSTUME_DIRECTORY))) return false;
+    NativeCostumePackage parsed = {0};
+    NativeCostumePackageData spans = {0};
+    parsed.character = custom ? 0 : bytes[5];
+    parsed.base_costume = custom ? 0 : bytes[6];
+    parsed.model_variant = custom ? bytes[5] : bytes[6];
+    parsed.member_count = count;
+    memcpy(parsed.title, bytes + 12, title);
+    if (custom) memcpy(parsed.fighter_id.bytes, bytes + COSTUME_HEADER_BYTES, NATIVE_CONTENT_ID_BYTES);
+    size_t offset = header;
+    for (unsigned m = 0; m < count; ++m) {
+        size_t size = package_size - header;
+        if (custom) {
+            const uint8_t* entry = bytes + CUSTOM_COSTUME_DIRECTORY + m * COSTUME_MEMBER_BYTES;
+            memcpy(parsed.member_keys[m], entry, NATIVE_FIGHTER_CODE_KEY_BYTES);
+            if (!costume_key(parsed.member_keys[m]) ||
+                !zero_padding(entry, strlen(parsed.member_keys[m]), NATIVE_FIGHTER_CODE_KEY_BYTES) ||
+                (m && !strcmp(parsed.member_keys[0], parsed.member_keys[m]))) return false;
+            size = read_u32(entry + NATIVE_FIGHTER_CODE_KEY_BYTES);
         }
+        if (size < 32 || size > package_size - offset) return false;
+        spans.members[m] = (NativeCostumeMemberData){bytes + offset, size};
+        offset += size;
     }
-    memset(costume, 0, sizeof(*costume));
-    costume->character = custom ? 0 : bytes[5];
-    costume->base_costume = bytes[6];
-    costume->model_variant = custom ? bytes[5] : bytes[6];
-    if (custom) {
-        memcpy(costume->fighter_id.bytes, bytes + COSTUME_HEADER_BYTES,
-               NATIVE_CONTENT_ID_BYTES);
-    }
-    memcpy(costume->title, bytes + 12, title_size);
-    *dat = bytes + header_size;
-    *dat_size = package_size - header_size;
+    if (offset != package_size || (custom && !zero_padding(bytes,
+        CUSTOM_COSTUME_DIRECTORY + count * COSTUME_MEMBER_BYTES, header))) return false;
+    *costume = parsed;
+    *data = spans;
     return true;
 }
 
@@ -201,10 +220,9 @@ static bool valid_package_structure(const void* package, size_t package_size)
     NativeCostumePackage costume;
     NativeFighterPackage fighter;
     NativeFighterPackageData fighter_data;
-    const uint8_t* costume_dat;
-    size_t costume_size;
+    NativeCostumePackageData costume_data;
     return nativeContentStore_ParseCostume(package, package_size, &costume,
-                                           &costume_dat, &costume_size) ||
+                                           &costume_data) ||
            nativeContentStore_ParseFighter(package, package_size, &fighter,
                                            &fighter_data);
 }
@@ -410,11 +428,10 @@ bool nativeContentStore_Install(const char* root, const NativeContentId* id)
     NativeContentId installs[2] = { *id };
     unsigned count = 1;
     NativeCostumePackage costume;
-    const uint8_t* dat;
-    size_t dat_size;
+    NativeCostumePackageData costume_data;
     const NativeContentId empty = {0};
     bool dependent = nativeContentStore_ParseCostume(bytes, size, &costume,
-        &dat, &dat_size) && memcmp(&costume.fighter_id, &empty, sizeof(empty)) != 0;
+        &costume_data) && memcmp(&costume.fighter_id, &empty, sizeof(empty)) != 0;
     free(bytes);
     if (dependent) {
         // Source/asset validation belongs to the accepting caller. The store

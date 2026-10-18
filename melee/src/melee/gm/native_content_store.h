@@ -15,6 +15,8 @@ enum {
     NATIVE_CONTENT_ID_BYTES = 32,
     NATIVE_CONTENT_TITLE_BYTES = 64,
     NATIVE_CONTENT_MAX_PACKAGE_BYTES = 64 * 1024 * 1024,
+    NATIVE_FIGHTER_CODE_KEY_BYTES = 32,
+    NATIVE_FIGHTER_FAMILY_MEMBERS = 2,
 };
 
 typedef struct NativeContentId {
@@ -29,12 +31,19 @@ typedef struct NativeCostumePackage {
     // Zero for a stock fighter. Custom costumes belong to this exact bundle.
     NativeContentId fighter_id;
     char title[NATIVE_CONTENT_TITLE_BYTES];
+    uint8_t member_count;
+    // Custom outfit entries follow the exact parent family's member order.
+    char member_keys[NATIVE_FIGHTER_FAMILY_MEMBERS][NATIVE_FIGHTER_CODE_KEY_BYTES];
 } NativeCostumePackage;
 
-enum {
-    NATIVE_FIGHTER_CODE_KEY_BYTES = 32,
-    NATIVE_FIGHTER_FAMILY_MEMBERS = 2,
-};
+typedef struct NativeCostumeMemberData {
+    const uint8_t* dat;
+    size_t size;
+} NativeCostumeMemberData;
+
+typedef struct NativeCostumePackageData {
+    NativeCostumeMemberData members[NATIVE_FIGHTER_FAMILY_MEMBERS];
+} NativeCostumePackageData;
 
 typedef enum NativeFighterFamilyMode {
     NativeFighterFamily_Single,
@@ -79,16 +88,16 @@ typedef struct NativeFighterPackageData {
     NativeFighterMemberData members[NATIVE_FIGHTER_FAMILY_MEMBERS];
 } NativeFighterPackageData;
 
-// A package contains one original-format costume DAT. Stock packages keep
-// their original encoding; custom packages carry the owning fighter ID.
+// A stock outfit contains one DAT. A custom outfit contains every parent
+// family member's DAT, identified by the parent's stable member keys.
 // Building does not validate the DAT graph; importers must do that first.
 bool nativeContentStore_BuildCostume(const NativeCostumePackage* costume,
-                                    const void* dat, size_t dat_size,
+                                    const NativeCostumePackageData* data,
                                     uint8_t** package, size_t* package_size,
                                     NativeContentId* id);
 bool nativeContentStore_ParseCostume(const void* package, size_t package_size,
                                     NativeCostumePackage* costume,
-                                    const uint8_t** dat, size_t* dat_size);
+                                    NativeCostumePackageData* data);
 
 // One content identity owns the portrait and source member payloads. The
 // canonical source format carries Single or two-member alternate/companion families.

@@ -81,12 +81,10 @@ void load_items()
         CollectionItem item = {};
         item.id = ids[index];
         NativeCostumePackage costume;
+    NativeCostumePackageData costume_data;
         NativeFighterPackage fighter;
         NativeFighterPackageData fighter_data;
-        const uint8_t* dat;
-        size_t dat_size;
-        if (nativeContentStore_ParseCostume(bytes, size, &costume, &dat,
-                                            &dat_size)) {
+        if (nativeContentStore_ParseCostume(bytes, size, &costume, &costume_data)) {
             item.kind = NativeNetplayGift_Costume;
             std::memcpy(item.title, costume.title, sizeof(item.title));
         } else if (nativeContentStore_ParseFighter(bytes, size, &fighter,

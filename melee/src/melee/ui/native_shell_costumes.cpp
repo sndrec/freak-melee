@@ -7,6 +7,8 @@
 #include <commdlg.h>
 
 #include <melee/ft/native_costume_import.h>
+#include <melee/ft/native_costume_catalog.h>
+#include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_match_launch.h>
@@ -19,15 +21,8 @@
 
 namespace {
 
-enum { MAX_COSTUMES = 512 };
-
-struct CostumeEntry {
-    NativeContentId id;
-    NativeCostumePackage metadata;
-};
-
 Rml::ElementDocument* document;
-CostumeEntry catalog[MAX_COSTUMES];
+const NativeCostumeEntry* catalog;
 size_t catalog_count;
 bool selection_active;
 bool opened;
@@ -36,6 +31,7 @@ int open_port = -1;
 uint8_t shown_characters[4];
 uint8_t shown_colors[4];
 NativeContentId shown_packages[4];
+NativeContentId shown_fighters[4];
 bool shown_players[4];
 
 const char* character_names[] = {
@@ -84,75 +80,79 @@ void load_catalog();
 
 void import_costume(unsigned port)
 {
-    wchar_t path[32768] = {};
-    OPENFILENAMEW picker = {};
-    picker.lStructSize = sizeof(picker);
-    picker.hwndOwner = GetActiveWindow();
-    picker.lpstrFilter = L"Costume DAT\0*.dat\0All files\0*.*\0";
-    picker.lpstrFile = path;
-    picker.nMaxFile = sizeof(path) / sizeof(path[0]);
-    picker.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
-                   OFN_NOCHANGEDIR;
-    if (!GetOpenFileNameW(&picker)) {
-        if (CommDlgExtendedError() != 0) {
-            set_status("Could not open the file picker.");
-        }
-        return;
-    }
-
-    const wchar_t* basename = wcsrchr(path, L'\\');
-    basename = basename == nullptr ? path : basename + 1;
-    const wchar_t* extension = wcsrchr(basename, L'.');
-    const int title_length = int((extension == nullptr ?
-                                  basename + wcslen(basename) : extension) -
-                                 basename);
-    NativeCostumePackage metadata = {};
-    metadata.character = shown_characters[port];
-    metadata.base_costume = shown_colors[port];
-    const int title_bytes = title_length > 0 ? WideCharToMultiByte(
-        CP_UTF8, WC_ERR_INVALID_CHARS, basename, title_length,
-        metadata.title, NATIVE_CONTENT_TITLE_BYTES - 1, nullptr, nullptr) : 0;
-    if (title_bytes <= 0) {
-        std::strcpy(metadata.title, "Imported costume");
-    } else {
-        metadata.title[title_bytes] = '\0';
-    }
-
-    FILE* file = nullptr;
-    if (_wfopen_s(&file, path, L"rb") != 0 || file == nullptr) {
-        set_status("Could not open that DAT.");
-        return;
-    }
-    long length = -1;
-    if (std::fseek(file, 0, SEEK_END) == 0) {
-        length = std::ftell(file);
-    }
-    if (length < 32 || length > NATIVE_CONTENT_MAX_PACKAGE_BYTES - 76 ||
-        std::fseek(file, 0, SEEK_SET) != 0) {
-        std::fclose(file);
-        set_status("DAT is empty or too large.");
-        return;
-    }
-    uint8_t* dat = static_cast<uint8_t*>(std::malloc(size_t(length)));
-    const bool read = dat != nullptr &&
-                      std::fread(dat, 1, size_t(length), file) ==
-                          size_t(length);
-    std::fclose(file);
-    if (!read) {
-        std::free(dat);
-        set_status("Could not read the DAT.");
-        return;
-    }
-
     char default_root[512];
     const char* root = content_root(default_root);
+    if (!root) { set_status("Could not open the collection."); return; }
+    NativeCostumePackage metadata = {};
+    metadata.fighter_id = shown_fighters[port];
+    metadata.character = shown_characters[port];
+    metadata.base_costume = shown_colors[port];
+    metadata.member_count = 1;
+    const NativeContentId empty = {};
+    if (!same_id(&metadata.fighter_id, &empty)) {
+        NativeFighterCostumeFamilyInfo family;
+        if (!nativeFighterRuntime_CostumeInfoCached(&metadata.fighter_id, root, &family)) {
+            set_status("Could not read this fighter's outfit requirements.");
+            return;
+        }
+        metadata.member_count = family.member_count;
+        for (unsigned m = 0; m < metadata.member_count; ++m)
+            std::memcpy(metadata.member_keys[m], family.members[m].key, NATIVE_FIGHTER_CODE_KEY_BYTES);
+    }
+    NativeCostumePackageData data = {};
+    uint8_t* owned[NATIVE_FIGHTER_FAMILY_MEMBERS] = {};
+    bool read = true;
+    for (unsigned m = 0; read && m < metadata.member_count; ++m) {
+        wchar_t path[32768] = {};
+        wchar_t caption[128] = L"Choose outfit model";
+        if (metadata.member_count > 1)
+            swprintf_s(caption, L"Choose outfit model: %hs (%u of %u)",
+                       metadata.member_keys[m], m + 1, metadata.member_count);
+        OPENFILENAMEW picker = {};
+        picker.lStructSize = sizeof(picker);
+        picker.hwndOwner = GetActiveWindow();
+        picker.lpstrTitle = caption;
+        picker.lpstrFilter = L"Costume DAT\0*.dat\0All files\0*.*\0";
+        picker.lpstrFile = path;
+        picker.nMaxFile = sizeof(path) / sizeof(path[0]);
+        picker.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+        if (!GetOpenFileNameW(&picker)) {
+            set_status(CommDlgExtendedError() ? "Could not open the file picker." : "Import cancelled.");
+            read = false;
+            break;
+        }
+        if (m == 0) {
+            const wchar_t* basename = wcsrchr(path, L'\\');
+            basename = basename ? basename + 1 : path;
+            const wchar_t* extension = wcsrchr(basename, L'.');
+            int length = int((extension ? extension : basename + wcslen(basename)) - basename);
+            int bytes = length > 0 ? WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+                basename, length, metadata.title, NATIVE_CONTENT_TITLE_BYTES - 1, nullptr, nullptr) : 0;
+            if (bytes <= 0) std::strcpy(metadata.title, "Imported outfit");
+        }
+        FILE* file = nullptr;
+        if (_wfopen_s(&file, path, L"rb") || !file) {
+            set_status("Could not open that DAT."); read = false; break;
+        }
+        long length = -1;
+        if (std::fseek(file, 0, SEEK_END) == 0) length = std::ftell(file);
+        read = length >= 32 && length < NATIVE_CONTENT_MAX_PACKAGE_BYTES &&
+               std::fseek(file, 0, SEEK_SET) == 0;
+        if (read) {
+            owned[m] = static_cast<uint8_t*>(std::malloc(size_t(length)));
+            read = owned[m] && std::fread(owned[m], 1, size_t(length), file) == size_t(length);
+            data.members[m] = {owned[m], size_t(length)};
+        }
+        std::fclose(file);
+        if (!read) set_status("Could not read the outfit model.");
+    }
     NativeContentId id;
-    NativeCostumeValidation validation;
-    const bool installed = root != nullptr && nativeCostumeImport_Install(
-        root, &metadata, dat, size_t(length), &id, &validation);
-    std::free(dat);
+    NativeCostumeValidation validation = {};
+    bool installed = read && nativeCostumeImport_Install(root, &metadata, &data, &id, &validation);
+    for (unsigned m = 0; m < metadata.member_count; ++m) std::free(owned[m]);
+    if (!read) return;
     if (!installed) {
-        set_status("DAT does not match this fighter and color, or installation failed.");
+        set_status("Outfit models do not match this fighter family, or installation failed.");
         return;
     }
     load_catalog();
@@ -160,39 +160,13 @@ void import_costume(unsigned port)
         set_status("Installed. Return to CSS to select it.");
         return;
     }
-    set_status("Costume imported and selected.");
+    set_status("Outfit imported and selected.");
 }
 
 void load_catalog()
 {
-    catalog_count = 0;
-    char default_root[512];
-    const char* root = content_root(default_root);
-    if (root == nullptr) {
-        return;
-    }
-    NativeContentId ids[MAX_COSTUMES];
-    size_t count = 0;
-    if (!nativeContentStore_ListInstalled(root, ids, MAX_COSTUMES, &count)) {
-        document->GetElementById("costume-status")
-            ->SetInnerRML("Costume collection is too large to show.");
-    }
-    for (size_t index = 0; index < count; ++index) {
-        uint8_t* package = nullptr;
-        size_t package_size = 0;
-        NativeCostumePackage metadata;
-        const uint8_t* dat;
-        size_t dat_size;
-        const bool valid = nativeContentStore_Read(
-            root, &ids[index], &package, &package_size) &&
-            nativeContentStore_ParseCostume(package, package_size, &metadata,
-                                            &dat, &dat_size);
-        std::free(package);
-        if (!valid) {
-            continue;
-        }
-        catalog[catalog_count++] = { ids[index], metadata };
-    }
+    if (!nativeCostumeCatalog_Refresh()) set_status("Could not read the whole outfit collection.");
+    catalog = nativeCostumeCatalog_Entries(&catalog_count);
 }
 
 bool parse_index(const Rml::String& id, const char* prefix, unsigned* index)
@@ -250,7 +224,7 @@ class CostumeEvents final : public Rml::EventListener {
 } events;
 
 void rebuild(const uint8_t characters[4], const uint8_t colors[4],
-             const NativeContentId packages[4], const bool players[4])
+             const NativeContentId packages[4], const NativeContentId fighters[4], const bool players[4])
 {
     bool any = false;
     for (int port = 0; port < 4; ++port) {
@@ -265,19 +239,34 @@ void rebuild(const uint8_t characters[4], const uint8_t colors[4],
     if (!any) {
         open_port = -1;
         document->GetElementById("costume-players")->SetInnerRML(
-            "Select a stock fighter on character select to choose a costume.");
+            "Select a fighter on character select to choose an outfit.");
         document->GetElementById("costume-choices")->SetProperty("display","none");
         return;
     }
 
     std::string markup;
     for (unsigned port = 0; port < 4; ++port) {
-        if (!players[port] ||
-            characters[port] >= sizeof(character_names) /
-                                    sizeof(character_names[0])) {
+        if (!players[port]) {
             continue;
         }
-        const char* chosen = "Stock";
+        char fighter_name[NATIVE_CONTENT_TITLE_BYTES] = "Fighter";
+        const NativeContentId empty = {};
+        if (same_id(&fighters[port], &empty)) {
+            if (characters[port] < sizeof(character_names) / sizeof(character_names[0]))
+                std::snprintf(fighter_name, sizeof(fighter_name), "%s", character_names[characters[port]]);
+        } else {
+            char default_root[512];
+            const char* root = content_root(default_root);
+            uint8_t* bytes = nullptr;
+            size_t size;
+            NativeFighterPackage family;
+            NativeFighterPackageData data;
+            if (root && nativeContentStore_Read(root, &fighters[port], &bytes, &size) &&
+                nativeContentStore_ParseFighter(bytes, size, &family, &data))
+                std::memcpy(fighter_name, family.title, sizeof(fighter_name));
+            std::free(bytes);
+        }
+        const char* chosen = "Default";
         for (size_t index = 0; index < catalog_count; ++index) {
             if (same_id(&packages[port], &catalog[index].id)) {
                 chosen = catalog[index].metadata.title;
@@ -287,7 +276,7 @@ void rebuild(const uint8_t characters[4], const uint8_t colors[4],
         markup += "<button id=\"costume-port-" + std::to_string(port) +
                   "\"" + (open_port == int(port) ? " class=\"active\"" : "") +
                   ">P" + std::to_string(port + 1) + " " +
-                  character_names[characters[port]] + " · " +
+                  escape_rml(fighter_name) + " / " +
                   escape_rml(chosen) + "</button>";
     }
     document->GetElementById("costume-players")->SetInnerRML(markup);
@@ -310,10 +299,11 @@ void rebuild(const uint8_t characters[4], const uint8_t colors[4],
              (same_id(&packages[open_port], &empty)
                   ? " class=\"selected\""
                   : "") +
-             ">Stock costume</button>";
+             ">Default outfit</button>";
     for (size_t index = 0; index < catalog_count; ++index) {
         const NativeCostumePackage* entry = &catalog[index].metadata;
-        if (entry->character != characters[open_port] ||
+        if (!same_id(&entry->fighter_id, &fighters[open_port]) ||
+            entry->character != characters[open_port] ||
             entry->base_costume != colors[open_port]) {
             continue;
         }
@@ -372,6 +362,7 @@ extern "C" bool nativeShellCostumes_IsOpen(void) { return opened; }
 
 void nativeShellCostumes_RefreshInstalled(void)
 {
+    nativeCostumeCatalog_Refresh();
     selection_active = false;
     section_visible = -1;
 }
@@ -401,11 +392,14 @@ void nativeShellCostumes_Update(void)
     uint8_t characters[4] = {};
     uint8_t colors[4] = {};
     NativeContentId packages[4] = {};
+    NativeContentId fighters[4] = {};
     bool players[4] = {};
     bool changed = section_visible < 0;
     for (unsigned port = 0; port < 4; ++port) {
         players[port] = nativeHome_CssPlayer(port, &characters[port],
                                              &colors[port]);
+        const NativeContentId* fighter = nativeHome_FighterPackage(port);
+        if (fighter) fighters[port] = *fighter;
         const NativeContentId* selected = nativeHome_CostumePackage(port);
         if (selected != nullptr) {
             packages[port] = *selected;
@@ -413,14 +407,16 @@ void nativeShellCostumes_Update(void)
         changed |= players[port] != shown_players[port] ||
                    characters[port] != shown_characters[port] ||
                    colors[port] != shown_colors[port] ||
-                   !same_id(&packages[port], &shown_packages[port]);
+                   !same_id(&packages[port], &shown_packages[port]) ||
+                   !same_id(&fighters[port], &shown_fighters[port]);
     }
     if (changed) {
         std::memcpy(shown_players, players, sizeof(players));
         std::memcpy(shown_characters, characters, sizeof(characters));
         std::memcpy(shown_colors, colors, sizeof(colors));
         std::memcpy(shown_packages, packages, sizeof(packages));
-        rebuild(characters, colors, packages, players);
+        std::memcpy(shown_fighters, fighters, sizeof(fighters));
+        rebuild(characters, colors, packages, fighters, players);
     }
 }
 

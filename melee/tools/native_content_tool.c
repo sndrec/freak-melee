@@ -58,7 +58,7 @@ static void usage(void)
     fputs(
         "Usage: native_content_tool [--root DIRECTORY] COMMAND\n"
         "  import-costume DAT CHARACTER BASE_COLOR TITLE\n"
-        "  import-custom-costume DAT FIGHTER_ID TITLE [MODEL_VARIANT]\n"
+        "  import-custom-costume DAT_OR_MEMBER_DIRECTORY FIGHTER_ID TITLE [MODEL_VARIANT]\n"
         "  cache PACKAGE.fmc\n"
         "  accept PACKAGE_ID\n"
         "  install-project PROJECT_DIRECTORY PACKAGE_ID\n"
@@ -379,11 +379,9 @@ static bool valid_package(const char* root, const uint8_t* package, size_t size,
                           NativeCostumeValidation* validation)
 {
     NativeCostumePackage costume;
-    const uint8_t* dat;
-    size_t dat_size;
-    if (nativeContentStore_ParseCostume(package, size, &costume, &dat,
-                                        &dat_size)) {
-        return nativeCostumePackage_Validate(&costume, dat, dat_size, root,
+    NativeCostumePackageData costume_data;
+    if (nativeContentStore_ParseCostume(package, size, &costume, &costume_data)) {
+        return nativeCostumePackage_Validate(&costume, &costume_data, root,
                                              validation);
     }
     NativeFighterPackage fighter;
@@ -410,13 +408,15 @@ static int import_costume(const char* root, const char* path,
         return 1;
     }
     NativeCostumePackage metadata = {
+        .member_count = 1,
         .character = (uint8_t) character,
         .base_costume = (uint8_t) color,
     };
     strcpy(metadata.title, title);
     NativeCostumeValidation validation = { 0 };
     NativeContentId id;
-    bool ok = nativeCostumeImport_Install(root, &metadata, dat, dat_size,
+    bool ok = nativeCostumeImport_Install(root, &metadata,
+        &(NativeCostumePackageData){.members={{dat,dat_size}}},
                                           &id, &validation);
     if (!ok) {
         fprintf(stderr,
@@ -456,18 +456,42 @@ static int import_custom_costume(const char* root, const char* path,
               stderr);
         return 1;
     }
-    uint8_t* dat = NULL;
-    size_t dat_size = 0;
-    if (!read_file(path, &dat, &dat_size)) {
-        fprintf(stderr, "Could not read costume DAT: %s\n", path);
+    uint8_t* parent = NULL;
+    size_t parent_size = 0;
+    NativeFighterPackage family;
+    NativeFighterPackageData family_data;
+    if (!nativeContentStore_Read(root, &metadata.fighter_id, &parent, &parent_size) ||
+        !nativeContentStore_ParseFighter(parent, parent_size, &family, &family_data)) {
+        free(parent);
+        fputs("Could not read the parent fighter family.\n", stderr);
         return 1;
     }
+    metadata.member_count = family.member_count;
+    free(parent);
+    NativeCostumePackageData data = {0};
+    uint8_t* owned[NATIVE_FIGHTER_FAMILY_MEMBERS] = {0};
+    bool ok = true;
+    DWORD attributes = GetFileAttributesA(path);
+    bool directory = attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
+    if (!directory && metadata.member_count != 1) {
+        fputs("A paired outfit needs a directory containing MEMBER_KEY.dat for every family member.\n", stderr);
+        return 1;
+    }
+    for (unsigned m = 0; ok && m < metadata.member_count; ++m) {
+        memcpy(metadata.member_keys[m], family.members[m].key, NATIVE_FIGHTER_CODE_KEY_BYTES);
+        char filename[MAX_PATH];
+        int length = directory ? snprintf(filename, sizeof(filename), "%s/%s.dat", path, family.members[m].key)
+                               : snprintf(filename, sizeof(filename), "%s", path);
+        ok = length > 0 && length < sizeof(filename) &&
+             read_file(filename, &owned[m], &data.members[m].size);
+        data.members[m].dat = owned[m];
+        if (!ok) fprintf(stderr, "Could not read outfit model for member %s.\n", family.members[m].key);
+    }
     strcpy(metadata.title, title);
-    NativeCostumeValidation validation = { 0 };
+    NativeCostumeValidation validation = {0};
     NativeContentId id;
-    bool ok = nativeCostumeImport_Install(root, &metadata, dat, dat_size,
-                                          &id, &validation);
-    free(dat);
+    ok = ok && nativeCostumeImport_Install(root, &metadata, &data, &id, &validation);
+    for (unsigned m = 0; m < metadata.member_count; ++m) free(owned[m]);
     if (!ok) {
         fprintf(stderr,
                 "Costume does not match that fighter or installation failed "
@@ -1568,12 +1592,10 @@ static int cache_package(const char* root, const char* path)
     NativeCostumeValidation validation;
     NativeContentId id;
     NativeCostumePackage costume;
-    const uint8_t* dat;
-    size_t dat_size;
+    NativeCostumePackageData costume_data;
     const NativeContentId empty_id = { 0 };
     bool dependent_costume =
-        nativeContentStore_ParseCostume(package, size, &costume,
-                                        &dat, &dat_size) &&
+        nativeContentStore_ParseCostume(package, size, &costume, &costume_data) &&
         memcmp(&costume.fighter_id, &empty_id,
                sizeof(empty_id)) != 0;
     // A recipient may cache the costume before its parent fighter arrives.
@@ -1660,18 +1682,16 @@ static int list_packages(const char* root)
         uint8_t* package = NULL;
         size_t size = 0;
         NativeCostumePackage costume;
+    NativeCostumePackageData costume_data;
         NativeFighterPackage fighter;
         NativeFighterPackageData fighter_data;
-        const uint8_t* dat;
-        size_t dat_size;
         if (!nativeContentStore_Read(root, &ids[i], &package, &size)) {
             free(package);
             continue;
         }
         char hex[65];
         nativeContentStore_IdHex(&ids[i], hex);
-        if (nativeContentStore_ParseCostume(package, size, &costume, &dat,
-                                            &dat_size)) {
+        if (nativeContentStore_ParseCostume(package, size, &costume, &costume_data)) {
             const NativeContentId empty_id = { 0 };
             if (memcmp(&costume.fighter_id, &empty_id,
                        sizeof(empty_id)) != 0) {
