@@ -9,7 +9,14 @@
 extern "C" {
 #endif
 
+typedef struct NativeFighterAnimationNodeMap {
+    unsigned old_count;
+    unsigned new_count;
+    const uint16_t* new_to_old;
+} NativeFighterAnimationNodeMap;
+
 // Authoring transition: rewrite every figatree root in one animation DAT.
+// Supply one map per root symbol, in symbol order. Aliases must have equal maps.
 // new_to_old maps destination animation nodes to original animation nodes;
 // UINT16_MAX inserts an unanimated node. A source node may appear at most once.
 // Omitted source nodes lose their tracks. The caller resolves costume/reserved
@@ -18,7 +25,7 @@ extern "C" {
 // retained. Output owns a malloc allocation; pass NULL/0 output fields. Failure
 // leaves input and output unchanged. This does not publish a partial rig edit.
 bool nativeFighterAnimation_RemapNodes(const void* source, size_t source_size,
-    unsigned old_count, const uint16_t* new_to_old, unsigned new_count,
+    const NativeFighterAnimationNodeMap* maps, unsigned map_count,
     void** output, size_t* output_size, char* error, size_t error_size);
 
 #ifdef __cplusplus

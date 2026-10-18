@@ -211,6 +211,9 @@ import, materials, rigging and skinning, not mesh modeling.
   Script bone references now use stable per-fighter IDs, resolved at script
   boundaries. Compiler/VM checks cover reordered IDs, target queries and hitbox
   creation; native core-asset saving preserves the owned ID table.
+  Rig-aware bank rewriting now derives per-clip maps from animation family and
+  omission masks and rebases both descriptor tables. Insertion/removal/reordering
+  checks pass for all 26 supported stock fighter definitions.
   The hierarchy/reference edit and structural editor Undo acceptance remain open.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;

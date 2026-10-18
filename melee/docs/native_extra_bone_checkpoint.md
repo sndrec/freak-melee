@@ -1,14 +1,14 @@
 # Extra-bone authoring checkpoint
 
-The animation-node remapper, coordinated core-asset save and stable script bone
-references are implemented.
+The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
+save and stable script bone references are implemented.
 Adding, removing and reparenting bones in the Workshop remain open. The Model
 workspace does not expose a partial structural edit.
 
 ## Animation remapping
 
 `src/melee/ft/native_fighter_animation_nodes.{h,cpp}` rewrites an animation DAT
-from an explicit destination-to-source node map. An empty destination entry
+from an explicit destination-to-source node map for each root symbol. An empty destination entry
 creates an unanimated bone; omitted source entries remove their tracks. Retained
 nodes keep their track order, serialized track metadata and compressed stream
 bytes. Tree type, flags, duration, root names and root aliases survive the edit.
@@ -20,9 +20,9 @@ map entries and roots with an unexpected source node count. Scratch allocation
 and output construction happen during authoring, with the existing asset size
 limit. The function does no match-tick work.
 
-These maps address **animation nodes**. The future rig transaction must derive
-the right map for each clip, including its reserved parts and animation masks.
-It must not assume every clip has one node for every costume joint. The utility
+These maps address **animation nodes**. The rig-aware bank writer below derives
+each clip's map from physical parts and animation masks. The complete hierarchy
+transaction must supply the right physical part map. The utility
 accepts up to 512 nodes; it does not raise the live fighter limit of 140 parts.
 
 The C++ declaration of `lbAnim_DecodeFigaTree` now uses C linkage, matching its
@@ -34,7 +34,7 @@ existing C implementation. The remapper and its test use that decoder directly.
 | --- | --- | --- |
 | Costume hierarchy | `native_fighter_model_editor.c` enumerates child/sibling preorder. Meshes, envelopes and inverse binds reference DAT objects. | Preserve retained object identities and skin bindings, change hierarchy, then derive old/new traversal maps. |
 | Gameplay roles | `native_source_asset_facts.h` owns semantic-role mappings, joint counts and reserved-part insertion data. `native_source_asset_import.c` constructs runtime tables from them. | Update counts and role/omission indices together, retaining required helper relationships. |
-| Animation | `ftanim.c` selects tracks by part order, masks, animation family and reserved-part policy. Action/demo descriptors address the animation bank. | Remap each applicable tree, rebuild bank descriptors and preserve aliases. |
+| Animation | `ftanim.c` selects tracks by part order, masks, animation family and reserved-part policy. Action/demo descriptors address the animation bank. | The bank writer now derives per-clip maps and rebases both tables. The hierarchy transaction must supply its physical part map. |
 | Fighter data and commands | `ftcharacter_assets.c` imports model parts, hurtboxes, dynamics, collision data and IK; hitbox/subaction data also carries bone selections. | Classify each field as a semantic role, raw part index or object reference before changing it. |
 | Scripts | Named roles resolve to bone IDs; script boundaries translate IDs to physical parts. The fighter DAT owns the ID table. | Preserve each retained bone's ID when moving its physical slot, reserve new IDs for inserted bones, and preserve article reservation IDs. Numeric script parameters keep their values. |
 | Editor state | Names use DAT offsets. Model Undo currently restores costume data and changed selector bytes. Animation, facts and script data have other owners. | Publish/undo the entire structural change atomically; remap selection and temporary poses by retained object identity. |
@@ -42,6 +42,77 @@ existing C implementation. The remapper and its test use that decoder directly.
 
 The existing reusable rest-transform and painting operations remain available.
 They do not change traversal order and do not imply structural editing is ready.
+
+## Rig-aware animation-bank rewriting
+
+`native_fighter_rig_animation.{h,cpp}` prepares an owned fighter DAT and animation
+bank pair from old/new rig facts and a destination-to-source physical part map.
+It leaves the source project untouched. The full hierarchy transaction will
+publish this pair together with the costume, facts and stable bone-ID table.
+
+Each action/demo descriptor supplies its animation family and 13-bit omission
+mask. The writer filters the reserved parts for that mask, derives the matching
+animation-node map and rewrites the appropriate trees. Inserted nodes have no
+tracks; retained nodes keep their compressed streams and track metadata.
+Foreign-family clips retain their own layout. Independent unreferenced trees
+keep their tracks; unused symbols aliasing an edited tree follow that tree's
+map. The lower-level remapper now accepts one map per root and checks alias
+agreement. Its call sites use this interface directly.
+
+Both descriptor tables receive the new physical archive offsets and lengths,
+including aliases and entries originally resolved by symbol lookup. Missing
+external demo clips retain their records. Existing clip names, flags, command
+pointers, tree type, duration and unrelated fighter bytes remain intact.
+Original inter-archive padding is retained. Conflicting maps for a shared tree,
+invalid part maps, malformed archives and mismatched rig/mask node counts reject
+without publishing either output. Omission identity/order and the animation
+family are retained across this operation.
+
+`native_rig_animation_test` compares actual serialized tracks and descriptors
+after identity, insertion, removal of the inserted bone and reordering. Its
+synthetic fixture includes different masked node counts within one DAT, a
+foreign-family tree, an independent unused tree, an unused alias, descriptor
+aliases, padding and an unresolved demo. Conflicting ownership maps and a
+truncated later archive leave outputs empty. It also checks that only resolved
+descriptor address/length bytes can change in the fighter DAT.
+
+Results:
+
+- Synthetic bank transaction: **7 cases, 1,932 checks**, passing.
+- All **26 supported stock fighter definitions**: **130 cases**, **26,804
+  descriptor/clip comparisons**, **48,094,335 checks**, passing.
+- Glim's current draft: **5 cases, 1,140 descriptor/clip comparisons** and
+  **1,300,003 checks**, passing. The test reads the draft without writing it.
+- The original **33-bank** node-remapping corpus remains passing with the
+  per-root-map interface: **6,245 trees**, **58,683,586 checks**. The synthetic
+  node suite now has **2,503 checks**, including conflicting alias maps and a
+  missing root map.
+- Both production rewrite units pass strict syntax checks, using the existing
+  exception for the original Dolphin matrix header's array-parameter warning.
+
+Evidence:
+
+- `.local/native-rig-animation-retail-2/receipt.json`
+- `.local/native-rig-animation-glim-1.log`
+- `.local/native-animation-nodes-retail-3/receipt.json`
+- `.local/native-rig-animation-strict-1.log`
+
+Reproduce after building `native_rig_animation_test`:
+
+```powershell
+python melee/tools/review_native_rig_animation.py `
+  --exe melee/build/native/native_rig_animation_test.exe `
+  --tool melee/build/native/native_content_tool.exe `
+  --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
+  --output .local/rig-animation-review
+```
+
+The review evaluates every supported stock definition and reports all failures.
+It extracts temporary inputs, exports facts and deletes only its own temporary
+directory. It does not create drafts, install content or open the game. This
+establishes animation-bank rewriting, not live structural editing, skinning or
+editor Undo acceptance. Rook's older user-profile draft has no `assets.fma` and
+was not admitted by this source-project test; it was left unchanged.
 
 ## Stable script bone references
 
@@ -189,15 +260,14 @@ fail without publishing data.
 
 Current results:
 
-- Synthetic CTest: **2,484 checks**, passing.
-- All **33** retail `Pl??AJ.dat` banks: **6,245** trees and **58,639,871** checks,
+- Synthetic CTest: **2,503 checks**, passing.
+- All **33** retail `Pl??AJ.dat` banks: **6,245** trees and **58,683,586** checks,
   passing. Retained descriptor and stream payloads match byte for byte.
 - Native game object target compiles with the new implementation and decoder
   declaration. No GUI launch was needed for these archive checks.
 
-Receipt: `.local/native-animation-nodes-retail-2/receipt.json`.
-Test executable SHA-256:
-`2421b75735ed45588e745b3ac5e94905123cb3e111a07476d2d12342a9c6130c`.
+Receipt: `.local/native-animation-nodes-retail-3/receipt.json`. The receipt records
+the corpus test executable's SHA-256.
 
 Reproduce the corpus check after building `native_animation_nodes_test`:
 
