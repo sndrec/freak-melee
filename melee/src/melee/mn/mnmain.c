@@ -1,4 +1,5 @@
 #include "mnassets.h"
+#include "mncamera.h"
 #include "mnmain.h"
 
 #include <melee/gm/forward.h>
@@ -1527,76 +1528,6 @@ HSD_GObj* mn_8022B3A0(u8 state)
     return gobj;
 }
 
-static const Vec3 mn_803B8500 = { 0, 1, 0 };
-
-/// @brief updates menu camera rotation from the cstick
-void mn_8022BA1C(HSD_GObj* gp)
-{
-    u8 _[0x10];
-    Mtx sp54;
-    Vec3 sp48;
-    Vec3 sp3C;
-    Vec3 sp30;
-    Vec3 sp24;
-    Vec3 sp18;
-    u8 _2[0x8];
-    float var_f0;
-    float x;
-    float var_f31;
-    float var_f30;
-    float y;
-    HSD_PadStatus* new_var; // Permuter slop
-    int i;
-
-    HSD_CObj* cobj = GET_COBJ(gp);
-    new_var = HSD_PadCopyStatus;
-    for (i = 0; i < 4; i++) {
-        x = new_var[(u8) i].nml_subStickX;
-        y = new_var[(u8) i].nml_subStickY;
-        if (!(-0.4F < x && x < 0.4f && -0.4F < y && y < 0.4f)) {
-            break;
-        }
-    }
-    if (-0.4F < x && x < 0.4F && -0.4F < y && y < 0.4F) {
-        var_f30 = 0.0f;
-        var_f31 = 0.0f;
-    } else {
-        if (-0.4F < x && x < 0.4f) {
-            var_f31 = 0.0f;
-        } else {
-            if (x < 0.0f) {
-                var_f0 = -0.4f;
-            } else {
-                var_f0 = +0.4f;
-            }
-            var_f31 = 30.0f * ((x - var_f0) / 0.6f);
-        }
-        if (-0.4F < y && y < 0.4f) {
-            var_f30 = 0.0f;
-        } else {
-            if (y < 0.0f) {
-                var_f0 = -0.4f;
-            } else {
-                var_f0 = +0.4f;
-            }
-            var_f30 = 30.0f * ((y - var_f0) / 0.6f);
-        }
-    }
-    HSD_CObjInit(cobj, MenMain_cam);
-    sp30 = mn_803B8500;
-    HSD_CObjGetEyeVector(cobj, &sp48);
-    HSD_CObjGetInterest(cobj, &sp18);
-    C_VECCrossProduct(&sp30, &sp48, &sp3C);
-    PSVECNormalize(&sp3C, &sp3C);
-    C_MTXRotAxisRad(sp54, &sp3C, 0.017453292f * var_f30);
-    C_MTXMultVec(sp54, &sp48, &sp48);
-    C_MTXRotAxisRad(sp54, &sp30, 0.017453292f * var_f31);
-    C_MTXMultVec(sp54, &sp48, &sp48);
-    C_VECScale(&sp48, &sp48, HSD_CObjGetEyeDistance(cobj));
-    C_VECSubtract(&sp18, &sp48, &sp24);
-    HSD_CObjSetEyePosition(cobj, &sp24);
-}
-
 void fn_8022BCD4(HSD_GObj* gobj, int unused)
 {
     HSD_FogSet(gobj->hsd_obj);
@@ -1651,7 +1582,10 @@ HSD_GObj* mn_8022BE34(void)
     HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
     GObj_SetupGXLinkMax(gobj, fn_8022BDB4, 0);
     gobj->gxlink_prios = 0x7F;
-    HSD_GObj_SetupProc(gobj, mn_8022BA1C, 0);
+    MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
+    camera_data->rest = MenMain_cam;
+    GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
+    HSD_GObj_SetupProc(gobj, mnCamera_Tick, 0);
     return gobj;
 }
 
@@ -1666,7 +1600,10 @@ static inline HSD_GObj* mn_8022BE34_OnEnter(Vec3* pos)
     HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
     GObj_SetupGXLinkMax(gobj, fn_8022BDB4, 0);
     gobj->gxlink_prios = 0x7F;
-    HSD_GObj_SetupProc(gobj, mn_8022BA1C, 0);
+    MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
+    camera_data->rest = MenMain_cam;
+    GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
+    HSD_GObj_SetupProc(gobj, mnCamera_Tick, 0);
     return gobj;
 }
 
@@ -1682,7 +1619,10 @@ void mn_8022BEDC(HSD_GObj* gobj)
     HSD_GObjObject_80390A70(temp_r3, HSD_GObj_CameraKind, cobj);
     GObj_SetupGXLinkMax(temp_r3, HSD_GObj_803910D8, 0);
     temp_r3->gxlink_prios = 0x80;
-    HSD_GObj_SetupProc(temp_r3, mn_8022BA1C, 0);
+    MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
+    camera_data->rest = MenMain_cam;
+    GObj_InitUserData(temp_r3, 0, HSD_Free, camera_data);
+    HSD_GObj_SetupProc(temp_r3, mnCamera_Tick, 0);
     mn_804D6BB4 = HSD_SisLib_803A611C(0, temp_r3, 7, 8, 0x80, 7, 0x80, 0);
 }
 

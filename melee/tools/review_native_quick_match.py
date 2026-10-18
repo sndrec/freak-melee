@@ -96,6 +96,16 @@ def main():
             f'Native {"doubles" if args.doubles else "singles"} practice, B-to-unready, countdown restart '
             f'and actual netplay session {sessions[0][0]} in room {sessions[0][1]} passed.\n')
         print((output/'passed.txt').read_text().strip(), flush=True)
+    except Exception:
+        for c in clients:
+            if c.process.poll() is None:
+                try:
+                    c.screenshot()
+                    (c.folder/'failure-state.txt').write_text('\n'.join(
+                        c.inspect(name) for name in ['css-selection', 'quick-play', 'play-ready', 'hub-motion']))
+                except Exception as diagnostic_error:
+                    print(f'{c.folder}: could not capture failure state: {diagnostic_error}', flush=True)
+        raise
     finally:
         for c in reversed(clients):
             c.stop()

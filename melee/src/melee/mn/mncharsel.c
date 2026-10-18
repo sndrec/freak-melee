@@ -1,3 +1,4 @@
+#include "mncamera.h"
 #include "mncharsel.h"
 
 #include <melee/ft/forward.h>
@@ -3789,7 +3790,10 @@ void fn_80262F44(HSD_GObj* gobj)
 #ifdef MELEE_NATIVE
         if (nativeHome_IsSelection()) {
             HSD_JObjSetFlagsAll(jobj, JOBJ_HIDDEN);
-            if (nativePlayMenu_TakeReadyRequest()) trigger |= HSD_PAD_START;
+            // Retain a clicked Ready request through the CSS entrance delay;
+            // consuming it earlier loses the click before START is accepted.
+            if (mnCharSel_804D6CF2 == 0 && nativePlayMenu_TakeReadyRequest())
+                trigger |= HSD_PAD_START;
         }
 #endif
         if (mnCharSel_804D6CF2 == 0 && (trigger & HSD_PAD_START)) {
@@ -4361,7 +4365,10 @@ s32 mnCharSel_802640A0(void)
     }
     GObj_SetupGXLinkMax(gobj, HSD_GObj_803910D8, 0);
     gobj->gxlink_prios = 0x1F;
-    HSD_GObj_SetupProc(gobj, mn_8022BA1C, 5);
+    MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
+    camera_data->rest = css_data_table->cam;
+    GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
+    HSD_GObj_SetupProc(gobj, mnCamera_Tick, 5);
     ctx = HSD_SisLib_803A611C(0, gobj, 7, 8, 0x80, 1, 0x80, 0);
 
     gobj = GObj_Create(3, 4, 0x80);

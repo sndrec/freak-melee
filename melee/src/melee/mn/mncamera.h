@@ -1,0 +1,7 @@
+#pragma once
+#include <sysdolphin/baselib/forward.h>
+typedef struct MnCamera {
+    HSD_CObjDesc* rest;
+} MnCamera;
+// Camera GObj userdata points to MnCamera, owned by its scene.
+void mnCamera_Tick(HSD_GObj* object);

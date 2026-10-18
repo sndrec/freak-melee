@@ -52,16 +52,18 @@ namespace {
     bool wants_text;
     bool hand_cursor_hidden;
     bool mouse_pressed;
+    bool pointer_mouse;
+    float mouse_u = -1, mouse_v = -1;
 
     void update_pointer_cursor()
     {
         bool css_pointer = false;
         for (unsigned port = 0; port < 4; ++port)
             css_pointer |= nativeCssInteraction_PointerPort(port);
-        const bool hide = (((hub.visible || nativePlayMenu_PointerActive()) && nativeHubHand_Ready()) || css_pointer) &&
-                          SDL_GetMouseFocus() && hub.pointer_x >= 0 &&
-                          hub.pointer_x < 640 && hub.pointer_y >= 0 &&
-                          hub.pointer_y < 480;
+        const bool hub_pointer = hub.visible && nativeHubHand_Ready() &&
+            (!pointer_mouse || (mouse_u >= 0 && mouse_u < 1 && mouse_v >= 0 && mouse_v < 1));
+        const bool play_pointer = nativePlayMenu_PointerActive() && nativeHubHand_Ready();
+        const bool hide = SDL_GetMouseFocus() && (hub_pointer || play_pointer || css_pointer);
         if (hide == hand_cursor_hidden) {
             return;
         }
@@ -1043,6 +1045,9 @@ extern "C" void nativeHub_Tick(void)
     if (!hub.visible) {
         return;
     }
+    nativeMenuScene_Tick();
+    if (pointer_mouse && !nativeMenuScene_Unproject(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
+        hub.pointer_x = hub.pointer_y = -100;
     // The hub consumes the same already-normalized sample as original menus.
     // Avoid applying a second deadzone or turning the stick into focus steps.
     hub.pressed = mouse_pressed;
@@ -1055,6 +1060,7 @@ extern "C" void nativeHub_Tick(void)
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
         if (magnitude >= 200) {
+            pointer_mouse = false;
             float scale = (magnitude - 200) / std::sqrt(magnitude) * .0016f;
             hub.pointer_x =
                 std::clamp(hub.pointer_x + x * scale, 4.0f, 632.0f);
@@ -1092,8 +1098,11 @@ extern "C" void nativeHub_Draw(void)
     const char* caption = hub.page == NativeHubPage_Profile
         ? (hub.profile_self ? hub.name : hub.viewed_name)
         : page_names[unsigned(hub.page)];
-    nativeMenuScene_DrawBackdrop(caption);
-    nativeMenuPaint_Begin(nullptr);
+    if (!nativeMenuScene_Begin(caption)) return;
+    Mtx canvas; Mtx44 projection;
+    nativeMenuScene_View(false, false, canvas, projection);
+    GXSetProjection(projection, GX_PERSPECTIVE);
+    nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
     nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
                      HubAction::Profile);
@@ -1104,8 +1113,8 @@ extern "C" void nativeHub_Draw(void)
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i || (hub.page == NativeHubPage_RoomChat && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
-        nativeMenuScene_DrawRibbon(i, 33, y, 127, 31, selected || hover);
-        nativeMenuPaint_Begin(nullptr);
+        nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover);
+        nativeMenuPaint_Begin(canvas);
         nativeMenuPaint_Text(page_names[i], 46, y + 9, 99, 14,
                             selected || hover ? 0x19121AFF : 0xFFFFFFFF,
                             NativeMenuFont_MenuOption, true, !(selected || hover));
@@ -1119,30 +1128,32 @@ extern "C" void nativeHub_Draw(void)
         Mtx view;
         Mtx44 projection;
         hub.passive_page = true;
-        if (nativeMenuScene_Sample(true, view, projection)) {
+        if (nativeMenuScene_View(true, true, view, projection)) {
             GXSetProjection(projection, GX_PERSPECTIVE);
             nativeMenuPaint_Begin(view);
             nativeHub_RenderPage(hub.motion_from);
         }
-        if (nativeMenuScene_Sample(false, view, projection)) {
+        if (nativeMenuScene_View(true, false, view, projection)) {
             GXSetProjection(projection, GX_PERSPECTIVE);
             nativeMenuPaint_Begin(view);
-        } else nativeMenuPaint_Begin(nullptr);
+        } else nativeMenuPaint_Begin(canvas);
         nativeHub_RenderPage(hub.page);
         hub.passive_page = false;
-        nativeMenuPaint_Begin(nullptr);
+        nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
     nativeHub_Panel(38, 408, 565, 32);
     const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
                        : unsigned(hub.page) < 7
                            ? descriptions[unsigned(hub.page)]
-                           : "A: Choose   B: Back   Keyboard to type";
+                           : "";
     nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
     nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
                         NativeMenuFont_Notice, true);
-    nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed);
+    nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
+    nativeMenuPaint_Begin(canvas);
     nativePlayMenu_DrawCountdown();
     nativeMenuPaint_End();
+    nativeMenuScene_End();
 }
 extern "C" void nativeHub_MovePointer(int x, int y)
 {
@@ -1155,8 +1166,11 @@ extern "C" void nativeHub_MovePointer(int x, int y)
     if (scale <= 0) {
         return;
     }
-    hub.pointer_x = (x - (size.x - 640 * scale) * .5f) / scale;
-    hub.pointer_y = (y - (size.y - 480 * scale) * .5f) / scale;
+    mouse_u = (x - (size.x - 640 * scale) * .5f) / (640 * scale);
+    mouse_v = (y - (size.y - 480 * scale) * .5f) / (480 * scale);
+    pointer_mouse = true;
+    if (!nativeMenuScene_Unproject(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
+        hub.pointer_x = hub.pointer_y = -100;
 }
 extern "C" void nativeHub_ClickAt(int x, int y, int button)
 {
@@ -1322,7 +1336,14 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
-    if (!std::strcmp(id, "hub-assets")) { nativeMenuScene_Inspect(); return; }
+    if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
+    if (!std::strcmp(id, "hub-pointer")) {
+        float u = -1, v = -1;
+        nativeMenuScene_Project(hub.pointer_x, hub.pointer_y, &u, &v);
+        std::fprintf(stderr, "[hub-inspect] pointer local=%.3f,%.3f screen=%.6f,%.6f mouse=%d\n",
+            hub.pointer_x, hub.pointer_y, u, v, pointer_mouse);
+        return;
+    }
     if (!std::strcmp(id, "hub-motion")) {
         std::fprintf(stderr, "[hub-inspect] hub-motion from=%u to=%u active=%d frame=%.3f\n",
             unsigned(hub.motion_from), unsigned(hub.page), nativeMenuScene_Active(), nativeMenuScene_Frame());
@@ -1347,12 +1368,20 @@ extern "C" void nativeHub_Inspect(const char* id)
         }
         auto size = aurora::rmlui::get_context()->GetDimensions();
         float scale = std::min(size.x / 640.f, size.y / 480.f);
+        float left = 1e30f, right = -1e30f, top = 1e30f, bottom = -1e30f;
+        for (unsigned corner = 0; corner < 4; ++corner) {
+            float u, v;
+            if (!nativeMenuScene_Project(r.x + (corner & 1 ? r.w : 0),
+                r.y + (corner & 2 ? r.h : 0), &u, &v)) return;
+            left = std::min(left, u); right = std::max(right, u);
+            top = std::min(top, v); bottom = std::max(bottom, v);
+        }
         std::fprintf(stderr,
-                     "[hub-inspect] %s origin=%.1f,%.1f size=%.1f,%.1f "
-                     "enabled=%d value=%d\n",
-                     id, r.x * scale + (size.x - 640 * scale) * .5f,
-                     r.y * scale + (size.y - 480 * scale) * .5f, r.w * scale,
-                     r.h * scale, r.enabled, r.value);
+                     "[hub-inspect] %s origin=%.1f,%.1f size=%.1f,%.1f enabled=%d value=%d\n",
+                     id, left * 640 * scale + (size.x - 640 * scale) * .5f,
+                     top * 480 * scale + (size.y - 480 * scale) * .5f,
+                     (right-left) * 640 * scale, (bottom-top) * 480 * scale,
+                     r.enabled, r.value);
         return;
     }
     std::fprintf(stderr, "[hub-inspect] %s: absent page=%u visible=%d\n", id,
@@ -1365,6 +1394,7 @@ extern "C" void nativeHub_Shutdown(void)
     }
     hand_cursor_hidden = false;
     mouse_pressed = false;
+    pointer_mouse = false; mouse_u = mouse_v = -1;
     text_focus(nullptr, 0);
     nativeHubCatalog_Clear();
     nativeHubHand_Unload();

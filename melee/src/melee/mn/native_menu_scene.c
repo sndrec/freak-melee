@@ -1,5 +1,6 @@
 #include "native_menu_scene.h"
 #include "mnassets.h"
+#include "mncamera.h"
 #include "native_menu_paint.h"
 #include <melee/lb/lbspdisplay.h>
 #include <melee/sc/types.h>
@@ -39,6 +40,10 @@ static struct {
     HSD_JObj* caption;
     Mtx caption_pixels;
     HSD_GObj* camera;
+    MnCamera camera_data;
+    HSD_CObj* previous_camera;
+    HSD_JObj* canvas_anchor;
+    Mtx canvas_pixels;
     HSD_GObj* lights;
     Mtx idle_inverse;
     float fov, pixels_per_unit;
@@ -118,9 +123,8 @@ static void prepare_ribbon(unsigned slot)
     scene.ribbon_geometry[slot].ornament = runtime_joint(root, 4);
 }
 
-static void forget_owner(void* owner)
+static void retire_import(void)
 {
-    *(HSD_GObj**) owner = NULL;
     if (scene.camera || scene.lights) return;
     for (unsigned i = 0; i < 2; ++i)
         if (scene.owners[i] || scene.backdrop[i]) return;
@@ -128,6 +132,18 @@ static void forget_owner(void* owner)
     // Scene teardown retires its heap after destroying these objects.
     memset(&scene.assets, 0, sizeof(scene.assets));
     scene.playing = false;
+}
+static void forget_owner(void* owner)
+{
+    *(HSD_GObj**) owner = NULL;
+    retire_import();
+}
+static void forget_camera(void* data)
+{
+    scene.camera = NULL;
+    scene.previous_camera = NULL;
+    memset(&scene.canvas_pixels, 0, sizeof(scene.canvas_pixels));
+    retire_import();
 }
 
 void nativeMenuScene_Unload(void)
@@ -227,8 +243,22 @@ void nativeMenuScene_Load(void)
         prepare_ribbon(i);
     }
     scene.camera = GObj_Create(0xFE09, 3, 0x80);
-    GObj_InitUserData(scene.camera, 0, forget_owner, &scene.camera);
+    scene.camera_data.rest = cam;
+    GObj_InitUserData(scene.camera, 0, forget_camera, &scene.camera_data);
     HSD_GObjObject_80390A70(scene.camera, HSD_GObj_CameraKind, HSD_CObjLoadDesc(cam));
+    HSD_CObj* camera = scene.camera->hsd_obj;
+    Vec3 eye; HSD_CObjGetEyePosition(camera, &eye);
+    // The visible main-panel frame is joint 2: its authored depth is distinct
+    // from the panel root/background. Keep the new controls on that surface.
+    scene.canvas_anchor = runtime_joint(scene.backdrop[1]->hsd_obj, 2);
+    HSD_JObjSetupMatrix(scene.canvas_anchor);
+    MtxPtr anchor = HSD_JObjGetMtxPtr(scene.canvas_anchor);
+    float half_height = (eye.z - anchor[2][3]) * tanf(scene.fov * .00872664626f);
+    float units = half_height / 240;
+    C_MTXScale(scene.canvas_pixels, units, units, units);
+    scene.canvas_pixels[0][3] = eye.x - anchor[0][3] - half_height * HSD_CObjGetAspect(camera);
+    scene.canvas_pixels[1][3] = eye.y - anchor[1][3] + half_height;
+    scene.canvas_pixels[2][3] = units * 5;
     scene.lights = GObj_Create(0xFE0A, 4, 0x80);
     GObj_InitUserData(scene.lights, 0, forget_owner, &scene.lights);
     HSD_GObjObject_80390A70(scene.lights, HSD_GObj_LightKind,
@@ -259,9 +289,23 @@ void nativeMenuScene_Start(bool backwards)
     scene.playing = true;
 }
 
-bool nativeMenuScene_Sample(bool outgoing, Mtx view, Mtx44 projection)
+void nativeMenuScene_Tick(void)
 {
-    if (!nativeMenuScene_Active()) return false;
+    if (scene.camera) mnCamera_Tick(scene.camera);
+}
+
+bool nativeMenuScene_View(bool transition, bool outgoing, Mtx view, Mtx44 projection)
+{
+    if (!scene.camera || !scene.backdrop[1]) return false;
+    HSD_CObj* camera = scene.camera->hsd_obj;
+    HSD_JObj* anchor = scene.canvas_anchor;
+    HSD_JObjSetupMatrix(anchor);
+    Mtx canvas, camera_view;
+    C_MTXConcat(HSD_JObjGetMtxPtr(anchor), scene.canvas_pixels, canvas);
+    HSD_CObjGetViewingMtx(camera, camera_view);
+    C_MTXConcat(camera_view, canvas, view);
+    makeProjectionMtx(camera, projection);
+    if (!transition || !nativeMenuScene_Active()) return true;
     HSD_JObj* pose = scene.joints[outgoing ? 0 : 1];
     HSD_JObjReqAnim(pose, scene.starts[outgoing ? 0 : 1] + fminf(19, nativeMenuScene_Frame()));
     HSD_JObjAnim(pose);
@@ -276,10 +320,40 @@ bool nativeMenuScene_Sample(bool outgoing, Mtx view, Mtx44 projection)
     C_MTXConcat(relative, a, b);
     C_MTXTrans(a, 390, -230, -5);
     C_MTXConcat(a, b, relative);
-    float distance = 240 / tanf(scene.fov * .00872664626f);
-    C_MTXTrans(a, -320, 240, -distance + 5);
+    C_MTXCopy(view, a);
     C_MTXConcat(a, relative, view);
-    C_MTXPerspective(projection, scene.fov, 4.f / 3, 1, 5000);
+    return true;
+}
+
+bool nativeMenuScene_Project(float x, float y, float* u, float* v)
+{
+    Mtx view; Mtx44 projection;
+    if (!nativeMenuScene_View(false, false, view, projection)) return false;
+    Vec3 point = { x, -y, -5 };
+    C_MTXMultVec(view, &point, &point);
+    if (point.z >= -.00001f) return false;
+    HSD_CObj* camera = scene.camera->hsd_obj;
+    float half = tanf(HSD_CObjGetFov(camera) * .00872664626f);
+    *u = .5f + point.x / (-2 * point.z * half * HSD_CObjGetAspect(camera));
+    *v = .5f - point.y / (-2 * point.z * half);
+    return true;
+}
+
+bool nativeMenuScene_Unproject(float u, float v, float* x, float* y)
+{
+    Mtx view, inverse; Mtx44 projection;
+    if (u < 0 || u > 1 || v < 0 || v > 1 ||
+        !nativeMenuScene_View(false, false, view, projection) || !C_MTXInverse(view, inverse)) return false;
+    HSD_CObj* camera = scene.camera->hsd_obj;
+    float half = tanf(HSD_CObjGetFov(camera) * .00872664626f);
+    Vec3 origin = { 0 }, direction = { (2*u-1)*half*HSD_CObjGetAspect(camera), (1-2*v)*half, -1 };
+    C_MTXMultVec(inverse, &origin, &origin);
+    C_MTXMultVecSR(inverse, &direction, &direction);
+    if (fabsf(direction.z) < .00001f) return false;
+    float distance = (-5-origin.z)/direction.z;
+    if (distance < 0) return false;
+    *x = origin.x + distance*direction.x;
+    *y = -(origin.y + distance*direction.y);
     return true;
 }
 
@@ -291,12 +365,12 @@ static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index)
     return result;
 }
 
-void nativeMenuScene_DrawBackdrop(const char* caption)
+bool nativeMenuScene_Begin(const char* caption)
 {
-    if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return;
-    HSD_CObj* previous = HSD_CObjGetCurrent();
+    if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return false;
+    scene.previous_camera = HSD_CObjGetCurrent();
     HSD_CObj* camera = scene.camera->hsd_obj;
-    if (!HSD_CObjSetCurrent(camera)) return;
+    if (!HSD_CObjSetCurrent(camera)) return false;
     HSD_LObjDeleteCurrentAll(NULL);
     for (HSD_LObj* light = scene.lights->hsd_obj; light; light = light->next)
         HSD_LObjAddCurrent(light);
@@ -332,11 +406,17 @@ void nativeMenuScene_DrawBackdrop(const char* caption)
             168, 24, rgba, false, false);
         nativeMenuPaint_End();
     }
-    HSD_CObjEndCurrent();
-    if (previous) HSD_CObjSetCurrent(previous);
+    return true;
 }
 
-void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,
+void nativeMenuScene_End(void)
+{
+    HSD_CObjEndCurrent();
+    if (scene.previous_camera) HSD_CObjSetCurrent(scene.previous_camera);
+    scene.previous_camera = NULL;
+}
+
+void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
                                 float height, bool selected)
 {
     if (slot >= 7 || !scene.ribbons[slot]) return;
@@ -350,9 +430,6 @@ void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,
     HSD_JObjSetFlags(runtime_joint(root, 3), JOBJ_HIDDEN);
     HSD_JObjSetFlagsAll(runtime_joint(root, 9), JOBJ_HIDDEN);
     HSD_JObjSetFlagsAll(runtime_joint(root, 11), JOBJ_HIDDEN);
-    Mtx44 projection;
-    C_MTXOrtho(projection, 0, -480, 0, 640, 1, 1000);
-    GXSetProjection(projection, GX_ORTHOGRAPHIC);
     // The authored mesh already separates its left cap, middle and right cap.
     // Translate the cap vertices without scaling them; the triangles between
     // them supply the variable-width middle. Shared disc geometry stays intact.
@@ -364,9 +441,10 @@ void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,
         scene.ribbon_geometry[slot].positions[i] = p;
     }
     HSD_JObjSetTranslateX(scene.ribbon_geometry[slot].ornament, 5.94998f + extension * .5f);
-    Mtx view = { { scale, 0, 0, x + width * .5f - .03345f * scale },
+    Mtx model = { { scale, 0, 0, x + width * .5f - .03345f * scale },
                  { 0, scale, 0, -y - height * .48449f },
-                 { 0, 0, 1, -100 } };
+                 { 0, 0, 1, -5 } };
+    Mtx view; C_MTXConcat(canvas, model, view);
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
     HSD_JObjDispAll(root, view, HSD_TRSP_ALL, 0);
 }
@@ -377,6 +455,8 @@ void nativeMenuScene_Inspect(void)
         (unsigned) scene.assets.import.record_count, scene.assets.import.arena_used,
         scene.ribbons[0] != NULL, scene.camera != NULL);
     if (!scene.ribbons[0]) return;
+    Vec3 eye; HSD_CObjGetEyePosition(scene.camera->hsd_obj, &eye);
+    fprintf(stderr, "[hub-inspect] camera-eye=%.4f,%.4f,%.4f\n", eye.x, eye.y, eye.z);
     HSD_JObj* root = scene.ribbons[0]->hsd_obj;
     for (unsigned i = 0; i < 4; ++i) {
         HSD_JObj* j = runtime_joint(root, i); HSD_JObjSetupMatrix(j);

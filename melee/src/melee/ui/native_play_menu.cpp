@@ -287,7 +287,7 @@ extern "C" void nativePlayMenu_DrawPractice(void)
     nativeMenuPaint_Begin(nullptr);
     draw();
     if (nativePlayMenu_PointerActive()) {
-        nativeHubHand_Draw(menu.pointer_x, menu.pointer_y, false);
+        nativeHubHand_Draw(menu.pointer_x, menu.pointer_y, false, nullptr);
     }
     nativeMenuPaint_End();
 }

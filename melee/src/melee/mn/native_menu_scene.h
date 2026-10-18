@@ -8,14 +8,19 @@ extern "C" {
 // before CSS/practice retires its scene heap.
 void nativeMenuScene_Load(void);
 void nativeMenuScene_Inspect(void);
-void nativeMenuScene_DrawBackdrop(const char* caption);
-void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,
+void nativeMenuScene_Tick(void);
+bool nativeMenuScene_Begin(const char* caption);
+void nativeMenuScene_End(void);
+void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
                                 float height, bool selected);
 void nativeMenuScene_Unload(void);
 void nativeMenuScene_Start(bool backwards);
 bool nativeMenuScene_Active(void);
 float nativeMenuScene_Frame(void);
-bool nativeMenuScene_Sample(bool outgoing, Mtx view, Mtx44 projection);
+bool nativeMenuScene_View(bool transition, bool outgoing, Mtx view, Mtx44 projection);
+// Project/unproject between normalized screen positions and the menu canvas.
+bool nativeMenuScene_Project(float x, float y, float* u, float* v);
+bool nativeMenuScene_Unproject(float u, float v, float* x, float* y);
 #ifdef __cplusplus
 }
 #endif

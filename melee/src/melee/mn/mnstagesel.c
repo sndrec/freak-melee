@@ -1,3 +1,4 @@
+#include "mncamera.h"
 #include "mnstagesel.h"
 
 #ifdef MELEE_NATIVE
@@ -479,11 +480,14 @@ void mnStageSel_Scene_OnEnter(void* arg0)
 
         {
             HSD_GObj* gobj = mnStageSel_804D6C9C = GObj_Create(2, 3, 0x80);
-            HSD_CObj* cobj = HSD_CObjLoadDesc(MenMain_cam);
+            HSD_CObj* cobj = HSD_CObjLoadDesc(temp_r3->cam);
             HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
             GObj_SetupGXLinkMax(gobj, HSD_GObj_803910D8, 0);
             gobj->gxlink_prios = 0x11;
-            HSD_GObj_SetupProc(gobj, mn_8022BA1C, 5);
+            MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
+            camera_data->rest = temp_r3->cam;
+            GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
+            HSD_GObj_SetupProc(gobj, mnCamera_Tick, 5);
         }
 
         {
