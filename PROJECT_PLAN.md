@@ -214,7 +214,10 @@ import, materials, rigging and skinning, not mesh modeling.
   Rig-aware bank rewriting now derives per-clip maps from animation family and
   omission masks and rebases both descriptor tables. Insertion/removal/reordering
   checks pass for all 26 supported stock fighter definitions.
-  The hierarchy/reference edit and structural editor Undo acceptance remain open.
+  Physical fighter references now remap model parts, hurtboxes, dynamics,
+  collision/IK/effect fields and reachable subactions, with imported-data checks
+  across all 26 definitions. The complete hierarchy transaction and structural
+  editor Undo acceptance remain open.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but
