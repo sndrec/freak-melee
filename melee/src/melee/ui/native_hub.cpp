@@ -1098,18 +1098,19 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuFont_Acquire();
         hub.fonts = true;
     }
-    nativeMenuScene_DrawBackdrop();
+    const char* caption = hub.page == NativeHubPage_Profile
+        ? (hub.profile_self ? hub.name : hub.viewed_name)
+        : page_names[unsigned(hub.page)];
+    nativeMenuScene_DrawBackdrop(caption);
     nativeMenuPaint_Begin(nullptr);
     hub.region_count = 0;
-    nativeMenuPaint_Text(page_names[unsigned(hub.page)], 52, 20, 230, 23, white,
-                        NativeMenuFont_MenuOption);
     nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
                      HubAction::Profile);
     if (hub.opened_from_play || nativeHome_IsPractice())
         nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
                          352, 21, 132, 19, HubAction::Close);
     for (unsigned i = 0; i < 7; ++i) {
-        float y = 64 + i * 38;
+        float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i || (hub.page == NativeHubPage_RoomChat && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
         nativeMenuScene_DrawRibbon(i, 33, y, 127, 31, selected || hover);
@@ -1145,7 +1146,7 @@ extern "C" void nativeHub_Draw(void)
                        : unsigned(hub.page) < 7
                            ? descriptions[unsigned(hub.page)]
                            : "A: Choose   B: Back   Keyboard to type";
-    nativeMenuPaint_Text(hint, 48, 419, 425, 8, white);
+    nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
     nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
                         NativeMenuFont_Notice, true);
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed);

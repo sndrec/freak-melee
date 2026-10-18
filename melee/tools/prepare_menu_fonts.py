@@ -3,7 +3,7 @@
 import argparse, json, math, os, struct
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageFilter
-from prepare_menu_lettering import option_glyphs
+from prepare_menu_lettering import option_glyphs, caption_glyphs
 import re, xml.etree.ElementTree as ET
 from prepare_native_assets import extract_dol
 
@@ -163,8 +163,11 @@ if __name__=='__main__':
     name_seeds=[(0x29d80,'KIRBY'),(0x29d98,'BOWSER'),(0x29dc8,'LUIGI'),(0x29de0,'MARIO'),(0x29df8,'MARTH'),(0x29e28,'NESS'),(0x29e40,'PEACH'),(0x29ed0,'ZELDA'),(0x29ee8,'FALCO'),(0x2a05c,'FOX')]
     winner_seeds=[(0x2ab5c,'KIRBY'),(0x2ab74,'BOWSER'),(0x2abbc,'MARIO'),(0x2abd4,'MARTH'),(0x2ac04,'NESS'),(0x2ac1c,'PEACH'),(0x2acac,'ZELDA'),(0x2ab2c,'FOX'),(0x2ac7c,'SAMUS'),(0x2aba4,'LUIGI'),(0x2ab14,'DK')]
     fallback=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',24)
-    glyphs,height=option_glyphs(disc_file(args.iso,'MnMaAll.usd'),fallback)
+    menu=disc_file(args.iso,'MnMaAll.usd')
+    glyphs,height=option_glyphs(menu,fallback)
     atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True)
+    glyphs,height=caption_glyphs(menu,fallback)
+    atlas(args.output/'menu-caption.bin',glyphs,height,1)
     for face,seeds,height,tracking in [('result-name',name_seeds,15,4),('result-winner',winner_seeds,28,5)]:
         glyphs={}
         for offset,letters in seeds:collect(mask(data,offset),letters,glyphs)

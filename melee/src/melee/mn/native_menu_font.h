@@ -7,7 +7,7 @@ extern "C" {
 typedef enum NativeMenuFontFace {
     NativeMenuFont_Heading, NativeMenuFont_ResultName,
     NativeMenuFont_ResultWinner, NativeMenuFont_Notice, NativeMenuFont_Tile,
-    NativeMenuFont_MenuOption, NativeMenuFont_Count
+    NativeMenuFont_MenuOption, NativeMenuFont_MenuCaption, NativeMenuFont_Count
 } NativeMenuFontFace;
 void nativeMenuFont_Acquire(void);
 void nativeMenuFont_Release(void);

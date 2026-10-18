@@ -30,5 +30,11 @@ buttons. `prepare_menu_lettering.py` extracts its letters from the English
 `MnMaAll` option-name textures. Letters absent from those names are reconstructed
 using the captured stroke width and proportions. Additional punctuation and
 digits use the supplied Folk family. The generated IA4 atlas keeps the dark
-outline and white fill in one texture; the other faces use I4 masks. The ribbon
-face and the original large page-caption face still need separate visual review.
+outline and white fill in one texture; the other faces use I4 masks.
+
+`menu-caption` extracts the italic page-heading face from the main panel's
+caption textures. The generator removes the shared shear before separating
+letters, and the renderer reapplies it across each glyph. The resulting strings
+share a baseline. The hub places these captions through the original model
+joint and its material opacity. Reconstructed letters and punctuation remain
+part of the user's visual review.
