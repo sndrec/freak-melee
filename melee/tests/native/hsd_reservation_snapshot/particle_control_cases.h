@@ -3,6 +3,7 @@
 #include <sysdolphin/baselib/psappsrt.h>
 #include <sysdolphin/baselib/list.h>
 #include <sysdolphin/baselib/psdisp.h>
+#include <sysdolphin/baselib/particle.h>
 #include "reference_benchmark.h"
 static unsigned particle_control_checks,particle_control_refusals;
 static unsigned char particle_payloads_saved[65536];
@@ -91,6 +92,14 @@ static void test_particle_controls(void)
     camera_idle=false;CHECK(!nativeParticleControl_Load(&saved,sizeof(saved)));camera_idle=true;
     nativeParticleControl_EndScene();CHECK(!nativeParticleControl_Load(&saved,sizeof(saved)));
     hsdFreeMemPiece(joint,sizeof(*joint));hsdFreeMemPiece(camera,sizeof(*camera));
+    // Scene reset destroys the particle allocator, including the cached split
+    // left by its last draw. A new scene must not retain those old pointers.
+    particle_non_edge_heads[0]=particles[0];
+    particle_non_edge_heads[16]=particles[1];
+    memset(particle_sort_frames,particle_display_frame,sizeof(particle_sort_frames));
+    hsd_80398A08(0);
+    for(unsigned i=0;i<17;++i)CHECK(!particle_non_edge_heads[i]);
+    for(unsigned i=0;i<16;++i)CHECK(particle_sort_frames[i]!=particle_display_frame);
     memset(hsd_804D0908,0,sizeof(hsd_804D0908));memset(particle_attachment_joints,0,sizeof(particle_attachment_joints));
     memset(particle_non_edge_heads,0,sizeof(particle_non_edge_heads));
     pending_generators=hsd_804D78FC=NULL;hsd_804D78F4=NULL;psCamera=NULL;
