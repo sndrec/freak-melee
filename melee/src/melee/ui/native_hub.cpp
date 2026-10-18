@@ -1362,9 +1362,10 @@ extern "C" void nativeHub_Inspect(const char* id)
                 chat->messages[i].name, chat->messages[i].text);
         return;
     }
+    const bool all_regions = !std::strcmp(id, "hub-regions");
     for (unsigned i = 0; i < hub.region_count; ++i) {
         const auto& r = hub.regions[i];
-        if (std::strcmp(id, r.id)) {
+        if (!all_regions && std::strcmp(id, r.id)) {
             continue;
         }
         auto size = aurora::rmlui::get_context()->GetDimensions();
@@ -1379,12 +1380,13 @@ extern "C" void nativeHub_Inspect(const char* id)
         }
         std::fprintf(stderr,
                      "[hub-inspect] %s origin=%.1f,%.1f size=%.1f,%.1f enabled=%d value=%d\n",
-                     id, left * 640 * scale + (size.x - 640 * scale) * .5f,
+                     r.id, left * 640 * scale + (size.x - 640 * scale) * .5f,
                      top * 480 * scale + (size.y - 480 * scale) * .5f,
                      (right-left) * 640 * scale, (bottom-top) * 480 * scale,
                      r.enabled, r.value);
-        return;
+        if (!all_regions) return;
     }
+    if (all_regions) return;
     std::fprintf(stderr, "[hub-inspect] %s: absent page=%u visible=%d\n", id,
                  unsigned(hub.page), hub.visible);
 }

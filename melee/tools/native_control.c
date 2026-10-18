@@ -25,7 +25,7 @@ static void usage(const char* executable)
             "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1>\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
-            "  %s [--id NAME] ui-key <letter|escape|enter|delete> "
+            "  %s [--id NAME] ui-key <letter|left|right|up|down|home|end|pageup|pagedown|tab|space|escape|enter|backspace|delete> "
             "[shift|ctrl|alt]...\n"
             "  %s [--id NAME] room-rotation <manual|winner-stays|winner-out>\n"
             "  %s [--id NAME] room-stage <local-seat> <0..5|none>\n"

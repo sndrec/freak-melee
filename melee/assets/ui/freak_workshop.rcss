@@ -96,6 +96,15 @@
 #workshop-undo, #workshop-redo { width: 31dp; padding: 7dp 2dp;
   font-size: 18dp; }
 #workshop-undo:disabled, #workshop-redo:disabled { color: #6f7481; }
+#workshop-panel.compact-header #workshop-editor-header { height: 108dp;
+  align-items: flex-start; padding-top: 15dp; }
+#workshop-panel.compact-header .workshop-document { flex: 1; min-width: 0;
+  overflow: hidden; }
+#workshop-panel.compact-header #workshop-mode-tabs { position: absolute;
+  left: 15dp; right: 15dp; top: 66dp; height: 35dp; margin: 0; }
+#workshop-panel.compact-header #workshop-mode-tabs button { flex: 1; min-width: 0; }
+#workshop-panel.compact-header #workshop-editor-context { top: 108dp; }
+#workshop-panel.compact-header #workshop-inspector.workshop-package-open { top: 108dp; }
 #workshop-editor-context { display: none; position: absolute; left: 0;
   top: 66dp; width: 100%; height: 48dp; z-index: 2;
   padding: 13dp 18dp; align-items: center; gap: 9dp; pointer-events: auto;

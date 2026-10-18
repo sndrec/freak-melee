@@ -30,6 +30,7 @@
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_online_menu.h>
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/Elements/ElementFormControlSelect.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_stdinc.h>
@@ -123,8 +124,18 @@ namespace {
                                    ? (workshopScript ? 0 : editorRightWidth)
                                : workshop ? workshopWidth
                                           : 0;
-        const int topMargin = workshopModel    ? int(196 * density)
-                              : workshopEditor ? int(114 * density)
+        const bool compactHeader = dimensions.x < int(1440 * density);
+        const int editorTop = int((compactHeader ? 156 : 114) * density);
+        document->GetElementById("workshop-panel")->SetClass("compact-header", compactHeader);
+        for (const char* id : { "workshop-editor-browser", "workshop-editor-inspector",
+                               "workshop-action-viewport", "workshop-animation-viewport",
+                               "workshop-script-pane", "workshop-script-inspector",
+                               "workshop-model-pane" }) {
+            document->GetElementById(id)->SetProperty(Rml::PropertyId::Top,
+                Rml::Property(float(editorTop), Rml::Unit::PX));
+        }
+        const int topMargin = workshopModel    ? editorTop + int(82 * density)
+                              : workshopEditor ? editorTop
                                                : 0;
         const int workshopFooterHeight = int(30 * density);
         const int bottomMargin =
@@ -396,6 +407,14 @@ extern "C" void nativeShell_InspectElement(const char* id)
                  element->GetScrollTop(), colour.red, colour.green,
                  colour.blue, colour.alpha);
     auto* control = dynamic_cast<Rml::ElementFormControl*>(element);
+    if (auto* select = dynamic_cast<Rml::ElementFormControlSelect*>(element)) {
+        for (int i = 0; i < select->GetNumOptions(); ++i) {
+            const auto* option = select->GetOption(i);
+            std::fprintf(stderr, "[ui-inspect-option] %s index=%d value=%s text=%s\n",
+                id, i, option->GetAttribute<Rml::String>("value", "").c_str(),
+                option->GetInnerRML().substr(0, 240).c_str());
+        }
+    }
     std::fprintf(
         stderr,
         "[ui-inspect-value] %s: disabled=%d checked=%d value=%s text=%s\n", id,
@@ -519,14 +538,23 @@ extern "C" void nativeShell_PressKey(const char* name, unsigned modifiers)
             key = (Rml::Input::KeyIdentifier) (Rml::Input::KI_A + c - 'A');
         }
     }
-    if (std::strcmp(name, "escape") == 0) {
-        key = Rml::Input::KI_ESCAPE;
-    }
-    if (std::strcmp(name, "enter") == 0) {
-        key = Rml::Input::KI_RETURN;
-    }
-    if (std::strcmp(name, "delete") == 0) {
-        key = Rml::Input::KI_DELETE;
+    static const struct {
+        const char* name;
+        Rml::Input::KeyIdentifier key;
+    } named[] = {
+        { "escape", Rml::Input::KI_ESCAPE }, { "enter", Rml::Input::KI_RETURN },
+        { "delete", Rml::Input::KI_DELETE }, { "backspace", Rml::Input::KI_BACK },
+        { "left", Rml::Input::KI_LEFT }, { "right", Rml::Input::KI_RIGHT },
+        { "up", Rml::Input::KI_UP }, { "down", Rml::Input::KI_DOWN },
+        { "home", Rml::Input::KI_HOME }, { "end", Rml::Input::KI_END },
+        { "pageup", Rml::Input::KI_PRIOR }, { "pagedown", Rml::Input::KI_NEXT },
+        { "tab", Rml::Input::KI_TAB }, { "space", Rml::Input::KI_SPACE },
+    };
+    for (const auto& entry : named) {
+        if (!std::strcmp(name, entry.name)) {
+            key = entry.key;
+            break;
+        }
     }
     if (key == Rml::Input::KI_UNKNOWN) {
         return;
