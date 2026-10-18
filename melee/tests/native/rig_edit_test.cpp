@@ -5,6 +5,7 @@
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_skin_edit.h>
 #include <melee/ft/native_fighter_action_editor.h>
+#include <melee/ft/native_asset_dat.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -60,6 +61,91 @@ static std::vector<uint8_t> read(const char* path){
     CHECK(n>0&&!std::fseek(f,0,SEEK_SET));std::vector<uint8_t> data((size_t)n);
     CHECK(std::fread(data.data(),1,data.size(),f)==data.size()&&!std::fclose(f));return data;
 }
+static uint32_t pointer(const HSD_Dat& dat,uint32_t slot){
+    u32 value=0;const char* name;auto kind=HSD_DatResolve(&dat,slot,&value,&name);
+    CHECK(kind==HSD_DAT_REF_LOCAL||kind==HSD_DAT_REF_NULL);
+    return kind==HSD_DAT_REF_NULL?UINT32_MAX:(uint32_t)value;
+}
+static uint32_t word(const HSD_Dat& dat,uint32_t slot){u32 value;CHECK(HSD_DatReadU32(&dat,slot,&value));return value;}
+static HSD_Dat archive(const NativeFighterProject& p){
+    HSD_Dat dat;CHECK(HSD_DatOpen(&dat,p.fighter_dat,p.fighter_size)==HSD_DAT_OK);return dat;
+}
+static std::vector<uint32_t> metal_joints(const NativeFighterProject& p){
+    auto dat=archive(p);u32 root;CHECK(HSD_DatFindRoot(&dat,p.fighter_root,&root));
+    std::vector<uint32_t> result;
+    auto walk=[&](auto&& self,uint32_t node,unsigned depth)->void{
+        CHECK(depth<30);
+        for(;node!=UINT32_MAX;node=pointer(dat,node+12)){
+            CHECK(result.size()<MAX_FT_PARTS&&std::find(result.begin(),result.end(),node)==result.end());
+            result.push_back(node);self(self,pointer(dat,node+8),depth+1);
+        }
+    };walk(walk,pointer(dat,root+92),0);return result;
+}
+static std::vector<uint32_t> metal_draws(const NativeFighterProject& p,const std::vector<uint32_t>& joints){
+    auto dat=archive(p);std::vector<uint32_t> result;
+    for(uint32_t joint:joints){
+        if(word(dat,joint+4)&((1u<<5)|(1u<<14)))continue;
+        for(uint32_t mesh=pointer(dat,joint+16);mesh!=UINT32_MAX;mesh=pointer(dat,mesh+4)){
+            CHECK(result.size()<32);result.push_back(mesh);
+        }
+    }return result;
+}
+static std::vector<uint32_t> metal_selected(const NativeFighterProject& p,const std::vector<uint32_t>& draws){
+    auto dat=archive(p);u32 root;CHECK(HSD_DatFindRoot(&dat,p.fighter_root,&root));
+    uint32_t model=pointer(dat,root+8);if(model==UINT32_MAX)model=0;
+    unsigned groups=word(dat,model);uint32_t rows=pointer(dat,model+4),end=HSD_DatNextTarget(&dat,rows);
+    CHECK(groups<=11&&end>=rows&&(end-rows)%16==0);
+    std::vector<uint32_t> selected;
+    for(uint32_t row=rows;row<end;row+=16){
+        uint32_t lookup=pointer(dat,row+8);selected.push_back(lookup==UINT32_MAX?UINT32_MAX:0);
+        if(lookup==UINT32_MAX)continue;
+        for(unsigned g=0;g<groups;++g){
+            unsigned variants=word(dat,lookup+g*8);uint32_t list=pointer(dat,lookup+g*8+4);
+            CHECK(variants<=256);selected.push_back(variants);
+            for(unsigned v=0;v<variants;++v){
+                unsigned count=word(dat,list+v*8);uint32_t ids=pointer(dat,list+v*8+4);
+                CHECK(count<=256);selected.push_back(count);
+                const uint8_t* bytes=HSD_DatBytes(&dat,ids,count);CHECK(!count||bytes);
+                for(unsigned i=0;i<count;++i){CHECK(bytes[i]<draws.size());selected.push_back(draws[bytes[i]]);}
+            }
+        }
+    }return selected;
+}
+static void metal_reparent(NativeFighterProject& p,int32_t id,const NativeFighterModelEditor& model){
+    auto nodes=metal_joints(p);if(nodes.empty())return;
+    CHECK(nodes.size()==model.joint_count);
+    const auto dat=archive(p);int last=-1,destination=-1;
+    for(unsigned n=0;n<nodes.size();++n)
+        if(!(word(dat,nodes[n]+4)&((1u<<5)|(1u<<14)))&&pointer(dat,nodes[n]+16)!=UINT32_MAX)last=(int)n;
+    // Put the last draw chain on the authored extra bone, keeping its current
+    // ordinal. Then move it before a different chain to exercise real reordering.
+    for(int n=1;n<last&&destination<0;++n){
+        if(model.joints[n+1].parent==n)continue;
+        for(int j=n+1;j<last;++j)
+            if(!(word(dat,nodes[j]+4)&((1u<<5)|(1u<<14)))&&pointer(dat,nodes[j]+16)!=UINT32_MAX){destination=n;break;}
+    }
+    if(destination<0)return; // Some models have only one indivisible draw chain.
+    Snapshot original(p);const auto draws=metal_draws(p,nodes);
+    NativeAssetDat edit;CHECK(edit.open(p.fighter_dat,p.fighter_size));
+    edit.link_local(nodes.back()+16,pointer(dat,nodes[last]+16));edit.link(nodes[last]+16,0);
+    std::vector<uint8_t> bytes;CHECK(edit.finish(&bytes));
+    auto* replacement=(uint8_t*)std::malloc(bytes.size());CHECK(replacement);
+    std::memcpy(replacement,bytes.data(),bytes.size());std::free(p.fighter_dat);p.fighter_dat=replacement;p.fighter_size=bytes.size();
+    CHECK(nativeFighterProject_ValidateAssets(&p,error,sizeof(error)));
+    CHECK(metal_draws(p,metal_joints(p))==draws);const auto selected=metal_selected(p,draws);
+    auto owned=rig(p);unsigned body=0,ordinal=0;
+    for(;body<owned.count;++body){bool omitted=false;
+        for(unsigned h=0;h<p.facts.omission_count;++h)omitted|=p.facts.omissions[h].joint==body;
+        if(!omitted){if(ordinal==(unsigned)destination)break;++ordinal;}
+    }
+    CHECK(body<owned.count);
+    NativeFighterRigEdit reparent={NativeRigEdit_Reparent,id,(int32_t)owned.ids[body],{}};
+    int32_t result=-1;CHECK(nativeFighterRig_Edit(&p,&reparent,&result,error,sizeof(error))&&result==id);
+    const auto reordered=metal_draws(p,metal_joints(p));CHECK(reordered!=draws);
+    CHECK(metal_selected(p,reordered)==selected);++cases;
+    NativeFighterRigEdit remove={NativeRigEdit_Remove,id,0,{}};failed(p,remove);
+    original.restore(p);
+}
 int main(int argc,char** argv){
     NativeFighterProject p={};CHECK(argc==2||argc==5||argc==6);
     if(argc==2)CHECK(nativeFighterProject_Open(argv[1],&p));
@@ -102,6 +188,7 @@ int main(int argc,char** argv){
     CHECK(part>=0&&part<with_extra.count&&(with_extra.flags[part]&NATIVE_RIG_EXTRA)&&!std::strcmp(with_extra.names[part],edit.name));
     CHECK(nativeFighterRig_Id(&with_extra,0)==0&&nativeFighterRig_Resolve(&with_extra,reservation)>=with_extra.count);
     CHECK(!std::strcmp(after->joints[after->joint_count-1].name,"WorkshopExtra"));
+    metal_reparent(p,id,*after);CHECK(nativeFighterModel_Open(after.get(),&p));
     // Use the newly authored inverse bind in the real weight painter, then
     // verify deletion refuses that mesh reference without changing any asset.
     Snapshot unpainted(p);bool painted=false;

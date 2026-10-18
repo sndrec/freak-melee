@@ -220,8 +220,9 @@ import, materials, rigging and skinning, not mesh modeling.
   editor Undo acceptance remain open. The in-memory transaction now passes
   add/reparent/remove, skin-reference and reservation checks on 25 stock fighters
   plus Glim. Owned hitbox flags preserve legacy clear-command lifetimes and remove
-  the following-command dependency. Sheik's alternate pose graphs, metal
-  draw-order changes and the Model controls/history still need work.
+  the following-command dependency. Metal visibility now follows retained mesh
+  identities through draw-order changes, including tables shared with costumes.
+  Sheik's alternate pose graphs and the Model controls/history still need work.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but

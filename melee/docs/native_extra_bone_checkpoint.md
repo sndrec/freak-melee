@@ -5,7 +5,8 @@ save, stable script bone references and physical fighter-reference rewriting
 are implemented.
 A coordinated in-memory add/reparent/remove transaction is implemented and
 passes the complete test sequence on 25 stock fighters and Glim. Sheik's alternate
-pose graphs, metal draw-order remapping and the Model controls/history remain open.
+pose graphs and the Model controls/history remain open. Metal visibility now
+follows the retained mesh instances when their draw order changes.
 The Model workspace does not expose a partial structural edit.
 
 ## Animation remapping
@@ -96,7 +97,7 @@ assets and facts with their previous contents. Actual imports run after edits.
 The fixture restores its in-memory paint data; this is not structural editor
 Undo acceptance.
 
-Current results:
+Results before metal-selector remapping:
 
 - **25 of 26** stock definitions pass the entire sequence: **250 cases** and
   **66,600 checks**. The aggregate review correctly reports failure because
@@ -130,13 +131,55 @@ Remaining acceptance work:
 1. Sheik's alternate pose graphs have a caller-supplied start bone and consume
    a positional sequence. Their source/target bone correspondence must be
    represented before hierarchy edits can preserve those operations.
-2. Reordering metal meshes needs the separate metal visibility selectors
-   remapped by object identity. Edits that change their draw order currently
-   refuse to publish.
-3. Connect the completed transaction to the approved Skeleton controls,
+2. Connect the completed transaction to the approved Skeleton controls,
    selection/temporary-pose remapping and complete structural Undo/Redo. Verify
    Save/reopen, animation, weight painting and Test Character in the native UI.
    The game client has not been relinked or launched for this backend checkpoint.
+
+## Metal-model visibility
+
+`native_fighter_metal_references.{h,cpp}` remaps the metal visibility layer using
+the original joint and draw-object offsets. Each draw occurrence retains its
+identity even when the same draw descriptor is attached to two different bones.
+New empty bones add no draws. Removing a bone with attached metal meshes still
+requires detaching those meshes first.
+
+Costume visibility is remapped first. When a metal table shares its indices with
+a costume table, the transaction appends a separate metal table with the correct
+indices and reconnects only the metal layer. Costume values remain unchanged.
+Shared metal rows and index lists reuse their corresponding replacement records.
+Unchanged selectors keep their existing records. This work runs during authoring
+and adds no match-tick work.
+
+Verification:
+
+- Focused CTest: **12 permutation/alias cases**, **621 checks**, passing. Every
+  order of three joints preserves the selected draw instances, both with and
+  without an earlier costume edit to shared selector bytes. Missing meshes and
+  invalid ordinals are rejected. An identity edit produces identical bytes.
+- Complete hierarchy sequence on **25 of 26** stock definitions: **252 cases**,
+  **78,770 checks**, passing. Game & Watch additionally moves a real metal draw
+  chain onto an extra bone, reparents it to change draw order, checks that all
+  visibility variants still select the same objects, and refuses to remove the
+  mesh-bearing bone. The other stock models have no suitable pair of separate
+  draw chains for this added fixture. Sheik reaches the existing alternate-pose
+  guard; the aggregate review therefore reports failure.
+- Pre-normalized stock assets: all **26** admit after flag ownership and duration
+  conversion; the complete hierarchy sequence passes the same **25**, with
+  **277 cases** and **78,845 checks**. Sheik reaches the same guard.
+- Glim: **10 cases**, **2,205 checks**, passing. Its four source files retain
+  their original hashes.
+
+Receipts:
+
+- `.local/native-rig-metal-retail-1/receipt.json`
+- `.local/native-rig-metal-normalized-1/receipt.json`
+- `.local/native-rig-metal-glim-1.json`
+
+Hierarchy test SHA-256:
+`3d4f86d31a7c7e78ce92186d37bf3dafd1d2ba2dcd2bde45f1ff03f7a67302ca`.
+These checks include actual asset admission/import. Metal form rendering in a
+live match and structural editor Undo remain part of the later UI acceptance.
 
 Reproduce the whole roster check:
 
