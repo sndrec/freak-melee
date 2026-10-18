@@ -154,6 +154,137 @@ bool append_vector(std::vector<u8>& bytes, const float* value)
     return true;
 }
 
+// Shape animation evaluates indexed base/target arrays before drawing. Give
+// each polygon private float arrays, retaining its display-list indices.
+bool compensate_shape_attribute(NativeAssetDat& output, const HSD_Dat& source,
+                                u32 shape, bool normals, unsigned targets,
+                                bool additive, Mtx adjustment,
+                                u32 replacement_shape)
+{
+    const unsigned member = normals ? 16 : 4;
+    u32 count, descriptor, table;
+    if (!HSD_DatReadU32(&source, shape + member, &count) ||
+        count > HSD_DEFAULT_MAX_SHAPE_VERTICES) return false;
+    if (!count) return normals;
+    if (!reference(&source, shape + member + 4, &descriptor) ||
+        !reference(&source, shape + member + 8, &table) ||
+        !HSD_DatBytes(&source, descriptor, 24) ||
+        !HSD_DatBytes(&source, table, targets * 4)) return false;
+    Attribute a = {};
+    u16 stride;
+    HSD_DatReadU32(&source, descriptor, &a.attr);
+    HSD_DatReadU32(&source, descriptor + 4, &a.type);
+    HSD_DatReadU32(&source, descriptor + 8, &a.count);
+    HSD_DatReadU32(&source, descriptor + 12, &a.format);
+    HSD_DatReadU16(&source, descriptor + 18, &stride);
+    a.stride = stride;
+    // Shape decoding uses the descriptor's fraction for normals too.
+    a.fraction = HSD_DatBytes(&source, descriptor + 16, 1)[0];
+    if ((a.type != 2 && a.type != 3) || a.format > 4 ||
+        a.fraction > 31 || !a.stride ||
+        (normals ? (a.attr != 10 && a.attr != 25) || a.count != 0 :
+                   a.attr != 9 || a.count != 1) ||
+        !reference(&source, descriptor + 20, &a.array)) return false;
+    const unsigned vectors = a.attr == 25 ? 3 : 1;
+    if (normals && count * vectors > HSD_DEFAULT_MAX_SHAPE_NORMALS) return false;
+    a.width = a.format <= 1 ? 1 : a.format <= 3 ? 2 : 4;
+    const u32 new_table = output.allocate(targets * 4);
+    const u32 new_descriptor = output.allocate(48);
+    if (new_table == UINT32_MAX || new_descriptor == UINT32_MAX) return false;
+    // Retain sharing across targets. A position used as both an additive
+    // offset and a base position needs two entries: only the base translates.
+    const bool split_base = additive && !normals;
+    std::vector<u32> remap((UINT16_MAX + size_t(1)) * (split_base ? 2 : 1), UINT32_MAX);
+    std::vector<u8> values;
+    for (unsigned target = 0; target < targets; ++target) {
+        u32 indices;
+        if (!reference(&source, table + target * 4, &indices)) return false;
+        const unsigned index_width = a.type == 2 ? 1 : 2;
+        const u8* list = HSD_DatBytes(&source, indices, count * index_width);
+        if (!list) return false;
+        const u32 new_list = output.allocate(count * 2);
+        if (new_list == UINT32_MAX) return false;
+        output.link(new_table + target * 4, new_list);
+        for (unsigned i = 0; i < count; ++i) {
+            const unsigned index = index_width == 1 ? list[i] :
+                unsigned(list[i * 2]) << 8 | list[i * 2 + 1];
+            u32& mapped = remap[index + (split_base && target ? UINT16_MAX + 1u : 0)];
+            if (mapped != UINT32_MAX) {
+                output.half(new_list + i * 2, (u16) mapped);
+                continue;
+            }
+            mapped = (u32) (values.size() / (vectors * 12));
+            if (mapped > UINT16_MAX) return false;
+            output.half(new_list + i * 2, (u16) mapped);
+            const size_t at = size_t(a.array) + size_t(index) * a.stride;
+            if (at > UINT32_MAX) return false;
+            const u8* value = HSD_DatBytes(&source, (u32) at, vectors * 3 * a.width);
+            if (!value) return false;
+            for (unsigned part = 0; part < vectors; ++part, value += 3 * a.width) {
+                Vec3 original = { scalar(value, a), scalar(value + a.width, a),
+                                  scalar(value + 2 * a.width, a) }, changed;
+                if (normals || (additive && target))
+                    C_MTXMultVecSR(adjustment, &original, &changed);
+                else C_MTXMultVec(adjustment, &original, &changed);
+                if (!append_vector(values, &changed.x)) return false;
+            }
+        }
+    }
+    const u32 new_array = output.allocate(values.size());
+    if (new_array == UINT32_MAX) return false;
+    std::memcpy(output.data.data() + new_array, values.data(), values.size());
+    std::memcpy(output.data.data() + new_descriptor,
+                HSD_DatBytes(&source, descriptor, 24), 24);
+    output.word(new_descriptor + 4, 3); // GX_INDEX16
+    output.word(new_descriptor + 12, 4); // GX_F32
+    output.word(new_descriptor + 16, 0);
+    output.half(new_descriptor + 18, (u16) (vectors * 12));
+    output.link(new_descriptor + 20, new_array);
+    output.word(new_descriptor + 24, 255); // GX_VA_NULL terminates the descriptor list.
+    output.link(replacement_shape + member + 4, new_descriptor);
+    output.link(replacement_shape + member + 8, new_table);
+    return true;
+}
+
+bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
+                      u32 polygon, Mtx adjustment, u32* replacement)
+{
+    u32 shape;
+    u16 flags, count;
+    if (!reference(&source, polygon + 20, &shape) ||
+        !HSD_DatBytes(&source, shape, 28) ||
+        !HSD_DatReadU16(&source, shape, &flags) ||
+        !HSD_DatReadU16(&source, shape + 2, &count) || !count ||
+        ((flags & 3) != SHAPESET_AVERAGE && (flags & 3) != SHAPESET_ADDITIVE)) return false;
+    const bool additive = (flags & SHAPESET_ADDITIVE) != 0;
+    const unsigned targets = count + (additive ? 1 : 0);
+    Mtx inverse, normal;
+    if (!C_MTXInverse(adjustment, inverse)) return false;
+    C_MTXTranspose(inverse, normal);
+    const u32 new_shape = output.allocate(28);
+    const u32 new_polygon = output.allocate(24);
+    if (new_shape == UINT32_MAX || new_polygon == UINT32_MAX) return false;
+    std::memcpy(output.data.data() + new_shape, HSD_DatBytes(&source, shape, 28), 28);
+    for (unsigned member : {8u, 12u, 20u, 24u}) {
+        u32 target = 0; const char* external;
+        const auto kind = HSD_DatResolve(&source, shape + member, &target, &external);
+        if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
+        output.link(new_shape + member, target);
+    }
+    if (!compensate_shape_attribute(output, source, shape, false, targets, additive, adjustment, new_shape) ||
+        !compensate_shape_attribute(output, source, shape, true, targets, additive, normal, new_shape)) return false;
+    std::memcpy(output.data.data() + new_polygon, HSD_DatBytes(&source, polygon, 24), 24);
+    for (unsigned member : {0u, 4u, 8u, 16u}) {
+        u32 target = 0; const char* external;
+        const auto kind = HSD_DatResolve(&source, polygon + member, &target, &external);
+        if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
+        output.link(new_polygon + member, target);
+    }
+    output.link(new_polygon + 20, new_shape);
+    *replacement = new_polygon;
+    return true;
+}
+
 // Positions/normals become direct floats, so aliases, quantization and a
 // vertex used with both rigid matrix slots cannot corrupt another polygon.
 // Other attributes retain their original bytes and arrays.
@@ -393,7 +524,8 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                 }
                 affected |= p.compensate;
             } else if (changed[joints[0]] || changed[joints[1]]) {
-                if (type != 0) return false; // Morph target deltas need their own compensation.
+                if (type != 0 && type != POBJ_SHAPEANIM) return false;
+                if (type == POBJ_SHAPEANIM) p.slots = 1;
                 for (unsigned slot = 0; slot < p.slots; ++slot) {
                     Mtx inverse;
                     if (!C_MTXInverse(new_world[joints[slot]], inverse)) return false;
@@ -411,7 +543,10 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
         for (auto& p : chain) {
             u32 replacement;
             if (p.compensate) {
-                if (!compensate_polygon(dat, editor.dat, p.source, p.adjustment, p.slots, &replacement)) return false;
+                u16 flags; HSD_DatReadU16(&editor.dat, p.source + 12, &flags);
+                if ((flags & 0x3000) == POBJ_SHAPEANIM) {
+                    if (!compensate_shape(dat, editor.dat, p.source, p.adjustment[0], &replacement)) return false;
+                } else if (!compensate_polygon(dat, editor.dat, p.source, p.adjustment, p.slots, &replacement)) return false;
             } else {
                 replacement = dat.allocate(24);
                 if (replacement == UINT32_MAX) return false;

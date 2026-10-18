@@ -1,5 +1,8 @@
 #include <melee/ft/native_fighter_model_editor.h>
 #include <melee/ft/native_asset_dat.h>
+extern "C" {
+#include <sysdolphin/baselib/dat_import.h>
+}
 
 #include <array>
 #include <cmath>
@@ -7,10 +10,11 @@
 #include <cstdlib>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace {
 unsigned checks;
-void check(bool ok) { ++checks; if (!ok) throw std::runtime_error("rest compensation check failed"); }
+void check(bool ok, unsigned line=__builtin_LINE()) { ++checks; if (!ok) throw std::runtime_error("rest compensation check failed at line "+std::to_string(line)); }
 struct Dat {
     std::vector<u8> data = std::vector<u8>(32);
     std::vector<u32> links;
@@ -249,6 +253,129 @@ void run(unsigned format,unsigned indexing,unsigned nbt,bool xy,unsigned edited,
     check(nativeFighterModel_Open(e.get(),&project));check(geometry(*e)==after);
     std::free(project.costume_dat);
 }
+Fixture shape_fixture(unsigned format, unsigned indexing, unsigned normals, bool additive) {
+    Fixture f=fixture(4,3,0,false,false);
+    NativeAssetDat d;check(d.open(f.file.data(),f.file.size()));
+    auto real=[&](u32 at,float v){u32 bits;std::memcpy(&bits,&v,4);d.word(at,bits);};
+    const unsigned width=format<2?1:format<4?2:4;
+    auto scalar=[&](u32 at,float v){if(format==4)real(at,v);else if(width==1)d.data[at]=(u8)std::lround(v*4);else d.half(at,(u16)std::lround(v*4));};
+    const u32 shape=d.allocate(28);
+    d.half(shape,additive?2:1);d.half(shape+2,additive?2:3);d.word(shape+4,3);
+    if(normals)d.word(shape+16,3);
+    for(unsigned attribute=0;attribute<(normals?2u:1u);++attribute){
+        const unsigned vectors=attribute&&normals==2?3:1;
+        const u32 descriptor=d.allocate(48),table=d.allocate(12),array=d.allocate(6*vectors*3*width);
+        d.link(shape+8+attribute*12,descriptor);d.link(shape+12+attribute*12,table);
+        d.word(descriptor,attribute?(normals==2?25:10):9);d.word(descriptor+4,indexing);
+        d.word(descriptor+8,attribute?0:1);d.word(descriptor+12,format);
+        d.data[descriptor+16]=2;d.half(descriptor+18,(u16)(vectors*3*width));d.link(descriptor+20,array);
+        d.word(descriptor+24,255);
+        for(unsigned entry=0;entry<6;++entry)for(unsigned part=0;part<vectors;++part)for(unsigned axis=0;axis<3;++axis)
+            scalar(array+((entry*vectors+part)*3+axis)*width,float(1+entry+part+axis)*.25f);
+        for(unsigned target=0;target<3;++target){
+            const u32 indices=d.allocate(indexing==2?3:6);d.link(table+target*4,indices);
+            for(unsigned i=0;i<3;++i){unsigned index=(target*2+i)%6;
+                if(indexing==2)d.data[indices+i]=(u8)index;else d.half(indices+i*2,(u16)index);}
+        }
+    }
+    const u32 attrs=d.allocate((normals?6:5)*24);
+    std::vector<unsigned> ids={0,9};if(normals)ids.push_back(normals==2?25:10);ids.push_back(11);ids.push_back(13);
+    for(unsigned i=0;i<ids.size();++i){u32 at=attrs+i*24;d.word(at,ids[i]);
+        d.word(at+4,ids[i]==0||ids[i]==11?1:indexing);d.word(at+8,ids[i]==9||ids[i]==13?1:0);
+        d.word(at+12,ids[i]==11?5:4);}
+    d.word(attrs+(u32)ids.size()*24,255);
+    std::vector<u8> commands={0x90,0,3};
+    for(unsigned i=0;i<3;++i){commands.push_back(0);
+        for(unsigned k=0;k<(normals?2u:1u);++k){if(indexing==3)commands.push_back(0);commands.push_back((u8)i);}
+        commands.insert(commands.end(),{10,20,30,255});if(indexing==3)commands.push_back(0);commands.push_back((u8)i);}
+    commands.resize((commands.size()+31)&~size_t(31));u32 display=d.allocate(commands.size());
+    std::memcpy(d.data.data()+display,commands.data(),commands.size());
+    for(u32 polygon:f.polygon){d.half(polygon+12,0x1000);d.link(polygon+8,attrs);d.link(polygon+16,display);
+        d.half(polygon+14,(u16)(commands.size()/32));d.link(polygon+20,shape);}
+    std::vector<u8> result;check(d.finish(&result));f.file=std::move(result);return f;
+}
+
+// Independently evaluate the runtime's base+delta and adjacent-target blends,
+// then compare world-space positions and lighting vectors after the rest edit.
+std::vector<double> shape_geometry(const NativeFighterModelEditor& e) {
+    auto word=[&](u32 at){u32 v;check(HSD_DatReadU32(&e.dat,at,&v));return v;};
+    auto half=[&](u32 at){u16 v;check(HSD_DatReadU16(&e.dat,at,&v));return v;};
+    auto value=[&](u32 descriptor,unsigned index,unsigned component){
+        u32 at=word(descriptor+20)+index*half(descriptor+18);unsigned format=word(descriptor+12);
+        if(format==4){float v;check(HSD_DatReadF32(&e.dat,at+component*4,&v));return double(v);}
+        double raw;
+        if(format<2){u8 byte=e.dat.data[at+component];raw=format==1?(int8_t)byte:byte;}
+        else{u16 v=(u16)half(at+component*2);raw=format==3?(int16_t)v:v;}
+        return std::ldexp(raw,-int(e.dat.data[descriptor+16]));
+    };
+    std::vector<double> result;
+    for(unsigned mesh=0;mesh<e.mesh_count;++mesh)for(u32 p=word(e.meshes[mesh].offset+12);p;p=word(p+4)){
+        u32 shape=word(p+20);bool additive=(half(shape)&2)!=0;
+        const Matrix position=world(e,e.meshes[mesh].joint),normal=normal_matrix(position);
+        for(double blend:{-1.0,0.0,.25,.8,1.0,1.4,2.0,3.0})for(unsigned attr=0;attr<2;++attr){
+            unsigned count=word(shape+4+attr*12);if(!count)continue;
+            u32 descriptor=word(shape+8+attr*12),table=word(shape+12+attr*12);
+            unsigned vectors=word(descriptor)==25?3:1;
+            auto sample=[&](unsigned target,unsigned index,unsigned component){
+                u32 list=word(table+target*4);unsigned source=word(descriptor+4)==2?e.dat.data[list+index]:half(list+index*2);
+                return value(descriptor,source,component);};
+            for(unsigned i=0;i<count;++i)for(unsigned part=0;part<vectors;++part){
+                double v[3];for(unsigned axis=0;axis<3;++axis){unsigned component=part*3+axis;
+                    if(additive){v[axis]=sample(0,i,component)+sample(1,i,component)*std::fmax(0.0,blend)+sample(2,i,component)*std::fmax(0.0,1.3-blend);}
+                    else{unsigned first=(unsigned)std::fmin(std::fmax(0.0,std::trunc(blend)),half(shape+2)-1.0);
+                        unsigned next=std::min(first+1,unsigned(half(shape+2)-1));double t=std::fmin(std::fmax(0.0,blend-first),1.0);
+                        v[axis]=sample(first,i,component)*(1-t)+sample(next,i,component)*t;}}
+                const Matrix& m=attr?normal:position;
+                for(unsigned row=0;row<3;++row)result.push_back(m[row][0]*v[0]+m[row][1]*v[1]+m[row][2]*v[2]+m[row][3]);
+            }
+        }
+    }return result;
+}
+void import_shapes(const NativeFighterModelEditor& e){
+    std::vector<u8> arena(256*1024);
+    for(unsigned mesh=0;mesh<e.mesh_count;++mesh){
+        u32 polygon=NativeAssetDat::read32(e.dat.data+e.meshes[mesh].offset+12);
+        const u32 shape=NativeAssetDat::read32(e.dat.data+polygon+20);
+        HSD_DatImport loader;
+        check(HSD_DatImportInit(&loader,&e.dat,arena.data(),arena.size(),256)==HSD_DAT_OK);
+        auto* imported=(HSD_ShapeSetDesc*)HSD_DatImportGraph(&loader,shape,DAT_SHAPE_SET);
+        check(imported&&loader.status==HSD_DAT_OK);
+        check(imported->vertex_desc->comp_cnt==GX_POS_XYZ&&imported->vertex_idx_list);
+    }
+}
+void run_shape(unsigned format,unsigned indexing,unsigned normals,bool additive,unsigned edited,unsigned channel){
+    Fixture f=shape_fixture(format,indexing,normals,additive);
+    NativeFighterProject p={};std::strcpy(p.facts.costume_joint,"rig");p.costume_size=f.file.size();p.costume_dat=(u8*)std::malloc(p.costume_size);std::memcpy(p.costume_dat,f.file.data(),p.costume_size);
+    auto e=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(e.get(),&p));import_shapes(*e);const auto before=shape_geometry(*e);
+    check(nativeFighterModel_SetJoint(e.get(),edited,channel,channel==1?0:2,channel==0?.73f:channel==1?1.7f:8.25f));
+    check(nativeFighterModel_CompensateRest(e.get(),f.file.data(),f.file.size(),edited));
+    import_shapes(*e);const auto after=shape_geometry(*e);check(before.size()==after.size());
+    for(unsigned i=0;i<before.size();++i)check(std::fabs(before[i]-after[i])<.0001);
+    for(u32 polygon:f.polygon)check(!std::memcmp(p.costume_dat+32+polygon,f.file.data()+32+polygon,24));
+    if(edited==1)check(NativeAssetDat::read32(p.costume_dat+32+f.mesh[0]+12)==f.polygon[0]);
+    check(nativeFighterModel_Open(e.get(),&p));check(shape_geometry(*e)==after);std::free(p.costume_dat);
+}
+void shape_rejection(unsigned fault){
+    Fixture f=shape_fixture(4,3,1,true);
+    u8* data=f.file.data()+32;
+    u32 shape=NativeAssetDat::read32(data+f.polygon[0]+20);
+    u32 descriptor=NativeAssetDat::read32(data+shape+8);
+    switch(fault){
+    case 0:NativeAssetDat::be16(data+shape,3);break; // Inconsistent blend modes.
+    case 1:NativeAssetDat::be32(data+shape+4,2001);break;
+    case 2:NativeAssetDat::be32(data+shape+16,2001);break;
+    case 3:NativeAssetDat::be32(data+descriptor+4,1);break; // Shapes require indices.
+    case 4:NativeAssetDat::be32(data+NativeAssetDat::read32(data+descriptor+20),0x7fc00000);break;
+    case 5:{u32 table=NativeAssetDat::read32(data+shape+12);
+        NativeAssetDat::be32(data+table,NativeAssetDat::read32(f.file.data()+4)-1);break;}
+    }
+    NativeFighterProject p={};std::strcpy(p.facts.costume_joint,"rig");p.costume_size=f.file.size();p.costume_dat=(u8*)std::malloc(p.costume_size);std::memcpy(p.costume_dat,f.file.data(),p.costume_size);
+    auto e=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(e.get(),&p));
+    check(nativeFighterModel_SetJoint(e.get(),0,2,0,8));
+    const std::vector<u8> changed(p.costume_dat,p.costume_dat+p.costume_size);
+    check(!nativeFighterModel_CompensateRest(e.get(),f.file.data(),f.file.size(),0));
+    check(p.costume_size==changed.size()&&!std::memcmp(p.costume_dat,changed.data(),changed.size()));std::free(p.costume_dat);
+}
 void rejection() {
     auto f=fixture(4,3,0,false,false);
     NativeAssetDat::be16(f.file.data()+32+f.polygon[1]+12,0x1000);
@@ -263,6 +390,8 @@ void rejection() {
 int main() {
     try {
         for(unsigned format:{1u,3u,4u})for(unsigned indexing:{1u,2u,3u})for(unsigned nbt:{0u,1u,2u})for(bool xy:{false,true})for(unsigned bone:{0u,1u})for(unsigned channel:{0u,1u,2u})for(bool envelope:{false,true})run(format,indexing,nbt,xy,bone,channel,envelope);
-        rejection();std::printf("Rigid rest compensation: %u checks passed.\n",checks);return 0;
+        for(unsigned format:{0u,1u,2u,3u,4u})for(unsigned indexing:{2u,3u})for(unsigned normals:{0u,1u,2u})for(bool additive:{false,true})for(unsigned bone:{0u,1u})for(unsigned channel:{0u,1u,2u})run_shape(format,indexing,normals,additive,bone,channel);
+        for(unsigned fault=0;fault<6;++fault)shape_rejection(fault);
+        rejection();std::printf("Model rest compensation: %u checks passed.\n",checks);return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"%s after %u checks\n",error.what(),checks);return 1;}
 }
