@@ -327,9 +327,13 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   records the seed, exact match packages and corrected inputs. The
   [three-client transport check](melee/docs/native_spectator_transport_checkpoint.md)
   verifies explicit requests, cancellation/rejoin and final history delivery
-  during Results while the spectator keeps practicing. The Watch match UI,
-  package preparation, playback and live game catch-up remain open, including
-  match start by a room owner with no active fighter.
+  during Results while the spectator keeps practicing. The
+  [cold-cache check](melee/docs/native_spectator_content_checkpoint.md) verifies
+  late downloads of exact fighter families and coordinated outfits without
+  installing them or rereading source packages during gameplay. The Watch match
+  UI, viewer asset activation, playback and live game catch-up remain open,
+  including match start by a room owner with no active fighter. Cold transfer
+  throughput also needs improvement before performance acceptance.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the

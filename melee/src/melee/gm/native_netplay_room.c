@@ -328,24 +328,24 @@ static bool pump_auxiliary(NativeNetplayRoom* room)
         NativeContentControl control;
         if (!nativeNetplayConnection_PollControl(&room->connection, &control)) break;
         nativeNetplayRoom_WatchControl(room, &control);
+        nativeNetplayRoom_CacheControl(room, &control);
         if (!room->match_configured) {
             nativeNetplayRoom_GiftControl(room, &control);
-            nativeNetplayRoom_CacheControl(room, &control);
         }
     }
     for (unsigned i = 0; i < MAX_RECEIVE_PACKETS_PER_POLL; ++i) {
         NativeContentDatagram data;
         if (!nativeNetplayConnection_PollContent(&room->connection, &data)) break;
         nativeNetplayRoom_WatchPacket(room, &data);
+        nativeNetplayRoom_CachePacket(room, &data);
         if (!room->match_configured) {
             nativeNetplayRoom_GiftPacket(room, &data);
-            nativeNetplayRoom_CachePacket(room, &data);
         }
     }
     nativeNetplayRoom_PumpWatch(room);
+    nativeNetplayRoom_PumpCache(room);
     if (!room->match_configured) {
         if (!nativeNetplayRoom_PumpGifts(room)) return false;
-        nativeNetplayRoom_PumpCache(room);
     }
 #endif
     return true;
@@ -448,6 +448,7 @@ bool nativeNetplayRoom_ConfigureMatch(NativeNetplayRoom* room,
     nativeNetplayRoom_ClearWatch(room);
     nativeNetplayRoom_ClearGifts(room);
     nativeNetplayRoom_ClearCacheTransfers(room);
+    nativeNetplayRoom_ClearRetainedPackages(room);
 #endif
     nativeNetplayRoom_ClearContent(room);
     room->match = *match;
@@ -475,6 +476,7 @@ void nativeNetplayRoom_Shutdown(NativeNetplayRoom* room)
     nativeNetplayRoom_ClearWatch(room);
     nativeNetplayRoom_ClearGifts(room);
     nativeNetplayRoom_ClearCacheTransfers(room);
+    nativeNetplayRoom_ClearRetainedPackages(room);
 #endif
     nativeNetplayRoom_ClearContent(room);
     if (room->active) {
