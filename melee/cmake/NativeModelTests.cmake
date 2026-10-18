@@ -55,6 +55,12 @@ target_include_directories(native_fighter_rig_test PRIVATE src extern/dolphin/in
 target_compile_definitions(native_fighter_rig_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_fighter_rig COMMAND native_fighter_rig_test)
 
+add_executable(native_metal_references_test tests/native/metal_references_test.cpp
+    src/melee/ft/native_fighter_metal_references.cpp src/sysdolphin/baselib/dat.c)
+target_include_directories(native_metal_references_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_metal_references_test PRIVATE MELEE_NATIVE=1)
+add_test(NAME native_metal_references COMMAND native_metal_references_test)
+
 add_executable(native_rig_animation_test tests/native/rig_animation_test.cpp)
 target_include_directories(native_rig_animation_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_rig_animation_test PRIVATE MELEE_NATIVE=1)

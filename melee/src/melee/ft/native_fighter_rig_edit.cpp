@@ -4,6 +4,7 @@
 #include "native_fighter_rig_references.h"
 #include "native_fighter_rest_matrices.h"
 #include "native_fighter_model_references.h"
+#include "native_fighter_metal_references.h"
 #include "native_fighter_action_editor.h"
 #include "native_asset_dat.h"
 extern "C" {
@@ -333,21 +334,6 @@ bool material_tree(NativeAssetDat& dat,uint32_t root,const NativeFighterModelEdi
     }
     links(dat,nodes,plan.parent,0,4);return true;
 }
-bool same_draw_order(const HSD_Dat& dat,const std::vector<uint32_t>& before,
-                      const std::vector<uint32_t>& after)
-{
-    auto draws=[&](const std::vector<uint32_t>& joints){
-        std::vector<uint32_t> out;
-        for(uint32_t at:joints){uint32_t mesh;
-            if(!pointer(dat,at+16,&mesh))return std::vector<uint32_t>{missing};
-            for(unsigned bound=0;mesh!=missing;++bound){
-                if(bound==1024)return std::vector<uint32_t>{missing};out.push_back(mesh);
-                if(!pointer(dat,mesh+4,&mesh))return std::vector<uint32_t>{missing};
-            }
-        }return out;
-    };
-    return draws(before)==draws(after);
-}
 bool partial_animations(NativeAssetDat& dat,const NativeFighterProject& source,
                          const Plan& plan,char* error,size_t capacity)
 {
@@ -489,7 +475,7 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
     u32 costume_root,fighter_root;uint32_t metal_root;
     if(!HSD_DatFindRoot(&costume.original,project->facts.costume_joint,&costume_root)||
        !HSD_DatFindRoot(&metal.original,project->fighter_root,&fighter_root)||!pointer(metal.original,fighter_root+92,&metal_root))return false;
-    std::vector<uint32_t> costume_nodes,metal_nodes;
+    std::vector<uint32_t> costume_nodes,metal_nodes,old_metal,retained_metal;
     if(!joint_tree(costume,(uint32_t)costume_root,plan,*after,costume_nodes,true,error,capacity))return false;
     for(unsigned n=0;n<plan.count;++n)after->joints[n].offset=costume_nodes[n];
     if(project->facts.costume_matanim[0]){u32 root;
@@ -498,12 +484,9 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
     }
     if(metal_root!=missing){
         if(!joint_tree(metal,metal_root,plan,*after,metal_nodes,false,error,capacity))return false;
-        // New bones are empty. Metal draw ordering remains fixed until the
-        // separate metal visibility selectors can be remapped by object ID.
-        std::vector<uint32_t> old;std::vector<int> parents;
-        if(!tree_nodes(metal.original,metal_root,8,12,64,old,parents))return false;
-        std::vector<uint32_t> retained;for(unsigned n=0;n<plan.count;++n)if(plan.order[n]!=absent)retained.push_back(old[plan.order[n]]);
-        if(!same_draw_order(metal.original,old,retained))return fail(error,capacity,"This edit changes metal-model mesh order; its visibility selectors must be remapped first.");
+        std::vector<int> parents;
+        if(!tree_nodes(metal.original,metal_root,8,12,64,old_metal,parents))return false;
+        for(unsigned n=0;n<plan.count;++n)if(plan.order[n]!=absent)retained_metal.push_back(old_metal[plan.order[n]]);
     }
     // Partial action/pose graphs need their own interval maps. Never publish
     // an insertion through a graph whose positional correspondence is unknown.
@@ -517,6 +500,16 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
     if(!copy_bytes(bytes.data(),bytes.size(),&next.fighter_dat))return false;next.fighter_size=bytes.size();
     if(!nativeFighterRig_Write(&next,&plan.rig,error,capacity)||!nativeFighterModel_Open(after.get(),&next)||
        !nativeFighterModel_RemapSelectors(before.get(),after.get(),&next))return fail(error,capacity,"Could not preserve the edited model's draw selectors.");
+    if(metal_root!=missing){
+        NativeAssetDat selectors;
+        if(!selectors.open(next.fighter_dat,next.fighter_size)||
+           !nativeFighterModel_RemapMetalSelectors(fighter,project->fighter_root,
+               old_metal.data(),old_metal.size(),retained_metal.data(),retained_metal.size(),
+               selectors,error,capacity)||!selectors.finish(&bytes))return false;
+        std::free(next.fighter_dat);next.fighter_dat=nullptr;
+        if(!copy_bytes(bytes.data(),bytes.size(),&next.fighter_dat))return false;
+        next.fighter_size=bytes.size();
+    }
     NativeScriptDiagnostic diagnostic={};std::vector<uint8_t> facts(NATIVE_SOURCE_FACT_BYTES);size_t size;
     if(!nativeSourceAssets_Write(&next.facts,facts.data(),facts.size(),&size,&diagnostic)||
        !copy_bytes(facts.data(),size,&next.asset_record))return fail(error,capacity,"Could not write the edited rig facts.");
