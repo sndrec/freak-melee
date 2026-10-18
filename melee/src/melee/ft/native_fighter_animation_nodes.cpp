@@ -10,7 +10,7 @@
 namespace {
 constexpr unsigned max_nodes = 512, max_tracks = 4096, max_roots = 1024;
 struct Span { uint32_t source, size, destination; };
-struct Root { uint32_t source, destination; const char* name; };
+struct Root { uint32_t source, destination; const char* name; unsigned map; };
 
 bool fail(char* error, size_t capacity, const char* message)
 {
@@ -93,26 +93,31 @@ bool remap(const HSD_Dat& dat, uint32_t source, unsigned old_count,
 }
 
 extern "C" bool nativeFighterAnimation_RemapNodes(
-    const void* source, size_t source_size, unsigned old_count,
-    const uint16_t* new_to_old, unsigned new_count, void** output,
+    const void* source, size_t source_size,
+    const NativeFighterAnimationNodeMap* maps, unsigned map_count, void** output,
     size_t* output_size, char* error, size_t error_size)
 {
     if (!source || source_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
         !output || !output_size || *output || *output_size ||
-        !old_count || old_count > max_nodes || !new_count ||
-        new_count > max_nodes || !new_to_old)
+        !maps || !map_count || map_count > max_roots)
         return fail(error, error_size, "Animation remapping needs a bounded node map and empty output.");
-    bool seen[max_nodes] = {};
-    for (unsigned i = 0; i < new_count; ++i) {
-        const unsigned old = new_to_old[i];
-        if (old == UINT16_MAX) continue;
-        if (old >= old_count || seen[old])
-            return fail(error, error_size, "Animation node map contains an invalid or repeated source node.");
-        seen[old] = true;
+    for (unsigned m = 0; m < map_count; ++m) {
+        const auto& map = maps[m];
+        if (!map.old_count || map.old_count > max_nodes || !map.new_count ||
+            map.new_count > max_nodes || !map.new_to_old)
+            return fail(error, error_size, "Animation node map counts are outside their bounds.");
+        bool seen[max_nodes] = {};
+        for (unsigned i = 0; i < map.new_count; ++i) {
+            const unsigned old = map.new_to_old[i];
+            if (old == UINT16_MAX) continue;
+            if (old >= map.old_count || seen[old])
+                return fail(error, error_size, "Animation node map contains an invalid or repeated source node.");
+            seen[old] = true;
+        }
     }
     HSD_Dat dat;
     if (HSD_DatOpen(&dat, source, source_size) != HSD_DAT_OK ||
-        !dat.root_count || dat.root_count > max_roots || dat.extern_count)
+        dat.root_count != map_count || dat.extern_count)
         return fail(error, error_size, "Animation DAT is malformed or has external dependencies.");
     std::vector<uint8_t> data;
     std::vector<uint32_t> relocations;
@@ -129,11 +134,17 @@ extern "C" bool nativeFighterAnimation_RemapNodes(
         uint32_t target;
         auto alias = std::find_if(roots.begin(), roots.end(),
             [&](const Root& r) { return r.source == at; });
-        if (alias != roots.end()) target = alias->destination;
-        else if (!remap(dat, (uint32_t)at, old_count, new_to_old, new_count,
+        const auto& map = maps[i];
+        if (alias != roots.end()) {
+            const auto& prior = maps[alias->map];
+            if (map.old_count != prior.old_count || map.new_count != prior.new_count ||
+                std::memcmp(map.new_to_old, prior.new_to_old, map.new_count * sizeof(uint16_t)))
+                return fail(error, error_size, "Aliased animation roots need the same node map.");
+            target = alias->destination;
+        } else if (!remap(dat, (uint32_t)at, map.old_count, map.new_to_old, map.new_count,
                         data, relocations, streams, &target))
             return fail(error, error_size, "Animation tree is malformed or has a different source node count.");
-        roots.push_back({(uint32_t)at, target, name});
+        roots.push_back({(uint32_t)at, target, name, (unsigned)i});
     }
     allocate(data, 0);
     std::sort(relocations.begin(), relocations.end());

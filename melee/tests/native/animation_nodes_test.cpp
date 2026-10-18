@@ -82,8 +82,12 @@ static std::vector<uint8_t> edit(const void* bytes, size_t size, unsigned old_co
     void* output = nullptr;
     size_t length = 0;
     char error[256];
-    bool ok = nativeFighterAnimation_RemapNodes(bytes, size, old_count,
-        order.data(), (unsigned)order.size(), &output, &length, error, sizeof(error));
+    HSD_Dat source;
+    CHECK(HSD_DatOpen(&source, bytes, size) == HSD_DAT_OK);
+    std::vector<NativeFighterAnimationNodeMap> maps((unsigned)source.root_count,
+        {old_count, (unsigned)order.size(), order.data()});
+    bool ok = nativeFighterAnimation_RemapNodes(bytes, size, maps.data(),
+        (unsigned)maps.size(), &output, &length, error, sizeof(error));
     if (!ok) std::fprintf(stderr, "%s\n", error);
     CHECK(ok && output && length);
     HSD_Dat a, b;
@@ -156,8 +160,12 @@ static void rejection(const std::vector<uint8_t>& b, unsigned old_count,
 {
     auto before = b;
     void* out = nullptr; size_t size = 0; char error[256] = {};
-    CHECK(!nativeFighterAnimation_RemapNodes(b.data(), b.size(), old_count,
-        order.data(), (unsigned)order.size(), &out, &size, error, sizeof(error)));
+    HSD_Dat source;
+    CHECK(HSD_DatOpen(&source,b.data(),b.size())==HSD_DAT_OK);
+    std::vector<NativeFighterAnimationNodeMap> maps((unsigned)source.root_count,
+        {old_count,(unsigned)order.size(),order.data()});
+    CHECK(!nativeFighterAnimation_RemapNodes(b.data(), b.size(), maps.data(),
+        (unsigned)maps.size(), &out, &size, error, sizeof(error)));
     CHECK(out == nullptr && size == 0 && *error && before == b);
 }
 int main(int argc, char** argv)
@@ -178,9 +186,17 @@ int main(int argc, char** argv)
         rejection(broken,3,{0,1,2});
         void* occupied = b.data(); size_t occupied_size = b.size();
         uint16_t identity[] = {0,1,2};
-        CHECK(!nativeFighterAnimation_RemapNodes(b.data(),b.size(),3,identity,3,
+        NativeFighterAnimationNodeMap maps[3]={{3,3,identity},{3,3,identity},{3,3,identity}};
+        CHECK(!nativeFighterAnimation_RemapNodes(b.data(),b.size(),maps,3,
             &occupied,&occupied_size,nullptr,0));
         CHECK(occupied == b.data() && occupied_size == b.size());
+        void* vacant=nullptr;size_t vacant_size=0;
+        uint16_t reverse[]={2,1,0};maps[2].new_to_old=reverse;
+        CHECK(!nativeFighterAnimation_RemapNodes(b.data(),b.size(),maps,3,
+            &vacant,&vacant_size,nullptr,0)&&!vacant&&!vacant_size);
+        maps[2].new_to_old=identity;
+        CHECK(!nativeFighterAnimation_RemapNodes(b.data(),b.size(),maps,2,
+            &vacant,&vacant_size,nullptr,0)&&!vacant&&!vacant_size);
         word(b,32+20+12,99); // Only the second distinct root is malformed.
         rejection(b,3,{0,1,2});
     } else {

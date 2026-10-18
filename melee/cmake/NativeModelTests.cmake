@@ -54,3 +54,11 @@ add_executable(native_fighter_rig_test tests/native/fighter_rig_test.cpp
 target_include_directories(native_fighter_rig_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_fighter_rig_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_fighter_rig COMMAND native_fighter_rig_test)
+
+add_executable(native_rig_animation_test tests/native/rig_animation_test.cpp)
+target_include_directories(native_rig_animation_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_rig_animation_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_rig_animation_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_rig_animation_test)
+add_test(NAME native_rig_animation COMMAND native_rig_animation_test)
