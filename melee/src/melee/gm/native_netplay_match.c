@@ -839,6 +839,7 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
     netplay.state_digests[frame%NATIVE_ROLLBACK_INPUT_CAPACITY]=
         (NativeNetplayStateDigest){.frame=frame,.value=semantic_state_digest(frame),.valid=true};
     if (netplay.checksum_trace) {
+        if (frame == 0) nativeReplay_LogStateDigestSegments(frame);
         for(uint32_t slot=0;slot<nativeGObjPool.initialized_count;++slot)
             if(nativeGObjPool.slots[slot].occupied)
                 nativeRandom_TraceBytes("gobj",nativeGObjPool.payload+slot*nativeGObjPool.stride,nativeGObjPool.object_size);

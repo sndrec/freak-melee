@@ -99,6 +99,8 @@ void nativeMatchLaunch_ClearNetplay(void);
 uint64_t nativeMatchLaunch_Signature(void);
 bool nativeMatchLaunch_CreateLobbyMatch(NativeLobbyMatch* match);
 bool nativeMatchLaunch_AdoptLobbyRoom(const NativeNetplayRoom* room);
+bool nativeMatchLaunch_AdoptSpectatorMatch(const NativeLobbyMatch* match);
+bool nativeMatchLaunch_IsSpectating(void);
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,8 @@ bool nativeOnlineSession_WatchMatch(void);
 void nativeOnlineSession_StopWatching(void);
 const NativeRoomWatchReceive* nativeOnlineSession_Watch(void);
 bool nativeOnlineSession_WatchContentReady(void);
+const NativeRoomWatchReceive* nativeOnlineSession_ClaimWatch(void);
+void nativeOnlineSession_ReleaseWatch(void);
 bool nativeOnlineSession_ContentProgress(
     NativeNetplayContentProgress* progress);
 bool nativeOnlineSession_OfferGift(const char* peer_id,

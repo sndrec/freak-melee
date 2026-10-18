@@ -10,6 +10,7 @@
 #include "gm_1601.h"
 #include "gmresult.h"
 #include "native_match_launch.h"
+#include "native_spectator_match.h"
 #include "native_netplay_match.h"
 #include "native_match_object_census.h"
 #include "native_snapshot_census.h"
@@ -168,6 +169,11 @@ void gm_801A4014(GameMode* mode)
     bool netplay_requested = nativeMatchLaunch_Netplay() != NULL &&
                              (state->info.scene_kind == GS_VS ||
                               state->info.scene_kind == GS_SUDDEN_DEATH);
+    bool spectator_requested = nativeMatchLaunch_IsSpectating() &&
+                             (state->info.scene_kind == GS_VS ||
+                              state->info.scene_kind == GS_SUDDEN_DEATH);
+    if (spectator_requested)
+        nativeSpectatorMatch_Prepare(state->info.scene_kind == GS_SUDDEN_DEATH);
     if (netplay_requested && nativeMatchLaunch_SnapshotCensus()) {
         nativeSnapshotCensus_Abort("snapshot census is offline only");
         gmMain_ExitRequested = true;
@@ -239,6 +245,7 @@ void gm_801A4014(GameMode* mode)
     bool sudden_death =
         info->scene_kind == GS_VS && !gmMain_ExitRequested &&
         (!netplay_requested || !nativeNetplayMatch_HasFailed()) &&
+        (!spectator_requested || !nativeSpectatorMatch_HasFailed()) &&
         !gm_WasMatchCanceled(gmVsMelee_VsExitInfo.match_end.outcome) &&
         gm_MatchHasMultipleWinners(&gmVsMelee_VsExitInfo.match_end);
     bool fighter_stage_failed = false;
@@ -258,13 +265,15 @@ void gm_801A4014(GameMode* mode)
                                     fighter_stage_failed || gmMain_ExitRequested
                                         ? NULL : result);
     }
+    bool spectator_failed = spectator_requested &&
+        !nativeSpectatorMatch_EndPhase(sudden_death && !fighter_stage_failed);
 #endif
     if (state->on_exit != NULL) {
         state->on_exit(state);
     }
     if (nativeMatchLaunch_ObjectCensus()) nativeMatchObjectCensus_FinishScene();
 #ifdef MELEE_NATIVE
-    if (fighter_stage_failed) {
+    if (fighter_stage_failed || spectator_failed) {
         gm_SetNextGameModeStateId(gmVsMode_State_Css);
     }
 #endif

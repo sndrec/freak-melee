@@ -11,6 +11,7 @@
 #include "gmscdata.h"
 #include "gmvs.h"
 #include "native_match_launch.h"
+#include "native_spectator_match.h"
 #include "native_home.h"
 #include "native_netplay_match.h"
 #include "native_netplay_timing.h"
@@ -277,6 +278,9 @@ void gm_801A4BD4(void)
     gm_801A4B50(0);
 
     lbInput_SetGameSpeed(1.0f);
+    // An unpaced replay can leave its sample deadline far ahead of real
+    // time. The next scene starts a new host schedule, without that wait.
+    lbInput_RebaseClock(SDL_GetTicksNS());
     HSD_GObj_803912E0(&gm_80479D48.initdata);
     gm_80479D48.initdata.gproc_pri_max = 0x18;
     HSD_SObjLib_804D7960 =
@@ -378,11 +382,14 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                    (info->scene_kind == GS_VS ||
                     info->scene_kind == GS_SUDDEN_DEATH) &&
                    nativeNetplayMatch_Init();
-    bool rollback_active = rollback_probe || rollback_benchmark || netplay;
+    bool spectator_requested = nativeMatchLaunch_IsSpectating() &&
+        (info->scene_kind == GS_VS || info->scene_kind == GS_SUDDEN_DEATH);
+    bool spectating = spectator_requested && nativeSpectatorMatch_Init();
+    bool rollback_active = rollback_probe || rollback_benchmark || netplay || spectating;
     const char* no_gpu = getenv("FREAK_MELEE_NO_GPU_RESIM");
     // Netplay reconstructs confirmed/predicted gameplay without GPU output.
     // Raw-memory diagnostic probes keep their rendered oracle unless opted in.
-    bool no_gpu_resim = no_gpu ? !strcmp(no_gpu, "1") : netplay;
+    bool no_gpu_resim = no_gpu ? !strcmp(no_gpu, "1") : netplay || spectating;
     const char* skip_models = getenv("FREAK_MELEE_SKIP_MODEL_RESIM");
     bool skip_model_resim = no_gpu_resim || (skip_models && !strcmp(skip_models, "1"));
     uint64_t cpu_render_frames = 0;
@@ -401,7 +408,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
     if (nativeMatchLaunch_RollbackBenchmark() && !rollback_benchmark) {
         gmMain_ExitRequested = true;
     }
-    if (netplay_requested && !netplay) {
+    if ((netplay_requested && !netplay) || (spectator_requested && !spectating)) {
         gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
     }
 
@@ -443,11 +450,16 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if (rollback_benchmark) nativeRollbackBenchmark_BeginInput();
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_Input);
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_Input);
+        bool watch_frame_ready = !spectating;
         do {
             dbNativeControl_Poll();
             const AuroraEvent* event = aurora_update();
             for (; event && event->type != AURORA_NONE; ++event) {
                 if (event->type == AURORA_SDL_EVENT) nativeHub_Event(&event->sdl);
+                if (spectating && event->type == AURORA_SDL_EVENT &&
+                    event->sdl.type == SDL_EVENT_KEY_DOWN &&
+                    event->sdl.key.scancode == SDL_SCANCODE_ESCAPE)
+                    nativeSpectatorMatch_Stop();
                 if (event->type == AURORA_EXIT) {
                     gmMain_ExitRequested = true;
                 } else if (event->type == AURORA_SDL_EVENT &&
@@ -461,7 +473,13 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (gmMain_ExitRequested) {
                 break;
             }
-            pad_queue_count = lbInput_Poll(nativeMatchLaunch_Fast()
+            if (spectating) {
+                int ready = nativeSpectatorMatch_PollFrame();
+                if (ready < 0) { gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST); break; }
+                if (!ready) { pad_queue_count = 0; SDL_Delay(1); continue; }
+                watch_frame_ready = true;
+            }
+            pad_queue_count = lbInput_Poll(spectating ? lbInput_NextSampleTimeNs() : nativeMatchLaunch_Fast()
                                                ? lbInput_VirtualClockNowNs()
                                                : netplay && nativeNetplayMatch_IsResimulating()
                                                      ? lbInput_NextSampleTimeNs()
@@ -480,7 +498,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if (rollback_benchmark) nativeRollbackBenchmark_EndInput();
         if(compact_timing)nativeSnapshotCensus_EndTiming(NativeCompactTiming_Input);
         if(netplay_timing)nativeNetplayTiming_End(NativeNetplayTiming_Input);
-        if (gmMain_ExitRequested) {
+        if (gmMain_ExitRequested || !watch_frame_ready) {
             --loop_snapshot.activity;
             break;
         }
@@ -587,6 +605,8 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 if (step==NativeConfirmedCheckpoint_Failed)gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
                 else if (nativeNetplayMatch_IsResimulating())continue;
             }
+            if (spectating && !nativeSpectatorMatch_EndFrame())
+                gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
             break;
         }
 
@@ -602,6 +622,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             (rollback_probe && nativeRollbackProbe_IsResimulating()) ||
             (rollback_benchmark && nativeRollbackBenchmark_IsResimulating()) ||
             (netplay && nativeNetplayMatch_IsResimulating()) ||
+            (spectating && nativeSpectatorMatch_HideFrame()) ||
             nativeSnapshotCensus_IsResimulating();
         if (rollback_benchmark) nativeRollbackBenchmark_BeginRender();
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_Drawing);
@@ -626,6 +647,9 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 gmMain_ExitRequested = true;
             } else if (netplay) {
                 nativeNetplayMatch_Abort("Aurora rejected a frame");
+                gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
+            } else if (spectating) {
+                nativeSpectatorMatch_Stop();
                 gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
             }
             --loop_snapshot.activity;
@@ -727,6 +751,8 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (step == NativeConfirmedCheckpoint_Failed) {
                 gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
             }
+        } else if (spectating && !nativeSpectatorMatch_EndFrame()) {
+            gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
         }
     }
     if(compact_journal)HSD_AudioRollbackAbortFrame();

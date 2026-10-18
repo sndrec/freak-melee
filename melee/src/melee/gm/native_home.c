@@ -20,6 +20,7 @@
 #include "gmvsmelee.h"
 #include "gmvsmode.h"
 #include "native_match_launch.h"
+#include "native_spectator_match.h"
 #include "native_online_session.h"
 #include "native_practice.h"
 #include "native_stock_content.h"
@@ -69,6 +70,7 @@ static struct {
     bool start_requested;
     bool enter_stage_select;
     bool online_match;
+    bool watch_results;
     bool authoring;
     bool preview_active;
     bool preview_live_test;
@@ -1619,6 +1621,9 @@ bool nativeHome_ReturnToSelection(void)
 
 void nativeHome_EnterSelection(CSSData* css)
 {
+    if (nativeSpectatorMatch_State() >= NativeSpectator_Queued)
+        nativeSpectatorMatch_Finish();
+    home.watch_results = false;
     home.css = css;
     home.authoring_transitioning = false;
     const s8 physical_ports[4] = { 0, 1, 2, 3 };
@@ -1788,6 +1793,10 @@ void nativeHome_ExitPractice(void)
     if (home.preview_active && !home.preview_restart) {
         finish_preview();
     }
+    if (nativeSpectatorMatch_State() == NativeSpectator_Queued) {
+        gm_SetNextGameModeStateId(gmVsMode_State_WatchPrepare);
+        return;
+    }
     if (home.enter_stage_select) {
         prepare_preload(gmVsMelee_GetVsData(), false);
         gm_SetNextGameModeStateId(gmVsMode_State_Sss);
@@ -1800,6 +1809,7 @@ void nativeHome_ExitPractice(void)
 
 void nativeHome_EnterResults(void)
 {
+    home.watch_results = nativeMatchLaunch_IsSpectating();
     const NativeNetplayLaunchConfig* config = nativeMatchLaunch_Netplay();
     home.result_local_ports = home.online_match && config != NULL
                                  ? config->local_port_mask : 0;
@@ -1811,6 +1821,12 @@ void nativeHome_EnterResults(void)
 
 void nativeHome_ApplyResultsInput(void)
 {
+    if (home.watch_results && gm_GetCurrentGameMode() == GM_VS &&
+        gm_GetCurrentSceneIndex() == gmVsMode_State_Results) {
+        for (unsigned port = 0; port < 4; ++port)
+            HSD_PadCopyStatus[port] = HSD_PadGameStatus[0];
+        return;
+    }
     if (home.result_local_ports != 0 && gm_GetCurrentGameMode() == GM_VS &&
         gm_GetCurrentSceneIndex() == gmVsMode_State_Results) {
         // GameStatus retains each physical port's button history. CopyStatus
@@ -1845,6 +1861,11 @@ void nativeHome_Tick(void)
     }
     NativeLobbySessionState previous_state = nativeOnlineSession_State();
     nativeOnlineMenu_Pump();
+    if (nativeHome_IsPractice() && !home.authoring && !home.preview_active &&
+        nativeSpectatorMatch_QueueScene()) {
+        gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
+        return;
+    }
     if (nativeHome_IsPractice() && nativeOnlineSession_TakeQuickUnready()) {
         home.selection.confirmed = false;
         home.start_requested = home.selection.start_requested = false;

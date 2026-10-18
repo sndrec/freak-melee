@@ -28,6 +28,7 @@ static struct NativeOnlineProcessSession {
     bool active;
     bool launch_ready;
     bool match_claimed;
+    bool watch_claimed;
 } online;
 
 static struct NativeQuickSession {
@@ -379,6 +380,8 @@ static bool pump_quick(void)
 bool nativeOnlineSession_Pump(void)
 {
     if (!online.active || online.match_claimed) return false;
+    if (online.watch_claimed)
+        return nativeNetplayRoom_PumpLobby(&online.lobby.room);
     if (quick.assigned_room &&
         !nativeSignalingClient_IsRunning(&online.lobby.room.connection.signaling)) {
         // A borrowed room remains intact through gameplay, even after signaling
@@ -665,12 +668,28 @@ void nativeOnlineSession_Inspect(void)
 
 bool nativeOnlineSession_WatchMatch(void)
 {
-    return online.active && !online.match_claimed && !online.launch_ready &&
+    return online.active && !online.match_claimed && !online.watch_claimed && !online.launch_ready &&
         nativeNetplayRoom_WatchMatch(&online.lobby.room);
 }
 void nativeOnlineSession_StopWatching(void)
 {
-    if(online.active && !online.match_claimed)nativeNetplayRoom_StopWatching(&online.lobby.room);
+    if(online.active && !online.match_claimed && !online.watch_claimed)
+        nativeNetplayRoom_StopWatching(&online.lobby.room);
+}
+const NativeRoomWatchReceive* nativeOnlineSession_ClaimWatch(void)
+{
+    if (!online.active || online.match_claimed || online.watch_claimed ||
+        online.launch_ready || !nativeOnlineSession_WatchContentReady()) return NULL;
+    const NativeRoomWatchReceive* watch = &online.lobby.room.watch.receive;
+    if (watch->state != NativeRoomWatch_Receiving &&
+        watch->state != NativeRoomWatch_Complete) return NULL;
+    online.watch_claimed = true;
+    return watch;
+}
+void nativeOnlineSession_ReleaseWatch(void)
+{
+    online.watch_claimed = false;
+    nativeOnlineSession_StopWatching();
 }
 const NativeRoomWatchReceive* nativeOnlineSession_Watch(void)
 {

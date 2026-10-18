@@ -119,6 +119,12 @@ u64 lbInput_NextSampleTimeNs(void)
     return input_clock.scheduled ? input_clock.next_sample_ns
                                  : input_clock.virtual_time_ns;
 }
+void lbInput_RebaseClock(u64 now_ns)
+{
+    input_clock.next_sample_ns = now_ns;
+    input_clock.virtual_time_ns = now_ns;
+    input_clock.scheduled = true;
+}
 
 void lb_800198E0(void)
 {

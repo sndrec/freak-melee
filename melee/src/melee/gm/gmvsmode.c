@@ -10,6 +10,7 @@
 #include "gmvsmelee.h"
 #ifdef MELEE_NATIVE
 #include "native_match_launch.h"
+#include "native_spectator_match.h"
 #include "native_netplay_match.h"
 #include "native_practice.h"
 #include "native_home.h"
@@ -101,6 +102,10 @@ GameModeState gm_Mode_Vs_States[] = {
         gmVsMode_State_Practice, lbDvdPreload_3, 0,
         onEnterPractice, onExitPractice,
         { GS_VS, &gmVsMelee_StartData, &gmVsMelee_VsExitInfo },
+    },
+    {
+        gmVsMode_State_WatchPrepare, lbDvdPreload_3, 0, NULL, NULL,
+        { GS_NATIVE_WATCH_SETUP, NULL, NULL },
     },
     {
         gmVsMode_State_Approach,
@@ -281,6 +286,10 @@ void onExitVs(GameModeState* state)
     ssize_t i;
 
 #ifdef MELEE_NATIVE
+    if (nativeMatchLaunch_IsSpectating() && nativeSpectatorMatch_HasFailed()) {
+        gm_SetNextGameModeStateId(gmVsMode_State_Css);
+        return;
+    }
     if (gmVsMelee_StartData.rules.stkind == St_Kind_Practice) {
         gm_SetNextGameModeStateId(gmVsMode_State_Css);
         return;

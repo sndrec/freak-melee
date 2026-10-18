@@ -9,6 +9,7 @@
 #include <aurora/rmlui.hpp>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
+#include <melee/gm/native_spectator_match.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_menu_paint.h>
@@ -25,6 +26,7 @@ namespace {
         Workshop,
         Ready,
         Start,
+        Watch,
         Selection,
         Accept,
         Decline,
@@ -80,6 +82,12 @@ namespace {
             break;
         case Action::Start:
             nativeHome_RequestStartMatch();
+            break;
+        case Action::Watch:
+            if (nativeSpectatorMatch_State() == NativeSpectator_Requested)
+                nativeSpectatorMatch_Stop();
+            else if (!nativeSpectatorMatch_Request())
+                nativeHub_Notice("Could not watch this match.");
             break;
         case Action::Queue: {
             const auto* quick = nativeOnlineSession_Quick();
@@ -163,6 +171,10 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         ? "Leave match" : searching ? "Cancel search" : "Enter queue";
     bool can_queue = quick && (assigned ||
         (nativeOnlineSession_State() == NativeLobbySessionState_Waiting && nativeOnlineSession_IsOwner()));
+    const auto* presence = nativeOnlineSession_Presence();
+    bool can_watch = !quick && presence && presence->match_size &&
+        !nativeOnlineSession_LocalActiveSeats();
+    bool requesting_watch = nativeSpectatorMatch_State() == NativeSpectator_Requested;
     if (selection) {
         add("play-ready", "Ready / START", 35, 207, 118, 27, Action::Ready,
             nativeCssInteraction_CanReady() && !stage_choice, true);
@@ -173,6 +185,9 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     } else {
         add("play-lobby", "Lobby", 13, 10, 88, 22, Action::Lobby);
         if (quick) add("play-queue", queue_label, 109, 10, 104, 22, Action::Queue, can_queue, !searching);
+        else if (can_watch || requesting_watch)
+            add("play-watch", requesting_watch ? "Cancel viewing" : "Watch match",
+                109, 10, 104, 22, Action::Watch, true, true);
         else add("play-start", "Start match", 109, 10, 104, 22, Action::Start,
                  nativeHome_CanStartMatch(), true);
         add("play-selection", "Character select", 507, 10, 119, 22,
@@ -200,6 +215,8 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         if (*nativeOnlineSession_QuickError()) status = nativeOnlineSession_QuickError();
     }
     if (quick && state == NativeLobbySessionState_Returning) status = "Agreeing the match result...";
+    if (requesting_watch) status = nativeOnlineSession_WatchContentReady()
+        ? "Preparing the match..." : "Receiving the match and fighters...";
     const char* code = nativeOnlineSession_RoomCode();
     if (code && *code) {
         std::snprintf(menu.status, sizeof(menu.status), "%s  |  %s", code,

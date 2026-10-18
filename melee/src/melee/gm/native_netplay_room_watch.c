@@ -236,7 +236,12 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
     NativeRoomWatchReceive* r=&watch->receive;
     if(r->state==NativeRoomWatch_Requesting || r->state==NativeRoomWatch_Receiving) {
         NativeContentChannelState state=nativeNetplayConnection_ContentState(&room->connection,r->peer_id,r->serial,true);
-        if(state==NativeContentChannel_Failed || !member(room,r->peer_id) || now-r->data_ms>=WATCH_TIMEOUT_MS)
+        // A completed, verified history survives its transport closing during
+        // the Results transition. It no longer needs a connected data route.
+        if(r->status_received && r->remote_finished && r->stream.finished && r->stream.count==r->remote_count) {
+            if(r->stream.digest!=r->remote_digest)fail_receive(room,"The received history does not match.");
+            else {release_receive(room);r->state=NativeRoomWatch_Complete;}
+        } else if(state==NativeContentChannel_Failed || !member(room,r->peer_id) || now-r->data_ms>=WATCH_TIMEOUT_MS)
             fail_receive(room,"The viewing connection timed out.");
         else if(r->state==NativeRoomWatch_Requesting && now-r->control_ms>=WATCH_CONTROL_RETRY_MS) {
             control(room,r->peer_id,r->serial,r->session,Watch_Request);r->control_ms=now;
@@ -244,10 +249,6 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
             if(now-r->ack_ms>=WATCH_PUMP_MS) {
                 progress(room,r->peer_id,r->serial,true,r->session,Watch_Ack,r->stream.count,r->metadata_mask,r->stream.digest);
                 r->ack_ms=now;
-            }
-            if(r->status_received && r->remote_finished && r->stream.finished && r->stream.count==r->remote_count) {
-                if(r->stream.digest!=r->remote_digest)fail_receive(room,"The received history does not match.");
-                else {release_receive(room);r->state=NativeRoomWatch_Complete;}
             }
         }
     }
