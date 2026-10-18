@@ -41,6 +41,9 @@ typedef struct NativeFighterProject {
     uint8_t* cpu_text;
     size_t cpu_size;
     struct NativeFighterAuthoring* authoring;
+    // In-memory editor history tokens. Serial stays monotonic through Undo;
+    // revision identifies the current skeleton layout. Neither is serialized.
+    uint64_t rig_edit_revision, rig_edit_serial;
 } NativeFighterProject;
 
 typedef struct NativeFighterProjectInfo {

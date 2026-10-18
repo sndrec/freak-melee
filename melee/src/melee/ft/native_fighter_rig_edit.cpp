@@ -410,6 +410,7 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
     int32_t* result,char* error,size_t capacity) try
 {
     if(!project||!edit)return fail(error,capacity,"Hierarchy editing needs a draft and an edit.");
+    if(project->rig_edit_serial==UINT64_MAX)return fail(error,capacity,"The draft has exhausted its rig edit identities.");
     if(!nativeFighterProject_ValidateAssets(project,error,capacity))return false;
     auto before=std::make_unique<NativeFighterModelEditor>(),after=std::make_unique<NativeFighterModelEditor>();
     HSD_Dat fighter;NativeFighterRig source;Plan plan={};
@@ -519,7 +520,8 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
     project->animation_dat=next.animation_dat;project->animation_size=next.animation_size;next.animation_dat=nullptr;
     project->costume_dat=next.costume_dat;project->costume_size=next.costume_size;next.costume_dat=nullptr;
     project->asset_record=next.asset_record;project->asset_record_size=next.asset_record_size;next.asset_record=nullptr;
-    project->facts=next.facts;if(result)*result=selected;if(error&&capacity)error[0]=0;return true;
+    project->facts=next.facts;project->rig_edit_revision=++project->rig_edit_serial;
+    if(result)*result=selected;if(error&&capacity)error[0]=0;return true;
 }
 catch(const std::bad_alloc&)
 {return fail(error,capacity,"Could not allocate storage for the hierarchy edit. The draft is unchanged.");}

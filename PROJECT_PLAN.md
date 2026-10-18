@@ -224,7 +224,9 @@ import, materials, rigging and skinning, not mesh modeling.
   identities through draw-order changes, including tables shared with costumes.
   Alternate poses now own stable bone-ID maps, prepared when assets load; Sheik
   passes the hierarchy path too. Model controls and structural history still
-  need to be connected and verified in the native UI.
+  need to be connected and verified in the native UI. The complete-asset restore
+  backend now guards later edits and replaces all four assets after admission;
+  Action/Animation/Model history entries also guard their rig revision.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but

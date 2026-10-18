@@ -50,6 +50,7 @@ void record_edit(bool animation, const uint8_t* before)
     const size_t size = animation ? session->project->animation_size :
                                     session->project->fighter_size;
     EditHistoryEntry edit = { animation, {}, {}, {} };
+    edit.rig_revision = session->project->rig_edit_revision;
     for (size_t i = 0; i < size; ++i) {
         if (before[i] == after[i]) continue;
         edit.bytes.push_back({ (uint32_t) i, before[i], after[i] });
@@ -77,6 +78,7 @@ void record_structural_edit(bool animation, const uint8_t* before, size_t size,
     EditHistoryEntry edit = { animation, {},
         std::vector<uint8_t>(before, before + size),
         std::vector<uint8_t>(after, after + after_size) };
+    edit.rig_revision = session->project->rig_edit_revision;
     if (animation && before_fighter != nullptr &&
         (fighter_size != session->project->fighter_size ||
          std::memcmp(before_fighter, session->project->fighter_dat,
@@ -109,6 +111,7 @@ void record_pose_edit(const NativeWorkshopTransformChange* changes, unsigned cou
     if (!different) return;
     EditHistoryEntry edit = {};
     edit.poses.assign(changes, changes + count);
+    edit.rig_revision = session->project->rig_edit_revision;
     edit.pose_clip = session->animation_clip;
     edit.pose_frame = session->animation_frame;
     session->edit_history.erase(session->edit_history.begin() + session->edit_cursor,
@@ -764,6 +767,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         const unsigned action = (unsigned) session->selected_action;
         EditHistoryEntry edit = {};
         edit.label_edit = true;
+        edit.rig_revision = session->project->rig_edit_revision;
         edit.label_action = action;
         const char* previous = nativeFighterAuthoring_Name(
             session->project, NativeAuthoring_Action, action);

@@ -134,6 +134,48 @@ Connect the completed transaction to the approved Skeleton controls,
    Save/reopen, animation, weight painting and Test Character in the native UI.
    The game client has not been relinked or launched for this backend checkpoint.
 
+## In-memory core-asset history
+
+`native_fighter_core_asset_state.{h,cpp}` captures the matching fighter,
+animation, costume and facts buffers together with their decoded facts. Restore
+compares the complete expected state, prepares and validates all replacement
+buffers privately, then replaces the four assets together. A failed guard,
+allocation or admission keeps the current draft intact. Scripts, parameters,
+resources and authoring names retain their existing owners.
+
+Successful hierarchy edits receive an in-memory rig revision. Undo restores the
+previous revision while retaining the highest history serial, so a new branch
+gets a fresh token even when its serialized assets are identical to an older
+branch. These tokens are separate from bone IDs and are not written to disk.
+Action, Animation and Model history entries now record their revision and refuse
+to apply offsets or pose indices across a different rig layout. Their existing
+entries remain available when the corresponding rig revision is restored.
+
+The Model dirty baseline now covers all four core assets. Connecting structural
+history entries, selection/temporary-pose remapping and bone controls remains
+the next UI step; this checkpoint does not claim live structural Undo acceptance.
+
+`native_core_asset_state_test` passes **48 checks each** on Glim and the fresh
+Sheik draft. It checks byte-exact Undo/Redo, changes to each guarded buffer,
+changed decoded facts, malformed replacement facts, a truncated later asset,
+unchanged pointers after failure, unrelated-owner preservation and a new branch
+with identical bytes but a distinct revision. Both source drafts retain their
+original four-file hashes.
+
+The complete hierarchy review still passes all **26** definitions: **262 cases**,
+**81,327 checks**. Production UI objects compile with the guards and the new
+baseline; the game executable has not been relinked or launched for this step.
+
+Receipts:
+
+- `.local/native-core-asset-history-1.json`
+- `.local/native-rig-history-retail-1/receipt.json`
+
+Core-state test SHA-256:
+`282d87506e8eea880e8ab3d5b84e2ee0c099fa0efd1ad02b6fa5c1c3dbd9c70f`.
+Hierarchy test SHA-256:
+`7ed7b3bcfb646bf549c60491ad3d1c7e9131de872bac83b57fec18b423746f7e`.
+
 ## Alternate-pose bone mappings
 
 Each pose fact now stores one stable fighter bone ID per descriptor, in graph

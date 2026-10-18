@@ -984,6 +984,10 @@ void apply_history(bool redo)
     }
     const EditHistoryEntry& edit = session->edit_history[redo ? session->edit_cursor :
                                                      session->edit_cursor - 1];
+    if(edit.rig_revision != session->project->rig_edit_revision) {
+        set_text("workshop-editor-status", "Undo the bone edits in Model before restoring this edit.");
+        return;
+    }
     if (edit.label_edit) {
         const std::string& value = redo ? edit.after_name : edit.before_name;
         bool hidden = redo ? edit.after_hidden : edit.before_hidden;
