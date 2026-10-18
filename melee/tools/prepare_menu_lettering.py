@@ -26,7 +26,7 @@ class MenuArchive:
                 node = self.word(node + sibling)
         return list(visit(self.symbols[name]))
 
-    def image(self, descriptor):
+    def image(self, descriptor, coverage=False):
         pixels, width, height, fmt = struct.unpack_from('>IHHI', self.data, descriptor)
         if fmt not in (0, 2):
             raise ValueError('Expected I4 or IA4 menu lettering')
@@ -41,6 +41,8 @@ class MenuArchive:
                         value = self.data[offset + (i // 2 if fmt == 0 else i)]
                         if fmt == 0:
                             value >>= 4 if i % 2 == 0 else 0
+                        elif coverage:
+                            value = ((value & 15) * (value >> 4) + 7) // 15
                         if bx + x < width and by + y < height:
                             image.putpixel((bx + x, by + y), (value & 15) * 17)
                 offset += 32
@@ -53,12 +55,12 @@ class MenuArchive:
         count = struct.unpack_from('>H', self.data, texture + 20)[0]
         return [self.image(self.word(images + n * 4)) for n in range(count)]
 
-    def joint_image(self, name, index):
+    def joint_image(self, name, index, coverage=False):
         joint = self.nodes(name)[index]
         dobj = self.word(joint + 16)
         material = self.word(dobj + 8)
         texture = self.word(material + 8)
-        return self.image(self.word(texture + 76))
+        return self.image(self.word(texture + 76), coverage)
 
 
 def letter_runs(image, threshold):

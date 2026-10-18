@@ -26,7 +26,7 @@ class ReleasePayload(unittest.TestCase):
         self.build = self.root/'build'
         self.output = self.root/'prepared'
         self.build.mkdir()
-        assets = ['ui/freak_shell.rml', 'ui/docs/index.md', 'ui/mario_full.fms',
+        assets = ['ui/freak_shell.rml', 'ui/docs/index.md', 'ui/mario_full.fms', 'ui/skins/menu-panel.bin',
                   'ui/yoshi_wip.fms', *[f'ui/fonts/{name}.bin' for name in
                   ['menu-heading','result-name','result-winner','notice','css-tile','menu-option','menu-caption']]]
         for name in ['melee_native.exe','native_content_tool.exe','SDL3.dll',

@@ -17,6 +17,7 @@
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_menu_scene.h>
+#include <melee/mn/native_menu_skin.h>
 #include <dolphin/gx.h>
 extern "C" {
 #include <sysdolphin/baselib/controller.h>
@@ -363,8 +364,7 @@ void nativeHub_Region(const char* id, float x, float y, float w, float h,
 }
 void nativeHub_Panel(float x, float y, float w, float h)
 {
-    nativeMenuPaint_Round(x + 1, y + 1, w - 2, h - 2, 5, 0x09080EDC);
-    nativeMenuScene_DrawFrame(x, y, w, h, 0xC2BEC7FF);
+    nativeMenuSkin_Panel(x, y, w, h, 0xC2BEC7FF, 0x09080EDC);
 }
 void nativeHub_Button(const char* id, const char* label, float x, float y,
                       float w, float h, HubAction action, int value,
@@ -373,17 +373,7 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
 {
     bool hover = nativeHub_Hover(x, y, w, h) && enabled;
     bool active = enabled && (selected || hover);
-    nativeMenuPaint_Gradient(x + 2, y + 2, w - 4, h - 4,
-        active ? 0xFFE451FF : enabled ? 0x302A25F4 : 0x17151AF0,
-        active ? 0xC1971FFF : enabled ? 0x0A090BF4 : 0x0A090BF0);
-    nativeMenuScene_DrawFrame(x, y, w, h,
-        active ? 0xFFF5A5FF : enabled ? 0xBDAA6EFF : 0x5B5660FF);
-    nativeMenuPaint_Text(label, x + 7, y + (h - std::min(13.0f, h * .4f)) * .5f,
-                        w - 14, std::min(13.0f, h * .4f),
-                        active ? 0x17121CFF
-                        : enabled         ? white
-                                          : 0x81788AFF,
-                        NativeMenuFont_MenuOption, true, !active);
+    nativeMenuSkin_Button(label, x, y, w, h, std::min(13.0f, h * .4f), active, enabled);
     nativeHub_Region(id, x, y, w, h, action, value, enabled, peer, name);
 }
 void nativeHub_Field(const char* id, const char* value, float x, float y,
@@ -391,7 +381,7 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
 {
     bool focused = hub.field == value;
     nativeMenuPaint_Round(x + 1, y + 1, w - 2, h - 2, 4, 0x050408F0);
-    nativeMenuScene_DrawFrame(x, y, w, h, focused ? 0xFFE451FF : 0x87818DFF);
+    nativeMenuSkin_Frame(x, y, w, h, focused ? 0xFFE451FF : 0x87818DFF);
     if (focused && hub.select_all) {
         nativeMenuPaint_Rect(x + 5, y + 4, w - 10, 17, 0x725730FF);
     }
@@ -1096,6 +1086,7 @@ extern "C" void nativeHub_Draw(void)
     }
     if (!hub.fonts) {
         nativeMenuFont_Acquire();
+        nativeMenuSkin_Acquire();
         hub.fonts = true;
     }
     const char* caption = hub.page == NativeHubPage_Profile
@@ -1381,6 +1372,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativePlayMenu_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();
+        nativeMenuSkin_Release();
     }
     hub = HubState{};
 }

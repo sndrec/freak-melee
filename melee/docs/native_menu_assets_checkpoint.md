@@ -21,9 +21,12 @@ and border thickness. The middle changes width. The selected ornament follows
 the right end. Shared archive geometry remains intact.
 
 The blank stock panel texture supplies reusable border corners and edges.
-Its border coverage is extracted once when the scene loads, then drawn as nine
-slices. Panels, fields and buttons use that border. Button fills use gold or
-dark gradients, with separate selected, ordinary and disabled text colors.
+`prepare_menu_skin.py` extracts its coverage into a 768-byte I4 asset at build
+time. `native_menu_skin.c` holds that asset in fixed shared storage, acquired
+by the hub and CSS/practice presenters independently of the main-menu archive.
+Panels, fields and buttons use its nine slices. Button fills use gold or dark
+gradients, with separate selected, ordinary and disabled text colors. Delivery
+notices and the Quick Play countdown use the same border and menu lettering.
 
 The new menu-option atlas extracts lettering from the English option textures.
 Missing letters are reconstructed from the source proportions. IA4 stores the
@@ -46,8 +49,8 @@ Options references before entering the adapted hub.
 ## Verification
 
 - Native client, content tool and skin-weight target built successfully with
-  the new scene owner, caption placement and font interface. Latest local log:
-  `.local/native-menu-caption-build-1.log`.
+  the new scene owner, caption placement and shared skin. Latest local log:
+  `.local/native-menu-skin-build-1.log`.
 - Retail references and the adapted hub were captured in one hidden, muted,
   isolated client: `.local/native-menu-assets-2`. The screenshots were reviewed.
   That capture exposed an invisible-gradient bug, corrected in build 6.
@@ -60,9 +63,24 @@ Options references before entering the adapted hub.
   placement, rename replacement, independent copy, opening/closing the frozen
   Workshop preview with CRLF source, profile saving and controller return.
   Evidence and reviewed PNGs: `.local/native-menu-caption-authoring-1`.
-- Release payload checks passed all seven cases, including both new atlases.
-- This pass uses local profiles and sends no public chat. It does not reverify
-  online matchmaking, gifts or offline account features.
+- Two native clients passed the CSS and gift flow against an isolated local
+  signaling service in `.local/native-menu-skin-room-1`. This covers local-first
+  card order with canonical identities preserved, remote preview caching without
+  installation, provisional selection, free cookies, mouse tile drop, cancel,
+  uncached spectator delivery during practice, explicit acceptance and roster
+  insertion, role changes and duplicate-install prevention. Received fighters
+  opened as independent Workshop drafts and passed source validation after the
+  sender disconnected and its authoring directory was moved aside.
+- Shared-PC Quick Play doubles passed ready practice, B-to-unready, countdown
+  restart and actual four-player netplay launch in
+  `.local/native-menu-skin-quick-doubles-1`. After a five-second input interval,
+  the test checked for process failure, session failure and checksum mismatch.
+  Countdown and delivery screenshots were reviewed.
+- Release payload checks passed all seven cases, including both new atlases and
+  the shared border asset.
+- These runs use isolated profiles and a local service, with hidden muted game
+  clients. Test clients and the service were stopped. They do not establish
+  physical multi-PC behavior, hosted deployment or offline account delivery.
 
 ## Remaining work
 
@@ -71,7 +89,7 @@ user's visual review. The caption uses its original scene anchor; page content
 still uses its 640-by-480 layout during the stock transition and is not yet laid
 out through all original menu anchors.
 
-Review the adapted lobby controls with the user, then carry the same component
-rules through the other hub pages and CSS-specific controls. Recheck the
-online flows after those changes. The working stock frame and sliced borders
-do not establish final style acceptance for the whole hub.
+Review the adapted hub and CSS controls with the user. Page content and pointer
+projection still need to follow the stock scene anchors/camera together. The
+working stock frame, sliced borders and local online checks do not establish
+final style acceptance for the whole hub.

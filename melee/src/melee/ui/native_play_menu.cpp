@@ -12,6 +12,7 @@
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_menu_paint.h>
+#include <melee/mn/native_menu_skin.h>
 #include <RmlUi/Core.h>
 extern "C" {
 #include <melee/lb/lbaudio_ax.h>
@@ -113,38 +114,24 @@ namespace {
     {
         nativePlayMenu_DrawCountdown();
         if (menu.practice) {
-            nativeMenuPaint_Round(7, 5, 626, 32, 5, 0x11101DDC);
+            nativeMenuSkin_Panel(7, 5, 626, 32, 0xACA7B5FF, 0x09080EDC);
             nativeMenuPaint_Text(menu.status, 220, 17, 275, 9, 0xEBDDAEFF);
         } else {
             nativeMenuPaint_Text(menu.status, 16, 460, 370, 8, 0xEBDDAEFF);
         }
         if (*menu.delivery) {
             float y = menu.practice ? 44 : 99;
-            nativeMenuPaint_Round(364, y, 262, 78, 6, 0xD8B967FF);
-            nativeMenuPaint_Round(365, y + 1, 260, 76, 5, 0x191421F5);
+            nativeMenuSkin_Panel(364, y, 262, 78, 0xD8B967FF, 0x09080EF5);
             nativeMenuPaint_Text(menu.delivery, 375, y + 10, 240, 9,
                                  0xF3E6CFFF);
             nativeMenuPaint_Text(menu.gift.title, 375, y + 28, 240, 11,
-                                 0xFFF4E9FF);
+                                 0xFFF4E9FF, NativeMenuFont_MenuOption);
         }
         for (unsigned i = 0; i < menu.count; ++i) {
             const Button& b = menu.buttons[i];
             bool hover = b.enabled && hit(b, menu.pointer_x, menu.pointer_y);
-            uint32_t edge = !b.enabled ? 0x817785FF
-                            : hover    ? 0xFFF389FF
-                                       : 0xD6BC79FF;
-            uint32_t fill = !b.enabled        ? 0x24202DDC
-                            : b.gold || hover ? 0xDCC77AFF
-                                              : 0x211B2BEF;
-            nativeMenuPaint_Round(b.x, b.y + 1, b.w, b.h, 4, 0x05040ECC);
-            nativeMenuPaint_Round(b.x, b.y, b.w, b.h, 4, edge);
-            nativeMenuPaint_Round(b.x + 1, b.y + 1, b.w - 2, b.h - 2, 3, fill);
-            nativeMenuPaint_Text(b.label, b.x + 5, b.y + (b.h - 10) * .5f,
-                                 b.w - 10, 10,
-                                 !b.enabled        ? 0xA19AA9FF
-                                 : b.gold || hover ? 0x1E1724FF
-                                                   : 0xF2E6CFFF,
-                                 NativeMenuFont_Notice, true);
+            nativeMenuSkin_Button(b.label, b.x, b.y, b.w, b.h, 10,
+                                   b.gold || hover, b.enabled);
         }
     }
 }
@@ -154,6 +141,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     if (practice && !nativeHubHand_Ready()) nativeHubHand_Load(nullptr);
     if ((selection || practice) && !menu.fonts) {
         nativeMenuFont_Acquire();
+        nativeMenuSkin_Acquire();
         menu.fonts = true;
     }
     if (!(selection || practice)) {
@@ -286,9 +274,8 @@ extern "C" void nativePlayMenu_DrawCountdown(void)
     if (!remaining) return;
     char label[64];
     std::snprintf(label, sizeof(label), "Match starts in %u", (remaining + 999) / 1000);
-    nativeMenuPaint_Round(195, 112, 250, 74, 8, 0xD6BC79FF);
-    nativeMenuPaint_Round(197, 114, 246, 70, 7, 0x191421F5);
-    nativeMenuPaint_Text(label, 210, 128, 220, 17, 0xFFF4E9FF, NativeMenuFont_Notice, true);
+    nativeMenuSkin_Panel(195, 112, 250, 74, 0xD6BC79FF, 0x09080EF5);
+    nativeMenuPaint_Text(label, 210, 128, 220, 17, 0xFFF4E9FF, NativeMenuFont_MenuOption, true);
     nativeMenuPaint_Text("B to unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
 }
 
@@ -395,6 +382,7 @@ extern "C" void nativePlayMenu_Shutdown(void)
 {
     if (menu.fonts) {
         nativeMenuFont_Release();
+        nativeMenuSkin_Release();
     }
     menu = PlayMenu{};
 }

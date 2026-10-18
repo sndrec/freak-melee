@@ -172,8 +172,10 @@ They do not establish timing on friends' machines. See
   ownership. Preserve ribbon ends while resizing the middle; extract reusable
   panel borders and apply them to lobby controls. Native scene-return checks
   pass. See the [menu asset checkpoint](melee/docs/native_menu_assets_checkpoint.md).
-- [ ] Review the adapted controls and carry their source colors, gradients,
-  border proportions and sliced artwork through the remaining hub/CSS pages.
+- [x] Share the extracted border, source colors and button gradients across hub,
+  CSS and practice controls, fighter-delivery notices and Quick Play countdowns.
+  Keep the shared artwork independent of main-menu scene ownership.
+- [ ] Obtain the user's visual review of the adapted hub/CSS controls.
 - [x] Recover separate menu-caption and ribbon alphabets from stock textures,
   retain the notice/results/tile faces, and place page captions through their
   original joint and material. Native navigation and full first-launch authoring
@@ -182,9 +184,9 @@ They do not establish timing on friends' machines. See
   their surrounding components.
 - [ ] Move the hub's content through scene anchors/cameras and keep hand hit
   testing aligned with the edited components, including during transitions.
-- [ ] Recheck CSS/practice/editor scene lifetimes and the working online flows,
-  then obtain the user's visual review. Flow tests do not substitute for
-  asset/style acceptance.
+- [x] Recheck CSS/practice/editor scene lifetimes, two-client caching/gifts and
+  shared-PC Quick Play doubles with the adapted controls. Tests pass against
+  the local service. Flow tests do not substitute for asset/style acceptance.
 
 ### 1. Model workspace completion
 

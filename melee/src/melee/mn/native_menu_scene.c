@@ -36,10 +36,8 @@ static struct {
         unsigned count;
         HSD_JObj* ornament;
     } ribbon_geometry[7];
-    HSD_ImageDesc* frame;
     HSD_JObj* caption;
     Mtx caption_pixels;
-    u8 frame_border[48 * 32 / 2] ATTRIBUTE_ALIGN(32);
     HSD_GObj* camera;
     HSD_GObj* lights;
     Mtx idle_inverse;
@@ -228,19 +226,6 @@ void nativeMenuScene_Load(void)
         model(&scene.ribbons[i], "MenMainCursor_Top");
         prepare_ribbon(i);
     }
-    scene.frame = runtime_joint(scene.backdrop[1]->hsd_obj, 77)->u.dobj->mobj->tobj->imagedesc;
-    HSD_ASSERT(0, scene.frame->width == 48 && scene.frame->height == 32 &&
-        scene.frame->format == GX_TF_IA4);
-    // Extract the border's coverage from the stock IA4 panel. Its translucent
-    // black interior is supplied separately, so it cannot darken a button fill.
-    const u8* pixels = scene.frame->image_ptr;
-    for (unsigned y = 0; y < 32; ++y) for (unsigned x = 0; x < 48; x += 2) {
-        unsigned src = ((y / 4) * 6 + x / 8) * 32 + (y % 4) * 8 + x % 8;
-        unsigned dst = ((y / 8) * 6 + x / 8) * 32 + (y % 8) * 4 + (x % 8) / 2;
-        unsigned a = pixels[src], b = pixels[src + 1];
-        scene.frame_border[dst] = (((a & 15) * (a >> 4) + 7) / 15 << 4) |
-            ((b & 15) * (b >> 4) + 7) / 15;
-    }
     scene.camera = GObj_Create(0xFE09, 3, 0x80);
     GObj_InitUserData(scene.camera, 0, forget_owner, &scene.camera);
     HSD_GObjObject_80390A70(scene.camera, HSD_GObj_CameraKind, HSD_CObjLoadDesc(cam));
@@ -384,31 +369,6 @@ void nativeMenuScene_DrawRibbon(unsigned slot, float x, float y, float width,
                  { 0, 0, 1, -100 } };
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
     HSD_JObjDispAll(root, view, HSD_TRSP_ALL, 0);
-}
-
-void nativeMenuScene_DrawFrame(float x, float y, float width, float height, u32 rgba)
-{
-    if (!scene.frame) return;
-    GXTexObj texture;
-    GXInitTexObj(&texture, scene.frame_border, 48, 32, GX_TF_I4,
-        GX_CLAMP, GX_CLAMP, GX_FALSE);
-    GXLoadTexObj(&texture, GX_TEXMAP0);
-    GXSetTevColor(GX_TEVREG0, (GXColor){ rgba >> 24, rgba >> 16, rgba >> 8, rgba });
-    GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_C0);
-    GXSetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_TEXA, GX_CA_A0, GX_CA_ZERO);
-    float edge = fminf(6, fminf(width, height) * .5f);
-    const float px[] = { x, x + edge, x + width - edge, x + width };
-    const float py[] = { y, y + edge, y + height - edge, y + height };
-    const float u[] = { 0, 8.f / 48, 40.f / 48, 1 };
-    const float v[] = { 0, 8.f / 32, 24.f / 32, 1 };
-    GXBegin(GX_QUADS, GX_VTXFMT0, 36);
-    for (unsigned row = 0; row < 3; ++row) for (unsigned col = 0; col < 3; ++col) {
-        GXPosition3f32(px[col], -py[row], -5); GXTexCoord2f32(u[col], v[row]);
-        GXPosition3f32(px[col+1], -py[row], -5); GXTexCoord2f32(u[col+1], v[row]);
-        GXPosition3f32(px[col+1], -py[row+1], -5); GXTexCoord2f32(u[col+1], v[row+1]);
-        GXPosition3f32(px[col], -py[row+1], -5); GXTexCoord2f32(u[col], v[row+1]);
-    }
-    GXEnd();
 }
 
 void nativeMenuScene_Inspect(void)

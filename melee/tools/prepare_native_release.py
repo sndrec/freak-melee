@@ -37,7 +37,7 @@ def main() -> None:
 
     build = args.build.resolve(strict=True)
     required = ["melee_native.exe", "native_content_tool.exe", "ui/freak_shell.rml",
-                "ui/docs/index.md", "ui/mario_full.fms",
+                "ui/docs/index.md", "ui/mario_full.fms", "ui/skins/menu-panel.bin",
                 *[f"ui/fonts/{name}.bin" for name in
                   ["menu-heading", "result-name", "result-winner", "notice", "css-tile", "menu-option", "menu-caption"]]]
     for name in required:
