@@ -45,6 +45,48 @@ int main(void)
     assert(memcmp(receive.bytes, package, PACKAGE_BYTES) == 0);
     assert(sent > PACKAGE_BYTES / NATIVE_CONTENT_TRANSFER_CHUNK_BYTES);
 
+    // Keep later chunks in their final storage while an early chunk is
+    // missing. Filling that hole should advance through the whole window,
+    // without requiring those later chunks to be transmitted again.
+    NativeContentTransferSend ordered_send={0};
+    NativeContentTransferReceive reordered={0};
+    enum { REORDER_BYTES=4*512-13 };
+    assert(nativeContentTransfer_StartSend(&ordered_send,&id,package,REORDER_BYTES));
+    nativeContentTransfer_StartReceive(&reordered,&id);
+    uint8_t reordered_packets[4][576],control[576];size_t lengths[4];
+    size_t control_size=nativeContentTransfer_NextSend(&ordered_send,1,control);
+    nativeContentTransfer_ReceivePacket(&reordered,control,control_size,1);
+    control_size=nativeContentTransfer_NextReceive(&reordered,2,control);
+    nativeContentTransfer_SendPacket(&ordered_send,control,control_size,2);
+    for(unsigned i=0;i<4;++i)lengths[i]=nativeContentTransfer_NextSend(&ordered_send,3,reordered_packets[i]);
+    for(unsigned i=1;i<4;++i) {
+        nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[i],lengths[i],4);
+        assert(!reordered.received && !reordered.complete && !reordered.failed);
+    }
+    nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[2],lengths[2],5);
+    assert(!reordered.received && !reordered.failed);
+    // Time out and retransmit the missing first chunk. Its acknowledgement
+    // can jump past the retransmission cursor to previously sent later data.
+    control_size=nativeContentTransfer_NextSend(&ordered_send,1000,control);
+    nativeContentTransfer_ReceivePacket(&reordered,control,control_size,1000);
+    assert(reordered.complete && reordered.received==REORDER_BYTES && !reordered.received_window);
+    assert(!memcmp(package,reordered.bytes,REORDER_BYTES));
+    control_size=nativeContentTransfer_NextReceive(&reordered,1001,control);
+    nativeContentTransfer_SendPacket(&ordered_send,control,control_size,1001);
+    assert(ordered_send.complete);
+    nativeContentTransfer_StopReceive(&reordered);
+
+    nativeContentTransfer_StartReceive(&reordered,&id);
+    ordered_send=(NativeContentTransferSend){0};
+    assert(nativeContentTransfer_StartSend(&ordered_send,&id,package,REORDER_BYTES));
+    control_size=nativeContentTransfer_NextSend(&ordered_send,1,control);
+    nativeContentTransfer_ReceivePacket(&reordered,control,control_size,1);
+    nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[1],lengths[1],2);
+    reordered_packets[1][lengths[1]-1]^=1;
+    nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[1],lengths[1],3);
+    assert(reordered.failed && !reordered.received);
+    nativeContentTransfer_StopReceive(&reordered);
+
     NativeContentId different = id;
     different.bytes[0] ^= 1;
     uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
@@ -56,6 +98,6 @@ int main(void)
     assert(receive.failed);
     nativeContentTransfer_StopReceive(&receive);
     free(package);
-    puts("Reliable package transfer survives lost data and acknowledgements");
+    puts("Reliable package transfer survives loss, reordered/duplicate chunks, short final chunks and conflicting data");
     return 0;
 }

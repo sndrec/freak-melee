@@ -106,7 +106,7 @@ void nativeContentTransfer_SendPacket(NativeContentTransferSend* send,
         return;
     }
     size_t acknowledged = read_u32(packet + HEADER_BYTES);
-    if (acknowledged > send->size || acknowledged > send->next_offset ||
+    if (acknowledged > send->size || acknowledged > send->sent_through ||
         (acknowledged != send->size &&
          acknowledged % NATIVE_CONTENT_TRANSFER_CHUNK_BYTES != 0)) {
         return;
@@ -114,6 +114,7 @@ void nativeContentTransfer_SendPacket(NativeContentTransferSend* send,
     send->begin_acknowledged = true;
     if (acknowledged > send->acknowledged) {
         send->acknowledged = acknowledged;
+        if(send->next_offset<acknowledged)send->next_offset=acknowledged;
         send->last_progress_ms = now_ms;
         send->recovery_probe = false;
     }
@@ -165,6 +166,7 @@ size_t nativeContentTransfer_NextSend(NativeContentTransferSend* send,
     packet[42] = (uint8_t) (chunk >> 8);
     memcpy(packet + DATA_HEADER_BYTES, send->bytes + send->next_offset, chunk);
     send->next_offset += chunk;
+    if(send->next_offset>send->sent_through)send->sent_through=send->next_offset;
     return DATA_HEADER_BYTES + chunk;
 }
 
@@ -238,12 +240,25 @@ void nativeContentTransfer_ReceivePacket(NativeContentTransferReceive* receive,
             receive->failed = true;
             return;
         }
-        if (!receive->complete && offset == receive->received) {
-            memcpy(receive->bytes + offset, packet + DATA_HEADER_BYTES,
-                   length);
-            receive->received += length;
-            receive->last_progress_ms = now_ms;
-            receive->complete = receive->received == receive->size;
+        if (!receive->complete && offset >= receive->received) {
+            size_t index=(offset-receive->received)/NATIVE_CONTENT_TRANSFER_CHUNK_BYTES;
+            if(index<NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS) {
+                uint32_t bit=UINT32_C(1)<<index;
+                if(receive->received_window&bit) {
+                    if(memcmp(receive->bytes+offset,packet+DATA_HEADER_BYTES,length)) {
+                        receive->failed=true;return;
+                    }
+                } else {
+                    memcpy(receive->bytes+offset,packet+DATA_HEADER_BYTES,length);
+                    receive->received_window|=bit;receive->last_progress_ms=now_ms;
+                }
+                while(receive->received_window&1) {
+                    size_t step=receive->size-receive->received;
+                    if(step>NATIVE_CONTENT_TRANSFER_CHUNK_BYTES)step=NATIVE_CONTENT_TRANSFER_CHUNK_BYTES;
+                    receive->received+=step;receive->received_window>>=1;
+                }
+                receive->complete=receive->received==receive->size;
+            }
         }
         receive->ack_pending = true;
     }
