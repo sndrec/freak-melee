@@ -97,6 +97,7 @@ static struct {
     bool workshop_preview_hitboxes;
     bool workshop_camera_active;
     bool workshop_camera_owned;
+    bool workshop_camera_retain;
     bool workshop_hud_hidden;
     bool workshop_hud_previously_hidden;
     bool workshop_background_saved;
@@ -378,9 +379,11 @@ unsigned nativeHome_WorkshopInitialMember(unsigned port)
 bool nativeHome_WorkshopSelectMember(unsigned member, bool restart_preview)
 {
     if (member >= NATIVE_FIGHTER_FAMILY_MEMBERS) return false;
-    nativeHome_WorkshopPoseRelease();
-    home.workshop_member = member;
-    nativeHome_WorkshopPoseInvalidate();
+    if (home.workshop_member != member) {
+        nativeHome_WorkshopPoseRelease(true);
+        home.workshop_member = member;
+        nativeHome_WorkshopPoseInvalidate();
+    }
     Fighter_GObj* actor = workshop_preview_actor(true);
     if (actor == NULL) return false;
     if (!GET_FIGHTER(actor)->x221F_b3) return true;
@@ -473,13 +476,13 @@ static bool workshop_pose_tree_valid(Fighter_GObj* object,
     return true;
 }
 
-void nativeHome_WorkshopPoseRelease(void)
+void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
 {
     if (home.workshop_companion_lifetime.object && nativeHome_IsPractice() &&
         nativeFighterLifetime_Current(&home.workshop_companion_lifetime)) {
         for (unsigned i = 0; i < home.workshop_companion_proc_count; ++i) {
             HSD_GObjProc* proc = nativeMatchPool_Resolve(home.workshop_companion_procs[i]);
-            if (proc && proc->gobj == home.workshop_companion_lifetime.object)
+            if (resume_gameplay && proc && proc->gobj == home.workshop_companion_lifetime.object)
                 proc->flags_1 = 0;
         }
     }
@@ -537,7 +540,7 @@ void nativeHome_WorkshopPoseRelease(void)
             for (unsigned i = 0; i < 4; ++i)
                 fighter->x914[i].state = HitCapsule_Disabled;
         }
-        if (nativeCallbackSource_Alive(posed, home.workshop_pose_generation,
+        if (resume_gameplay && nativeCallbackSource_Alive(posed, home.workshop_pose_generation,
                 NativeCallbackSource_Fighter) &&
             nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
             nativeFighterRuntime_SourcePackage(GET_FIGHTER(posed)->kind) ==
@@ -602,6 +605,19 @@ void nativeHome_InspectWorkshop(void)
         home.authoring && home.preview_active, home.preview_live_test,
         home.preview_transitioning, home.workshop_member);
     if (!nativeHome_IsPractice() || home.preview_port >= GM_MAX_PLAYERS) return;
+    HSD_GObj* camera_object = Camera_80030A50();
+    if (camera_object && camera_object->hsd_obj) {
+        HSD_CObj* camera = camera_object->hsd_obj;
+        Vec3 eye, interest;
+        HSD_CObjGetEyePosition(camera, &eye);
+        HSD_CObjGetInterest(camera, &interest);
+        OSReport("[workshop-camera] active=%u target=%.9f,%.9f,%.9f orbit=%.9f,%.9f,%.9f eye=%.9f,%.9f,%.9f interest=%.9f,%.9f,%.9f fov=%.9f aspect=%.9f\n",
+            home.workshop_camera_active, home.workshop_camera_target.x,
+            home.workshop_camera_target.y, home.workshop_camera_target.z,
+            home.workshop_camera_yaw, home.workshop_camera_pitch, home.workshop_camera_distance,
+            eye.x, eye.y, eye.z, interest.x, interest.y, interest.z,
+            HSD_CObjGetFov(camera), HSD_CObjGetAspect(camera));
+    }
     Fighter_GObj* leader = Player_GetEntityAtIndex((int)home.preview_port, 0);
     uint32_t generation;
     if (!nativeCallbackSource_Snapshot(leader, NativeCallbackSource_Fighter, &generation)) return;
@@ -778,7 +794,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
     uint32_t generation;
     if (!nativeCallbackSource_Snapshot(gobj, NativeCallbackSource_Fighter,
                                        &generation)) {
-        nativeHome_WorkshopPoseRelease();
+        nativeHome_WorkshopPoseRelease(true);
         return false;
     }
     Fighter* fighter = GET_FIGHTER(gobj);
@@ -823,18 +839,21 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
     }
     if (home.workshop_pose_gobj != gobj ||
         home.workshop_pose_generation != generation)
-        nativeHome_WorkshopPoseRelease();
+        nativeHome_WorkshopPoseRelease(true);
     if (!workshop_hold_companion(gobj)) return false;
     if (!home.workshop_camera_active) {
         HSD_GObj* camera = Camera_80030A50();
         if (camera != NULL && camera->hsd_obj != NULL) {
             home.workshop_camera_owned = !Camera_80030178();
             Camera_8003006C();
-            home.workshop_camera_target = GET_FIGHTER(gobj)->cur_pos;
-            home.workshop_camera_target.y += 8.0f;
-            home.workshop_camera_yaw = 0.0f;
-            home.workshop_camera_pitch = 0.12f;
-            home.workshop_camera_distance = 45.0f;
+            if (!home.workshop_camera_retain) {
+                home.workshop_camera_target = GET_FIGHTER(gobj)->cur_pos;
+                home.workshop_camera_target.y += 8.0f;
+                home.workshop_camera_yaw = 0.0f;
+                home.workshop_camera_pitch = 0.12f;
+                home.workshop_camera_distance = 45.0f;
+            }
+            home.workshop_camera_retain = false;
             cm_80453004.free_fov = 40.0f;
             home.workshop_camera_active = true;
             workshop_camera_apply();
@@ -895,7 +914,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
         fighter->ft_data != data || nativeFighterRuntime_SourcePackage(kind) != source ||
         !nativeFighterLifetime_Current(&lifetime) ||
         workshop_preview_actor(false) != gobj) {
-        nativeHome_WorkshopPoseRelease();
+        nativeHome_WorkshopPoseRelease(true);
         return false;
     }
     return true;
@@ -1221,7 +1240,7 @@ bool nativeHome_WorkshopHitboxScreen(unsigned hitbox, unsigned angle,
 
 void nativeHome_SetAuthoring(bool active)
 {
-    if (!active) nativeHome_WorkshopPoseRelease();
+    if (!active) nativeHome_WorkshopPoseRelease(true);
     home.authoring = active;
     if (active) {
         nativeHome_CancelStartMatch();
@@ -1288,12 +1307,15 @@ bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool li
 
 bool nativeHome_RequestPreview(const NativeContentId* id, bool live_test)
 {
-    nativeHome_WorkshopPoseRelease();
     if (id == NULL || !has_package_id(id) || !home.authoring ||
         !nativeHome_IsPractice() || home.preview_transitioning ||
         nativeOnlineSession_State() != NativeLobbySessionState_Disconnected) {
         return false;
     }
+    home.workshop_camera_retain = !live_test && home.workshop_camera_active;
+    // The outgoing frozen actor must remain paused until scene teardown.
+    // Resuming here lets a physics tick slip into an asset-only refresh.
+    nativeHome_WorkshopPoseRelease(false);
     unsigned port = 0;
     if (home.preview_active) {
         port = home.preview_port;
@@ -1331,7 +1353,7 @@ bool nativeHome_ReturnToWorkshopPreview(void)
     if (!home.authoring || !home.preview_active || !home.preview_live_test ||
         !nativeHome_IsPractice() || home.preview_transitioning ||
         home.preview_port >= GM_MAX_PLAYERS) return false;
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     home.preview_live_test = false;
     home.preview_restart = true;
     home.preview_transitioning = true;
@@ -1342,6 +1364,7 @@ bool nativeHome_ReturnToWorkshopPreview(void)
 
 static void finish_preview(void)
 {
+    home.workshop_camera_retain = false;
     if (!home.preview_active) {
         return;
     }
@@ -1789,7 +1812,7 @@ void nativeHome_ExitPractice(void)
 {
     nativeHubHand_Unload();
     nativeMenuScene_Unload();
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     if (home.preview_active && !home.preview_restart) {
         finish_preview();
     }

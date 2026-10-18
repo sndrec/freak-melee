@@ -2,7 +2,8 @@
 
 Rest edits now compensate rigid attachments and ordinary skinned polygons in
 an asset transaction. The release client and content tool build successfully.
-Final visual acceptance remains open.
+Ordinary rigid/skinned rest edits pass the current viewport and workflow checks.
+Morph-target compensation remains open.
 
 ## Behavior
 
@@ -47,12 +48,45 @@ Inherited animation clips still need review after changing the rest rig.
   confirm geometry rather than relaxing the assertion. Later Undo/Redo and
   practice steps were not reached in this final run.
 
-## Resume here
+## Refresh fix and current acceptance — 2026-10-18
 
-Reproduce the final comparison with `review_native_rest.py`, inspect camera
-state before/after refresh, and close visual acceptance. The script saves
-`surface-images.json` and the full PNGs on failure. Test clients are hidden,
-muted, isolated and terminated by the harness.
+The current reproduction in `.local/native-rest-camera-review-1` identifies
+the shift: the frozen fighter drops from Y=-0.095 to Y=-0.190, and the camera
+target follows by the same amount. FOV, aspect and orbit are unchanged.
+The comparison reports 6,619 changed pixels.
+
+Preparing a cached preview reselected the already-selected family member,
+releasing its frozen pose. Requesting an asset refresh also resumed its
+processes before scene teardown. One physics tick then ran during the refresh.
+Selecting the same member now retains the pose. Pose release explicitly chooses
+whether gameplay should resume; asset refresh leaves the outgoing actor paused.
+The camera target and orbit settings are retained through that refresh.
+
+`.local/native-rest-refresh-review-2/passed.json` passes saved rotation, scale
+and translation edits, invalid-scale rejection, native Apply/Save, byte-exact
+Undo/Redo of the expanded asset, Pose/Animation modes, Test Character and editor
+return. The before/after comparison has **zero changed pixels**. Actor position,
+camera target, eye, interest, FOV and aspect match exactly in the captured
+`surface-images.json` reports. Viewport and practice PNGs were inspected.
+
+The actual pose/companion release fixture passes 2,755 checks in
+`A:/FreakMelee-test-archives/rest-refresh-pose-2`, including a release that leaves
+both actors paused. The existing model-rest and skin-weight CTests pass in
+`.local/native-rest-refresh-tests-1.log`. Native build:
+`.local/native-rest-refresh-build-2.log`.
+
+An additional older headless Action/Demo clip fixture could not run against the
+current editor: its extractor still names the removed Select visible button,
+and its standalone build lacks newer editor boundaries. It is not counted as
+passing evidence here. Its pose-release stub was updated for the explicit
+resume argument; broader fixture maintenance remains separate.
+
+## Remaining work
+
+`review_native_rest.py` saves camera/actor reports in `surface-images.json`
+alongside its full PNGs. Test clients are hidden, muted, isolated and terminated
+by the harness. User usability review and inherited-animation retargeting remain
+separate from the rest-geometry acceptance above.
 
 Morph targets, inherited animation retargeting, extra bones and source-aware
 reimport remain separate tasks. Rebuilt records currently retain old storage;

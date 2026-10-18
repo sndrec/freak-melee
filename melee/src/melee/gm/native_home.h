@@ -89,7 +89,9 @@ typedef struct NativeHomeWorkshopHitboxScreen {
 } NativeHomeWorkshopHitboxScreen;
 bool nativeHome_WorkshopHitboxScreen(unsigned hitbox, unsigned angle,
                                     NativeHomeWorkshopHitboxScreen* result);
-void nativeHome_WorkshopPoseRelease(void);
+// Asset refresh retires the frozen actor with resume_gameplay=false.
+// Returning to ordinary play resumes its retained processes.
+void nativeHome_WorkshopPoseRelease(bool resume_gameplay);
 void nativeHome_SetAuthoring(bool active);
 bool nativeHome_PracticeTransitioning(void);
 bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool live_test);

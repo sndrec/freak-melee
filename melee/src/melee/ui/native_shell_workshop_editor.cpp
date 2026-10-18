@@ -593,7 +593,7 @@ void nativeShellWorkshopEditor_Close()
     nativeShellWorkshopModel_Close();
     workshop_camera_events.Reset();
     stop_action_preview();
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     nativeShellWorkshopBones_Reset();
     nativeShellWorkshopHitboxes_Update(false, -1, nullptr, 0);
     document->GetElementById("workshop-editor-footer")
@@ -1456,9 +1456,9 @@ void nativeShellWorkshopEditor_Update()
                 std::string(preview_name) + " · frame " +
                 number((unsigned) frame) + (session->action_preview_playing ? " · playing" : " · paused preview"));
         }
-        else nativeHome_WorkshopPoseRelease();
+        else nativeHome_WorkshopPoseRelease(true);
     } else {
-        nativeHome_WorkshopPoseRelease();
+        nativeHome_WorkshopPoseRelease(true);
     }
     if (session->mode == WorkshopMode::Animation && !session->action_preview_playing &&
         !session->graph_focused)

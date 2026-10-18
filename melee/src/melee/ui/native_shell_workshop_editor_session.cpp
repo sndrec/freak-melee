@@ -171,7 +171,7 @@ void cancel_session_gestures()
     workshop_camera_events.Reset();
     nativeWorkshopPose_Clear();
     nativeWorkshopTransform_Clear();
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     nativeShellWorkshopBones_Reset();
     nativeShellWorkshopHitboxes_Update(false, -1, nullptr, 0);
 }

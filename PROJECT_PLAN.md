@@ -203,12 +203,14 @@ import, materials, rigging and skinning, not mesh modeling.
   [source-skin checkpoint](melee/docs/native_source_skin_checkpoint.md).
 - [ ] Add/edit extra bones while updating owned rig facts, hierarchy, animation,
   skin/attachment references and gameplay bone roles coherently.
-- [ ] Finish rest-edit acceptance for rigid attachments and skinned polygons.
+- [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but
-  the final viewport comparison detects a small refresh shift that needs
-  investigation. See the [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
-  Morph-target compensation remains open; affected edits are rejected atomically.
+  the current viewport comparison now has zero changed pixels after fixing
+  an unintended physics tick during refresh. See the
+  [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
+- [ ] Add rest-edit compensation for morph targets. Affected edits currently
+  reject atomically, preserving the complete asset.
 - [ ] Reimport by source identity, retaining project-owned materials and weights
   unless the author explicitly replaces them.
 - [ ] Extend painting across the supported editable mesh set and remove storage

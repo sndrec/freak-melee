@@ -1,6 +1,6 @@
 """Exercise saved rest edits, Model undo/redo and practice with an isolated draft.
 
-The native model_rest CTest checks geometry independently across 324 format and
+The native model_rest CTest checks geometry independently across 648 format and
 transform cases. This review covers real fighter asset validation and UI paths.
 """
 import argparse
@@ -74,7 +74,17 @@ def main():
         client = Client(args.exe.resolve(), args.iso.resolve(), profile,
             output/'preview', 'Rest Edit Review', window_size=(1440,810),
             control=args.control.resolve() if args.control else None)
+        def preview_state():
+            log=client.folder/'stdout.log';offset=log.stat().st_size
+            client.command('ui-inspect','workshop-preview')
+            for _ in range(50):
+                time.sleep(.1)
+                with log.open(errors='replace') as file:
+                    file.seek(offset);text=file.read()
+                if '[workshop-member]' in text and '[workshop-camera]' in text:return text
+            raise RuntimeError('Preview inspection did not arrive')
         try:
+            client.click('nav-5')
             client.click('edit-fighter')
             client.element('workshop-editor-header')
             deadline = time.monotonic()+60
@@ -88,6 +98,7 @@ def main():
             client.click('workshop-model-context-meshes')
             client.click('workshop-model-bones')
             surface_before = client.screenshot()
+            state_before=preview_state()
             client.click('workshop-model-context-skeleton')
             client.click(f'workshop-model-joint-{bone}')
             client.screenshot()
@@ -106,6 +117,7 @@ def main():
             client.screenshot()
             client.click('workshop-model-context-meshes')
             surface_after = client.screenshot()
+            state_after=preview_state()
             from PIL import Image, ImageChops
             # Exclude labels and toolbar. Both views use the same camera.
             region=(432,235,1156,558)
@@ -113,7 +125,7 @@ def main():
             after_pixels=Image.open(surface_after).convert('RGB').crop(region)
             difference=ImageChops.difference(before_pixels,after_pixels)
             changed_pixels=sum(any(c>8 for c in pixel) for pixel in difference.getdata())
-            (output/'surface-images.json').write_text(json.dumps(dict(before=str(surface_before), after=str(surface_after),changed_pixels=changed_pixels),indent=2))
+            (output/'surface-images.json').write_text(json.dumps(dict(before=str(surface_before), after=str(surface_after),changed_pixels=changed_pixels,state_before=state_before,state_after=state_after),indent=2))
             assert changed_pixels < 100, f'Rest geometry changed visibly: {changed_pixels} pixels'
             client.click('workshop-undo')
             client.click('workshop-save-top')

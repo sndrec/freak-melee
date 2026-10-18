@@ -43,7 +43,7 @@ void nativeShellWorkshopModel_Show(bool){}bool nativeShellWorkshopModel_Select(u
 bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned){return false;}
 void nativeShellWorkshopEditor_FilterActions(){}void nativeShellWorkshopEditor_RefreshScriptOutline(){}
 void nativeWorkshopPose_Clear(){++cancellations;}void nativeWorkshopTransform_Clear(){}
-void nativeHome_WorkshopPoseRelease(){}void nativeShellWorkshopBones_Reset(){}
+void nativeHome_WorkshopPoseRelease(bool){}void nativeShellWorkshopBones_Reset(){}
 void nativeShellWorkshopHitboxes_Update(bool,int,const NativeFighterHitbox*,unsigned){}
 #include "actual.h"
 class System final:public Rml::SystemInterface{bool LogMessage(Rml::Log::Type,const Rml::String& s)override{std::cerr<<s<<"\n";return true;}};
