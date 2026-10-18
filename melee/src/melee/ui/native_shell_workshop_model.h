@@ -19,7 +19,7 @@ void nativeShellWorkshopModel_Show(bool visible);
 bool nativeShellWorkshopModel_Click(const char* id, bool shift);
 void nativeShellWorkshopModel_Update();
 bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member);
-bool nativeShellWorkshopModel_Save(const char* path, unsigned member);
+void nativeShellWorkshopModel_MarkSaved(unsigned member);
 bool nativeShellWorkshopModel_Undo(bool redo);
 int nativeShellWorkshopModel_SelectedClip();
 void nativeShellWorkshopModel_Inspect();

@@ -8,7 +8,7 @@
 #include "native_source_entity_assets.h"
 #include <melee/it/native_source_item_visual.h>
 
-enum {NATIVE_SOURCE_FACT_BYTES=65536,NATIVE_SOURCE_DAT_BYTES=32*1024*1024};
+enum {NATIVE_SOURCE_DAT_BYTES=32*1024*1024};
 typedef enum NativeSourcePackageFamily {NativeSourcePackage_Single=0} NativeSourcePackageFamily;
 typedef struct NativeSourcePackageInput {
     NativeSourcePackageFamily family;

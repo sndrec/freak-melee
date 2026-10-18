@@ -1904,18 +1904,13 @@ void nativeShellWorkshopModel_Inspect()
         }
 }
 
-bool nativeShellWorkshopModel_Save(const char* path, unsigned member)
+void nativeShellWorkshopModel_MarkSaved(unsigned member)
 {
-    if (member >= 2) return false;
+    if (member >= 2) return;
     ModelSession& session = sessions[member];
-    if (session.project == nullptr) return true;
-    if (!nativeShellWorkshopModel_HasUnsavedEdits(member)) return true;
-    if (!nativeFighterProject_SaveCostume(path, session.project)) {
-        status("Could not save this model and its owned asset facts. Check the rig and project files.");return false;
-    }
+    if (session.project == nullptr) return;
     session.saved_costume.assign(session.project->costume_dat,
                                 session.project->costume_dat + session.project->costume_size);
-    return true;
 }
 
 bool nativeShellWorkshopModel_Undo(bool redo)

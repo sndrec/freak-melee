@@ -205,8 +205,11 @@ import, materials, rigging and skinning, not mesh modeling.
   skin/attachment references and gameplay bone roles coherently.
   [Animation-node remapping](melee/docs/native_extra_bone_checkpoint.md) now
   preserves retained track payloads across insertion/reordering/removal in all
-  33 retail animation banks (6,245 clips). The full rig/reference transaction,
-  script reference handling and native Save/Undo/Redo acceptance remain open.
+  33 retail animation banks (6,245 clips). The Workshop now saves its matching
+  fighter/animation/costume/facts as one validated operation, with complete-asset
+  Undo/Redo; locked-file failure checks and the native Model workflow pass.
+  The rig/reference edit, script reference handling and structural editor Undo
+  acceptance remain open.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but

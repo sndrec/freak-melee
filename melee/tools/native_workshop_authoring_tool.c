@@ -25,6 +25,14 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
     if (count < 1) {
         return false;
     }
+    if (!strcmp(args[0], "project-assets-undo")) {
+        char error[256] = {};
+        bool ok = count == 2 && nativeFighterProject_UndoLastAssetSave(
+            args[1], error, sizeof(error));
+        if (!ok) fprintf(stderr, "Asset undo failed: %s\n", error);
+        *result = ok ? 0 : 1;
+        return true;
+    }
     bool create = !strcmp(args[0], "project-clip-create"),
          copy = !strcmp(args[0], "project-clip-copy"),
          labels = !strcmp(args[0], "project-label"),

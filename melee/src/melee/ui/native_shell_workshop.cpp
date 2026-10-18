@@ -439,16 +439,18 @@ bool save_draft()
     for (unsigned member = 0; member < active_family.member_count; ++member) {
         if (!select_member(member)) { saved = false; break; }
         const char* path = active_family.paths[member];
+        char asset_error[256] = {};
         if (!apply_attribute_inputs(active_project) ||
-            !nativeShellWorkshopEditor_SaveAnimation(path) ||
-            !nativeFighterProject_Save(path, active_project) ||
-            !nativeShellWorkshopModel_Save(path, member) ||
+            !nativeFighterProject_SaveAssets(path, active_project,
+                                              asset_error, sizeof(asset_error)) ||
             !nativeShellWorkshopParameters_Save(document, active_project, path) ||
             !nativeShellWorkshopEditor_SaveScriptDraft()) {
+            if (*asset_error) std::fprintf(stderr, "[workshop-assets] %s\n", asset_error);
             saved = false;
             break;
         }
-        nativeShellWorkshopEditor_MarkFighterSaved();
+        nativeShellWorkshopEditor_MarkAssetsSaved();
+        nativeShellWorkshopModel_MarkSaved(member);
         attributes_dirty[member] = false;
     }
     if (saved) {

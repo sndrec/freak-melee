@@ -69,6 +69,7 @@ static void usage(void)
         "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\"|Zelda|Sheik|Popo|Nana PROJECT_DIRECTORY TITLE\n"
         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
         "  inspect-project PROJECT_DIRECTORY\n"
+        "  project-assets-undo PROJECT_DIRECTORY\n"
         "  project-model-scan SOURCE.glb\n"
         "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid|source\n"
         "  project-label PROJECT_DIRECTORY bone|mesh|material|action KEY NAME\n"
