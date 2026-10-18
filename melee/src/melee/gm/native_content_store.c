@@ -403,23 +403,50 @@ bool nativeContentStore_IsInstalled(const char* root, const NativeContentId* id)
 
 bool nativeContentStore_Install(const char* root, const NativeContentId* id)
 {
+    uint8_t* bytes = NULL;
+    size_t size;
     if (root == NULL || id == NULL ||
-        !nativeContentStore_IsCached(root, id) ||
-        !ensure_subdirectory(root, "installed")) {
-        return false;
+        !nativeContentStore_Read(root, id, &bytes, &size)) return false;
+    NativeContentId installs[2] = { *id };
+    unsigned count = 1;
+    NativeCostumePackage costume;
+    const uint8_t* dat;
+    size_t dat_size;
+    const NativeContentId empty = {0};
+    bool dependent = nativeContentStore_ParseCostume(bytes, size, &costume,
+        &dat, &dat_size) && memcmp(&costume.fighter_id, &empty, sizeof(empty)) != 0;
+    free(bytes);
+    if (dependent) {
+        // Source/asset validation belongs to the accepting caller. The store
+        // retains the exact typed dependency before publishing the outfit.
+        installs[0] = costume.fighter_id;
+        installs[1] = *id;
+        count = 2;
+        NativeFighterPackage fighter;
+        NativeFighterPackageData data;
+        if (!nativeContentStore_Read(root, &installs[0], &bytes, &size)) return false;
+        bool valid = nativeContentStore_ParseFighter(bytes, size, &fighter, &data);
+        free(bytes);
+        if (!valid) return false;
     }
-    if (nativeContentStore_IsInstalled(root, id)) {
-        return true;
+    if (!ensure_subdirectory(root, "installed")) return false;
+    bool added[2] = {false};
+    for (unsigned i = 0; i < count; ++i) {
+        if (nativeContentStore_IsInstalled(root, &installs[i])) continue;
+        char path[MAX_PATH];
+        uint8_t marker[INSTALLED_MARKER_BYTES];
+        memcpy(marker, installed_magic, sizeof(installed_magic));
+        memcpy(marker + 4, installs[i].bytes, NATIVE_CONTENT_ID_BYTES);
+        if (!make_path(path, root, "installed", &installs[i], ".fmi") ||
+            (!write_once(path, marker, sizeof(marker)) &&
+             !nativeContentStore_IsInstalled(root, &installs[i]))) {
+            for (unsigned j = 0; j < i; ++j)
+                if (added[j]) nativeContentStore_Uninstall(root, &installs[j]);
+            return false;
+        }
+        added[i] = true;
     }
-    char path[MAX_PATH];
-    if (!make_path(path, root, "installed", id, ".fmi")) {
-        return false;
-    }
-    uint8_t marker[INSTALLED_MARKER_BYTES];
-    memcpy(marker, installed_magic, sizeof(installed_magic));
-    memcpy(marker + 4, id->bytes, sizeof(id->bytes));
-    return write_once(path, marker, sizeof(marker)) ||
-           nativeContentStore_IsInstalled(root, id);
+    return true;
 }
 
 bool nativeContentStore_Uninstall(const char* root, const NativeContentId* id)

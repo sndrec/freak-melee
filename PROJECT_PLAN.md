@@ -296,6 +296,11 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   [family content batch](melee/docs/native_family_content_checkpoint.md).
 - [ ] Recheck separately packaged costumes and their parent-fighter dependencies
   through caching, explicit acceptance and current match setup.
+  One outfit package coordinates every member of a fighter family. X/Y cycles
+  installed outfits on CSS, and the player card shows the outfit name. Import
+  and management stay in Costumes. Explicit outfit acceptance installs its exact
+  cached fighter parent; see the
+  [dependency checkpoint](melee/docs/native_costume_dependency_checkpoint.md).
 - [x] Confirm a recipient can edit received content without the author's draft
   directory, SDK or behavior DLL. The earlier
   [single-fighter release check](melee/docs/native_received_fighter_authoring_checkpoint.md)

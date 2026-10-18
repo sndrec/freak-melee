@@ -109,6 +109,8 @@ bool nativeContentStore_Cache(const char* root, const void* package,
                               size_t package_size,
                               const NativeContentId* expected_id,
                               NativeContentId* id);
+// Explicit acceptance also retains a costume's exact cached fighter parent.
+// The caller validates source behavior and asset graphs before installation.
 bool nativeContentStore_Install(const char* root, const NativeContentId* id);
 // Remove local selectability while retaining cached bytes for existing peers.
 bool nativeContentStore_Uninstall(const char* root, const NativeContentId* id);
