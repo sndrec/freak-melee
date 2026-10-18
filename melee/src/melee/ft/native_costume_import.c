@@ -6,12 +6,12 @@
 
 bool nativeCostumeImport_Install(const char* root,
                                  const NativeCostumePackage* metadata,
-                                 const void* dat, size_t dat_size,
+                                 const NativeCostumePackageData* data,
                                  NativeContentId* id,
                                  NativeCostumeValidation* validation)
 {
-    if (root == NULL || metadata == NULL || dat == NULL || id == NULL ||
-        !nativeCostumePackage_Validate(metadata, dat, dat_size, root,
+    if (root == NULL || metadata == NULL || data == NULL || id == NULL ||
+        !nativeCostumePackage_Validate(metadata, data, root,
                                        validation)) {
         return false;
     }
@@ -19,7 +19,7 @@ bool nativeCostumeImport_Install(const char* root,
     size_t package_size = 0;
     NativeContentId cached_id;
     bool result = nativeContentStore_BuildCostume(
-                      metadata, dat, dat_size, &package, &package_size, id) &&
+                      metadata, data, &package, &package_size, id) &&
                   nativeContentStore_Cache(root, package, package_size,
                                            id, &cached_id) &&
                   nativeContentStore_Install(root, id);

@@ -22,8 +22,56 @@ static void require(bool condition, const char* message)
     }
 }
 
+static void family_outfit_codec(void)
+{
+    NativeCostumePackage metadata = {.member_count=2, .model_variant=7};
+    metadata.fighter_id.bytes[0] = 1;
+    strcpy(metadata.title, "Coordinated outfit");
+    strcpy(metadata.member_keys[0], "main");
+    strcpy(metadata.member_keys[1], "partner");
+    uint8_t first[48] = {1}, second[64] = {2};
+    NativeCostumePackageData data = {.members={{first,sizeof(first)},{second,sizeof(second)}}};
+    uint8_t* bytes;
+    size_t size;
+    NativeContentId id;
+    require(nativeContentStore_BuildCostume(&metadata, &data, &bytes, &size, &id), "build paired outfit\n");
+    NativeCostumePackage parsed;
+    NativeCostumePackageData spans;
+    require(nativeContentStore_ParseCostume(bytes, size, &parsed, &spans) &&
+            parsed.member_count == 2 && !strcmp(parsed.member_keys[1], "partner") &&
+            spans.members[0].size == sizeof(first) && spans.members[1].size == sizeof(second) &&
+            !memcmp(spans.members[0].dat, first, sizeof(first)) &&
+            !memcmp(spans.members[1].dat, second, sizeof(second)), "paired outfit exact spans\n");
+    NativeCostumePackage untouched = parsed;
+    NativeCostumePackageData untouched_spans = spans;
+    for (size_t cut = 0; cut < size; ++cut) {
+        require(!nativeContentStore_ParseCostume(bytes, cut, &parsed, &spans) &&
+                !memcmp(&parsed, &untouched, sizeof(parsed)) &&
+                !memcmp(&spans, &untouched_spans, sizeof(spans)), "truncation preserves parser outputs\n");
+    }
+    bytes[6] = 0;
+    require(!nativeContentStore_ParseCostume(bytes, size, &parsed, &spans), "reject empty family\n");
+    bytes[6] = 3;
+    require(!nativeContentStore_ParseCostume(bytes, size, &parsed, &spans), "reject excessive family\n");
+    bytes[6] = 2;
+    memcpy(bytes + 144, bytes + 108, 32);
+    require(!nativeContentStore_ParseCostume(bytes, size, &parsed, &spans), "reject duplicate member keys\n");
+    memcpy(bytes + 144, metadata.member_keys[1], 32);
+    bytes[176]++;
+    require(!nativeContentStore_ParseCostume(bytes, size, &parsed, &spans), "reject member span overflow\n");
+    bytes[176]--;
+    require(nativeContentStore_ParseCostume(bytes, size, &parsed, &spans), "restore paired payload\n");
+    free(bytes);
+    metadata.member_count = 1;
+    require(!nativeContentStore_BuildCostume(&metadata, &data, &bytes, &size, &id), "reject unused member payload\n");
+    metadata.member_count = 2;
+    strcpy(metadata.member_keys[1], "main");
+    require(!nativeContentStore_BuildCostume(&metadata, &data, &bytes, &size, &id), "reject duplicate build keys\n");
+}
+
 int main(void)
 {
+    family_outfit_codec();
     char temporary[MAX_PATH];
     DWORD length = GetTempPathA(sizeof(temporary), temporary);
     require(length > 0 && length < sizeof(temporary), "temporary path\n");
@@ -32,7 +80,8 @@ int main(void)
                            temporary, GetCurrentProcessId(), GetTickCount());
     require(written > 0 && written < sizeof(root), "store root\n");
 
-    NativeCostumePackage metadata = { .character = 8, .base_costume = 0 };
+    NativeCostumePackageData metadata_data;
+    NativeCostumePackage metadata = { .member_count = 1, .character = 8, .base_costume = 0 };
     strcpy(metadata.title, "Mario - Test skin");
     uint8_t dat[96];
     for (size_t i = 0; i < sizeof(dat); ++i) {
@@ -41,19 +90,17 @@ int main(void)
     uint8_t* built = NULL;
     size_t built_size = 0;
     NativeContentId id;
-    require(nativeContentStore_BuildCostume(&metadata, dat, sizeof(dat),
+    require(nativeContentStore_BuildCostume(&metadata, &(NativeCostumePackageData){.members={{dat,sizeof(dat)}}},
                                             &built, &built_size, &id),
             "build costume package\n");
     NativeCostumePackage parsed;
-    const uint8_t* parsed_dat;
-    size_t parsed_dat_size;
-    require(nativeContentStore_ParseCostume(built, built_size, &parsed,
-                                            &parsed_dat, &parsed_dat_size) &&
+    NativeCostumePackageData costume_parsed_data;
+    require(nativeContentStore_ParseCostume(built, built_size, &parsed, &costume_parsed_data) &&
                 parsed.character == metadata.character &&
                 parsed.base_costume == metadata.base_costume &&
                 strcmp(parsed.title, metadata.title) == 0 &&
-                parsed_dat_size == sizeof(dat) &&
-                memcmp(parsed_dat, dat, sizeof(dat)) == 0,
+                costume_parsed_data.members[0].size == sizeof(dat) &&
+                memcmp(costume_parsed_data.members[0].dat, dat, sizeof(dat)) == 0,
             "canonical costume package round trip\n");
 
     char hex[65];
@@ -110,13 +157,14 @@ int main(void)
     uint8_t* other = NULL;
     size_t other_size = 0;
     NativeContentId other_id;
-    require(nativeContentStore_BuildCostume(&other_metadata, dat, sizeof(dat),
+    require(nativeContentStore_BuildCostume(&other_metadata, &(NativeCostumePackageData){.members={{dat,sizeof(dat)}}},
                                             &other, &other_size, &other_id) &&
                 memcmp(&other_id, &id, sizeof(id)) != 0,
             "package identity covers metadata as well as DAT bytes\n");
     free(other);
 
-    NativeCostumePackage custom_metadata = { 0 };
+    NativeCostumePackage custom_metadata = { .member_count = 1 };
+    strcpy(custom_metadata.member_keys[0], "main");
     custom_metadata.model_variant = 3;
     custom_metadata.fighter_id.bytes[0] = 0xA5;
     custom_metadata.fighter_id.bytes[31] = 0x5A;
@@ -124,39 +172,33 @@ int main(void)
     uint8_t* custom = NULL;
     size_t custom_size = 0;
     NativeContentId custom_id;
-    require(nativeContentStore_BuildCostume(
-                &custom_metadata, dat, sizeof(dat), &custom,
+    require(nativeContentStore_BuildCostume(&custom_metadata, &(NativeCostumePackageData){.members={{dat,sizeof(dat)}}}, &custom,
                 &custom_size, &custom_id) &&
-                custom_size == sizeof(dat) + 76 + NATIVE_CONTENT_ID_BYTES &&
-                nativeContentStore_ParseCostume(custom, custom_size, &parsed,
-                                                &parsed_dat,
-                                                &parsed_dat_size) &&
+                custom_size == sizeof(dat) + 180 &&
+                nativeContentStore_ParseCostume(custom, custom_size, &parsed, &costume_parsed_data) &&
                 memcmp(&parsed.fighter_id, &custom_metadata.fighter_id,
                        sizeof(parsed.fighter_id)) == 0 &&
-                parsed_dat_size == sizeof(dat) &&
+                costume_parsed_data.members[0].size == sizeof(dat) &&
                 parsed.model_variant == 3 && parsed.character == 0 && parsed.base_costume == 0 &&
-                memcmp(parsed_dat, dat, sizeof(dat)) == 0,
+                memcmp(costume_parsed_data.members[0].dat, dat, sizeof(dat)) == 0,
             "custom costume retains its exact parent bundle\n");
     NativeCostumePackage changed_variant = custom_metadata;
     changed_variant.model_variant = 2;
     uint8_t* variant_package = NULL;
     size_t variant_size;
     NativeContentId variant_id;
-    require(nativeContentStore_BuildCostume(&changed_variant, dat, sizeof(dat),
+    require(nativeContentStore_BuildCostume(&changed_variant, &(NativeCostumePackageData){.members={{dat,sizeof(dat)}}},
                 &variant_package, &variant_size, &variant_id) &&
                 memcmp(&variant_id, &custom_id, sizeof(variant_id)) != 0,
             "costume variant participates in package identity\n");
     free(variant_package);
     custom[76] = 0;
     custom[107] = 0;
-    require(!nativeContentStore_ParseCostume(custom, custom_size, &parsed,
-                                             &parsed_dat,
-                                             &parsed_dat_size),
+    require(!nativeContentStore_ParseCostume(custom, custom_size, &parsed, &costume_parsed_data),
             "custom costume requires parent identity\n");
     free(custom);
     custom_metadata.fighter_id.bytes[0] ^= 1;
-    require(nativeContentStore_BuildCostume(
-                &custom_metadata, dat, sizeof(dat), &custom,
+    require(nativeContentStore_BuildCostume(&custom_metadata, &(NativeCostumePackageData){.members={{dat,sizeof(dat)}}}, &custom,
                 &custom_size, &decoded) &&
                 memcmp(&decoded, &custom_id, sizeof(decoded)) != 0,
             "changing the parent fighter changes costume identity\n");
@@ -276,10 +318,7 @@ int main(void)
                        sizeof(costume_dat)) == 0 &&
                 memcmp(parsed_data.portrait_png, portrait_png,
                        sizeof(portrait_png)) == 0 &&
-                !nativeContentStore_ParseCostume(fighter_package,
-                                                 fighter_package_size,
-                                                 &metadata, &parsed_dat,
-                                                 &parsed_dat_size),
+                !nativeContentStore_ParseCostume(fighter_package, fighter_package_size, &metadata, &metadata_data),
             "typed fighter bundle round trip\n");
     static const uint8_t parameter_text[] = "float Lift = 1.25\n";
     source.members[0].parameter_text = parameter_text;
@@ -375,12 +414,13 @@ int main(void)
                                              &parsed_fighter, &parsed_data),
             "reject damaged fighter portrait\n");
     fighter_package[208] = 137;
-    NativeCostumePackage outfit = {.fighter_id=fighter_id};
+    NativeCostumePackage outfit = {.fighter_id=fighter_id, .member_count=1};
+    strcpy(outfit.member_keys[0], "main");
     strcpy(outfit.title, "Owned outfit");
     uint8_t* outfit_package = NULL;
     size_t outfit_size;
     NativeContentId outfit_id;
-    require(nativeContentStore_BuildCostume(&outfit,costume_dat,sizeof(costume_dat),
+    require(nativeContentStore_BuildCostume(&outfit, &(NativeCostumePackageData){.members={{costume_dat,sizeof(costume_dat)}}},
                 &outfit_package,&outfit_size,&outfit_id) &&
             nativeContentStore_Cache(fighter_root,outfit_package,outfit_size,NULL,&cached) &&
             !nativeContentStore_Install(fighter_root,&outfit_id) &&

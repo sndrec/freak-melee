@@ -301,6 +301,10 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   and management stay in Costumes. Explicit outfit acceptance installs its exact
   cached fighter parent; see the
   [dependency checkpoint](melee/docs/native_costume_dependency_checkpoint.md).
+  Local coordinated imports, both-member runtime loading, X/Y selection and
+  CSS-to-practice checks pass for Zelda/Sheik, Popo/Nana and Fox in the
+  [outfit checkpoint](melee/docs/native_family_outfit_checkpoint.md).
+  Missing-parent gift transfer and current online match setup remain open.
 - [x] Confirm a recipient can edit received content without the author's draft
   directory, SDK or behavior DLL. The earlier
   [single-fighter release check](melee/docs/native_received_fighter_authoring_checkpoint.md)

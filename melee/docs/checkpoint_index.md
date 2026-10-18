@@ -13,6 +13,7 @@ it does not relabel old results as final-source acceptance.
 ## Source-runtime and fighter integration
 
 - [Outfit dependency acceptance (2026-10-17)](native_costume_dependency_checkpoint.md)
+- [Coordinated custom outfits and CSS selection (2026-10-17)](native_family_outfit_checkpoint.md)
 - [Rook interpreter gameplay checkpoint (2026-10-07)](native_rook_interpreter_checkpoint.md)
 - [Source Article advancement, ownership and world feedback](native_source_article_advancement_checkpoint.md)
 - [Interpreted Article models, capsules and child creation](native_source_article_controls_checkpoint.md)

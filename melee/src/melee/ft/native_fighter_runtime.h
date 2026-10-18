@@ -185,10 +185,16 @@ typedef struct NativeFighterArticleLogic {
 } NativeFighterArticleLogic;
 
 typedef struct NativeFighterCostumeInfo {
+    char key[NATIVE_FIGHTER_CODE_KEY_BYTES];
     char joint_name[128];
     char matanim_name[128];
     uint16_t joint_count;
 } NativeFighterCostumeInfo;
+
+typedef struct NativeFighterCostumeFamilyInfo {
+    uint8_t member_count;
+    NativeFighterCostumeInfo members[NATIVE_FIGHTER_FAMILY_MEMBERS];
+} NativeFighterCostumeFamilyInfo;
 
 typedef enum NativeFighterSpecial {
     NativeFighterSpecial_Neutral,
@@ -539,7 +545,7 @@ bool nativeFighterRuntime_ValidateCached(
 // match registration. The returned names are copied out of the owned facts.
 bool nativeFighterRuntime_CostumeInfoCached(
     const NativeContentId* id, const char* root,
-    NativeFighterCostumeInfo* info);
+    NativeFighterCostumeFamilyInfo* info);
 
 // Synchronous borrowed views of the currently registered package and selected
 // costume. Native pose validation never retains these across a callback.

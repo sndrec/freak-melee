@@ -13,14 +13,15 @@
 #include <string.h>
 
 bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
-                                   const void* dat, size_t dat_size,
+                                   const NativeCostumePackageData* data,
                                    const char* root,
                                    NativeCostumeValidation* result)
 {
     if (result != NULL) {
         memset(result, 0, sizeof(*result));
     }
-    if (costume == NULL || dat == NULL || dat_size < 32) {
+    if (costume == NULL || data == NULL || !costume->member_count ||
+        costume->member_count > NATIVE_FIGHTER_FAMILY_MEMBERS) {
         return false;
     }
     const NativeContentId empty_id = { 0 };
@@ -28,18 +29,19 @@ bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
                          sizeof(empty_id)) != 0;
     const char* joint_name;
     const char* matanim_name;
-    uint16_t joint_count = 0;
-    NativeFighterCostumeInfo custom_info;
+    NativeFighterCostumeFamilyInfo custom_info;
     if (custom) {
         if (costume->character != 0 || costume->base_costume != 0 ||
             !nativeFighterRuntime_CostumeInfoCached(
                 &costume->fighter_id, root, &custom_info)) {
             return false;
         }
-        joint_name = custom_info.joint_name;
-        matanim_name = custom_info.matanim_name;
-        joint_count = custom_info.joint_count;
+        if (costume->member_count != custom_info.member_count) return false;
+        for (unsigned m = 0; m < costume->member_count; ++m)
+            if (memcmp(costume->member_keys[m], custom_info.members[m].key,
+                       NATIVE_FIGHTER_CODE_KEY_BYTES)) return false;
     } else {
+        if (costume->member_count != 1) return false;
         uint8_t character;
         if (!nativeStockContent_CharacterFromId(
                 nativeStockContent_CharacterId(costume->character),
@@ -66,17 +68,25 @@ bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
     if (arena == NULL) {
         return false;
     }
-    FtCostumeAssets assets;
-    bool valid = ftCostumeAssets_Import(
-        dat, dat_size, joint_name, matanim_name, arena,
-        FT_COSTUME_IMPORT_ARENA_SIZE, FT_COSTUME_IMPORT_RECORD_CAPACITY,
-        &assets) &&
-        (!custom || assets.joint_count == joint_count);
-    if (result != NULL) {
-        result->import_status = assets.import.status;
-        result->error_offset = assets.import.error_offset;
-        result->imported_records = assets.import.record_count;
-        result->arena_used = assets.import.arena_used;
+    bool valid = true;
+    for (unsigned m = 0; valid && m < costume->member_count; ++m) {
+        FtCostumeAssets assets = {0};
+        if (custom) {
+            joint_name = custom_info.members[m].joint_name;
+            matanim_name = custom_info.members[m].matanim_name;
+        }
+        valid = data->members[m].dat && data->members[m].size >= 32 &&
+            ftCostumeAssets_Import(data->members[m].dat, data->members[m].size,
+                joint_name, matanim_name, arena, FT_COSTUME_IMPORT_ARENA_SIZE,
+                FT_COSTUME_IMPORT_RECORD_CAPACITY, &assets) &&
+            (!custom || assets.joint_count == custom_info.members[m].joint_count);
+        if (result != NULL) {
+            result->member = m;
+            result->import_status = assets.import.status;
+            result->error_offset = assets.import.error_offset;
+            result->imported_records += assets.import.record_count;
+            result->arena_used += assets.import.arena_used;
+        }
     }
     free(arena);
     return valid;

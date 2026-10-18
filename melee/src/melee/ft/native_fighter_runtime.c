@@ -644,10 +644,10 @@ bool nativeFighterRuntime_ValidateCached(const NativeContentId* id,const char* r
 }
 
 bool nativeFighterRuntime_CostumeInfoCached(
-    const NativeContentId* id, const char* root, NativeFighterCostumeInfo* info)
+    const NativeContentId* id, const char* root, NativeFighterCostumeFamilyInfo* info)
 {
     if (id == NULL || info == NULL) return false;
-    *info = (NativeFighterCostumeInfo){0};
+    *info = (NativeFighterCostumeFamilyInfo){0};
     char default_root[512];
     if (root == NULL) {
         if (!nativeContentStore_DefaultRoot(default_root, sizeof(default_root))) return false;
@@ -667,18 +667,20 @@ bool nativeFighterRuntime_CostumeInfoCached(
     bool valid = family != NULL || prepare_family(&candidate, members, id,
         ChKind_CustomFirst, Ft_Kind_CustomFirst, root, false);
     if (family == NULL) family = &candidate;
-    // A standalone costume has no member selector. Do not silently apply it
-    // to the wrong form/companion; each paired actor still owns its bundled costume.
-    valid = valid && family->metadata.mode == NativeFighterFamily_Single;
     if (valid) {
-        const NativeSourceAssetFacts* facts = &family->members[0].source->assets.facts;
-        size_t joint_len = strnlen(facts->costume_joint, sizeof(info->joint_name));
-        size_t matanim_len = strnlen(facts->costume_matanim, sizeof(info->matanim_name));
-        valid = joint_len < sizeof(info->joint_name) && matanim_len < sizeof(info->matanim_name);
-        if (valid) {
-            memcpy(info->joint_name, facts->costume_joint, joint_len + 1);
-            memcpy(info->matanim_name, facts->costume_matanim, matanim_len + 1);
-            info->joint_count = facts->joints;
+        info->member_count = family->metadata.member_count;
+        for (unsigned m = 0; valid && m < info->member_count; ++m) {
+            NativeFighterCostumeInfo* member = &info->members[m];
+            const NativeSourceAssetFacts* facts = &family->members[m].source->assets.facts;
+            size_t joint_len = strnlen(facts->costume_joint, sizeof(member->joint_name));
+            size_t matanim_len = strnlen(facts->costume_matanim, sizeof(member->matanim_name));
+            valid = joint_len < sizeof(member->joint_name) && matanim_len < sizeof(member->matanim_name);
+            if (valid) {
+                memcpy(member->key, family->metadata.members[m].key, sizeof(member->key));
+                memcpy(member->joint_name, facts->costume_joint, joint_len + 1);
+                memcpy(member->matanim_name, facts->costume_matanim, matanim_len + 1);
+                member->joint_count = facts->joints;
+            }
         }
     }
     release_family(&candidate);

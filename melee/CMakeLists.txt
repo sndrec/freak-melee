@@ -484,6 +484,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_play_menu.cpp
     src/melee/mn/native_css_interaction.c
     src/melee/mn/native_css_cards.c
+    src/melee/ft/native_costume_catalog.c
     src/melee/mn/native_css_participants.c
     src/melee/mn/native_menu_portrait.c
     src/melee/ui/native_shell.cpp
@@ -1144,6 +1145,14 @@ if(MELEE_BUILD_TESTS)
     aurora_copy_runtime_dlls(native_costume_package_test)
     add_test(NAME native_costume_package COMMAND
         native_costume_package_test "${MELEE_ISO}")
+    add_executable(native_costume_family_test tests/native/costume_family_test.c)
+    target_include_directories(native_costume_family_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_costume_family_test PRIVATE MELEE_NATIVE=1)
+    target_link_libraries(native_costume_family_test PRIVATE
+        melee_runtime aurora_os aurora_gx aurora_vi aurora_pad aurora_mtx
+        aurora_dvd aurora_card aurora_thp)
+    target_link_options(native_costume_family_test PRIVATE "LINKER:/opt:ref")
+    aurora_copy_runtime_dlls(native_costume_family_test)
     add_executable(native_css_layout_test
         tests/native/css_layout_test.c)
     target_include_directories(native_css_layout_test PRIVATE

@@ -44,28 +44,30 @@ int main(int argc, char** argv)
             "read stock Mario costume DAT\n");
 
     NativeCostumePackage metadata = {
+        .member_count = 1,
         .character = CKind_Mario,
         .base_costume = 0,
         .title = "Mario - Original outfit",
     };
+    NativeCostumePackageData data = {.members={{dat,dat_size}}};
     NativeCostumeValidation validation;
-    require(nativeCostumePackage_Validate(&metadata, dat, dat_size, NULL,
+    require(nativeCostumePackage_Validate(&metadata, &data, NULL,
                                           &validation) &&
                 validation.imported_records != 0,
             "validate original DAT against Mario's typed model graph\n");
     metadata.character = CKind_Fox;
-    require(!nativeCostumePackage_Validate(&metadata, dat, dat_size, NULL,
+    require(!nativeCostumePackage_Validate(&metadata, &data, NULL,
                                            &validation),
             "reject costume DAT for wrong fighter's required symbols\n");
     metadata.character = CKind_Mario;
-    require(!nativeCostumePackage_Validate(&metadata, dat, 31, NULL,
+    require(!nativeCostumePackage_Validate(&metadata, &(NativeCostumePackageData){.members={{dat,31}}}, NULL,
                                            &validation),
             "reject truncated costume DAT\n");
 
     uint8_t* package = NULL;
     size_t package_size = 0;
     NativeContentId id;
-    require(nativeContentStore_BuildCostume(&metadata, dat, dat_size,
+    require(nativeContentStore_BuildCostume(&metadata, &data,
                                             &package, &package_size, &id),
             "package original DAT\n");
     char temporary[MAX_PATH];
@@ -84,14 +86,10 @@ int main(int argc, char** argv)
     uint8_t* reread = NULL;
     size_t reread_size = 0;
     NativeCostumePackage reread_metadata;
-    const uint8_t* reread_dat;
-    size_t reread_dat_size;
+    NativeCostumePackageData reread_metadata_data;
     require(nativeContentStore_Read(root, &id, &reread, &reread_size) &&
-                nativeContentStore_ParseCostume(
-                    reread, reread_size, &reread_metadata, &reread_dat,
-                    &reread_dat_size) &&
-                nativeCostumePackage_Validate(&reread_metadata, reread_dat,
-                                               reread_dat_size, root,
+                nativeContentStore_ParseCostume(reread, reread_size, &reread_metadata, &reread_metadata_data) &&
+                nativeCostumePackage_Validate(&reread_metadata, &reread_metadata_data, root,
                                                &validation) &&
                 nativeContentStore_Install(root, &id) &&
                 nativeContentStore_IsInstalled(root, &id),
@@ -136,12 +134,12 @@ int main(int argc, char** argv)
     snprintf(path, sizeof(path), "%s\\cache\\%s.fmc", root, hex);
     require(DeleteFileA(path), "remove cached package\n");
     metadata.character = CKind_Fox;
-    require(!nativeCostumeImport_Install(root, &metadata, dat, dat_size,
+    require(!nativeCostumeImport_Install(root, &metadata, &data,
                                         &cached, &validation) &&
                 !nativeContentStore_IsCached(root, &id),
             "in-client import rejects a DAT for the wrong fighter\n");
     metadata.character = CKind_Mario;
-    require(nativeCostumeImport_Install(root, &metadata, dat, dat_size,
+    require(nativeCostumeImport_Install(root, &metadata, &data,
                                        &cached, &validation) &&
                 memcmp(&cached, &id, sizeof(id)) == 0 &&
                 nativeContentStore_IsInstalled(root, &id),

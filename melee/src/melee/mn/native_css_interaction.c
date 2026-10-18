@@ -2,6 +2,7 @@
 #include "native_css_original.h"
 #include "native_css_cards.h"
 #include "mncharsel.h"
+#include <melee/ft/native_costume_catalog.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/ui/native_hub.h>
@@ -162,6 +163,7 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
                                 CSSIcon* icons, HSD_JObj* menu,
                                 const StaticModelDesc* source)
 {
+    nativeCostumeCatalog_Refresh();
     selection.css = css;
     selection.doors = doors;
     selection.hands = hands;
@@ -278,6 +280,27 @@ bool nativeCssInteraction_Random(unsigned slot)
     }
     return true;
 }
+static bool cycle_outfit(unsigned port, bool reverse)
+{
+    const NativeContentId* fighter = nativeHome_FighterPackage(port);
+    if (!fighter) return false;
+    const NativeContentId* current = nativeHome_CostumePackage(port);
+    size_t count;
+    const NativeCostumeEntry* entries = nativeCostumeCatalog_Entries(&count);
+    // Choice zero is the fighter's bundled outfit; installed outfits follow.
+    unsigned choices[NATIVE_COSTUME_CATALOG_CAPACITY], total = 0, selected = 0;
+    for (size_t i = 0; i < count; ++i) {
+        if (memcmp(&entries[i].metadata.fighter_id, fighter, sizeof(*fighter))) continue;
+        choices[total++] = i;
+        if (current && !memcmp(&entries[i].id, current, sizeof(*current))) selected = total;
+    }
+    if (!total) return true;
+    unsigned next = reverse ? (selected ? selected - 1 : total) : (selected + 1) % (total + 1);
+    if (nativeHome_SelectCostumePackage(port, next ? &entries[choices[next - 1]].id : NULL))
+        lbAudioAx_80024030(2);
+    return true;
+}
+
 bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
 {
     if (!selection.css) {
@@ -325,6 +348,8 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         }
         return true;
     }
+    if ((trigger & (PAD_BUTTON_X | PAD_BUTTON_Y)) &&
+        cycle_outfit(port, (trigger & PAD_BUTTON_X) == 0)) return true;
     if (hand->x5 == 1 && hand->x6 >= 4) {
         return false;
     }
