@@ -334,8 +334,9 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   [playback check](melee/docs/native_spectator_playback_checkpoint.md) covers the
   Watch match control, viewer asset activation, verified catch-up, cancellation
   and Results with source-only paired fighters, including a cold-cache run
-  through 5,982 verified frames and return to the local roster. Match start by a room owner
-  with no active fighter and live sudden-death viewing remain open. Cold
+  through 5,982 verified frames and return to the local roster. A separate
+  one-minute tie verifies both sudden-death phases through Results. Match start
+  by a room owner with no active fighter remains open. Cold
   transfer throughput also needs improvement before performance acceptance.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits

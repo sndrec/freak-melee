@@ -91,5 +91,20 @@ this is functional evidence, with transfer throughput still an open target.
 Receipt and independent endpoint/package audit:
 `.local/native-watch-playback-cold-3/receipt.json` and adjacent `audit.json`.
 
-Live sudden-death viewing, match start by an inactive room owner, and concurrent
-content/chat performance acceptance remain open.
+The sudden-death run also passes with two source-only Fox clones. A one-minute
+stock tie produces 3,838 initial-phase ticks, followed by 1,489 sudden-death
+ticks. The viewer verifies all 5,327 ticks and both phase markers, then reaches
+Results and returns to its own CSS. Both source peers agree at each endpoint;
+the viewer's final combined digest is `1746b7b9f68866ad`. The sudden-death
+screenshot shows both fighters at 300%. Receipt:
+`.local/native-watch-sudden-death-1/receipt.json`.
+
+`review_native_watch_playback.py --sudden-death` exercises that transition.
+Its `--inactive-owner` case reproduces a separate start-flow gap: Start match
+is enabled, but active players never enter stage selection because roster
+collection skips the inactive owner's start request. The stage-selection and
+proposal paths also assume the owner is an active player. The choice of who
+selects the stage in this case is awaiting user feedback.
+
+Match start by an inactive room owner and concurrent content/chat performance
+acceptance remain open.
