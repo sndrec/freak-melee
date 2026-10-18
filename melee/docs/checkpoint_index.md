@@ -180,6 +180,7 @@ it does not relabel old results as final-source acceptance.
 - [Compatible glTF source skin import — 2026-10-17](native_source_skin_checkpoint.md)
 - [Pokemon Stadium transformation allocation — 2026-10-17](native_stadium_allocation_checkpoint.md)
 - [Received fighter delivery and independent Workshop editing — 2026-10-17](native_received_fighter_authoring_checkpoint.md)
+- [Received fighter families and edited assets — 2026-10-17](native_family_content_checkpoint.md)
 - [Extracted release, Workshop and launcher acceptance — 2026-10-17](native_release.md#local-acceptance-2026-10-17)
 
 ## Other evidence families

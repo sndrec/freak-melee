@@ -288,13 +288,18 @@ starting pose. Auto Key starts off; explicit insertion remains available.
 
 ### 3. Current content and room integration
 
-- [ ] Recheck source-only single/paired fighters and edited costumes/resources
-  through isolated stores, room auto-cache and explicit gifting.
-- [x] Confirm a recipient can edit received single-fighter content without the
-  author's draft directory, SDK or behavior DLL. Two source-owned Mario packages
-  opened and validated from an extracted release after the author went offline;
-  see [received fighter acceptance](melee/docs/native_received_fighter_authoring_checkpoint.md).
-  Paired families and edited resources remain in the broader integration gate above.
+- [x] Recheck source-only single/paired fighters with embedded costume textures,
+  copied animations and owned resources through isolated stores, room auto-cache
+  and explicit gifting. Zelda/Sheik, Popo/Nana and Fox pass the
+  [family content batch](melee/docs/native_family_content_checkpoint.md).
+- [ ] Recheck separately packaged costumes and their parent-fighter dependencies
+  through caching, explicit acceptance and current match setup.
+- [x] Confirm a recipient can edit received content without the author's draft
+  directory, SDK or behavior DLL. The earlier
+  [single-fighter release check](melee/docs/native_received_fighter_authoring_checkpoint.md)
+  covers two Mario packages. The current family batch covers all five members
+  above, preserving package IDs on unchanged rebuilds and returning from live
+  practice to the editor with the original author offline.
 - [ ] Recheck current match setup, results/return, seat choices/host override,
   1v1 rotation and spectator catch-up with the new runtime.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.

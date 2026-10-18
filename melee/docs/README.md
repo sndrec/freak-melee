@@ -26,6 +26,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Native CSS cards and sharing | [Participant ordering, mouse input and delivery checkpoint](native_css_cards_checkpoint.md) |
 | Quick Play progress | [Queue and match launch](native_quick_play_checkpoint.md), [results and rematches](native_quick_rematch_checkpoint.md), [cancellation and party return](native_quick_return_checkpoint.md) |
 | Early remote portraits | [Automatic lobby cache](native_lobby_cache_checkpoint.md) |
+| Received fighter editing | [Single-fighter delivery](native_received_fighter_authoring_checkpoint.md), [families and edited assets](native_family_content_checkpoint.md) |
 | Native CSS/practice controls | [Readiness, lobby access, delivery and tool return](native_play_menu_checkpoint.md) |
 | Prepare a friend build | [Release guide](native_release.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |

@@ -111,7 +111,10 @@ void restore_session_widgets()
         auto* element = document->GetElementById(saved.id);
         if (element == nullptr) continue;
         auto* control = static_cast<Rml::ElementFormControl*>(element);
-        control->SetValue(saved.value);
+        // RmlUi selects emit change even when SetValue selects the same option.
+        // Rebuilt parameter rows already reflect this member's saved source;
+        // restoring an identical value must not author a parameter override.
+        if (control->GetValue() != saved.value) control->SetValue(saved.value);
         if (element->GetTagName() == "input") {
             if (saved.checked) element->SetAttribute("checked", "");
             else element->RemoveAttribute("checked");

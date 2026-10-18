@@ -225,10 +225,11 @@ bool select_member(unsigned member, bool restart_preview = false)
         updating_member_selector = false;
     }
     if (restart_preview && nativeHome_IsPractice()) {
+        preview_loading = member_available && nativeHome_PracticeTransitioning();
         status("workshop-editor-status", !member_available
             ? "This family member is not available in the current preview. Its data remains editable."
-            : nativeHome_PracticeTransitioning()
-            ? "Loading this member's preview..." : "");
+            : preview_loading
+            ? "Loading this member's preview..." : "Draft preview ready.");
     }
     return true;
 }
@@ -287,6 +288,7 @@ void select_draft(size_t index)
             "</option>";
     }
     updating_member_selector = true;
+    member_menu->RemoveAll();
     member_menu->SetInnerRML(member_options);
     member_menu->SetValue("0");
     updating_member_selector = false;
@@ -645,6 +647,7 @@ void preview_draft()
     }
     while (nativeWorkshopDocs_Close()) {}
     testing = true;
+    preview_loading = true;
     nativeShell_Blur();
     document->GetElementById("workshop-panel")->SetClass("testing", true);
     document->GetElementById("workshop-inspector")
@@ -765,6 +768,8 @@ class WorkshopEvents final : public Rml::EventListener {
                         return;
                     }
                     testing = false;
+                    preview_loading = true;
+                    status("workshop-editor-status", "Returning to the draft preview...");
                     document->GetElementById("workshop-panel")
                         ->SetClass("testing", false);
                     nativeShellWorkshopEditor_SetTesting(false);
@@ -805,6 +810,8 @@ class WorkshopEvents final : public Rml::EventListener {
                 return;
             }
             testing = false;
+            preview_loading = true;
+            status("workshop-editor-status", "Returning to the draft preview...");
             document->GetElementById("workshop-panel")->SetClass("testing", false);
             nativeShellWorkshopEditor_SetTesting(false);
             document->GetElementById("workshop-inspector")
@@ -860,8 +867,11 @@ bool nativeShellWorkshop_RefreshPreview()
 {
     if (testing || !nativeHome_IsPractice()) return false;
     NativeContentId id;
-    return build_cached_candidate(false, false, false, &id) &&
-           nativeHome_RequestPreview(&id, false);
+    if (!build_cached_candidate(false, false, false, &id) ||
+        !nativeHome_RequestPreview(&id, false)) return false;
+    preview_loading = true;
+    status("workshop-editor-status", "Refreshing the draft preview...");
+    return true;
 }
 
 void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origin)
@@ -940,7 +950,8 @@ void nativeShellWorkshop_Update()
     if (opened && project_loaded) {
         if (preview_loading && nativeHome_IsPractice() && !nativeHome_PracticeTransitioning()) {
             preview_loading = false;
-            status("workshop-editor-status", "Draft preview ready.");
+            status("workshop-editor-status", testing
+                ? "Live practice ready." : "Draft preview ready.");
         }
         static int last_practice = -1;
         const int practice = nativeHome_IsPractice() ? 1 : 0;
