@@ -105,19 +105,24 @@ int main(void)
     CHECK(nativeNetplayRoom_WatchMatch(&rooms[1]));
     CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1]));
     lose_metadata=lose_records=true;
-    uint64_t deadline=GetTickCount64()+5000;bool extended=false;
+    uint64_t deadline=GetTickCount64()+5000;bool extended=false,closed_after_final=false;
     while(GetTickCount64()<deadline) {
         nativeNetplayRoom_PumpWatch(&rooms[0]);nativeNetplayRoom_PumpWatch(&rooms[1]);deliver();
         if(!extended && rooms[1].watch.receive.stream.count>100) {
             append(240,270);CHECK(nativeMatchStream_EndPhase(&rooms[0].stream,true,0x7788));
             append(0,20);CHECK(nativeMatchStream_EndPhase(&rooms[0].stream,false,0x9988));extended=true;
         }
+        NativeRoomWatchReceive* received=&rooms[1].watch.receive;
+        if(!closed_after_final && received->stream.finished && received->remote_finished &&
+           received->stream.count==received->remote_count && received->state==NativeRoomWatch_Receiving) {
+            routes[1].started=false;closed_after_final=true;
+        }
         if(rooms[1].watch.receive.state==NativeRoomWatch_Complete)break;
         CHECK(rooms[1].watch.receive.state!=NativeRoomWatch_Failed);
         Sleep(17);
     }
     NativeRoomWatchReceive* r=&rooms[1].watch.receive;
-    CHECK(r->state==NativeRoomWatch_Complete && extended);
+    CHECK(r->state==NativeRoomWatch_Complete && extended && closed_after_final);
     CHECK(r->stream.finished && r->stream.count==rooms[0].stream.count && r->stream.phase==1);
     CHECK(r->stream.digest==rooms[0].stream.digest);
     CHECK(!memcmp(records,r->stream.records,(size_t)r->stream.count*NATIVE_MATCH_STREAM_RECORD_BYTES));

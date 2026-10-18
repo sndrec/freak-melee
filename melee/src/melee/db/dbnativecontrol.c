@@ -12,6 +12,7 @@
 #include <melee/db/db.h>
 #include <melee/ft/native_costume_runtime.h>
 #include <melee/gm/native_online_session.h>
+#include <melee/gm/native_spectator_match.h>
 #include <melee/gm/native_signaling_wire.h>
 #include <melee/gm/native_netplay_match.h>
 #include <melee/gr/grpstadium.h>
@@ -91,6 +92,7 @@ static void apply_message(const DbNativeControlMessage* message)
             else if (!strcmp(message->text,"costume-state")) nativeCostumeRuntime_Inspect();
             else if (!strcmp(message->text,"sss-state")) mnStageSel_Inspect();
             else if (!strcmp(message->text,"room-state")) nativeOnlineSession_Inspect();
+            else if (!strcmp(message->text,"watch-playback")) nativeSpectatorMatch_Inspect();
             else nativeShell_InspectElement(message->text);
         }
         return;

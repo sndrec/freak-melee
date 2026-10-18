@@ -1,4 +1,6 @@
 #include "gmscdata.h"
+#include "gm_1A45.h"
+#include "native_spectator_match.h"
 
 #include "gm_1A33.h"
 #include "gm_unsplit.h"
@@ -360,6 +362,13 @@ static GameScene scenes[] = {
         gm_Scene_CameraVs_OnFrame,
         gm_Scene_CameraVs_OnEnter,
         gm_Scene_CameraVs_OnExit,
+        NULL,
+    },
+    {
+        GS_NATIVE_WATCH_SETUP,
+        gm_801A4B74,
+        nativeSpectatorMatch_LoadScene,
+        NULL,
         NULL,
     },
     {

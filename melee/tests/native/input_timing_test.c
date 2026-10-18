@@ -94,6 +94,25 @@ int main(void)
     require(samples == 17, "fifteen replayed samples and the following live sample");
 
     reset();
+    step(replay_origin);
+    for (unsigned i = 0; i < 6000; ++i) step(lbInput_NextSampleTimeNs());
+    require(lbInput_Poll(replay_origin + PERIOD) == 0,
+            "unpaced playback should leave its schedule ahead of real time");
+    lbInput_RebaseClock(replay_origin + PERIOD);
+    step(replay_origin + PERIOD);
+    require(lb_80019A30(0) && lb_80019A30(1),
+            "the next scene must accept live input immediately after catch-up");
+
+    reset();
+    lbInput_SetGameSpeed(0.5f);
+    step(0);
+    require(!lb_80019A30(0), "initial half-speed phase");
+    lbInput_RebaseClock(replay_origin);
+    step(replay_origin);
+    require(lb_80019A30(0) && lb_80019A30(1),
+            "rebasing host time must preserve simulation phase and speed");
+
+    reset();
     lbInput_SetGameSpeed(0.5f);
     for (unsigned i = 0; i < 120; ++i) {
         step((u64) i * PERIOD);

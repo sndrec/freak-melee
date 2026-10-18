@@ -119,7 +119,7 @@ class Client:
             with self.stderr.open('r', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state)\]', text):
+            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback)\]', text):
                 return text
             if self.process.poll() is not None:
                 raise RuntimeError(f'Client exited {self.process.returncode}')

@@ -330,10 +330,13 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   during Results while the spectator keeps practicing. The
   [cold-cache check](melee/docs/native_spectator_content_checkpoint.md) verifies
   late downloads of exact fighter families and coordinated outfits without
-  installing them or rereading source packages during gameplay. The Watch match
-  UI, viewer asset activation, playback and live game catch-up remain open,
-  including match start by a room owner with no active fighter. Cold transfer
-  throughput also needs improvement before performance acceptance.
+  installing them or rereading source packages during gameplay. The
+  [playback check](melee/docs/native_spectator_playback_checkpoint.md) covers the
+  Watch match control, viewer asset activation, verified catch-up, cancellation
+  and Results with source-only paired fighters, including a cold-cache run
+  through 5,982 verified frames and return to the local roster. Match start by a room owner
+  with no active fighter and live sudden-death viewing remain open. Cold
+  transfer throughput also needs improvement before performance acceptance.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the

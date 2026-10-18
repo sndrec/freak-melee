@@ -59,6 +59,7 @@ typedef struct NativeMatchLaunch {
     bool trace_geometry;
     uint64_t trace_geometry_frame;
     bool local_preview;
+    bool spectating;
     bool rollback_census;
     bool object_census;
     bool snapshot_census;
@@ -1315,7 +1316,7 @@ bool nativeMatchLaunch_PrepareSuddenDeathFighters(void)
 {
     if (!nativeFighterRuntime_StageCached(
             launch.fighter_ids, launch.fighter_count, launch.content_root,
-            !launch.netplay.enabled && !launch.local_preview)) {
+            !launch.netplay.enabled && !launch.local_preview && !launch.spectating)) {
         return false;
     }
     if (launch.direct) launch.direct_prepared = true;
@@ -1443,6 +1444,7 @@ void nativeMatchLaunch_ClearNetplay(void)
     launch.netplay = (NativeNetplayLaunchConfig){ 0 };
     launch.has_agreed_match = false;
     launch.local_preview = false;
+    launch.spectating = false;
 }
 
 uint64_t nativeMatchLaunch_Signature(void)
@@ -1571,14 +1573,8 @@ bool nativeMatchLaunch_CreateLobbyMatch(NativeLobbyMatch* match)
     return nativeLobbyMatch_Validate(match);
 }
 
-bool nativeMatchLaunch_AdoptLobbyRoom(const NativeNetplayRoom* room)
+static bool prepare_match(const NativeLobbyMatch* match)
 {
-    if (room == NULL || !room->active || !room->match_configured ||
-        !room->ready)
-    {
-        return false;
-    }
-    const NativeLobbyMatch* match = &room->match;
     if (!nativeLobbyMatch_Validate(match) ||
         memcmp(match->content_digest, nativeStockContent_Digest(),
                NATIVE_STOCK_CONTENT_DIGEST_BYTES) != 0)
@@ -1658,6 +1654,56 @@ bool nativeMatchLaunch_AdoptLobbyRoom(const NativeNetplayRoom* room)
         }
     }
 
+    launch.stage = stage;
+    switch (match->mode) {
+    case NativeLobbyMatchMode_Time:
+        launch.mode = MatchKind_Time;
+        break;
+    case NativeLobbyMatchMode_Stock:
+        launch.mode = MatchKind_Stock;
+        break;
+    case NativeLobbyMatchMode_Coin:
+        launch.mode = MatchKind_Coin;
+        break;
+    default:
+        return false;
+    }
+    launch.time_minutes = match->time_limit_minutes;
+    launch.time_explicit = true;
+    launch.stocks = match->stock_count;
+    launch.item_freq = match->item_frequency;
+    launch.teams = match->teams;
+    memcpy(launch.slots, slots, sizeof(slots));
+    launch.agreed_match = *match;
+    launch.has_agreed_match = true;
+
+    GameRules* rules = gmMainLib_GetGameRules();
+    struct GamePrefs* prefs = gmMainLib_GetGamePrefs();
+    if (!nativeSettings_PreserveForRoomMatch(rules, prefs)) {
+        return false;
+    }
+    // The match description owns every slot. CSS and practice can retain
+    // character IDs and spawn overrides even in slots marked empty.
+    gm_SetupAllPlayerDefaults(gmVsMelee_GetVsData()->start.players);
+    nativeMatchLaunch_Apply();
+    rules->time_limit = match->time_limit_minutes;
+    rules->stock_time_limit = match->stock_time_limit_minutes;
+    rules->handicap = match->handicap;
+    rules->damage_ratio = match->damage_ratio;
+    rules->friendly_fire = match->friendly_fire;
+    rules->pause = match->pause;
+    rules->score_display = match->score_display;
+    prefs->item_freq = match->item_frequency < 0
+                           ? UINT8_MAX
+                           : (uint8_t) match->item_frequency;
+    prefs->item_mask = match->item_mask;
+    return true;
+}
+
+bool nativeMatchLaunch_AdoptLobbyRoom(const NativeNetplayRoom* room)
+{
+    if(!room || !room->active || !room->match_configured || !room->ready)return false;
+    const NativeLobbyMatch* match=&room->match;
     const NativeLobbyMatchPeer* local = NULL;
     for (uint32_t i = 0; i < match->peer_count; ++i) {
         if (strcmp(match->peers[i].peer_id,
@@ -1719,50 +1765,23 @@ bool nativeMatchLaunch_AdoptLobbyRoom(const NativeNetplayRoom* room)
         output->port_mask = source->port_mask;
     }
 
-    launch.stage = stage;
-    switch (match->mode) {
-    case NativeLobbyMatchMode_Time:
-        launch.mode = MatchKind_Time;
-        break;
-    case NativeLobbyMatchMode_Stock:
-        launch.mode = MatchKind_Stock;
-        break;
-    case NativeLobbyMatchMode_Coin:
-        launch.mode = MatchKind_Coin;
-        break;
-    default:
-        return false;
-    }
-    launch.time_minutes = match->time_limit_minutes;
-    launch.time_explicit = true;
-    launch.stocks = match->stock_count;
-    launch.item_freq = match->item_frequency;
-    launch.teams = match->teams;
-    memcpy(launch.slots, slots, sizeof(slots));
-    memcpy(netplay.room.peers, peers, sizeof(peers));
-    netplay.room.peer_count = peer_count;
-    launch.netplay = netplay;
-    launch.agreed_match = *match;
-    launch.has_agreed_match = true;
-
-    GameRules* rules = gmMainLib_GetGameRules();
-    struct GamePrefs* prefs = gmMainLib_GetGamePrefs();
-    if (!nativeSettings_PreserveForRoomMatch(rules, prefs)) {
-        return false;
-    }
-    nativeMatchLaunch_Apply();
-    rules->time_limit = match->time_limit_minutes;
-    rules->stock_time_limit = match->stock_time_limit_minutes;
-    rules->handicap = match->handicap;
-    rules->damage_ratio = match->damage_ratio;
-    rules->friendly_fire = match->friendly_fire;
-    rules->pause = match->pause;
-    rules->score_display = match->score_display;
-    prefs->item_freq = match->item_frequency < 0
-                           ? UINT8_MAX
-                           : (uint8_t) match->item_frequency;
-    prefs->item_mask = match->item_mask;
+    if(!prepare_match(match))return false;
+    memcpy(netplay.room.peers,peers,sizeof(peers));
+    netplay.room.peer_count=peer_count;
+    launch.netplay=netplay;launch.spectating=false;
     return true;
+}
+
+bool nativeMatchLaunch_AdoptSpectatorMatch(const NativeLobbyMatch* match)
+{
+    if(!match)return false;
+    launch.netplay=(NativeNetplayLaunchConfig){0};
+    launch.spectating=true;
+    return prepare_match(match);
+}
+bool nativeMatchLaunch_IsSpectating(void)
+{
+    return launch.spectating;
 }
 
 void nativeMatchLaunch_Apply(void)
@@ -1830,7 +1849,7 @@ bool nativeMatchLaunch_RegisterFighters(void)
     // A later direct-mode scene can still re-enter without startup staging.
     return nativeFighterRuntime_StageCached(launch.fighter_ids,
         launch.fighter_count, launch.content_root,
-        !launch.netplay.enabled && !launch.local_preview) &&
+        !launch.netplay.enabled && !launch.local_preview && !launch.spectating) &&
         nativeFighterRuntime_ActivateStaged(launch.fighter_count);
 }
 

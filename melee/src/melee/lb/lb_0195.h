@@ -12,6 +12,9 @@ bool lbInput_DidSample(void);
 u64 lbInput_VirtualClockNowNs(void);
 // Replay one scheduled sample without waiting on present-day wall time.
 u64 lbInput_NextSampleTimeNs(void);
+// Start a scene's host sampling schedule at the current monotonic time.
+// Simulation phase and game speed remain unchanged.
+void lbInput_RebaseClock(u64 now_ns);
 /* 0198E0 */ void lb_800198E0(void);
 /* 019900 */ void lb_80019900(void);
 /* 019A30 */ bool lb_80019A30(int);

@@ -18,6 +18,7 @@ from review_native_css_room import Client
 from review_native_outfit_matches import choose as choose_outfit,network,select_stage,settings,wait
 from review_native_room_rotation import choose,room,session
 from review_native_watch_transport import watch
+from review_native_watch_playback import playback
 
 
 def cache(client):
@@ -43,7 +44,9 @@ def remove_match_content(profile,identities,workspace):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for key in ['exe','iso','profile','families','output']:parser.add_argument('--'+key,type=Path,required=True)
-    parser.add_argument('--endpoint',required=True);args=parser.parse_args()
+    parser.add_argument('--endpoint',required=True)
+    parser.add_argument('--playback',action='store_true')
+    args=parser.parse_args()
     os.environ['FREAK_MELEE_SERVICE_ENDPOINT']=args.endpoint
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     base=output/'base';shutil.copytree(args.profile,base,ignore=shutil.ignore_patterns('projects'));settings(base)
@@ -86,7 +89,8 @@ def main():
         viewer.click('lobby-ready');choose(viewer,families['fox']['parent'],0)
         viewer.click('play-ready');viewer.element('play-selection')
         assert watch(viewer)['practice']==1 and watch(viewer)['state']==0
-        viewer.command('room-watch','start')
+        if args.playback:viewer.click('play-watch')
+        else:viewer.command('room-watch','start')
         wait(lambda: watch(viewer)['records']>50,'live history from current match',45)
         ready=wait(lambda: s if (s:=cache(viewer))['watch_ready'] else None,'exact fighter and outfit dependencies',180)
         for identity in identities:
@@ -95,6 +99,8 @@ def main():
             assert not (viewer.data/'content/installed'/(identity+'.fmi')).exists()
         receipt['content_ready_seconds']=time.monotonic()-joined_at
         receipt['content_ready']=ready;receipt['during_match']=[cache(c) for c in clients[:2]]
+        if args.playback:
+            receipt['playing']=wait(lambda: s if (s:=playback(viewer))['verified']>120 else None,'cold viewer playback',180)
         for before,after in zip(receipt['before_download'],receipt['during_match']):
             assert after['reads']==before['reads'] and after['requests']>=2 and after['active_packets']>0
         receipt['network']=[network(c) for c in clients[:2]]
@@ -105,17 +111,33 @@ def main():
         player.command('hold',0,'sx=80')
         wait(lambda: all('[netplay] Compared ' in (c.folder/'stdout.log').read_text(errors='replace') for c in clients[:2]),'match end',90)
         player.command('hold',0,'sx=0')
-        complete=wait(lambda: s if (s:=watch(viewer))['state']==3 else None,'finished history',45)
+        complete=wait(lambda: s if (s:=watch(viewer))['state']==3 else None,'finished history',180 if args.playback else 45)
         source=room(authority)['stream']
         assert complete['records']==source['records'] and complete['digest']==source['digest']
         assert complete['seed']==source['seed'] and cache(viewer)['watch_ready']==1
-        assert complete['practice']==1
+        assert complete['practice']==(0 if args.playback else 1)
         receipt.update(complete=complete,source=source)
-        viewer.command('room-watch','stop')
+        if args.playback:
+            receipt['final_playback']=wait(lambda: s if (s:=playback(viewer))['state']==5 else None,'cold viewer Results',90)
+            assert receipt['final_playback']['index']==source['records']
+            assert receipt['final_playback']['digest']==source['tail_state']
+            receipt['viewer_results']=str(viewer.screenshot())
+            def return_from_results():
+                if '[css-selection] ready=' in viewer.inspect('css-selection'):return True
+                viewer.command('tap',0,'START','frames=6')
+                return False
+            wait(return_from_results,'cold viewer own CSS',60)
+            layout=(viewer.data/'css-layout.bin').read_bytes()
+            count=struct.unpack_from('<H',layout,4)[0]
+            tiles={layout[14+48*i:46+48*i].hex() for i in range(count)}
+            assert not tiles.intersection(identities)
+            assert all(not (viewer.data/'content/installed'/(i+'.fmi')).exists() for i in identities)
+        else:viewer.command('room-watch','stop')
         for c in clients:
             text=(c.folder/'stdout.log').read_text(errors='replace')+c.stderr.read_text(errors='replace')
-            assert not re.search(r'Checksum mismatch|\[netplay\] FAILED:|Fighter source VM failed|native panic stack',text),text[-2000:]
+            assert not re.search(r'Checksum mismatch|\[netplay\] FAILED:|\[watch-playback\] FAILED:|Fighter source VM failed|native panic stack',text),text[-2000:]
         receipt['status']='PASS cold late spectator receives exact source families and outfits during gameplay, remains cache-only and receives complete history'
+        if args.playback:receipt['status']+='; verified playback, Results and own roster return'
         print(receipt['status'],flush=True)
     except Exception as error:
         receipt.update(status='FAIL',error=repr(error))

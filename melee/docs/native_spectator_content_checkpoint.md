@@ -86,5 +86,8 @@ The earlier functional run passed with slower delivery. The loss fixture then
 exposed acknowledgement validation against the retry cursor; the final batch
 passes after separating that cursor from the highest sent offset.
 
-Game reconstruction, live playback, the Watch match control, source validation
-at scene construction and auxiliary-load performance acceptance remain open.
+The subsequent [playback check](native_spectator_playback_checkpoint.md) covers
+the Watch match control, scene preparation, cold-cache fighter activation,
+verified catch-up, Results and return to the local roster. Live sudden-death
+viewing, match start by an inactive room owner and auxiliary-load performance
+acceptance remain open.

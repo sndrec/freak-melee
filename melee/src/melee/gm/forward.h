@@ -111,7 +111,8 @@ typedef enum GameSceneKind {
     /* +2A */ GS_MEMCARD,   ///< Memcard Prompt
     /* +2B */ GS_STAFFROLL, ///< Credits
     /* +2C */ GS_CAMERA_VS,
-    /* +2D */ GS_COUNT
+    GS_NATIVE_WATCH_SETUP,
+    GS_COUNT
 } GameSceneKind;
 
 typedef enum MatchOutcome {
