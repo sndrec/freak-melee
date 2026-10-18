@@ -88,6 +88,6 @@ passes after separating that cursor from the highest sent offset.
 
 The subsequent [playback check](native_spectator_playback_checkpoint.md) covers
 the Watch match control, scene preparation, cold-cache fighter activation,
-verified catch-up, Results and return to the local roster. Live sudden-death
-viewing, match start by an inactive room owner and auxiliary-load performance
+verified catch-up, sudden-death viewing, Results and return to the local roster.
+Match start by an inactive room owner and auxiliary-load performance
 acceptance remain open.
