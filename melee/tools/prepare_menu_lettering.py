@@ -75,6 +75,20 @@ def letter_runs(image, threshold):
     return runs
 
 
+def align_alphabet_baseline(glyphs, baseline):
+    # The original labels were rasterized at slightly different positions.
+    # Recovered letters share a baseline; descenders and Q retain their tails.
+    for char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz':
+        if char in 'Qgjpqy':
+            continue
+        glyph = glyphs[char]
+        bounds = glyph.point(lambda value: 255 if value > 160 else 0).getbbox()
+        if bounds:
+            aligned = Image.new('L', glyph.size)
+            aligned.paste(glyph, (0, baseline - bounds[3]))
+            glyphs[char] = aligned
+
+
 def option_glyphs(archive, fallback):
     source = MenuArchive(archive)
 
@@ -116,6 +130,7 @@ def option_glyphs(archive, fallback):
                 glyphs[char] = glyph
 
     complete_alphabet(glyphs, fallback, 22)
+    align_alphabet_baseline(glyphs, 22)
     return glyphs, 22
 
 
@@ -219,4 +234,5 @@ def caption_glyphs(archive, fallback):
                     glyphs[char] = glyph
             break
     complete_alphabet(glyphs, fallback, 24)
+    align_alphabet_baseline(glyphs, 24)
     return glyphs, 24

@@ -12,7 +12,7 @@ void nativeMenuScene_Tick(void);
 bool nativeMenuScene_Begin(const char* caption);
 void nativeMenuScene_End(void);
 void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
-                                float height, bool selected);
+                                float height, bool selected, const char* label);
 void nativeMenuScene_Unload(void);
 void nativeMenuScene_Start(bool backwards);
 bool nativeMenuScene_Active(void);
