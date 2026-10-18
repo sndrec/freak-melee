@@ -58,7 +58,7 @@ void nativeHubQuickStage_Render()
 {
     const auto* quick = nativeOnlineSession_Quick();
     if (!quick || quick->phase != 3) {
-        nativeMenuPaint_Text("Stage selected",175,76,420,18,gold,NativeMenuFont_Heading);
+        nativeMenuPaint_Text("Stage selected",175,98,420,12,gold,NativeMenuFont_MenuOption);
         nativeHub_Button("stage-return","Character select",175,118,220,30,HubAction::Close);
         return;
     }
@@ -66,7 +66,6 @@ void nativeHubQuickStage_Render()
     const bool choosing = quick->team == quick->chooser;
     const unsigned players = nativeOnlineSession_LocalPlayers();
     hub.stage_seat = std::min(hub.stage_seat,players ? players-1 : 0);
-    nativeMenuPaint_Text("Next stage",175,70,420,19,gold,NativeMenuFont_Heading);
     const char* hint = !choosing ? "Waiting for the other team to choose."
         : selected.proposer ? "One player picks. Their teammate confirms."
         : quick->mode == NativeQuickMode_Doubles ? "Either teammate can pick a stage."

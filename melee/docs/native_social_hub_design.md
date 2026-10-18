@@ -27,8 +27,11 @@ the component rather than forcing every control into a complete stock asset.
 The first adapted pass now uses the stock background, panel frame, camera,
 lights and animated ribbons. Ribbon ends retain their proportions as the middle
 changes width. A sliced stock panel border supplies hub panels, fields and
-buttons. Page captions use their recovered italic face through the original
-caption joint, with its material opacity. The [menu asset checkpoint](native_menu_assets_checkpoint.md) records
+buttons. Shared border artwork now also supports CSS/practice controls,
+fighter-delivery notices and the Quick Play countdown, independently of the
+main-menu scene lifetime. Page captions use their recovered italic face through
+the original caption joint, with its material opacity.
+The [menu asset checkpoint](native_menu_assets_checkpoint.md) records
 the source references, native checks and remaining typography/layout work.
 
 ## Native integration

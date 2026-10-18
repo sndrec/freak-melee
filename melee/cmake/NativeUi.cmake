@@ -25,6 +25,7 @@ endforeach()
 foreach(_kind RANGE 0 26)
     list(APPEND _native_release_ui "ui/portraits/stock-${_kind}.png")
 endforeach()
+list(APPEND _native_release_ui "ui/skins/menu-panel.bin")
 list(REMOVE_DUPLICATES _native_release_ui)
 list(SORT _native_release_ui)
 string(JOIN "\n" _native_release_ui_text ${_native_release_ui})
@@ -36,6 +37,8 @@ add_custom_target(melee_native_ui
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/fonts"
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_art.py"
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/portraits"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_skin.py"
+        --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/skins"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting" "$<TARGET_FILE_DIR:melee_native>/ui/docs"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
