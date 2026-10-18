@@ -61,8 +61,13 @@ fixture places the surface beside him for clear visual inspection.
 
 ## Remaining work
 
-This does not import source JOINTS/WEIGHTS from glTF, paint arbitrary stock DAT
-layouts, add bones, compensate rigid attachments during rest edits, make brush
-picking pose-aware, or compact orphaned DAT records. Those Model requirements
-remain open. Mode switching and a brief practice run establish rendering here;
-they do not establish the broader pose/key editing, undo and user usability gates.
+Compatible source JOINTS/WEIGHTS now import through the
+[source-skin path](native_source_skin_checkpoint.md), and
+[rest compensation](native_model_rest_checkpoint.md) covers rigid, skinned and
+morph geometry. Imported skins also support posed and animated brush targeting.
+The [Model workflow checkpoint](native_model_workflow_checkpoint.md) records its
+native editing checks and the unresolved projection discrepancy after refresh.
+
+Arbitrary stock DAT layouts, continuous triangle-surface brush hits, additional
+bones and DAT compaction remain open. User usability acceptance and the broader
+animation-authoring gates remain separate from these saved-weight checks.

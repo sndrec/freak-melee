@@ -178,7 +178,7 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
         if (!env) {
             return false;
         }
-        const bool single = env->weight >= 1.0f - FLT_EPSILON;
+        const bool single = env->weight >= 1.0f - 1.00000001335e-10F;
         for (HSD_Envelope* e = env; e; e = e->next) {
             HSD_JObjSetupMatrix(e->jobj);
             if (e->jobj == mesh->weight_bone) {
@@ -213,7 +213,7 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
 }
 
 typedef void (*BeginFn)(unsigned primitive, unsigned count, void* user);
-typedef void (*VertexFn)(const Vec3* p, float weight, void* user);
+typedef void (*VertexFn)(const Vec3* p, float weight, unsigned index, void* user);
 typedef void (*EndFn)(void* user);
 // Reads the original GX descriptor order, including stock indexed/quantized
 // positions. No imported-mesh layout assumptions and no draw-time allocations.
@@ -248,6 +248,7 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
         for (unsigned v = 0; v < count; ++v) {
             Vec3 pos = { 0 };
             unsigned matrix = 0;
+            unsigned position_index = ~0u;
             bool have_pos = false;
             for (const HSD_VtxDescList* d = p->verts; d->attr != GX_VA_NULL;
                  ++d)
@@ -278,6 +279,7 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
                 if (!direct) {
                     const unsigned index =
                         d->attr_type == GX_INDEX8 ? value[0] : be16(value);
+                    position_index = index;
                     const size_t offset = (size_t) index * d->stride;
                     if (!d->vertex || offset + value_bytes(d) > d->vertex_size)
                     {
@@ -301,7 +303,7 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
             Vec3 world;
             C_MTXMultVec(mtx[matrix], &pos, &world);
             if (vertex) {
-                vertex(&world, weights[matrix], user);
+                vertex(&world, weights[matrix], position_index, user);
             }
         }
         if (end) {
@@ -315,7 +317,7 @@ static void draw_begin(unsigned primitive, unsigned count, void* user)
 {
     GXBegin(primitive, GX_VTXFMT0, (u16) count);
 }
-static void draw_vertex(const Vec3* p, float weight, void* user)
+static void draw_vertex(const Vec3* p, float weight, unsigned index, void* user)
 {
     const ViewMesh* mesh = user;
     GXColor color = { 137, 210, 255, 255 };
@@ -448,7 +450,7 @@ static void pick_begin(unsigned primitive, unsigned count, void* user)
     p->primitive = primitive;
     p->index = 0;
 }
-static void pick_vertex(const Vec3* vertex, float weight, void* user)
+static void pick_vertex(const Vec3* vertex, float weight, unsigned index, void* user)
 {
     Pick* p = user;
     unsigned i = p->index++;
@@ -497,4 +499,40 @@ int nativeModelView_Pick(const float origin[3], const float direction[3])
         }
     }
     return pick.selected;
+}
+
+typedef struct VertexPositions {
+    Vec3* positions;
+    u8* present;
+    unsigned capacity;
+    bool valid;
+} VertexPositions;
+
+static void store_position(const Vec3* value, float weight, unsigned index, void* user)
+{
+    VertexPositions* output = user;
+    if (index >= output->capacity || !isfinite(value->x) ||
+        !isfinite(value->y) || !isfinite(value->z)) {
+        output->valid = false;
+        return;
+    }
+    if (output->present[index] &&
+        memcmp(&output->positions[index], value, sizeof(Vec3))) {
+        output->valid = false;
+        return;
+    }
+    output->positions[index] = *value;
+    output->present[index] = 1;
+}
+
+bool nativeModelView_VertexPositions(unsigned mesh, Vec3* positions,
+                                     u8* present, unsigned capacity)
+{
+    if (mesh >= mesh_count || !positions || !present || !capacity ||
+        !meshes[mesh].owner || !meshes[mesh].mesh || meshes[mesh].hidden) return false;
+    memset(present, 0, capacity);
+    VertexPositions output = { positions, present, capacity, true };
+    for (HSD_PObj* p = meshes[mesh].mesh->pobj; p; p = p->next)
+        if (!visit(&meshes[mesh], p, NULL, store_position, NULL, &output)) return false;
+    return output.valid;
 }

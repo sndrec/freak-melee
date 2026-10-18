@@ -2,6 +2,7 @@
 
 #include "native_shell_workshop_materials.h"
 #include "native_shell_workshop_transform.h"
+#include "native_shell_workshop_skinning.h"
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_material_animation.h>
 
@@ -72,6 +73,7 @@ struct ModelSession {
     int frame = 0;
     bool bones_visible = true;
     bool roles_applied = false;
+    bool pose_initialized = false;
     uint8_t hidden_meshes[NATIVE_MODEL_MAX_MESHES] = {};
     NativeHomeWorkshopBoneLocal pose[NATIVE_MODEL_MAX_JOINTS] = {};
     bool pose_changed[NATIVE_MODEL_MAX_JOINTS] = {};
@@ -465,8 +467,8 @@ void render_inspector()
             "orange, red 100%.</p></div><div "
             "class='workshop-model-inspector-section'>"
             "<div class='eyebrow'>WEIGHT BRUSH</div><p>Drag to paint the "
-            "selected mesh "
-            "in Edit Mode. Switch to Pose Mode to inspect deformation.</p>"
+            "selected mesh in its current pose. Painting pauses clip playback. "
+            "The brush radius is measured on the rest mesh.</p>"
             "<label>Radius (Melee units)</label><input "
             "id='workshop-model-brush-radius' "
             "class='room-input' type='text' value='" +
@@ -735,6 +737,9 @@ void render_import()
 
 void reopen_model()
 {
+    const unsigned joint_count = active->model.joint_count;
+    uint32_t joint_offsets[NATIVE_MODEL_MAX_JOINTS];
+    for (unsigned i = 0; i < joint_count; ++i) joint_offsets[i] = active->model.joints[i].offset;
     uint32_t hidden_offsets[NATIVE_MODEL_MAX_MESHES];
     unsigned hidden_count = 0;
     for (unsigned i = 0; i < active->model.mesh_count; ++i) {
@@ -743,6 +748,10 @@ void reopen_model()
         }
     }
     nativeFighterModel_Open(&active->model, active->project);
+    bool same_rig = joint_count == active->model.joint_count;
+    for (unsigned i = 0; same_rig && i < joint_count; ++i)
+        same_rig = joint_offsets[i] == active->model.joints[i].offset;
+    if (!same_rig) active->pose_initialized = false;
     std::memset(active->hidden_meshes, 0, sizeof(active->hidden_meshes));
     for (unsigned i = 0; i < active->model.mesh_count; ++i) {
         for (unsigned j = 0; j < hidden_count; ++j) {
@@ -758,13 +767,15 @@ void reopen_model()
         ? std::clamp(active->selected_mesh, 0, (int) active->model.mesh_count - 1) : -1;
     active->selected_material = active->model.material_count
         ? std::clamp(active->selected_material, 0, (int) active->model.material_count - 1) : -1;
-    for (unsigned i = 0; i < active->model.joint_count; ++i)
-        for (unsigned a = 0; a < 3; ++a) {
-            active->pose[i].rotation[a] = active->model.joints[i].rotation[a];
-            active->pose[i].scale[a] = active->model.joints[i].scale[a];
-            active->pose[i].position[a] = active->model.joints[i].position[a];
-        }
-    std::memset(active->pose_changed, 0, sizeof(active->pose_changed));
+    if (!active->pose_initialized) {
+        for (unsigned i = 0; i < active->model.joint_count; ++i)
+            for (unsigned a = 0; a < 3; ++a) {
+                active->pose[i].rotation[a] = active->model.joints[i].rotation[a];
+                active->pose[i].scale[a] = active->model.joints[i].scale[a];
+                active->pose[i].position[a] = active->model.joints[i].position[a];
+            }
+        std::memset(active->pose_changed, 0, sizeof(active->pose_changed));
+    }
     build_bones();
     render();
 }
@@ -822,7 +833,7 @@ bool apply_joint_transform()
                                            (unsigned) active->selected_joint)) {
         std::memcpy(active->project->costume_dat, before.data(), before.size());
         reopen_model();
-        status("This rest edit could not preserve the model. Morph targets require separate compensation.");
+        status("This rest edit could not preserve the model. Check for invalid or singular transforms.");
         return false;
     }
     record_asset(before);
@@ -927,16 +938,11 @@ void apply_texture()
         : "Texture updated. Test Character to reload the preview.");
 }
 
-std::vector<NativeImportedSkinVertex> stroke_vertices;
-std::vector<NativeHomeWorkshopBoneScreen> stroke_screens;
-std::vector<uint8_t> stroke_screen_visible;
-std::vector<NativeSkinBrushPoint> stroke_centers;
-std::vector<unsigned> stroke_indices;
-bool stroke_active;
+NativeWorkshopSkinStroke stroke;
 
 void stroke_append(int mouse_x, int mouse_y)
 {
-    if (!stroke_active || stroke_centers.size() == 4096) return;
+    if (!stroke.active) return;
     Rml::Element* viewport = element("workshop-model-viewport");
     const float width = (float) viewport->GetClientWidth();
     const float height = (float) viewport->GetClientHeight();
@@ -945,33 +951,12 @@ void stroke_append(int mouse_x, int mouse_y)
     const auto origin = viewport->GetAbsoluteOffset();
     const float local_x = mouse_x - origin.x - (width - game_width) * 0.5f;
     const float local_y = mouse_y - origin.y - (height - game_height) * 0.5f;
-    if (local_x < 0 || local_x > game_width ||
-        local_y < 0 || local_y > game_height) return;
-    float closest_squared = 48.0f * 48.0f;
-    int closest = -1;
-    for (unsigned i = 0; i < stroke_vertices.size(); ++i) {
-        if (!stroke_screen_visible[i]) continue;
-        const float dx = stroke_screens[i].x * game_width - local_x;
-        const float dy = stroke_screens[i].y * game_height - local_y;
-        const float distance = dx * dx + dy * dy;
-        if (distance < closest_squared) {
-            closest_squared = distance;
-            closest = (int) i;
-        }
-    }
-    if (closest < 0 || std::find(stroke_indices.begin(), stroke_indices.end(),
-                                (unsigned) closest) != stroke_indices.end())
-        return;
-    stroke_indices.push_back((unsigned) closest);
-    NativeSkinBrushPoint point = {};
-    std::memcpy(point.position, stroke_vertices[closest].position,
-                sizeof(point.position));
-    stroke_centers.push_back(point);
+    nativeWorkshopSkinning_Append(&stroke, local_x, local_y, game_width, game_height);
 }
 
 void stroke_begin(int mouse_x, int mouse_y)
 {
-    if (active->context != Context::Skinning || active->rig_mode != RigMode::Edit ||
+    if (active->context != Context::Skinning ||
         active->selected_mesh < 0 || active->selected_joint < 0) return;
     float radius, strength;
     if (!parse_float("workshop-model-brush-radius", &radius) ||
@@ -985,41 +970,21 @@ void stroke_begin(int mouse_x, int mouse_y)
     active->brush_strength = strength;
     active->brush_subtract = static_cast<Rml::ElementFormControlSelect*>(
         element("workshop-model-brush-mode"))->GetValue() == "subtract";
-    const unsigned count = nativeFighterGltf_SkinVertices(active->project,
-        (unsigned) active->selected_mesh, nullptr, 0);
-    if (!count) {
-        status("Select a mesh imported with generated skin weights.");
+    if (!nativeWorkshopSkinning_Begin(&stroke, active->project, (unsigned) active->selected_mesh)) {
+        status("This mesh has no editable surface in the current preview.");
         return;
     }
-    stroke_vertices.resize(count);
-    if (nativeFighterGltf_SkinVertices(active->project, (unsigned) active->selected_mesh,
-                                       stroke_vertices.data(), count) != count)
-        return;
-    stroke_indices.clear();
-    stroke_centers.clear();
-    stroke_screens.resize(count);
-    stroke_screen_visible.resize(count);
-    for (unsigned i = 0; i < count; ++i) {
-        NativeHomeWorkshopBoneScreen& screen = stroke_screens[i];
-        stroke_screen_visible[i] = stroke_vertices[i].used &&
-            nativeHome_WorkshopWorldScreen(stroke_vertices[i].position,
-                                            &screen) &&
-            screen.x >= 0 && screen.x <= 1 &&
-            screen.y >= 0 && screen.y <= 1;
-    }
-    stroke_active = true;
+    playing = false;
+    text("workshop-model-play", "Play");
     stroke_append(mouse_x, mouse_y);
 }
 
 void stroke_end()
 {
-    if (!stroke_active) return;
-    stroke_active = false;
-    stroke_vertices.clear();
-    stroke_screens.clear();
-    stroke_screen_visible.clear();
-    stroke_indices.clear();
-    if (stroke_centers.empty()) {
+    if (!stroke.active) return;
+    stroke.active = false;
+    if (stroke.centers.empty()) {
+        nativeWorkshopSkinning_Clear(&stroke);
         status("Click closer to a mesh vertex to paint it.");
         return;
     }
@@ -1029,16 +994,16 @@ void stroke_end()
     char error[192] = {};
     if (!nativeFighterGltf_PaintWeights(active->project, (unsigned) active->selected_mesh,
                                         (unsigned) active->selected_joint,
-                                        stroke_centers.data(),
-                                        (unsigned) stroke_centers.size(),
+                                        stroke.centers.data(),
+                                        (unsigned) stroke.centers.size(),
                                         active->brush_radius, active->brush_strength,
                                         active->brush_subtract, &affected,
                                         error, sizeof(error))) {
-        stroke_centers.clear();
+        nativeWorkshopSkinning_Clear(&stroke);
         status(error[0] ? error : "Could not paint this mesh.");
         return;
     }
-    stroke_centers.clear();
+    nativeWorkshopSkinning_Clear(&stroke);
     if (!affected) {
         status("This brush stroke did not change any vertex weights.");
         return;
@@ -1152,7 +1117,7 @@ public:
             dragging = false;
             if (event.GetParameter<int>("button", -1) == 0) stroke_end();
         }
-        if (name == "mousemove" && stroke_active)
+        if (name == "mousemove" && stroke.active)
             stroke_append(event.GetParameter<int>("mouse_x", 0),
                           event.GetParameter<int>("mouse_y", 0));
         if (name == "mousemove" && dragging) {
@@ -1164,10 +1129,7 @@ public:
             last_y = y;
         }
     }
-    void Reset() { dragging = false; stroke_active = false;
-                   stroke_vertices.clear(); stroke_screens.clear();
-                   stroke_screen_visible.clear(); stroke_indices.clear();
-                   stroke_centers.clear(); }
+    void Reset() { dragging = false; nativeWorkshopSkinning_Clear(&stroke); }
 private:
     bool dragging = false;
     bool pan = false;
@@ -1264,7 +1226,8 @@ bool nativeShellWorkshopModel_Open(unsigned member,
                 }
             }
             for (size_t i = 0; i < count; ++i)
-                if (available[i] && std::strcmp(moves[i].name, "Wait") == 0) {
+                if (available[i] && (!std::strcmp(moves[i].name, "Wait") ||
+                                     !std::strcmp(moves[i].name, "Wait1"))) {
                     session.selected_clip = (int) i;
                     break;
                 }
@@ -1462,11 +1425,12 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         if (std::strcmp(id, (std::string("workshop-model-rig-") +
                             modes[i]).c_str()) == 0) {
             nativeWorkshopTransform_Clear();
-            if ((RigMode) i == RigMode::Pose && active->rig_mode != RigMode::Pose) {
+            if ((RigMode) i == RigMode::Pose && !active->pose_initialized) {
                 for (unsigned bone = 0; bone < active->model.joint_count; ++bone) {
                     active->pose_changed[bone] =
                         nativeHome_WorkshopBoneLocal(bone, &active->pose[bone]);
                 }
+                active->pose_initialized = true;
             }
             active->rig_mode = (RigMode) i;
             playing = false;
@@ -1537,6 +1501,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-model-reset-pose") == 0) {
         nativeWorkshopTransform_Clear();
+        active->pose_initialized = true;
         for (unsigned i = 0; i < active->model.joint_count; ++i) {
             active->pose_changed[i] = true;
             for (unsigned axis = 0; axis < 3; ++axis) {
@@ -1919,6 +1884,15 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member)
            (session.saved_costume.size() != session.project->costume_size ||
             std::memcmp(session.saved_costume.data(), session.project->costume_dat,
                         session.project->costume_size) != 0);
+}
+
+void nativeShellWorkshopModel_Inspect()
+{
+    std::fprintf(stderr, "[workshop-model] visible=%u context=%u mode=%u mesh=%d joint=%d clip=%d frame=%d playing=%u\n",
+                 visible, (unsigned) active->context, (unsigned) active->rig_mode,
+                 active->selected_mesh, active->selected_joint, active->selected_clip, active->frame, playing);
+    if (visible && active->project && active->selected_mesh >= 0)
+        nativeWorkshopSkinning_Inspect(active->project, (unsigned) active->selected_mesh);
 }
 
 bool nativeShellWorkshopModel_Save(const char* path, unsigned member)
