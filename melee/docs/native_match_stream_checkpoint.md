@@ -2,7 +2,8 @@
 
 The match authority now records the inputs needed to reconstruct an online
 match. This is the recording and packet foundation for spectator viewing.
-The Watch match control, transport requests and viewer playback remain open.
+The [transport checkpoint](native_spectator_transport_checkpoint.md) covers
+requests and live delivery. The Watch match control and viewer playback remain open.
 On a PC with no active fighters, local practice continues until its player
 chooses **Watch match**.
 
@@ -79,11 +80,12 @@ Binary/source hashes and endpoint audit: the adjacent `audit.json`.
 Codec checks: `.local/native-match-stream-unit-2.log`.
 The first two attempts rejected the missing authority-rollback coverage; the
 third reproduced the final-flush timeout. The fourth passes both rounds after
-the diagnostic lifetime and flush fixes. No cross-process viewer has run yet.
+the diagnostic lifetime and flush fixes. A separate three-client transport run
+now covers received history; game reconstruction and playback remain open.
 
 ## Remaining viewing work
 
-- Request the current match description and history on a separate connection.
+- Connect the verified description/history request to the Watch match control.
 - Cache the exact fighter and outfit dependencies before constructing a viewer
   scene. Cached packages remain separate from installed roster content.
 - Reconstruct from the initial seed and confirmed inputs, check semantic state,

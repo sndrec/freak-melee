@@ -648,6 +648,35 @@ void nativeOnlineSession_Inspect(void)
             stream->phase, stream->next_frame, stream->finished, stream->unavailable,
             stream->description.initial_seed, (unsigned long long)stream->digest,
             tail.kind, tail.frame, (unsigned long long)tail.state_digest);
+    const NativeRoomWatchReceive* watch=&online.lobby.room.watch.receive;
+    fprintf(stderr,"[room-watch] state=%u session=%016llx records=%u available=%u metadata=%u finished=%u digest=%016llx seed=%08x senders=%u practice=%u failure=%s\n",
+            watch->state,(unsigned long long)watch->session,watch->stream.count,
+            watch->remote_count,watch->metadata_mask,watch->stream.finished,
+            (unsigned long long)watch->stream.digest,watch->stream.description.initial_seed,
+            online.lobby.room.watch.sender_count,nativeHome_IsPractice(),watch->failure);
+}
+
+bool nativeOnlineSession_WatchMatch(void)
+{
+    return online.active && !online.match_claimed && !online.launch_ready &&
+        nativeNetplayRoom_WatchMatch(&online.lobby.room);
+}
+void nativeOnlineSession_StopWatching(void)
+{
+    if(online.active && !online.match_claimed)nativeNetplayRoom_StopWatching(&online.lobby.room);
+}
+const NativeRoomWatchReceive* nativeOnlineSession_Watch(void)
+{
+    return online.active ? &online.lobby.room.watch.receive : NULL;
+}
+
+uint8_t nativeOnlineSession_LocalActiveSeats(void)
+{
+    const NativeSignalingPresence* presence=nativeOnlineSession_Presence();
+    for(unsigned i=0;presence && i<presence->participant_count;++i)
+        if(!strcmp(presence->participants[i].peer_id,online.peer_id))
+            return presence->participants[i].active_mask;
+    return 0;
 }
 
 uint8_t nativeOnlineSession_LocalPlayers(void)

@@ -42,9 +42,9 @@ bool nativeMatchStream_DecodeDescription(NativeMatchStreamDescription* d,
 bool nativeMatchStream_Bind(NativeMatchStream* s,const NativeMatchStreamDescription* d,
                             void* storage,uint32_t capacity)
 {
-    if(!s || !d || !storage || !capacity ||
-       capacity>SIZE_MAX/NATIVE_MATCH_STREAM_RECORD_BYTES)return false;
+    if(!s || !d || !storage || !capacity)return false;
     size_t bytes=(size_t)capacity*NATIVE_MATCH_STREAM_RECORD_BYTES;
+    if(bytes/NATIVE_MATCH_STREAM_RECORD_BYTES!=capacity)return false;
     if(overlap(s,sizeof(*s),storage,bytes) || overlap(d,sizeof(*d),storage,bytes))return false;
     uint8_t encoded[NATIVE_MATCH_STREAM_DESCRIPTION_BYTES];
     size_t count=nativeMatchStream_EncodeDescription(d,encoded,sizeof(encoded));

@@ -47,7 +47,7 @@ bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c,
                                             bool local_owner)
 {
     const NativeSignalingParticipant* person = member(c, peer);
-    if (!person || !serial || c->topology_locked) {
+    if (!person || !serial) {
         return false;
     }
     NativeContentChannel* r = route(c, peer, serial, local_owner);
@@ -72,7 +72,7 @@ bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c,
                                           bool local_owner)
 {
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    if (!r || r->failed || !member(c, peer) || c->topology_locked) {
+    if (!r || r->failed || !member(c, peer)) {
         return false;
     }
     if (r->started) {
@@ -169,7 +169,7 @@ bool nativeNetplayConnection_SendControl(NativeNetplayConnection* c,
                                          const char* peer,
                                          const uint8_t* bytes, size_t size)
 {
-    if (!member(c, peer) || c->topology_locked) {
+    if (!member(c, peer)) {
         return false;
     }
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY + 8];
