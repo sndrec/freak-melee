@@ -82,6 +82,7 @@ static void apply_message(const DbNativeControlMessage* message)
             else if (!strcmp(message->text,"netplay-state")) nativeNetplayMatch_Inspect();
             else if (!strcmp(message->text,"costume-state")) nativeCostumeRuntime_Inspect();
             else if (!strcmp(message->text,"sss-state")) mnStageSel_Inspect();
+            else if (!strcmp(message->text,"room-state")) nativeOnlineSession_Inspect();
             else nativeShell_InspectElement(message->text);
         }
         return;

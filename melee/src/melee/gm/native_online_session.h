@@ -38,6 +38,7 @@ uint32_t nativeOnlineSession_CacheRevision(void);
 const char* nativeOnlineSession_Failure(void);
 const char* nativeOnlineSession_RoomCode(void);
 const char* nativeOnlineSession_LocalPeerId(void);
+void nativeOnlineSession_Inspect(void);
 bool nativeOnlineSession_ContentProgress(
     NativeNetplayContentProgress* progress);
 bool nativeOnlineSession_OfferGift(const char* peer_id,

@@ -315,8 +315,16 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   covers two Mario packages. The current family batch covers all five members
   above, preserving package IDs on unchanged rebuilds and returning from live
   practice to the editor with the original author offline.
-- [ ] Recheck current match setup, results/return, seat choices/host override,
-  1v1 rotation and spectator catch-up with the new runtime.
+- [x] Recheck current match setup, results/return, seat choices/host override
+  and 1v1 rotation with the new runtime. The
+  [shared-PC promotion check](melee/docs/native_room_rotation_checkpoint.md)
+  covers both rotation policies, player self-reassignment after host override,
+  waiting-controller isolation and the promoted seat's gameplay/Results input
+  in a second live match.
+- [ ] Implement and verify spectator match viewing and live catch-up. On a PC
+  with no active fighters, keep local practice running until the player chooses
+  Watch match. Existing spectator roles and content connections do not yet
+  provide a match-viewing stream.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
