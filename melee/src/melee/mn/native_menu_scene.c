@@ -417,7 +417,7 @@ void nativeMenuScene_End(void)
 }
 
 void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
-                                float height, bool selected)
+                                float height, bool selected, const char* label)
 {
     if (slot >= 7 || !scene.ribbons[slot]) return;
     HSD_JObj* root = scene.ribbons[slot]->hsd_obj;
@@ -425,6 +425,9 @@ void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float 
     // is replaced by the hub's own glyph string, retaining the actual ribbon.
     HSD_JObjReqAnimAll(root, 0);
     HSD_JObjReqAnim(runtime_joint(root, 2), selected ? 70 : 20);
+    // mnmain selects the lettering material with frames 0 (gold) and 1
+    // (black), independently of the ribbon's longer animation tracks.
+    HSD_JObjReqAnimAll(runtime_joint(root, 3), selected ? 1 : 0);
     HSD_JObjReqAnimAll(runtime_joint(root, 4), selected ? 80 : 49);
     HSD_JObjAnimAll(root);
     HSD_JObjSetFlags(runtime_joint(root, 3), JOBJ_HIDDEN);
@@ -447,6 +450,17 @@ void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float 
     Mtx view; C_MTXConcat(canvas, model, view);
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
     HSD_JObjDispAll(root, view, HSD_TRSP_ALL, 0);
+    const HSD_MObj* lettering = runtime_joint(root, 3)->u.dobj->mobj;
+    // The retail label's ink is a texture TEV constant, not its white
+    // diffuse material. Its two-frame track supplies the actual menu colours.
+    GXColor ink = lettering->tobj->tev->konst;
+    u32 rgba = (u32) ink.r << 24 | (u32) ink.g << 16 |
+        (u32) ink.b << 8 | (u32) (lettering->mat->alpha * 255);
+    nativeMenuPaint_Begin(canvas);
+    nativeMenuPaint_Text(label, x + width * (13.f / 127), y + height * (9.f / 31),
+        width * (99.f / 127), height * (14.f / 31), rgba,
+        NativeMenuFont_MenuOption, true, !selected);
+    nativeMenuPaint_End();
 }
 
 void nativeMenuScene_Inspect(void)

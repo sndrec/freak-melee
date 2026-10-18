@@ -1117,11 +1117,8 @@ extern "C" void nativeHub_Draw(void)
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i || (hub.page == NativeHubPage_RoomChat && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
-        nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover);
+        nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover, page_names[i]);
         nativeMenuPaint_Begin(canvas);
-        nativeMenuPaint_Text(page_names[i], 46, y + 9, 99, 14,
-                            selected || hover ? 0x19121AFF : 0xFFFFFFFF,
-                            NativeMenuFont_MenuOption, true, !(selected || hover));
         char id[40];
         std::snprintf(id, sizeof(id), "nav-%u", i);
         nativeHub_Region(

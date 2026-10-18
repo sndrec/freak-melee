@@ -145,6 +145,24 @@ Options references before entering the adapted hub.
   clients. Test clients and the service were stopped. They do not establish
   physical multi-PC behavior, hosted deployment or offline account delivery.
 
+## Typography feedback, 2026-10-18
+
+The left navigation now uses the original ribbon lettering's animated ink:
+gold on idle ribbons and black on selected yellow ribbons. Selected black text
+uses its fill without the expanded outline. The labels are drawn with the
+ribbon, and get their colour from the original lettering asset.
+
+Letters recovered from different menu textures now share a baseline in both
+the button and page-title alphabets. Lowercase descenders and Q's tail keep
+their extension below that line.
+
+The original main menu was captured in
+`.local/native-menu-type-reference-1`. The corrected Workshop and Lobbies
+screens are in `.local/native-menu-type-fix-3`; all three references were
+visually reviewed. Eight focused tests pass in
+`.local/native-watch-clock-build-1.log`. These changes still await the user's
+visual review.
+
 ## Remaining work
 
 The reconstructed glyphs and typography in the remaining CSS controls need the
