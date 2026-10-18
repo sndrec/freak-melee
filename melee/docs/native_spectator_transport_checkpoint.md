@@ -5,8 +5,10 @@ over a separate ICE connection. The request is explicit. A room-wide Start
 request leaves a PC with no active fighters in its local practice scene.
 The room also keeps pumping during Results so viewers can receive final records.
 
-This checkpoint covers history delivery. The player-facing Watch match control,
-package preparation and game playback still need integration.
+This checkpoint covers history delivery. The
+[cold-cache checkpoint](native_spectator_content_checkpoint.md) covers missing
+fighter/outfit downloads. The player-facing Watch match control, viewer asset
+activation and game playback still need integration.
 
 ## Delivery
 
@@ -67,6 +69,6 @@ The spectator's practice screenshot was inspected. No public service or other
 players were contacted; the local clients and signaling process were stopped.
 
 The full spectator gate still requires game reconstruction and live playback,
-missing-package downloads, viewer departure during gameplay, and measurements
+cached asset activation, viewer departure during gameplay, and measurements
 of auxiliary traffic under load. Separate-PC and relay-route acceptance also
 remain open.

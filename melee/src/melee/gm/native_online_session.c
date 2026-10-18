@@ -654,6 +654,13 @@ void nativeOnlineSession_Inspect(void)
             watch->remote_count,watch->metadata_mask,watch->stream.finished,
             (unsigned long long)watch->stream.digest,watch->stream.description.initial_seed,
             online.lobby.room.watch.sender_count,nativeHome_IsPractice(),watch->failure);
+    const NativeRoomCache* cache=&online.lobby.room.cache;
+    unsigned cached=0;
+    for(unsigned i=0;i<cache->choice_count;++i)cached+=cache->choices[i].cached;
+    fprintf(stderr,"[room-cache] retained=%u bytes=%zu reads=%u requests=%u active_packets=%llu choices=%u cached=%u watch_ready=%u\n",
+            cache->retained_count,cache->retained_bytes,cache->file_reads,cache->active_requests,
+            (unsigned long long)cache->active_packets,cache->choice_count,cached,
+            nativeOnlineSession_WatchContentReady());
 }
 
 bool nativeOnlineSession_WatchMatch(void)
@@ -668,6 +675,10 @@ void nativeOnlineSession_StopWatching(void)
 const NativeRoomWatchReceive* nativeOnlineSession_Watch(void)
 {
     return online.active ? &online.lobby.room.watch.receive : NULL;
+}
+bool nativeOnlineSession_WatchContentReady(void)
+{
+    return online.active && nativeNetplayRoom_WatchContentReady(&online.lobby.room);
 }
 
 uint8_t nativeOnlineSession_LocalActiveSeats(void)

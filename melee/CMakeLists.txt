@@ -831,6 +831,12 @@ if(MELEE_BUILD_TESTS)
     target_include_directories(native_room_watch_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_room_watch_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     add_test(NAME native_room_watch COMMAND native_room_watch_test)
+    add_executable(native_room_cache_test tests/native/room_cache_test.c
+        src/melee/gm/native_netplay_room_cache.c src/melee/gm/native_content_transfer.c
+        src/melee/gm/native_lobby_selection.c)
+    target_include_directories(native_room_cache_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_room_cache_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    add_test(NAME native_room_cache COMMAND native_room_cache_test)
     add_executable(native_lobby_selection_test
         tests/native/lobby_selection_test.c
         src/melee/gm/native_lobby_selection.c)

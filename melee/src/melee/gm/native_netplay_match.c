@@ -495,6 +495,9 @@ bool nativeNetplayMatch_Prepare(bool sudden_death)
     }
     OSReport("[netplay] Agreed initial RNG seed %08x.\n",
              (unsigned) *seed_ptr);
+    if(netplay.room_transport &&
+       !nativeNetplayRoom_RetainMatchPackages(netplay.room))
+        OSReport("[room-cache] Could not retain selected packages; players continue.\n");
     if (netplay.room_transport && config->local_peer == 0) {
         free(netplay.room->stream_storage);
         netplay.room->stream = (NativeMatchStream){0};

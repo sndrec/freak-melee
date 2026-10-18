@@ -86,8 +86,9 @@ now covers received history; game reconstruction and playback remain open.
 ## Remaining viewing work
 
 - Connect the verified description/history request to the Watch match control.
-- Cache the exact fighter and outfit dependencies before constructing a viewer
-  scene. Cached packages remain separate from installed roster content.
+- Prepare the verified fighter and outfit cache for a viewer scene. The
+  [cold-cache check](native_spectator_content_checkpoint.md) covers downloads;
+  cached packages remain separate from installed roster content.
 - Reconstruct from the initial seed and confirmed inputs, check semantic state,
   then follow the live confirmed stream. Carry sudden death and match completion
   through the same scene flow.

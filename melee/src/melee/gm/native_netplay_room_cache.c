@@ -10,7 +10,9 @@ enum {
     CACHE_CONTROL_BYTES = 41,
     CACHE_RETRY_MS = 2000,
     CACHE_TIMEOUT_MS = 120000,
-    CACHE_SEND_BURST = 8
+    CACHE_SEND_BUDGET = 64,
+    CACHE_ROUTE_BURST = 8,
+    CACHE_UPLOAD_PUMP_MS = 4
 };
 enum {
     Cache_Request = 1,
@@ -96,7 +98,7 @@ static void stop_send(NativeNetplayRoom* room, NativeRoomCacheSend* send,
     }
     nativeNetplayConnection_ReleaseContent(&room->connection, send->peer_id,
                                            send->serial, false);
-    free(send->bytes);
+    if(send->owns_bytes)free(send->bytes);
     memset(send, 0, sizeof(*send));
 }
 static void stop_receive(NativeNetplayRoom* room, bool cancel, bool failed)
@@ -130,19 +132,102 @@ void nativeNetplayRoom_ClearCacheTransfers(NativeNetplayRoom* room)
     }
     room->cache.choice_count = 0;
     room->cache.presence_revision = 0;
+    room->cache.watch_serial = 0;
+}
+
+void nativeNetplayRoom_ClearRetainedPackages(NativeNetplayRoom* room)
+{
+    NativeRoomCache* cache=&room->cache;
+    for(unsigned i=0;i<NATIVE_ROOM_CACHE_SENDS;++i)
+        if(cache->sends[i].serial && !cache->sends[i].owns_bytes)
+            stop_send(room,&cache->sends[i],true);
+    for(unsigned i=0;i<cache->retained_count;++i)free(cache->retained[i].bytes);
+    memset(cache->retained,0,sizeof(cache->retained));
+    cache->retained_count=0;cache->retained_bytes=0;cache->retained_session=0;
+}
+static NativeRoomCachedPackage* retained(NativeNetplayRoom* room,const NativeContentId* id)
+{
+    for(unsigned i=0;i<room->cache.retained_count;++i)
+        if(same_id(id,&room->cache.retained[i].id))return &room->cache.retained[i];
+    return NULL;
+}
+bool nativeNetplayRoom_RetainMatchPackages(NativeNetplayRoom* room)
+{
+    if(!room || !room->match_configured)return false;
+    nativeNetplayRoom_ClearRetainedPackages(room);
+    NativeRoomCache* cache=&room->cache;
+    uint8_t ports=0;
+    for(unsigned p=0;p<room->match.peer_count;++p)
+        if(!strcmp(room->match.peers[p].peer_id,room->connection.local_peer_id))
+            ports=room->match.peers[p].port_mask;
+    char path[512];const char* root=root_path(room,path);
+    if(!ports || !root)return false;
+    for(unsigned p=0;p<4;++p) {
+        const NativeLobbyMatchSlot* slot=&room->match.slots[p];
+        if(!(ports&(1u<<p)) || slot->kind==NativeLobbyMatchSlot_Empty)continue;
+        const NativeContentId* ids[]={&slot->character_package_id,&slot->costume_package_id};
+        for(unsigned k=0;k<2;++k) {
+            if(!has_id(ids[k]) || retained(room,ids[k]))continue;
+            NativeRoomCachedPackage* package=&cache->retained[cache->retained_count];
+            ++cache->file_reads;
+            if(!nativeContentStore_Read(root,ids[k],&package->bytes,&package->size)) {
+                nativeNetplayRoom_ClearRetainedPackages(room);return false;
+            }
+            package->id=*ids[k];cache->retained_bytes+=package->size;++cache->retained_count;
+        }
+    }
+    cache->retained_session=room->match.session_id;
+    return true;
+}
+
+static void add_choice(NativeNetplayRoom* room,NativeRoomCacheChoice desired[8],
+                        unsigned* count,const NativeContentId* id,const char* peer,const char* root)
+{
+    if(!has_id(id) || *count==NATIVE_ROOM_CACHE_CHOICES ||
+       !strcmp(peer,room->connection.local_peer_id))return;
+    for(unsigned n=0;n<*count;++n)if(same_id(&desired[n].id,id))return;
+    NativeRoomCacheChoice* choice=&desired[(*count)++];choice->id=*id;
+    strcpy(choice->peer_id,peer);
+    NativeRoomCache* cache=&room->cache;
+    for(unsigned n=0;n<cache->choice_count;++n) {
+        const NativeRoomCacheChoice* previous=&cache->choices[n];
+        if(same_id(id,&previous->id)) {
+            choice->cached=previous->cached;
+            if(!strcmp(peer,previous->peer_id))choice->retry_after_ms=previous->retry_after_ms;
+            return;
+        }
+    }
+    choice->cached=root && nativeContentStore_IsCached(root,id);
 }
 
 static void reconcile(NativeNetplayRoom* room)
 {
     NativeRoomCache* cache = &room->cache;
     const NativeNetplayConnection* c = &room->connection;
-    if (!c->has_presence || cache->presence_revision == c->presence.revision) {
+    const NativeRoomWatchReceive* watch=&room->watch.receive;
+    uint32_t watch_serial=watch->state==NativeRoomWatch_Requesting ||
+        watch->state==NativeRoomWatch_Receiving || watch->state==NativeRoomWatch_Complete
+        ? watch->serial : 0;
+    if (!c->has_presence || (cache->presence_revision == c->presence.revision &&
+                            cache->watch_serial==watch_serial)) {
         return;
     }
     NativeRoomCacheChoice desired[NATIVE_ROOM_CACHE_CHOICES] = { 0 };
     unsigned count = 0;
     char path[512];
     const char* root = root_path(room, path);
+    if(watch_serial) {
+        const NativeLobbyMatch* match=&watch->stream.description.match;
+        for(unsigned p=0;p<4;++p) {
+            if(match->slots[p].kind==NativeLobbyMatchSlot_Empty)continue;
+            const char* owner=NULL;
+            for(unsigned n=0;n<match->peer_count;++n)
+                if(match->peers[n].port_mask&(1u<<p))owner=match->peers[n].peer_id;
+            if(!owner)continue;
+            add_choice(room,desired,&count,&match->slots[p].character_package_id,owner,root);
+            add_choice(room,desired,&count,&match->slots[p].costume_package_id,owner,root);
+        }
+    }
     for (unsigned i = 0; i < c->presence.participant_count; ++i) {
         const NativeSignalingParticipant* p = &c->presence.participants[i];
         NativeLobbySelection selection;
@@ -163,39 +248,14 @@ static void reconcile(NativeNetplayRoom* room)
             for (unsigned kind = 0;
                  kind < 2 && count < NATIVE_ROOM_CACHE_CHOICES; ++kind)
             {
-                const NativeContentId* id = ids[kind];
-                bool duplicate = false;
-                for (unsigned n = 0; n < count; ++n) {
-                    duplicate |= same_id(&desired[n].id, id);
-                }
-                if (!has_id(id) || duplicate) {
-                    continue;
-                }
-                NativeRoomCacheChoice* choice = &desired[count++];
-                choice->id = *id;
-                strcpy(choice->peer_id, p->peer_id);
-                bool known = false;
-                for (unsigned n = 0; n < cache->choice_count; ++n) {
-                    const NativeRoomCacheChoice* previous = &cache->choices[n];
-                    if (same_id(id, &previous->id)) {
-                        choice->cached = previous->cached;
-                        if (!strcmp(choice->peer_id, previous->peer_id)) {
-                            choice->retry_after_ms = previous->retry_after_ms;
-                        }
-                        known = true;
-                        break;
-                    }
-                }
-                if (!known) {
-                    choice->cached =
-                        root && nativeContentStore_IsCached(root, id);
-                }
+                add_choice(room,desired,&count,ids[kind],p->peer_id,root);
             }
         }
     }
     memcpy(cache->choices, desired, sizeof(desired));
     cache->choice_count = (uint8_t) count;
     cache->presence_revision = c->presence.revision;
+    cache->watch_serial=watch_serial;
     bool wanted = false;
     for (unsigned i = 0; cache->serial && i < count; ++i) {
         wanted |= same_id(&desired[i].id, &cache->receive.id) &&
@@ -211,7 +271,7 @@ void nativeNetplayRoom_CacheControl(NativeNetplayRoom* room,
 {
     const uint8_t* bytes = message->datagram.bytes;
     if (message->datagram.size != CACHE_CONTROL_BYTES ||
-        memcmp(bytes, cache_magic, 4) || room->match_configured ||
+        memcmp(bytes, cache_magic, 4) ||
         !participant(room, message->peer_id))
     {
         return;
@@ -240,38 +300,40 @@ void nativeNetplayRoom_CacheControl(NativeNetplayRoom* room,
                 available = send;
             }
         }
-        if (!available ||
-            !selected_by(room, room->connection.local_peer_id, &id))
+        NativeRoomCachedPackage* package=retained(room,&id);
+        if (!available || (!package &&
+            (room->match_configured || !selected_by(room, room->connection.local_peer_id, &id))))
         {
             reply(room, message->peer_id, &id, serial, Cache_Missing);
             return;
         }
-        char path[512];
-        const char* root = root_path(room, path);
-        uint8_t* data = NULL;
-        size_t size = 0;
+        uint8_t* data = package ? package->bytes : NULL;
+        size_t size = package ? package->size : 0;
+        bool owned=!package;
+        if(owned) {
+            char path[512];const char* root=root_path(room,path);
+            ++cache->file_reads;
+            if(!root || !nativeContentStore_IsInstalled(root,&id) ||
+               !nativeContentStore_Read(root,&id,&data,&size)) {
+                reply(room,message->peer_id,&id,serial,Cache_Missing);return;
+            }
+        }
         NativeContentTransferSend transfer;
-        if (!root || !nativeContentStore_IsInstalled(root, &id) ||
-            !nativeContentStore_Read(root, &id, &data, &size) ||
-            !nativeContentTransfer_StartSend(&transfer, &id, data, size) ||
+        if (!nativeContentTransfer_StartSend(&transfer, &id, data, size) ||
             !nativeNetplayConnection_ReserveContent(
                 &room->connection, message->peer_id, serial, false))
         {
-            free(data);
+            if(owned)free(data);
             reply(room, message->peer_id, &id, serial, Cache_Missing);
             return;
         }
         available->transfer = transfer;
         available->bytes = data;
+        available->owns_bytes=owned;
         available->serial = serial;
         available->last_progress_ms = GetTickCount64();
         strcpy(available->peer_id, message->peer_id);
-        if (!nativeNetplayConnection_StartContent(
-                &room->connection, message->peer_id, serial, false))
-        {
-            stop_send(room, available, true);
-            return;
-        }
+        if(room->match_configured)++cache->active_requests;
         reply(room, message->peer_id, &id, serial, Cache_Ready);
     } else if ((bytes[4] == Cache_Ready || bytes[4] == Cache_Missing) &&
                cache->serial == serial && same_id(&cache->receive.id, &id) &&
@@ -336,14 +398,11 @@ void nativeNetplayRoom_CachePacket(NativeNetplayRoom* room,
     }
 }
 
-void nativeNetplayRoom_PumpCache(NativeNetplayRoom* room)
+static void pump_uploads(NativeNetplayRoom* room,uint64_t now)
 {
-    if (!room->active || room->match_configured) {
-        return;
-    }
-    reconcile(room);
-    NativeRoomCache* cache = &room->cache;
-    uint64_t now = GetTickCount64();
+    NativeRoomCache* cache=&room->cache;
+    if(now-cache->upload_ms<CACHE_UPLOAD_PUMP_MS)return;
+    cache->upload_ms=now;unsigned starts=1, active=0;
     for (unsigned i = 0; i < NATIVE_ROOM_CACHE_SENDS; ++i) {
         NativeRoomCacheSend* send = &cache->sends[i];
         if (!send->serial) {
@@ -354,27 +413,61 @@ void nativeNetplayRoom_PumpCache(NativeNetplayRoom* room)
         if (state == NativeContentChannel_None ||
             state == NativeContentChannel_Failed ||
             now - send->last_progress_ms > CACHE_TIMEOUT_MS ||
-            !selected_by(room, room->connection.local_peer_id,
-                         &send->transfer.id))
+            (!retained(room,&send->transfer.id) &&
+             !selected_by(room,room->connection.local_peer_id,&send->transfer.id)))
         {
             stop_send(room, send, true);
             continue;
         }
-        for (unsigned burst = 0; state == NativeContentChannel_Connected &&
-                                 burst < CACHE_SEND_BURST;
-             ++burst)
-        {
-            uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
-            size_t size =
-                nativeContentTransfer_NextSend(&send->transfer, now, packet);
-            if (!size) {
-                break;
-            }
-            nativeNetplayConnection_SendContent(&room->connection,
-                                                send->peer_id, send->serial,
-                                                false, packet, size);
+        if(state==NativeContentChannel_Reserved && starts) {
+            --starts;
+            if(!nativeNetplayConnection_StartContent(&room->connection,send->peer_id,send->serial,false))
+                stop_send(room,send,true);
+        }
+        active+=send->serial!=0;
+    }
+    if(!active)return;
+    unsigned budget=CACHE_SEND_BUDGET;
+    unsigned bursts[NATIVE_ROOM_CACHE_SENDS]={0};
+    for(unsigned visited=0;visited<NATIVE_ROOM_CACHE_SENDS*CACHE_SEND_BUDGET && budget;++visited) {
+        unsigned index=cache->upload_cursor++%NATIVE_ROOM_CACHE_SENDS;
+        if(bursts[index]>=CACHE_ROUTE_BURST)continue;
+        NativeRoomCacheSend* send=&cache->sends[index];
+        if(!send->serial || nativeNetplayConnection_ContentState(&room->connection,send->peer_id,send->serial,false)!=NativeContentChannel_Connected)continue;
+        uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+        size_t size=nativeContentTransfer_NextSend(&send->transfer,now,packet);
+        if(!size)continue;
+        nativeNetplayConnection_SendContent(&room->connection,send->peer_id,send->serial,false,packet,size);
+        --budget;++bursts[index];if(room->match_configured)++cache->active_packets;
+    }
+}
+
+bool nativeNetplayRoom_WatchContentReady(const NativeNetplayRoom* room)
+{
+    const NativeRoomWatchReceive* r=&room->watch.receive;
+    if(!r->stream.records || (r->state!=NativeRoomWatch_Receiving && r->state!=NativeRoomWatch_Complete))return false;
+    for(unsigned p=0;p<4;++p) {
+        const NativeLobbyMatchSlot* slot=&r->stream.description.match.slots[p];
+        if(slot->kind==NativeLobbyMatchSlot_Empty)continue;
+        const NativeContentId* ids[]={&slot->character_package_id,&slot->costume_package_id};
+        for(unsigned k=0;k<2;++k) {
+            if(!has_id(ids[k]))continue;
+            bool found=false;
+            for(unsigned i=0;i<room->cache.choice_count;++i)
+                found|=room->cache.choices[i].cached && same_id(ids[k],&room->cache.choices[i].id);
+            if(!found)return false;
         }
     }
+    return true;
+}
+
+void nativeNetplayRoom_PumpCache(NativeNetplayRoom* room)
+{
+    if(!room->active)return;
+    uint64_t now=GetTickCount64();pump_uploads(room,now);
+    if(room->match_configured)return;
+    reconcile(room);
+    NativeRoomCache* cache=&room->cache;
     if (cache->serial) {
         NativeContentChannelState state = nativeNetplayConnection_ContentState(
             &room->connection, cache->peer_id, cache->serial, true);
