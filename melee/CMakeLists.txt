@@ -477,6 +477,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_catalog.cpp
     src/melee/mn/native_menu_paint.c
+    src/melee/mn/native_menu_font.c
     src/melee/mn/native_menu_skin.c
     src/melee/mn/native_menu_scene.c
     src/melee/ui/native_hub_hand.c
@@ -790,6 +791,12 @@ if(MELEE_BUILD_TESTS)
     target_compile_definitions(native_room_chat_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(native_room_chat_test PRIVATE winhttp)
     add_test(NAME native_room_chat COMMAND native_room_chat_test)
+    add_executable(native_utf8_test tests/native/utf8_test.c)
+    target_include_directories(native_utf8_test PRIVATE src)
+    add_test(NAME native_utf8 COMMAND native_utf8_test)
+    add_test(NAME native_menu_fonts COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/menu_font_test.py"
+        --fonts "$<TARGET_FILE_DIR:melee_native>/ui/fonts")
     add_executable(native_chat_wire_test
         tests/native/chat_wire_test.c src/melee/ui/native_chat_wire.c)
     target_include_directories(native_chat_wire_test PRIVATE src)

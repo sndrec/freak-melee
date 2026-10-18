@@ -328,8 +328,12 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
   user data and local release manifests. This is not a friend-PC acceptance.
 - [ ] Replace placeholder original-style UI text with reusable Melee-style
   dynamic lettering; derive glyphs/metrics from available textures if needed.
-  Expand the hub's current ASCII glyph coverage and decode UTF-8 for accented
-  names and messages.
+  Reconstructed glyphs and the remaining CSS labels need contextual visual review.
+- [x] Expand the hub's ASCII coverage and decode UTF-8 for accented names and
+  messages. All seven native faces have accented Latin text and common
+  punctuation; precomposed/combining forms share glyphs and measurements.
+  Native editing/save/return and atlas checks pass, preserving ASCII artwork
+  and spacing. International text shaping remains future work.
 - [ ] Finish labels/icons, clipping, usable layouts and actionable errors with
   the user. Preserve 4:3 scaling during resizing/fullscreen.
 - [ ] Recheck profile binding/calibration and default-control equivalence,

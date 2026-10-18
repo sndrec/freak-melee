@@ -1,4 +1,5 @@
 #include "native_menu_font.h"
+#include <melee/lb/native_utf8.h>
 #ifdef MELEE_NATIVE
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -8,10 +9,74 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Glyph { u16 x,y,w,h,advance; } Glyph;
-typedef struct Font { u16 width,height,cap_height,count,format; Glyph glyphs[95]; u8* pixels; u8* fill; } Font;
+enum { MAX_GLYPHS = 512, MAX_COMPOSITIONS = 256 };
+typedef struct Glyph {
+    uint32_t codepoint;
+    u16 x, y, w, h, advance;
+    s16 left, top;
+    u16 reserved;
+} Glyph;
+typedef struct Composition { u32 base, mark, composed; } Composition;
+typedef struct Font {
+    u16 width, height, cap_height, count, format, composition_count;
+    Glyph glyphs[MAX_GLYPHS];
+    Composition compositions[MAX_COMPOSITIONS];
+    u8* pixels;
+    u8* fill;
+} Font;
+_Static_assert(sizeof(Glyph) == 20, "GX font glyph record size");
 static Font fonts[NativeMenuFont_Count];
 static unsigned references;
+
+static const Glyph* find_glyph(const Font* font, u32 codepoint)
+{
+    if (codepoint >= 32 && codepoint <= 126) return &font->glyphs[codepoint - 32];
+    unsigned first = 0, last = font->count;
+    while (first < last) {
+        unsigned middle = (first + last) / 2;
+        const Glyph* glyph = &font->glyphs[middle];
+        if (glyph->codepoint == codepoint) return glyph;
+        if (glyph->codepoint < codepoint) first = middle + 1;
+        else last = middle;
+    }
+    return NULL;
+}
+static u32 compose(const Font* font, u32 base, u32 mark)
+{
+    unsigned first = 0, last = font->composition_count;
+    while (first < last) {
+        unsigned middle = (first + last) / 2;
+        const Composition* pair = &font->compositions[middle];
+        if (pair->base == base && pair->mark == mark) return pair->composed;
+        if (pair->base < base || (pair->base == base && pair->mark < mark))
+            first = middle + 1;
+        else last = middle;
+    }
+    return 0;
+}
+static const Glyph* next_glyph(const Font* font, const u8** cursor, const u8* end)
+{
+    uint32_t codepoint;
+    nativeUtf8_Decode(cursor, end, &codepoint);
+    while (*cursor != end && **cursor >= 0xcc && **cursor <= 0xcd) {
+        const u8* next = *cursor;
+        uint32_t mark;
+        if (!nativeUtf8_Decode(&next, end, &mark)) break;
+        u32 combined = compose(font, codepoint, mark);
+        if (!combined) break;
+        codepoint = combined;
+        *cursor = next;
+    }
+    const Glyph* glyph = find_glyph(font, codepoint);
+    return glyph ? glyph : find_glyph(font, 0xfffd);
+}
+static float text_advance(const Font* font, const char* text, const u8* end)
+{
+    const u8* cursor = (const u8*)text;
+    unsigned advance = 0;
+    while (cursor != end) advance += next_glyph(font, &cursor, end)->advance;
+    return (float)advance;
+}
 void nativeMenuFont_Acquire(void)
 {
     if(references++)return;
@@ -23,21 +88,36 @@ void nativeMenuFont_Acquire(void)
         snprintf(basename,sizeof(path)-(basename-path),"\\ui\\fonts\\%s.bin",names[i]);
         FILE* f=fopen(path,"rb");if(!f)continue;
         Font* font=&fonts[i];
-        bool valid=fread(font,sizeof(u16),5,f)==5 &&font->width==1024&&font->height==384&&font->count==95&&font->cap_height&&
+        bool valid=fread(font,sizeof(u16),6,f)==6 &&font->width==1024&&font->height&&font->height<=1024&&!(font->height&7)&&
+            font->count>=95&&font->count<=MAX_GLYPHS&&font->composition_count<=MAX_COMPOSITIONS&&font->cap_height&&font->cap_height<=96&&
             (font->format==GX_TF_I4||font->format==GX_TF_IA4);
-        if(valid)valid=fread(font->glyphs,sizeof(Glyph),95,f)==95;
-        for(unsigned g=0;valid&&g<95;++g) {const Glyph* c=&font->glyphs[g];
-            valid=c->w<=62&&c->h<=62&&c->advance<=128&&c->x+c->w<=font->width&&c->y+c->h<=font->height;
+        if(valid)valid=fread(font->glyphs,sizeof(Glyph),font->count,f)==font->count;
+        for(unsigned g=0;valid&&g<font->count;++g) {const Glyph* c=&font->glyphs[g];
+            valid=c->w<=128&&c->h<=96&&c->advance<=160&&c->x+c->w<=font->width&&c->y+c->h<=font->height&&
+                c->left>=-64&&c->left<=64&&c->top>=-64&&c->top<=64&&c->reserved==0&&
+                c->codepoint>=32&&c->codepoint<=0x10ffff&&!(c->codepoint>=0xd800&&c->codepoint<=0xdfff)&&
+                (g>=95||c->codepoint==g+32)&&
+                (!g||c->codepoint>font->glyphs[g-1].codepoint);
         }
-        const unsigned bytes=1024*384/(font->format==GX_TF_I4?2:1);
+        if(valid)valid=find_glyph(font,'?')&&find_glyph(font,0xfffd)&&
+            fread(font->compositions,sizeof(Composition),font->composition_count,f)==font->composition_count;
+        for(unsigned g=0;valid&&g<font->composition_count;++g) {
+            const Composition* c=&font->compositions[g];
+            const Composition* previous=g?&font->compositions[g-1]:NULL;
+            valid=find_glyph(font,c->base)&&find_glyph(font,c->composed)&&c->mark>=0x300&&c->mark<=0x36f&&
+                (!previous||previous->base<c->base||(previous->base==c->base&&previous->mark<c->mark));
+        }
+        const unsigned bytes=(unsigned)font->width*font->height/(font->format==GX_TF_I4?2:1);
         if(valid){font->pixels=_aligned_malloc(bytes+(font->format==GX_TF_IA4?bytes/2:0),32);valid=font->pixels&&fread(font->pixels,1,bytes,f)==bytes;}
+        if(valid)valid=fgetc(f)==EOF;
         fclose(f);
         if(!valid){_aligned_free(font->pixels);memset(font,0,sizeof(*font));}
         else if(font->format==GX_TF_IA4) {
             font->fill=font->pixels+bytes;
-            for(unsigned y=0;y<384;++y)for(unsigned x=0;x<1024;x+=2) {
-                unsigned source=((y/4)*128+x/8)*32+(y%4)*8+x%8;
-                unsigned target=((y/8)*128+x/8)*32+(y%8)*4+(x%8)/2;
+            unsigned columns=font->width/8;
+            for(unsigned y=0;y<font->height;++y)for(unsigned x=0;x<font->width;x+=2) {
+                unsigned source=((y/4)*columns+x/8)*32+(y%4)*8+x%8;
+                unsigned target=((y/8)*columns+x/8)*32+(y%8)*4+(x%8)/2;
                 font->fill[target]=((font->pixels[source]&15)<<4)|(font->pixels[source+1]&15);
             }
         }
@@ -51,18 +131,37 @@ void nativeMenuFont_Release(void)
 float nativeMenuFont_Width(NativeMenuFontFace face,const char* text,float height)
 {
     if((unsigned)face>=NativeMenuFont_Count||!text||!fonts[face].cap_height)return 0;
-    const Font* font=&fonts[face];unsigned width=0;
-    for(const unsigned char* p=(const unsigned char*)text;*p;++p){
-        unsigned c=*p;
-        if(c>=0x80){if((c&0xC0)==0x80)continue;c='?';}
-        if(c<32||c>126)c='?';width+=font->glyphs[c-32].advance;
+    const Font* font=&fonts[face];
+    return text_advance(font,text,(const u8*)text+strlen(text))*height/font->cap_height;
+}
+void nativeMenuFont_Inspect(const char* text)
+{
+    if (!text) text = "";
+    for (unsigned face = 0; face < NativeMenuFont_Count; ++face) {
+        const Font* font = &fonts[face];
+        const u8* cursor = (const u8*)text;
+        const u8* end = cursor + strlen(text);
+        const Glyph* first = font->pixels && cursor != end ? next_glyph(font, &cursor, end) : NULL;
+        fprintf(stderr, "[hub-inspect] font=%u glyphs=%u pairs=%u atlas=%ux%u first=U+%04lX width=%.4f\n",
+            face, font->count, font->composition_count, font->width, font->height,
+            (unsigned long)(first ? first->codepoint : 0), nativeMenuFont_Width(face, text, 10));
     }
-    return width*height/font->cap_height;
 }
 unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
                                       float height, char lines[2][128])
 {
-    snprintf(lines[0], 128, "%s", text ? text : "");
+    if (!text) text = "";
+    const u8* start = (const u8*)text;
+    const u8* cursor = start;
+    const u8* end = start + strlen(text);
+    while (cursor != end) {
+        const u8* next = cursor; uint32_t codepoint;
+        nativeUtf8_Decode(&next, end, &codepoint);
+        if (next - start >= 128) break;
+        cursor = next;
+    }
+    memcpy(lines[0], start, cursor - start);
+    lines[0][cursor - start] = 0;
     lines[1][0] = 0;
     const unsigned length = (unsigned)strlen(lines[0]);
     if (length < 2 || nativeMenuFont_Width(NativeMenuFont_Tile, lines[0], height)
@@ -73,6 +172,9 @@ unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
     for (unsigned i = 1; i < length; ++i) {
         if (((unsigned char)lines[0][i] & 0xC0) == 0x80 ||
             (has_space && lines[0][i] != ' ')) continue;
+        const u8* next = (const u8*)lines[0] + i; uint32_t codepoint;
+        nativeUtf8_Decode(&next, (const u8*)lines[0] + length, &codepoint);
+        if (codepoint >= 0x300 && codepoint <= 0x36f) continue;
         char saved = lines[0][i];
         lines[0][i] = 0;
         float a = nativeMenuFont_Width(NativeMenuFont_Tile, lines[0], height);
@@ -93,13 +195,11 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
                         float x,float y,float z,float width,float height,
                         u32 rgba, bool centered, bool outline)
 {
-    if(face>=NativeMenuFont_Count||!text||!*text)return;
+    if((unsigned)face>=NativeMenuFont_Count||!text||!*text||width<=0||height<=0)return;
     const Font* font=&fonts[face];if(!font->pixels)return;
-    float advance=0;
-    for(const unsigned char* p=(const unsigned char*)text;*p;++p) {
-        unsigned c=*p;if(c>=0x80){if((c&0xC0)==0x80)continue;c='?';}
-        if(c<32||c>126)c='?';advance+=font->glyphs[c-32].advance;
-    }
+    const u8* end=(const u8*)text+strlen(text);
+    float advance=text_advance(font,text,end);
+    if(advance<=0)return;
     float scale=height/font->cap_height;
     float horizontal=advance*scale>width?width/advance:scale;
     if(centered)x+=(width-advance*horizontal)*0.5f;
@@ -114,19 +214,19 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
     GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_TEXA,GX_CA_A0,GX_CA_ZERO);
     GXSetTevColorOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
     GXSetTevAlphaOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
-    for(const unsigned char* p=(const unsigned char*)text;*p;++p) {
-        unsigned c=*p;if(c>=0x80){if((c&0xC0)==0x80)continue;c='?';}if(c<32||c>126)c='?';
-        const Glyph* g=&font->glyphs[c-32];
+    for(const u8* p=(const u8*)text;p!=end;) {
+        const Glyph* g=next_glyph(font,&p,end);
         const float u=(float)g->x/font->width,v=(float)g->y/font->height;
         const float r=(float)(g->x+g->w)/font->width,b=(float)(g->y+g->h)/font->height;
         float w=g->w*horizontal,h=g->h*scale;
+        float left=x+g->left*horizontal,top=y-g->top*scale;
         float shear=face==NativeMenuFont_ResultWinner?height*.22f:
-            face==NativeMenuFont_MenuCaption?h*.30f:0;
+            face==NativeMenuFont_MenuCaption?(h+g->top*scale)*.30f:0;
         GXBegin(GX_QUADS,GX_VTXFMT0,4);
-        GXPosition3f32(x+shear,y,z);GXTexCoord2f32(u,v);
-        GXPosition3f32(x+w+shear,y,z);GXTexCoord2f32(r,v);
-        GXPosition3f32(x+w,y-h,z);GXTexCoord2f32(r,b);
-        GXPosition3f32(x,y-h,z);GXTexCoord2f32(u,b);GXEnd();
+        GXPosition3f32(left+shear,top,z);GXTexCoord2f32(u,v);
+        GXPosition3f32(left+w+shear,top,z);GXTexCoord2f32(r,v);
+        GXPosition3f32(left+w,top-h,z);GXTexCoord2f32(r,b);
+        GXPosition3f32(left,top-h,z);GXTexCoord2f32(u,b);GXEnd();
         x+=g->advance*horizontal;
     }
 }

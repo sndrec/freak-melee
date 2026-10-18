@@ -1,6 +1,6 @@
 # Native menu asset checkpoint
 
-Updated: 2026-10-17. This records the stock-asset, caption and camera integration.
+Updated: 2026-10-17. This records the stock assets, camera and dynamic lettering.
 The current requirements remain in `PROJECT_PLAN.md` and
 `native_social_hub_design.md`.
 
@@ -53,6 +53,17 @@ through the original caption joint and quad proportions, using the current
 material color and opacity. Existing notice, results and CSS tile faces retain
 their separate uses. Release packaging includes both new atlases.
 
+All seven faces now decode UTF-8 and cover accented Latin letters and common
+punctuation. Captured letters supply the bases for additional accented forms.
+Folk supplies its own accents where available. Common composed and decomposed
+spellings share the same glyph and width. Unsupported characters display a
+single question mark. The atlas records carry Unicode values and vertical
+offsets so accents can extend above the cap line without moving ordinary text.
+ASCII retains its original artwork and advances. Runtime lookup storage is
+fixed; texture storage is acquired with the menu fonts.
+Font references, lookup tables and texture pointers are host-owned UI state,
+outside the rollback game-state section.
+
 The duplicate page heading was removed. Navigation sits below the caption, and
 section labels use the menu-option face. Descriptions and ordinary notices keep
 their notice face; the footer notice is larger.
@@ -63,8 +74,31 @@ Options references before entering the adapted hub.
 
 ## Verification
 
+- Native client/content tool and UTF-8/chat/signaling test targets built with
+  the expanded fonts: `.local/native-menu-unicode-build-5.log`. The control
+  tool now converts Windows UTF-16 arguments to UTF-8 before sending text;
+  its build is `.local/native-menu-unicode-control-build-1.log`.
+- The four CTest checks `native_utf8`, `native_chat_wire`,
+  `native_signaling_wire` and `native_menu_fonts` passed. The decoder check
+  covers all Unicode scalar values, truncated prefixes and malformed encodings.
+  Receipt: `.local/native-menu-unicode-ctest.log`.
+- `menu_font_test.py` verified all seven generated font files, including every
+  GPU texel against its inspection PNG. Each face has 328 or 329 glyphs and
+  161 composition pairs. The optional pre-change ASCII reference confirmed
+  identical artwork and advances for all 95 ASCII entries in every face.
+  Receipt: `.local/native-menu-unicode-atlas-check.log`.
+- One hidden, muted client passed real glyph selection and equal measurements
+  for composed/decomposed accents in all seven faces, unsupported-scalar
+  fallback, UTF-8 backspace, profile saving and page return. Reviewed PNGs and
+  measurements are in `.local/native-menu-unicode-review-2`. This uses an
+  isolated profile and sends no public chat. The client was stopped afterward.
+- The final build classifies font storage with `MELEE_ROLLBACK_HOST_STATE`.
+  The hidden, muted CSS/practice/hub round trip and forward/back/profile
+  transitions passed in `.local/native-menu-unicode-motion-1`, with the final
+  returned-menu screenshot reviewed. These checks exercise font release/reload
+  across scene changes. The test client was stopped afterward.
 - Native client, content tool and skin-weight target built successfully with
-  the new scene owner, caption placement and shared skin. Latest local log:
+  the new scene owner, caption placement and shared skin. Camera-pass log:
   `.local/native-menu-camera-build-6.log`.
 - The camera build passed seven C-stick poses at three window sizes, projected
   button clicks, stationary mouse placement and profile editing/return:

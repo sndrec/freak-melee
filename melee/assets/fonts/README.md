@@ -15,15 +15,26 @@ The generator preserves the shared baseline and holes within letters, and
 rasterizes at a higher resolution before reducing to the atlas size. The earlier
 PNG alphabet remains a visual reference.
 
-The current atlases cover printable ASCII. Name and tile faces display lowercase
-input with their uppercase forms. Non-ASCII names display a replacement glyph.
-Original glyphs are retained where available; reconstructed letters and the
-additional punctuation/numerals still require visual review. The supplied Folk
-family is available for additional notices; it is not a universal replacement
-for every Melee typeface.
+The atlases cover printable ASCII, accented Latin letters and common punctuation,
+including curly quotes, dashes and ellipses. Name and tile faces use uppercase
+forms. Notices and headings use Folk's own accented glyphs where available.
+Missing accents are built over that context's existing letters. Disc-derived
+faces also use their own letters as the bases for accents and ligatures.
+Remaining non-decomposable forms use the supplied Folk family at the matching
+cap height. Original ASCII artwork and spacing are preserved.
+
+The renderer measures and draws UTF-8 characters. Common precomposed and
+combining forms, such as `é` and `e` followed by an acute accent, select the same
+glyph. An unsupported character displays one question mark. Coverage is bounded;
+full international shaping and right-to-left layout remain future work.
+Reconstructed glyphs and their typography still need the user's visual review.
 
 This tool requires Pillow in the build's Python environment. Generated atlases
 and PNG inspection sheets belong in the build output, not source control.
+`prepare_menu_unicode.py` supplies the accent composition and additional glyphs.
+The packed atlases store code points, glyph placement/spacing, vertical offsets
+and composition pairs. The native loader validates this data once when the
+fonts are acquired. Drawing uses fixed lookup tables and resident texture data.
 
 `menu-option` is a separate outlined face for the main-menu ribbons and hub
 buttons. `prepare_menu_lettering.py` extracts its letters from the English

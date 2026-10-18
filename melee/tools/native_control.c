@@ -146,8 +146,24 @@ static bool send_message(const DbNativeControlMessage* message,
     return ok;
 }
 
-int main(int argc, char** argv)
+int wmain(int argc, wchar_t** arguments)
 {
+    // Windows supplies UTF-16 arguments. Convert once so ui-text sends the
+    // same UTF-8 bytes as SDL text input, independently of the system code page.
+    char bytes[32768 * 3];
+    char* argv[256];
+    size_t used = 0;
+    if (argc > 256) return 1;
+    for (int i = 0; i < argc; ++i) {
+        argv[i] = bytes + used;
+        int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+            arguments[i], -1, argv[i], (int)(sizeof(bytes) - used), NULL, NULL);
+        if (!size) {
+            fprintf(stderr, "Could not encode command arguments as UTF-8.\n");
+            return 1;
+        }
+        used += size;
+    }
     int command_index = 1;
     const char* control_id = NULL;
     if (argc >= 3 && _stricmp(argv[1], "--id") == 0) {
