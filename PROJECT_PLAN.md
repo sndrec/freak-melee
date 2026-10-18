@@ -222,6 +222,9 @@ import, materials, rigging and skinning, not mesh modeling.
   and replacement, with proportional normalization and atomic capacity rejection.
   [Saved DAT and live viewport checks](melee/docs/native_skin_weights_checkpoint.md)
   pass; broader stock-layout painting and DAT compaction remain open.
+  The [stock geometry inventory](melee/docs/native_stock_skin_inventory.md)
+  now covers all 130 retail costume archives and identifies shared position
+  indices, attribute seams and root-envelope transforms the brush must preserve.
 - [x] Exercise an asymmetric imported mesh through Edit/Pose/Animation modes,
   brush edits, save/reopen/undo and Test Character.
   Native posed/animated painting, saved weights, Undo/Redo, rest edits, relaunch
