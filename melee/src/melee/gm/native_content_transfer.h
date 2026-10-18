@@ -21,6 +21,7 @@ typedef struct NativeContentTransferSend {
     size_t size;
     size_t acknowledged;
     size_t next_offset;
+    size_t sent_through;
     uint64_t last_progress_ms;
     uint64_t last_begin_ms;
     bool active;
@@ -35,6 +36,7 @@ typedef struct NativeContentTransferReceive {
     uint8_t* bytes;
     size_t size;
     size_t received;
+    uint32_t received_window;
     uint64_t last_control_ms;
     uint64_t last_progress_ms;
     bool active;
