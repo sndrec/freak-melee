@@ -15,17 +15,22 @@ bool nativeWorkshopSkinning_Begin(NativeWorkshopSkinStroke* stroke,
                                   const NativeFighterProject* project, unsigned mesh)
 {
     nativeWorkshopSkinning_Clear(stroke);
-    const unsigned count = nativeFighterGltf_SkinVertices(project, mesh, nullptr, 0);
-    if (!count) return false;
-    stroke->vertices.resize(count); stroke->screens.resize(count); stroke->visible.resize(count);
-    if (nativeFighterGltf_SkinVertices(project, mesh, stroke->vertices.data(), count) != count) return false;
-    std::vector<Vec3> positions(count);
-    std::vector<uint8_t> present(count);
-    if (!nativeModelView_VertexPositions(mesh, positions.data(), present.data(), count)) return false;
-    for (unsigned i = 0; i < count; ++i) {
+    unsigned corner_count = 0;
+    const unsigned count = nativeFighterSkin_Vertices(project, mesh, nullptr, 0,
+                                                       nullptr, 0, &corner_count);
+    if (!count || !corner_count) return false;
+    stroke->vertices.resize(count); stroke->screens.resize(count); stroke->visible.resize(count, 0);
+    std::vector<unsigned> corners(corner_count);
+    if (nativeFighterSkin_Vertices(project, mesh, stroke->vertices.data(), count,
+                                   corners.data(), corner_count, nullptr) != count) return false;
+    std::vector<Vec3> positions(corner_count);
+    if (!nativeModelView_CornerPositions(mesh, positions.data(), corner_count)) return false;
+    for (unsigned c = 0; c < corner_count; ++c) {
+        const unsigned i = corners[c];
+        if (i >= count) return false;
+        if (stroke->visible[i]) continue;
         auto& screen = stroke->screens[i];
-        stroke->visible[i] = stroke->vertices[i].used && present[i] &&
-            nativeHome_WorkshopWorldScreen(&positions[i].x, &screen) &&
+        stroke->visible[i] = nativeHome_WorkshopWorldScreen(&positions[c].x, &screen) &&
             screen.x >= 0 && screen.x <= 1 && screen.y >= 0 && screen.y <= 1;
     }
     stroke->active = true;
@@ -64,7 +69,6 @@ void nativeWorkshopSkinning_Inspect(const NativeFighterProject* project, unsigne
     if (!ready) return;
     bool joints[512] = { true, true, true };
     for (unsigned i = 0; i < query.vertices.size(); ++i) {
-        if (!query.vertices[i].used) continue;
         const auto& v = query.vertices[i]; const auto& p = query.screens[i];
         for (unsigned b = 0; b < v.skin.count; ++b)
             if (v.skin.joints[b] < 512) joints[v.skin.joints[b]] = true;

@@ -269,7 +269,8 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
         u32 target = 0; const char* external;
         const auto kind = HSD_DatResolve(&source, shape + member, &target, &external);
         if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
-        output.link(new_shape + member, target);
+        if (kind == HSD_DAT_REF_LOCAL) output.link_local(new_shape + member, target);
+        else output.link(new_shape + member, 0);
     }
     if (!compensate_shape_attribute(output, source, shape, false, targets, additive, adjustment, new_shape) ||
         !compensate_shape_attribute(output, source, shape, true, targets, additive, normal, new_shape)) return false;
@@ -278,7 +279,8 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
         u32 target = 0; const char* external;
         const auto kind = HSD_DatResolve(&source, polygon + member, &target, &external);
         if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
-        output.link(new_polygon + member, target);
+        if (kind == HSD_DAT_REF_LOCAL) output.link_local(new_polygon + member, target);
+        else output.link(new_polygon + member, 0);
     }
     output.link(new_polygon + 20, new_shape);
     *replacement = new_polygon;
@@ -372,7 +374,7 @@ bool compensate_polygon(NativeAssetDat& output, const HSD_Dat& source,
             output.word(at + 12, 4); // GX_F32
             output.word(at + 16, 0);
             output.link(at + 20, 0);
-        } else if (a.type > 1) output.link(at + 20, a.array);
+        } else if (a.type > 1) output.link_local(at + 20, a.array);
         else output.link(at + 20, 0);
     }
     output.word(new_attrs + attrs.size() * 24, 255);
@@ -382,7 +384,8 @@ bool compensate_polygon(NativeAssetDat& output, const HSD_Dat& source,
         const char* external;
         const auto kind = HSD_DatResolve(&source, polygon + member, &target, &external);
         if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
-        output.link(new_polygon + member, target);
+        if (kind == HSD_DAT_REF_LOCAL) output.link_local(new_polygon + member, target);
+        else output.link(new_polygon + member, 0);
     }
     output.link(new_polygon + 8, new_attrs);
     output.link(new_polygon + 16, new_display);
@@ -555,7 +558,8 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                     u32 target = 0; const char* external;
                     const auto kind = HSD_DatResolve(&editor.dat, p.source + member, &target, &external);
                     if (kind != HSD_DAT_REF_LOCAL && kind != HSD_DAT_REF_NULL) return false;
-                    dat.link(replacement + member, target);
+                    if (kind == HSD_DAT_REF_LOCAL) dat.link_local(replacement + member, target);
+                    else dat.link(replacement + member, 0);
                 }
             }
             dat.link(link, replacement);
