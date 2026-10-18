@@ -46,7 +46,6 @@ void nativeHitboxLifetime_Spawn(Fighter_GObj* object, CommandInfo* command)
 {
     Fighter* fighter = object->user_data;
     const unsigned slot = command->u->create_hitbox_0.id;
-    const bool victim_only = command->u->create_hitbox_0.only_hit_grabbed;
     if (slot >= 4 || (command->u[3].create_hitbox_3.ignore_thrown_fighters &&
                       fighter->x1064_thrownHitbox.owner == NULL))
     {
@@ -73,9 +72,6 @@ void nativeHitboxLifetime_Spawn(Fighter_GObj* object, CommandInfo* command)
     ftAction_8007121C(object, command);
     // A conditional spawn may have deliberately skipped the capsule.
     if (fighter->x914[slot].state != HitCapsule_Disabled) {
-        // Retail reads this flag from the following command. Timed commands
-        // own it explicitly in their header; the duration is not a command.
-        fighter->x914[slot].hit_grabbed_victim_only = victim_only;
         if (handoff && !(word & NATIVE_HITBOX_REFRESH)) {
             lbColl_CopyHitCapsule(&history, &fighter->x914[slot]);
         } else {

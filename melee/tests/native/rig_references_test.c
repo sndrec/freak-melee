@@ -23,8 +23,9 @@ static unsigned mapped(int value,const uint16_t* map)
 {return (unsigned)value<MAX_FT_PARTS?map[value]:(unsigned)value;}
 static void import(const NativeFighterProject* p,FtCharacterAssets* result,void* arena)
 {CHECK(ftCharacterAssets_Import(p->fighter_dat,p->fighter_size,&p->facts.layout,p->fighter_root,p->action_count,p->demo_count,1,arena,FT_CHARACTER_IMPORT_ARENA_SIZE,FT_CHARACTER_IMPORT_RECORD_CAPACITY,result));}
-static void compare(const NativeFighterProject* p,const uint16_t* map,const NativeFighterRigReferences* out)
+static unsigned compare(const NativeFighterProject* p,const uint16_t* map,const NativeFighterRigReferences* out,bool owned_flags)
 {
+ unsigned promoted=0;
  FtCharacterAssets* a=calloc(1,sizeof(*a)),*b=calloc(1,sizeof(*b));
  uint8_t* arena=calloc(2,FT_CHARACTER_IMPORT_ARENA_SIZE);CHECK(a&&b&&arena);
  import(p,a,arena);NativeFighterProject changed=*p;changed.fighter_dat=out->fighter;changed.fighter_size=out->fighter_size;
@@ -72,24 +73,31 @@ static void compare(const NativeFighterProject* p,const uint16_t* map,const Nati
    const union CmdUnion* y=b->action_stats.commands+(row->source_offset-b->action_stats.source_begin)/4;
    switch(row->opcode){
    case 10:CHECK(y->spawn_gfx_0.boneId==(!x->spawn_gfx_0.useCommonBoneIDs&&!x->spawn_gfx_0.useUnkBone?mapped(x->spawn_gfx_0.boneId,map):x->spawn_gfx_0.boneId));++commands;break;
-   case 11:case NATIVE_HITBOX_TIMED_OPCODE:
-    CHECK(y->create_hitbox_0.bone==(x->create_hitbox_0.use_common_bone_ids?x->create_hitbox_0.bone:mapped(x->create_hitbox_0.bone,map)));++commands;break;
+   case 11:case NATIVE_HITBOX_TIMED_OPCODE:case NATIVE_HITBOX_EXPLICIT_OPCODE:
+    CHECK(y->create_hitbox_0.bone==(x->create_hitbox_0.use_common_bone_ids?x->create_hitbox_0.bone:mapped(x->create_hitbox_0.bone,map)));
+    if(row->opcode==11){CHECK(y->create_hitbox_0.opcode==(owned_flags?NATIVE_HITBOX_EXPLICIT_OPCODE:11));promoted+=owned_flags;}
+    if(row->opcode==11&&y->create_hitbox_0.opcode==NATIVE_HITBOX_EXPLICIT_OPCODE)
+     CHECK(y->create_hitbox_0.only_hit_grabbed==ftActionData_NextHitboxFlag(x+5));
+    else CHECK(y->create_hitbox_0.opcode==x->create_hitbox_0.opcode);++commands;break;
    case 28:CHECK(y->set_hurt_state.bone_idx==mapped(x->set_hurt_state.bone_idx,map));++commands;break;
    case 58:CHECK(y->wind_fx_0.bone==mapped(x->wind_fx_0.bone,map));++commands;break;
    default:break;
    }
-   if(row->opcode==11)CHECK(ftActionData_NextHitboxFlag(x+5)==ftActionData_NextHitboxFlag(y+5));
+   if(row->opcode==11&&y->create_hitbox_0.opcode==11)CHECK(ftActionData_NextHitboxFlag(x+5)==ftActionData_NextHitboxFlag(y+5));
    // Restore the bone field in the actual imported native command union.
    // Every other field, operand and relative call address must remain exact.
    union CmdUnion copy[8];CHECK(row->words<=8);memcpy(copy,y,row->words*sizeof(*copy));
    switch(row->opcode){case 10:copy[0].spawn_gfx_0.boneId=x->spawn_gfx_0.boneId;break;
-    case 11:case NATIVE_HITBOX_TIMED_OPCODE:copy[0].create_hitbox_0.bone=x->create_hitbox_0.bone;break;
+    case 11:case NATIVE_HITBOX_TIMED_OPCODE:case NATIVE_HITBOX_EXPLICIT_OPCODE:copy[0].create_hitbox_0.bone=x->create_hitbox_0.bone;break;
     case 28:copy[0].set_hurt_state.bone_idx=x->set_hurt_state.bone_idx;break;
     case 58:copy[0].wind_fx_0.bone=x->wind_fx_0.bone;break;default:break;}
+   if(row->opcode==11&&y->create_hitbox_0.opcode==NATIVE_HITBOX_EXPLICIT_OPCODE){
+    copy[0].create_hitbox_0.opcode=11;copy[0].create_hitbox_0.only_hit_grabbed=x->create_hitbox_0.only_hit_grabbed;
+   }
    CHECK(!memcmp(copy,x,row->words*sizeof(*copy)));
   }
  }
- free(rows);free(visited);free(arena);free(a);free(b);
+ free(rows);free(visited);free(arena);free(a);free(b);return promoted;
 }
 int main(int argc,char** argv)
 {
@@ -101,7 +109,7 @@ int main(int argc,char** argv)
  // every real bone number. The one-slot case below exercises that dependency.
  for(unsigned n=0;n<MAX_FT_PARTS;++n){map[n]=(uint16_t)((n+4)%MAX_FT_PARTS);inverse[map[n]]=(uint16_t)n;}
  NativeFighterRigReferences out={0};CHECK(nativeFighterRig_RemapReferences(&project,map,&out,error,sizeof(error)));
- compare(&project,map,&out);++cases;
+ compare(&project,map,&out,false);++cases;
  NativeFighterProject changed=project;changed.fighter_dat=out.fighter;changed.fighter_size=out.fighter_size;
  NativeFighterRigReferences restored={0};CHECK(nativeFighterRig_RemapReferences(&changed,inverse,&restored,error,sizeof(error)));
  CHECK(restored.fighter_size==bytes.size&&!memcmp(restored.fighter,bytes.data,bytes.size));++cases;
@@ -125,9 +133,41 @@ int main(int argc,char** argv)
  for(unsigned n=0;n<MAX_FT_PARTS;++n)map[n]=(uint16_t)((n+1)%MAX_FT_PARTS);
  bool accepted=nativeFighterRig_RemapReferences(&project,map,&out,error,sizeof(error));
  CHECK(accepted==!affected);
- if(accepted){compare(&project,map,&out);free(out.fighter);out=(NativeFighterRigReferences){0};}
- else CHECK(!out.fighter&&!out.fighter_size&&strstr(error,"owned intervals"));
+ if(accepted){compare(&project,map,&out,false);free(out.fighter);out=(NativeFighterRigReferences){0};}
+ else CHECK(!out.fighter&&!out.fighter_size&&strstr(error,"hitbox flags"));
  ++cases;
+ // Own the flag without moving any commands or inventing a duration. The
+ // actual importer must observe the old following-word flag in each header.
+ NativeFighterProject owned=project;owned.fighter_dat=malloc(bytes.size);CHECK(owned.fighter_dat);
+ memcpy(owned.fighter_dat,bytes.data,bytes.size);unsigned converted=0;
+ CHECK(nativeFighterAction_OwnHitboxFlags(&owned,&converted,error,sizeof(error))&&owned.fighter_size==bytes.size);
+ for(unsigned n=0;n<MAX_FT_PARTS;++n)map[n]=(uint16_t)n;
+ NativeFighterRigReferences explicit={owned.fighter_dat,owned.fighter_size,0,0};CHECK(compare(&project,map,&explicit,true)==converted);++cases;
+ uint8_t* once=malloc(owned.fighter_size);CHECK(once);memcpy(once,owned.fighter_dat,owned.fighter_size);
+ unsigned again=99;CHECK(nativeFighterAction_OwnHitboxFlags(&owned,&again,error,sizeof(error))&&!again&&!memcmp(once,owned.fighter_dat,owned.fighter_size));
+ bool edited=false;
+ for(unsigned action=0;action<project.action_count&&!edited;++action){
+  size_t count;CHECK(nativeFighterAction_Commands(&project,action,NULL,0,&count));
+  NativeFighterActionCommand* rows=count?malloc(count*sizeof(*rows)):NULL;CHECK(!count||rows);
+  if(count)CHECK(nativeFighterAction_Commands(&project,action,rows,count,&count));
+  for(size_t n=0;n<count&&!edited;++n)if(nativeHitbox_IsCreate(rows[n].opcode)){
+   unsigned users;CHECK(nativeFighterAction_Users(&owned,rows[n].source_offset,&users));if(users!=1)continue;
+   NativeFighterHitbox before,after;
+   CHECK(nativeFighterAction_GetHitbox(&project,action,rows[n].source_offset,&before));
+   CHECK(nativeFighterAction_GetHitbox(&owned,action,rows[n].source_offset,&after));
+   CHECK(before.only_hit_grabbed==after.only_hit_grabbed&&before.damage==after.damage&&before.bone==after.bone&&before.timed==after.timed);
+   after.damage=(uint16_t)((after.damage+1)%1024);
+   CHECK(nativeFighterAction_SetHitbox(&owned,action,rows[n].source_offset,&after));
+   NativeFighterHitbox changed;CHECK(nativeFighterAction_GetHitbox(&owned,action,rows[n].source_offset,&changed));
+   CHECK(changed.damage==after.damage&&changed.only_hit_grabbed==before.only_hit_grabbed);edited=true;
+  }
+  free(rows);
+ }
+ CHECK(edited);memcpy(owned.fighter_dat,once,owned.fighter_size);++cases;
+ free(once);++cases;
+ for(unsigned n=0;n<MAX_FT_PARTS;++n)map[n]=(uint16_t)((n+1)%MAX_FT_PARTS);
+ CHECK(nativeFighterRig_RemapReferences(&owned,map,&out,error,sizeof(error)));CHECK(compare(&project,map,&out,true)==converted);++cases;
+ free(out.fighter);free(owned.fighter_dat);out=(NativeFighterRigReferences){0};
  for(unsigned n=0;n<MAX_FT_PARTS;++n)map[n]=(uint16_t)n;map[1]=0;
  CHECK(!nativeFighterRig_RemapReferences(&project,map,&out,error,sizeof(error))&&!out.fighter&&!out.fighter_size);++cases;
  HSD_Dat dat;u32 root,scale,bone;const char* external;

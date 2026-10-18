@@ -23,6 +23,7 @@ const char* event(unsigned kind)
 std::string command(unsigned opcode)
 {
     if (opcode == 59) return "Timed hitbox";
+    if (opcode == 60) return "Create hitbox";
     static const char* control[] = {
         "End script", "Wait frames", "Wait until frame", "Begin loop",
         "Repeat loop", "Call subroutine", "Return from subroutine", "Go to",
@@ -98,7 +99,7 @@ const char* command_description(unsigned opcode)
     case 8: return "Pauses event execution until the animation finishes.";
     case 9: return "Starts a background flash with the chosen effect and priority.";
     case 10: return "Spawns a visual effect attached to a bone.";
-    case 11: return "Creates an attack hitbox with damage, knockback, size and attachment settings.";
+    case 11: case 60: return "Creates an attack hitbox with damage, knockback, size and attachment settings.";
     case 59: return "Creates a hitbox for the specified number of animation frames.";
     case 12: return "Changes the damage of an existing hitbox.";
     case 13: return "Changes the size of an existing hitbox.";

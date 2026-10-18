@@ -65,6 +65,7 @@ u32 ftActionData_SourceCommandWidth(u32 source_word)
         return (opcode == 5 || opcode == 7) ? 2 : 1;
     }
     if (opcode == NATIVE_HITBOX_TIMED_OPCODE) return 6;
+    if (opcode == NATIVE_HITBOX_EXPLICIT_OPCODE) return 5;
     return opcode <= 58 ? action_widths[opcode - 10] : 0;
 }
 
@@ -81,6 +82,7 @@ static const FieldLayout* word_layout(u32 opcode, u32 word)
         if (word == 5) return NULL;
         opcode = 11;
     }
+    if (opcode == NATIVE_HITBOX_EXPLICIT_OPCODE) opcode = 11;
     if (word != 0) {
         switch (opcode) {
         case 10: return &halves;
@@ -232,6 +234,10 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
                 goto cleanup;
             }
             u32 opcode = raw >> 26;
+            if (nativeHitbox_OwnsFlags(opcode) && ((raw >> 23) & 7) >= 4) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
             if (opcode == NATIVE_HITBOX_TIMED_OPCODE) {
                 u32 life;
                 if (((raw >> 23) & 7) >= 4 ||

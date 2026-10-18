@@ -70,30 +70,6 @@ bool reservations(const NativeFighterProject& project,const NativeFighterRig& ri
         }
     return true;
 }
-bool normalize_affected_hitboxes(NativeFighterProject& project,const uint16_t* map,
-                                 char* error,size_t capacity)
-{
-    std::vector<NativeFighterActionCommand> rows;
-    for(unsigned action=0;action<project.action_count;++action){
-        size_t count;
-        if(!nativeFighterAction_Commands(&project,action,nullptr,0,&count))return fail(error,capacity,"Could not trace the action's hitbox dependencies.");
-        rows.resize(count);
-        if(count&&!nativeFighterAction_Commands(&project,action,rows.data(),count,&count))return false;
-        HSD_Dat dat;if(HSD_DatOpen(&dat,project.fighter_dat,project.fighter_size)!=HSD_DAT_OK)return false;
-        bool affected=false;
-        for(const auto& row:rows)if(row.opcode==11){
-            u32 following;if(!HSD_DatReadU32(&dat,row.source_offset+20,&following))return false;
-            const unsigned opcode=following>>26,bone=(following>>18)&255;
-            if((opcode==28||(opcode==10&&!(following&((1u<<17)|(1u<<15)))))&&
-               bone<MAX_FT_PARTS&&map[bone]!=absent&&((bone^map[bone])&2))affected=true;
-        }
-        if(affected){unsigned converted;
-            if(!nativeFighterAction_ConvertHitboxIntervals(&project,action,&converted))
-                return fail(error,capacity,"Could not preserve the affected action's hitbox intervals.");
-        }
-    }
-    return true;
-}
 bool hierarchy(const NativeFighterModelEditor& model,const NativeFighterRig& rig,
                const NativeFighterRigEdit& edit,Plan& plan,char* error,size_t capacity)
 {
@@ -457,6 +433,7 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
        !hierarchy(*before,source,*edit,plan,error,capacity)||!transforms(*before,plan,*after,error,capacity))return false;
     Candidate candidate(*project);auto& next=candidate.project;
     if(!copy_bytes(project->fighter_dat,project->fighter_size,&next.fighter_dat))return fail(error,capacity,"Could not allocate the hierarchy transaction.");
+    if(!nativeFighterAction_OwnHitboxFlags(&next,nullptr,error,capacity))return false;
     next.facts=plan.facts;
     const unsigned body=next.facts.joints+next.facts.omission_count;
     bool reserved[MAX_FT_PARTS]={};
@@ -469,7 +446,6 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
         bool admitted=false;
         if(!reserved[consumed]){
             plan.forward[consumed]=absent;NativeFighterRigReferences probe={};
-            if(!normalize_affected_hitboxes(next,plan.forward,error,capacity))return false;
             admitted=nativeFighterRig_RemapReferences(&next,plan.forward,&probe,error,capacity);
             std::free(probe.fighter);
         }
@@ -478,15 +454,11 @@ extern "C" bool nativeFighterRig_Edit(NativeFighterProject* project,const Native
             plan.forward[consumed]=(uint16_t)retire;
             plan.forward[retire]=absent;
             NativeFighterRigReferences probe={};
-            if(!normalize_affected_hitboxes(next,plan.forward,error,capacity))return false;
             if(nativeFighterRig_RemapReferences(&next,plan.forward,&probe,error,capacity)){std::free(probe.fighter);admitted=true;break;}
             plan.forward[retire]=(uint16_t)retire;
         }
         if(!admitted){if(error&&capacity&&error[0])return false;return fail(error,capacity,"No unused part slot is available without changing a live fighter reference.");}
     }
-    // Convert only what the existing lifetime analysis can prove equivalent.
-    // Remaining retail next-command dependencies still reject in the writer.
-    if(!normalize_affected_hitboxes(next,plan.forward,error,capacity))return false;
     NativeFighterRigReferences references={};
     if(!nativeFighterRig_RemapReferences(&next,plan.forward,&references,error,capacity))return false;
     std::free(next.fighter_dat);next.fighter_dat=references.fighter;next.fighter_size=references.fighter_size;

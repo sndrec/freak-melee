@@ -82,7 +82,8 @@ bool nativeFighterAction_Fields(const NativeFighterProject*, unsigned action,
 bool nativeFighterAction_SetField(NativeFighterProject*, unsigned action,
                                   uint32_t source, unsigned field, uint32_t value);
 
-// Original five-word CreateHitbox command. Radius and offsets use the game's
+// Attack hitbox properties. Retail, explicit-flag and duration-owned commands
+// share these operands. Radius and offsets use the game's
 // 1/256-unit encoding; no floating-point round trip is involved. Offset names
 // follow the source command fields, whose evaluator maps z/x into b_offset.x/z.
 typedef struct NativeFighterHitbox {
@@ -219,6 +220,11 @@ bool nativeFighterAction_GetHitbox(const NativeFighterProject* project,
 bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
                                    unsigned action, uint32_t source_offset,
                                    const NativeFighterHitbox* hitbox);
+// Preserve retail hitbox behavior in owned headers, keeping five-word command
+// widths, addresses, explicit clear events and group history unchanged. Traces
+// all action/subroutine users before writing; failure leaves the draft intact.
+bool nativeFighterAction_OwnHitboxFlags(NativeFighterProject*, unsigned* converted,
+                                       char* error, size_t error_size);
 // Opcode 17 carries an ID and volume/panning in the following two words.
 // Canned behavior variants (10-15) have no editable SFX ID.
 bool nativeFighterAction_GetSoundEffect(const NativeFighterProject* project,

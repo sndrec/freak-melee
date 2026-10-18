@@ -162,10 +162,16 @@ bool nativeFighterTemplate_Apply(const char* path)
     }
     // The editable hitbox durations belong to the new fighter. Prepare and
     // save them during cloning, so merely opening the editor makes no edits.
+    unsigned owned_hitboxes = 0;
+    char flag_error[192];
+    if (!nativeFighterAction_OwnHitboxFlags(&project, &owned_hitboxes, flag_error, sizeof(flag_error))) {
+        nativeFighterProject_Close(&project);
+        return false;
+    }
     unsigned converted_hitboxes = 0;
     nativeFighterAction_ConvertAllHitboxIntervals(&project,
                                                   &converted_hitboxes);
-    if (converted_hitboxes && !nativeFighterProject_Save(path, &project)) {
+    if ((converted_hitboxes || owned_hitboxes) && !nativeFighterProject_Save(path, &project)) {
         nativeFighterProject_Close(&project);
         return false;
     }

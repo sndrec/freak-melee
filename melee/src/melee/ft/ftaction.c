@@ -195,6 +195,7 @@ static FtCmd ftAction_803C06E8[] = {
     ftAction_80073118,
 #ifdef MELEE_NATIVE
     nativeHitboxLifetime_Spawn,
+    ftAction_8007121C,
 #endif
 };
 
@@ -214,6 +215,7 @@ static FtCmd ftAction_803C07AC[ARRAY_SIZE(ftAction_803C06E8)] = {
     ftAction_8007320C,
 #ifdef MELEE_NATIVE
     nativeHitboxLifetime_Skip,
+    ftAction_800715EC,
 #endif
 };
 
@@ -222,7 +224,7 @@ static u8 ftAction_803C0870[ARRAY_SIZE(ftAction_803C06E8)] = {
     01, 01, 01, 01, 01, 01, 01, 03, 01, 01, 01, 07, 04, 01, 01, 01, 01,
     01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 03, 03, 02, 01, 04
 #ifdef MELEE_NATIVE
-    , 06
+    , 06, 05
 #endif
 };
 
@@ -308,6 +310,10 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
     u32 hit_group;
     u32 idx;
     PAD_STACK(8);
+#ifdef MELEE_NATIVE
+    const bool owned_flag = nativeHitbox_OwnsFlags(cmd->u->create_hitbox_0.opcode);
+    const bool victim_only = cmd->u->create_hitbox_0.only_hit_grabbed;
+#endif
 
     fp = GET_FIGHTER(gobj);
     // The retail byte-0xF flag is decoded into this field on native builds.
@@ -371,7 +377,7 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
         hitbox->x41_b7 = 0;
 #ifdef MELEE_NATIVE
         hitbox->hit_grabbed_victim_only =
-            ftActionData_NextHitboxFlag(cmd->u);
+            owned_flag ? victim_only : ftActionData_NextHitboxFlag(cmd->u);
 #else
         hitbox->hit_grabbed_victim_only = cmd->u->create_hitbox_5.x1_b4;
 #endif
