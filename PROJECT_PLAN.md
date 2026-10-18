@@ -221,7 +221,10 @@ import, materials, rigging and skinning, not mesh modeling.
   Imported meshes now retain up to 16 floating-point influences through painting
   and replacement, with proportional normalization and atomic capacity rejection.
   [Saved DAT and live viewport checks](melee/docs/native_skin_weights_checkpoint.md)
-  pass; broader stock-layout painting and DAT compaction remain open.
+  pass. [Stock-layout painting](melee/docs/native_stock_skin_checkpoint.md) now
+  passes the 130-costume batch (8,149 meshes), 227 brush cases and a live Yoshi
+  mouse/Save/Undo/Redo check. Morph/secondary-rigid painting, unusual model-node
+  and texture-matrix bindings, larger meshes and DAT compaction remain open.
   The [stock geometry inventory](melee/docs/native_stock_skin_inventory.md)
   now covers all 130 retail costume archives and identifies shared position
   indices, attribute seams and root-envelope transforms the brush must preserve.

@@ -65,6 +65,7 @@ def raw_mesh(path, joint_offsets, wanted=None, expected_positions=POSITIONS, tol
         raw_entries = {}
         positions_bytes = None
         normals_bytes = None
+        vertex_normals = {}
         matches = False
         while polygon:
             if half(polygon+12)&0x3000 != 0x2000:
@@ -81,13 +82,18 @@ def raw_mesh(path, joint_offsets, wanted=None, expected_positions=POSITIONS, tol
                 break
             positions_bytes = data[positions:positions+len(expected_positions)*12]
             normals = word(descriptor+68)
-            normals_bytes = data[normals:normals+len(expected_positions)*12]
             display, table = word(polygon+16), word(polygon+20)
             assert data[display] == 0x90
             stride = 7 if word(descriptor+72) == 13 else 5
             for i in range(half(display+1)):
                 entry = display+3+i*stride
                 slot, vertex = data[entry]//3, half(entry+1)
+                normal_index = half(entry+3)
+                value = data[normals+normal_index*12:normals+(normal_index+1)*12]
+                assert len(value)==12
+                if vertex in vertex_normals:
+                    assert vertex_normals[vertex] == value
+                vertex_normals[vertex] = value
                 assert data[entry]%3 == 0
                 influence = word(table+slot*4)
                 weights, entries = {}, []
@@ -108,6 +114,8 @@ def raw_mesh(path, joint_offsets, wanted=None, expected_positions=POSITIONS, tol
             polygon = word(polygon+4)
         if matches and not polygon:
             assert set(vertices) == set(range(len(expected_positions)))
+            assert set(vertex_normals) == set(vertices)
+            normals_bytes = b''.join(vertex_normals[index] for index in range(len(expected_positions)))
             return ordinal, vertices, positions_bytes, normals_bytes, raw_entries
     raise AssertionError('The imported asymmetric four-vertex mesh was not found')
 

@@ -1,3 +1,4 @@
+#include <melee/ft/native_fighter_skin_edit.h>
 #include "native_shell_workshop_model.h"
 
 #include "native_shell_workshop_materials.h"
@@ -992,7 +993,7 @@ void stroke_end()
                                       active->project->costume_dat + active->project->costume_size);
     unsigned affected = 0;
     char error[192] = {};
-    if (!nativeFighterGltf_PaintWeights(active->project, (unsigned) active->selected_mesh,
+    if (!nativeFighterSkin_Paint(active->project, (unsigned) active->selected_mesh,
                                         (unsigned) active->selected_joint,
                                         stroke.centers.data(),
                                         (unsigned) stroke.centers.size(),

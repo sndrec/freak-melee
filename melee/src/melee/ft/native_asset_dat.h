@@ -81,6 +81,17 @@ struct NativeAssetDat {
         }
     }
 
+    // DAT offset zero is a valid local target when the pointer has a relocation.
+    // Use this for resolved source references; link(..., 0) writes a null pointer.
+    void link_local(uint32_t slot, uint32_t target)
+    {
+        word(slot, target);
+        relocations.push_back(slot);
+        detached_relocations.erase(
+            std::remove(detached_relocations.begin(), detached_relocations.end(), slot),
+            detached_relocations.end());
+    }
+
     bool finish(std::vector<uint8_t>* result)
     {
         std::sort(relocations.begin(), relocations.end());

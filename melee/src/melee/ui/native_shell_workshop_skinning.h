@@ -1,11 +1,11 @@
 #ifndef MELEE_UI_NATIVE_SHELL_WORKSHOP_SKINNING_H
 #define MELEE_UI_NATIVE_SHELL_WORKSHOP_SKINNING_H
-#include <melee/ft/native_fighter_gltf_import.h>
+#include <melee/ft/native_fighter_skin_edit.h>
 #include <melee/gm/native_home.h>
 #include <vector>
 
 struct NativeWorkshopSkinStroke {
-    std::vector<NativeImportedSkinVertex> vertices;
+    std::vector<NativeSkinVertex> vertices;
     std::vector<NativeHomeWorkshopBoneScreen> screens;
     std::vector<uint8_t> visible;
     std::vector<NativeSkinBrushPoint> centers;

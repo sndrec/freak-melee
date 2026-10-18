@@ -48,29 +48,52 @@ int main(void)
     polygon.verts = attrs; polygon.flags = POBJ_ENVELOPE;
     polygon.n_display = 1; polygon.display = display; polygon.u.envelope_list = &palette;
     HSD_DObj mesh = { 0 }; mesh.pobj = &polygon;
-    Vec3 output[3]; u8 present[3];
+    Vec3 output[3];
+    const unsigned order[] = { 2, 0, 1 };
     nativeModelView_Begin(1, true);
     nativeModelView_Mesh(0, &owner, &mesh, false, false, &bone);
-    check(nativeModelView_VertexPositions(0, output, present, 3));
+    check(nativeModelView_CornerPositions(0, output, 3));
     for (unsigned i = 0; i < 3; ++i) {
-        check(present[i]); near(output[i].x, (values[i][0]-1)*2+10);
-        near(output[i].y, values[i][1]*3+5); near(output[i].z, values[i][2]*4-2);
+        near(output[i].x, (values[order[i]][0]-1)*2+10);
+        near(output[i].y, values[order[i]][1]*3+5); near(output[i].z, values[order[i]][2]*4-2);
     }
     // A weight immediately below 1 still takes HSD's inverse-bind path.
     env[0].weight = nextafterf(1, 0); env[0].next = NULL;
-    check(nativeModelView_VertexPositions(0, output, present, 3));
-    near(output[0].x, 10*env[0].weight);
+    check(nativeModelView_CornerPositions(0, output, 3));
+    near(output[1].x, 10*env[0].weight);
     env[0].weight = 1;
-    check(nativeModelView_VertexPositions(0, output, present, 3));
-    near(output[0].x, 12); // Exact 1 bypasses the inverse bind on a root owner.
-    check(!nativeModelView_VertexPositions(0, output, present, 2));
+    check(nativeModelView_CornerPositions(0, output, 3));
+    near(output[1].x, 12); // Exact 1 bypasses the inverse bind on a root owner.
+    // Descriptor order is independent of GX's hardware fetch order.
+    HSD_VtxDescList swap = attrs[0]; attrs[0] = attrs[1]; attrs[1] = swap;
+    check(nativeModelView_CornerPositions(0, output, 3));
+    near(output[1].x, 12);
+    swap = attrs[0]; attrs[0] = attrs[1]; attrs[1] = swap;
+    // One source index can have two different posed positions. Return both
+    // corners rather than rejecting the entire stock mesh as ambiguous.
+    HSD_Envelope other = { NULL, &owner, 1 };
+    HSD_SList second = { NULL, &other }; palette.next = &second;
+    u8 repeated[32] = { 0x90, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0 };
+    polygon.display = repeated;
+    check(nativeModelView_CornerPositions(0, output, 3));
+    near(output[0].x, 12); near(output[1].x, 21); near(output[2].x, 12);
+    palette.next = NULL; polygon.display = display;
+    // Direct positions also retain the original corner correspondence.
+    u8 direct[64] = { 0x90, 0, 3 };
+    for (unsigned i = 0; i < 3; ++i) memcpy(direct + 4 + i * 13, data + i * 12, 12);
+    polygon.display = direct; polygon.n_display = 2;
+    attrs[1].attr_type = GX_DIRECT;
+    check(nativeModelView_CornerPositions(0, output, 3));
+    near(output[0].x, 12); near(output[1].x, 2); near(output[2].x, 16);
+    attrs[1].attr_type = GX_INDEX16; polygon.display = display; polygon.n_display = 1;
+    check(!nativeModelView_CornerPositions(0, output, 2));
     nativeModelView_Mesh(0, &owner, &mesh, true, false, &bone);
-    check(!nativeModelView_VertexPositions(0, output, present, 3));
+    check(!nativeModelView_CornerPositions(0, output, 3));
     nativeModelView_Mesh(0, &owner, &mesh, false, false, NULL);
     polygon.flags = POBJ_SHAPEANIM;
-    check(!nativeModelView_VertexPositions(0, output, present, 3));
+    check(!nativeModelView_CornerPositions(0, output, 3));
     nativeModelView_Clear();
-    check(!nativeModelView_VertexPositions(0, output, present, 3));
+    check(!nativeModelView_CornerPositions(0, output, 3));
     printf("PASS: %u posed vertex, inverse-bind, index and visibility checks\n", checks);
     return 0;
 }

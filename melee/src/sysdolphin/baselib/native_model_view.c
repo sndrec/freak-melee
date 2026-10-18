@@ -213,18 +213,33 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
 }
 
 typedef void (*BeginFn)(unsigned primitive, unsigned count, void* user);
-typedef void (*VertexFn)(const Vec3* p, float weight, unsigned index, void* user);
+typedef void (*VertexFn)(const Vec3* p, float weight, void* user);
 typedef void (*EndFn)(void* user);
 // Reads the original GX descriptor order, including stock indexed/quantized
 // positions. No imported-mesh layout assumptions and no draw-time allocations.
 static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
                   VertexFn vertex, EndFn end, void* user)
 {
+    if (!mesh->owner || !p->verts || !p->display || !p->n_display) return false;
     Mtx mtx[10];
     float weights[10];
     unsigned matrix_count;
     if (!matrices(mesh, p, mtx, weights, &matrix_count)) {
         return false;
+    }
+    // GX consumes hardware slots, regardless of descriptor-list ordering.
+    // NBT uses the normal slot rather than its descriptor enum value (25).
+    const HSD_VtxDescList* ordered[26];
+    unsigned attr_count = 0;
+    for (const HSD_VtxDescList* d = p->verts; d->attr != GX_VA_NULL; ++d) {
+        if (d->attr_type == GX_NONE) continue;
+        if (attr_count == 26) return false;
+        const unsigned slot = d->attr == GX_VA_NBT ? GX_VA_NRM : d->attr;
+        unsigned i = attr_count++;
+        while (i && (ordered[i-1]->attr == GX_VA_NBT ? GX_VA_NRM : ordered[i-1]->attr) > slot) {
+            ordered[i] = ordered[i-1]; --i;
+        }
+        ordered[i] = d;
     }
     const u8* data = p->display;
     const u8* limit = data + ((size_t) p->n_display << 5);
@@ -248,14 +263,10 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
         for (unsigned v = 0; v < count; ++v) {
             Vec3 pos = { 0 };
             unsigned matrix = 0;
-            unsigned position_index = ~0u;
             bool have_pos = false;
-            for (const HSD_VtxDescList* d = p->verts; d->attr != GX_VA_NULL;
-                 ++d)
+            for (unsigned attr = 0; attr < attr_count; ++attr)
             {
-                if (d->attr_type == GX_NONE) {
-                    continue;
-                }
+                const HSD_VtxDescList* d = ordered[attr];
                 unsigned size = d->attr_type == GX_INDEX8    ? 1
                                 : d->attr_type == GX_INDEX16 ? 2
                                                              : value_bytes(d);
@@ -279,7 +290,6 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
                 if (!direct) {
                     const unsigned index =
                         d->attr_type == GX_INDEX8 ? value[0] : be16(value);
-                    position_index = index;
                     const size_t offset = (size_t) index * d->stride;
                     if (!d->vertex || offset + value_bytes(d) > d->vertex_size)
                     {
@@ -303,7 +313,7 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
             Vec3 world;
             C_MTXMultVec(mtx[matrix], &pos, &world);
             if (vertex) {
-                vertex(&world, weights[matrix], position_index, user);
+                vertex(&world, weights[matrix], user);
             }
         }
         if (end) {
@@ -317,7 +327,7 @@ static void draw_begin(unsigned primitive, unsigned count, void* user)
 {
     GXBegin(primitive, GX_VTXFMT0, (u16) count);
 }
-static void draw_vertex(const Vec3* p, float weight, unsigned index, void* user)
+static void draw_vertex(const Vec3* p, float weight, void* user)
 {
     const ViewMesh* mesh = user;
     GXColor color = { 137, 210, 255, 255 };
@@ -450,7 +460,7 @@ static void pick_begin(unsigned primitive, unsigned count, void* user)
     p->primitive = primitive;
     p->index = 0;
 }
-static void pick_vertex(const Vec3* vertex, float weight, unsigned index, void* user)
+static void pick_vertex(const Vec3* vertex, float weight, void* user)
 {
     Pick* p = user;
     unsigned i = p->index++;
@@ -501,38 +511,29 @@ int nativeModelView_Pick(const float origin[3], const float direction[3])
     return pick.selected;
 }
 
-typedef struct VertexPositions {
+typedef struct CornerPositions {
     Vec3* positions;
-    u8* present;
-    unsigned capacity;
+    unsigned capacity, count;
     bool valid;
-} VertexPositions;
+} CornerPositions;
 
-static void store_position(const Vec3* value, float weight, unsigned index, void* user)
+static void store_corner(const Vec3* value, float weight, void* user)
 {
-    VertexPositions* output = user;
-    if (index >= output->capacity || !isfinite(value->x) ||
+    CornerPositions* output = user;
+    if (output->count >= output->capacity || !isfinite(value->x) ||
         !isfinite(value->y) || !isfinite(value->z)) {
         output->valid = false;
         return;
     }
-    if (output->present[index] &&
-        memcmp(&output->positions[index], value, sizeof(Vec3))) {
-        output->valid = false;
-        return;
-    }
-    output->positions[index] = *value;
-    output->present[index] = 1;
+    output->positions[output->count++] = *value;
 }
 
-bool nativeModelView_VertexPositions(unsigned mesh, Vec3* positions,
-                                     u8* present, unsigned capacity)
+bool nativeModelView_CornerPositions(unsigned mesh, Vec3* positions, unsigned count)
 {
-    if (mesh >= mesh_count || !positions || !present || !capacity ||
+    if (mesh >= mesh_count || !positions || !count ||
         !meshes[mesh].owner || !meshes[mesh].mesh || meshes[mesh].hidden) return false;
-    memset(present, 0, capacity);
-    VertexPositions output = { positions, present, capacity, true };
+    CornerPositions output = { positions, count, 0, true };
     for (HSD_PObj* p = meshes[mesh].mesh->pobj; p; p = p->next)
-        if (!visit(&meshes[mesh], p, NULL, store_position, NULL, &output)) return false;
-    return output.valid;
+        if (!visit(&meshes[mesh], p, NULL, store_corner, NULL, &output)) return false;
+    return output.valid && output.count == count;
 }

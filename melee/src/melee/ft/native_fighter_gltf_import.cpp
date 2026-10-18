@@ -5,6 +5,7 @@
 #include "native_fighter_material_animation.h"
 #include "native_fighter_model_references.h"
 #include "native_fighter_gltf_skin.h"
+#include "native_fighter_skin_mesh.h"
 
 #ifdef MELEE_NATIVE
 
@@ -120,19 +121,6 @@ uint32_t read32(const uint8_t* bytes)
 {
     return uint32_t(bytes[0]) << 24 | uint32_t(bytes[1]) << 16 |
            uint32_t(bytes[2]) << 8 | bytes[3];
-}
-
-uint16_t read16(const uint8_t* bytes)
-{
-    return uint16_t(bytes[0]) << 8 | bytes[1];
-}
-
-float readfloat(const uint8_t* bytes)
-{
-    const uint32_t bits = read32(bytes);
-    float value;
-    std::memcpy(&value, &bits, sizeof(value));
-    return value;
 }
 
 void befloat(uint8_t* bytes, float value)
@@ -360,147 +348,13 @@ bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
     return true;
 }
 
-struct ImportedSkinMesh {
-    uint32_t descriptors = 0;
-    uint32_t positions = 0;
-    bool uv = false;
-    std::vector<uint16_t> triangles;
-    std::vector<NativeSkinWeights> palettes;
-    std::vector<uint8_t> used;
-    std::vector<NativeImportedSkinVertex> vertices;
-};
-
-bool local_ref(const HSD_Dat& dat, uint32_t slot, uint32_t* target)
-{
-    const char* external;
-    u32 resolved;
-    if (HSD_DatResolve(&dat, slot, &resolved, &external) !=
-            HSD_DAT_REF_LOCAL || resolved >= dat.data_size) return false;
-    *target = (uint32_t) resolved;
-    return true;
-}
-
-bool imported_skin_mesh(const NativeFighterModelEditor& model,
-                        unsigned mesh, ImportedSkinMesh* out)
-{
-    if (mesh >= model.mesh_count) return false;
-    const HSD_Dat& dat = model.dat;
-    uint32_t polygon;
-    if (!local_ref(dat, model.meshes[mesh].offset + 12, &polygon))
-        return false;
-    for (unsigned part = 0; part < model.meshes[mesh].polygon_count; ++part) {
-        if (!HSD_DatBytes(&dat, polygon, 24)) return false;
-        const uint8_t* header = dat.data + polygon;
-        if ((read16(header + 12) & 0x3000) != POBJ_ENVELOPE)
-            return false;
-        uint32_t desc, display, table;
-        if (!local_ref(dat, polygon + 8, &desc) ||
-            !local_ref(dat, polygon + 16, &display) ||
-            !local_ref(dat, polygon + 20, &table) ||
-            !HSD_DatBytes(&dat, desc, 96) ||
-            read32(dat.data + desc) != GX_VA_PNMTXIDX ||
-            read32(dat.data + desc + 4) != GX_DIRECT ||
-            read32(dat.data + desc + 24) != GX_VA_POS ||
-            read32(dat.data + desc + 28) != 3 ||
-            read32(dat.data + desc + 48) != GX_VA_NRM ||
-            read32(dat.data + desc + 52) != 3) return false;
-        const bool uv = read32(dat.data + desc + 72) == GX_VA_TEX0;
-        if (uv && (!HSD_DatBytes(&dat, desc, 120) ||
-                   read32(dat.data + desc + 76) != 3)) return false;
-        uint32_t positions;
-        if (!local_ref(dat, desc + 44, &positions)) return false;
-        if (part == 0) {
-            out->descriptors = desc;
-            out->positions = positions;
-            out->uv = uv;
-        } else if (out->descriptors != desc || out->positions != positions ||
-                   out->uv != uv) return false;
-        const size_t bytes = size_t(read16(header + 14)) * 32;
-        if (bytes < 3 || !HSD_DatBytes(&dat, display, bytes)) return false;
-        const uint8_t* command = dat.data + display;
-        if (command[0] != 0x90) return false;
-        const unsigned count = read16(command + 1);
-        const unsigned stride = uv ? 7 : 5;
-        if (count == 0 || count % 3 ||
-            3 + size_t(count) * stride > bytes) return false;
-        NativeSkinWeights groups[10] = {};
-        bool loaded[10] = {};
-        for (unsigned i = 0; i < count; ++i) {
-            const uint8_t* entry = command + 3 + i * stride;
-            const unsigned slot = entry[0] / 3;
-            const unsigned index = read16(entry + 1);
-            if (entry[0] % 3 || slot >= 10 ||
-                read16(entry + 3) != index ||
-                (uv && read16(entry + 5) != index) ||
-                !HSD_DatBytes(&dat, positions + size_t(index) * 12, 12))
-                return false;
-            if (!loaded[slot]) {
-                uint32_t influences;
-                if (!local_ref(dat, table + slot * 4, &influences) ||
-                    !HSD_DatBytes(&dat, influences, 24)) return false;
-                double sum = 0;
-                unsigned count = 0;
-                for (;; ++count) {
-                    if (!HSD_DatBytes(&dat, influences + count * 8, 8))
-                        return false;
-                    uint32_t joint_offset;
-                    if (read32(dat.data + influences + count * 8) == 0) break;
-                    if (count == NATIVE_SKIN_MAX_INFLUENCES ||
-                        !local_ref(dat, influences + count * 8, &joint_offset))
-                        return false;
-                    unsigned joint = 0;
-                    while (joint < model.joint_count &&
-                           model.joints[joint].offset != joint_offset) ++joint;
-                    if (joint == model.joint_count) return false;
-                    const float weight = readfloat(dat.data + influences + count * 8 + 4);
-                    if (!std::isfinite(weight) || weight < 0) return false;
-                    groups[slot].joints[count] = (uint16_t) joint;
-                    groups[slot].weights[count] = weight;
-                    sum += weight;
-                }
-                groups[slot].count = count;
-                if (std::fabs(sum - 1.0) > 0.01 ||
-                    !nativeSkinWeights_Normalize(&groups[slot])) return false;
-                loaded[slot] = true;
-            }
-            if (index >= out->used.size()) {
-                out->used.resize(index + 1, 0);
-                out->palettes.resize(index + 1);
-                out->vertices.resize(index + 1);
-            }
-            if (out->used[index] &&
-                !nativeSkinWeights_Equal(&out->palettes[index], &groups[slot])) return false;
-            out->used[index] = 1;
-            out->palettes[index] = groups[slot];
-            out->triangles.push_back((uint16_t) index);
-        }
-        uint32_t next;
-        if (part + 1 < model.meshes[mesh].polygon_count) {
-            if (!local_ref(dat, polygon + 4, &next)) return false;
-            polygon = next;
-        }
-    }
-    for (unsigned i = 0; i < out->used.size(); ++i) {
-        if (!out->used[i]) continue;
-        NativeImportedSkinVertex& vertex = out->vertices[i];
-        vertex.used = true;
-        for (unsigned axis = 0; axis < 3; ++axis) {
-            vertex.position[axis] = readfloat(dat.data + out->positions +
-                                               i * 12 + axis * 4);
-            if (!std::isfinite(vertex.position[axis])) return false;
-        }
-        vertex.skin = out->palettes[i];
-    }
-    return !out->triangles.empty();
-}
-
 struct TransferSkin {
     struct Node {
         unsigned vertex;
         int child[2];
         uint8_t axis;
     };
-    const ImportedSkinMesh* source = nullptr;
+    const NativeSkinMesh* source = nullptr;
     std::vector<Node> nodes;
     int root = -1;
 
@@ -527,12 +381,12 @@ struct TransferSkin {
         return id;
     }
 
-    bool prepare(const ImportedSkinMesh* mesh)
+    bool prepare(const NativeSkinMesh* mesh)
     {
         source = mesh;
         std::vector<unsigned> vertices;
-        for (unsigned i = 0; i < mesh->used.size(); ++i)
-            if (mesh->used[i]) vertices.push_back(i);
+        for (unsigned i = 0; i < mesh->vertices.size(); ++i)
+            vertices.push_back(i);
         nodes.reserve(vertices.size());
         root = build(vertices, 0, vertices.size(), 0);
         return root >= 0;
@@ -566,7 +420,7 @@ struct TransferSkin {
         unsigned best = 0;
         float distance = std::numeric_limits<float>::infinity();
         nearest(root, point, &best, &distance);
-        return source->palettes[best];
+        return source->vertices[best].skin;
     }
 };
 
@@ -1018,7 +872,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
     SkinBinding skin;
     if (binding != NATIVE_GLTF_BIND_RIGID &&
         !prepare_skin(existing, joint, &skin, error, error_size)) return false;
-    ImportedSkinMesh old_skin;
+    NativeSkinMesh old_skin;
     TransferSkin transfer;
     NativeGltfSourceSkin authored;
     if (binding == NATIVE_GLTF_BIND_SOURCE &&
@@ -1026,10 +880,11 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
                                     scale,&authored,error,error_size)) return false;
     if (binding == NATIVE_GLTF_BIND_TRANSFER &&
         (replacement_mesh == UINT_MAX ||
-         !imported_skin_mesh(existing, replacement_mesh, &old_skin) ||
+         !(existing.joints[existing.meshes[replacement_mesh].joint].flags & JOBJ_SKELETON_ROOT) ||
+         !nativeSkinMesh_Read(existing, replacement_mesh, &old_skin, error, error_size) ||
          !transfer.prepare(&old_skin))) {
         fail(error, error_size,
-             "Weight transfer needs an existing imported skinned mesh to replace.");
+             "Weight transfer needs a root-owned mesh with editable weights.");
         return false;
     }
     uint32_t polygon;
@@ -1246,148 +1101,6 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
     project->authoring = staging.authoring;
     return true;
 }
-unsigned nativeFighterGltf_SkinVertices(const NativeFighterProject* project,
-                                        unsigned mesh,
-                                        NativeImportedSkinVertex* output,
-                                        unsigned capacity)
-{
-    if (!project) return 0;
-    NativeFighterModelEditor model = {};
-    if (!nativeFighterModel_Open(&model,
-            const_cast<NativeFighterProject*>(project))) return 0;
-    ImportedSkinMesh skin;
-    if (!imported_skin_mesh(model, mesh, &skin)) return 0;
-    if (output && capacity >= skin.vertices.size())
-        std::memcpy(output, skin.vertices.data(),
-                    skin.vertices.size() * sizeof(*output));
-    return (unsigned) skin.vertices.size();
-}
-
-bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
-                                    unsigned mesh, unsigned joint,
-                                    const NativeSkinBrushPoint* centers,
-                                    unsigned center_count, float radius,
-                                    float strength, bool subtract,
-                                    unsigned* affected,
-                                    char* error, size_t error_size)
-{
-    if (affected) *affected = 0;
-    if (!project || !centers || center_count == 0 ||
-        center_count > 4096 || !std::isfinite(radius) ||
-        !std::isfinite(strength) || radius <= 0.0f ||
-        radius > 1000.0f || strength <= 0.0f || strength > 1.0f) {
-        fail(error, error_size, "Enter a valid brush radius and strength.");
-        return false;
-    }
-    for (unsigned i = 0; i < center_count; ++i)
-        for (unsigned axis = 0; axis < 3; ++axis)
-            if (!std::isfinite(centers[i].position[axis])) return false;
-    NativeFighterModelEditor model = {};
-    float inverse_bind[12];
-    if (!nativeFighterModel_Open(&model, project) ||
-        joint >= model.joint_count ||
-        !(model.joints[joint].flags & JOBJ_SKELETON) ||
-        !read_bind_inverse(model, joint, inverse_bind)) {
-        fail(error, error_size, "Select a deform bone with an inverse bind matrix.");
-        return false;
-    }
-    ImportedSkinMesh skin;
-    if (!imported_skin_mesh(model, mesh, &skin)) {
-        fail(error, error_size,
-             "Per-vertex painting requires a mesh imported with generated weights.");
-        return false;
-    }
-    unsigned changed = 0;
-    for (unsigned i = 0; i < skin.used.size(); ++i) {
-        if (!skin.used[i]) continue;
-        const NativeImportedSkinVertex& vertex = skin.vertices[i];
-        float distance_squared = radius * radius;
-        for (unsigned center = 0; center < center_count; ++center) {
-            float current = 0.0f;
-            for (unsigned axis = 0; axis < 3; ++axis) {
-                const float delta = vertex.position[axis] -
-                                    centers[center].position[axis];
-                current += delta * delta;
-            }
-            distance_squared = std::min(distance_squared, current);
-        }
-        if (distance_squared >= radius * radius) continue;
-        NativeSkinWeights& palette = skin.palettes[i];
-        const NativeSkinWeights before = palette;
-        const float influence = strength *
-            (1.0f - std::sqrt(distance_squared) / radius);
-        const float target = std::clamp(nativeSkinWeights_Get(&palette, (uint16_t) joint) +
-            (subtract ? -influence : influence), 0.0f, 1.0f);
-        if (!nativeSkinWeights_Set(&palette, (uint16_t) joint, target)) {
-            fail(error, error_size, "A vertex already has the maximum 16 bone influences.");
-            return false;
-        }
-        if (!nativeSkinWeights_Equal(&palette, &before)) ++changed;
-    }
-    if (affected) *affected = changed;
-    if (!changed) return true;
-    NativeAssetDat dat;
-    if (!dat.open(project->costume_dat, project->costume_size)) {
-        return false;
-    }
-    SkinChunk chunk;
-    uint32_t first_polygon = 0, previous = 0;
-    for (size_t start = 0; start < skin.triangles.size(); start += 3) {
-        unsigned additional = 0;
-        for (unsigned c = 0; c < 3; ++c) {
-            const NativeSkinWeights& palette = skin.palettes[skin.triangles[start + c]];
-            bool found = false;
-            for (const NativeSkinWeights& existing : chunk.palettes)
-                if (nativeSkinWeights_Equal(&existing, &palette)) found = true;
-            for (unsigned earlier = 0; earlier < c; ++earlier)
-                if (nativeSkinWeights_Equal(&skin.palettes[skin.triangles[start + earlier]], &palette))
-                    found = true;
-            if (!found) ++additional;
-        }
-        if (!chunk.indices.empty() &&
-            (chunk.palettes.size() + additional > 10 ||
-             chunk.indices.size() + 3 > 65532)) {
-            uint32_t emitted;
-            if (!write_skin_chunk(&dat, chunk, skin.descriptors, model,
-                                  skin.uv, &emitted)) return false;
-            if (previous) dat.link(previous + 4, emitted);
-            else first_polygon = emitted;
-            previous = emitted;
-            chunk = {};
-        }
-        for (unsigned c = 0; c < 3; ++c) {
-            const uint16_t index = skin.triangles[start + c];
-            const NativeSkinWeights& palette = skin.palettes[index];
-            unsigned slot = 0;
-            for (; slot < chunk.palettes.size(); ++slot)
-                if (nativeSkinWeights_Equal(&chunk.palettes[slot], &palette)) break;
-            if (slot == chunk.palettes.size())
-                chunk.palettes.push_back(palette);
-            chunk.indices.push_back(index);
-            chunk.palette_index.push_back((uint8_t) slot);
-        }
-    }
-    if (!chunk.indices.empty()) {
-        uint32_t emitted;
-        if (!write_skin_chunk(&dat, chunk, skin.descriptors, model,
-                              skin.uv, &emitted)) return false;
-        if (previous) dat.link(previous + 4, emitted);
-        else first_polygon = emitted;
-    }
-    dat.link(model.meshes[mesh].offset + 12, first_polygon);
-    std::vector<uint8_t> converted;
-    if (!dat.finish(&converted) ||
-        !validate_costume(converted, model.root_name, error, error_size))
-        return false;
-    uint8_t* owned = (uint8_t*) std::malloc(converted.size());
-    if (!owned) return false;
-    std::memcpy(owned, converted.data(), converted.size());
-    std::free(project->costume_dat);
-    project->costume_dat = owned;
-    project->costume_size = converted.size();
-    return true;
-}
-
 bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
                                        unsigned material, unsigned layer,
                                        uint32_t sequence, unsigned frame,

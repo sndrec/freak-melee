@@ -71,5 +71,7 @@ The relevant engine behavior is in `baselib/pobj.c` (`SetupEnvelopeModelMtx`)
 and `baselib/displayfunc.c` (`_HSD_mkEnvelopeModelNodeMtx`). The existing rest-edit
 compensation in `native_fighter_rest.cpp` also handles these coordinate domains.
 
-This checkpoint establishes the retail input cases. Stock weight painting,
-geometry round-trip comparisons and native brush acceptance remain open.
+This checkpoint establishes the retail input cases. The subsequent
+[stock-skin checkpoint](native_stock_skin_checkpoint.md) records the completed
+retail round trips, brush cases and native Workshop acceptance, along with the
+remaining custom-layout and storage work.

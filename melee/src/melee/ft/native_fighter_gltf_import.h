@@ -53,28 +53,6 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject*, const char* path,
                                   unsigned count, float scale, char* error,
                                   size_t error_size);
 
-typedef struct NativeImportedSkinVertex {
-    float position[3];
-    NativeSkinWeights skin;
-    bool used;
-} NativeImportedSkinVertex;
-typedef struct NativeSkinBrushPoint { float position[3]; } NativeSkinBrushPoint;
-
-// Returns zero for meshes outside the imported-envelope layout. When output
-// is null, returns the required number of vertices. Positions are in the
-// model's bind space; weights retain their floating-point precision.
-unsigned nativeFighterGltf_SkinVertices(const NativeFighterProject* project,
-                                        unsigned mesh,
-                                        NativeImportedSkinVertex* output,
-                                        unsigned capacity);
-bool nativeFighterGltf_PaintWeights(NativeFighterProject* project,
-                                    unsigned mesh, unsigned joint,
-                                    const NativeSkinBrushPoint* centers,
-                                    unsigned center_count, float radius,
-                                    float strength, bool subtract,
-                                    unsigned* affected,
-                                    char* error, size_t error_size);
-
 // Embeds a PNG/JPEG as a GX RGBA8 texture in an existing shared material.
 bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
                                        unsigned material, unsigned layer,

@@ -1,3 +1,4 @@
+#include <melee/ft/native_fighter_skin_edit.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef near
@@ -1842,7 +1843,7 @@ static int project_model_paint(int count, char** arguments)
     unsigned affected = 0;
     NativeSkinBrushPoint point;
     memcpy(point.position, center, sizeof(center));
-    bool ok = nativeFighterGltf_PaintWeights(&project, (unsigned) mesh,
+    bool ok = nativeFighterSkin_Paint(&project, (unsigned) mesh,
         (unsigned) joint, &point, 1,
         radius, strength, subtract, &affected,
         error, sizeof(error));
@@ -1861,15 +1862,15 @@ static int project_model_vertices(const char* path, const char* mesh_text)
     if (*end || mesh > UINT_MAX) return 1;
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;
-    unsigned count = nativeFighterGltf_SkinVertices(&project,
-        (unsigned) mesh, NULL, 0);
-    NativeImportedSkinVertex* vertices = count
+    unsigned count = nativeFighterSkin_Vertices(&project,
+        (unsigned) mesh, NULL, 0, NULL, 0, NULL);
+    NativeSkinVertex* vertices = count
         ? calloc(count, sizeof(*vertices)) : NULL;
     if (vertices)
-        count = nativeFighterGltf_SkinVertices(&project,
-            (unsigned) mesh, vertices, count);
+        count = nativeFighterSkin_Vertices(&project,
+            (unsigned) mesh, vertices, count, NULL, 0, NULL);
     for (unsigned i = 0; vertices && i < count; ++i)
-        if (vertices[i].used) {
+        {
             printf("vertex %u: (%g, %g, %g)",
                 i, vertices[i].position[0], vertices[i].position[1],
                 vertices[i].position[2]);
