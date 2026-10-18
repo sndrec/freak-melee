@@ -31,8 +31,10 @@ installed and removes a parent marker newly added by that failed attempt.
 
 A room selection carries the fighter and outfit package IDs. Remote match
 setup can load cached outfits without adding them to the local collection.
-Gift transfer currently requests the outfit alone. Requesting a missing parent
-fighter during that transfer remains implementation work.
+Accepting an outfit delivery fetches its missing parent fighter first, then the
+outfit. Both are validated before installation. A newly received parent is
+added to the roster. The sender reports delivery after installation is
+confirmed. See the [delivery checkpoint](native_outfit_gift_checkpoint.md).
 See the [current plan](../../PROJECT_PLAN.md) for the remaining room and release
 acceptance.
 

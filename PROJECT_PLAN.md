@@ -304,7 +304,9 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   Local coordinated imports, both-member runtime loading, X/Y selection and
   CSS-to-practice checks pass for Zelda/Sheik, Popo/Nana and Fox in the
   [outfit checkpoint](melee/docs/native_family_outfit_checkpoint.md).
-  Missing-parent gift transfer and current online match setup remain open.
+  [Missing-parent outfit gifts](melee/docs/native_outfit_gift_checkpoint.md) now
+  fetch and validate both packages, install them on acceptance and add the
+  parent to the roster. Current online match setup remains open.
 - [x] Confirm a recipient can edit received content without the author's draft
   directory, SDK or behavior DLL. The earlier
   [single-fighter release check](melee/docs/native_received_fighter_authoring_checkpoint.md)

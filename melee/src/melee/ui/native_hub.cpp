@@ -999,6 +999,10 @@ extern "C" void nativeHub_Tick(void)
         installed_gift_handled = true;
         bool placed = gift.kind == NativeNetplayGift_Fighter &&
                       nativeCssOriginal_AddInstalled(&gift.id);
+        const NativeContentId empty{};
+        if (gift.kind == NativeNetplayGift_Costume &&
+            std::memcmp(&gift.added_fighter, &empty, sizeof(empty)))
+            nativeCssOriginal_AddInstalled(&gift.added_fighter);
         nativeShellCssOriginal_RefreshInstalledFighters();
         reload_catalog();
         nativeHub_Notice(

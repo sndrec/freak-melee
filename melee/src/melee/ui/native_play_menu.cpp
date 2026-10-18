@@ -216,6 +216,9 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         } else if (outgoing.state == NativeNetplayGift_Sending) {
             std::snprintf(menu.status, sizeof(menu.status), "Sending %s...",
                           outgoing.title);
+        } else if (outgoing.state == NativeNetplayGift_AwaitingReceipt) {
+            std::snprintf(menu.status, sizeof(menu.status), "Waiting for %s to install...",
+                          outgoing.title);
         }
     }
     if (*nativeHub_NoticeText()) {
@@ -235,18 +238,22 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
          menu.gift.state == NativeNetplayGift_Receiving))
     {
         float y = practice ? 44 : 99;
+        const NativeContentId empty{};
+        bool includes_fighter = std::memcmp(&menu.gift.dependency_id, &empty, sizeof(empty)) != 0;
         std::snprintf(menu.delivery, sizeof(menu.delivery), "%s",
                       menu.gift.state == NativeNetplayGift_Offered
-                          ? "Fighter delivery"
-                          : "Receiving fighter...");
+                          ? (menu.gift.kind == NativeNetplayGift_Costume
+                             ? (includes_fighter ? "Outfit + fighter delivery" : "Outfit delivery")
+                             : "Fighter delivery")
+                          : "Receiving delivery...");
         if (menu.gift.state == NativeNetplayGift_Offered) {
-            add("play-accept", "Accept fighter", 375, y + 49, 139, 21,
+            add("play-accept", menu.gift.kind == NativeNetplayGift_Costume ? "Accept outfit" : "Accept fighter", 375, y + 49, 139, 21,
                 Action::Accept, true, true);
             add("play-decline", "No thanks", 522, y + 49, 94, 21,
                 Action::Decline);
         } else if (menu.gift.bytes_total) {
             std::snprintf(menu.delivery, sizeof(menu.delivery),
-                          "Receiving fighter... %u%%",
+                          "Receiving delivery... %u%%",
                           unsigned(uint64_t(menu.gift.bytes_done) * 100 /
                                    menu.gift.bytes_total));
         }

@@ -203,6 +203,8 @@ void update_gift_status()
                        std::to_string(percent) + "%";
         } else if (gift.state == NativeNetplayGift_Sent) {
             outgoing = title + " sent to " + recipient;
+        } else if (gift.state == NativeNetplayGift_AwaitingReceipt) {
+            outgoing = "Waiting for " + recipient + " to install " + title;
         } else if (gift.state == NativeNetplayGift_Declined) {
             outgoing = recipient + " declined " + title;
         } else if (gift.state == NativeNetplayGift_Failed) {

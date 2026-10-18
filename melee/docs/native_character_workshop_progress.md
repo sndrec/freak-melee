@@ -83,7 +83,7 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 2. Rest-edit acceptance for rigid attachments and skinned polygons.
 3. Source-aware reimport retaining deliberate project edits.
 4. Wider painting support and storage suitable for useful imported models.
-5. Missing-parent outfit delivery and remaining room/release acceptance in
+5. Current match setup with coordinated outfits and remaining room/release acceptance in
    the project plan. Source-only single/paired fighter delivery and independent
    recipient editing now have [current evidence](native_family_content_checkpoint.md).
 
