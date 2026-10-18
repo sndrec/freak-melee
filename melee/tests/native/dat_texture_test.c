@@ -49,7 +49,8 @@ void test_dat_textures(void)
     memset(data + 192, 0x6A, 32);
     memcpy(original, file, sizeof(file));
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK, "Texture fixture rejected");
-    require(HSD_DatDecodeImage(&dat, 0, &image) == HSD_DAT_OK &&
+    size_t image_bytes = 99;
+    require(HSD_DatDecodeImage(&dat, 0, &image, &image_bytes) == HSD_DAT_OK && image_bytes == 128 &&
                 image.image_ptr == data + 64 && image.width == 4 && image.height == 4 &&
                 image.format == GX_TF_RGBA8 && image.mipmap == 1 && image.maxLOD == 1,
             "Native image descriptor conversion failed");
@@ -65,19 +66,19 @@ void test_dat_textures(void)
     require(memcmp(file, original, sizeof(file)) == 0, "Texture bytes were modified");
     put32(data, 240);
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
-                HSD_DatDecodeImage(&dat, 0, &image) == HSD_DAT_DESCRIPTOR &&
-                image.image_ptr == NULL,
+                HSD_DatDecodeImage(&dat, 0, &image, &image_bytes) == HSD_DAT_DESCRIPTOR &&
+                image.image_ptr == NULL && image_bytes == 0,
             "Truncated mip chain accepted or partial native output retained");
     memcpy(file, original, sizeof(file));
     put32(data, 96);
     put32(data + 20, 0x3FC00000); // Fractional LOD 1.5 needs the third level.
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
-                HSD_DatDecodeImage(&dat, 0, &image) == HSD_DAT_DESCRIPTOR,
+                HSD_DatDecodeImage(&dat, 0, &image, NULL) == HSD_DAT_DESCRIPTOR,
             "Fractional LOD did not include the upper mip level");
     memcpy(file, original, sizeof(file));
     put32(data + 8, 0xFFFFFFFF);
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
-                HSD_DatDecodeImage(&dat, 0, &image) == HSD_DAT_DESCRIPTOR,
+                HSD_DatDecodeImage(&dat, 0, &image, NULL) == HSD_DAT_DESCRIPTOR,
             "Unknown texture format accepted");
     puts("Native image, palette and LOD conversion passed");
 }

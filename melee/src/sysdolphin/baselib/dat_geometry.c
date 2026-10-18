@@ -36,6 +36,7 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
     const u8* display = polygon->display;
     size_t length = (size_t) polygon->n_display * 32;
     size_t cursor = 0;
+    const HSD_ShapeSetDesc* shape = (polygon->flags & 0x3000) == POBJ_SHAPEANIM ? polygon->u.shape_set : NULL;
     if (length && (!display || !polygon->verts)) return false;
     if (!polygon->verts) return true;
     for (HSD_VtxDescList* v = polygon->verts; v->attr != GX_VA_NULL; ++v) {
@@ -45,7 +46,12 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
         if (v->attr_type == GX_NONE) continue;
         sizes[attr] = element_size(v);
         if (!sizes[attr] || (attr < GX_VA_POS && v->attr_type != GX_DIRECT)) return false;
-        if (v->attr_type != GX_DIRECT && (!v->vertex || !v->stride || v->stride > 255)) return false;
+        const bool generated = shape && (attr == GX_VA_POS || attr == GX_VA_NRM);
+        if (generated) {
+            // setupShapeAnimArrayDesc skips these arrays. Shape drawing reads
+            // indices into the regenerated vertex/normal scratch prefixes.
+            if (v->attr_type != GX_INDEX8 && v->attr_type != GX_INDEX16) return false;
+        } else if (v->attr_type != GX_DIRECT && (!v->vertex || !v->stride || v->stride > 255)) return false;
     }
     while (cursor < length) {
         u8 command = display[cursor++];
@@ -59,7 +65,8 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
             for (u32 attr = 0; attr <= GX_VA_TEX7; ++attr) {
                 HSD_VtxDescList* v = ordered[attr];
                 if (!v || v->attr_type == GX_NONE) continue;
-                bool nbt3 = attr == GX_VA_NRM && v->comp_cnt == GX_NRM_NBT3;
+                bool generated = shape && (attr == GX_VA_POS || attr == GX_VA_NRM);
+                bool nbt3 = !generated && attr == GX_VA_NRM && v->comp_cnt == GX_NRM_NBT3;
                 u32 repeats = nbt3 ? 3 : 1;
                 u32 width = v->attr_type == GX_DIRECT ? sizes[attr] : v->attr_type == GX_INDEX8 ? 1 : 2;
                 if (length - cursor < (size_t) width * repeats) return false;
@@ -67,15 +74,63 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
                     if (v->attr_type != GX_DIRECT) {
                         u32 index = display[cursor];
                         if (width == 2) index = index << 8 | display[cursor + 1];
-                        size_t extent = (size_t) index * v->stride + sizes[attr];
-                        size_t base = (const u8*) v->vertex - import->dat->data;
-                        if (base > import->dat->data_size || extent > import->dat->data_size - base) return false;
-                        if (extent > v->vertex_size) v->vertex_size = (u32) extent;
+                        if (generated) {
+                            const s32 limit = attr == GX_VA_POS ? shape->nb_vertex_index : shape->nb_normal_index;
+                            if (limit <= 0 || index >= (u32)limit) return false;
+                        } else {
+                            size_t extent = (size_t) index * v->stride + sizes[attr];
+                            size_t base = (const u8*) v->vertex - import->dat->data;
+                            if (base > import->dat->data_size || extent > import->dat->data_size - base) return false;
+                            if (extent > v->vertex_size) v->vertex_size = (u32) extent;
+                        }
                     }
                     cursor += width;
                 }
             }
         }
     }
+    for (u32 attr = 0; attr <= GX_VA_TEX7; ++attr) {
+        const HSD_VtxDescList* v = ordered[attr];
+        if (v && !(shape && (attr == GX_VA_POS || attr == GX_VA_NRM)) && v->attr_type > GX_DIRECT && v->vertex_size)
+            HSD_DatImportSource(import, (u32)((const u8*)v->vertex - import->dat->data), v->vertex_size, 0);
+    }
     return true;
+}
+
+static bool shape_attribute(HSD_DatImport* import, HSD_VtxDescList* desc,
+                              u8** indices, s32 count, u32 shapes, bool normal)
+{
+    if (count == 0) return true;
+    if (count < 0 || !desc || !indices || !desc->vertex || !desc->stride ||
+        (desc->attr_type != GX_INDEX8 && desc->attr_type != GX_INDEX16)) return false;
+    if (normal ? (desc->attr != GX_VA_NRM && desc->attr != GX_VA_NBT) : desc->attr != GX_VA_POS) return false;
+    if ((u32)desc->comp_type > GX_F32 || desc->comp_cnt != (normal ? GX_NRM_XYZ : GX_POS_XYZ)) return false;
+    const u32 scalar = desc->comp_type <= GX_S8 ? 1 : desc->comp_type <= GX_S16 ? 2 :
+                       desc->comp_type == GX_F32 ? 4 : 0;
+    if (!scalar) return false;
+    const size_t width = (desc->attr == GX_VA_NBT ? 9 : 3) * scalar;
+    size_t extent = 0;
+    const size_t base = (const u8*)desc->vertex - import->dat->data;
+    if (base > import->dat->data_size) return false;
+    for (u32 shape = 0; shape < shapes; ++shape) {
+        if (!indices[shape]) return false;
+        for (s32 i = 0; i < count; ++i) {
+            const u8* p = indices[shape] + (size_t)i * (desc->attr_type == GX_INDEX8 ? 1 : 2);
+            const u32 index = desc->attr_type == GX_INDEX8 ? p[0] : (u32)p[0] << 8 | p[1];
+            const size_t end = (size_t)index * desc->stride + width;
+            if (end > import->dat->data_size - base) return false;
+            if (end > extent) extent = end;
+        }
+    }
+    HSD_DatImportSource(import, (u32)base, extent, 0);
+    return true;
+}
+
+bool HSD_DatValidateShape(HSD_DatImport* import, HSD_ShapeSetDesc* shape)
+{
+    const u32 count = shape->nb_shape + ((shape->flags & SHAPESET_ADDITIVE) != 0);
+    return shape_attribute(import, shape->vertex_desc, shape->vertex_idx_list,
+                              shape->nb_vertex_index, count, false) &&
+           shape_attribute(import, shape->normal_desc, shape->normal_idx_list,
+                              shape->nb_normal_index, count, true);
 }

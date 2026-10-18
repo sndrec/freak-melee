@@ -1,5 +1,6 @@
 #include "native_fighter_skin_mesh.h"
 #include "native_asset_dat.h"
+#include "native_fighter_costume_compact.h"
 extern "C" {
 #include <melee/ft/ftcostume_assets.h>
 #include <sysdolphin/baselib/jobj.h>
@@ -254,9 +255,10 @@ bool nativeFighterSkin_Paint(NativeFighterProject* project, unsigned mesh, unsig
     NativeAssetDat dat;
     std::vector<u8> converted;
     if (!dat.open(project->costume_dat, project->costume_size) || !nativeSkinMesh_Write(dat, model, mesh, skin) ||
-        !dat.finish(&converted)) {
+        !dat.finish(&converted, UINT32_MAX)) {
         fail(error, error_size, "Could not rebuild this mesh's weights and vertex attributes."); return false;
     }
+    if (!nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size)) return false;
     std::vector<u8> arena(FT_COSTUME_IMPORT_ARENA_SIZE);
     FtCostumeAssets imported;
     if (!ftCostumeAssets_Import(converted.data(), converted.size(), model.root_name, nullptr,

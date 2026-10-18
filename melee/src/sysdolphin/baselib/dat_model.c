@@ -45,6 +45,7 @@ static HSD_RvalueList* import_rvalue_list(HSD_DatImport* import, u32 slot)
         import->error_offset = source;
         return NULL;
     }
+    HSD_DatImportSource(import, source, (size_t)(count + 1) * 8, 0);
     for (u32 i = 0; i < count; ++i) {
         u32 joint;
         HSD_DatReadU32(import->dat, source + i * 8, &output[i].flags);
@@ -119,6 +120,7 @@ static u8* import_bytecode(HSD_DatImport* import, u32 slot)
         return NULL;
     }
     memcpy(output, input, size);
+    HSD_DatImportSource(import, source, size, 0);
     return output;
 }
 
@@ -153,6 +155,7 @@ static f32* import_float_array(HSD_DatImport* import, u32 slot, u32 count,
             return NULL;
         }
     }
+    HSD_DatImportSource(import, offset, (size_t)count * sizeof(f32), 0);
     return output;
 }
 
@@ -186,6 +189,7 @@ static u8** import_shape_index_table(HSD_DatImport* import, u32 slot,
         import->error_offset = slot;
         return NULL;
     }
+    HSD_DatImportSource(import, table_offset, (size_t)shape_count * 4, 0);
     u8** table = HSD_DatImportAlloc(import, (size_t) shape_count * sizeof(*table));
     if (table == NULL) {
         import->error_offset = slot;
@@ -208,6 +212,7 @@ static u8** import_shape_index_table(HSD_DatImport* import, u32 slot,
             import->external_symbol = external;
             return NULL;
         }
+        HSD_DatImportSource(import, data_offset, byte_count, 0);
     }
     return table;
 }

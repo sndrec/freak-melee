@@ -51,6 +51,11 @@ typedef struct HSD_DatImport {
     HSD_DatResult status;
     u32 error_offset;
     const char* external_symbol;
+    // Optional authoring inspection, supplied after Init. Called for complete
+    // serialized records and payload ranges used by the imported graph.
+    // Type is HSD_DatImportType for records, zero for raw payloads.
+    void (*source_range)(void* context, u32 offset, size_t size, u32 type);
+    void* source_context;
 } HSD_DatImport;
 
 // Uses only caller-owned memory. Arena and DAT bytes outlive all returned

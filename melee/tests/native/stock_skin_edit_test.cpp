@@ -1,7 +1,9 @@
 #include <melee/ft/native_fighter_skin_mesh.h>
 #include <melee/ft/native_asset_dat.h>
+#include <melee/ft/native_fighter_costume_compact.h>
 extern "C" {
 #include <melee/ft/ftcostume_assets.h>
+#include <sysdolphin/baselib/dat_texture.h>
 }
 #include <cmath>
 #include <cstdio>
@@ -18,6 +20,83 @@ void check(bool value, const char* label, unsigned line = __builtin_LINE())
     if (!value) throw std::runtime_error(std::string(label) + " at line " + std::to_string(line));
 }
 bool close(float a, float b) { return std::isfinite(a) && std::isfinite(b) && std::fabs(a-b) < 0.00001f; }
+bool remap(const NativeCostumeCompaction& stats, u32 source, size_t size, u32* result)
+{
+    auto at = std::upper_bound(stats.ranges.begin(), stats.ranges.end(), source,
+        [](u32 source, const auto& range) { return source < range.source; });
+    if (at == stats.ranges.begin()) return false;
+    --at;
+    if (source < at->source || source-at->source >= at->size || size > at->size-(source-at->source)) return false;
+    *result = at->destination + (source-at->source); return true;
+}
+void compact_payloads(const std::vector<u8>& original, const std::vector<u8>& result,
+                       const NativeCostumeCompaction& stats, const char* main_root)
+{
+    HSD_Dat a, b;
+    check(HSD_DatOpen(&a, original.data(), original.size()) == HSD_DAT_OK, "uncompacted archive");
+    check(HSD_DatOpen(&b, result.data(), result.size()) == HSD_DAT_OK, "compacted archive");
+    std::vector<u32> pointers;
+    for (u32 i = 0; i < a.relocation_count; ++i) {
+        u32 slot, target, new_slot, new_target, actual; const char* external;
+        HSD_DatRelocation(&a, i, &slot);
+        if (!remap(stats, slot, 1, &new_slot)) continue;
+        check(remap(stats, slot, 4, &new_slot), "whole pointer field");
+        check(HSD_DatReadU32(&a, slot, &target) && remap(stats, target, 1, &new_target), "pointer target");
+        check(HSD_DatResolve(&b, new_slot, &actual, &external) == HSD_DAT_REF_LOCAL && actual == new_target,
+              "relocated pointer/alias");
+        pointers.push_back(slot);
+    }
+    std::sort(pointers.begin(), pointers.end());
+    for (const auto& range : stats.ranges) {
+        auto pointer = std::lower_bound(pointers.begin(), pointers.end(), range.source);
+        for (u32 i = 0; i < range.size;) {
+            if (pointer != pointers.end() && *pointer == range.source+i) { i += 4; ++pointer; continue; }
+            check(a.data[range.source+i] == b.data[range.destination+i], "unchanged non-pointer bytes"); ++i;
+        }
+    }
+    auto payload = [&](const void* data, size_t size, const char* label) {
+        if (!size) return;
+        const size_t source = (const u8*)data-a.data;
+        u32 destination;
+        check(source < a.data_size && remap(stats, (u32)source, size, &destination), label);
+        const u8* bytes = HSD_DatBytes(&b, destination, size);
+        check(bytes && std::memcmp(data, bytes, size) == 0, label);
+    };
+    std::vector<u8> arena(FT_COSTUME_IMPORT_ARENA_SIZE);
+    for (u32 i = 0; i < a.root_count; ++i) {
+        u32 offset, after_offset, expected; const char* name;
+        check(HSD_DatSymbol(&a, false, i, &offset, &name), "original root symbol");
+        check(remap(stats, offset, 1, &expected) && HSD_DatFindRoot(&b, name, &after_offset) &&
+              after_offset == expected, "root symbol identity");
+        HSD_DatImportType type = DAT_JOINT;
+        const std::string symbol(name);
+        if (symbol.size() >= 14 && symbol.compare(symbol.size()-14, 14, "_matanim_joint") == 0) type = DAT_MATANIM_JOINT;
+        else if (symbol.size() >= 11 && symbol.compare(symbol.size()-11, 11, "_anim_joint") == 0 && symbol != main_root) type = DAT_ANIMJOINT;
+        HSD_DatImport graph;
+        check(HSD_DatImportInit(&graph, &a, arena.data(), arena.size(), FT_COSTUME_IMPORT_RECORD_CAPACITY) == HSD_DAT_OK,
+              "independent payload graph");
+        check(HSD_DatImportGraph(&graph, offset, type) != nullptr, "independent original graph");
+        for (u32 record = 0; record < graph.record_count; ++record) {
+            const auto& node = graph.records[record];
+            if (node.type == DAT_IMAGE) {
+                HSD_ImageDesc image; size_t bytes;
+                check(HSD_DatDecodeImage(&a, node.offset, &image, &bytes) == HSD_DAT_OK, "image extent");
+                payload(image.image_ptr, bytes, "all texture pixels and mip levels");
+            } else if (node.type == DAT_PALETTE) {
+                const auto* palette = static_cast<const HSD_TlutDesc*>(node.object);
+                payload(palette->lut, size_t(palette->n_entries)*2, "all palette entries");
+            } else if (node.type == DAT_FOBJ) {
+                const auto* fobj = static_cast<const HSD_FObjDesc*>(node.object);
+                payload(fobj->ad, fobj->length, "complete compressed animation stream");
+            } else if (node.type == DAT_VTXDESC) {
+                const auto* attrs = static_cast<const HSD_VtxDescList*>(node.object);
+                for (u32 attr = 0; attr < node.count && attrs[attr].attr != GX_VA_NULL; ++attr)
+                    if (attrs[attr].attr_type > GX_DIRECT)
+                        payload(attrs[attr].vertex, attrs[attr].vertex_size, "rendered indexed vertex buffer");
+            }
+        }
+    }
+}
 std::vector<u8> extras(const HSD_Dat& dat, const NativeSkinPart& part, const NativeSkinCorner& corner)
 {
     std::vector<u8> bytes;
@@ -124,12 +203,94 @@ void zero_reference(const std::vector<u8>& bytes)
     }
 }
 
+void opaque_cases()
+{
+    std::vector<u8> file(164, 0);
+    auto word = [&](size_t at, u32 value) { NativeAssetDat::be32(file.data()+at, value); };
+    word(0, (u32)file.size()); word(4, 108); word(8, 3); word(12, 1);
+    word(32+16, 64); word(32+64+8, 80); word(32+80+16, 104);
+    word(32+108, 16); word(32+112, 72); word(32+116, 96);
+    std::memcpy(file.data()+32+104, "keep", 4);
+    std::memcpy(file.data()+160, "rig", 4);
+    NativeFighterProject project = {};
+    std::snprintf(project.facts.costume_joint, sizeof(project.facts.costume_joint), "rig");
+    NativeCostumeCompaction stats;
+    const auto original = file;
+    check(nativeFighterCostume_Compact(&project, &file, &stats, nullptr, 0) && !stats.supported &&
+          file == original && std::strstr(stats.reason, "Untraced"), "opaque legacy data retained");
+    std::memcpy(file.data()+160, "raw", 4);
+    const auto unknown = file;
+    check(nativeFighterCostume_Compact(&project, &file, &stats, nullptr, 0) && !stats.supported &&
+          file == unknown && std::strstr(stats.reason, "Unknown"), "unknown root retained");
+    file = original; word(32+16, 109);
+    const auto invalid = file;
+    check(!nativeFighterCostume_Compact(&project, &file, &stats, nullptr, 0) && file == invalid,
+          "invalid source fails atomically");
+    file.assign(175, 0);
+    word(0, (u32)file.size()); word(4, 108); word(8, 2); word(12, 1); word(16, 1);
+    word(32+16, 64); word(32+64+8, 80); word(32+80+16, UINT32_MAX);
+    word(140, 16); word(144, 72); word(156, 96); word(160, 4);
+    std::memcpy(file.data()+164, "rig\0shared", 11);
+    const auto external = file;
+    check(nativeFighterCostume_Compact(&project, &file, &stats, nullptr, 0) && !stats.supported &&
+          file == external && std::strstr(stats.reason, "external"), "external chain retained");
+}
+
+size_t stress_edits(const NativeFighterProject& original, unsigned iterations)
+{
+    if (!iterations) return 0;
+    check(iterations >= 32 && iterations <= 10000, "stress iteration count");
+    auto model = std::make_unique<NativeFighterModelEditor>();
+    check(nativeFighterModel_Open(model.get(), const_cast<NativeFighterProject*>(&original)), "stress model");
+    NativeSkinMesh skin;
+    unsigned mesh = 0, target = model->joint_count;
+    for (; mesh < model->mesh_count; ++mesh) {
+        check(nativeSkinMesh_Read(*model, mesh, &skin, nullptr, 0), "stress source");
+        if (skin.vertices.size() < 4) continue;
+        for (target = 0; target < model->joint_count; ++target) {
+            float inverse[3][4];
+            if ((model->joints[target].flags & 1) && nativeSkinMesh_InverseBind(*model, target, inverse) &&
+                nativeSkinWeights_Get(&skin.vertices[0].skin, (u16)target) == 0) break;
+        }
+        if (target < model->joint_count) break;
+    }
+    check(mesh < model->mesh_count, "stress mesh and alternate bone");
+    NativeFighterProject edited = original;
+    edited.costume_dat = (u8*)std::malloc(original.costume_size);
+    check(edited.costume_dat != nullptr, "stress costume copy");
+    std::memcpy(edited.costume_dat, original.costume_dat, original.costume_size);
+    NativeSkinBrushPoint point;
+    std::memcpy(point.position, skin.vertices[0].position, sizeof(point.position));
+    size_t warmup_max = 0, maximum = 0;
+    for (unsigned i = 0; i < iterations; ++i) {
+        unsigned affected; char error[192] = {};
+        check(nativeFighterSkin_Paint(&edited, mesh, target, &point, 1, .01f, .2f, (i&1) != 0,
+                                       &affected, error, sizeof(error)), error);
+        check(affected > 0, "stress stroke changes weights");
+        maximum = std::max(maximum, edited.costume_size);
+        if (i < 16) warmup_max = std::max(warmup_max, edited.costume_size);
+        else check(edited.costume_size <= warmup_max, "storage stays bounded after warmup");
+        auto current = std::make_unique<NativeFighterModelEditor>();
+        check(nativeFighterModel_Open(current.get(), &edited), "stress edited model");
+        NativeSkinMesh now;
+        check(nativeSkinMesh_Read(*current, mesh, &now, nullptr, 0), "stress edited weights");
+        check(close(nativeSkinWeights_Get(&now.vertices[0].skin, (u16)target), i&1 ? 0 : .2f), "stress saved strength");
+        for (unsigned joint = 0; joint < model->joint_count; ++joint)
+            check(model->joints[joint].offset == current->joints[joint].offset, "stress bone identity");
+    }
+    std::printf("STRESS: iterations=%u original=%zu max=%zu final=%zu warmup_max=%zu\n",
+                 iterations, original.costume_size, maximum, edited.costume_size, warmup_max);
+    std::free(edited.costume_dat);
+    return maximum;
+}
+
 }
 
 int main(int argc, char** argv)
 {
     try {
-        check(argc == 3 || argc == 4, "Usage: stock_skin_edit_test costume.dat root [roundtrip.dat]");
+        check(argc >= 3 && argc <= 5, "Usage: stock_skin_edit_test costume.dat root [roundtrip.dat [stress-count]]");
+        opaque_cases();
         FILE* file = std::fopen(argv[1], "rb"); check(file != nullptr, "open costume");
         std::fseek(file, 0, SEEK_END); const long size = std::ftell(file); std::rewind(file);
         check(size > 0, "costume size");
@@ -153,7 +314,16 @@ int main(int argc, char** argv)
         }
         std::vector<u8> result;
         check(transaction.finish(&result), "archive round trip");
-        if (argc == 4) {
+        const auto uncompacted = result;
+        NativeCostumeCompaction compaction;
+        char compact_error[192] = {};
+        check(nativeFighterCostume_Compact(&project, &result, &compaction, compact_error, sizeof(compact_error)), compact_error);
+        if (!compaction.supported) throw std::runtime_error(std::string("compaction unsupported: ") + compaction.reason);
+        compact_payloads(uncompacted, result, compaction, argv[2]);
+        const auto once = result;
+        check(nativeFighterCostume_Compact(&project, &result, nullptr, compact_error, sizeof(compact_error)), "second compaction");
+        check(result == once, "idempotent compaction");
+        if (argc >= 4) {
             file = std::fopen(argv[3], "wb"); check(file != nullptr, "open result");
             check(std::fwrite(result.data(), 1, result.size(), file) == result.size(), "write result"); std::fclose(file);
         }
@@ -169,6 +339,10 @@ int main(int argc, char** argv)
         check(nativeFighterModel_Open(after.get(), &rewritten), "rewritten model");
         check(before->mesh_count == after->mesh_count && before->joint_count == after->joint_count &&
               before->material_count == after->material_count, "rig and material counts");
+        for (unsigned i = 0; i < before->joint_count; ++i)
+            check(before->joints[i].offset == after->joints[i].offset, "stable bone identity");
+        for (unsigned i = 0; i < before->material_count; ++i)
+            check(before->materials[i].offset == after->materials[i].offset, "stable material identity");
         for (unsigned mesh = 0; mesh < before->mesh_count; ++mesh) {
             check(before->meshes[mesh].offset == after->meshes[mesh].offset &&
                   before->meshes[mesh].joint == after->meshes[mesh].joint &&
@@ -179,8 +353,13 @@ int main(int argc, char** argv)
             compare(*before, old, *after, now);
         }
         const unsigned brush_cases = paint_cases(project, *before);
-        std::printf("PASS: meshes=%u checks=%u brushes=%u original=%zu rewritten=%zu\n",
-                     before->mesh_count, checks, brush_cases, source.size(), result.size());
+        if (argc == 5) {
+            char* end; const unsigned count = (unsigned)std::strtoul(argv[4], &end, 10);
+            check(*end == 0, "stress count");
+            stress_edits(project, count);
+        }
+        std::printf("PASS: meshes=%u checks=%u brushes=%u original=%zu rewritten=%zu compact_before=%zu compact_after=%zu pinned=%zu\n",
+                     before->mesh_count, checks, brush_cases, source.size(), result.size(), compaction.before, compaction.after, compaction.pinned);
         return 0;
     } catch (const std::exception& error) {
         std::fprintf(stderr, "FAIL: %s\n", error.what()); return 1;

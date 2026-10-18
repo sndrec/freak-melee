@@ -1,10 +1,12 @@
 #include "native_fighter_model_editor.h"
 #include "native_asset_dat.h"
+#include "native_fighter_costume_compact.h"
 
 extern "C" {
 #include <sysdolphin/baselib/mtx.h>
 }
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 
@@ -621,7 +623,12 @@ bool nativeFighterModel_CompensateRest(NativeFighterModelEditor* editor,
     }
     if (!compensate_meshes(dat, *editor, *old, old_world.get(), new_world.get(), changed)) return false;
     std::vector<u8> result;
-    if (!dat.finish(&result)) return false;
+    if (!dat.finish(&result, UINT32_MAX)) return false;
+    char compact_error[192] = {};
+    if (!nativeFighterCostume_Compact(editor->project, &result, nullptr, compact_error, sizeof(compact_error))) {
+        std::fprintf(stderr, "[workshop-rest] %s\n", compact_error[0] ? compact_error : "Could not preserve the edited costume layout.");
+        return false;
+    }
     auto owned = std::unique_ptr<u8, decltype(&std::free)>((u8*) std::malloc(result.size()), &std::free);
     if (!owned) return false;
     std::memcpy(owned.get(), result.data(), result.size());

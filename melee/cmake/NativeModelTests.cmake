@@ -25,3 +25,11 @@ target_compile_definitions(native_stock_skin_edit_test PRIVATE MELEE_NATIVE=1)
 target_link_libraries(native_stock_skin_edit_test PRIVATE melee_runtime aurora_os
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_stock_skin_edit_test)
+
+add_executable(native_costume_compact_test tests/native/costume_compact_test.cpp)
+target_include_directories(native_costume_compact_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_costume_compact_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_costume_compact_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_costume_compact_test)
+add_test(NAME native_costume_compact COMMAND native_costume_compact_test)

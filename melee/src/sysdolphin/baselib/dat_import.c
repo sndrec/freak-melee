@@ -2,6 +2,11 @@
 
 #include <string.h>
 
+void HSD_DatImportSource(HSD_DatImport* import, u32 offset, size_t size, u32 type)
+{
+    if (import->source_range && size) import->source_range(import->source_context, offset, size, type);
+}
+
 void* HSD_DatImportAlloc(HSD_DatImport* import, size_t size)
 {
     uintptr_t address = (uintptr_t) import->arena + import->arena_used;
@@ -109,6 +114,7 @@ void* HSD_DatImportObject(HSD_DatImport* import, u32 offset, u32 type, u32 count
     record->offset = offset;
     record->type = type;
     record->count = count;
+    HSD_DatImportSource(import, offset, (size_t) source_sizes[type] * count, type);
     import->slots[slot] = ++import->record_count;
     return record->object;
 }
@@ -165,6 +171,7 @@ u8* HSD_DatImportBytes(HSD_DatImport* import, u32 slot, size_t size)
         import->status = HSD_DAT_DESCRIPTOR;
         import->error_offset = slot;
     }
+    if (data) HSD_DatImportSource(import, offset, size, 0);
     return (u8*) data;
 }
 
@@ -206,11 +213,13 @@ char* HSD_DatImportString(HSD_DatImport* import, u32 slot)
         return NULL;
     }
     data = HSD_DatBytes(import->dat, offset, 1);
-    if (data == NULL || memchr(data, 0, import->dat->data_size - offset) == NULL) {
+    const u8* end = data ? memchr(data, 0, import->dat->data_size - offset) : NULL;
+    if (end == NULL) {
         import->status = HSD_DAT_DESCRIPTOR;
         import->error_offset = slot;
         return NULL;
     }
+    HSD_DatImportSource(import, offset, (size_t)(end - data) + 1, 0);
     return (char*) data;
 }
 
@@ -242,6 +251,10 @@ void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType ty
     for (u32 i = 0; i < import->record_count && import->status == HSD_DAT_OK; ++i) {
         HSD_DatImportRecord* record = &import->records[i];
         if (record->type == DAT_POBJ && !HSD_DatValidateGeometry(import, record->object)) {
+            import->status = HSD_DAT_DESCRIPTOR;
+            import->error_offset = record->offset;
+        }
+        if (record->type == DAT_SHAPE_SET && !HSD_DatValidateShape(import, record->object)) {
             import->status = HSD_DAT_DESCRIPTOR;
             import->error_offset = record->offset;
         }

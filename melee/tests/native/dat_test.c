@@ -47,7 +47,7 @@ static void inspect_file(const char* path, bool decode_image, HSD_DatImportType 
            path, dat.data_size, dat.relocation_count, dat.root_count, dat.extern_count);
     if (decode_image) {
         HSD_ImageDesc image;
-        require(HSD_DatDecodeImage(&dat, image_offset, &image) == HSD_DAT_OK,
+        require(HSD_DatDecodeImage(&dat, image_offset, &image, NULL) == HSD_DAT_OK,
                 "Original image conversion failed");
         printf("  native image at %08lx: %u x %u, format %u, mipmap %lu, LOD %.2f..%.2f\n",
                image_offset, image.width, image.height, image.format, image.mipmap,

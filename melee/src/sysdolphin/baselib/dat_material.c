@@ -74,12 +74,21 @@ void HSD_DatDecodeMaterialRecord(HSD_DatImport* import,
         HSD_DatReadU32(dat, offset + 28, &obj->active);
         break;
     }
-    case DAT_IMAGE:
-        status = HSD_DatDecodeImage(dat, offset, record->object);
+    case DAT_IMAGE: {
+        size_t bytes;
+        HSD_ImageDesc* obj = record->object;
+        status = HSD_DatDecodeImage(dat, offset, obj, &bytes);
+        if (status == HSD_DAT_OK)
+            HSD_DatImportSource(import, (u32)((const u8*)obj->image_ptr - dat->data), bytes, 0);
         break;
-    case DAT_PALETTE:
-        status = HSD_DatDecodePalette(dat, offset, record->object);
+    }
+    case DAT_PALETTE: {
+        HSD_TlutDesc* obj = record->object;
+        status = HSD_DatDecodePalette(dat, offset, obj);
+        if (status == HSD_DAT_OK)
+            HSD_DatImportSource(import, (u32)((const u8*)obj->lut - dat->data), (size_t)obj->n_entries * 2, 0);
         break;
+    }
     case DAT_LOD:
         status = HSD_DatDecodeLOD(dat, offset, record->object);
         break;

@@ -225,8 +225,24 @@ std::vector<double> geometry(const NativeFighterModelEditor& e) {
     }
     return result;
 }
+void retained_meshes(const NativeFighterModelEditor& model, const Fixture& source) {
+    check(model.mesh_count == 2);
+    for (unsigned mesh = 0; mesh < 2; ++mesh) {
+        check(model.meshes[mesh].offset == source.mesh[mesh]);
+        u32 polygon = NativeAssetDat::read32(model.dat.data + model.meshes[mesh].offset + 12);
+        for (unsigned part = 0; part < 2; ++part) {
+            u16 flags;
+            check(HSD_DatReadU16(&model.dat, polygon + 12, &flags));
+            const u8* old = source.file.data()+32+source.polygon[part]+12;
+            check(flags == (u16(old[0]) << 8 | old[1]));
+            polygon = NativeAssetDat::read32(model.dat.data + polygon + 4);
+            check(part ? polygon == 0 : polygon != 0);
+        }
+    }
+}
 void run(unsigned format,unsigned indexing,unsigned nbt,bool xy,unsigned edited,unsigned channel,bool envelope) {
     Fixture f=fixture(format,indexing,nbt,xy,envelope);
+    const auto immutable = f.file;
     NativeFighterProject project={};std::strcpy(project.facts.costume_joint,"rig");
     project.costume_dat=(u8*)std::malloc(f.file.size());project.costume_size=f.file.size();std::memcpy(project.costume_dat,f.file.data(),f.file.size());
     auto e=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(e.get(),&project));
@@ -247,15 +263,19 @@ void run(unsigned format,unsigned indexing,unsigned nbt,bool xy,unsigned edited,
         for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)check(std::fabs(current[r][c]-skin_before[j][r][c])<.0001);
     }
     for(unsigned i=0;i<before.size();++i)check(std::fabs(before[i]-after[i])<.0001);
-    // The shared original polygon/vertex storage was never modified.
-    for(u32 p:f.polygon)check(!std::memcmp(project.costume_dat+32+p,f.file.data()+32+p,24));
-    if(edited==1)check(NativeAssetDat::read32(project.costume_dat+32+f.bones[0]+56)==f.bind);
+    // Unreachable storage may be reclaimed. Check the immutable source and
+    // retained mesh identities/flags alongside both meshes' geometry above.
+    check(f.file == immutable); retained_meshes(*e, f);
+    if(edited==1)check(NativeAssetDat::read32(e->dat.data+f.bones[0]+56)!=
+                       NativeAssetDat::read32(e->dat.data+f.bones[1]+56));
     check(nativeFighterModel_Open(e.get(),&project));check(geometry(*e)==after);
     std::free(project.costume_dat);
 }
 Fixture shape_fixture(unsigned format, unsigned indexing, unsigned normals, bool additive) {
     Fixture f=fixture(4,3,0,false,false);
     NativeAssetDat d;check(d.open(f.file.data(),f.file.size()));
+    const u32 original_attrs = NativeAssetDat::read32(d.data.data()+f.polygon[0]+8);
+    const u32 uv_array = NativeAssetDat::read32(d.data.data()+original_attrs+20);
     auto real=[&](u32 at,float v){u32 bits;std::memcpy(&bits,&v,4);d.word(at,bits);};
     const unsigned width=format<2?1:format<4?2:4;
     auto scalar=[&](u32 at,float v){if(format==4)real(at,v);else if(width==1)d.data[at]=(u8)std::lround(v*4);else d.half(at,(u16)std::lround(v*4));};
@@ -282,7 +302,8 @@ Fixture shape_fixture(unsigned format, unsigned indexing, unsigned normals, bool
     std::vector<unsigned> ids={0,9};if(normals)ids.push_back(normals==2?25:10);ids.push_back(11);ids.push_back(13);
     for(unsigned i=0;i<ids.size();++i){u32 at=attrs+i*24;d.word(at,ids[i]);
         d.word(at+4,ids[i]==0||ids[i]==11?1:indexing);d.word(at+8,ids[i]==9||ids[i]==13?1:0);
-        d.word(at+12,ids[i]==11?5:4);}
+        d.word(at+12,ids[i]==11?5:4);
+        if(ids[i]==13){d.half(at+18,8);d.link_local(at+20,uv_array);}}
     d.word(attrs+(u32)ids.size()*24,255);
     std::vector<u8> commands={0x90,0,3};
     for(unsigned i=0;i<3;++i){commands.push_back(0);
@@ -345,14 +366,17 @@ void import_shapes(const NativeFighterModelEditor& e){
 }
 void run_shape(unsigned format,unsigned indexing,unsigned normals,bool additive,unsigned edited,unsigned channel){
     Fixture f=shape_fixture(format,indexing,normals,additive);
+    const auto immutable = f.file;
     NativeFighterProject p={};std::strcpy(p.facts.costume_joint,"rig");p.costume_size=f.file.size();p.costume_dat=(u8*)std::malloc(p.costume_size);std::memcpy(p.costume_dat,f.file.data(),p.costume_size);
     auto e=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(e.get(),&p));import_shapes(*e);const auto before=shape_geometry(*e);
     check(nativeFighterModel_SetJoint(e.get(),edited,channel,channel==1?0:2,channel==0?.73f:channel==1?1.7f:8.25f));
-    check(nativeFighterModel_CompensateRest(e.get(),f.file.data(),f.file.size(),edited));
+    const bool compensated = nativeFighterModel_CompensateRest(e.get(),f.file.data(),f.file.size(),edited);
+    if(!compensated) std::fprintf(stderr,"shape format=%u indexing=%u normals=%u additive=%u edited=%u channel=%u\n",
+                                  format,indexing,normals,additive,edited,channel);
+    check(compensated);
     import_shapes(*e);const auto after=shape_geometry(*e);check(before.size()==after.size());
     for(unsigned i=0;i<before.size();++i)check(std::fabs(before[i]-after[i])<.0001);
-    for(u32 polygon:f.polygon)check(!std::memcmp(p.costume_dat+32+polygon,f.file.data()+32+polygon,24));
-    if(edited==1)check(NativeAssetDat::read32(p.costume_dat+32+f.mesh[0]+12)==f.polygon[0]);
+    check(f.file == immutable); retained_meshes(*e, f);
     check(nativeFighterModel_Open(e.get(),&p));check(shape_geometry(*e)==after);std::free(p.costume_dat);
 }
 void shape_rejection(unsigned fault){
