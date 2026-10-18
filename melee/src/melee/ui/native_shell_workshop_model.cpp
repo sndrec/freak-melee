@@ -6,6 +6,7 @@
 #include "native_shell_workshop_skinning.h"
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_material_animation.h>
+#include <melee/ft/native_fighter_core_asset_state.h>
 
 #ifdef MELEE_NATIVE
 
@@ -53,6 +54,7 @@ struct Change {
     bool labels_saved = false;
     std::vector<uint8_t> before_labels, after_labels;
     std::vector<uint8_t> before_fighter,after_fighter;
+    uint64_t rig_revision = 0;
 };
 
 struct ModelSession {
@@ -80,7 +82,7 @@ struct ModelSession {
     bool pose_changed[NATIVE_MODEL_MAX_JOINTS] = {};
     std::vector<Change> changes;
     size_t change_cursor = 0;
-    std::vector<uint8_t> saved_costume;
+    NativeFighterCoreAssetState saved_assets;
     char import_path[MAX_PATH] = {};
     NativeGltfScan import_scan = {};
     bool import_selected[NATIVE_GLTF_MAX_PRIMITIVES] = {};
@@ -194,6 +196,7 @@ void record(uint32_t offset, unsigned count, const uint8_t before[4])
         offset > active->project->costume_size ||
         count > active->project->costume_size - offset) return;
     Change change = {};
+    change.rig_revision = active->project->rig_edit_revision;
     change.offset = offset;
     change.count = (uint8_t) count;
     std::memcpy(change.before, before, count);
@@ -215,6 +218,7 @@ void record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>&
         std::memcmp(before.data(), active->project->costume_dat,
                     before.size()) == 0) return;
     Change change = {};
+    change.rig_revision = active->project->rig_edit_revision;
     change.before_asset = before;
     change.after_asset.assign(active->project->costume_dat,
                               active->project->costume_dat + active->project->costume_size);
@@ -253,6 +257,7 @@ void record_label_change(const std::vector<uint8_t>& before, bool asset)
         active->change_cursor = active->changes.size();
     }
     auto& change = active->changes.back();
+    change.rig_revision = active->project->rig_edit_revision;
     change.labels_saved = true;
     change.before_labels = before;
     change.after_labels = label_snapshot();
@@ -1213,8 +1218,7 @@ bool nativeShellWorkshopModel_Open(unsigned member,
         session = ModelSession{};
         session.project = fighter;
         session.selected_joints[0] = true;
-        session.saved_costume.assign(fighter->costume_dat,
-                                     fighter->costume_dat + fighter->costume_size);
+        if(!nativeFighterCoreAssets_Capture(*fighter,session.saved_assets))return false;
         loaded = nativeFighterModel_Open(&session.model, fighter);
         if (loaded) {
             session.selected_mesh = session.model.mesh_count ? 0 : -1;
@@ -1882,9 +1886,7 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member)
     if (member >= 2) return false;
     const ModelSession& session = sessions[member];
     return session.project != nullptr &&
-           (session.saved_costume.size() != session.project->costume_size ||
-            std::memcmp(session.saved_costume.data(), session.project->costume_dat,
-                        session.project->costume_size) != 0);
+           !nativeFighterCoreAssets_Matches(*session.project,session.saved_assets);
 }
 
 void nativeShellWorkshopModel_Inspect()
@@ -1909,8 +1911,7 @@ void nativeShellWorkshopModel_MarkSaved(unsigned member)
     if (member >= 2) return;
     ModelSession& session = sessions[member];
     if (session.project == nullptr) return;
-    session.saved_costume.assign(session.project->costume_dat,
-                                session.project->costume_dat + session.project->costume_size);
+    nativeFighterCoreAssets_Capture(*session.project,session.saved_assets);
 }
 
 bool nativeShellWorkshopModel_Undo(bool redo)
@@ -1919,6 +1920,10 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         (redo ? active->change_cursor == active->changes.size() : active->change_cursor == 0))
         return false;
     const Change& change = active->changes[redo ? active->change_cursor : active->change_cursor - 1];
+    if(change.rig_revision != active->project->rig_edit_revision) {
+        status("Undo the bone edits in Model before restoring this edit.");
+        return false;
+    }
     NativeFighterAuthoring* names = nullptr;
     if(!change.before_fighter.empty() && (change.before_fighter.size()!=change.after_fighter.size()||active->project->fighter_size<change.before_fighter.size()))return false;
     if (change.labels_saved) {

@@ -82,6 +82,7 @@ struct EditHistoryEntry {
     bool label_edit = false, before_hidden = false, after_hidden = false;
     unsigned label_action = 0;
     std::string before_name, after_name;
+    uint64_t rig_revision = 0;
 };
 enum class GraphTool { Move, Box, Rotate, Scale };
 enum class WorkshopMode { Action, Script, Animation, Model };
