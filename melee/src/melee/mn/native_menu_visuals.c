@@ -88,13 +88,13 @@ static void draw(HSD_GObj* object,int pass)
         for (unsigned line = 0; line < line_count; ++line) {
             nativeMenuFont_Draw(p->face,lines[line],p->x+p->w*.03f,
                 p->y-p->h*(name_top+.02f+line*.16f),0,p->w*.94f,p->h*.16f,
-                0xF5EFEAFF,true);
+                0xF5EFEAFF,true,true);
         }
     }
     for(unsigned i=0;i<scene->count;++i) {
         const MenuLabel* label=&scene->labels[i];
         matrix(label->anchor,(float(*)[4])label->inverse);
-        nativeMenuFont_Draw(label->face,label->text,label->x,label->y,label->z,label->width,label->height,label->face==NativeMenuFont_ResultWinner?0xF5CC67FF:0xF5EFEAFF,true);
+        nativeMenuFont_Draw(label->face,label->text,label->x,label->y,label->z,label->width,label->height,label->face==NativeMenuFont_ResultWinner?0xF5CC67FF:0xF5EFEAFF,true,true);
     }
     HSD_StateInvalidate(-1);HSD_StateInitTev();HSD_ClearVtxDesc();
 }

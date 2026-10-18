@@ -768,11 +768,11 @@ void mnEvent_8024E838(int event_idx, int first_time)
     mnEvent_804D6C60 = NULL;
     {
 
-        *(void**) (arr) = mnAssets_Get(base + 0xA0);
-        *(void**) (arr + 1) = mnAssets_Get(base + 0xB8);
-        *(void**) (arr + 2) = mnAssets_Get(base + 0xD4);
-        *(void**) (arr + 3) = mnAssets_Get(base + 0xF4);
-        *(void**) (arr + 4) = mnAssets_Get(base + 0x118);
+        *(void**) (arr) = mnAssets_Get(&main_menu_assets, base + 0xA0);
+        *(void**) (arr + 1) = mnAssets_Get(&main_menu_assets, base + 0xB8);
+        *(void**) (arr + 2) = mnAssets_Get(&main_menu_assets, base + 0xD4);
+        *(void**) (arr + 3) = mnAssets_Get(&main_menu_assets, base + 0xF4);
+        *(void**) (arr + 4) = mnAssets_Get(&main_menu_assets, base + 0x118);
     }
 
     if (first_time == 0) {

@@ -324,10 +324,10 @@ void mnInfoBonus_80252F8C(void)
     o->x44 = 8;
     *mnInfoBonus_804D6C80 = 0;
 
-    o->x50.joint = mnAssets_Get("MenMainConBo_Top_joint");
-    o->x50.animjoint = mnAssets_Get("MenMainConBo_Top_animjoint");
-    o->x50.matanim_joint = mnAssets_Get("MenMainConBo_Top_matanim_joint");
-    o->x50.shapeanim_joint = mnAssets_Get("MenMainConBo_Top_shapeanim_joint");
+    o->x50.joint = mnAssets_Get(&main_menu_assets, "MenMainConBo_Top_joint");
+    o->x50.animjoint = mnAssets_Get(&main_menu_assets, "MenMainConBo_Top_animjoint");
+    o->x50.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConBo_Top_matanim_joint");
+    o->x50.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConBo_Top_shapeanim_joint");
     mnInfoBonus_inline_SetGObjFlag(
         HSD_GObj_SetupProc(GObj_Create(0U, 1U, 0x80U), fn_80252C50, 0U));
 

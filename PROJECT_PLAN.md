@@ -18,8 +18,11 @@ their own builds; their old "remaining" lists are not the current backlog.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;
   do not continue performance experiments without a new request.
-- Current focus: integrate the approved social-hub mockup into the native game.
-  Build the personal roster, cloning, lobby and sharing flows through the game renderer. Follow the
+- Current focus: integrate the social hub by adapting Melee's existing menu
+  scenes, models, textures, materials and authored behavior. The mockup guides
+  layout and flow; it is not a separate interface to reproduce from scratch.
+  Build flexible hub components from edited stock menu assets,
+  retaining the working roster, lobby, sharing and matchmaking logic. Follow the
   [social hub design](melee/docs/native_social_hub_design.md), including the
   mode → CSS → ready practice → countdown flow. Workshop
   dogfooding continues when the user is ready. This document does not change
@@ -110,7 +113,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Fixed-rule Quick Play and rematches have local native evidence. | Quick Play stage-confirmation UI and deployment, lobby browsing, persistent accounts/friends, email-style inbox, invitations and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
+| Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Fixed-rule Quick Play and rematches have local native evidence. | Stock menu-asset integration, contextual typography, deployment, lobby browsing, persistent accounts/friends, email-style inbox, invitations and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
 | Friend release | Complete Workshop payload, fresh-source build, clean extracted-install authoring, setup/update ZIPs, isolated user data, update activation and rollback with data preserved. | Current content tests, friend-PC acceptance and presentation polish. |
 
 ### Fighter evidence
@@ -159,6 +162,25 @@ They do not establish timing on friends' machines. See
 [current rollback architecture](melee/docs/native_rollback_current.md).
 
 ## Required remaining work
+
+### Menu asset integration (current priority)
+
+- [x] Audit the procedural hub against the stock menu construction code and
+  record the user's asset-reuse requirement in the hub specification.
+- [x] Load the actual menu background, frame, navigation, camera and lights,
+  retaining their materials and animations. Use separate hub and retail archive
+  ownership. Preserve ribbon ends while resizing the middle; extract reusable
+  panel borders and apply them to lobby controls. Native scene-return checks
+  pass. See the [menu asset checkpoint](melee/docs/native_menu_assets_checkpoint.md).
+- [ ] Review the adapted controls and carry their source colors, gradients,
+  border proportions and sliced artwork through the remaining hub/CSS pages.
+- [ ] Adapt new labels with typefaces appropriate to each original component.
+  Folk notice text alone does not establish menu-ribbon typography parity.
+- [ ] Move the hub's content through scene anchors/cameras and keep hand hit
+  testing aligned with the edited components, including during transitions.
+- [ ] Recheck CSS/practice/editor scene lifetimes and the working online flows,
+  then obtain the user's visual review. Flow tests do not substitute for
+  asset/style acceptance.
 
 ### 1. Model workspace completion
 

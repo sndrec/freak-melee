@@ -580,10 +580,10 @@ s32 mnInfo_80252758(void)
     mn_804A04F0.cur_menu = 0x1D;
     mn_804A04F0.hovered_selection = 0;
 
-    model->joint = mnAssets_Get(top_joint);
-    *(void**) (animjoint) = mnAssets_Get(layout->top_animjoint);
-    model->matanim_joint = mnAssets_Get(layout->top_matanim_joint);
-    model->shapeanim_joint = mnAssets_Get(layout->top_shapeanim_joint);
+    model->joint = mnAssets_Get(&main_menu_assets, top_joint);
+    *(void**) (animjoint) = mnAssets_Get(&main_menu_assets, layout->top_animjoint);
+    model->matanim_joint = mnAssets_Get(&main_menu_assets, layout->top_matanim_joint);
+    model->shapeanim_joint = mnAssets_Get(&main_menu_assets, layout->top_shapeanim_joint);
 
     mnInfo_80251AFC();
 

@@ -24,3 +24,11 @@ for every Melee typeface.
 
 This tool requires Pillow in the build's Python environment. Generated atlases
 and PNG inspection sheets belong in the build output, not source control.
+
+`menu-option` is a separate outlined face for the main-menu ribbons and hub
+buttons. `prepare_menu_lettering.py` extracts its letters from the English
+`MnMaAll` option-name textures. Letters absent from those names are reconstructed
+using the captured stroke width and proportions. Additional punctuation and
+digits use the supplied Folk family. The generated IA4 atlas keeps the dark
+outline and white fill in one texture; the other faces use I4 masks. The ribbon
+face and the original large page-caption face still need separate visual review.

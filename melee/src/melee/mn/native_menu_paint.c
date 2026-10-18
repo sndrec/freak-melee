@@ -85,6 +85,31 @@ void nativeMenuPaint_Rect(float x, float y, float w, float h, uint32_t rgba)
     float xy[] = { x, y, x + w, y, x + w, y + h, x, y + h };
     nativeMenuPaint_Quad(xy, rgba);
 }
+void nativeMenuPaint_Gradient(float x, float y, float w, float h,
+                              uint32_t top, uint32_t bottom)
+{
+    GXSetNumChans(1);
+    GXSetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
+    GXSetChanCtrl(GX_COLOR0A0, GX_DISABLE, GX_SRC_REG, GX_SRC_VTX,
+        GX_LIGHT_NULL, GX_DF_NONE, GX_AF_NONE);
+    GXSetVtxDesc(GX_VA_CLR0, GX_DIRECT);
+    GXSetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
+    GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_RASC);
+    GXSetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_RASA);
+    const float px[] = { x, x + w, x + w, x };
+    const float py[] = { y, y, y + h, y + h };
+    GXBegin(GX_QUADS, GX_VTXFMT0, 4);
+    for (unsigned i = 0; i < 4; ++i) {
+        u32 rgba = i < 2 ? top : bottom;
+        GXPosition3f32(px[i], -py[i], -5);
+        GXColor4u8(rgba >> 24, rgba >> 16, rgba >> 8, rgba);
+        GXTexCoord2f32(0, 0);
+    }
+    GXEnd();
+    GXSetNumChans(0);
+    GXSetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR_NULL);
+    GXSetVtxDesc(GX_VA_CLR0, GX_NONE);
+}
 void nativeMenuPaint_Round(float x, float y, float w, float h, float radius,
                            uint32_t rgba)
 {
@@ -104,9 +129,9 @@ void nativeMenuPaint_Round(float x, float y, float w, float h, float radius,
 }
 void nativeMenuPaint_Text(const char* text, float x, float y, float w, float h,
                           uint32_t rgba, NativeMenuFontFace face,
-                          bool centered)
+                          bool centered, bool outline)
 {
-    nativeMenuFont_Draw(face, text, x, -y, -5, w, h, rgba, centered);
+    nativeMenuFont_Draw(face, text, x, -y, -5, w, h, rgba, centered, outline);
 }
 void nativeMenuPaint_Image(void* pixels, unsigned width, unsigned height,
                            float x, float y, float w, float h)

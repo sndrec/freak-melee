@@ -39,7 +39,7 @@ def main() -> None:
     required = ["melee_native.exe", "native_content_tool.exe", "ui/freak_shell.rml",
                 "ui/docs/index.md", "ui/mario_full.fms",
                 *[f"ui/fonts/{name}.bin" for name in
-                  ["menu-heading", "result-name", "result-winner", "notice", "css-tile"]]]
+                  ["menu-heading", "result-name", "result-winner", "notice", "css-tile", "menu-option"]]]
     for name in required:
         if not (build / name).is_file():
             parser.error(f"build is missing {name}; build melee_native and native_content_tool first")

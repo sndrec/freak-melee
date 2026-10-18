@@ -230,19 +230,19 @@ static void draw(HSD_GObj* object, int pass)
                       w, h);
             }
             nativeMenuFont_Draw(NativeMenuFont_Notice, person->name, x + .4f,
-                                -4.8f, .8f, 13.2f, 1, 0xF5EFEAFF, true);
+                                -4.8f, .8f, 13.2f, 1, 0xF5EFEAFF, true, true);
             const char* title = person->kind == Gm_PKind_NA ? "Waiting for player"
                                 : person->choice.selected ? art->portrait.title
                                                         : "Choose a fighter";
             nativeMenuFont_Draw(NativeMenuFont_Tile, title, x + .4f, -20.5f,
-                                .8f, 13.2f, 1.15f, 0xF5EFEAFF, true);
+                                .8f, 13.2f, 1.15f, 0xF5EFEAFF, true, true);
             nativeMenuFont_Draw(NativeMenuFont_Notice,
                                 person->kind == Gm_PKind_NA ? "Quick Play"
                                 : person->ready             ? "Ready"
                                 : person->choice.selected ? "Selected"
                                                           : "Choosing...",
                                 x + .4f, -22, .8f, 13.2f, .75f,
-                                person->ready ? 0x99DEB2FF : 0xE3CF96FF, true);
+                                person->ready ? 0x99DEB2FF : 0xE3CF96FF, true, true);
         }
     }
     flat_state(view);
@@ -254,11 +254,11 @@ static void draw(HSD_GObj* object, int pass)
         image(&carried->portrait, carried->x, carried->y, 6, 4.3f);
         nativeMenuFont_Draw(NativeMenuFont_Tile, carried->portrait.title,
                             carried->x, carried->y - 4.3f, .8f, 6, .9f,
-                            0xFFF3DCFF, true);
+                            0xFFF3DCFF, true, true);
         nativeMenuFont_Draw(NativeMenuFont_Notice,
                             "A Give   X Recipients   B Cancel", carried->x - 3,
                             carried->y - 5.5f, .8f, 13, .65f, 0xFFF3DCFF,
-                            true);
+                            true, true);
     }
     nativePlayMenu_DrawCss(view);
     HSD_StateInvalidate(-1);
