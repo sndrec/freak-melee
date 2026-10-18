@@ -123,7 +123,7 @@ def main():
         command('project-model-joints', project)
         results.append(dict(case='saved-'+channel, status='PASS'))
     changed = (project/'costume.dat').read_bytes()
-    assert len(changed) > len(original)
+    assert changed != original
     before = hashlib.sha256(changed).hexdigest()
     command('project-model-rest', project, bone, 'scale', 0, 0, success=False)
     assert hashlib.sha256((project/'costume.dat').read_bytes()).hexdigest() == before
@@ -177,7 +177,7 @@ def main():
             client.click('workshop-save-top')
             saved = client.data/'projects/rest-review/costume.dat'
             edited = saved.read_bytes()
-            assert len(edited) > len(original)
+            assert edited != original
             joint = int(joints[bone][2],16)
             assert abs(struct.unpack_from('>f', edited,32+joint+28)[0] - .5235988) < 1e-5
             client.screenshot()

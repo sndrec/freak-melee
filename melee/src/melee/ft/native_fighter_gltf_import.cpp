@@ -1,6 +1,7 @@
 #include "native_fighter_gltf_import.h"
 
 #include "native_asset_dat.h"
+#include "native_fighter_costume_compact.h"
 #include "native_fighter_authoring.h"
 #include "native_fighter_material_animation.h"
 #include "native_fighter_model_references.h"
@@ -979,7 +980,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         NativeFighterModelEditor named = {};
         NativeFighterProject view = *project;
         std::vector<uint8_t> staging;
-        if (dat.finish(&staging)) {
+        if (dat.finish(&staging, UINT32_MAX)) {
             view.costume_dat = staging.data();
             view.costume_size = staging.size();
             if (nativeFighterModel_Open(&named, &view)) {
@@ -1018,7 +1019,8 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         }
     }
     std::vector<uint8_t> converted;
-    if (!dat.finish(&converted) ||
+    if (!dat.finish(&converted, UINT32_MAX) ||
+        !nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size) ||
         !validate_costume(converted, existing.root_name, error, error_size))
         return false;
     uint8_t* owned = (uint8_t*) std::malloc(converted.size());
@@ -1078,7 +1080,8 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
         ok=nativeFighterModel_Open(&before,project)&&nativeFighterModel_Open(&after,&staging)&&
             nativeFighterModel_RemapSelectors(&before,&after,&staging)&&
             costume.open(staging.costume_dat,staging.costume_size)&&
-            nativeFighterModel_RemapMaterialAnimations(before,after,costume)&&costume.finish(&final);
+            nativeFighterModel_RemapMaterialAnimations(before,after,costume)&&costume.finish(&final,UINT32_MAX)&&
+            nativeFighterCostume_Compact(&staging,&final,nullptr,error,error_size);
         if(ok) {
             auto* bytes=(uint8_t*)std::malloc(final.size());
             if(!bytes)ok=false;
@@ -1186,7 +1189,8 @@ bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
                  existing.materials[material].render_mode | RENDER_TEX0);
     }
     std::vector<uint8_t> converted;
-    if (!dat.finish(&converted) ||
+    if (!dat.finish(&converted, UINT32_MAX) ||
+        !nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size) ||
         !validate_costume(converted, existing.root_name, error, error_size))
         return false;
     NativeFighterProject candidate=*project;

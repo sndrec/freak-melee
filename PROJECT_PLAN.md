@@ -224,7 +224,12 @@ import, materials, rigging and skinning, not mesh modeling.
   pass. [Stock-layout painting](melee/docs/native_stock_skin_checkpoint.md) now
   passes the 130-costume batch (8,149 meshes), 227 brush cases and a live Yoshi
   mouse/Save/Undo/Redo check. Morph/secondary-rigid painting, unusual model-node
-  and texture-matrix bindings, larger meshes and DAT compaction remain open.
+  and texture-matrix bindings and larger meshes remain open.
+  [Costume compaction](melee/docs/native_costume_compaction_checkpoint.md) now
+  reclaims dead geometry/texture storage while preserving editor identities;
+  128 consecutive brush edits stay bounded, all retail costumes pass, and both
+  native morph rest-edit comparisons retain zero changed pixels. Unknown/opaque
+  extensions retain their data until their layout is described.
   The [stock geometry inventory](melee/docs/native_stock_skin_inventory.md)
   now covers all 130 retail costume archives and identifies shared position
   indices, attribute seams and root-envelope transforms the brush must preserve.

@@ -20,7 +20,7 @@ static HSD_DatResult texture_data(const HSD_Dat* dat, u32 slot, size_t size,
 }
 
 HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
-                                HSD_ImageDesc* image)
+                                HSD_ImageDesc* image, size_t* data_size)
 {
     HSD_ImageDesc result = { 0 };
     u32 format;
@@ -29,6 +29,7 @@ HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
     unsigned width, height, levels;
     HSD_DatResult status;
     memset(image, 0, sizeof(*image));
+    if (data_size) *data_size = 0;
     if (HSD_DatBytes(dat, offset, 24) == NULL) {
         return HSD_DAT_DESCRIPTOR;
     }
@@ -73,6 +74,7 @@ HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
     status = texture_data(dat, offset, bytes, &result.image_ptr);
     if (status == HSD_DAT_OK) {
         *image = result;
+        if (data_size) *data_size = bytes;
     }
     return status;
 }

@@ -92,7 +92,8 @@ struct NativeAssetDat {
             detached_relocations.end());
     }
 
-    bool finish(std::vector<uint8_t>* result)
+    bool finish(std::vector<uint8_t>* result,
+                 size_t max_output = NATIVE_CONTENT_MAX_PACKAGE_BYTES)
     {
         std::sort(relocations.begin(), relocations.end());
         relocations.erase(std::unique(relocations.begin(), relocations.end()),
@@ -111,7 +112,7 @@ struct NativeAssetDat {
             32 + original.data_size + (size_t) original.relocation_count * 4;
         const size_t tail = source_size - tail_start;
         const size_t size = 32 + data.size() + relocations.size() * 4 + tail;
-        if (size > UINT32_MAX || size > NATIVE_CONTENT_MAX_PACKAGE_BYTES) {
+        if (size > UINT32_MAX || size > max_output) {
             return false;
         }
         result->resize(size);

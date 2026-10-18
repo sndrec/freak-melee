@@ -4,6 +4,7 @@
 #include "dat_import.h"
 
 void* HSD_DatImportAlloc(HSD_DatImport* import, size_t size);
+void HSD_DatImportSource(HSD_DatImport*, u32 offset, size_t size, u32 type);
 void* HSD_DatImportObject(HSD_DatImport* import, u32 offset, u32 type, u32 count);
 void* HSD_DatImportReference(HSD_DatImport* import, u32 slot, u32 type, u32 count);
 char* HSD_DatImportString(HSD_DatImport* import, u32 slot);
@@ -16,6 +17,7 @@ void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
 void HSD_DatDecodeModelRecord(HSD_DatImport* import,
                              const HSD_DatImportRecord* record);
 bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon);
+bool HSD_DatValidateShape(HSD_DatImport*, HSD_ShapeSetDesc*);
 void HSD_DatDecodeSceneRecord(HSD_DatImport* import,
                              const HSD_DatImportRecord* record);
 
