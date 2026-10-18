@@ -224,6 +224,10 @@ import, materials, rigging and skinning, not mesh modeling.
   pass; broader stock-layout painting and DAT compaction remain open.
 - [ ] Exercise an asymmetric imported mesh through Edit/Pose/Animation modes,
   brush edits, save/reopen/undo and Test Character.
+  Native posed/animated painting, saved weights, Undo/Redo, rest edits, relaunch
+  without the GLB and practice pass their functional checks. A strict preview
+  comparison still detects a subpixel shift after refresh; keep this gate open.
+  See the [workflow checkpoint](melee/docs/native_model_workflow_checkpoint.md).
 
 Keep a compatible Melee rig and semantic bone mapping; arbitrary imported
 armatures are deferred. Engine-controlled helper/root bones retain their native

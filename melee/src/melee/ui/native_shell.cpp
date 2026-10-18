@@ -11,6 +11,7 @@
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_code.h"
 #include "native_shell_workshop_editor.h"
+#include "native_shell_workshop_model.h"
 
 #ifdef MELEE_NATIVE
 
@@ -372,6 +373,10 @@ extern "C" void nativeShell_Shutdown(void)
 
 extern "C" void nativeShell_InspectElement(const char* id)
 {
+    if (!std::strcmp(id, "workshop-model-surface")) {
+        nativeShellWorkshopModel_Inspect();
+        return;
+    }
     if (!std::strcmp(id, "workshop-preview")) {
         nativeHome_InspectWorkshop();
         return;

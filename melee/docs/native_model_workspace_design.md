@@ -41,6 +41,12 @@ Automatic binding generates initial per-vertex
 weights using the existing fighter rig. The brush supports up to 16 influences
 per vertex in imported meshes, with add/subtract, radius and strength. Each
 stroke rebuilds the mesh's envelope groups and participates in costume undo.
+The brush targets the current deformed vertices in Edit, Pose and Animation
+modes and writes weights in bind space. A stroke pauses clip playback. Temporary
+poses survive mesh rebuilds and mode switches. The
+[Model workflow checkpoint](native_model_workflow_checkpoint.md) records the
+saved-weight, Undo/Redo, reopen and practice checks, plus a small unresolved
+projection discrepancy after refresh.
 The surface displays the selected bone's weight from blue through yellow and
 orange to red; the old palette-number editor and sampled vertex dots are gone.
 Internally, an HSD envelope palette groups bone/weight combinations; it does not
@@ -64,7 +70,7 @@ pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
 Still open: painting
-arbitrary stock layouts, pose-aware brush picking, additional bones,
+arbitrary stock layouts, continuous triangle-surface brush picking, additional bones,
 wireframe rendering, multi-mesh import,
 placement preview, source-aware reimport, and advanced texture/UV controls.
 Shape-animated PObjs currently use the original renderer and are not surface

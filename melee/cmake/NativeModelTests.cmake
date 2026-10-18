@@ -10,3 +10,11 @@ target_link_libraries(native_model_rest_test PRIVATE melee_runtime aurora_os
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_model_rest_test)
 add_test(NAME native_model_rest COMMAND native_model_rest_test)
+
+add_executable(native_model_view_positions_test tests/native/model_view_positions_test.c)
+target_include_directories(native_model_view_positions_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_model_view_positions_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_model_view_positions_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_model_view_positions_test)
+add_test(NAME native_model_view_positions COMMAND native_model_view_positions_test)

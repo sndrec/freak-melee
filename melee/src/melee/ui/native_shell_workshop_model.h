@@ -22,6 +22,7 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member);
 bool nativeShellWorkshopModel_Save(const char* path, unsigned member);
 bool nativeShellWorkshopModel_Undo(bool redo);
 int nativeShellWorkshopModel_SelectedClip();
+void nativeShellWorkshopModel_Inspect();
 
 #endif
 #endif
