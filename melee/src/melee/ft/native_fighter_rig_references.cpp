@@ -150,7 +150,7 @@ extern "C" bool nativeFighterRig_RemapReferences(const NativeFighterProject* pro
         switch(command.opcode){
         case 10: // GFX: named roles and model-selected bones retain their selectors.
             if(!(raw&((1u<<17)|(1u<<15)))&&!e.bits(at,18))return false;break;
-        case 11:case NATIVE_HITBOX_TIMED_OPCODE:
+        case 11:case NATIVE_HITBOX_TIMED_OPCODE:case NATIVE_HITBOX_EXPLICIT_OPCODE:
             if(!(raw&(1u<<10))&&!e.bits(at,11))return false;break;
         case 28:if(!e.bits(at,18))return false;break;
         case 58:if(!e.bits(at,0))return false;break;
@@ -159,14 +159,14 @@ extern "C" bool nativeFighterRig_RemapReferences(const NativeFighterProject* pro
     }
     // Retail create-hitbox reads byte 1 bit 4 of the following command as
     // hit_grabbed_victim_only. GFX/hurt-state bone indices overlap that bit.
-    // An owned timed hitbox carries the flag itself; a remaining retail
-    // instruction must retain its original meaning until converted.
+    // An owned hitbox carries the flag itself; a remaining retail instruction
+    // must retain its original meaning until its flags are owned explicitly.
     for(const auto& command:commands)if(command.opcode==11){
         uint32_t following;
         const uint32_t at=command.source_offset+20;
         if(!e.value(at,4,&following))return false;
         if((following^NativeAssetDat::read32(e.bytes.data()+32+at))&(1u<<19))
-            return e.fail("Convert the affected action's hitboxes to owned intervals before moving this bone",command.source_offset);
+            return e.fail("Own the affected action's hitbox flags before moving this bone",command.source_offset);
     }
     auto* bytes=(uint8_t*)std::malloc(e.bytes.size());
     if(!bytes)return fail("Could not allocate the rewritten fighter bone references.");

@@ -15,7 +15,7 @@ void ftAction_8007121C(Fighter_GObj* object, CommandInfo* command)
     nativeHitboxLifetime_Clear(fighter, slot);
     memset(&fighter->x914[slot], 0, sizeof(HitCapsule));
     fighter->x914[slot].state = HitCapsule_Enabled;
-    fighter->x914[slot].hit_grabbed_victim_only = true;
+    fighter->x914[slot].hit_grabbed_victim_only = command->u->create_hitbox_0.only_hit_grabbed;
     command->u += 5;
 }
 

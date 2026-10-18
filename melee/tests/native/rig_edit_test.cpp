@@ -4,6 +4,7 @@
 #include <melee/ft/native_fighter_rest_matrices.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_skin_edit.h>
+#include <melee/ft/native_fighter_action_editor.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -60,7 +61,7 @@ static std::vector<uint8_t> read(const char* path){
     CHECK(std::fread(data.data(),1,data.size(),f)==data.size()&&!std::fclose(f));return data;
 }
 int main(int argc,char** argv){
-    NativeFighterProject p={};CHECK(argc==2||argc==5);
+    NativeFighterProject p={};CHECK(argc==2||argc==5||argc==6);
     if(argc==2)CHECK(nativeFighterProject_Open(argv[1],&p));
     else {
         auto facts=read(argv[1]);NativeScriptDiagnostic diagnostic={};
@@ -74,6 +75,17 @@ int main(int argc,char** argv){
             *sizes[n]=input[n].size();std::memcpy(*buffers[n],input[n].data(),input[n].size());}
     }
     CHECK(nativeFighterProject_ValidateAssets(&p,error,sizeof(error)));
+    if(argc==6){
+        CHECK(!std::strcmp(argv[5],"--normalize-intervals"));unsigned owned=0,converted=0;
+        CHECK(nativeFighterAction_OwnHitboxFlags(&p,&owned,error,sizeof(error)));
+        nativeFighterAction_ConvertAllHitboxIntervals(&p,&converted);
+        bool admitted=nativeFighterProject_ValidateAssets(&p,error,sizeof(error));
+        if(!admitted){
+            std::string path=std::string(argv[2])+".normalized";FILE* file=std::fopen(path.c_str(),"wb");
+            CHECK(file&&std::fwrite(p.fighter_dat,1,p.fighter_size,file)==p.fighter_size&&!std::fclose(file));
+        }
+        CHECK(admitted);++cases;
+    }
     auto before=std::make_unique<NativeFighterModelEditor>(),after=std::make_unique<NativeFighterModelEditor>();
     CHECK(nativeFighterModel_Open(before.get(),&p));const auto source=rig(p);const unsigned original_count=p.facts.joints;
     NativeFighterRigEdit edit={NativeRigEdit_Remove,0,0,{}};failed(p,edit);

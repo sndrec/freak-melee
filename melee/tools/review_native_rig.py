@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 
@@ -24,7 +25,11 @@ def main():
     for name in ['exe', 'tool', 'iso', 'output']:
         parser.add_argument('--'+name, required=True, type=Path)
     parser.add_argument('--suite', required=True, choices=['animation', 'references', 'hierarchy'])
+    parser.add_argument('--normalize-intervals', action='store_true',
+                        help='Also admit clone-time flag ownership and duration conversion (hierarchy suite)')
     args = parser.parse_args()
+    if args.normalize_intervals and args.suite != 'hierarchy':
+        parser.error('--normalize-intervals requires --suite hierarchy')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     root = Path(__file__).resolve().parents[1]
@@ -83,10 +88,16 @@ def main():
                         costume.write_bytes(outfit[1])
                         inputs.append(str(costume))
                         case.update(costume=outfit[0], costume_sha256=hashlib.sha256(outfit[1]).hexdigest())
+                        if args.normalize_intervals:
+                            inputs.append('--normalize-intervals')
                     run = subprocess.run([str(args.exe.resolve()), *inputs],
                                          capture_output=True, text=True,
                                          creationflags=subprocess.CREATE_NO_WINDOW)
                     log += run.stdout + run.stderr
+                    diagnostic = Path(str(fighter)+'.normalized')
+                    if diagnostic.exists():
+                        shutil.copyfile(diagnostic, output/(key+'.normalized.dat'))
+                        diagnostic.unlink()
                     counter = 'clips' if args.suite == 'animation' else 'commands'
                     pattern = r'^PASS (\d+) cases (\d+) checks$' if args.suite == 'hierarchy' else r'^PASS (\d+) cases (\d+) '+counter+r' (\d+) checks$'
                     match = re.search(pattern, run.stdout, re.MULTILINE)
@@ -108,6 +119,7 @@ def main():
     passed = bool(rows) and not missing and all(row['passed'] for row in rows)
     counter = 'clips' if args.suite == 'animation' else 'commands'
     receipt = dict(passed=passed, suite=args.suite, fighters=len(rows), missing=missing,
+                   normalize_intervals=args.normalize_intervals,
                    cases=sum(row.get('cases', 0) for row in rows),
                    checks=sum(row.get('checks', 0) for row in rows),
                    exe_sha256=hashlib.sha256(args.exe.read_bytes()).hexdigest(),

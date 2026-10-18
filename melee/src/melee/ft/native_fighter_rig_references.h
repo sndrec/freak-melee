@@ -15,7 +15,7 @@ extern "C" {
 // reservations; UINT16_MAX removes a slot. A referenced removed slot rejects.
 // Physical metadata/subaction fields change; semantic roles and script IDs keep
 // their values. Native dynamics chains must remain contiguous. Retail hitboxes
-// whose following-command victim flag would change require interval conversion.
+// whose following-command victim flag would change require explicit flag ownership.
 // No project state
 // changes; output must own no buffer and receives a malloc buffer on success.
 bool nativeFighterRig_RemapReferences(const NativeFighterProject*,

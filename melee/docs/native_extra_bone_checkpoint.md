@@ -4,8 +4,8 @@ The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
 save, stable script bone references and physical fighter-reference rewriting
 are implemented.
 A coordinated in-memory add/reparent/remove transaction is implemented and
-passes the complete test sequence on 24 stock fighters and Glim. Two stock
-paths, metal draw-order remapping and the Model controls/history remain open.
+passes the complete test sequence on 25 stock fighters and Glim. Sheik's alternate
+pose graphs, metal draw-order remapping and the Model controls/history remain open.
 The Model workspace does not expose a partial structural edit.
 
 ## Animation remapping
@@ -80,8 +80,9 @@ parses the actual resource declarations and moves an occupied reservation to an
 unused spare. A referenced spare cannot be retired to make room. Rig names are
 now available to the Model outliner through the owned ID table.
 
-Only actions whose following-command hitbox flag would change are offered to
-the existing interval converter. Other actions retain their command data.
+The transaction first copies each retail hitbox's effective victim-only flag
+into its owned header. Command widths, addresses, clear events and hit history
+remain unchanged. It does not convert action timing to perform a bone edit.
 The shared rest-matrix calculation now lives in the public
 `nativeFighterModel_RestMatrices` implementation, used directly by both rest
 compensation and hierarchy editing. These changes add no match-tick work.
@@ -97,45 +98,45 @@ Undo acceptance.
 
 Current results:
 
-- **24 of 26** stock definitions pass the entire sequence: **240 cases** and
-  **64,044 checks**. The aggregate review correctly reports failure because the
-  other two definitions remain incomplete.
+- **25 of 26** stock definitions pass the entire sequence: **250 cases** and
+  **66,600 checks**. The aggregate review correctly reports failure because
+  Sheik's alternate pose graphs remain incomplete.
+- Flag ownership followed by duration conversion admits all **26** stock asset
+  sets. Running the complete hierarchy sequence on these pre-normalized inputs
+  passes the same **25** fighters: **275 cases**, **66,675 checks**. Sheik reaches
+  its alternate-pose guard after successful normalization/admission.
 - Glim passes **10 cases** and **1,892 checks**. Its four source-file hashes
   remain unchanged; the test operates on loaded memory only.
-- The physical-reference regression remains passing for all **26** definitions
-  (**156 cases**, **340,101 checks**). Glim's offset-zero model path also passes
-  the reference sequence (**6 cases**, **400 command comparisons**, **7,733 checks**).
+- The physical-reference and owned-flag regression passes all **26** definitions
+  (**260 cases**, **785,421 checks**, **39,911 command comparisons**). Glim's offset-zero model path also passes
+  the reference sequence (**10 cases**, **1,200 command comparisons**, **21,870 checks**).
 - Shared rest compensation passes its native CTest with **15,289,600 checks**.
-- Receipt: `.local/native-rig-edit-retail-4/receipt.json`.
-- Glim output: `.local/native-rig-edit-glim-4.log`.
-- Regression receipts: `.local/native-rig-edit-reference-regression-1/receipt.json`,
-  `.local/native-rig-edit-glim-references-1.log` and
+- Receipts: `.local/native-rig-explicit-retail-3/receipt.json` and
+  `.local/native-rig-explicit-normalized-1/receipt.json`.
+- Glim output: `.local/native-rig-explicit-glim-2.log`.
+- Regression receipts: `.local/native-rig-explicit-references-2/receipt.json`,
+  `.local/native-rig-explicit-glim-references-1.log` and
   `.local/native-rig-edit-rest-regression-1.log`.
-- Test SHA-256: `121b4cf495021f32d99eb52524931fc578a83a7fbdceb5b725a88baead8a4d2a`.
+- Hierarchy test SHA-256: `558433df72ed11d94b3af113354e3ed557fa5f4fbdcc6d3f7ef4080253770468`.
+
+The early Roy/Fox/Ness failures came from composing an offset-moving duration
+conversion with rig steps that still addressed the input archive. Explicit
+flag ownership keeps addresses fixed inside the hierarchy transaction. The
+separate normalized-input review above checks conversion first, admits its
+result, and then starts the rig transaction from that matching asset set.
 
 Remaining acceptance work:
 
-1. Mewtwo's reparent case reaches an original hitbox whose following GFX bone
-   field supplies its victim-only flag. That action cannot be faithfully
-   converted by the current duration analysis. The operation refuses the edit
-   at source command `0x4354`; the flag needs explicit ownership without
-   inventing a lifetime or changing hit eligibility.
-2. Sheik's alternate pose graphs have a caller-supplied start bone and consume
+1. Sheik's alternate pose graphs have a caller-supplied start bone and consume
    a positional sequence. Their source/target bone correspondence must be
    represented before hierarchy edits can preserve those operations.
-3. Reordering metal meshes needs the separate metal visibility selectors
+2. Reordering metal meshes needs the separate metal visibility selectors
    remapped by object identity. Edits that change their draw order currently
    refuse to publish.
-4. Connect the completed transaction to the approved Skeleton controls,
+3. Connect the completed transaction to the approved Skeleton controls,
    selection/temporary-pose remapping and complete structural Undo/Redo. Verify
    Save/reopen, animation, weight painting and Test Character in the native UI.
    The game client has not been relinked or launched for this backend checkpoint.
-5. An early trial that normalized every raw retail action also exposed invalid
-   command graphs in Roy, Fox and Ness. Their first two review logs preserve the
-   import failures. The transaction now changes only actions with an actual
-   next-command dependency, and its current sequence passes these fighters.
-   Broader interval conversion still needs its own admission review; these
-   results do not establish that arbitrary legacy actions can be normalized.
 
 Reproduce the whole roster check:
 
@@ -151,10 +152,70 @@ The hierarchy suite selects a matching neutral costume by its declared joint
 root. It reports every fighter failure, uses temporary extracted inputs and
 does not create drafts or install content. The test also accepts a single
 project-directory argument for a read-only pass over an existing draft.
+Add `--normalize-intervals` to check clone-time flag ownership and duration
+conversion before the hierarchy sequence. Failed normalization retains its
+generated fighter DAT in the review output for diagnosis; no failures occurred
+in that admission phase in the current roster review.
 
 The reference writer now accepts the character importer's valid offset-zero
 model record when its source field has no relocation, as in Glim. Source graph
 import errors now include their actual data offset and status for diagnosis.
+
+## Explicit hitbox flags
+
+Retail create-hitbox instructions read `hit_grabbed_victim_only` from bit 19 of
+the next source word. That word belongs to another command. Reordering events
+or changing that command's bone can therefore change collision eligibility.
+
+`native_fighter_action_flags.cpp` traces every reachable fighter hitbox and
+copies its effective flag into its own header. It then changes the opcode to
+the five-word explicit-flag form, **60**. The operation gathers all changes
+before writing, so shared subroutines and adjacent hitboxes read their original
+flags exactly once. Addresses, other operands, timers, clear commands and
+group/victim history remain unchanged. Repeating it changes no bytes.
+
+The native dispatcher sends opcode 60 directly to the existing hitbox handler
+and skip function. That handler reads owned flags from the header for opcodes
+59 and 60, while retaining the retail next-word rule for opcode 11. Opcode 60
+uses ordinary clear-command lifetime; opcode 59 continues to own its duration.
+The duration owner no longer repeats the flag assignment. Import validates
+owned hitbox slots and decodes their fields through the shared hitbox layout.
+
+Fresh clone preparation owns flags before attempting duration conversion.
+Workshop opening also owns any remaining retail flags and marks the action data
+dirty. Hitbox inspection reads the effective retail flag; editing an ordinary
+hitbox writes an explicit header. Event tracing, copying, insertion, timing
+edits and interval conversion recognize all three create forms. The user-facing
+name for an ordinary explicit-flag instruction remains **Create hitbox**.
+
+Verification:
+
+- The source-derived evaluator fixture compares the current handler with the
+  handler at local commit `6876936`, across **8,192 cases** and **102,401 checks**.
+  It changes the following GFX bone's flag bit and compares complete fighter
+  state for both owned forms, then checks opcode 11 retains retail behavior.
+  Conditional thrown-owner spawns, all slots, group activation/history, lifetime
+  clearing and smash-timer bookkeeping are covered.
+- Damage, angle and semantic-role lookup are controlled leaves in that fixture.
+  It does not establish full gameplay, staleness, geometry or rollback parity.
+- The 26-fighter reference cohort imports the original, owned and remapped DATs
+  through the actual character importer. It checks every legacy flag against
+  its original following command, header ownership count, idempotence, preserved
+  operands/addresses and hitbox Get/Set round trips. A one-slot bone move now
+  succeeds for all owned inputs while unsafe raw inputs still reject.
+- The production duration-lifetime fixture passes expiry, playback-speed,
+  handoff, refresh, gap, snapshot and cancellation cases after assigning flag
+  ownership to the common evaluator.
+
+Evidence: `.local/native-hitbox-flags-6/receipt.json`,
+`.local/native-rig-explicit-references-2/receipt.json` and
+`.local/native-hitbox-lifetime-explicit.log`.
+
+```powershell
+python melee/tests/native/hitbox_flags/run.py `
+  --compiler C:/Users/loser/scoop/apps/llvm/current/bin/clang.exe `
+  --output .local/hitbox-flags-review
+```
 
 ## Physical fighter references
 
@@ -177,10 +238,9 @@ number. Edits must retain that chain's contiguous numbering. The retail
 create-hitbox command has another dependency: it reads its victim-only flag
 from bit 19 of the following command. A following GFX or hurt-state bone field
 overlaps that bit. If remapping would change it, this operation rejects before
-publishing. Owned duration-based hitboxes carry the flag in their own header
-and have no such dependency. The existing interval converter handles actions
-whose behavior it can preserve; the complete hierarchy transaction must retain
-a clear failure for any affected action it cannot convert faithfully.
+publishing. Owned hitboxes carry the flag in their own header and have no such
+dependency. The hierarchy transaction owns these flags first, preserving both
+ordinary clear-command lifetimes and existing duration-based hitboxes.
 
 `native_rig_references_test` imports original and rewritten archives with the
 actual character importer, compares the typed metadata and native command
@@ -189,7 +249,7 @@ inverse map restores the entire original DAT byte for byte. Duplicate maps,
 referenced removals, truncated data and changed retail hitbox flags leave
 outputs empty.
 
-All **26 supported stock definitions** pass: **156 cases**, **16,955 command
+The initial raw-map review passed all **26 supported stock definitions**: **156 cases**, **16,955 command
 comparisons** and **340,101 checks**. The one-slot move exercises the retail
 hitbox dependency on **14** fighters; their edits reject without publishing.
 The four-slot map changes every physical index while retaining that flag,
