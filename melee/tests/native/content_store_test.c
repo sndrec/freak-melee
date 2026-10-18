@@ -375,12 +375,46 @@ int main(void)
                                              &parsed_fighter, &parsed_data),
             "reject damaged fighter portrait\n");
     fighter_package[208] = 137;
+    NativeCostumePackage outfit = {.fighter_id=fighter_id};
+    strcpy(outfit.title, "Owned outfit");
+    uint8_t* outfit_package = NULL;
+    size_t outfit_size;
+    NativeContentId outfit_id;
+    require(nativeContentStore_BuildCostume(&outfit,costume_dat,sizeof(costume_dat),
+                &outfit_package,&outfit_size,&outfit_id) &&
+            nativeContentStore_Cache(fighter_root,outfit_package,outfit_size,NULL,&cached) &&
+            !nativeContentStore_Install(fighter_root,&outfit_id) &&
+            !nativeContentStore_IsInstalled(fighter_root,&outfit_id),
+            "outfit acceptance requires its exact cached parent\n");
     require(nativeContentStore_Cache(fighter_root, fighter_package,
                                      fighter_package_size, NULL, &cached) &&
                 memcmp(&cached, &fighter_id, sizeof(cached)) == 0 &&
                 nativeContentStore_IsCached(fighter_root, &fighter_id) &&
                 !nativeContentStore_IsInstalled(fighter_root, &fighter_id),
             "fighter bundle caches without installation\n");
+    snprintf(installed_directory,sizeof(installed_directory),"%s\\installed",fighter_root);
+    char outfit_hex[65], outfit_marker[MAX_PATH], outfit_cache[MAX_PATH];
+    nativeContentStore_IdHex(&outfit_id,outfit_hex);
+    snprintf(outfit_marker,sizeof(outfit_marker),"%s\\%s.fmi",installed_directory,outfit_hex);
+    snprintf(outfit_cache,sizeof(outfit_cache),"%s\\cache\\%s.fmc",fighter_root,outfit_hex);
+    require(CreateDirectoryA(installed_directory,NULL) && CreateDirectoryA(outfit_marker,NULL),
+            "block outfit marker with a directory\n");
+    require(!nativeContentStore_Install(fighter_root,&outfit_id) &&
+                !nativeContentStore_IsInstalled(fighter_root,&fighter_id),
+            "failed outfit publication removes its newly installed dependency\n");
+    require(nativeContentStore_Install(fighter_root,&fighter_id) &&
+                !nativeContentStore_Install(fighter_root,&outfit_id) &&
+                nativeContentStore_IsInstalled(fighter_root,&fighter_id),
+            "failed outfit publication preserves a previously installed dependency\n");
+    require(RemoveDirectoryA(outfit_marker) && nativeContentStore_Uninstall(fighter_root,&fighter_id) &&
+                nativeContentStore_Install(fighter_root,&outfit_id) &&
+                nativeContentStore_IsInstalled(fighter_root,&fighter_id) &&
+                nativeContentStore_IsInstalled(fighter_root,&outfit_id) &&
+                nativeContentStore_Install(fighter_root,&outfit_id),
+            "explicit outfit acceptance installs its cached dependency and repeats safely\n");
+    require(nativeContentStore_Uninstall(fighter_root,&outfit_id) && DeleteFileA(outfit_cache),
+            "remove outfit fixture\n");
+    free(outfit_package);
     require(nativeContentStore_Install(fighter_root, &fighter_id) &&
                 nativeContentStore_IsInstalled(fighter_root, &fighter_id),
             "fighter bundle installation marker\n");

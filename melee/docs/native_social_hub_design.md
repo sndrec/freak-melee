@@ -185,6 +185,12 @@ layout editor for moving, resizing, adding and removing portraits.
 Template choices use the existing supported cloning set. Kirby remains deferred.
 Preserve paired-fighter editing and packaging for Zelda/Sheik and Ice Climbers.
 
+An outfit package dresses the whole fighter family: Zelda and Sheik together,
+or Popo and Nana together. Players cycle installed outfits with X/Y on CSS,
+and the player card shows the outfit name. Costumes handles importing and
+managing outfits. Accepting an outfit also installs its exact parent fighter.
+Caching either package leaves the personal collection unchanged.
+
 ## Social hub
 
 Use the old StarCraft Battle.net interface as a reference for the arrangement:
