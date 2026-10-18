@@ -339,8 +339,13 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   by a room owner with no active fighter remains open. Filling the existing
   transfer window reduces the cold-cache setup from 89.297 to 28.781 seconds;
   the sampled active clients maintain about 60 ticks/s without added input waits.
-  Concurrent chat and multiple-viewer performance acceptance remain open.
-- [ ] Confirm downloads/spectator/chat activity does not stall active matches.
+  Concurrent content, chat and two viewers also pass the local load check below.
+- [x] Confirm downloads/spectator/chat activity does not stall active matches.
+  The [concurrent-load check](melee/docs/native_auxiliary_load_checkpoint.md)
+  covers two cold-cache viewers and private chat during both a paired-family
+  match and four Ice Climbers slots on two shared PCs. Sampled active tick rates
+  remain about 60 ticks/s with no added input waits; both viewers verify the
+  full match and return home. Physical multi-PC testing remains deferred.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
   entire roster after every small change.

@@ -112,3 +112,8 @@ acceptance remain open.
 The subsequent [bounded-upload check](native_spectator_content_checkpoint.md#bounded-upload-throughput)
 reduces the same cold dependency setup from 89.297 to 28.781 seconds, with
 verified playback, Results and local-roster return on the current build.
+
+The [concurrent-load check](native_auxiliary_load_checkpoint.md) also passes with
+two viewers and private chat during four-player shared-PC matches. The remaining
+start-flow issue here is the inactive room owner, whose stage-picker choice is
+awaiting user feedback.

@@ -118,3 +118,7 @@ the viewer's combined endpoint is `54603ced1c2d2fa2`. Gameplay and Results
 screenshots were inspected. Receipt and independent audit:
 `.local/native-watch-window-burst-1/receipt.json` and adjacent `audit.json`.
 Eight focused tests pass in `.local/native-watch-burst-build-1.log`.
+
+The subsequent [concurrent-load check](native_auxiliary_load_checkpoint.md)
+passes with two cold viewers and private chat, including four Ice Climbers slots
+on two shared PCs. It closes the local auxiliary-load acceptance described above.

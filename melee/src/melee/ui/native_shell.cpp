@@ -385,7 +385,8 @@ extern "C" void nativeShell_InspectElement(const char* id)
         nativeCssCards_Inspect();
         return;
     }
-    if (nativeHub_IsVisible()) {
+    // Lobby chat remains active while gameplay hides the hub.
+    if (nativeHub_IsVisible() || !std::strcmp(id, "lobby-chat-state")) {
         nativeHub_Inspect(id);
         return;
     }
