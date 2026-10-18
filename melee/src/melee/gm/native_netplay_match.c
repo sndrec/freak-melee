@@ -36,6 +36,9 @@ enum {
     NETPLAY_ADMISSION_SCRATCH_BYTES = 64 * 1024 * 1024,
     NETPLAY_INPUT_TIMEOUT_MS = 5000,
     NETPLAY_ROOM_SETUP_TIMEOUT_MS = 60000,
+    // One hour of 60 Hz input plus phase markers. Only the authority records;
+    // this host-owned history is outside all copied simulation arenas.
+    NETPLAY_STREAM_RECORDS = 60 * 60 * 60 + 64,
 };
 
 static const uint64_t sudden_death_session_tag =
@@ -151,6 +154,26 @@ static NativeNetplayStateDigest* find_state_digest(uint64_t frame)
     return digest->valid && digest->frame == frame ? digest : NULL;
 }
 
+static void record_confirmed_stream(void)
+{
+    if (!netplay.room_transport || !netplay.room)
+        return;
+    NativeMatchStream* stream = &netplay.room->stream;
+    if (!stream->records || stream->unavailable || stream->finished) return;
+    for (uint64_t frame = stream->next_frame; frame < netplay.checkpoint.boundary; ++frame) {
+        NativeNetplayStateDigest* digest = find_state_digest(frame);
+        PADStatus pads[4];
+        if (!digest || nativeRollbackInput_ConfirmedMask(&netplay.inputs, frame) != 0xF ||
+            !nativeRollbackInput_GetFrame(&netplay.inputs, frame, pads) ||
+            !nativeMatchStream_AppendFrame(stream, frame, pads, digest->value)) {
+            stream->unavailable = true;
+            OSReport("[match-stream] Input history unavailable at frame %llu; players continue.\n",
+                     (unsigned long long)frame);
+            return;
+        }
+    }
+}
+
 static bool publish_confirmed_digests(void)
 {
     // Receiving a late input can make an earlier predicted frame fully
@@ -160,6 +183,7 @@ static bool publish_confirmed_digests(void)
     if (netplay.current_frame == 0 || netplay.inputs.has_correction) {
         return true;
     }
+    record_confirmed_stream();
     uint64_t frame =
         netplay.has_published_digest ? netplay.published_digest_frame + 1 : 0;
     if (!netplay.checkpoint.boundary) return true;
@@ -474,6 +498,22 @@ bool nativeNetplayMatch_Prepare(bool sudden_death)
     }
     OSReport("[netplay] Agreed initial RNG seed %08x.\n",
              (unsigned) *seed_ptr);
+    if (netplay.room_transport && config->local_peer == 0) {
+        free(netplay.room->stream_storage);
+        netplay.room->stream = (NativeMatchStream){0};
+        netplay.room->stream_storage = malloc((size_t)NETPLAY_STREAM_RECORDS *
+                                               NATIVE_MATCH_STREAM_RECORD_BYTES);
+        NativeMatchStreamDescription description = {
+            .match = netplay.room->match, .initial_seed = *seed_ptr,
+        };
+        if (!netplay.room->stream_storage ||
+            !nativeMatchStream_Bind(&netplay.room->stream, &description,
+                netplay.room->stream_storage, NETPLAY_STREAM_RECORDS)) {
+            free(netplay.room->stream_storage);
+            netplay.room->stream_storage = NULL;
+            OSReport("[match-stream] Could not reserve viewing history; players continue.\n");
+        }
+    }
     return true;
 }
 
@@ -568,6 +608,8 @@ bool nativeNetplayMatch_Init(void)
         bytes,netplay.checkpoint.peak_bytes);
     netplay.active = true;
     nativeReplay_SetStateTraceEnabled(true);
+    OSReport("[netplay] Diagnostic outbound delay %u frames.\n",
+             (unsigned)netplay.exchange->artificial_delay_frames);
     if (netplay.room_transport) {
         OSReport("[netplay] Session %016llx connected through room %s as "
                  "peer %u with port mask 0x%x; signaling %s.\n",
@@ -605,6 +647,18 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
     }
     bool keep_transport = continue_into_sudden_death && netplay.active &&
                           !netplay.failed && netplay.prepared;
+    if (netplay.room_transport && netplay.room && netplay.room->stream.records) {
+        NativeMatchStream* stream = &netplay.room->stream;
+        if (netplay.failed || !netplay.active) stream->unavailable = true;
+        else {
+            record_confirmed_stream();
+            if (stream->next_frame != netplay.checkpoint.cursor ||
+                !nativeMatchStream_EndPhase(stream, keep_transport,
+                    semantic_state_digest(netplay.checkpoint.cursor))) {
+                stream->unavailable = true;
+            }
+        }
+    }
     if (!keep_transport) {
         if (netplay.borrowed_online_room && netplay.prepared &&
             !nativeOnlineSession_ReportMatch(netplay.failed ? NULL : result)) {
@@ -729,6 +783,7 @@ static NativeConfirmedCheckpointStep reconcile_inputs(uint64_t* frame)
             }
         }
     }
+    record_confirmed_stream();
     return step;
 }
 
@@ -821,6 +876,7 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
     if (step==NativeConfirmedCheckpoint_Failed) {
         fail("confirmed checkpoint tick failed");return step;
     }
+    record_confirmed_stream();
     if (step==NativeConfirmedCheckpoint_CaughtUp && !ending)
         netplay.visible_tick_pending=true;
     if (step==NativeConfirmedCheckpoint_CaughtUp && netplay.probe_active) {
@@ -852,11 +908,18 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
         // another tick. Drain the final recorded inputs even when this peer
         // already has all remote inputs and can leave immediately.
         uint8_t delay=netplay.exchange->artificial_delay_frames;
-        netplay.exchange->artificial_delay_frames=0;
-        if (!send_packets()) {
-            netplay.exchange->artificial_delay_frames=delay;
-            fail("cannot flush final match inputs");return NativeConfirmedCheckpoint_Failed;
-        }
+        do {
+            // A packet holds eight frames; jumping straight from a larger
+            // delay to zero would omit the older withheld frames permanently.
+            uint8_t pending=netplay.exchange->artificial_delay_frames;
+            netplay.exchange->artificial_delay_frames=
+                pending>NATIVE_NETPLAY_INPUT_MAX_FRAMES
+                    ? pending-NATIVE_NETPLAY_INPUT_MAX_FRAMES : 0;
+            if (!send_packets()) {
+                netplay.exchange->artificial_delay_frames=delay;
+                fail("cannot flush final match inputs");return NativeConfirmedCheckpoint_Failed;
+            }
+        } while (netplay.exchange->artificial_delay_frames);
         uint64_t start=GetTickCount64(),confirmed;
         for (;;) {
             if (!nativeRollbackInput_ConfirmedBoundary(&netplay.inputs,

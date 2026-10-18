@@ -640,6 +640,14 @@ void nativeOnlineSession_Inspect(void)
                 member->waiting_ranks[2], member->waiting_ranks[3],
                 decoded && selection.confirmed, member->name);
     }
+    const NativeMatchStream* stream = &online.lobby.room.stream;
+    NativeMatchStreamSample tail = {0};
+    if (stream->count) nativeMatchStream_Read(stream, stream->count-1, &tail);
+    fprintf(stderr, "[room-stream] session=%016llx records=%u phase=%u next=%u finished=%u unavailable=%u seed=%08x digest=%016llx tail_kind=%u tail_frame=%u tail_state=%016llx\n",
+            (unsigned long long)stream->description.match.session_id, stream->count,
+            stream->phase, stream->next_frame, stream->finished, stream->unavailable,
+            stream->description.initial_seed, (unsigned long long)stream->digest,
+            tail.kind, tail.frame, (unsigned long long)tail.state_digest);
 }
 
 uint8_t nativeOnlineSession_LocalPlayers(void)

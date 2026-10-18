@@ -27,6 +27,10 @@ def room(client):
                                      waiting=int(waiting), ranks=list(map(int, ranks.split(','))),
                                      confirmed=int(confirmed), name=name)
     assert len(state['members']) == state['count'], text
+    stream = re.search(r'\[room-stream\] session=([0-9a-f]+) records=(\d+) phase=(\d+) next=(\d+) finished=(\d+) unavailable=(\d+) seed=([0-9a-f]+) digest=([0-9a-f]+) tail_kind=(\d+) tail_frame=(\d+) tail_state=([0-9a-f]+)', text)
+    if stream:
+        state['stream'] = {key: int(value,16 if key in ['session','seed','digest','tail_state'] else 10)
+                           for key,value in zip(['session','records','phase','next','finished','unavailable','seed','digest','tail_kind','tail_frame','tail_state'],stream.groups())}
     return state
 
 
@@ -101,6 +105,9 @@ def main():
     for key in ['exe', 'iso', 'profile', 'families', 'output']:
         parser.add_argument('--'+key, type=Path, required=True)
     parser.add_argument('--endpoint', required=True)
+    parser.add_argument('--delay-peer',type=int,choices=[0,1],default=0)
+    parser.add_argument('--delay-frames',type=int,choices=range(15),default=4)
+    parser.add_argument('--require-stream',action='store_true')
     args = parser.parse_args()
     os.environ['FREAK_MELEE_SERVICE_ENDPOINT'] = args.endpoint
     output = args.output.resolve()
@@ -117,7 +124,7 @@ def main():
         for index in range(2):
             c = Client(args.exe.resolve(), args.iso.resolve(), base, output/str(index),
                        'RotationHost' if index == 0 else 'RotationGuest', window_size=(1280,800),
-                       without_drafts=True, launch_args=('--netplay-delay',4 if index == 0 else 0))
+                       without_drafts=True, launch_args=('--netplay-delay',args.delay_frames if index == args.delay_peer else 0))
             clients.append(c)
             if index == 0:
                 c.command('hold', 1, 'sx=0')
@@ -162,6 +169,10 @@ def main():
             clients[0].click('play-start'); select_stage(clients[0])
             sessions = [session(c,number) for c in clients]
             assert sessions[0][:2] == sessions[1][:2]
+            for index,c in enumerate(clients):
+                delays=re.findall(r'\[netplay\] Diagnostic outbound delay (\d+) frames',
+                                  (c.folder/'stdout.log').read_text(errors='replace'))
+                assert len(delays)==number and int(delays[-1])==(args.delay_frames if index==args.delay_peer else 0),delays
             wait(lambda: network(clients[0])['frame'] > 240, 'normal gameplay')
             entry = {'policy':policy, 'sessions':sessions, 'before':players(clients[0])}
             assert entry['before'][0]['physical'] == active_physical
@@ -207,6 +218,17 @@ def main():
             expected_active = 2 if number == 1 else 1
             entry['returned'] = masks(clients,host,guest,expected_active,3^expected_active)
             assert all(not s['members'][host]['confirmed'] and not s['members'][guest]['confirmed'] for s in entry['returned'])
+            if args.require_stream:
+                stream=entry['returned'][0]['stream']
+                end=re.findall(r'\[netplay\] Endpoint frame (\d+): fighter digest ([0-9a-f]+), RNG ([0-9a-f]+)',
+                               (clients[0].folder/'stdout.log').read_text(errors='replace'))[-1]
+                frame=int(end[0]); digest=((int(end[1],16)^int(end[2],16))*1099511628211)&((1<<64)-1)
+                assert stream['session']==int(sessions[0][0],16)
+                assert stream['records']==frame+1 and stream['next']==frame and stream['finished']==1
+                assert not stream['unavailable'] and stream['phase']==0
+                assert stream['tail_kind']==1 and stream['tail_frame']==frame and stream['tail_state']==digest
+                assert entry['network'][0]['restores']>0, entry['network']
+                entry['stream']=stream
             receipt['rounds'].append(entry)
             (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
             print(f'PASS round {number}: active physical {active_physical}, inactive input ignored, rotation and Results',flush=True)

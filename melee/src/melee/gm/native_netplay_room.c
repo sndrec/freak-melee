@@ -6,6 +6,7 @@
 #ifdef MELEE_NATIVE
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 enum {
@@ -450,6 +451,9 @@ void nativeNetplayRoom_Shutdown(NativeNetplayRoom* room)
     if (room == NULL) {
         return;
     }
+    free(room->stream_storage);
+    room->stream_storage = NULL;
+    room->stream = (NativeMatchStream){0};
 #ifndef MELEE_CONNECTION_PROBE
     nativeNetplayRoom_ClearGifts(room);
     nativeNetplayRoom_ClearCacheTransfers(room);
