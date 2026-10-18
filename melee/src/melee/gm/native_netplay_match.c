@@ -964,11 +964,12 @@ void nativeNetplayMatch_Abort(const char* reason)
 
 void nativeNetplayMatch_Inspect(void)
 {
-    fprintf(stderr,"[netplay-state] frame=%llu checkpoint=%llu cursor=%llu restores=%llu replay_ticks=%llu checksums=%u corrections=%u failed=%d\n",
+    fprintf(stderr,"[netplay-state] frame=%llu checkpoint=%llu cursor=%llu restores=%llu replay_ticks=%llu checksums=%u corrections=%u failed=%d input_stalls=%u wait_ms=%llu\n",
         (unsigned long long)netplay.current_frame,(unsigned long long)netplay.checkpoint.boundary,
         (unsigned long long)netplay.checkpoint.cursor,(unsigned long long)netplay.checkpoint.restores,
         (unsigned long long)netplay.checkpoint.replay_ticks,netplay.compared_digest_count,
-        netplay.correction_count,netplay.failed);
+        netplay.correction_count,netplay.failed,netplay.input_stall_count,
+        (unsigned long long)netplay.input_stall_ms);
     if (!netplay.active) return;
     for (unsigned port = 0; port < 4; ++port) {
         Fighter_GObj* object = Player_GetEntityAtIndex(port, 0);

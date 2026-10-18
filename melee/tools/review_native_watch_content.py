@@ -92,7 +92,18 @@ def main():
         if args.playback:viewer.click('play-watch')
         else:viewer.command('room-watch','start')
         wait(lambda: watch(viewer)['records']>50,'live history from current match',45)
-        ready=wait(lambda: s if (s:=cache(viewer))['watch_ready'] else None,'exact fighter and outfit dependencies',180)
+        download_started=time.monotonic();samples=[];next_sample=0
+        def dependencies():
+            nonlocal next_sample
+            now=time.monotonic()
+            if now>=next_sample:
+                samples.append({'seconds':now-download_started,'players':[network(c) for c in clients[:2]]})
+                next_sample=now+2
+            state=cache(viewer)
+            return state if state['watch_ready'] else None
+        ready=wait(dependencies,'exact fighter and outfit dependencies',180)
+        receipt['download_seconds']=time.monotonic()-download_started
+        receipt['download_samples']=samples
         for identity in identities:
             path=viewer.data/'content/cache'/(identity+'.fmc')
             assert hashlib.sha256(path.read_bytes()).hexdigest()==identity

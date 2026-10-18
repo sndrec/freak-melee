@@ -11,7 +11,9 @@ enum {
     CACHE_RETRY_MS = 2000,
     CACHE_TIMEOUT_MS = 120000,
     CACHE_SEND_BUDGET = 64,
-    CACHE_ROUTE_BURST = 8,
+    // Fill one acknowledged transfer window per route. The shared budget
+    // still bounds the work across all uploads in a pump.
+    CACHE_ROUTE_BURST = NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS,
     CACHE_UPLOAD_PUMP_MS = 4
 };
 enum {

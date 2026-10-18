@@ -91,3 +91,30 @@ the Watch match control, scene preparation, cold-cache fighter activation,
 verified catch-up, sudden-death viewing, Results and return to the local roster.
 Match start by an inactive room owner and auxiliary-load performance
 acceptance remain open.
+
+## Bounded upload throughput
+
+The per-route upload burst previously stopped at eight 512-byte chunks per
+pump. It now fills the existing 32-chunk transfer window, retaining the shared
+64-packet pump budget and round-robin route scheduling. The receive window,
+retransmission rules and memory capacities are unchanged.
+
+The same cold-cache paired-family playback check now reaches dependency-ready
+in 28.781 seconds from joining, compared with 89.297 seconds in the preceding
+run. The measured dependency-wait portion is 20.562 seconds. All 22,098,270
+bytes pass exact package hashes; each active sender's file-read counter remains
+two, and the viewer returns home without installing those packages.
+
+During a 19.516-second sampled transfer interval, the two active clients advance
+at 60.00 and 59.90 ticks/s. Their input-wait counters do not increase during that
+interval. One peer has a pre-existing 78 ms wait before the first sample; the
+other reports no waits over the match. This supports the single-viewer local
+case. Concurrent chat, multiple viewers and distributed-network acceptance
+remain open.
+
+The viewer verifies 2,395 gameplay ticks and the final marker. Both active peers
+end at frame 2,395 with fighter digest `26f90e5c51c199ea` and RNG `0bdab53c`;
+the viewer's combined endpoint is `54603ced1c2d2fa2`. Gameplay and Results
+screenshots were inspected. Receipt and independent audit:
+`.local/native-watch-window-burst-1/receipt.json` and adjacent `audit.json`.
+Eight focused tests pass in `.local/native-watch-burst-build-1.log`.

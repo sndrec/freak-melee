@@ -336,8 +336,10 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   and Results with source-only paired fighters, including a cold-cache run
   through 5,982 verified frames and return to the local roster. A separate
   one-minute tie verifies both sudden-death phases through Results. Match start
-  by a room owner with no active fighter remains open. Cold
-  transfer throughput also needs improvement before performance acceptance.
+  by a room owner with no active fighter remains open. Filling the existing
+  transfer window reduces the cold-cache setup from 89.297 to 28.781 seconds;
+  the sampled active clients maintain about 60 ticks/s without added input waits.
+  Concurrent chat and multiple-viewer performance acceptance remain open.
 - [ ] Confirm downloads/spectator/chat activity does not stall active matches.
 - [ ] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
