@@ -346,9 +346,13 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   match and four Ice Climbers slots on two shared PCs. Sampled active tick rates
   remain about 60 ticks/s with no added input waits; both viewers verify the
   full match and return home. Physical multi-PC testing remains deferred.
-- [ ] Verify current scripted object creation/destruction and custom edits
+- [x] Verify current scripted object creation/destruction and custom edits
   survive corrected inputs; use targeted batches rather than re-proving the
-  entire roster after every small change.
+  entire roster after every small change. The
+  [edited-item check](melee/docs/native_script_item_rollback_checkpoint.md)
+  covers two pull/throw/expiry cycles with received source-only Fox and Zelda
+  packages, new object identities after removal, live corrections and matching
+  peer checksums through Results.
 - [x] Prepare Pokemon Stadium transformation assets before retained rollback
   history. A debugger trace identifies the mid-match fragment import as the
   retained-history OS heap allocation abort. Preload all four forms, activate

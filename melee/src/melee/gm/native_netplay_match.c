@@ -20,6 +20,8 @@
 #include "native_match_snapshot.h"
 #include <melee/ft/fighter.h>
 #include <melee/ft/types.h>
+#include <melee/it/types.h>
+#include <melee/it/native_script_item_actor.h>
 #include <melee/pl/player.h>
 #include <sysdolphin/baselib/native_hsd_arena.h>
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
@@ -979,6 +981,27 @@ void nativeNetplayMatch_Inspect(void)
                 port, netplay.physical_ports[port], fp->kind,
                 fp->cur_pos.x, fp->cur_pos.y, fp->motion_id);
     }
+    unsigned item_count = 0;
+    for (HSD_GObj* object = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_ITEM];
+         object; object = object->next) {
+        const Item* item = object->user_data;
+        if (!item) continue;
+        int holder = -1;
+        for (unsigned port = 0; port < 4; ++port) {
+            for (unsigned member = 0; member < 2; ++member) {
+                Fighter_GObj* fighter = Player_GetEntityAtIndex(port, member);
+                if (fighter && GET_FIGHTER(fighter)->item_gobj == object)
+                    holder = (int) (port * 2 + member);
+            }
+        }
+        const NativeScriptItemProgram* script = nativeScriptItem_Spec(object);
+        fprintf(stderr, "[netplay-item] index=%u id=%u kind=%d state=%d holder=%d scripted=%u recipe=%u age=%u pos=%.6f,%.6f vel=%.6f,%.6f\n",
+            item_count++, (unsigned) item->x1C, item->kind, item->msid, holder,
+            script != NULL, script ? script->recipe_index : 0,
+            item->kind == It_Kind_NativeHoldable ? item->xDD4_itemVar.native_holdable.age : 0,
+            item->pos.x, item->pos.y, item->x40_vel.x, item->x40_vel.y);
+    }
+    fprintf(stderr, "[netplay-items] count=%u\n", item_count);
 }
 
 bool nativeNetplayMatch_IsResimulating(void)
