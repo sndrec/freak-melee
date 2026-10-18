@@ -905,7 +905,7 @@ add_custom_command(OUTPUT "${SOURCE_PACKET_CODEC_FIXTURE}"
     DEPENDS tests/native/fighter_family_package/extract.py src/melee/ft/native_source_asset_validation.c
         src/melee/ft/ftcharacter_asset_layout.c
         src/melee/ft/native_script_moves.c src/melee/ft/ftcharacter_assets.c src/melee/ft/native_fighter_pose_path.c VERBATIM)
-foreach(target native_content_store_test native_fighter_family_package_test)
+foreach(target native_content_store_test native_fighter_family_package_test native_room_gift_test)
     if(TARGET ${target})
         target_sources(${target} PRIVATE "${SOURCE_PACKET_CODEC_FIXTURE}" src/melee/ft/native_source_asset_record.c
             src/melee/ft/native_source_resources.c

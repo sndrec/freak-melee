@@ -21,6 +21,7 @@ typedef enum NativeNetplayGiftState {
     NativeNetplayGift_Offered,
     NativeNetplayGift_Receiving,
     NativeNetplayGift_Sending,
+    NativeNetplayGift_AwaitingReceipt,
     NativeNetplayGift_Installed,
     NativeNetplayGift_Sent,
     NativeNetplayGift_Declined,
@@ -29,20 +30,28 @@ typedef enum NativeNetplayGiftState {
 
 typedef struct NativeNetplayGift {
     NativeContentId id;
+    NativeContentId dependency_id;
+    NativeContentId added_fighter;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char title[NATIVE_CONTENT_TITLE_BYTES];
     uint8_t kind;
     uint32_t serial;
     NativeNetplayGiftState state;
     uint64_t last_control_ms;
+    uint64_t awaiting_since_ms;
     uint8_t* bytes;
     size_t size;
+    uint8_t* dependency_bytes;
+    size_t dependency_size;
     NativeContentTransferSend send;
     NativeContentTransferReceive receive;
 } NativeNetplayGift;
 
 typedef struct NativeNetplayGiftStatus {
     NativeContentId id;
+    NativeContentId dependency_id;
+    // A parent newly installed by accepting this outfit; zero if already owned.
+    NativeContentId added_fighter;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char title[NATIVE_CONTENT_TITLE_BYTES];
     uint8_t kind;

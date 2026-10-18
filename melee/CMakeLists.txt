@@ -862,6 +862,14 @@ if(MELEE_BUILD_TESTS)
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(native_content_store_test PRIVATE bcrypt)
     add_test(NAME native_content_store COMMAND native_content_store_test)
+    add_executable(native_room_gift_test tests/native/room_gift_test.c
+        src/melee/gm/native_netplay_room_gift.c
+        src/melee/gm/native_content_transfer.c
+        src/melee/gm/native_content_store.c src/melee/gm/native_fighter_package.c)
+    target_include_directories(native_room_gift_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_room_gift_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(native_room_gift_test PRIVATE bcrypt)
+    add_test(NAME native_room_gift COMMAND native_room_gift_test)
     add_executable(native_fighter_family_package_test
         tests/native/fighter_family_package/test.c
         src/melee/gm/native_content_store.c src/melee/gm/native_fighter_package.c)

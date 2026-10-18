@@ -59,3 +59,6 @@ These checks cover local imports, model resolution, CSS controls and practice.
 The Windows file-picker sequence itself still needs user evaluation. Missing
 parent transfer during gifting and a fresh online match with these coordinated
 outfits remain open. These runs do not establish relay or other-PC behavior.
+
+The later [delivery checkpoint](native_outfit_gift_checkpoint.md) covers fetching
+an outfit's missing parent and publishing it to the recipient's roster.
