@@ -1,5 +1,6 @@
 #include "native_fighter_pose.h"
 #include "native_fighter_runtime.h"
+#include "native_fighter_rig.h"
 #include "ftcharacter_assets.h"
 #include "ftcostume_assets.h"
 #include "fighter.h"
@@ -69,6 +70,23 @@ HSD_Joint* nativeFighterPose_SelectGraph(const FtCharacterAssets* assets, unsign
         if (*path) ++path;
     }
     return graph;
+}
+
+bool nativeFighterPose_BindGraph(const FtCharacterAssets* assets,unsigned slot,
+    const char* path,const NativeFighterRig* rig,const int32_t* ids,
+    unsigned count,NativeFighterPoseBinding* output)
+{
+    if(!assets||!rig||!ids||!output||!count||count>MAX_FT_PARTS)return false;
+    HSD_Joint* graph=nativeFighterPose_SelectGraph(assets,slot,path);
+    NativeFighterPoseBinding binding={0};
+    if(!graph||descriptors(&assets->import,graph,binding.descriptors)!=count)return false;
+    for(unsigned n=0;n<count;++n){
+        int part=nativeFighterRig_Resolve(rig,ids[n]);
+        if(part<0||(unsigned)part>=rig->count)return false;
+        for(unsigned j=0;j<n;++j)if(binding.parts[j]==part)return false;
+        binding.parts[n]=(uint16_t)part;
+    }
+    binding.count=(uint16_t)count;*output=binding;return true;
 }
 
 static unsigned joints(HSD_JObj* root, HSD_JObj** output)

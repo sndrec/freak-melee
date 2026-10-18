@@ -1,6 +1,7 @@
 #ifndef MELEE_FT_NATIVE_SOURCE_ASSET_FACTS_H
 #define MELEE_FT_NATIVE_SOURCE_ASSET_FACTS_H
 #include "ft_part_layout.h"
+#include "ftparts.h"
 #include "native_fighter_runtime.h"
 #include "native_script_moves.h"
 
@@ -16,6 +17,8 @@ typedef struct NativeSourcePoseGraph {
     uint32_t name;
     uint16_t slot;
     char path[NATIVE_SOURCE_NAME_BYTES];
+    uint16_t bone_count;
+    int32_t bone_ids[MAX_FT_PARTS]; // Descriptor preorder -> stable fighter bone ID.
 } NativeSourcePoseGraph;
 typedef struct NativeSourceArticleAsset {
     char declaration[NATIVE_SOURCE_NAME_BYTES];

@@ -52,8 +52,8 @@ static const char* full=
  "fighter:\n    behavior independent\npose_graph ChainAirRest slot 5 path \"0\"\npose_graph ChainGroundRest slot 4 path \"0\"\n"
  "func All():\n    pose.load_animation(Pose.blend, 305)\n    pose.request_frame(Pose.blend, -0.5)\n"
  "    pose.copy_costume(Pose.blend, 1)\n    pose.evaluate(Pose.blend)\n"
- "    pose.blend_graph(Pose.blend, 1, ChainAirRest, 0.25, 0.75)\n"
- "    pose.copy_graph(Pose.live, 1, ChainGroundRest)\n"
+ "    pose.blend_graph(Pose.blend, ChainAirRest, 0.25, 0.75)\n"
+ "    pose.copy_graph(Pose.live, ChainGroundRest)\n"
  "    pose.blend_to_live(1, 0.4, 0.6)\n    pose.copy_to_live(1)\n"
  "action Hooks:\n    on load:\n        All()\n";
 static NativeSourcePoseGraph facts[16]={ {.name=305010971,.slot=4,.path="0"},{.name=1363947600,.slot=5,.path="0"} };
@@ -112,16 +112,16 @@ static void failures(void)
  rejected("fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\nfunc ChainGroundRest():\n    pass\n",facts,2,0x30);
  CHECK(hash("costarring")==hash("liquid"));NativeSourcePoseGraph collision={.name=hash("costarring"),.slot=4,.path="0"};
  rejected("fighter:\n    behavior independent\npose_graph costarring slot 4 path \"0\"\npose_graph liquid slot 4 path \"0\"\nfunc Run():\n    pass\n",&collision,1,0x10);
- const char* operations[]={"pose.copy_graph(Pose.live, 1, 0)","pose.copy_graph(Pose.live, 1, ChainGroundRest + 1)",
-  "pose.copy_graph(Pose.live, 1, Unknown)","pose.copy_graph(0, 1, ChainGroundRest)","pose.copy_graph(Pose.live, 1.0, ChainGroundRest)",
+ const char* operations[]={"pose.copy_graph(Pose.live, 0)","pose.copy_graph(Pose.live, ChainGroundRest + 1)",
+  "pose.copy_graph(Pose.live, Unknown)","pose.copy_graph(0, 1, ChainGroundRest)","pose.copy_graph(Pose.live, 1.0, ChainGroundRest)",
   "pose.load_animation(Pose.live, 305.0)","pose.request_frame(Pose.live, ChainGroundRest)","int(ChainGroundRest)"};
  for(unsigned i=0;i<sizeof(operations)/sizeof(*operations);++i){snprintf(source,sizeof(source),"fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\nfunc Run():\n    %s\n",operations[i]);rejected(source,facts,2,0x30);}
 }
 static void ownership(void)
 {
  const char* source[]={
- "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\nfunc Run():\n    creator.pose.copy_graph(Pose.live, 1, ChainGroundRest)\n",
- "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\naction Probe:\n    on grabbed(opponent):\n        opponent.pose.copy_graph(Pose.live, 1, ChainGroundRest)\n",
+ "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\nfunc Run():\n    creator.pose.copy_graph(Pose.live, ChainGroundRest)\n",
+ "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\naction Probe:\n    on grabbed(opponent):\n        opponent.pose.copy_graph(Pose.live, ChainGroundRest)\n",
  "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\narticle Probe kind 100 states 1:\n    func Run():\n        creator.pose.request_frame(Pose.live, 0)\n",
  "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\narticle Probe kind 100 states 1:\n    func Run():\n        let int graph = ChainGroundRest\n",
  "fighter:\n    behavior independent\npose_graph ChainGroundRest slot 4 path \"0\"\nmodel_effect Probe gfx 1150:\n    func Run():\n        let int graph = ChainGroundRest\n"
@@ -138,7 +138,7 @@ static void boundary(void)
  CHECK(build(1,full,reversed,2,0x30));CHECK(banks[1].pose_symbols[0].row==0&&banks[1].pose_symbols[1].row==1);accepted=previous;
  NativeSourcePoseGraph rows[16];char source[8192]="fighter:\n    behavior independent\n";
  for(unsigned i=0;i<16;++i){char name[32],line[96];snprintf(name,sizeof(name),"Graph%u",i);rows[i]=(NativeSourcePoseGraph){.name=hash(name),.slot=(uint16_t)i};snprintf(line,sizeof(line),"pose_graph %s slot %u path \"\"\n",name,i);strcat(source,line);}
- strcat(source,"func Run():\n    pose.copy_graph(Pose.live, 1, Graph15)\n");initialize(1);CHECK(build(1,source,rows,16,UINT16_MAX));
+ strcat(source,"func Run():\n    pose.copy_graph(Pose.live, Graph15)\n");initialize(1);CHECK(build(1,source,rows,16,UINT16_MAX));
  CHECK(banks[1].pose_symbol_count==16&&banks[1].pose_symbols[15].row==15);accepted=previous;
  char extra[8192];size_t prefix=(size_t)(strstr(source,"func Run():")-source);
  snprintf(extra,sizeof(extra),"%.*spose_graph Beyond slot 0 path \"\"\nfunc Run():\n    pass\n",(int)prefix,source);rejected(extra,rows,16,UINT16_MAX);

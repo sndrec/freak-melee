@@ -218,11 +218,13 @@ import, materials, rigging and skinning, not mesh modeling.
   collision/IK/effect fields and reachable subactions, with imported-data checks
   across all 26 definitions. The complete hierarchy transaction and structural
   editor Undo acceptance remain open. The in-memory transaction now passes
-  add/reparent/remove, skin-reference and reservation checks on 25 stock fighters
-  plus Glim. Owned hitbox flags preserve legacy clear-command lifetimes and remove
+  add/reparent/remove, skin-reference and reservation checks on all 26 supported
+  stock definitions plus Glim. Owned hitbox flags preserve legacy clear-command lifetimes and remove
   the following-command dependency. Metal visibility now follows retained mesh
   identities through draw-order changes, including tables shared with costumes.
-  Sheik's alternate pose graphs and the Model controls/history still need work.
+  Alternate poses now own stable bone-ID maps, prepared when assets load; Sheik
+  passes the hierarchy path too. Model controls and structural history still
+  need to be connected and verified in the native UI.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but

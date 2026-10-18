@@ -16,6 +16,7 @@
 
 static unsigned checks,cases;
 static char error[256];
+extern "C" bool rig_test_prepare_source(const NativeFighterProject*,char*,size_t);
 #define CHECK(x) do{++checks;if(!(x)){std::fprintf(stderr,"FAIL %d: %s [%s]\n",__LINE__,#x,error);std::exit(1);}}while(0)
 struct Snapshot {
     std::vector<uint8_t> data[4];NativeSourceAssetFacts facts;
@@ -223,6 +224,7 @@ int main(int argc,char** argv){
     CHECK(nativeFighterModel_Open(before.get(),&p));
     CHECK(nativeFighterRig_Edit(&p,&edit,&selected,error,sizeof(error))&&selected==child);++cases;
     CHECK(nativeFighterModel_Open(after.get(),&p));same_rest(*before,*after);
+    if(p.script_size){CHECK(rig_test_prepare_source(&p,error,sizeof(error)));++cases;}
     edit={NativeRigEdit_Remove,child,0,{}};CHECK(nativeFighterRig_Edit(&p,&edit,&selected,error,sizeof(error)));++cases;
     CHECK(p.facts.joints==original_count&&nativeFighterProject_ValidateAssets(&p,error,sizeof(error)));
     auto restored=rig(p);CHECK(nativeFighterRig_Resolve(&restored,id)<0&&nativeFighterRig_Resolve(&restored,child)<0&&restored.next_id==source.next_id+2);

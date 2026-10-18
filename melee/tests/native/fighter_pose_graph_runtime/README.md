@@ -1,6 +1,20 @@
 # Owned fighter pose runtime source proof
 
-Engine source is stable for SDK63 integration. This namespace does not activate Sheik Chain or any stock clone policy.
+The current CMake fixtures use source-package-owned assets and the fighter pool.
+They compare mapped pose operations with the actual stock operation bodies.
+
+```powershell
+cmake --build build/native --target native_engine_fighter_pose_test native_engine_fighter_pose_retail_test
+ctest --test-dir build/native -R '^native_engine_fighter_pose' --output-on-failure
+```
+
+The mapped fixture checks 16,384 flag/destination/weight combinations, reordered
+stable bone IDs and failure before mutation. It passes 332,865 checks. The retail
+fixture passes 816 checks across all five Sheik costumes. Lower SRT operations are
+recorded in the synthetic comparison; the retail test imports real graphs and
+materializes controlled joint objects. Neither launches a live match.
+
+The older standalone runs below are retained as historical evidence.
 
 ## Scope and exact source boundaries
 

@@ -850,6 +850,8 @@ static inline uint64_t nativeFighterModule_LayoutFingerprint(void)
         offsetof(NativeFighterPoseGraph, name_hash),
         offsetof(NativeFighterPoseGraph, slot),
         offsetof(NativeFighterPoseGraph, path),
+        offsetof(NativeFighterPoseGraph, bone_count),
+        offsetof(NativeFighterPoseGraph, bone_ids),
         offsetof(NativeFighterDefinition, pose_graph_count),
         offsetof(NativeFighterDefinition, pose_graphs),
         offsetof(NativeFighterHost, pose_graph),

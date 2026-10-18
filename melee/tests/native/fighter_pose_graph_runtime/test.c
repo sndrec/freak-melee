@@ -14,6 +14,8 @@
 #include <melee/ft/ftcostume_assets.h>
 #include <melee/ft/ftanimation_bank.h>
 #include <melee/ft/native_fighter_pose.h>
+#include <melee/ft/native_source_package.h>
+#include <melee/ft/native_fighter_rig.h>
 #include <melee/ft/native_callback_lifetime.h>
 #include <melee/ft/native_costume_runtime.h>
 #include <melee/ft/ftanim.h>
@@ -25,11 +27,12 @@
 // package loading/scene registration is controlled; no alternate resolver.
 #define NATIVE_FIGHTER_ACTOR_CAPACITY (4 * NATIVE_FIGHTER_FAMILY_MEMBERS)
 typedef struct NativeFighterSlot {
-    bool active; FighterKind fighter_kind; const NativeFighterDefinition* definition;
-    FtCharacterAssets character; FtCostumeAssets costume; FighterPartsTable parts;
-    UnkCostumeStruct costume_entry; const uint8_t* animation_bytes; size_t animation_size;
-    void* animation_arena;
+    bool active; const NativeSourcePackage* source; UnkCostumeStruct costume_entry;
 } NativeFighterSlot;
+static NativeSourcePackage package;
+const NativeSourcePackage* nativeFighterRuntime_SourcePackage(FighterKind kind)
+{return package.ready&&kind==package.target?&package:NULL;}
+
 static HSD_GObj* heads[32];HSD_GObj** HSD_GObjPLinkHead=heads;
 ftData* gFtDataList[Ft_Kind_RuntimeCapacity];
 bool nativeModelEffect_Snapshot(HSD_GObj* o,uint32_t* g) {(void)o;(void)g;return false;}
@@ -44,14 +47,15 @@ static unsigned checks, calls;
 #define CHECK(c) do { ++checks; assert(c); } while(0)
 // Lower SRT/animation resource boundaries record call family and operands.
 static unsigned family[64]; static float weight_a[64],weight_b[64];
+static HSD_JObj* target_joint[64];static HSD_Joint* source_joint[64];
 static void call(unsigned kind,float a,float b) {CHECK(calls<64);family[calls]=kind;weight_a[calls]=a;weight_b[calls++]=b;}
 void lbAnim_8001E6D8(HSD_JObj* j,FigaTree* t,FigaTrack* tracks,s8 n) {CHECK(j&&t);(void)tracks;call(1,(float)n,0);}
-void lb_8000B760(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(2,0,0);}
-void lb_8000B5DC(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(3,0,0);}
-void lb_8000B6A4(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(4,0,0);}
-void lb_8000B4FC(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(5,0,0);}
-void ftCommon_8007F6A4(Fighter* f,HSD_JObj* j) {CHECK(f&&j);call(6,0,0);}
-void lb_8000C868(HSD_Joint* d,HSD_JObj* a,HSD_JObj* b,float x,float y) {CHECK(d&&a&&b);call(7,x,y);}
+void lb_8000B760(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(2,0,0);target_joint[calls-1]=j;source_joint[calls-1]=d;}
+void lb_8000B5DC(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(3,0,0);target_joint[calls-1]=j;source_joint[calls-1]=d;}
+void lb_8000B6A4(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(4,0,0);target_joint[calls-1]=j;source_joint[calls-1]=d;}
+void lb_8000B4FC(HSD_JObj* j,HSD_Joint* d) {CHECK(j&&d);call(5,0,0);target_joint[calls-1]=j;source_joint[calls-1]=d;}
+void ftCommon_8007F6A4(Fighter* f,HSD_JObj* j) {CHECK(f&&j);call(6,0,0);target_joint[calls-1]=j;source_joint[calls-1]=NULL;}
+void lb_8000C868(HSD_Joint* d,HSD_JObj* a,HSD_JObj* b,float x,float y) {CHECK(d&&a&&b);call(7,x,y);target_joint[calls-1]=a;source_joint[calls-1]=d;}
 void lb_8000C490(HSD_JObj* d,HSD_JObj* a,HSD_JObj* b,float x,float y) {CHECK(d&&a&&b);call(8,x,y);}
 void lbCopyJObjSRT(HSD_JObj* d,HSD_JObj* a) {CHECK(d&&a);call(9,0,0);}
 void OSReport(char* format,...) {(void)format;assert(0);}
@@ -71,8 +75,7 @@ typedef struct AnimationArena {FigaTree clip;FigaTrack tracks[8];} AnimationAren
 static void* animation_storage;
 #define clip_arena (*(AnimationArena*)animation_storage)
 
-static NativeFighterPoseGraph graphs[]={{1,4,"0"},{2,5,""}};
-static NativeFighterDefinition definition;
+static NativeSourcePoseGraph graphs[]={{.name=1,.slot=4,.path="0"},{.name=2,.slot=5,.path=""}};
 static Fighter* fighter;static HSD_GObj object;
 
 static void descriptors_init(DescriptorArena* arena,HSD_DatImport* import) {
@@ -82,29 +85,31 @@ static void descriptors_init(DescriptorArena* arena,HSD_DatImport* import) {
         if(i<5)arena->nodes[i].child=&arena->nodes[i+1];arena->nodes[i].scale=(Vec3){1,1,1};}
 }
 static void reset(void) {
-    memset(slots,0,sizeof(slot_storage));memset(fighter,0,sizeof(*fighter));selected_cosmetic=NULL;
+    memset(slots,0,sizeof(slot_storage));memset(&package.assets,0,sizeof(package.assets));memset(fighter,0,sizeof(*fighter));selected_cosmetic=NULL;
     memset(live,0,sizeof(live));memset(blend,0,sizeof(blend));memset(parts,0,sizeof(parts));
     NativeFighterSlot* slot=&slots[0];
-    descriptors_init(&char_arena,&slot->character.import);descriptors_init(&costume_arena,&slot->costume.import);
-    slot->character.joint_graphs[4]=slot->character.fighter_items[4]=&char_arena.nodes[0];
-    slot->character.joint_graphs[5]=slot->character.fighter_items[5]=&char_arena.nodes[0];
-    slot->costume.joint=&costume_arena.nodes[0];slot->costume_entry.joint=slot->costume.joint;slot->costume_entry.native_assets=&slot->costume;
-    slot->character.data.x0=&slot->character.common_attributes;slot->character.common_attributes.model_scaling=2;
-    slot->character.data.x8=&slot->character.model_data;slot->character.model_data.x10=1;
-    slot->character.data.xC=char_arena.animations;
-    slot->active=true;slot->fighter_kind=Ft_Kind_CustomFirst;slot->definition=&definition;slot->parts.parts_num=6;
-    slot->animation_arena=&clip_arena;slot->animation_bytes=raw_animation;slot->animation_size=sizeof(raw_animation);
+    descriptors_init(&char_arena,&package.assets.character.import);descriptors_init(&costume_arena,&package.assets.costume.import);
+    package.assets.character.joint_graphs[4]=package.assets.character.fighter_items[4]=&char_arena.nodes[0];
+    package.assets.character.joint_graphs[5]=package.assets.character.fighter_items[5]=&char_arena.nodes[0];
+    package.assets.costume.joint=&costume_arena.nodes[0];slot->costume_entry.joint=package.assets.costume.joint;slot->costume_entry.native_assets=&package.assets.costume;
+    package.assets.character.data.x0=&package.assets.character.common_attributes;package.assets.character.common_attributes.model_scaling=2;
+    package.assets.character.data.x8=&package.assets.character.model_data;package.assets.character.model_data.x10=1;
+    package.assets.character.data.xC=char_arena.animations;
+    slot->active=true;package.target=Ft_Kind_CustomFirst;slot->source=&package;package.ready=package.assets.ready=true;
+    package.assets.facts.animation_tag=Ft_Kind_CustomFirst;package.assets.facts.actions=1;package.assets.facts.pose_count=2;package.assets.facts.layout.joint_graph_mask=0x30;
+    memcpy(package.assets.facts.poses,graphs,sizeof(graphs));package.assets.parts.parts_num=6;
+    package.assets.animation_arena=&clip_arena;package.owned_input.assets.animation=raw_animation;package.owned_input.assets.animation_bytes=sizeof(raw_animation);
     memset(&clip_arena,0,sizeof(clip_arena));memset(raw_animation,0,sizeof(raw_animation));
     raw_animation[0]=1;raw_animation[1]=1;raw_animation[2]=255;
     clip_arena.clip=(FigaTree){.frames=10,.nodes=(s8*)raw_animation,.tracks=clip_arena.tracks};
     for(unsigned i=0;i<2;++i)clip_arena.tracks[i]=(FigaTrack){.length=1,.ad_head=raw_animation+20+i};
     char_arena.animations[0].x14=&clip_arena.clip;
     fighter->kind=Ft_Kind_CustomFirst;fighter->x8_spawnNum=UINT32_C(0xFEDCBA98);fighter->parts=parts;
-    fighter->ft_data=&slot->character.data;fighter->x24=char_arena.animations;fighter->x58C=1;
-    fighter->x108_costume_joint=slot->costume.joint;fighter->x8AC_animSkeleton=&blend[0];
+    fighter->ft_data=&package.assets.character.data;fighter->x24=char_arena.animations;fighter->x58C=1;
+    fighter->x108_costume_joint=package.assets.costume.joint;fighter->x8AC_animSkeleton=&blend[0];
     object=(HSD_GObj){.classifier=HSD_GOBJ_CLASS_FIGHTER,.user_data=fighter,.hsd_obj=&live[0]};
     HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]=&object;
-    ftPartsTable[fighter->kind]=&slot->parts;gFtDataList[fighter->kind]=fighter->ft_data;
+    ftPartsTable[fighter->kind]=&package.assets.parts;gFtDataList[fighter->kind]=fighter->ft_data;
     omission=(struct Fighter_804D6540_t){0};Fighter_804D6540[fighter->kind]=&omission;
     for(unsigned i=0;i<6;++i) {parts[i].joint=&live[i];parts[i].x4_jobj2=&blend[i];parts[i].flags_b1=true;
         if(i<5){live[i].child=&live[i+1];blend[i].child=&blend[i+1];live[i+1].parent=&live[i];blend[i+1].parent=&blend[i];}}
@@ -112,10 +117,58 @@ static void reset(void) {
 }
 static bool valid(NativeFighterPoseOperation op,int dest,int start,HSD_Joint* graph,FigaTree* clip)
 {return nativeFighterPose_Validate(&object,op,dest,start,graph,clip);}
+static void mapping(void)
+{
+    reset();NativeFighterRig rig={.count=6,.next_id=5001};
+    for(unsigned i=0;i<MAX_FT_PARTS;++i)rig.ids[i]=i;
+    rig.ids[1]=5000;rig.ids[139]=1;CHECK(nativeFighterRig_Index(&rig,NULL,0));
+    const int32_t ids[]={5000,2,3,4,5};NativeFighterPoseBinding binding;
+    CHECK(nativeFighterPose_BindGraph(&package.assets.character,4,"0",&rig,ids,5,&binding));
+    CHECK(binding.count==5&&binding.parts[0]==1&&binding.descriptors[4]==&char_arena.nodes[5]);
+    // Compare every native pose-operation branch, both destinations and
+    // independent blend weights, against the actual extracted stock bodies.
+    for(unsigned pattern=0;pattern<4096;++pattern)for(int destination=0;destination<2;++destination)
+    for(unsigned blending=0;blending<2;++blending){
+        for(unsigned i=1;i<6;++i){unsigned flags=pattern>>((i%4)*3);
+            parts[i].flags_b0=(flags&1)!=0;parts[i].flags_b4=(flags&2)!=0;parts[i].flags_b5=(flags&4)!=0;
+            live[i].flags=blend[i].flags=JOBJ_USE_QUATERNION;
+        }
+        const float a=(float)(pattern%17)*0.125f-0.5f,b=1.75f-a;
+        calls=0;
+        if(blending){if(destination)ftAnim_80070108(fighter,1,a,b,&char_arena.nodes[1]);else ftAnim_80070010(fighter,1,a,b,&char_arena.nodes[1]);}
+        else {if(destination)ftAnim_8006FB88(fighter,1,&char_arena.nodes[1]);else ftAnim_8006FA58(fighter,1,&char_arena.nodes[1]);}
+        unsigned old_count=calls,old_family[64],flags[6];float old_a[64],old_b[64];
+        HSD_JObj* old_targets[64];HSD_Joint* old_sources[64];
+        memcpy(old_family,family,calls*sizeof(*family));memcpy(old_a,weight_a,calls*sizeof(float));memcpy(old_b,weight_b,calls*sizeof(float));
+        memcpy(old_targets,target_joint,calls*sizeof(*target_joint));memcpy(old_sources,source_joint,calls*sizeof(*source_joint));
+        for(unsigned i=1;i<6;++i){flags[i]=(destination?blend[i].flags:live[i].flags);live[i].flags=blend[i].flags=JOBJ_USE_QUATERNION;}
+        calls=0;CHECK(nativeFighterPose_ApplyMapped(fighter,destination,&binding,blending,a,b));
+        CHECK(calls==old_count&&!memcmp(old_family,family,calls*sizeof(*family))&&
+            !memcmp(old_a,weight_a,calls*sizeof(float))&&!memcmp(old_b,weight_b,calls*sizeof(float))&&
+            !memcmp(old_targets,target_joint,calls*sizeof(*target_joint))&&!memcmp(old_sources,source_joint,calls*sizeof(*source_joint)));
+        for(unsigned i=1;i<6;++i)CHECK(flags[i]==(destination?blend[i].flags:live[i].flags));
+    }
+    NativeFighterPoseBinding previous=binding;int32_t duplicate[]={5000,2,3,4,4};
+    CHECK(!nativeFighterPose_BindGraph(&package.assets.character,4,"0",&rig,duplicate,5,&binding));
+    CHECK(!memcmp(&binding,&previous,sizeof(binding)));
+    CHECK(!nativeFighterPose_BindGraph(&package.assets.character,4,"0",&rig,ids,4,&binding));
+    CHECK(!memcmp(&binding,&previous,sizeof(binding)));
+    // A new physical ordering uses the same stable IDs and descriptors.
+    rig.ids[2]=4;rig.ids[4]=2;CHECK(nativeFighterRig_Index(&rig,NULL,0));
+    CHECK(nativeFighterPose_BindGraph(&package.assets.character,4,"0",&rig,ids,5,&binding));
+    CHECK(binding.parts[1]==4&&binding.parts[3]==2);
+    for(unsigned i=0;i<6;++i){parts[i].flags_b0=false;parts[i].flags_b4=true;parts[i].flags_b5=false;}
+    package.assets.character.model_data.x10=0;calls=0;
+    CHECK(nativeFighterPose_ApplyMapped(fighter,0,&binding,false,0,0)&&calls==5);
+    for(unsigned i=0;i<5;++i)CHECK(target_joint[i]==&live[binding.parts[i]]&&source_joint[i]==binding.descriptors[i]);
+    // A bad later destination must not partially write earlier bones.
+    calls=0;binding.parts[4]=6;CHECK(!nativeFighterPose_ApplyMapped(fighter,0,&binding,false,0,0)&&!calls);
+    binding.parts[4]=5;parts[5].joint=NULL;CHECK(!nativeFighterPose_ApplyMapped(fighter,0,&binding,false,0,0)&&!calls);
+}
 int main(void) {
     fighter=calloc(1,sizeof(*fighter));animation_storage=calloc(1,FT_ANIMATION_IMPORT_ARENA_SIZE);CHECK(fighter&&animation_storage);
     ftPartsTable=calloc(Ft_Kind_RuntimeCapacity,sizeof(*ftPartsTable));Fighter_804D6540=calloc(Ft_Kind_RuntimeCapacity,sizeof(*Fighter_804D6540));CHECK(ftPartsTable&&Fighter_804D6540);
-    definition=(NativeFighterDefinition){.action_count=1,.pose_graph_count=2,.pose_graphs=graphs,.asset_layout={.joint_graph_mask=0x30}};
+    mapping();reset();
     const char* good[]={"","0","255","0/0/1","0/0/0/0/0/0/0/0/0/0/0/0"};
     const char* bad[]={NULL,"/","0/","/0","256","0000","-1","1.0","0//1","0/0/0/0/0/0/0/0/0/0/0/0/0"};
     for(unsigned i=0;i<sizeof(good)/sizeof(*good);++i)CHECK(nativeFighterPose_PathValid(good[i]));
@@ -154,7 +207,7 @@ int main(void) {
     reset();blend[5].child=&blend[0];CHECK(!valid(NativeFighterPose_Evaluate,1,0,NULL,NULL));
     reset();char_arena.nodes[5].child=&char_arena.nodes[0];CHECK(!nativeFighterRuntime_PoseGraph(&object,0));
     reset();char_arena.records[2].type=DAT_DOBJ;CHECK(!nativeFighterRuntime_PoseGraph(&object,0));
-    reset();slot_storage[0].character.fighter_items[4]=NULL;CHECK(!nativeFighterRuntime_PoseGraph(&object,0));
+    reset();package.assets.character.fighter_items[4]=NULL;CHECK(!nativeFighterRuntime_PoseGraph(&object,0));
     reset();parts[5].joint=&live[4];CHECK(!valid(NativeFighterPose_CopyToLive,0,0,NULL,NULL));
     reset();CHECK(!valid(NativeFighterPose_CopyGraph,0,2,&char_arena.nodes[1],NULL));
     reset();CHECK(!valid(NativeFighterPose_CopyGraph,0,1,&costume_arena.nodes[1],NULL));
@@ -170,8 +223,8 @@ int main(void) {
     reset();clip_arena.clip.nodes=NULL;CHECK(!valid(NativeFighterPose_LoadAnimation,1,0,NULL,&clip_arena.clip));
     reset();clip_arena.clip.frames=NAN;CHECK(!valid(NativeFighterPose_LoadAnimation,1,0,NULL,&clip_arena.clip));
     reset();clip_arena.tracks[1].ad_head=raw_animation+32;CHECK(!valid(NativeFighterPose_LoadAnimation,1,0,NULL,&clip_arena.clip));
-    reset();slot_storage[0].character.common_attributes.model_scaling=0;CHECK(!valid(NativeFighterPose_CopyCostume,0,1,NULL,NULL));
-    reset();slot_storage[0].character.model_data.x10=6;CHECK(!valid(NativeFighterPose_CopyCostume,0,1,NULL,NULL));
+    reset();package.assets.character.common_attributes.model_scaling=0;CHECK(!valid(NativeFighterPose_CopyCostume,0,1,NULL,NULL));
+    reset();package.assets.character.model_data.x10=6;CHECK(!valid(NativeFighterPose_CopyCostume,0,1,NULL,NULL));
     reset();
     // A nested leaf has no ancestor sibling continuation when the actual copy
     // starts there. Only that leaf's target must be available.
@@ -209,7 +262,7 @@ int main(void) {
     CHECK(nativeFighterRuntime_PoseClip(&object,0)==&clip_arena.clip);
     void* forbidden=VirtualAlloc(NULL,4096,MEM_RESERVE|MEM_COMMIT,PAGE_NOACCESS);CHECK(forbidden);
     reset();fighter->x24=forbidden;CHECK(nativeFighterRuntime_PoseClip(&object,0)==NULL);
-    reset();slot_storage[0].character.data.xC=forbidden;fighter->x24=forbidden;
+    reset();package.assets.character.data.xC=forbidden;fighter->x24=forbidden;
     CHECK(nativeFighterRuntime_PoseClip(&object,0)==NULL);
     reset();char_arena.animations[0].x14=forbidden;CHECK(nativeFighterRuntime_PoseClip(&object,0)==NULL);
     reset();HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]=NULL;

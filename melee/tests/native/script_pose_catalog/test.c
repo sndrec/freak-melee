@@ -13,7 +13,7 @@ static unsigned checks,calls;static uint64_t graph_bits=7;static NativeScriptVal
 bool nativeScriptBindings_SourceAlive(NativeScriptRuntimeContext* c){return c&&c->generation==17;}
 bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* c,uint32_t semantic,const NativeScriptValue* args,uint32_t count,NativeScriptValue* result,NativeScriptDiagnostic* d)
 {
-    (void)c;(void)result;(void)d;CHECK(semantic==NativeScriptBinding_PoseCopyGraph);CHECK(count==3);++calls;
+    (void)c;(void)result;(void)d;CHECK(semantic==NativeScriptBinding_PoseCopyGraph);CHECK(count==2);++calls;
     for(uint32_t i=0;i<count;++i)captured[i]=args[i];return false; // No native assets/runtime here.
 }
 static bool resolve(void* context,const NativeScriptIRArena* arena,const NativeScriptIRNode* node,NativeScriptIRResolution* result,NativeScriptDiagnostic* d)
@@ -49,7 +49,7 @@ static void typed_values(void)
 }
 static void vm(void)
 {
-    const char* text="func Slice():\n    pose.copy_graph(Pose.blend, 0x8000000000000000, Graph)\n";
+    const char* text="func Slice():\n    pose.copy_graph(Pose.blend, Graph)\n";
     NativeScriptSourceNode syntax[32];NativeScriptIRNode nodes[128];uint32_t args[128];NativeScriptLocal locals[4];
     NativeScriptSourceTree tree={.source=text,.source_bytes=(uint32_t)strlen(text),.nodes=syntax,.capacity=32};CHECK(nativeScriptSource_Parse(&tree,&diagnostic));
     NativeScriptIRArena arena={.source=text,.source_bytes=tree.source_bytes,.nodes=nodes,.node_capacity=128,.arguments=args,.argument_capacity=128};
@@ -63,8 +63,7 @@ static void vm(void)
     if(calls!=1)fprintf(stderr,"VM pose call count %u: %s\n",calls,machine.diagnostic.message);
     CHECK(calls==1&&result.type==NativeScriptType_U64&&result.as.u64==UINT64_MAX);
     CHECK(captured[0].type==NativeScriptType_PoseDestination&&captured[0].as.u64==1);
-    CHECK(captured[1].type==NativeScriptType_U64&&captured[1].as.u64==UINT64_C(9223372036854775808));
-    CHECK(captured[2].type==NativeScriptType_PoseGraph&&captured[2].as.u64==7);
+    CHECK(captured[1].type==NativeScriptType_PoseGraph&&captured[1].as.u64==7);
     // Hand-built Constant/Move exercises typed closed values without arithmetic.
     NativeScriptInstruction moves[3]={{.opcode=NativeScriptBC_Constant,.type=NativeScriptType_PoseGraph,.destination=0,.immediate=15},
         {.opcode=NativeScriptBC_Move,.destination=1,.a=0},{.opcode=NativeScriptBC_Return,.type=NativeScriptType_PoseGraph,.a=1}};

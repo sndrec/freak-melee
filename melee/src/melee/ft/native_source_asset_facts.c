@@ -65,6 +65,11 @@ bool nativeSourceAssets_Copy(const NativeFighterDefinition* base,NativeSourceAss
     for(unsigned i=0;i<f.pose_count;++i) {
         f.poses[i].name=base->pose_graphs[i].name_hash;f.poses[i].slot=base->pose_graphs[i].slot;
         if(!copy_name(f.poses[i].path,base->pose_graphs[i].path,true))return error(d,"Asset donor pose path exceeds capacity");
+        const NativeFighterPoseGraph* pose=&base->pose_graphs[i];
+        if(!pose->bone_count || pose->bone_count>MAX_FT_PARTS || !pose->bone_ids)
+            return error(d,"A starting pose needs a bone ID for each descriptor.");
+        f.poses[i].bone_count=pose->bone_count;
+        memcpy(f.poses[i].bone_ids,pose->bone_ids,pose->bone_count*sizeof(*pose->bone_ids));
     }
     if(base->sound_policy) {
         const NativeFighterSoundPolicy* p=base->sound_policy;

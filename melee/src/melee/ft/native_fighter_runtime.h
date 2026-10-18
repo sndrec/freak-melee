@@ -105,6 +105,8 @@ typedef struct NativeFighterPoseGraph {
     uint32_t name_hash;
     uint16_t slot;
     const char* path;
+    uint16_t bone_count;
+    const int32_t* bone_ids; // Initial descriptor-preorder targets, copied into owned facts.
 } NativeFighterPoseGraph;
 
 typedef struct NativeFighterAttachmentSpawn {

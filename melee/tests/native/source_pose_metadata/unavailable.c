@@ -8,3 +8,7 @@ bool nativeScriptBindingPose_Invoke(NativeScriptRuntimeContext* c,uint32_t s,
 bool nativeScriptBindingTransition_Invoke(NativeScriptRuntimeContext* c,uint32_t s,
  const NativeScriptValue* a,uint32_t n,NativeScriptValue* v,NativeScriptDiagnostic* d)
 {(void)c;(void)s;(void)a;(void)n;(void)v;(void)d;return false;}
+
+#include <melee/it/native_script_item_actor.h>
+bool nativeScriptItem_GetCreationValue(Item_GObj* object,float* output)
+{(void)object;(void)output;return false;}

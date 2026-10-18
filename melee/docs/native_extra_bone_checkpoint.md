@@ -4,8 +4,9 @@ The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
 save, stable script bone references and physical fighter-reference rewriting
 are implemented.
 A coordinated in-memory add/reparent/remove transaction is implemented and
-passes the complete test sequence on 25 stock fighters and Glim. Sheik's alternate
-pose graphs and the Model controls/history remain open. Metal visibility now
+passes the complete test sequence on all 26 supported stock definitions and Glim.
+Alternate poses own stable target-bone mappings. Model controls and structural
+history remain open. Metal visibility now
 follows the retained mesh instances when their draw order changes.
 The Model workspace does not expose a partial structural edit.
 
@@ -128,13 +129,75 @@ result, and then starts the rig transaction from that matching asset set.
 
 Remaining acceptance work:
 
-1. Sheik's alternate pose graphs have a caller-supplied start bone and consume
-   a positional sequence. Their source/target bone correspondence must be
-   represented before hierarchy edits can preserve those operations.
-2. Connect the completed transaction to the approved Skeleton controls,
+Connect the completed transaction to the approved Skeleton controls,
    selection/temporary-pose remapping and complete structural Undo/Redo. Verify
    Save/reopen, animation, weight painting and Test Character in the native UI.
    The game client has not been relinked or launched for this backend checkpoint.
+
+## Alternate-pose bone mappings
+
+Each pose fact now stores one stable fighter bone ID per descriptor, in graph
+preorder. The stock Sheik definition supplies the 57 targets for each Chain rest
+graph. Cloning copies those lists into the fighter's own `assets.fma` record.
+The script selects its named pose; `copy_graph` and `blend_graph` use that pose's
+bone list directly. Their old starting-bone argument has been removed from the
+bindings, current scripts, documentation and interpreter tests.
+
+Asset import validates the descriptor count, target IDs and uniqueness, then
+prepares a fixed binding of descriptor pointers and physical parts. Runtime
+copy/blend uses that binding with the game's existing joint transform helpers,
+quaternion rules and model-scale handling. It allocates nothing and does not
+walk the graph or resolve IDs on each call. Invalid destinations fail before
+any transforms change.
+
+Hierarchy edits keep the pose's IDs and graph unchanged. Admission rebinds them
+to the new part order. New bones keep their existing pose; deleting a mapped
+target is rejected. Early Sheik scratch drafts predate this facts layout; use a
+fresh clone for the checks below. Other fighters' records with no pose rows have
+the same layout as before.
+
+The console fixture compares the mapped implementation with the actual stock
+copy/blend bodies across **16,384** flag/destination/weight combinations. It
+compares operation order, source descriptors, target joints, weights and
+quaternion flags. Additional cases cover reordered stable IDs, duplicate targets,
+wrong counts and a bad later destination. The full fixture passes **332,865
+checks**. Its lower transform helpers record operands, so this establishes the
+same operations and arguments rather than a rendered-pixel comparison.
+
+The retail fixture now uses the current source-package ownership and fighter
+pool layout. All five Sheik costumes pass **816** import/runtime checks and
+**40** graph/clip/destination combinations. Interpreter routing and retirement
+checks pass **209 cases**, **1,754 checks**. The source metadata fixture passes
+**237 checks** across **57 builds**; the selector/VM fixture passes **140 checks**.
+Their engine-free dependency lists have been updated to the current language.
+
+A fresh scratch Sheik clone passes complete source-package preparation:
+**236 functions**, **55 imports**, **7,350 interpreter instructions**. Its
+hierarchy sequence also prepares the full package again after reparenting:
+**11 cases**, **2,542 checks**. This uses real asset imports, mappings and source
+compilation; it does not launch gameplay.
+
+The final complete hierarchy review passes all **26** supported stock
+definitions: **262 cases**, **81,327 checks**. With clone-time hitbox flag and
+duration normalization, all **26** pass **288 cases**, **81,405 checks**.
+Glim passes **11 cases**, **2,206 checks**, including full source preparation
+after reparenting. The Glim and scratch Sheik source assets keep their original
+hashes.
+
+Receipts and logs:
+
+- `.local/native-rig-pose-retail-final/receipt.json`
+- `.local/native-rig-pose-normalized-final/receipt.json`
+- `.local/native-rig-pose-drafts-final.json`
+- `.local/native-owned-pose-clone-1/source-check-final.log`
+- `.local/native-owned-pose-ctest-final.log`
+- `.local/native-owned-pose-metadata-final-2/receipt.json`
+- `.local/native-owned-pose-catalog-final-2/receipt.json`
+
+Hierarchy test SHA-256:
+`e2471d4d7d8533aed2b191cab46f025a60d80d508b9eb06b27c61da2868b4371`.
+Content tool SHA-256:
+`c01a2f3c7af845abf0ed3048435ce9f884da61acfd45f572da215bd5be9c3ed8`.
 
 ## Metal-model visibility
 

@@ -107,6 +107,17 @@ void ftAnim_8006FE9C(Fighter* actor,Fighter_Part start,float a,float b)
 {last_a=a;last_b=b;native_call(actor,NativeFighterPose_BlendToLive,0,start);}
 void ftAnim_8006FF74(Fighter* actor,Fighter_Part start){native_call(actor,NativeFighterPose_CopyToLive,0,start);}
 
+bool nativeFighterPose_ApplyMapped(Fighter* actor,int32_t destination,
+    const NativeFighterPoseBinding* binding,bool blend_graph,float a,float b)
+{
+    CHECK(actor==&fighter&&binding==&package.assets.poses[1]);
+    if(!valid_topology)return false;
+    CHECK(binding->count==1&&binding->descriptors[0]==&graph_descriptor);
+    last_operation=blend_graph?NativeFighterPose_BlendGraph:NativeFighterPose_CopyGraph;
+    last_destination=destination;last_start=binding->parts[0];last_a=a;last_b=b;
+    native_call(actor,last_operation,destination,last_start);return true;
+}
+
 static NativeScriptValue i(int64_t value){return(NativeScriptValue){.type=NativeScriptType_I64,.as.i64=value};}
 static NativeScriptValue f(float value){return(NativeScriptValue){.type=NativeScriptType_F32,.as.f32=value};}
 static NativeScriptValue selector(unsigned type,uint64_t row){return(NativeScriptValue){.type=type,.as.u64=row};}
@@ -118,6 +129,8 @@ static void setup(void)
     NativeScriptCompileBank* bank=&package.compiler.bank;bank->valid=bank->has_motion_layout=true;bank->storage_layout.identity=31;bank->storage_parameters.identity=41;
     bank->pose_graph_count=package.assets.facts.pose_count=2;bank->pose_graph_mask=package.assets.facts.layout.joint_graph_mask=48;
     bank->pose_symbols[0].row=1;bank->pose_symbol_count=1;package.assets.parts.parts_num=5;
+    package.assets.facts.poses[1].bone_count=1;package.assets.facts.poses[1].bone_ids[0]=1;
+    package.assets.poses[1].count=1;package.assets.poses[1].parts[0]=1;package.assets.poses[1].descriptors[0]=&graph_descriptor;
     package.program.bank=bank;package.program.identity=23;fighter.kind=fighter.behavior_kind=Ft_Kind_CustomFirst;fighter.gobj=object;fighter.x8_spawnNum=17;
     fighter.ft_data=&package.assets.character.data;gFtDataList[fighter.kind]=fighter.ft_data;ftData_CharacterStateTables[fighter.kind]=package.assets.motions;
     fighter.parts=parts;parts[1].joint=&live;parts[1].x4_jobj2=&blend;fighter.x8AC_animSkeleton=&blend;fighter.x108_costume_joint=&costume_descriptor;
@@ -137,15 +150,15 @@ int main(void)
     for(unsigned n=0;n<MAX_FT_PARTS;++n)rig->ids[n]=n;
     rig->ids[1]=500000;rig->ids[139]=1;
     CHECK(nativeFighterRig_Index(rig,NULL,0));
-    NativeScriptValue mapped[]={selector(NativeScriptType_PoseDestination,0),i(500000),
-        selector(NativeScriptType_PoseGraph,1),f(.25f),f(.75f)},mapped_out;
-    CHECK(invoke(NativeScriptBinding_PoseBlendGraph,mapped,5,&mapped_out));
+    NativeScriptValue mapped[]={selector(NativeScriptType_PoseDestination,0),i(500000)},mapped_out;
+    CHECK(invoke(NativeScriptBinding_PoseCopyCostume,mapped,2,&mapped_out));
     CHECK(calls==1&&last_start==1&&mapped_out.type==NativeScriptType_Void);++cases;
-    mapped[1]=i(139);reject(NativeScriptBinding_PoseBlendGraph,mapped,5);
+    mapped[1]=i(139);reject(NativeScriptBinding_PoseCopyCostume,mapped,2);
     const unsigned operations[]={NativeScriptBinding_PoseLoadAnimation,NativeScriptBinding_PoseRequestFrame,NativeScriptBinding_PoseEvaluate,NativeScriptBinding_PoseCopyCostume,NativeScriptBinding_PoseCopyGraph,NativeScriptBinding_PoseBlendGraph,NativeScriptBinding_PoseBlendToLive,NativeScriptBinding_PoseCopyToLive};
-    const unsigned counts[]={2,2,1,2,3,5,3,1};
+    const unsigned counts[]={2,2,1,2,2,4,3,1};
     for(unsigned op=0;op<8;++op)for(unsigned destination=0;destination<(op<6?2:1);++destination) {
         setup();NativeScriptValue args[]={selector(NativeScriptType_PoseDestination,destination),i(1),selector(NativeScriptType_PoseGraph,1),f(-.25f),f(1.75f)};
+        if(op==4||op==5){args[1]=args[2];args[2]=args[3];args[3]=args[4];}
         if(op==0)args[1]=i(305);if(op==1)args[1]=f(-2.5f);if(op>=6){args[0]=i(1);args[1]=f(-.25f);args[2]=f(1.75f);}
         NativeScriptValue out={0};CHECK(invoke(operations[op],args,counts[op],&out));CHECK(calls==1&&out.type==NativeScriptType_Void);
         if(op==1)CHECK(last_a==-2.5f);if(op==5||op==6)CHECK(last_a==-.25f&&last_b==1.75f);++cases;
@@ -154,12 +167,13 @@ int main(void)
             CHECK(calls==(op==3?0:1));++cases;
         }
     }
-    setup();NativeScriptValue args[]={selector(NativeScriptType_PoseDestination,0),i(1),selector(NativeScriptType_PoseGraph,1),f(.25f),f(.75f)};
-    valid_topology=false;reject(NativeScriptBinding_PoseBlendGraph,args,5);valid_topology=true;
-    args[0]=i(0);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[0]=selector(NativeScriptType_PoseDestination,2);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[0]=selector(NativeScriptType_PoseDestination,0);
-    args[2]=i(1);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[2]=selector(NativeScriptType_PoseGraph,0);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[2]=selector(NativeScriptType_PoseGraph,2);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[2]=selector(NativeScriptType_PoseGraph,1);
-    args[1]=i(INT64_C(0x100000001));reject(NativeScriptBinding_PoseBlendGraph,args,5);args[1]=i(-1);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[1]=i(5);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[1]=i(1);
-    args[3]=f(NAN);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[3]=f(.25f);args[4]=f(INFINITY);reject(NativeScriptBinding_PoseBlendGraph,args,5);args[4]=f(.75f);
-    context.source_class=NativeCallbackSource_Item;reject(NativeScriptBinding_PoseBlendGraph,args,5);
+    setup();NativeScriptValue args[]={selector(NativeScriptType_PoseDestination,0),selector(NativeScriptType_PoseGraph,1),f(.25f),f(.75f)};
+    valid_topology=false;reject(NativeScriptBinding_PoseBlendGraph,args,4);valid_topology=true;
+    args[0]=i(0);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[0]=selector(NativeScriptType_PoseDestination,2);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[0]=selector(NativeScriptType_PoseDestination,0);
+    args[1]=i(1);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[1]=selector(NativeScriptType_PoseGraph,0);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[1]=selector(NativeScriptType_PoseGraph,2);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[1]=selector(NativeScriptType_PoseGraph,1);
+    package.assets.poses[1].count=0;reject(NativeScriptBinding_PoseBlendGraph,args,4);
+    package.assets.poses[1].count=2;reject(NativeScriptBinding_PoseBlendGraph,args,4);package.assets.poses[1].count=1;
+    args[2]=f(NAN);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[2]=f(.25f);args[3]=f(INFINITY);reject(NativeScriptBinding_PoseBlendGraph,args,4);args[3]=f(.75f);
+    context.source_class=NativeCallbackSource_Item;reject(NativeScriptBinding_PoseBlendGraph,args,4);
     printf("{\"status\":\"PASS\",\"checks\":%u,\"cases\":%u,\"retirement_mutations\":%u,\"native_operations\":8}\n",checks,cases,mutations);return 0;
 }
