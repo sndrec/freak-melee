@@ -21,7 +21,7 @@ static void hitbox_compile_negatives(void)
         if(!rejected)fprintf(stderr,"unexpected accepted hitbox call: %s\n",bodies[i]);
         CHECK(rejected);++negative_count;
     }
-    const char* fields[]={"bone 140","bone -1","bone 1.5","damage -1","damage 4294967297",
+    const char* fields[]={"bone 2147483648","bone -1","bone 1.5","damage -1","damage 4294967297",
         "radius -1","radius 1e100","angle -1","element 32","sound_severity 8","sound_kind 32",
         "unknown_field 1","bone 2\n    bone 2","damage 0\n    damage 0","radius 3\n    radius 3"};
     for(unsigned i=0;i<sizeof(fields)/sizeof(*fields);++i){

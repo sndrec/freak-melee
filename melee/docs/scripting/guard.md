@@ -9,8 +9,8 @@ These operations do not call a particular fighter's counter handler.
 
 ## `guard.create(bone, x, y, z, radius, helper)`
 
-Attach a guard sphere to a costume joint. `bone` is a numeric joint index;
-use [`bones.index()`](#bonesindexname) to resolve a semantic bone instead.
+Attach a guard sphere to a bone. `bone` is its [bone ID](bone_queries.md#bone-ids);
+use [`bones.index()`](#bonesindexname) to get the ID for a named role.
 The offset is in the joint's local coordinates. The call activates the volume,
 resets its reaction flags, and binds the supplied root helper to the shared
 ShieldHit callback slot. The helper takes no arguments and returns no value.
@@ -78,7 +78,7 @@ stock counter does. It does not advance the animation or simulate a hit.
 
 ## `bones.index(Name)`
 
-Resolve a semantic bone to the current fighter's costume joint index. Available
+Get the current fighter's [bone ID](bone_queries.md#bone-ids) for a named role. Available
 names are `TransN`, `XRotN`, `YRotN`, `Top`, `Hip`, `LeftHand`, `RightHand`,
 `RightThumb`, `LeftFoot`, `RightFoot`, `LeftShoulder`, and `RightShoulder`.
 This uses the current fighter's bone mapping rather than a donor's joint number.
@@ -123,7 +123,7 @@ fighter independently of its current motion.
 | `guard.powershield_window` | Bool, writable | Enables the powershield window. |
 | `shield.health` | Float, writable | Current shield health. |
 | `shield.light_amount` | Float, read-only | Current analog light-shield amount. |
-| `shield.bone` | Unsigned 32-bit, read-only | Raw shield joint index from the fighter data. |
+| `shield.bone` | Unsigned 32-bit, read-only | Bone ID for the fighter's shield attachment. |
 | `shield.initial_size` | Float, read-only | Fighter's base shield size. |
 
 Read-only Float tuning values come from the game's common data:

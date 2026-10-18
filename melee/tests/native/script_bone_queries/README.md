@@ -6,6 +6,13 @@ Native comparisons pin pre-batch d25ac9faa: lb_8000B1CC, HSD joint matrix constr
 
 No shared build or game is launched. Run with --compiler and a fresh private A: --output; receipt pins actual source, headers, compiler and generated native bodies. No retail Link package or gameplay acceptance is claimed.
 
+The stable-ID group repeats the native matrix comparisons with ID 500000 at
+physical joint 2, including role lookup, offsets and local translation. An old
+ID moved to an external reservation and a missing ID cannot alias the body
+joint. Current fixtures use the production scene arena and pool constructors;
+optional grid/class construction, accessory operations and diagnostics retain
+explicit controlled boundaries.
+
 The throw-angle group composes two native world-position/offset queries and
 Float `atan2` in authored code, using the stock Fox/Falco muzzle/barrel offsets.
 Thirty-six comparisons cover three hierarchy/quaternion arrangements, both

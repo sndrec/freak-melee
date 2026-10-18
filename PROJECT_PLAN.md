@@ -208,8 +208,10 @@ import, materials, rigging and skinning, not mesh modeling.
   33 retail animation banks (6,245 clips). The Workshop now saves its matching
   fighter/animation/costume/facts as one validated operation, with complete-asset
   Undo/Redo; locked-file failure checks and the native Model workflow pass.
-  The rig/reference edit, script reference handling and structural editor Undo
-  acceptance remain open.
+  Script bone references now use stable per-fighter IDs, resolved at script
+  boundaries. Compiler/VM checks cover reordered IDs, target queries and hitbox
+  creation; native core-asset saving preserves the owned ID table.
+  The hierarchy/reference edit and structural editor Undo acceptance remain open.
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but

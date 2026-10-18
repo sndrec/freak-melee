@@ -1,11 +1,10 @@
-`targets.read_bone_position(handle, raw_part, x, y, z)` returns Bool and writes
+`targets.read_bone_position(handle, bone, x, y, z)` returns Bool and writes
 three distinct Float destinations only on success. Fighter and Article callers
-must have a live selected source program. Handles and raw parts are integral;
-wide indices are checked before native-width conversion. Missing targets,
-missing joints and out-of-range parts return false without changing outputs.
+must have a live selected source program. Handles and bone IDs are integers.
+Missing targets and missing bones return false without changing outputs.
 
-The raw part indexes the actual target's imported part table, including omissions;
-it does not pass through semantic-part remapping. Foreign stock Fighters and
+Use a [bone ID](bone_queries.md#bone-ids) belonging to the target fighter.
+Foreign stock Fighters and
 Fighters belonging to a different selected source package are allowed. A faulted
 target's still-live owned storage is readable. A captured target's physical or
 logical retirement, substituted userdata/schema, or rig changes withhold all

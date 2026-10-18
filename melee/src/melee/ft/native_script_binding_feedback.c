@@ -72,6 +72,7 @@ static HSD_JObj* bone(Fighter* fp,uint32_t index,bool semantic,NativeScriptDiagn
     FighterPartsTable* table=(uint32_t)fp->kind<Ft_Kind_RuntimeCapacity && ftPartsTable?ftPartsTable[fp->kind]:NULL;
     if(!table || !fp->parts || !table->parts_num || table->parts_num>MAX_FT_PARTS){error(d,"Feedback fighter model schema is absent");return NULL;}
     if(semantic){if(index>=FT_COMMON_PART_COUNT || !table->part_to_joint){error(d,"Feedback semantic part is out of range");return NULL;}index=(uint32_t)ftParts_GetBoneIndex(fp,(Fighter_Part)index);}
+    else {const NativeSourcePackage* p=nativeFighterRuntime_SourcePackage(fp->kind);if(p)index=(uint32_t)nativeFighterRig_Resolve(&p->assets.rig,index);}
     if(index>=table->parts_num || !fp->parts[index].joint){error(d,"Feedback native bone is unmapped");return NULL;}return fp->parts[index].joint;
 }
 static bool effect_id(const NativeScriptValue* value,int32_t* result)
@@ -123,7 +124,8 @@ bool nativeScriptBindingFeedback_Invoke(NativeScriptRuntimeContext* context,uint
         case NativeScriptBinding_ReflectorCreate: {
             if(!bone(fp,(uint32_t)args[0].as.u64,false,d))return false;
             for(unsigned i=2;i<8;++i)if(!isfinite(args[i].as.f32))return error(d,"Reflector scalar is not finite");
-            ReflectDesc shape={.x0_bone_id=(uint32_t)args[0].as.u64,.x4_max_damage=(int32_t)args[1].as.i64,
+            uint32_t part=(uint32_t)nativeFighterRig_Resolve(&source.package->assets.rig,args[0].as.u64);
+            ReflectDesc shape={.x0_bone_id=part,.x4_max_damage=(int32_t)args[1].as.i64,
                 .x8_offset={args[2].as.f32,args[3].as.f32,args[4].as.f32},.x14_size=args[5].as.f32,.x18_damage_mul=args[6].as.f32,.x1C_speed_mul=args[7].as.f32,.x20_behavior=args[8].as.u64!=0};
             ftColl_CreateReflectHit(object,&shape,NULL);break;
         }

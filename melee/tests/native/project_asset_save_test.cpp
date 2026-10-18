@@ -5,6 +5,7 @@
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_animation_editor.h>
 #include <melee/ft/native_fighter_model_editor.h>
+#include <melee/ft/native_fighter_rig.h>
 #include <array>
 #include <cassert>
 #include <cstdio>
@@ -69,6 +70,12 @@ int main(int argc,char** argv)
     CHECK(nativeFighterModel_Open(model,&p));CHECK(model->joint_count>6);
     CHECK(nativeFighterModel_SetJoint(model,6,2,0,model->joints[6].position[0]+0.125f));
     delete model;
+    HSD_Dat fighter_dat;
+    NativeFighterRig rig;
+    char rig_error[192];
+    CHECK(HSD_DatOpen(&fighter_dat,p.fighter_dat,p.fighter_size)==HSD_DAT_OK);
+    CHECK(nativeFighterRig_Read(&fighter_dat,p.facts.joints+p.facts.omission_count,&rig,rig_error,sizeof(rig_error)));
+    CHECK(nativeFighterRig_Write(&p,&rig,rig_error,sizeof(rig_error)));
     p.facts.ignore_surface_friction=!p.facts.ignore_surface_friction;
     encode_facts(p);
     char error[256]={};

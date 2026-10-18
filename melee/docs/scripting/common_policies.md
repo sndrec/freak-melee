@@ -521,8 +521,8 @@ scripts need not increment them. Writes accept integers from 0 through 254.
 Float values and integers outside that range are rejected before narrowing.
 
 Read-only shared values are `shield.light_amount`, `shield.bone`, and
-`shield.initial_size`. `shield.bone` is a raw joint index, not a semantic bone
-role. Common tuning queries are `shield.start_health`,
+`shield.initial_size`. `shield.bone` is the shield attachment's
+[bone ID](bone_queries.md#bone-ids). Common tuning queries are `shield.start_health`,
 `shield.minimum_hold_duration`, `shield.pushback_damage_scale`,
 `shield.pushback_base`, `shield.pushback_velocity_scale`,
 `shield.reflect_duration`, `shield.reflect_radius`,

@@ -69,10 +69,12 @@ bool nativeScriptBindingHitboxCreate_Invoke(NativeScriptRuntimeContext* c,
        !package->assets.parts.parts_num||package->assets.parts.parts_num>MAX_FT_PARTS)
         return error(d,"Hitbox creation has no matching owned Fighter rig");
     const NativeScriptHitboxDefinition* spec=&bank->hitbox_definitions[args[1].as.u64];
-    if(spec->bone<0||spec->bone>=MAX_FT_PARTS)return error(d,"Hitbox bone is outside native part storage");
+    if(spec->bone<0)return error(d,"Hitbox bone ID must be nonnegative");
+    int bone=nativeFighterRig_Resolve(&package->assets.rig,spec->bone);
     NativeScriptValue result={.type=NativeScriptType_Bool,.as.u64=0};HSD_JObj* joint=NULL;
-    if((unsigned)spec->bone<package->assets.parts.parts_num)joint=f->parts[spec->bone].joint;
-    else if(!nativeArticleResource_ResolveBoundPart(source.object,(unsigned)spec->bone,&joint)){*out=result;return true;}
+    if(bone<0){*out=result;return true;}
+    if((unsigned)bone<package->assets.parts.parts_num)joint=f->parts[bone].joint;
+    else if(!nativeArticleResource_ResolveBoundPart(source.object,(unsigned)bone,&joint)){*out=result;return true;}
     if(!joint||(spec->require_throw_owner&&!f->x1064_thrownHitbox.owner)){*out=result;return true;}
     if(!p_ftCommonData)return error(d,"Hitbox angle helper has no common engine parameters");
     if(!damage_valid(f,(uint32_t)spec->damage,d))return false;

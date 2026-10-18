@@ -361,6 +361,7 @@ static bool attach(NativeScriptRuntimeContext* context,const NativeFighterLifeti
     *attached=false;
     Fighter* fighter=caller->data;
     const NativeSourcePackage* package=nativeFighterRuntime_SourcePackage(caller->kind);
+    if(package)raw=nativeFighterRig_Resolve(&package->assets.rig,raw);
     if(!package || !fighter->parts || !ftPartsTable ||
        ftPartsTable[caller->kind]!=&package->assets.parts ||
        package->assets.parts.parts_num!=package->assets.facts.joints+package->assets.facts.omission_count ||

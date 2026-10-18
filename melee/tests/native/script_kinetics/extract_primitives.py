@@ -26,6 +26,10 @@ FUNCTIONS={
     'src/melee/ft/ft_081B.c':['ft_80084DB0'],
     'src/melee/ft/ftanim.c':['ftAnim_IsFramesRemaining','ftAnim_8006F484',
         'ftAnim_8006F0FC_inline','ftAnim_8006F0FC','ftAnim_SetAnimRate','ftAnim_8006EBA4'],
+    'src/melee/lb/lbcollision.c':['lbColl_80008428'],
+    'src/melee/ft/native_hitbox_lifetime.c':['nativeHitboxLifetime_Clear',
+        'nativeHitboxLifetime_BeginStep','nativeHitboxLifetime_EndStep'],
+    'src/melee/ft/ftcoll.c':['ftColl_8007AFC8'],
 }
 
 def native_only(source):
@@ -86,6 +90,7 @@ def extract(root,output):
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text('// Actual engine bodies; isolated fixture only.\n'+
         '#include <melee/ft/native_fighter_lifetime.h>\n'+
+        '#include <melee/ft/native_hitbox_lifetime.h>\n#include <melee/ft/ftcoll.h>\n#include <melee/lb/lbcollision.h>\n'+
         '#pragma clang diagnostic push\n#pragma clang diagnostic ignored "-Wunused-variable"\n'+
         '#pragma clang diagnostic ignored "-Wunused-parameter"\n#pragma clang diagnostic ignored "-Wsign-compare"\n'+
         '\n\n'.join(pieces)+'\n#pragma clang diagnostic pop\n',newline='\n')

@@ -331,13 +331,14 @@ See the [Bowser translation](../bowser_script_translation.md) and its
 
 ## Capturing existing items
 
-`capture.attach_item(raw_bone)` makes the captured item inert and attaches its
+`capture.attach_item(bone)` makes the captured item inert and attaches its
 model's attachment bone to the supplied holder bone. It retains the existing
 item object, replaces its motion table with the common inert state, disables
 contacts and automatic lifetime, and preserves the common owner bookkeeping.
 An interpreted item retains its authored program, editable state and lifecycle
-callbacks; its normal animation, physics and collision phases stop. The raw bone
-must exist in the current holder's rig, and the item must have a valid model
+callbacks; its normal animation, physics and collision phases stop. The
+[bone ID](bone_queries.md#bone-ids) must belong to a bone in the holder's rig,
+and the item must have a valid model
 attachment bone. This does not disable the shared graph update or render path.
 
 `capture.has_item` is a read-only Bool for this captured-item link. It is separate
@@ -345,7 +346,7 @@ from the normal held-item slot and does not imply the item is already attached.
 It returns false without a selected item; a retired or inconsistent relation
 rejects the operation instead of masquerading as an empty slot.
 
-`capture.release_item(raw_bone, clear_destroy_type)` detaches it, samples the
+`capture.release_item(bone, clear_destroy_type)` detaches it, samples the
 holder bone for its release position, performs item statistics, unlinks the old
 item and destroys it. It does nothing without an item.
 The boolean selects whether to clear the engine's destruction category before

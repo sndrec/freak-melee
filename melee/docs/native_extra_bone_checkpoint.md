@@ -1,6 +1,7 @@
 # Extra-bone authoring checkpoint
 
-The animation-node remapper and coordinated core-asset save are implemented.
+The animation-node remapper, coordinated core-asset save and stable script bone
+references are implemented.
 Adding, removing and reparenting bones in the Workshop remain open. The Model
 workspace does not expose a partial structural edit.
 
@@ -35,12 +36,85 @@ existing C implementation. The remapper and its test use that decoder directly.
 | Gameplay roles | `native_source_asset_facts.h` owns semantic-role mappings, joint counts and reserved-part insertion data. `native_source_asset_import.c` constructs runtime tables from them. | Update counts and role/omission indices together, retaining required helper relationships. |
 | Animation | `ftanim.c` selects tracks by part order, masks, animation family and reserved-part policy. Action/demo descriptors address the animation bank. | Remap each applicable tree, rebuild bank descriptors and preserve aliases. |
 | Fighter data and commands | `ftcharacter_assets.c` imports model parts, hurtboxes, dynamics, collision data and IK; hitbox/subaction data also carries bone selections. | Classify each field as a semantic role, raw part index or object reference before changing it. |
-| Scripts | `native_script_binding_presentation.c` distinguishes semantic roles from raw joints; effects and hitbox definitions can use raw indices. Examples also obtain indices from editable attributes. | Keep named roles working and give raw references an explicit migration path. Rewriting all matching numeric literals would change unrelated values. |
+| Scripts | Named roles resolve to bone IDs; script boundaries translate IDs to physical parts. The fighter DAT owns the ID table. | Preserve each retained bone's ID when moving its physical slot, reserve new IDs for inserted bones, and preserve article reservation IDs. Numeric script parameters keep their values. |
 | Editor state | Names use DAT offsets. Model Undo currently restores costume data and changed selector bytes. Animation, facts and script data have other owners. | Publish/undo the entire structural change atomically; remap selection and temporary poses by retained object identity. |
 | Saving and loading | Project facts must agree with imported costume joint counts. | Save and reopen the matching costume, animation, fighter, facts and authoring data as one coherent project. |
 
 The existing reusable rest-transform and painting operations remain available.
 They do not change traversal order and do not imply structural editing is ready.
+
+## Stable script bone references
+
+`native_fighter_rig.{h,c}` stores an immutable bone-ID lookup in each imported
+fighter. A fighter without an authored table starts with its original numbering.
+An authored table lives at the `Freak_RigBones` root in the owned fighter DAT.
+It contains IDs, optional names, editing flags and the next available ID. The
+writer reuses a fixed allocation on subsequent saves. Original root symbols,
+external references and data offsets stay intact when adding the root.
+
+Script IDs identify bones independently of physical part order. Named roles
+still use the fighter's role mapping; `bones.index(role)` returns the selected
+bone's ID. Joint queries, transforms, pose starts, hitbox/hurtbox creation,
+shields, reflectors, absorbers, effects and fighter attachments translate IDs
+at their script boundary. Target queries use the target fighter's own table.
+Native descriptor fields, deferred queues and article-local model indices keep
+their physical meaning. In particular, shield/camera observations and queued
+effect reentry must not translate a physical slot a second time.
+
+The table also tracks slots reserved outside the body rig for article resources.
+A future insertion must preserve an occupied resource's ID when relocating its
+physical reservation. Initial IDs occupy the original 140-slot namespace;
+new IDs increase monotonically. Removing an ID leaves it unavailable. The live
+engine still supports at most 140 physical parts. This metadata does not raise
+that limit or expose structural editing before the complete transaction exists.
+
+Lookup uses a fixed 512-entry hash table prepared during import. Unauthored rigs
+use their original numbers directly. Runtime lookup allocates no memory. Import
+rejects duplicate IDs/names, inconsistent counts, malformed pointers or flags,
+missing live-body IDs and unterminated names before publishing the assets.
+
+Checks completed for this checkpoint:
+
+- Rig codec: **2,004 checks**, including a 140-entry hash collision chain,
+  insertion/reordering/removal metadata, bounded repeated rewrites and unchanged
+  original symbols/external references.
+- Bone-query compiler/actor/VM cohort: **4,884 checks**, including an ID of
+  500,000 resolving to physical joint 2, role-to-ID queries, offsets, native
+  matrix comparisons, translation and missing-ID behavior.
+- Target-query/hitbox cohort: **19,899 checks**, including foreign fighter IDs,
+  unchanged native shield/camera observations, and **128** direct/VM hitbox
+  comparisons against the native initializer with a nonidentity bone ID.
+- CMake regression group: **19 suites**, passing. This covers pose, resource
+  metadata and the affected script/runtime cohorts; it is not full gameplay
+  coverage of every attachment/effect path.
+- All **130 retail costumes**, **8,149 meshes** and **123,904,853 checks** pass
+  the skin-editor/archive regression after the shared DAT footer change.
+- Copied Mario and Yoshi coordinated-save tests: **427 checks each**, including
+  adding the ID root, import/reopen and complete-asset Undo/Redo. Original draft
+  hashes remain unchanged.
+
+The direct-source graph cohorts now link the current scene arena and native
+Ground/Item pool owners. Profiling is disabled, RNG tracing has no sink and
+unselected accessory/class-grid operations remain explicit fixture boundaries.
+Native graph construction and complete rendering/gameplay remain separate
+acceptance work.
+
+Evidence:
+
+- `.local/native-rig-binding-ctest-1.log`
+- `A:/freak-melee-reviews/stable-bone-queries-3/receipt.json`
+- `A:/freak-melee-reviews/stable-target-queries-4/receipt.json`
+- `.local/native-rig-stock-skin-1/receipt.json`
+- `.local/native-rig-project-assets-mario-1/receipt.json`
+- `.local/native-rig-project-assets-yoshi-1/receipt.json`
+- `.local/native-rig-model-workflow-1/receipt.json`
+
+The rebuilt client passes the native Model workflow on the copied Mario draft
+with an authored ID table: posed/animated painting, rest compensation, exact
+Undo/Redo, reopening without the source GLB and Test Character/return. Both
+clients were hidden and muted and used isolated profiles. No test process remains.
+Game SHA-256: `7ad20c0913ba0a5bfa9f30276dd42081ae83a9d26e7fdefba592ae5c16561a10`.
+Tool SHA-256: `1f9fa312503787b69c1b60eeca7180b5125637511ae7073e83af031c7b4733f7`.
 
 ## Coordinated core-asset saving
 

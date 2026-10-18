@@ -61,7 +61,7 @@ bool nativeScriptBindingAbsorber_Invoke(NativeScriptRuntimeContext* c,uint32_t s
        p->assets.parts.parts_num!=p->assets.facts.joints+p->assets.facts.omission_count||
        p->assets.parts.part_to_joint!=p->assets.part_to_joint||p->assets.parts.joint_to_part!=p->assets.joint_to_part)
         return error(d,"Absorber imported source rig is malformed or unbound");
-    int32_t bone=(int32_t)args[0].as.i64;
+    int32_t bone=nativeFighterRig_Resolve(&p->assets.rig,args[0].as.i64);
     // The reference language admission intentionally makes numeric indices
     // outside the owned span a healthy no-op. An admitted missing joint is an
     // invalid rig, rather than permission to dereference an absent bone.

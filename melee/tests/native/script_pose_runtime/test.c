@@ -132,6 +132,16 @@ static void reject(unsigned op,NativeScriptValue* args,unsigned count)
 {unsigned before=calls;NativeScriptValue output=i(99);CHECK(!invoke(op,args,count,&output));CHECK(calls==before&&output.type==NativeScriptType_I64&&output.as.i64==99);++cases;}
 int main(void)
 {
+    setup();NativeFighterRig* rig=&package.assets.rig;
+    rig->count=5;rig->next_id=500001;
+    for(unsigned n=0;n<MAX_FT_PARTS;++n)rig->ids[n]=n;
+    rig->ids[1]=500000;rig->ids[139]=1;
+    CHECK(nativeFighterRig_Index(rig,NULL,0));
+    NativeScriptValue mapped[]={selector(NativeScriptType_PoseDestination,0),i(500000),
+        selector(NativeScriptType_PoseGraph,1),f(.25f),f(.75f)},mapped_out;
+    CHECK(invoke(NativeScriptBinding_PoseBlendGraph,mapped,5,&mapped_out));
+    CHECK(calls==1&&last_start==1&&mapped_out.type==NativeScriptType_Void);++cases;
+    mapped[1]=i(139);reject(NativeScriptBinding_PoseBlendGraph,mapped,5);
     const unsigned operations[]={NativeScriptBinding_PoseLoadAnimation,NativeScriptBinding_PoseRequestFrame,NativeScriptBinding_PoseEvaluate,NativeScriptBinding_PoseCopyCostume,NativeScriptBinding_PoseCopyGraph,NativeScriptBinding_PoseBlendGraph,NativeScriptBinding_PoseBlendToLive,NativeScriptBinding_PoseCopyToLive};
     const unsigned counts[]={2,2,1,2,3,5,3,1};
     for(unsigned op=0;op<8;++op)for(unsigned destination=0;destination<(op<6?2:1);++destination) {

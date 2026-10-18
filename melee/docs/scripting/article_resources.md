@@ -82,8 +82,8 @@ article It_Kind_Link_HShot states 1:
 The kind/model offsets in this example illustrate an imported article; they do
 not select a built-in solver. `capacity` must be 2–90. Omit `reserve_part` when
 the collection does not publish a model into an extra fighter part. Its immutable
-value is then -1. A reservation must be beyond the fighter's actual rig table
-and below the engine's part limit. Module loading validates the declaration;
+value is then -1. A reservation uses a fighter [bone ID](bone_queries.md#bone-ids)
+assigned to an available attachment slot outside the body rig. Module loading validates the declaration;
 runtime registration validates it again after all rig omissions are accounted
 for. `begin(count)` resolves the exact matching authored article declaration
 itself. Neither capacity nor the reservation can be overridden by a script call.

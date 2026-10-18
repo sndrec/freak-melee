@@ -2,6 +2,7 @@
 #include "native_fighter_lifetime.h"
 #include "native_fighter_capture.h"
 #include "native_fighter_capture_rig.h"
+#include "native_source_package.h"
 #include "fighter.h"
 #include "ftcommon.h"
 #include "native_capture.h"
@@ -77,9 +78,9 @@ bool nativeScriptBindingCapture_Invoke(NativeScriptRuntimeContext* context,uint3
     }else if(semantic==NativeScriptBinding_CaptureAttachItem || semantic==NativeScriptBinding_CaptureReleaseItem){
         uint32_t expected=semantic==NativeScriptBinding_CaptureAttachItem?1:2;
         if(!arguments || count!=expected || arguments[0].type!=NativeScriptType_I32 ||
-           arguments[0].as.i64<0 || arguments[0].as.i64>=MAX_FT_PARTS ||
+           arguments[0].as.i64<0 || arguments[0].as.i64>INT32_MAX ||
            (expected==2 && arguments[1].type!=NativeScriptType_Bool))
-            return error(diagnostic,"Captured item operation requires a raw bone Int; release also requires a Bool");
+            return error(diagnostic,"Captured item operation requires a bone ID Int; release also requires a Bool");
     }else if(semantic==NativeScriptBinding_CaptureMask || semantic==NativeScriptBinding_CaptureArm){
         if(!arguments || count!=1 || arguments[0].type!=NativeScriptType_I32 ||
            arguments[0].as.i64<0 || arguments[0].as.i64>INT16_MAX)
@@ -189,7 +190,10 @@ bool nativeScriptBindingCapture_Invoke(NativeScriptRuntimeContext* context,uint3
         NativeCaptureItemPair pair;
         if(!nativeCaptureItem_Retain(saved.object,&pair))
             return error(diagnostic,"Captured item is retired or inconsistent");
-        unsigned bone=(unsigned)arguments[0].as.i64;
+        const NativeSourcePackage* package=nativeFighterRuntime_SourcePackage(saved.kind);
+        int selected=package?nativeFighterRig_Resolve(&package->assets.rig,arguments[0].as.i64):(int)arguments[0].as.i64;
+        if(selected<0 || selected>=MAX_FT_PARTS)return error(diagnostic,"Captured item bone ID is absent");
+        unsigned bone=(unsigned)selected;
         if(semantic==NativeScriptBinding_CaptureAttachItem){
             if(!pair.item.object || !nativeCaptureItem_Attach(pair.item.object,saved.object,bone))
                 return error(diagnostic,"Captured item attachment requires a live selected item and valid bones");

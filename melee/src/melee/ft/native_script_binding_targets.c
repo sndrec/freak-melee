@@ -349,13 +349,22 @@ static bool bone_part(const NativeScriptValue* value,uint32_t count,uint32_t* re
     if(index>=count)return false;*result=(uint32_t)index;return true;
 }
 static bool bone_capture(const Caller* caller,const Target* target,const NativeScriptValue* part,
-    BoneTarget* b,NativeScriptDiagnostic* d)
+    bool bone_id,BoneTarget* b,NativeScriptDiagnostic* d)
 {
     b->caller=caller;b->target=*target;b->data=target->data->ft_data;
     if(target->kind>=Ft_Kind_RuntimeCapacity || !ftPartsTable || !ftPartsTable[target->kind] || !target->data->parts)return true;
     b->table=ftPartsTable[target->kind];b->count=b->table->parts_num;b->parts=target->data->parts;
     if(!b->count||b->count>MAX_FT_PARTS)return error(d,"Bone query part count exceeds the actual native rig");
-    if(!bone_part(part,b->count,&b->index)||!b->parts[b->index].joint)return true;
+    NativeScriptValue selected=*part;
+    if(bone_id) {
+        uint32_t id;
+        if(!bone_part(part,(uint32_t)INT32_MAX+1u,&id))return true;
+        const NativeSourcePackage* p=nativeFighterRuntime_SourcePackage((FighterKind)target->kind);
+        int index=p?nativeFighterRig_Resolve(&p->assets.rig,id):(int)id;
+        if(index<0)return true;
+        selected=(NativeScriptValue){.type=NativeScriptType_I32,.as.i64=index};
+    }
+    if(!bone_part(&selected,b->count,&b->index)||!b->parts[b->index].joint)return true;
     b->forward=b->table->part_to_joint;b->reverse=b->table->joint_to_part;
     b->root=target->object->hsd_obj;b->root_kind=target->object->obj_kind;b->costume_id=target->data->x619_costume_id;
     b->selected=b->parts[b->index].joint;b->parent=b->selected->parent;b->info=HSD_CLASS_METHOD(b->selected);
@@ -466,7 +475,7 @@ static bool bone_invoke(NativeScriptRuntimeContext* c,NativeScriptValue* args,ui
     uint32_t id;Target target={0};BoneTarget bone={0};Vec3 result;bool found=false;
     if(!handle(&args[0],&id,d) || !select(id,caller.context.scene_epoch,&target,d))return false;
     if(target.object) {
-        if(!bone_capture(&caller,&target,&args[1],&bone,d))return false;
+        if(!bone_capture(&caller,&target,&args[1],true,&bone,d))return false;
         if(bone.selected) {
             // The native root path samples local translation directly; a clean
             // cached matrix likewise performs no constraint/method evaluation.
@@ -523,7 +532,7 @@ static bool geometry_invoke(NativeScriptRuntimeContext* c,uint32_t semantic,Nati
         if(data && (shield?parts!=NULL:attributes!=NULL)) {
             int32_t index=shield?parts->x11:attributes->camera_zoom_target_bone;
             NativeScriptValue part={.type=NativeScriptType_I32,.as.i64=index};
-            if(!bone_capture(&caller,&target,&part,&bone,d))return false;
+            if(!bone_capture(&caller,&target,&part,false,&bone,d))return false;
             if(bone.selected) {
                 if(shield && target.kind!=Ft_Kind_Yoshi && !common)
                     return error(d,"Target shield radius requires native common shield data");
@@ -576,7 +585,7 @@ static bool search_camera_admit(const Caller* caller,const Target* target,BoneTa
     if(!attributes)return error(d,"Ahead search Fighter has no camera-target metadata");
     int32_t index=attributes->camera_zoom_target_bone;
     NativeScriptValue part={.type=NativeScriptType_I32,.as.i64=index};
-    if(!bone_capture(caller,target,&part,bone,d))return false;
+    if(!bone_capture(caller,target,&part,false,bone,d))return false;
     if(!bone->selected)return error(d,"Ahead search camera-target joint is missing from its actual rig");
     const Vec3* offset=&target->data->co_attrs.x170;
     bool matrix=bone->parent!=NULL || ((offset->x || offset->y || offset->z) &&
@@ -676,7 +685,7 @@ static bool overlap_invoke(NativeScriptRuntimeContext* c,NativeScriptValue* args
             if(part==parts || !capsule->bone)
                 return error(d,"Hitbox overlap hurt capsule bone is outside its native rig");
             BoneTarget bone={0};NativeScriptValue raw={.type=NativeScriptType_I32,.as.i64=part};
-            if(!bone_capture(&caller,&target,&raw,&bone,d) || !bone.selected ||
+            if(!bone_capture(&caller,&target,&raw,false,&bone,d) || !bone.selected ||
                !bone_evaluation(&bone,bone.selected,d))return false;
             // Geometry only: preserve native endpoint-cache writes, Item radius
             // scaling, Fighter depth and early exit. Combat immunity/state

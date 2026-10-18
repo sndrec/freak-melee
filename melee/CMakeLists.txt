@@ -2228,7 +2228,8 @@ add_test(NAME native_article_refs COMMAND native_article_refs_test)
 # frontend/kernel/history cohorts in tests/native/script_{resource_frontend,item_resources}.
 add_executable(native_script_resource_metadata_test
     tests/native/script_resource_metadata/test.c
-    src/melee/ft/native_script_source.c src/melee/ft/native_script_resource_metadata.c)
+    src/melee/ft/native_script_source.c src/melee/ft/native_script_resource_metadata.c
+    src/melee/ft/native_fighter_rig.c src/sysdolphin/baselib/dat.c)
 target_include_directories(native_script_resource_metadata_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_script_resource_metadata_test PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)

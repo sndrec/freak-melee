@@ -46,7 +46,7 @@ static bool define_hurtbox(NativeScriptRuntimeContext* context,
         if(values[1].as.u64>UINT32_MAX)return error(diagnostic,"Hurtbox bone UInt exceeds its declared width.");
         // fall through
     case NativeScriptType_U64:bone=values[1].as.u64;break;
-    default:return error(diagnostic,"Hurtbox bone must be a raw integral joint index.");
+    default:return error(diagnostic,"Hurtbox bone must be an integral bone ID.");
     }
     NativeMatchPoolReference reference;
     if(!context || context->source_class!=NativeCallbackSource_Fighter || !context->scene_epoch ||
@@ -75,6 +75,7 @@ static bool define_hurtbox(NativeScriptRuntimeContext* context,
         return error(diagnostic,"Hurtbox definition requires its imported joint table and bounded capsule storage.");
     // Match the original source operation: an absent slot/bone is a no-op,
     // never a narrowed wide index or an implicitly appended capsule.
+    bone=bone>INT32_MAX?UINT64_MAX:(uint64_t)nativeFighterRig_Resolve(&package->assets.rig,(int64_t)bone);
     if(values[0].as.i64>=0 && (uint64_t)values[0].as.i64<fighter->hurt_capsules_len &&
        bone<package->assets.parts.parts_num) {
         if(!fighter->parts[bone].joint)return error(diagnostic,"Hurtbox joint is absent from the current costume.");
@@ -97,7 +98,7 @@ static bool set_bone_status(NativeScriptRuntimeContext* context,
        values[0].as.i64<INT32_MIN||values[0].as.i64>INT32_MAX||
        values[1].type!=NativeScriptType_I32||values[1].as.i64<HurtCapsule_Enabled||
        values[1].as.i64>HurtCapsule_Intangible)
-        return error(diagnostic,"Bone hurt status requires a raw joint Int and normal/invincible/intangible status.");
+        return error(diagnostic,"Bone hurt status requires a bone ID Int and normal/invincible/intangible status.");
     NativeMatchPoolReference reference;
     if(!context||context->source_class!=NativeCallbackSource_Fighter||!context->scene_epoch||
        !nativeMatchPool_Reference(&nativeGObjPool,context->source,&reference)||
@@ -123,7 +124,7 @@ static bool set_bone_status(NativeScriptRuntimeContext* context,
        package->assets.parts.joint_to_part!=package->assets.joint_to_part||
        fighter->hurt_capsules_len>sizeof(fighter->hurt_capsules)/sizeof(fighter->hurt_capsules[0]))
         return error(diagnostic,"Bone hurt status requires its imported joint table and bounded capsules.");
-    int32_t bone=(int32_t)values[0].as.i64;
+    int32_t bone=nativeFighterRig_Resolve(&package->assets.rig,values[0].as.i64);
     if(bone>=0&&(uint32_t)bone<package->assets.parts.parts_num)
         for(uint32_t i=0;i<fighter->hurt_capsules_len;++i)
             if(fighter->hurt_capsules[i].capsule.bone_idx==bone) {

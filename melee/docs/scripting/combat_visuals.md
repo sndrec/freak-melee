@@ -563,7 +563,7 @@ It does not send a special-move cleanup notification to that companion.
 ### `bones.index(Name)` and shoulder attachments
 
 [`bones.index(Name)`](guard.md#bonesindexname) resolves a semantic bone to a
-costume joint. `LeftShoulder` and `RightShoulder` are also accepted by the
+[bone ID](bone_queries.md#bone-ids). `LeftShoulder` and `RightShoulder` are also accepted by the
 named-bone methods. For a joint-attached effect that receives facing, use:
 
 ```text
@@ -586,9 +586,8 @@ the joint rather than receiving that position argument.
 
 `effects.spawn_between(effect, first_joint, second_joint)` creates a synchronous
 effect spanning two joints in the fighter's own skeleton. All arguments accept
-expressions. Joint arguments are actual own-rig indices, so semantic parts
-must be resolved explicitly, for example `bones.index(TransN)`. Negative or
-out-of-range indices are ignored. Scripts own duplicate suppression, cleanup
+expressions. Joint arguments are the fighter's bone IDs. Get a role's ID with,
+for example, `bones.index(TransN)`. Missing IDs are ignored. Scripts own duplicate suppression, cleanup
 and [hitlag pause/resume](fighter.md).
 
 ## visuals.set_visible
@@ -639,14 +638,14 @@ another material. Already evaluated materials are not reverted by that error.
 
 `bones.count: int` reads the active fighter's runtime part count, including
 parts inserted separately from the costume, such as an attached sword.
-Costume/animation joint counts may be smaller. Operations that accept raw
-joint indices validate them against this runtime count.
+Costume/animation joint counts may be smaller. Bone IDs can have gaps and remain
+attached to their bones when the hierarchy changes.
 
 `bones.root.rotate_x(joint, angle)`, `bones.root.rotate_y(joint, angle)`, and
-`bones.root.rotate_z(joint, angle)` also accept a literal own-rig joint index.
-The one-argument forms rotate joint 0. Angles use radians. Prefer
+`bones.root.rotate_z(joint, angle)` also accept a bone ID.
+The one-argument forms rotate the bone with ID 0. Angles use radians. Prefer
 [`bones.rotate_x/y/z(Name, angle)`](#named-bone-rotation-and-pickup-control)
-when a semantic bone role exists; numeric indices are useful for authored
+when a semantic bone role exists; numeric IDs are useful for authored
 rig parts with no common role.
 
 ## Material animation initialization
@@ -673,22 +672,21 @@ which can differ from the saved selector used by a later visibility reset.
 
 ## Joint pose operations
 
-`bones.set_translation(joint, x, y, z)` changes a raw own-rig joint's local
-translation through the native setter, preserving matrix dirty handling. The
-signed 32-bit index is checked against `bones.count`; a negative or out-of-range
-index does nothing. Resolve a named role with `bones.index(Name)` when needed.
+`bones.set_translation(joint, x, y, z)` changes a bone's local translation.
+The joint argument is its bone ID; a missing ID does nothing.
+Resolve a named role with `bones.index(Name)` when needed.
 This changes the live pose, not the fighter's gameplay position or saved keys.
 Animation updates can overwrite it.
 
 [`bones.set_scale`](#bonesset_scalebone-x-y-z) instead takes a semantic bone role
-such as `XRotN`. Do not pass a raw joint index to that operation.
+such as `XRotN`.
 
 `bones.root.add_rotation_y(angle)` adds a radian angle directly to primary
 joint 0's Y rotation. It does not perform semantic/secondary-joint quaternion
 redirection; that distinction matters for accumulated root turns.
 
 [`pose.copy_costume(Pose.live, joint)`](poses.md) restores the costume rest-pose
-traversal starting at a raw own-rig joint. It resolves the matching costume
+traversal starting at the supplied bone ID. It resolves the matching costume
 descriptor and validates the descriptor path and target joints before copying.
 Use `Pose.blend` for the blend rig. Resolve semantic roles with
 `bones.index(Name)` when appropriate. This is a rest-pose copy, separate from

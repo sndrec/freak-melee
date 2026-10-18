@@ -47,3 +47,10 @@ target_compile_definitions(native_project_asset_save_test PRIVATE MELEE_NATIVE=1
 target_link_libraries(native_project_asset_save_test PRIVATE melee_runtime aurora_os
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_project_asset_save_test)
+
+add_executable(native_fighter_rig_test tests/native/fighter_rig_test.cpp
+    src/melee/ft/native_fighter_rig.c src/melee/ft/native_fighter_rig_write.cpp
+    src/sysdolphin/baselib/dat.c)
+target_include_directories(native_fighter_rig_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_fighter_rig_test PRIVATE MELEE_NATIVE=1)
+add_test(NAME native_fighter_rig COMMAND native_fighter_rig_test)
