@@ -1,6 +1,6 @@
 # Workshop: current capabilities and remaining work
 
-Updated: 2026-10-14. This is a current summary, not a chronological log.
+Updated: 2026-10-17. This is a current summary, not a chronological log.
 Use the [project plan](../../PROJECT_PLAN.md) for priorities and the
 [approved UI](native_character_workshop_ui.md) / [Model design](native_model_workspace_design.md)
 for the agreed layout. Historical bring-up is preserved in the pre-cleanup Git
@@ -8,7 +8,7 @@ commit and [dated evidence](checkpoint_index.md); do not restart it as new work.
 
 ## Implemented baseline
 
-The sidebar Workshop opens a full-window draft browser; Collection lists local
+The Workshop opens a full-window draft browser; Collection lists local
 drafts separately from installed packages and can open them directly. Both
 entry points create/open independent fighter projects. Copied data, clips,
 costumes, facts, parameters, behavior and entity resources belong to the draft.
@@ -28,8 +28,8 @@ reference. Editing an override affects the current preview/Test candidate; Save
 parameters persists it to the draft.
 
 New custom CSS portraits/tile names, home heading and results names/banner are
-GX scene content, following the menu camera/anchor transforms. Workshop and
-sidebars remain native Rml UI. Context-specific atlases replace the old static
+GX scene content, following the menu camera/anchor transforms. Detailed
+Workshop editors use native Rml UI. Context-specific atlases replace the old static
 Rml labels; reconstructed glyph coverage and typography remain user visual
 review, not a claim of pixel-perfect matching. See [font inputs](../assets/fonts/README.md).
 
@@ -50,13 +50,16 @@ Model usability additions include mesh hover highlighting, viewport selection,
 editor-only eye/H/Alt+H visibility, always-visible skeletons, weight heatmaps and
 named render/blend/depth/alpha controls. These exist; they are not a substitute
 for the missing import/rigging capabilities below or user usability acceptance.
+Compatible glTF skins can retain their source weights on the fighter rig;
+see the [source-skin checkpoint](native_source_skin_checkpoint.md).
 
 Frozen editing uses a character-centered void preview with axes and camera
 controls, without match HUD. Test Character restarts normal grid practice with
 the edited fighter and Sandbag. Edits must not partially replace active match
 resources. Paired projects use a member dropdown and own separate programs.
-The recorded Popo/Nana preview smoke selects actual source-owned motions;
-both meshes still appear in frozen preview, a remaining presentation task.
+Frozen views now show only the chosen member and hold the active companion's
+processes too. [Family preview checks](native_family_preview_checkpoint.md)
+cover both selected members, source-owned poses and return from live practice.
 
 ## Interpreter and template status
 
@@ -76,13 +79,13 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 
 ## Required implementation gaps
 
-1. Compatible source skin-weight import.
-2. Extra-bone authoring with coherent rig facts, references and gameplay roles.
-3. Rigid attachment rest-edit compensation.
-4. Source-aware reimport retaining deliberate project edits.
-5. Wider painting support and storage suitable for useful imported models.
-6. Selected-member-only frozen preview for paired fighters.
-7. Complete release payload and isolated source-only edit/install/sharing flow.
+1. Extra-bone authoring with coherent rig facts, references and gameplay roles.
+2. Rest-edit acceptance for rigid attachments and skinned polygons.
+3. Source-aware reimport retaining deliberate project edits.
+4. Wider painting support and storage suitable for useful imported models.
+5. Standalone costume dependencies and remaining room/release acceptance in
+   the project plan. Source-only single/paired fighter delivery and independent
+   recipient editing now have [current evidence](native_family_content_checkpoint.md).
 
 Arbitrary foreign armature conversion, mesh modeling and whole-move copying are
 not gates for the current Model/editor pass. Keep native animation and rig-role

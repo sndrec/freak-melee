@@ -108,6 +108,8 @@ packages and their parent dependencies still need current integration checks.
 This local pass also leaves physical multi-PC connections, relay behavior and
 hosted account/inbox delivery to their own acceptance work.
 
-Companion frozen-preview presentation remains open: the scripting preview
-capture still shows both Popo and Nana. These content checks do not close the
-separate selected-member-only presentation task or the user's usability review.
+The companion capture in this pass shows both Popo and Nana during editing.
+The subsequent [frozen-family pass](native_family_preview_checkpoint.md) fixes
+that presentation and adds process-state and VM-health checks. It also records
+the repeated-item-pull error in this pass's live fixture. The delivery and
+independent-authoring results above remain distinct from that short live smoke.

@@ -1,5 +1,13 @@
 # Action and Demo frozen preview
 
+The fixture also extracts the companion process hold and frozen fighter
+visibility query. Controlled member IDs select either fixed actor. The actual
+process pool checks that release preserves earlier pauses, rejects a recycled
+process slot, and leaves a retired companion owner untouched. Switching members
+holds both actors while displaying only the selected one; live-test visibility
+permits both. Family mapping and actual drawing are checked separately in the
+hidden native UI batch.
+
 Run from the repository root with a fresh private output directory:
 
 ```powershell

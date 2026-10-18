@@ -23,8 +23,10 @@
 #include <melee/lb/lbanim.h>
 #include <sysdolphin/baselib/aobj.h>
 #include <sysdolphin/baselib/gobj.h>
+#include <sysdolphin/baselib/gobjproc.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/native_model_view.h>
+#include <sysdolphin/baselib/native_workshop_gizmo.h>
 
 static unsigned checks;
 #define CHECK(x) do { ++checks; assert(x); } while (0)
@@ -42,6 +44,9 @@ static struct {
     ftData* workshop_pose_data;
     const NativeSourcePackage* workshop_pose_source;
     NativeFighterLifetime workshop_pose_lifetime;
+    NativeFighterLifetime workshop_companion_lifetime;
+    NativeMatchPoolReference workshop_companion_procs[32];
+    unsigned workshop_companion_proc_count, workshop_member;
     NativeFighterAnimationClip workshop_pose_clip;
     FigaTree* workshop_pose_tree;
     const struct FtCostumeAssets* workshop_pose_costume;
@@ -62,6 +67,12 @@ static NativeScriptStorageInstance storage[2], replacement_storage;
 static bool attached[2];
 static NativeScriptVMStatus status[2];
 NativeMatchPool nativeGObjPool;
+NativeMatchPool nativeGObjProcPool;
+static HSD_GObjProc processes[4];
+static NativeMatchPoolSlot process_slots[4];
+static uint32_t process_order[4];
+static NativeMatchPoolReference process_refs[4];
+static bool paired;
 static NativeMatchPoolSlot object_slots[2];
 static uint32_t object_free_order[2];
 static NativeMatchPoolReference object_references[2];
@@ -96,6 +107,10 @@ CameraDebugMode cm_80453004;
 static unsigned actor(Fighter_GObj* g) { CHECK(g == objects || g == objects + 1); return (unsigned)(g - objects); }
 bool nativeHome_IsPractice(void) { return true; }
 static Fighter_GObj* workshop_preview_actor(bool dormant) { (void)dormant; return selected; }
+uint32_t nativeFighterRuntime_MemberId(Fighter_GObj* source, unsigned member) {
+    (void)source; return paired && member < 2 ? 100 + member : 0;
+}
+Fighter_GObj* ftLib_8008741C(uint32_t id) { return id >= 100 && id < 102 ? objects + id - 100 : NULL; }
 static bool workshop_motion_for_action(Fighter* f, unsigned a, FtMotionId* m) {
     (void)f; if (a >= 2) return false; *m = (FtMotionId)(42 + a); return true;
 }
@@ -183,8 +198,8 @@ void HSD_ForeachAnim(void* root, HSD_Type type, HSD_TypeMask mask, void* func, A
     va_list ap; va_start(ap,argc); requested_rate=(float)va_arg(ap,double); va_end(ap);
 }
 void HSD_AObjSetRate(HSD_AObj* a, float rate) { (void)a; (void)rate; }
-void HSD_GObj_80390C5C(HSD_GObj* g) { CHECK(live[actor(g)]); }
-void HSD_GObj_80390C84(HSD_GObj* g) { CHECK(live[actor(g)]); ++resume_calls; }
+void HSD_GObj_80390C5C(HSD_GObj* g) { CHECK(live[actor(g)]); for(HSD_GObjProc* p=g->proc;p;p=p->child)p->flags_1=1; }
+void HSD_GObj_80390C84(HSD_GObj* g) { CHECK(live[actor(g)]); ++resume_calls; for(HSD_GObjProc* p=g->proc;p;p=p->child)p->flags_1=0; }
 void Fighter_ChangeMotionState(Fighter_GObj* g, FtMotionId motion, MotionFlags flags,
     float frame, float speed, float blend, HSD_GObj* other) {
     CHECK(motion==42 || motion==43); CHECK(flags==(Ft_MF_SkipAnimVel|Ft_MF_SkipAttackCount|Ft_MF_SkipRumble));
@@ -199,6 +214,7 @@ void Camera_800300F0(void) {}
 void Camera_SetBackgroundColor(u8 r,u8 g,u8 b) { (void)r;(void)g;(void)b; }
 void ifAll_ShowHUD(void) {}
 void nativeModelView_Clear(void) {}
+void nativeWorkshopGizmo_Clear(void) {}
 
 #include "bodies.inc"
 
@@ -210,6 +226,14 @@ static void setup(void) {
     memset(storage,0,sizeof(storage)); mutation=motion_mutation=evaluation_mutation=0;
     CHECK(nativeMatchPool_Bind(&nativeGObjPool,objects,sizeof(objects),object_slots,
         object_free_order,2,sizeof(objects[0]),_Alignof(Fighter_GObj),++scene_epoch));
+    memset(processes,0,sizeof(processes)); paired=false;
+    CHECK(nativeMatchPool_Bind(&nativeGObjProcPool,processes,sizeof(processes),process_slots,
+        process_order,4,sizeof(processes[0]),_Alignof(HSD_GObjProc),scene_epoch));
+    for(unsigned i=0;i<4;++i) {
+        CHECK(nativeMatchPool_Allocate(&nativeGObjProcPool,process_refs+i)==processes+i);
+        processes[i].gobj=objects+i/2;
+        if(!(i&1)) processes[i].child=processes+i+1;
+    }
     home.authoring=home.preview_active=true; selected=objects;
     rig_valid=true; retire_motion=retire_evaluate=false;
     motion_calls=attach_calls=request_calls=evaluate_calls=validation_calls=resume_calls=remove_calls=0;
@@ -218,6 +242,7 @@ static void setup(void) {
         live[i]=attached[i]=true; status[i]=NativeScriptVM_Ok;
         objects[i].classifier=HSD_GOBJ_CLASS_FIGHTER;
         objects[i].user_data=fighters+i; objects[i].hsd_obj=joints[i];
+        objects[i].proc=processes+i*2;
         fighters[i].gobj=objects+i; registered[i]=packages+i;
         packages[i].ready=true; packages[i].target=(FighterKind)(40+i);
         packages[i].compiler.bank.valid=true;
@@ -248,6 +273,30 @@ static void setup(void) {
 }
 int main(void) {
     NativeFighterAnimationClip action={NativeFighterAnimation_Action,0},demo={NativeFighterAnimation_Demo,0};
+    setup(); paired=true; processes[3].flags_1=1;
+    CHECK(nativeHome_WorkshopPose(action,1));
+    CHECK(nativeHome_WorkshopFighterVisible(objects) && !nativeHome_WorkshopFighterVisible(objects+1));
+    CHECK(processes[2].flags_1 && processes[3].flags_1);
+    nativeHome_WorkshopPoseRelease();
+    CHECK(!processes[2].flags_1 && processes[3].flags_1);
+    setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
+    selected=objects+1; home.workshop_member=1;
+    CHECK(nativeHome_WorkshopPose(action,1));
+    CHECK(!nativeHome_WorkshopFighterVisible(objects) && nativeHome_WorkshopFighterVisible(objects+1));
+    for(unsigned i=0;i<4;++i)CHECK(processes[i].flags_1);
+    home.preview_live_test=true;
+    CHECK(nativeHome_WorkshopFighterVisible(objects) && nativeHome_WorkshopFighterVisible(objects+1));
+    nativeHome_WorkshopPoseRelease();
+    for(unsigned i=0;i<4;++i)CHECK(!processes[i].flags_1);
+    setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
+    CHECK(nativeMatchPool_Free(&nativeGObjProcPool,process_refs[2]));
+    CHECK(nativeMatchPool_Allocate(&nativeGObjProcPool,process_refs+2)==processes+2);
+    processes[2].gobj=objects+1; processes[2].flags_1=1;
+    nativeHome_WorkshopPoseRelease();
+    CHECK(processes[2].flags_1 && !processes[3].flags_1);
+    setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
+    storage[1].live=false; nativeHome_WorkshopPoseRelease();
+    CHECK(processes[2].flags_1 && processes[3].flags_1);
     setup(); CHECK(nativeHome_WorkshopPose(action,1)); CHECK(motion_calls==1 && !attach_calls);
     CHECK(nativeHome_WorkshopPose(action,1)); CHECK(motion_calls==1);
     CHECK(nativeHome_WorkshopPose(demo,4)); CHECK(motion_calls==1 && last_tree==&arenas[0].demo && requested_rate==0);
