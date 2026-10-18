@@ -1838,6 +1838,9 @@ void nativeHome_ApplyResultsInput(void)
 void nativeHome_Tick(void)
 {
     if (!nativeHome_IsSelection() && !nativeHome_IsPractice()) {
+        if(gm_GetCurrentGameMode()==GM_VS &&
+           gm_GetCurrentSceneIndex()==gmVsMode_State_Results)
+            nativeOnlineSession_Pump();
         return;
     }
     NativeLobbySessionState previous_state = nativeOnlineSession_State();
@@ -1936,7 +1939,8 @@ void nativeHome_Tick(void)
     }
     if (nativeOnlineSession_State() == NativeLobbySessionState_Disconnected) {
         home.enter_stage_select = home.start_requested;
-    } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {
+    } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting &&
+               nativeOnlineSession_LocalActiveSeats()) {
         bool owner_requested;
         VsModeData combined = *gmVsMelee_GetVsData();
         if (collect_room_players(&combined, &owner_requested, NULL, NULL) &&

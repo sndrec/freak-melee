@@ -54,6 +54,14 @@ static void apply_message(const DbNativeControlMessage* message)
                  queued ? "queued" : "rejected");
         return;
     }
+    if (message->command == DB_NATIVE_CONTROL_ROOM_WATCH) {
+        if(message->buttons==0)nativeOnlineSession_StopWatching();
+        else if(message->buttons==1) {
+            bool started=nativeOnlineSession_WatchMatch();
+            OSReport("[native-control] Watch match %s.\n",started ? "requested" : "rejected");
+        }
+        return;
+    }
     if (message->port >= PAD_MAX_CONTROLLERS) {
         return;
     }

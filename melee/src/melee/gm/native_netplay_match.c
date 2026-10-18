@@ -36,9 +36,6 @@ enum {
     NETPLAY_ADMISSION_SCRATCH_BYTES = 64 * 1024 * 1024,
     NETPLAY_INPUT_TIMEOUT_MS = 5000,
     NETPLAY_ROOM_SETUP_TIMEOUT_MS = 60000,
-    // One hour of 60 Hz input plus phase markers. Only the authority records;
-    // this host-owned history is outside all copied simulation arenas.
-    NETPLAY_STREAM_RECORDS = 60 * 60 * 60 + 64,
 };
 
 static const uint64_t sudden_death_session_tag =
@@ -501,14 +498,14 @@ bool nativeNetplayMatch_Prepare(bool sudden_death)
     if (netplay.room_transport && config->local_peer == 0) {
         free(netplay.room->stream_storage);
         netplay.room->stream = (NativeMatchStream){0};
-        netplay.room->stream_storage = malloc((size_t)NETPLAY_STREAM_RECORDS *
+        netplay.room->stream_storage = malloc((size_t)NATIVE_MATCH_STREAM_RECORD_CAPACITY *
                                                NATIVE_MATCH_STREAM_RECORD_BYTES);
         NativeMatchStreamDescription description = {
             .match = netplay.room->match, .initial_seed = *seed_ptr,
         };
         if (!netplay.room->stream_storage ||
             !nativeMatchStream_Bind(&netplay.room->stream, &description,
-                netplay.room->stream_storage, NETPLAY_STREAM_RECORDS)) {
+                netplay.room->stream_storage, NATIVE_MATCH_STREAM_RECORD_CAPACITY)) {
             free(netplay.room->stream_storage);
             netplay.room->stream_storage = NULL;
             OSReport("[match-stream] Could not reserve viewing history; players continue.\n");

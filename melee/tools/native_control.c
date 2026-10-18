@@ -29,11 +29,12 @@ static void usage(const char* executable)
             "[shift|ctrl|alt]...\n"
             "  %s [--id NAME] room-rotation <manual|winner-stays|winner-out>\n"
             "  %s [--id NAME] room-stage <local-seat> <0..5|none>\n"
+            "  %s [--id NAME] room-watch <start|stop>\n"
             "Inputs: a b x y z l r start up down left right\n"
             "        short-hop no-tap-jump tilt-stick\n"
             "        sx=N sy=N cx=N cy=N lt=N rt=N aa=N ab=N\n",
             executable, executable, executable, executable, executable,
-            executable, executable, executable, executable, executable, executable, executable);
+            executable, executable, executable, executable, executable, executable, executable, executable);
 }
 
 static bool parse_long(const char* text, long minimum, long maximum,
@@ -244,6 +245,10 @@ int wmain(int argc, wchar_t** arguments)
         }
         message.command = DB_NATIVE_CONTROL_UI_TEXT;
         memcpy(message.text, command[1], strlen(command[1]) + 1);
+    } else if (_stricmp(command[0], "room-watch") == 0 && command_args == 2) {
+        if(_stricmp(command[1],"start") && _stricmp(command[1],"stop")) {usage(argv[0]);return 1;}
+        message.command=DB_NATIVE_CONTROL_ROOM_WATCH;
+        message.buttons=!_stricmp(command[1],"start");
     } else if (_stricmp(command[0], "room-stage") == 0 && command_args == 3) {
         long seat, stage;
         if (!parse_long(command[1], 0, 1, &seat) ||

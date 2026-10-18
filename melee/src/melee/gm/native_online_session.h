@@ -39,6 +39,9 @@ const char* nativeOnlineSession_Failure(void);
 const char* nativeOnlineSession_RoomCode(void);
 const char* nativeOnlineSession_LocalPeerId(void);
 void nativeOnlineSession_Inspect(void);
+bool nativeOnlineSession_WatchMatch(void);
+void nativeOnlineSession_StopWatching(void);
+const NativeRoomWatchReceive* nativeOnlineSession_Watch(void);
 bool nativeOnlineSession_ContentProgress(
     NativeNetplayContentProgress* progress);
 bool nativeOnlineSession_OfferGift(const char* peer_id,
@@ -57,6 +60,7 @@ typedef enum NativeRoomSeatState {
 bool nativeOnlineSession_ChooseSeat(const char* peer_id, uint8_t seat,
                                     NativeRoomSeatState state);
 uint8_t nativeOnlineSession_LocalPlayers(void);
+uint8_t nativeOnlineSession_LocalActiveSeats(void);
 bool nativeOnlineSession_IsOwner(void);
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy);
 struct MatchEnd;
