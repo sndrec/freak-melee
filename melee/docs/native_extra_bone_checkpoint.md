@@ -3,8 +3,10 @@
 The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
 save, stable script bone references and physical fighter-reference rewriting
 are implemented.
-Adding, removing and reparenting bones in the Workshop remain open. The Model
-workspace does not expose a partial structural edit.
+A coordinated in-memory add/reparent/remove transaction is implemented and
+passes the complete test sequence on 24 stock fighters and Glim. Two stock
+paths, metal draw-order remapping and the Model controls/history remain open.
+The Model workspace does not expose a partial structural edit.
 
 ## Animation remapping
 
@@ -43,6 +45,116 @@ existing C implementation. The remapper and its test use that decoder directly.
 
 The existing reusable rest-transform and painting operations remain available.
 They do not change traversal order and do not imply structural editing is ready.
+
+## Coordinated hierarchy transaction
+
+`native_fighter_rig_edit.{h,cpp}` prepares all four core assets privately,
+validates their matching facts and imports the resulting graphs before swapping
+them into a draft. Failure leaves the draft and output selection unchanged.
+It writes no files and changes no live scene. `nativeFighterProject_ValidateAssets`
+now exposes the existing complete-asset admission used by Save to this operation.
+
+- Add appends an empty child at its chosen parent's origin. The bone receives a
+  new stable ID, a unique name and an inverse bind matrix for weight painting.
+- Reparent applies to authored extra bones. Retained bones keep their world
+  rest transforms. The writer uses HSD's actual parent-scale compensation and
+  verifies the decomposed local transform; a change requiring shear rejects.
+- Remove applies to authored extra bones. Its children move to its parent and
+  retain their world rest transforms. Mesh, constraint, physical gameplay and
+  other serialized references must be cleared before the bone can be removed.
+  Removed joints have their old hierarchy links cleared. Required base joints
+  retain their parent relationships and first-child helpers.
+
+Costume object offsets stay stable for retained bones, meshes and materials.
+The separate metal skeleton follows the new preorder. Costume material
+animation nodes keep their matching bone and gain empty nodes where needed.
+Partial animation variants receive new descriptor chains in the edited body
+order, retaining their AObj/RObj pointers and flags. Shared variants must agree
+on their positional map. Original compressed animation streams are retained by
+the bank writer. Draw/texture selectors follow retained costume object IDs.
+
+Rig facts receive the new counts, role indices and omission positions while
+retaining omission identities and mask bits. Scripts keep stable bone IDs.
+When the growing body consumes a physical article-reservation slot, the writer
+parses the actual resource declarations and moves an occupied reservation to an
+unused spare. A referenced spare cannot be retired to make room. Rig names are
+now available to the Model outliner through the owned ID table.
+
+Only actions whose following-command hitbox flag would change are offered to
+the existing interval converter. Other actions retain their command data.
+The shared rest-matrix calculation now lives in the public
+`nativeFighterModel_RestMatrices` implementation, used directly by both rest
+compensation and hierarchy editing. These changes add no match-tick work.
+
+`native_rig_edit_test` exercises a full sequence: protect a required bone, add
+an extra while relocating an occupied reservation, paint onto the new bone,
+refuse its deletion while weighted, reject a duplicate name and a parenting
+cycle, add and pose a child, remove its parent while preserving the child's
+world pose, reparent the child, then remove it. Each failure compares all four
+assets and facts with their previous contents. Actual imports run after edits.
+The fixture restores its in-memory paint data; this is not structural editor
+Undo acceptance.
+
+Current results:
+
+- **24 of 26** stock definitions pass the entire sequence: **240 cases** and
+  **64,044 checks**. The aggregate review correctly reports failure because the
+  other two definitions remain incomplete.
+- Glim passes **10 cases** and **1,892 checks**. Its four source-file hashes
+  remain unchanged; the test operates on loaded memory only.
+- The physical-reference regression remains passing for all **26** definitions
+  (**156 cases**, **340,101 checks**). Glim's offset-zero model path also passes
+  the reference sequence (**6 cases**, **400 command comparisons**, **7,733 checks**).
+- Shared rest compensation passes its native CTest with **15,289,600 checks**.
+- Receipt: `.local/native-rig-edit-retail-4/receipt.json`.
+- Glim output: `.local/native-rig-edit-glim-4.log`.
+- Regression receipts: `.local/native-rig-edit-reference-regression-1/receipt.json`,
+  `.local/native-rig-edit-glim-references-1.log` and
+  `.local/native-rig-edit-rest-regression-1.log`.
+- Test SHA-256: `121b4cf495021f32d99eb52524931fc578a83a7fbdceb5b725a88baead8a4d2a`.
+
+Remaining acceptance work:
+
+1. Mewtwo's reparent case reaches an original hitbox whose following GFX bone
+   field supplies its victim-only flag. That action cannot be faithfully
+   converted by the current duration analysis. The operation refuses the edit
+   at source command `0x4354`; the flag needs explicit ownership without
+   inventing a lifetime or changing hit eligibility.
+2. Sheik's alternate pose graphs have a caller-supplied start bone and consume
+   a positional sequence. Their source/target bone correspondence must be
+   represented before hierarchy edits can preserve those operations.
+3. Reordering metal meshes needs the separate metal visibility selectors
+   remapped by object identity. Edits that change their draw order currently
+   refuse to publish.
+4. Connect the completed transaction to the approved Skeleton controls,
+   selection/temporary-pose remapping and complete structural Undo/Redo. Verify
+   Save/reopen, animation, weight painting and Test Character in the native UI.
+   The game client has not been relinked or launched for this backend checkpoint.
+5. An early trial that normalized every raw retail action also exposed invalid
+   command graphs in Roy, Fox and Ness. Their first two review logs preserve the
+   import failures. The transaction now changes only actions with an actual
+   next-command dependency, and its current sequence passes these fighters.
+   Broader interval conversion still needs its own admission review; these
+   results do not establish that arbitrary legacy actions can be normalized.
+
+Reproduce the whole roster check:
+
+```powershell
+python melee/tools/review_native_rig.py --suite hierarchy `
+  --exe melee/build/native/native_rig_edit_test.exe `
+  --tool melee/build/native/native_content_tool.exe `
+  --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
+  --output .local/rig-edit-review
+```
+
+The hierarchy suite selects a matching neutral costume by its declared joint
+root. It reports every fighter failure, uses temporary extracted inputs and
+does not create drafts or install content. The test also accepts a single
+project-directory argument for a read-only pass over an existing draft.
+
+The reference writer now accepts the character importer's valid offset-zero
+model record when its source field has no relocation, as in Glim. Source graph
+import errors now include their actual data offset and status for diagnosis.
 
 ## Physical fighter references
 

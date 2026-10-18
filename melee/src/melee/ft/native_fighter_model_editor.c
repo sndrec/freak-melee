@@ -1,6 +1,7 @@
 #include "native_fighter_model_editor.h"
 
 #include "native_fighter_authoring.h"
+#include "native_fighter_rig.h"
 
 #ifdef MELEE_NATIVE
 
@@ -181,6 +182,23 @@ bool nativeFighterModel_Open(NativeFighterModelEditor* editor,
     if (!add_joint(editor, root, -1, 0)) {
         return false;
     }
+    NativeFighterRig rig;
+    HSD_Dat fighter;
+    bool named_rig = project->fighter_dat &&
+        HSD_DatOpen(&fighter, project->fighter_dat, project->fighter_size) == HSD_DAT_OK &&
+        HSD_DatFindRoot(&fighter, NATIVE_RIG_ROOT, &root) &&
+        nativeFighterRig_Read(&fighter, project->facts.joints + project->facts.omission_count,
+                              &rig, NULL, 0);
+    uint16_t physical[NATIVE_MODEL_MAX_JOINTS];
+    for (unsigned i = 0, part = 0; i < editor->joint_count; ++i, ++part) {
+        bool omission;
+        do {
+            omission = false;
+            for (unsigned n = 0; n < project->facts.omission_count; ++n)
+                if (project->facts.omissions[n].joint == part) { omission = true; ++part; break; }
+        } while (omission);
+        physical[i] = (uint16_t)part;
+    }
     for (unsigned category = 0; category < 3; ++category) {
         unsigned count = category == 0   ? editor->joint_count
                          : category == 1 ? editor->mesh_count
@@ -196,6 +214,8 @@ bool nativeFighterModel_Open(NativeFighterModelEditor* editor,
                                 : editor->materials[i].offset);
             if (custom && *custom) {
                 snprintf(target, 64, "%s", custom);
+            } else if (category == 0 && named_rig && physical[i] < MAX_FT_PARTS && rig.names[physical[i]][0]) {
+                snprintf(target, 64, "%s", rig.names[physical[i]]);
             } else if (category == 0 && !strncmp(target, "Joint ", 6)) {
                 const char* role = nativeFighterAuthoring_BoneRole(project, i);
                 if (role) {

@@ -36,7 +36,8 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
     if(!ftCharacterAssets_Import(input->fighter,input->fighter_bytes,&facts->layout,
             facts->fighter_root,facts->actions,facts->demo_count,1,output->character_arena,
             FT_CHARACTER_IMPORT_ARENA_SIZE,FT_CHARACTER_IMPORT_RECORD_CAPACITY,&output->character)) {
-        error(d,"Source fighter DAT graph import failed");goto failure;
+        if(d)snprintf(d->message,sizeof(d->message),"Source fighter DAT graph import failed at 0x%X (status %u)",
+            (unsigned)output->character.import.error_offset,(unsigned)output->character.import.status);goto failure;
     }
     char rig_error[192];
     if (!nativeFighterRig_Read(&output->character.dat, facts->joints + facts->omission_count,

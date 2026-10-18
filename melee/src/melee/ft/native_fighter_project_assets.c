@@ -54,8 +54,10 @@ static void assets(const NativeFighterProject* p, AssetBytes output[ASSET_COUNT]
     output[2] = (AssetBytes){p->costume_dat, p->costume_size};
     output[3] = (AssetBytes){p->asset_record, p->asset_record_size};
 }
-static bool valid(const NativeFighterProject* p, char* message, size_t capacity)
+bool nativeFighterProject_ValidateAssets(const NativeFighterProject* p,
+                                         char* message, size_t capacity)
 {
+    if (!p) return error(message, capacity, "Asset validation needs a project.");
     AssetBytes bytes[ASSET_COUNT]; assets(p, bytes);
     for (unsigned i = 0; i < ASSET_COUNT; ++i)
         if (!bytes[i].data || !bytes[i].size || bytes[i].size > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
@@ -153,7 +155,7 @@ bool nativeFighterProject_SaveAssets(const char* path,
     for (unsigned i = 0; i < ASSET_COUNT; ++i)
         changed |= before[i].size != after[i].size || !after[i].data ||
             (before[i].size == after[i].size && memcmp(before[i].data, after[i].data, before[i].size));
-    bool ok = same && valid(p, message, capacity) &&
+    bool ok = same && nativeFighterProject_ValidateAssets(p, message, capacity) &&
         (!changed || publish(path, after, before, message, capacity));
     nativeFighterProject_Close(&disk);
     if (!same) return error(message, capacity, "The saved directory belongs to a different draft.");
