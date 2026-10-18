@@ -59,6 +59,7 @@ bool nativeHome_WorkshopBoneParent(unsigned joint, unsigned* parent);
 const char* nativeHome_WorkshopBoneRole(unsigned joint);
 unsigned nativeHome_WorkshopBoneCount(void);
 typedef struct NativeHomeWorkshopBoneLocal {
+    // Euler XYZ radians, including poses read from quaternion-based joints.
     float rotation[3];
     float scale[3];
     float position[3];

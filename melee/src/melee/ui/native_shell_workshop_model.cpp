@@ -1893,6 +1893,14 @@ void nativeShellWorkshopModel_Inspect()
                  active->selected_mesh, active->selected_joint, active->selected_clip, active->frame, playing);
     if (visible && active->project && active->selected_mesh >= 0)
         nativeWorkshopSkinning_Inspect(active->project, (unsigned) active->selected_mesh);
+    if (visible && active->pose_initialized)
+        for (unsigned i = 0; i < active->model.joint_count; ++i) {
+            const auto& pose = active->pose[i];
+            std::fprintf(stderr, "[workshop-model-pose] index=%u apply=%u local=", i, active->pose_changed[i]);
+            for (unsigned a = 0; a < 3; ++a)
+                std::fprintf(stderr, "%.9f,%.9f,%.9f,", pose.position[a], pose.rotation[a], pose.scale[a]);
+            std::fprintf(stderr, "\n");
+        }
 }
 
 bool nativeShellWorkshopModel_Save(const char* path, unsigned member)

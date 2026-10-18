@@ -222,11 +222,11 @@ import, materials, rigging and skinning, not mesh modeling.
   and replacement, with proportional normalization and atomic capacity rejection.
   [Saved DAT and live viewport checks](melee/docs/native_skin_weights_checkpoint.md)
   pass; broader stock-layout painting and DAT compaction remain open.
-- [ ] Exercise an asymmetric imported mesh through Edit/Pose/Animation modes,
+- [x] Exercise an asymmetric imported mesh through Edit/Pose/Animation modes,
   brush edits, save/reopen/undo and Test Character.
   Native posed/animated painting, saved weights, Undo/Redo, rest edits, relaunch
-  without the GLB and practice pass their functional checks. A strict preview
-  comparison still detects a subpixel shift after refresh; keep this gate open.
+  without the GLB and practice pass. The strict preview comparison also passes
+  after correcting quaternion/Euler handling in the Workshop's live pose API.
   See the [workflow checkpoint](melee/docs/native_model_workflow_checkpoint.md).
 
 Keep a compatible Melee rig and semantic bone mapping; arbitrary imported

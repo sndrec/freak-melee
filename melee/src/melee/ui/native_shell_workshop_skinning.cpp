@@ -73,6 +73,16 @@ void nativeWorkshopSkinning_Inspect(const NativeFighterProject* project, unsigne
     }
     for (unsigned i = 0; i < 512; ++i) {
         if (!joints[i]) continue;
+        unsigned ancestor = i;
+        for (unsigned depth = 0; depth < 512; ++depth) {
+            unsigned parent;
+            if (!nativeHome_WorkshopBoneParent(ancestor, &parent) || parent >= 512) break;
+            joints[parent] = true;
+            ancestor = parent;
+        }
+    }
+    for (unsigned i = 0; i < 512; ++i) {
+        if (!joints[i]) continue;
         float matrix[3][4]; NativeHomeWorkshopBoneLocal local;
         if (!nativeHome_WorkshopBoneMatrix(i, matrix) ||
             !nativeHome_WorkshopBoneLocal(i, &local)) continue;
