@@ -1,7 +1,8 @@
 # Extra-bone authoring checkpoint
 
 The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
-save and stable script bone references are implemented.
+save, stable script bone references and physical fighter-reference rewriting
+are implemented.
 Adding, removing and reparenting bones in the Workshop remain open. The Model
 workspace does not expose a partial structural edit.
 
@@ -35,13 +36,68 @@ existing C implementation. The remapper and its test use that decoder directly.
 | Costume hierarchy | `native_fighter_model_editor.c` enumerates child/sibling preorder. Meshes, envelopes and inverse binds reference DAT objects. | Preserve retained object identities and skin bindings, change hierarchy, then derive old/new traversal maps. |
 | Gameplay roles | `native_source_asset_facts.h` owns semantic-role mappings, joint counts and reserved-part insertion data. `native_source_asset_import.c` constructs runtime tables from them. | Update counts and role/omission indices together, retaining required helper relationships. |
 | Animation | `ftanim.c` selects tracks by part order, masks, animation family and reserved-part policy. Action/demo descriptors address the animation bank. | The bank writer now derives per-clip maps and rebases both tables. The hierarchy transaction must supply its physical part map. |
-| Fighter data and commands | `ftcharacter_assets.c` imports model parts, hurtboxes, dynamics, collision data and IK; hitbox/subaction data also carries bone selections. | Classify each field as a semantic role, raw part index or object reference before changing it. |
+| Fighter data and commands | `ftcharacter_assets.c` imports model parts, hurtboxes, dynamics, collision data and IK; hitbox/subaction data also carries bone selections. | The reference writer remaps physical fields while retaining semantic selectors. The hierarchy transaction must supply the physical map. |
 | Scripts | Named roles resolve to bone IDs; script boundaries translate IDs to physical parts. The fighter DAT owns the ID table. | Preserve each retained bone's ID when moving its physical slot, reserve new IDs for inserted bones, and preserve article reservation IDs. Numeric script parameters keep their values. |
 | Editor state | Names use DAT offsets. Model Undo currently restores costume data and changed selector bytes. Animation, facts and script data have other owners. | Publish/undo the entire structural change atomically; remap selection and temporary poses by retained object identity. |
 | Saving and loading | Project facts must agree with imported costume joint counts. | Save and reopen the matching costume, animation, fighter, facts and authoring data as one coherent project. |
 
 The existing reusable rest-transform and painting operations remain available.
 They do not change traversal order and do not imply structural editing is ready.
+
+## Physical fighter references
+
+`native_fighter_rig_references.{h,cpp}` prepares a rewritten fighter DAT from a
+physical old-to-new part map. The map covers all 140 slots, including article
+reservations. Referenced removed parts and repeated destinations reject the
+edit. The source project stays unchanged; output is published only on success.
+
+The writer updates the common camera bone, model placement/foot/shield parts,
+hurtboxes, dynamics roots/colliders, thrown-fighter placement, collision bubbles,
+ECB bones, effect bones, IK pairs and part-animation groups. It follows reachable
+action command graphs, including shared subroutines, and updates physical bone
+operands in GFX, hitbox, hurt-state and wind commands. Common-role selectors,
+model-selected effect selectors, native sentinel values and article-local
+indices retain their meanings. Repeated references use the original data when
+mapping, so aliases cannot be remapped twice.
+
+Native dynamics follow a child chain while incrementing the physical part
+number. Edits must retain that chain's contiguous numbering. The retail
+create-hitbox command has another dependency: it reads its victim-only flag
+from bit 19 of the following command. A following GFX or hurt-state bone field
+overlaps that bit. If remapping would change it, this operation rejects before
+publishing. Owned duration-based hitboxes carry the flag in their own header
+and have no such dependency. The existing interval converter handles actions
+whose behavior it can preserve; the complete hierarchy transaction must retain
+a clear failure for any affected action it cannot convert faithfully.
+
+`native_rig_references_test` imports original and rewritten archives with the
+actual character importer, compares the typed metadata and native command
+unions, and checks every other command operand remains exact. Applying the
+inverse map restores the entire original DAT byte for byte. Duplicate maps,
+referenced removals, truncated data and changed retail hitbox flags leave
+outputs empty.
+
+All **26 supported stock definitions** pass: **156 cases**, **16,955 command
+comparisons** and **340,101 checks**. The one-slot move exercises the retail
+hitbox dependency on **14** fighters; their edits reject without publishing.
+The four-slot map changes every physical index while retaining that flag,
+allowing metadata and command comparisons for every fighter. This is archive
+and importer coverage; live hierarchy edits and structural Undo remain open.
+
+Evidence: `.local/native-rig-references-retail-2/receipt.json`.
+Test SHA-256: `a45b03f855466b010ff61d5019f27c445b9a15d38d4eb74d406a29d2aff908a4`.
+
+```powershell
+python melee/tools/review_native_rig.py --suite references `
+  --exe melee/build/native/native_rig_references_test.exe `
+  --tool melee/build/native/native_content_tool.exe `
+  --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
+  --output .local/rig-reference-review
+```
+
+The shared review command also supports `--suite animation`; its renamed entry
+point passes the full animation cohort again with **48,094,335 checks**.
+Receipt: `.local/native-rig-animation-retail-3/receipt.json`.
 
 ## Rig-aware animation-bank rewriting
 
@@ -100,7 +156,7 @@ Evidence:
 Reproduce after building `native_rig_animation_test`:
 
 ```powershell
-python melee/tools/review_native_rig_animation.py `
+python melee/tools/review_native_rig.py --suite animation `
   --exe melee/build/native/native_rig_animation_test.exe `
   --tool melee/build/native/native_content_tool.exe `
   --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
