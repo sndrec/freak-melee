@@ -620,6 +620,28 @@ bool nativeOnlineSession_ChooseSeat(const char* peer_id, uint8_t seat,
                                           active_mask, waiting_mask);
 }
 
+void nativeOnlineSession_Inspect(void)
+{
+    const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+    fprintf(stderr, "[room-state] state=%u local=%s owner=%s revision=%llu epoch=%llu match=%u rotation=%u members=%u\n",
+            online.lobby.state, online.peer_id, p ? p->owner_peer_id : "",
+            p ? (unsigned long long)p->revision : 0,
+            p ? (unsigned long long)p->match_epoch : 0,
+            p ? p->match_size : 0, p ? p->rotation_policy : 0,
+            p ? p->participant_count : 0);
+    for (unsigned i = 0; p && i < p->participant_count; ++i) {
+        const NativeSignalingParticipant* member = &p->participants[i];
+        NativeLobbySelection selection = {0};
+        bool decoded = nativeLobbySelection_Decode(&selection,
+            member->selection, member->selection_size);
+        fprintf(stderr, "[room-member] index=%u peer=%s seats=%u active=%u waiting=%u ranks=%u,%u,%u,%u confirmed=%u name=%s\n",
+                i, member->peer_id, member->local_players, member->active_mask,
+                member->waiting_mask, member->waiting_ranks[0], member->waiting_ranks[1],
+                member->waiting_ranks[2], member->waiting_ranks[3],
+                decoded && selection.confirmed, member->name);
+    }
+}
+
 uint8_t nativeOnlineSession_LocalPlayers(void)
 {
     return online.active ? online.local_players : 0;

@@ -262,7 +262,9 @@ namespace {
                         (person.active_mask & (1U << seat))    ? "Fighting"
                         : (person.waiting_mask & (1U << seat)) ? "Waiting"
                                                                : "Spectating";
-                    nativeHub_Button("lobby-seat", label, 381 + seat * 52, y,
+                    char seat_id[32];
+                    std::snprintf(seat_id, sizeof(seat_id), "lobby-seat-%u-%u", i, seat);
+                    nativeHub_Button(seat_id, label, 381 + seat * 52, y,
                                      50, 19, HubAction::Seat, int(seat), false,
                                      true, person.peer_id, person.name);
                 }

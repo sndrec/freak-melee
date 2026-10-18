@@ -18,6 +18,9 @@
 #include "types.h"
 #include "native_match_state_admission.h"
 #include "native_match_snapshot.h"
+#include <melee/ft/fighter.h>
+#include <melee/ft/types.h>
+#include <melee/pl/player.h>
 #include <sysdolphin/baselib/native_hsd_arena.h>
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
 #include <sysdolphin/baselib/audio_rollback.h>
@@ -902,6 +905,15 @@ void nativeNetplayMatch_Inspect(void)
         (unsigned long long)netplay.checkpoint.cursor,(unsigned long long)netplay.checkpoint.restores,
         (unsigned long long)netplay.checkpoint.replay_ticks,netplay.compared_digest_count,
         netplay.correction_count,netplay.failed);
+    if (!netplay.active) return;
+    for (unsigned port = 0; port < 4; ++port) {
+        Fighter_GObj* object = Player_GetEntityAtIndex(port, 0);
+        if (!object) continue;
+        const Fighter* fp = GET_FIGHTER(object);
+        fprintf(stderr, "[netplay-player] port=%u physical=%d kind=%u x=%.6f y=%.6f motion=%d\n",
+                port, netplay.physical_ports[port], fp->kind,
+                fp->cur_pos.x, fp->cur_pos.y, fp->motion_id);
+    }
 }
 
 bool nativeNetplayMatch_IsResimulating(void)

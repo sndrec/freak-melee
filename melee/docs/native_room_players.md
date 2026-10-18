@@ -1,5 +1,14 @@
 # Players sharing one PC in online rooms
 
+Current source-only runtime acceptance is recorded in the
+[2026-10-18 seat-promotion checkpoint](native_room_rotation_checkpoint.md).
+It covers both rotation policies and the promoted seat's gameplay and Results
+controller in a second live match. Physical multi-controller acceptance remains
+open. Spectator match viewing and live catch-up still need implementation;
+practice will continue until the player chooses **Watch match**.
+
+The description and dated receipts below include earlier implementation evidence.
+
 The room service now stores active and waiting masks for each connected PC,
 with one bit per local player seat. A seat in neither mask spectates. Joining
 fills the four available fighter spots and puts excess local seats in waiting.

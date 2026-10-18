@@ -16,6 +16,7 @@ it does not relabel old results as final-source acceptance.
 - [Coordinated custom outfits and CSS selection (2026-10-17)](native_family_outfit_checkpoint.md)
 - [Outfit delivery with missing parent fighters (2026-10-17)](native_outfit_gift_checkpoint.md)
 - [Coordinated outfits in room matches (2026-10-18)](native_outfit_match_checkpoint.md)
+- [Shared-PC seat promotion and both rotation policies (2026-10-18)](native_room_rotation_checkpoint.md)
 - [Rook interpreter gameplay checkpoint (2026-10-07)](native_rook_interpreter_checkpoint.md)
 - [Source Article advancement, ownership and world feedback](native_source_article_advancement_checkpoint.md)
 - [Interpreted Article models, capsules and child creation](native_source_article_controls_checkpoint.md)
