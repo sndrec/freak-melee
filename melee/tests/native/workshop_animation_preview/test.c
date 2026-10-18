@@ -32,7 +32,7 @@ static unsigned checks;
 #define CHECK(x) do { ++checks; assert(x); } while (0)
 static struct {
     bool authoring, preview_active, preview_live_test, preview_transitioning;
-    bool workshop_camera_active, workshop_camera_owned;
+    bool workshop_camera_active, workshop_camera_owned, workshop_camera_retain;
     bool workshop_hud_hidden, workshop_hud_previously_hidden;
     bool workshop_background_saved, workshop_preview_hitboxes;
     GXColor workshop_previous_background;
@@ -277,8 +277,12 @@ int main(void) {
     CHECK(nativeHome_WorkshopPose(action,1));
     CHECK(nativeHome_WorkshopFighterVisible(objects) && !nativeHome_WorkshopFighterVisible(objects+1));
     CHECK(processes[2].flags_1 && processes[3].flags_1);
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     CHECK(!processes[2].flags_1 && processes[3].flags_1);
+    setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
+    nativeHome_WorkshopPoseRelease(false);
+    CHECK(!resume_calls && home.workshop_pose_gobj==NULL);
+    for(unsigned i=0;i<4;++i)CHECK(processes[i].flags_1);
     setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
     selected=objects+1; home.workshop_member=1;
     CHECK(nativeHome_WorkshopPose(action,1));
@@ -286,16 +290,16 @@ int main(void) {
     for(unsigned i=0;i<4;++i)CHECK(processes[i].flags_1);
     home.preview_live_test=true;
     CHECK(nativeHome_WorkshopFighterVisible(objects) && nativeHome_WorkshopFighterVisible(objects+1));
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     for(unsigned i=0;i<4;++i)CHECK(!processes[i].flags_1);
     setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
     CHECK(nativeMatchPool_Free(&nativeGObjProcPool,process_refs[2]));
     CHECK(nativeMatchPool_Allocate(&nativeGObjProcPool,process_refs+2)==processes+2);
     processes[2].gobj=objects+1; processes[2].flags_1=1;
-    nativeHome_WorkshopPoseRelease();
+    nativeHome_WorkshopPoseRelease(true);
     CHECK(processes[2].flags_1 && !processes[3].flags_1);
     setup(); paired=true; CHECK(nativeHome_WorkshopPose(action,1));
-    storage[1].live=false; nativeHome_WorkshopPoseRelease();
+    storage[1].live=false; nativeHome_WorkshopPoseRelease(true);
     CHECK(processes[2].flags_1 && processes[3].flags_1);
     setup(); CHECK(nativeHome_WorkshopPose(action,1)); CHECK(motion_calls==1 && !attach_calls);
     CHECK(nativeHome_WorkshopPose(action,1)); CHECK(motion_calls==1);
@@ -307,7 +311,7 @@ int main(void) {
     nativeHome_WorkshopPoseInvalidate(); CHECK(nativeHome_WorkshopPose(demo,5)); CHECK(attach_calls>attachments);
     tables[0].demo[0].x14=&arenas[0].replacement;
     CHECK(nativeHome_WorkshopPose(demo,5)); CHECK(last_tree==&arenas[0].replacement);
-    nativeHome_WorkshopPoseRelease(); CHECK(last_tree==&arenas[0].action && requested_frame==3 && requested_rate==.5f);
+    nativeHome_WorkshopPoseRelease(true); CHECK(last_tree==&arenas[0].action && requested_frame==3 && requested_rate==.5f);
     CHECK(resume_calls==1);
     setup(); CHECK(nativeHome_WorkshopPose(demo,0)); selected=objects+1;
     CHECK(nativeHome_WorkshopPose(demo,0)); CHECK(last_tree==&arenas[1].demo && last_joint==joints[1] && resume_calls==1);
@@ -330,7 +334,7 @@ int main(void) {
     setup(); retire_motion=true; CHECK(!nativeHome_WorkshopPose(action,0)); CHECK(!resume_calls);
     setup(); retire_evaluate=true; CHECK(!nativeHome_WorkshopPose(demo,0)); CHECK(!resume_calls);
     setup(); CHECK(nativeHome_WorkshopPose(demo,0)); ++fighters[0].x8_spawnNum;
-    nativeHome_WorkshopPoseRelease(); CHECK(!resume_calls && attach_calls==1);
+    nativeHome_WorkshopPoseRelease(true); CHECK(!resume_calls && attach_calls==1);
     setup(); CHECK(nativeHome_WorkshopPose(demo,0));
     ++fighters[0].x8_spawnNum; ++storage[0].generation;
     CHECK(nativeHome_WorkshopPose(demo,0)); CHECK(attach_calls==2 && !resume_calls);
@@ -355,7 +359,7 @@ int main(void) {
         setup(); CHECK(nativeHome_WorkshopPose(demo,0));
         home.workshop_preview_hitboxes=true; fighters[0].x914[0].state=HitCapsule_Enabled;
         change_retained(change); attachments=attach_calls;
-        nativeHome_WorkshopPoseRelease();
+        nativeHome_WorkshopPoseRelease(true);
         CHECK(!resume_calls && attach_calls==attachments);
         CHECK(fighters[0].x914[0].state==HitCapsule_Enabled);
         CHECK(!home.workshop_pose_gobj && !home.workshop_pose_source);
@@ -363,7 +367,7 @@ int main(void) {
     // Release itself can invalidate the retained storage during evaluation.
     setup(); CHECK(nativeHome_WorkshopPose(demo,0));
     evaluation_mutation=StorageDead; home.workshop_preview_hitboxes=true;
-    fighters[0].x914[0].state=HitCapsule_Enabled; nativeHome_WorkshopPoseRelease();
+    fighters[0].x914[0].state=HitCapsule_Enabled; nativeHome_WorkshopPoseRelease(true);
     CHECK(!resume_calls && fighters[0].x914[0].state==HitCapsule_Enabled);
     printf("PASS %u checks\n",checks); return 0;
 }
