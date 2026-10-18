@@ -1696,41 +1696,41 @@ s32 mnName_8023AC40(void)
 
     HSD_GObjProc* proc;
 
-    mnName_804A06E0.joint = mnAssets_Get("MenMainConNmTp_Top_joint");
-    mnName_804A06E0.anim_joint = mnAssets_Get("MenMainConNmTp_Top_animjoint");
-    mnName_804A06E0.matanim_joint = mnAssets_Get("MenMainConNmTp_Top_matanim_joint");
-    mnName_804A06E0.shapeanim_joint = mnAssets_Get("MenMainConNmTp_Top_shapeanim_joint");
-    mnName_804A06C0.joint = mnAssets_Get("MenMainBaseNmTp_Top_joint");
-    mnName_804A06C0.anim_joint = mnAssets_Get("MenMainBaseNmTp_Top_animjoint");
-    mnName_804A06C0.matanim_joint = mnAssets_Get("MenMainBaseNmTp_Top_matanim_joint");
-    mnName_804A06C0.shapeanim_joint = mnAssets_Get("MenMainBaseNmTp_Top_shapeanim_joint");
-    mnName_804A06D0.joint = mnAssets_Get("MenMainWarCmn_Top_joint");
-    mnName_804A06D0.anim_joint = mnAssets_Get("MenMainWarCmn_Top_animjoint");
-    mnName_804A06D0.matanim_joint = mnAssets_Get("MenMainWarCmn_Top_matanim_joint");
-    mnName_804A06D0.shapeanim_joint = mnAssets_Get("MenMainWarCmn_Top_shapeanim_joint");
-    mnNameNew_804A06F0.joint = mnAssets_Get("MenMainConEtNw_Top_joint");
-    mnNameNew_804A06F0.animjoint = mnAssets_Get("MenMainConEtNw_Top_animjoint");
-    mnNameNew_804A06F0.matanim_joint = mnAssets_Get("MenMainConEtNw_Top_matanim_joint");
-    mnNameNew_804A06F0.shapeanim_joint = mnAssets_Get("MenMainConEtNw_Top_shapeanim_joint");
-    mnNameNew_804A0700.joint = mnAssets_Get("MenMainBaseEtNw_Top_joint");
-    mnNameNew_804A0700.animjoint = mnAssets_Get("MenMainBaseEtNw_Top_animjoint");
-    mnNameNew_804A0700.matanim_joint = mnAssets_Get("MenMainBaseEtNw_Top_matanim_joint");
-    mnNameNew_804A0700.shapeanim_joint = mnAssets_Get("MenMainBaseEtNw_Top_shapeanim_joint");
-    mnNameNew_804A0710.joint = mnAssets_Get("MenMainSubEtNw_Top_joint");
-    mnNameNew_804A0710.animjoint = mnAssets_Get("MenMainSubEtNw_Top_animjoint");
-    mnNameNew_804A0710.matanim_joint = mnAssets_Get("MenMainSubEtNw_Top_matanim_joint");
-    mnNameNew_804A0710.shapeanim_joint = mnAssets_Get("MenMainSubEtNw_Top_shapeanim_joint");
-    mnNameNew_804A0720[0].joint = mnAssets_Get("MenMainSbaseEtNw_Top_joint");
-    mnNameNew_804A0720[0].animjoint = mnAssets_Get("MenMainSbaseEtNw_Top_animjoint");
-    mnNameNew_804A0720[0].matanim_joint = mnAssets_Get("MenMainSbaseEtNw_Top_matanim_joint");
-    mnNameNew_804A0720[0].shapeanim_joint = mnAssets_Get("MenMainSbaseEtNw_Top_shapeanim_joint");
+    mnName_804A06E0.joint = mnAssets_Get(&main_menu_assets, "MenMainConNmTp_Top_joint");
+    mnName_804A06E0.anim_joint = mnAssets_Get(&main_menu_assets, "MenMainConNmTp_Top_animjoint");
+    mnName_804A06E0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConNmTp_Top_matanim_joint");
+    mnName_804A06E0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConNmTp_Top_shapeanim_joint");
+    mnName_804A06C0.joint = mnAssets_Get(&main_menu_assets, "MenMainBaseNmTp_Top_joint");
+    mnName_804A06C0.anim_joint = mnAssets_Get(&main_menu_assets, "MenMainBaseNmTp_Top_animjoint");
+    mnName_804A06C0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainBaseNmTp_Top_matanim_joint");
+    mnName_804A06C0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainBaseNmTp_Top_shapeanim_joint");
+    mnName_804A06D0.joint = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_joint");
+    mnName_804A06D0.anim_joint = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_animjoint");
+    mnName_804A06D0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_matanim_joint");
+    mnName_804A06D0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_shapeanim_joint");
+    mnNameNew_804A06F0.joint = mnAssets_Get(&main_menu_assets, "MenMainConEtNw_Top_joint");
+    mnNameNew_804A06F0.animjoint = mnAssets_Get(&main_menu_assets, "MenMainConEtNw_Top_animjoint");
+    mnNameNew_804A06F0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConEtNw_Top_matanim_joint");
+    mnNameNew_804A06F0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConEtNw_Top_shapeanim_joint");
+    mnNameNew_804A0700.joint = mnAssets_Get(&main_menu_assets, "MenMainBaseEtNw_Top_joint");
+    mnNameNew_804A0700.animjoint = mnAssets_Get(&main_menu_assets, "MenMainBaseEtNw_Top_animjoint");
+    mnNameNew_804A0700.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainBaseEtNw_Top_matanim_joint");
+    mnNameNew_804A0700.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainBaseEtNw_Top_shapeanim_joint");
+    mnNameNew_804A0710.joint = mnAssets_Get(&main_menu_assets, "MenMainSubEtNw_Top_joint");
+    mnNameNew_804A0710.animjoint = mnAssets_Get(&main_menu_assets, "MenMainSubEtNw_Top_animjoint");
+    mnNameNew_804A0710.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainSubEtNw_Top_matanim_joint");
+    mnNameNew_804A0710.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainSubEtNw_Top_shapeanim_joint");
+    mnNameNew_804A0720[0].joint = mnAssets_Get(&main_menu_assets, "MenMainSbaseEtNw_Top_joint");
+    mnNameNew_804A0720[0].animjoint = mnAssets_Get(&main_menu_assets, "MenMainSbaseEtNw_Top_animjoint");
+    mnNameNew_804A0720[0].matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainSbaseEtNw_Top_matanim_joint");
+    mnNameNew_804A0720[0].shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainSbaseEtNw_Top_shapeanim_joint");
 
     if (lbLang_IsSavedLanguageUS()) {
-        AutoNamesList = mnAssets_Get((char*) mnName_803ED538 + 0x4D0);
-        NotAllowedNamesList = mnAssets_Get((char*) mnName_803ED538 + 0x4E4);
+        AutoNamesList = mnAssets_Get(&main_menu_assets, (char*) mnName_803ED538 + 0x4D0);
+        NotAllowedNamesList = mnAssets_Get(&main_menu_assets, (char*) mnName_803ED538 + 0x4E4);
     } else {
-        AutoNamesList = mnAssets_Get((char*) mnName_803ED538 + 0x4F8);
-        NotAllowedNamesList = mnAssets_Get((char*) mnName_803ED538 + 0x508);
+        AutoNamesList = mnAssets_Get(&main_menu_assets, (char*) mnName_803ED538 + 0x4F8);
+        NotAllowedNamesList = mnAssets_Get(&main_menu_assets, (char*) mnName_803ED538 + 0x508);
     }
 
     mn_804A04F0.prev_menu = mn_804A04F0.cur_menu;

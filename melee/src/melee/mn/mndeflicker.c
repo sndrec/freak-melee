@@ -184,10 +184,10 @@ void mnDeflicker_8024A6C4(HSD_GObj* arg0)
     mn_804A04F0.hovered_selection = 0;
     mnDeflicker_804D6C3C = 0;
 
-    mnDeflicker_804A08B8.joint = mnAssets_Get("MenMainConDf_Top_joint");
-    mnDeflicker_804A08B8.animjoint = mnAssets_Get("MenMainConDf_Top_animjoint");
-    mnDeflicker_804A08B8.matanim_joint = mnAssets_Get("MenMainConDf_Top_matanim_joint");
-    mnDeflicker_804A08B8.shapeanim_joint = mnAssets_Get("MenMainConDf_Top_shapeanim_joint");
+    mnDeflicker_804A08B8.joint = mnAssets_Get(&main_menu_assets, "MenMainConDf_Top_joint");
+    mnDeflicker_804A08B8.animjoint = mnAssets_Get(&main_menu_assets, "MenMainConDf_Top_animjoint");
+    mnDeflicker_804A08B8.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConDf_Top_matanim_joint");
+    mnDeflicker_804A08B8.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConDf_Top_shapeanim_joint");
     mnDeflicker_8024A4BC(arg0);
     temp_r3 =
         HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80), mnDeflicker_8024A168, 0);

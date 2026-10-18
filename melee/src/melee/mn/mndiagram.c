@@ -2928,32 +2928,32 @@ void mnDiagram_Init(u8 arg0, u8 arg1)
 
     if (arg0) {
 
-        assets->ConB1[0] = mnAssets_Get("MenMainConB1_Top_joint");
-        assets->ConB1[1] = mnAssets_Get("MenMainConB1_Top_animjoint");
-        assets->ConB1[2] = mnAssets_Get("MenMainConB1_Top_matanim_joint");
-        assets->ConB1[3] = mnAssets_Get("MenMainConB1_Top_shapeanim_joint");
-        assets->CursorB1[0] = mnAssets_Get("MenMainCursorB1_Top_joint");
-        assets->FaceB[0] = mnAssets_Get("MenMainFaceB_Top_joint");
-        assets->FaceB[1] = mnAssets_Get("MenMainFaceB_Top_animjoint");
-        assets->FaceB[2] = mnAssets_Get("MenMainFaceB_Top_matanim_joint");
-        assets->FaceB[3] = mnAssets_Get("MenMainFaceB_Top_shapeanim_joint");
-        assets->NmB[0] = mnAssets_Get("MenMainNmB_Top_joint");
-        assets->NmB[1] = mnAssets_Get("MenMainNmB_Top_animjoint");
-        assets->NmB[2] = mnAssets_Get("MenMainNmB_Top_matanim_joint");
-        assets->NmB[3] = mnAssets_Get("MenMainNmB_Top_shapeanim_joint");
-        assets->SubB1[0] = mnAssets_Get("MenMainSubB1_Top_joint");
-        assets->SubB1[1] = mnAssets_Get("MenMainSubB1_Top_animjoint");
-        assets->SubB1[2] = mnAssets_Get("MenMainSubB1_Top_matanim_joint");
-        assets->SubB1[3] = mnAssets_Get("MenMainSubB1_Top_shapeanim_joint");
-        assets->ConB2[0] = mnAssets_Get("MenMainConB2_Top_joint");
-        assets->ConB2[1] = mnAssets_Get("MenMainConB2_Top_animjoint");
-        assets->ConB2[2] = mnAssets_Get("MenMainConB2_Top_matanim_joint");
-        assets->ConB2[3] = mnAssets_Get("MenMainConB2_Top_shapeanim_joint");
-        assets->ConB3[0] = mnAssets_Get("MenMainConB3_Top_joint");
-        assets->ConB3[1] = mnAssets_Get("MenMainConB3_Top_animjoint");
-        assets->ConB3[2] = mnAssets_Get("MenMainConB3_Top_matanim_joint");
-        assets->ConB3[3] = mnAssets_Get("MenMainConB3_Top_shapeanim_joint");
-        assets->CursorB3[0] = mnAssets_Get("MenMainCursorB3_Top_joint");
+        assets->ConB1[0] = mnAssets_Get(&main_menu_assets, "MenMainConB1_Top_joint");
+        assets->ConB1[1] = mnAssets_Get(&main_menu_assets, "MenMainConB1_Top_animjoint");
+        assets->ConB1[2] = mnAssets_Get(&main_menu_assets, "MenMainConB1_Top_matanim_joint");
+        assets->ConB1[3] = mnAssets_Get(&main_menu_assets, "MenMainConB1_Top_shapeanim_joint");
+        assets->CursorB1[0] = mnAssets_Get(&main_menu_assets, "MenMainCursorB1_Top_joint");
+        assets->FaceB[0] = mnAssets_Get(&main_menu_assets, "MenMainFaceB_Top_joint");
+        assets->FaceB[1] = mnAssets_Get(&main_menu_assets, "MenMainFaceB_Top_animjoint");
+        assets->FaceB[2] = mnAssets_Get(&main_menu_assets, "MenMainFaceB_Top_matanim_joint");
+        assets->FaceB[3] = mnAssets_Get(&main_menu_assets, "MenMainFaceB_Top_shapeanim_joint");
+        assets->NmB[0] = mnAssets_Get(&main_menu_assets, "MenMainNmB_Top_joint");
+        assets->NmB[1] = mnAssets_Get(&main_menu_assets, "MenMainNmB_Top_animjoint");
+        assets->NmB[2] = mnAssets_Get(&main_menu_assets, "MenMainNmB_Top_matanim_joint");
+        assets->NmB[3] = mnAssets_Get(&main_menu_assets, "MenMainNmB_Top_shapeanim_joint");
+        assets->SubB1[0] = mnAssets_Get(&main_menu_assets, "MenMainSubB1_Top_joint");
+        assets->SubB1[1] = mnAssets_Get(&main_menu_assets, "MenMainSubB1_Top_animjoint");
+        assets->SubB1[2] = mnAssets_Get(&main_menu_assets, "MenMainSubB1_Top_matanim_joint");
+        assets->SubB1[3] = mnAssets_Get(&main_menu_assets, "MenMainSubB1_Top_shapeanim_joint");
+        assets->ConB2[0] = mnAssets_Get(&main_menu_assets, "MenMainConB2_Top_joint");
+        assets->ConB2[1] = mnAssets_Get(&main_menu_assets, "MenMainConB2_Top_animjoint");
+        assets->ConB2[2] = mnAssets_Get(&main_menu_assets, "MenMainConB2_Top_matanim_joint");
+        assets->ConB2[3] = mnAssets_Get(&main_menu_assets, "MenMainConB2_Top_shapeanim_joint");
+        assets->ConB3[0] = mnAssets_Get(&main_menu_assets, "MenMainConB3_Top_joint");
+        assets->ConB3[1] = mnAssets_Get(&main_menu_assets, "MenMainConB3_Top_animjoint");
+        assets->ConB3[2] = mnAssets_Get(&main_menu_assets, "MenMainConB3_Top_matanim_joint");
+        assets->ConB3[3] = mnAssets_Get(&main_menu_assets, "MenMainConB3_Top_shapeanim_joint");
+        assets->CursorB3[0] = mnAssets_Get(&main_menu_assets, "MenMainCursorB3_Top_joint");
     }
 
     mnDiagram_SortFightersByKOs();

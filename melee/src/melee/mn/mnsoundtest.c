@@ -865,10 +865,10 @@ HSD_GObjProc* mnSoundTest_8024BEE0(s32 arg0)
     mnSoundTest_804D6C4C = temp_ret;
 
     mnSoundTest_804D6C44 = 1;
-    *(void**) ((&mnSoundTest_804A08C8.joint)) = mnAssets_Get(mnSoundTest_803EF528);
-    mnSoundTest_804A08C8.animjoint = mnAssets_Get(mnSoundTest_803EF540);
-    mnSoundTest_804A08C8.matanim_joint = mnAssets_Get(mnSoundTest_803EF55C);
-    mnSoundTest_804A08C8.shapeanim_joint = mnAssets_Get(mnSoundTest_803EF57C);
+    *(void**) ((&mnSoundTest_804A08C8.joint)) = mnAssets_Get(&main_menu_assets, mnSoundTest_803EF528);
+    mnSoundTest_804A08C8.animjoint = mnAssets_Get(&main_menu_assets, mnSoundTest_803EF540);
+    mnSoundTest_804A08C8.matanim_joint = mnAssets_Get(&main_menu_assets, mnSoundTest_803EF55C);
+    mnSoundTest_804A08C8.shapeanim_joint = mnAssets_Get(&main_menu_assets, mnSoundTest_803EF57C);
     mnSoundTest_8024BCA0(arg0);
     proc = HSD_GObj_SetupProc(GObj_Create(0U, 1U, 0x80U), fn_8024B2B0, 0U);
     proc->flags_3 = (u16) HSD_GObj_804D783C;

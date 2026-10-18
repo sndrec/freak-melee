@@ -4,6 +4,32 @@ Design direction revised with user feedback on 2026-10-15. The user approved
 the connected-screen mockup and native integration on 2026-10-17. The approved
 mockup remains the layout and flow reference during implementation.
 
+The user clarified on 2026-10-17 that integration means adapting the game's
+existing menus and assets. Use their authored geometry, textures, materials,
+animations, scene structures and input behavior as the foundation. Reuse and
+edit those elements to support the new flows. Drawing an imitation through GX
+alone does not meet this requirement. Add new artwork or components where the
+existing assets cannot express a feature. Detailed Workshop tools retain their
+existing interface.
+
+The initial hub below uses custom procedural frames and controls. Its service
+and flow checks remain valid, but do not establish this asset-integration
+requirement. The stock hand, portraits and transition tracks are already reused.
+Replacing the frame, navigation and page controls with stock menu components is
+the current implementation priority.
+
+Preserve the proportions of the navigation ribbons' end caps while changing
+their width. Stretch the middle section. Cut suitable baked artwork into
+reusable corners, edges and centers. New lobby controls should match the stock
+menus' colors, gradients and border widths; use source pieces where they suit
+the component rather than forcing every control into a complete stock asset.
+
+The first adapted pass now uses the stock background, panel frame, camera,
+lights and animated ribbons. Ribbon ends retain their proportions as the middle
+changes width. A sliced stock panel border supplies hub panels, fields and
+buttons. The [menu asset checkpoint](native_menu_assets_checkpoint.md) records
+the source references, native checks and remaining typography/layout work.
+
 ## Native integration
 
 The first implementation slice moves the hub pages into GX rendering and

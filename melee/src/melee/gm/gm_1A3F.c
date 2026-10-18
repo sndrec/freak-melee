@@ -448,7 +448,9 @@ void gm_801A4510(void)
     } else
 #endif
     {
-        state_machine.routing.curr_mode = GM_VS;
+        state_machine.routing.curr_mode = nativeMatchLaunch_RetailMenu() ? GM_MENU : GM_VS;
+        if (nativeMatchLaunch_RetailMenu())
+            gmMainLib_GetGameRules()->force_main_menu = 1;
     }
     state_machine.routing.prev_mode = GM_BOOT;
 

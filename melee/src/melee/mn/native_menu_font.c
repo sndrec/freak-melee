@@ -9,13 +9,13 @@
 #include <string.h>
 
 typedef struct Glyph { u16 x,y,w,h,advance; } Glyph;
-typedef struct Font { u16 width,height,cap_height,count; Glyph glyphs[95]; u8* pixels; } Font;
+typedef struct Font { u16 width,height,cap_height,count,format; Glyph glyphs[95]; u8* pixels; u8* fill; } Font;
 static Font fonts[NativeMenuFont_Count];
 static unsigned references;
 void nativeMenuFont_Acquire(void)
 {
     if(references++)return;
-    const char* names[]={"menu-heading","result-name","result-winner","notice","css-tile"};
+    const char* names[]={"menu-heading","result-name","result-winner","notice","css-tile","menu-option"};
     char path[512];DWORD length=GetModuleFileNameA(NULL,path,sizeof(path));
     char* basename=length>0&&length<sizeof(path)?strrchr(path,'\\'):NULL;
     if(!basename)return;
@@ -23,15 +23,24 @@ void nativeMenuFont_Acquire(void)
         snprintf(basename,sizeof(path)-(basename-path),"\\ui\\fonts\\%s.bin",names[i]);
         FILE* f=fopen(path,"rb");if(!f)continue;
         Font* font=&fonts[i];
-        bool valid=fread(font,sizeof(u16),4,f)==4 &&font->width==1024&&font->height==384&&font->count==95&&font->cap_height;
+        bool valid=fread(font,sizeof(u16),5,f)==5 &&font->width==1024&&font->height==384&&font->count==95&&font->cap_height&&
+            (font->format==GX_TF_I4||font->format==GX_TF_IA4);
         if(valid)valid=fread(font->glyphs,sizeof(Glyph),95,f)==95;
         for(unsigned g=0;valid&&g<95;++g) {const Glyph* c=&font->glyphs[g];
             valid=c->w<=62&&c->h<=62&&c->advance<=128&&c->x+c->w<=font->width&&c->y+c->h<=font->height;
         }
-        const unsigned bytes=1024*384/2;
-        if(valid){font->pixels=_aligned_malloc(bytes,32);valid=font->pixels&&fread(font->pixels,1,bytes,f)==bytes;}
+        const unsigned bytes=1024*384/(font->format==GX_TF_I4?2:1);
+        if(valid){font->pixels=_aligned_malloc(bytes+(font->format==GX_TF_IA4?bytes/2:0),32);valid=font->pixels&&fread(font->pixels,1,bytes,f)==bytes;}
         fclose(f);
         if(!valid){_aligned_free(font->pixels);memset(font,0,sizeof(*font));}
+        else if(font->format==GX_TF_IA4) {
+            font->fill=font->pixels+bytes;
+            for(unsigned y=0;y<384;++y)for(unsigned x=0;x<1024;x+=2) {
+                unsigned source=((y/4)*128+x/8)*32+(y%4)*8+x%8;
+                unsigned target=((y/8)*128+x/8)*32+(y%8)*4+(x%8)/2;
+                font->fill[target]=((font->pixels[source]&15)<<4)|(font->pixels[source+1]&15);
+            }
+        }
     }
 }
 void nativeMenuFont_Release(void)
@@ -82,7 +91,7 @@ unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
 }
 void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
                         float x,float y,float z,float width,float height,
-                        u32 rgba, bool centered)
+                        u32 rgba, bool centered, bool outline)
 {
     if(face>=NativeMenuFont_Count||!text||!*text)return;
     const Font* font=&fonts[face];if(!font->pixels)return;
@@ -94,10 +103,14 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
     float scale=height/font->cap_height;
     float horizontal=advance*scale>width?width/advance:scale;
     if(centered)x+=(width-advance*horizontal)*0.5f;
-    GXTexObj texture;GXInitTexObj(&texture,font->pixels,font->width,font->height,GX_TF_I4,GX_CLAMP,GX_CLAMP,GX_FALSE);
+    bool border=outline&&font->format==GX_TF_IA4;
+    GXTexObj texture;GXInitTexObj(&texture,!outline&&font->fill?font->fill:font->pixels,
+        font->width,font->height,border?GX_TF_IA4:GX_TF_I4,GX_CLAMP,GX_CLAMP,GX_FALSE);
     GXLoadTexObj(&texture,GX_TEXMAP0);
     GXSetTevColor(GX_TEVREG0,(GXColor){rgba>>24,rgba>>16,rgba>>8,rgba});
-    GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
+    if(border)
+        GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_TEXC,GX_CC_C0,GX_CC_ZERO);
+    else GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
     GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_TEXA,GX_CA_A0,GX_CA_ZERO);
     GXSetTevColorOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
     GXSetTevAlphaOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);

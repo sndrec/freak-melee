@@ -45,6 +45,7 @@ typedef struct NativeMatchSlot {
 
 typedef struct NativeMatchLaunch {
     bool direct;
+    bool retail_menu;
     bool direct_prepared;
     bool direct_prepare_failed;
     bool time_explicit;
@@ -577,6 +578,7 @@ static void usage(const char* program)
         stderr,
         "Usage: %s --iso <Melee USA v1.02.iso> [--match options]\n"
         "  --match                 Start a Versus match directly\n"
+        "  --retail-menu           Start the original main menu for UI reference\n"
         "  --stage <name>          battlefield, final-destination, "
         "dream-land, green-greens, jungle-japes, yoshis-story, yoshis-island, "
         "flat-zone, yoshis-island-64, kongo-jungle-64, fountain-of-dreams, "
@@ -679,6 +681,7 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
             usage(argv[0]);
             return 0;
         }
+        if (strcmp(key, "--retail-menu") == 0) { launch.retail_menu = true; continue; }
         if (strcmp(key, "--match") == 0) {
             launch.direct = true;
             continue;
@@ -955,6 +958,10 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
         fprintf(stderr,
                 "An ISO is required; match options require --match.\n");
         usage(argv[0]);
+        return -1;
+    }
+    if (launch.retail_menu && launch.direct) {
+        fprintf(stderr, "Choose --retail-menu or --match.\n");
         return -1;
     }
     if (launch.replay_path != NULL && !launch.direct) {
@@ -1266,6 +1273,8 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
     }
     return 1;
 }
+
+bool nativeMatchLaunch_RetailMenu(void) { return launch.retail_menu; }
 
 bool nativeMatchLaunch_IsDirect(void)
 {

@@ -484,14 +484,14 @@ void mnGallery_80259868(void)
     mn_804A04F0.hovered_selection = 0;
 
 
-    mnGallery_804A0BA0.joint = mnAssets_Get("MenMainConGa_Top_joint");
-    mnGallery_804A0BA0.animjoint = mnAssets_Get("MenMainConGa_Top_animjoint");
-    mnGallery_804A0BA0.matanim_joint = mnAssets_Get("MenMainConGa_Top_matanim_joint");
-    mnGallery_804A0BA0.shapeanim_joint = mnAssets_Get("MenMainConGa_Top_shapeanim_joint");
-    mnGallery_804A0BB0.joint = mnAssets_Get("MenMainCursorGa_Top_joint");
-    mnGallery_804A0BB0.animjoint = mnAssets_Get("MenMainCursorGa_Top_animjoint");
-    mnGallery_804A0BB0.matanim_joint = mnAssets_Get("MenMainCursorGa_Top_matanim_joint");
-    mnGallery_804A0BB0.shapeanim_joint = mnAssets_Get("MenMainCursorGa_Top_shapeanim_joint");
+    mnGallery_804A0BA0.joint = mnAssets_Get(&main_menu_assets, "MenMainConGa_Top_joint");
+    mnGallery_804A0BA0.animjoint = mnAssets_Get(&main_menu_assets, "MenMainConGa_Top_animjoint");
+    mnGallery_804A0BA0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConGa_Top_matanim_joint");
+    mnGallery_804A0BA0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConGa_Top_shapeanim_joint");
+    mnGallery_804A0BB0.joint = mnAssets_Get(&main_menu_assets, "MenMainCursorGa_Top_joint");
+    mnGallery_804A0BB0.animjoint = mnAssets_Get(&main_menu_assets, "MenMainCursorGa_Top_animjoint");
+    mnGallery_804A0BB0.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainCursorGa_Top_matanim_joint");
+    mnGallery_804A0BB0.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainCursorGa_Top_shapeanim_joint");
 
     gobj = GObj_Create(0, 1, 0x80);
     proc = HSD_GObj_SetupProc(gobj, fn_80258ED0, 0);

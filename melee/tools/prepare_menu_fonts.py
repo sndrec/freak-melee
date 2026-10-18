@@ -2,7 +2,8 @@
 # the user's disc; only the supplied reference sheet/fonts live in the project.
 import argparse, json, math, os, struct
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageChops
+from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageFilter
+from prepare_menu_lettering import option_glyphs
 import re, xml.etree.ElementTree as ET
 from prepare_native_assets import extract_dol
 
@@ -124,20 +125,29 @@ def angular_glyphs(path, cap_height=24):
     if missing:raise ValueError('Missing angular glyphs '+str(missing))
     return glyphs
 
-def atlas(path, glyphs, cap_height, tracking, caps=False):
-    sheet=Image.new('L',(1024,384));metrics=[]
+def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False):
+    sheet=Image.new('LA' if outline else 'L',(1024,384));metrics=[]
     for index,code in enumerate(range(32,127)):
         c=chr(code);g=glyphs[c.upper() if caps and c.isalpha() else c]
         if g.width>62 or g.height>62:raise ValueError('Oversized glyph '+c)
+        advance=g.width+tracking
+        if outline:
+            fill=Image.new('L',(g.width+4,g.height+4));fill.paste(g,(2,2))
+            g=Image.merge('LA',(fill,fill.filter(ImageFilter.MaxFilter(5))))
         x=index%16*64+1;y=index//16*64+1
-        sheet.paste(g,(x,y));metrics.append((x,y,g.width,g.height,g.width+tracking))
+        sheet.paste(g,(x,y));metrics.append((x,y,g.width,g.height,advance))
     raw=bytearray()
-    for by in range(0,sheet.height,8):
+    for by in range(0,sheet.height,4 if outline else 8):
         for bx in range(0,sheet.width,8):
-            for yy in range(8):
-                for xx in range(0,8,2):
-                    raw.append((sheet.getpixel((bx+xx,by+yy))>>4)<<4 | sheet.getpixel((bx+xx+1,by+yy))>>4)
-    data=struct.pack('<4H',sheet.width,sheet.height,cap_height,95)+b''.join(struct.pack('<5H',*m)for m in metrics)+raw
+            for yy in range(4 if outline else 8):
+                if outline:
+                    for xx in range(8):
+                        intensity,alpha=sheet.getpixel((bx+xx,by+yy))
+                        raw.append((alpha>>4)<<4 | (intensity>>4))
+                else:
+                    for xx in range(0,8,2):
+                        raw.append((sheet.getpixel((bx+xx,by+yy))>>4)<<4 | sheet.getpixel((bx+xx+1,by+yy))>>4)
+    data=struct.pack('<5H',sheet.width,sheet.height,cap_height,95,2 if outline else 0)+b''.join(struct.pack('<5H',*m)for m in metrics)+raw
     path.parent.mkdir(parents=True,exist_ok=True)
     if not path.exists() or path.read_bytes()!=data:path.write_bytes(data)
     sheet.save(path.with_suffix('.png'))
@@ -153,6 +163,8 @@ if __name__=='__main__':
     name_seeds=[(0x29d80,'KIRBY'),(0x29d98,'BOWSER'),(0x29dc8,'LUIGI'),(0x29de0,'MARIO'),(0x29df8,'MARTH'),(0x29e28,'NESS'),(0x29e40,'PEACH'),(0x29ed0,'ZELDA'),(0x29ee8,'FALCO'),(0x2a05c,'FOX')]
     winner_seeds=[(0x2ab5c,'KIRBY'),(0x2ab74,'BOWSER'),(0x2abbc,'MARIO'),(0x2abd4,'MARTH'),(0x2ac04,'NESS'),(0x2ac1c,'PEACH'),(0x2acac,'ZELDA'),(0x2ab2c,'FOX'),(0x2ac7c,'SAMUS'),(0x2aba4,'LUIGI'),(0x2ab14,'DK')]
     fallback=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',24)
+    glyphs,height=option_glyphs(disc_file(args.iso,'MnMaAll.usd'),fallback)
+    atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True)
     for face,seeds,height,tracking in [('result-name',name_seeds,15,4),('result-winner',winner_seeds,28,5)]:
         glyphs={}
         for offset,letters in seeds:collect(mask(data,offset),letters,glyphs)

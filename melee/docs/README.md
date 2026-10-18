@@ -22,6 +22,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Home/practice and controls | [Home flow](native_home_flow.md), [profile UI](native_profiles_ui.md) |
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
 | Social interface and remaining work | [Social hub, roster and offline inbox](native_social_hub_design.md) |
+| Stock menu integration | [Scene assets, flexible ribbons and panel borders](native_menu_assets_checkpoint.md) |
 | Native CSS cards and sharing | [Participant ordering, mouse input and delivery checkpoint](native_css_cards_checkpoint.md) |
 | Quick Play progress | [Queue and match launch](native_quick_play_checkpoint.md), [results and rematches](native_quick_rematch_checkpoint.md), [cancellation and party return](native_quick_return_checkpoint.md) |
 | Early remote portraits | [Automatic lobby cache](native_lobby_cache_checkpoint.md) |

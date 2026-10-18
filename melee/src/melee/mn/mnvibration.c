@@ -1158,19 +1158,19 @@ void mnVibration_Init(int arg0)
     mn_804A04F0.hovered_selection = 0;
 
 
-    assets[3].joint = mnAssets_Get(strings->convi_top_joint);
-    assets[3].animjoint = mnAssets_Get(strings->convi_top_animjoint);
-    assets[3].matanim = mnAssets_Get(strings->convi_top_matanim_joint);
-    assets[3].shapeanim = mnAssets_Get(strings->convi_top_shapeanim_joint);
-    assets[1].joint = mnAssets_Get(strings->ctlvi_top_joint);
-    assets[1].animjoint = mnAssets_Get(strings->ctlvi_top_animjoint);
-    assets[1].matanim = mnAssets_Get(strings->ctlvi_top_matanim_joint);
-    assets[1].shapeanim = mnAssets_Get(strings->ctlvi_top_shapeanim_joint);
-    assets[2].joint = mnAssets_Get(strings->onoffvi_top_joint);
-    assets[2].animjoint = mnAssets_Get(strings->onoffvi_top_animjoint);
-    assets[2].matanim = mnAssets_Get(strings->onoffvi_top_matanim_joint);
-    assets[2].shapeanim = mnAssets_Get(strings->onoffvi_top_shapeanim_joint);
-    assets[0].joint = mnAssets_Get(strings->cursorvi_top_joint);
+    assets[3].joint = mnAssets_Get(&main_menu_assets, strings->convi_top_joint);
+    assets[3].animjoint = mnAssets_Get(&main_menu_assets, strings->convi_top_animjoint);
+    assets[3].matanim = mnAssets_Get(&main_menu_assets, strings->convi_top_matanim_joint);
+    assets[3].shapeanim = mnAssets_Get(&main_menu_assets, strings->convi_top_shapeanim_joint);
+    assets[1].joint = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_joint);
+    assets[1].animjoint = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_animjoint);
+    assets[1].matanim = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_matanim_joint);
+    assets[1].shapeanim = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_shapeanim_joint);
+    assets[2].joint = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_joint);
+    assets[2].animjoint = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_animjoint);
+    assets[2].matanim = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_matanim_joint);
+    assets[2].shapeanim = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_shapeanim_joint);
+    assets[0].joint = mnAssets_Get(&main_menu_assets, strings->cursorvi_top_joint);
 
     mnVibration_CreateScreen(arg0);
 

@@ -2613,27 +2613,27 @@ void mnSnap_80257F24(void)
 
     main_joint = &snap->main_joint;
 
-    *(void**) (mnSnap_GetMainJoint(snap)) = mnAssets_Get("MenMainConSn_Top_joint");
-    *(void**) (main_animjoint) = mnAssets_Get("MenMainConSn_Top_animjoint");
-    *(void**) (main_matanim) = mnAssets_Get("MenMainConSn_Top_matanim_joint");
-    *(void**) (mnSnap_GetMainShapeAnim(snap)) = mnAssets_Get("MenMainConSn_Top_shapeanim_joint");
-    *(void**) (csr_joint) = mnAssets_Get("MenMainSubSn_Top_joint");
-    *(void**) (csr_animjoint) = mnAssets_Get("MenMainSubSn_Top_animjoint");
-    *(void**) (csr_matanim) = mnAssets_Get("MenMainSubSn_Top_matanim_joint");
-    *(void**) (csr_shapeanim) = mnAssets_Get("MenMainSubSn_Top_shapeanim_joint");
-    *(void**) (photo_joint) = mnAssets_Get("MenMainSubCsrSn_Top_joint");
-    *(void**) (sub_animjoint) = mnAssets_Get("MenMainSubCsrSn_Top_animjoint");
-    *(void**) (sub_matanim) = mnAssets_Get("MenMainSubCsrSn_Top_matanim_joint");
-    *(void**) (sub_shapeanim) = mnAssets_Get("MenMainSubCsrSn_Top_shapeanim_joint");
-    *(void**) (page_joint) = mnAssets_Get((page_name = "MenMainPhotoSn_Top_joint"));
-    *(void**) (arrows_joint) = mnAssets_Get("MenMainLoadSn_Top_joint");
-    *(void**) (arrows_animjoint) = mnAssets_Get("MenMainLoadSn_Top_animjoint");
-    *(void**) (arrows_matanim) = mnAssets_Get("MenMainLoadSn_Top_matanim_joint");
-    *(void**) (arrows_shapeanim) = mnAssets_Get("MenMainLoadSn_Top_shapeanim_joint");
-    *(void**) (warn_joint) = mnAssets_Get("MenMainWarCmn_Top_joint");
-    *(void**) (warn_animjoint) = mnAssets_Get("MenMainWarCmn_Top_animjoint");
-    *(void**) (warn_matanim) = mnAssets_Get("MenMainWarCmn_Top_matanim_joint");
-    *(void**) (warn_shapeanim) = mnAssets_Get("MenMainWarCmn_Top_shapeanim_joint\0\0\0\0\0\0");
+    *(void**) (mnSnap_GetMainJoint(snap)) = mnAssets_Get(&main_menu_assets, "MenMainConSn_Top_joint");
+    *(void**) (main_animjoint) = mnAssets_Get(&main_menu_assets, "MenMainConSn_Top_animjoint");
+    *(void**) (main_matanim) = mnAssets_Get(&main_menu_assets, "MenMainConSn_Top_matanim_joint");
+    *(void**) (mnSnap_GetMainShapeAnim(snap)) = mnAssets_Get(&main_menu_assets, "MenMainConSn_Top_shapeanim_joint");
+    *(void**) (csr_joint) = mnAssets_Get(&main_menu_assets, "MenMainSubSn_Top_joint");
+    *(void**) (csr_animjoint) = mnAssets_Get(&main_menu_assets, "MenMainSubSn_Top_animjoint");
+    *(void**) (csr_matanim) = mnAssets_Get(&main_menu_assets, "MenMainSubSn_Top_matanim_joint");
+    *(void**) (csr_shapeanim) = mnAssets_Get(&main_menu_assets, "MenMainSubSn_Top_shapeanim_joint");
+    *(void**) (photo_joint) = mnAssets_Get(&main_menu_assets, "MenMainSubCsrSn_Top_joint");
+    *(void**) (sub_animjoint) = mnAssets_Get(&main_menu_assets, "MenMainSubCsrSn_Top_animjoint");
+    *(void**) (sub_matanim) = mnAssets_Get(&main_menu_assets, "MenMainSubCsrSn_Top_matanim_joint");
+    *(void**) (sub_shapeanim) = mnAssets_Get(&main_menu_assets, "MenMainSubCsrSn_Top_shapeanim_joint");
+    *(void**) (page_joint) = mnAssets_Get(&main_menu_assets, (page_name = "MenMainPhotoSn_Top_joint"));
+    *(void**) (arrows_joint) = mnAssets_Get(&main_menu_assets, "MenMainLoadSn_Top_joint");
+    *(void**) (arrows_animjoint) = mnAssets_Get(&main_menu_assets, "MenMainLoadSn_Top_animjoint");
+    *(void**) (arrows_matanim) = mnAssets_Get(&main_menu_assets, "MenMainLoadSn_Top_matanim_joint");
+    *(void**) (arrows_shapeanim) = mnAssets_Get(&main_menu_assets, "MenMainLoadSn_Top_shapeanim_joint");
+    *(void**) (warn_joint) = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_joint");
+    *(void**) (warn_animjoint) = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_animjoint");
+    *(void**) (warn_matanim) = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_matanim_joint");
+    *(void**) (warn_shapeanim) = mnAssets_Get(&main_menu_assets, "MenMainWarCmn_Top_shapeanim_joint\0\0\0\0\0\0");
 
     (void) ((const void*) page_name == (const void*) snap);
     /* Main GObj */

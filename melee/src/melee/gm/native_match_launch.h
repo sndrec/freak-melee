@@ -56,6 +56,7 @@ typedef struct NativeNetplayLaunchConfig {
 // 1: run, 0: help printed, -1: invalid command line.
 int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path);
 bool nativeMatchLaunch_IsDirect(void);
+bool nativeMatchLaunch_RetailMenu(void);
 const char* nativeMatchLaunch_ScriptKind(void);
 const char* nativeMatchLaunch_ScriptSource(void);
 bool nativeMatchLaunch_Hidden(void);

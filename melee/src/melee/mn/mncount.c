@@ -804,10 +804,10 @@ void mnCount_Create(void)
     mn_804A04F0.cur_menu = MENU_KIND_RECORDS_MISC;
     mn_804A04F0.hovered_selection = 0;
 
-    model_desc.joint = mnAssets_Get("MenMainConCo_Top_joint");
-    model_desc.animjoint = mnAssets_Get("MenMainConCo_Top_animjoint");
-    model_desc.matanim_joint = mnAssets_Get("MenMainConCo_Top_matanim_joint");
-    model_desc.shapeanim_joint = mnAssets_Get("MenMainConCo_Top_shapeanim_joint");
+    model_desc.joint = mnAssets_Get(&main_menu_assets, "MenMainConCo_Top_joint");
+    model_desc.animjoint = mnAssets_Get(&main_menu_assets, "MenMainConCo_Top_animjoint");
+    model_desc.matanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConCo_Top_matanim_joint");
+    model_desc.shapeanim_joint = mnAssets_Get(&main_menu_assets, "MenMainConCo_Top_shapeanim_joint");
 
     gobj = GObj_Create(6, 7, 0x80);
     menu_gobj = gobj;
