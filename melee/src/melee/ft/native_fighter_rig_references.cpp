@@ -119,7 +119,13 @@ extern "C" bool nativeFighterRig_RemapReferences(const NativeFighterProject* pro
     if(!HSD_DatFindRoot(&e.dat,project->fighter_root,&root)||!HSD_DatBytes(&e.dat,root,96))return fail("Fighter bone reference root is missing.");
     e.bytes.assign(project->fighter_dat,project->fighter_dat+project->fighter_size);
     uint32_t common,model,dynamics,hurt,scale,bubbles,collision,effects,ik;
-    if(!e.local((uint32_t)root,&common)||!e.local(root+8,&model)||!e.local(root+44,&dynamics)||
+    // The character importer admits model data at offset zero even when this
+    // particular source archive has no relocation on the zero-valued field.
+    u32 model_at;const char* model_name;
+    auto model_kind=HSD_DatResolve(&e.dat,root+8,&model_at,&model_name);
+    if(model_kind!=HSD_DAT_REF_NULL&&model_kind!=HSD_DAT_REF_LOCAL)return e.fail("Model data is missing or external",root+8);
+    model=model_kind==HSD_DAT_REF_NULL?0:(uint32_t)model_at;
+    if(!e.local((uint32_t)root,&common)||!e.local(root+44,&dynamics)||
        !e.local(root+48,&hurt)||!e.local(root+52,&scale)||!e.local(root+56,&bubbles)||
        !e.local(root+68,&collision)||!e.local(root+84,&effects)||!e.local(root+88,&ik,true))return false;
     if(!e.field(common+0x16c,4)||!e.array(model+16,5,1,1)||!e.dynamics(dynamics)||

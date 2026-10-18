@@ -99,6 +99,10 @@ bool nativeFighterProject_Save(const char* path,
 // predecessor. This is operation-level rollback, not power-loss recovery.
 bool nativeFighterProject_SaveAssets(const char* path,
     const NativeFighterProject* project, char* error, size_t error_size);
+// Admit a complete in-memory asset set before an authoring transaction is
+// published. Checks the canonical facts record and imports the actual graphs.
+bool nativeFighterProject_ValidateAssets(const NativeFighterProject*,
+    char* error, size_t error_size);
 bool nativeFighterProject_UndoLastAssetSave(const char* path,
     char* error, size_t error_size);
 // Swap the saved fighter DAT with the previous saved version. Repeating this

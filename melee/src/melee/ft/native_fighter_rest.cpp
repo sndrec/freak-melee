@@ -1,4 +1,5 @@
 #include "native_fighter_model_editor.h"
+#include "native_fighter_rest_matrices.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
 
@@ -10,22 +11,18 @@ extern "C" {
 #include <cstdlib>
 #include <memory>
 
-namespace {
-bool reference(const HSD_Dat* dat, u32 slot, u32* target)
+extern "C" bool nativeFighterModel_RestMatrices(const NativeFighterModelEditor* model,
+                                                 Mtx* world, Vec3* scales)
 {
-    const char* external;
-    return HSD_DatResolve(dat, slot, target, &external) == HSD_DAT_REF_LOCAL &&
-           *target < dat->data_size;
-}
-
-static bool rest_world_matrices(const NativeFighterModelEditor* model,
-                                Mtx* world)
-{
+    if (!model || !world || !model->joint_count ||
+        model->joint_count > NATIVE_MODEL_MAX_JOINTS) return false;
     Vec3 accumulated_scale[NATIVE_MODEL_MAX_JOINTS];
     bool has_scale[NATIVE_MODEL_MAX_JOINTS] = { false };
     for (unsigned i = 0; i < model->joint_count; ++i) {
         const NativeModelJoint* bone = &model->joints[i];
         const int parent = bone->parent;
+        if (parent < -1 || parent >= (int)i) return false;
+        accumulated_scale[i] = {1.0f, 1.0f, 1.0f};
         if (bone->flags & 0x20000) return false;
         Vec3 scale = { bone->scale[0], bone->scale[1], bone->scale[2] };
         Vec3 rotation = { bone->rotation[0], bone->rotation[1],
@@ -60,9 +57,17 @@ static bool rest_world_matrices(const NativeFighterModelEditor* model,
             for (unsigned column = 0; column < 4; ++column)
                 if (!isfinite(world[i][row][column])) return false;
     }
+    if (scales) memcpy(scales, accumulated_scale, model->joint_count * sizeof(*scales));
     return true;
 }
 
+namespace {
+bool reference(const HSD_Dat* dat, u32 slot, u32* target)
+{
+    const char* external;
+    return HSD_DatResolve(dat, slot, target, &external) == HSD_DAT_REF_LOCAL &&
+           *target < dat->data_size;
+}
 
 void matrix_write(NativeAssetDat& dat, u32 offset, const Mtx matrix)
 {
@@ -588,8 +593,8 @@ bool nativeFighterModel_CompensateRest(NativeFighterModelEditor* editor,
         old->joint_count != editor->joint_count) return false;
     auto old_world = std::make_unique<Mtx[]>(editor->joint_count);
     auto new_world = std::make_unique<Mtx[]>(editor->joint_count);
-    if (!rest_world_matrices(old.get(), old_world.get()) ||
-        !rest_world_matrices(editor, new_world.get())) return false;
+    if (!nativeFighterModel_RestMatrices(old.get(), old_world.get(), nullptr) ||
+        !nativeFighterModel_RestMatrices(editor, new_world.get(), nullptr)) return false;
     NativeAssetDat dat;
     if (!dat.open(editor->project->costume_dat, editor->project->costume_size)) return false;
     bool changed[NATIVE_MODEL_MAX_JOINTS] = {};
