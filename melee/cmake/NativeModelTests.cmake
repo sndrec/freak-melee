@@ -33,3 +33,10 @@ target_link_libraries(native_costume_compact_test PRIVATE melee_runtime aurora_o
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_costume_compact_test)
 add_test(NAME native_costume_compact COMMAND native_costume_compact_test)
+
+add_executable(native_animation_nodes_test tests/native/animation_nodes_test.cpp
+    src/melee/ft/native_fighter_animation_nodes.cpp
+    src/melee/lb/lbanim_dat.c src/sysdolphin/baselib/dat.c)
+target_include_directories(native_animation_nodes_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_animation_nodes_test PRIVATE MELEE_NATIVE=1)
+add_test(NAME native_animation_nodes COMMAND native_animation_nodes_test)

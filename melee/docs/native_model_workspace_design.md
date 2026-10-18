@@ -68,14 +68,18 @@ channels. Native UI checks exercised mesh hover/hide, surface weight rendering,
 pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
-Still open: painting
-arbitrary stock layouts, continuous triangle-surface brush picking, additional bones,
-wireframe rendering, multi-mesh import,
-placement preview, source-aware reimport, and advanced texture/UV controls.
+Still open: painting morph and secondary-rigid meshes, unusual model-node and
+texture-matrix bindings, larger authored meshes, continuous triangle-surface brush
+picking, additional bones, wireframe rendering, multi-mesh import, placement
+preview, source-aware reimport, and advanced texture/UV controls. Ordinary stock
+painting passes all 130 retail costume archives; see the
+[stock painting checkpoint](native_stock_skin_checkpoint.md).
 Shape-animated PObjs currently use the original renderer and are not surface
-picked/highlighted/heatmapped by the editor override. DAT reconstruction during painting and rest edits retains orphaned records; larger projects need compaction or a
-project-owned model representation. These are functional gaps, not claims of
-support inferred from the visual study.
+picked/highlighted/heatmapped by the editor override. Painting, rest edits and
+mesh/texture imports reclaim unreachable records in supported costume graphs.
+Editor object identities stay stable, so pinned records can leave gaps. Unknown
+roots and opaque extensions keep their original storage. See the
+[costume compaction checkpoint](native_costume_compaction_checkpoint.md).
 
 The [floating-weight checkpoint](native_skin_weights_checkpoint.md) records
 saved-DAT, replacement, capacity and live rendering checks for the current brush.
