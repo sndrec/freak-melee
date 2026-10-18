@@ -108,3 +108,7 @@ selects the stage in this case is awaiting user feedback.
 
 Match start by an inactive room owner and concurrent content/chat performance
 acceptance remain open.
+
+The subsequent [bounded-upload check](native_spectator_content_checkpoint.md#bounded-upload-throughput)
+reduces the same cold dependency setup from 89.297 to 28.781 seconds, with
+verified playback, Results and local-roster return on the current build.

@@ -97,7 +97,7 @@ def session(client):
 
 def network(client):
     text = client.inspect('netplay-state')
-    values = dict((key, int(value)) for key, value in re.findall(r'(frame|restores|replay_ticks|checksums|failed)=(\d+)', text))
+    values = dict((key, int(value)) for key, value in re.findall(r'(frame|restores|replay_ticks|checksums|failed|input_stalls|wait_ms)=(\d+)', text))
     assert values.get('failed') == 0, text
     return values
 
