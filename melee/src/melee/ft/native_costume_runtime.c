@@ -4,6 +4,7 @@
 
 #include "ftcostume_assets.h"
 #include "ftdata.h"
+#include "fighter.h"
 #include "native_fighter_runtime.h"
 #include "types.h"
 
@@ -226,6 +227,31 @@ uint8_t nativeCostumeRuntime_ModelVariant(Fighter* fp)
         }
     }
     return fp->x619_costume_id;
+}
+
+void nativeCostumeRuntime_Inspect(void)
+{
+    for (unsigned port = 0; port < 4; ++port) {
+        const NativeCostumePlayer* player = &players[port];
+        char hex[65];
+        nativeContentStore_IdHex(&player->id, hex);
+        fprintf(stderr, "[costume-player] port=%u outfit=%s members=%u\n",
+                port, hex, player->member_count);
+        for (unsigned m = 0; m < player->member_count; ++m) {
+            const NativeCostumeSlot* slot = &player->members[m];
+            Fighter* actor = NULL;
+            for (unsigned role = 0; role < NATIVE_FIGHTER_FAMILY_MEMBERS; ++role) {
+                Fighter_GObj* object = Player_GetEntityAtIndex(port, role);
+                Fighter* candidate = object ? GET_FIGHTER(object) : NULL;
+                if (candidate && candidate->kind == slot->kind) actor = candidate;
+            }
+            fprintf(stderr, "[costume-member] port=%u member=%u kind=%u variant=%u actor=%u dormant=%u actual=%u motion=%d\n",
+                    port, m, slot->kind, slot->model_variant, actor != NULL,
+                    actor ? actor->x221F_b3 : 0,
+                    actor && actor->x108_costume_joint == slot->costume.joint,
+                    actor ? actor->motion_id : -1);
+        }
+    }
 }
 
 void nativeCostumeRuntime_Clear(void)

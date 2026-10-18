@@ -87,10 +87,7 @@ bool nativeMatchSelection_Build(NativeLobbyMatch* match,
                                              : &empty;
         bool custom = memcmp(fighter, &empty, sizeof(empty)) != 0;
         if (custom) {
-            if (source->ckind < ChKind_CustomFirst || source->color != 0 ||
-                (costume_packages != NULL &&
-                 memcmp(&costume_packages[port], &empty,
-                        sizeof(empty)) != 0)) {
+            if (source->ckind < ChKind_CustomFirst || source->color != 0) {
                 return false;
             }
             output->character_package_id = *fighter;

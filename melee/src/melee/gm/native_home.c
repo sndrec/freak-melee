@@ -1444,8 +1444,7 @@ static bool collect_room_players(VsModeData* combined, bool* owner_requested,
             const NativeLobbyPlayerSelection* choice = &selection.players[local];
             uint8_t character, color;
             if (has_package_id(&choice->character_package_id)) {
-                if (choice->character_id != 0 || choice->costume_id != 0 ||
-                    has_package_id(&choice->costume_package_id)) {
+                if (choice->character_id != 0 || choice->costume_id != 0) {
                     return false;
                 }
                 selected_fighters[port] = choice->character_package_id;
@@ -1899,7 +1898,11 @@ void nativeHome_Tick(void)
                         choice->costume_id = nativeStockContent_CostumeId(player->ckind, player->color);
                         choice->selected = true;
                     }
-                    if (choice->selected) choice->team = player->team;
+                    if (choice->selected) {
+                        choice->team = player->team;
+                        const NativeContentId* costume = nativeHome_CostumePackage(port);
+                        if (costume) choice->costume_package_id = *costume;
+                    }
                 }
             }
         } else {

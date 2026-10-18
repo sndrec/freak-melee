@@ -828,6 +828,11 @@ if(MELEE_BUILD_TESTS)
     target_compile_definitions(native_lobby_selection_test PRIVATE
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     add_test(NAME native_lobby_selection COMMAND native_lobby_selection_test)
+    add_executable(native_match_selection_test tests/native/match_selection_test.c
+        src/melee/gm/native_match_selection.c src/melee/gm/native_stock_content.c)
+    target_include_directories(native_match_selection_test PRIVATE src extern/dolphin/include)
+    target_compile_definitions(native_match_selection_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    add_test(NAME native_match_selection COMMAND native_match_selection_test)
     add_executable(native_lobby_topology_test
         tests/native/lobby_topology_test.c
         src/melee/gm/native_lobby_match.c

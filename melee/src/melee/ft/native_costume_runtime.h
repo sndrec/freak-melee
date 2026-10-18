@@ -31,6 +31,7 @@ const UnkCostumeStruct* nativeCostumeRuntime_ForFighter(const Fighter* fp);
 // Immutable selected-skin configuration, or the ordinary asset index for stock.
 uint8_t nativeCostumeRuntime_ModelVariant(Fighter* fp);
 void nativeCostumeRuntime_Clear(void);
+void nativeCostumeRuntime_Inspect(void);
 
 #endif
 #endif

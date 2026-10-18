@@ -107,6 +107,8 @@ int main(void)
     custom.players[0].costume_id = 0;
     custom.players[0].character_package_id =
         packaged.players[0].character_package_id;
+    custom.players[0].costume_package_id =
+        packaged.players[0].costume_package_id;
     assert(nativeLobbySelection_Validate(&custom));
     const size_t custom_size =
         nativeLobbySelection_Encode(&custom, bytes, sizeof(bytes));
@@ -116,6 +118,9 @@ int main(void)
     assert(decoded.players[0].costume_id == 0);
     assert(memcmp(&decoded.players[0].character_package_id,
                   &custom.players[0].character_package_id,
+                  sizeof(NativeContentId)) == 0);
+    assert(memcmp(&decoded.players[0].costume_package_id,
+                  &custom.players[0].costume_package_id,
                   sizeof(NativeContentId)) == 0);
     custom.players[0].character_package_id = (NativeContentId) { 0 };
     assert(!nativeLobbySelection_Validate(&custom));

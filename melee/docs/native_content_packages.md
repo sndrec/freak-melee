@@ -35,6 +35,8 @@ Accepting an outfit delivery fetches its missing parent fighter first, then the
 outfit. Both are validated before installation. A newly received parent is
 added to the roster. The sender reports delivery after installation is
 confirmed. See the [delivery checkpoint](native_outfit_gift_checkpoint.md).
+Current [room-match checks](native_outfit_match_checkpoint.md) cover cached
+remote outfits, form changes, four shared-PC fighter slots, rollback and Results.
 See the [current plan](../../PROJECT_PLAN.md) for the remaining room and release
 acceptance.
 

@@ -80,7 +80,6 @@ int main(void)
     NativeLobbyMatch custom = original;
     custom.slots[0].character_id = 0;
     custom.slots[0].costume_id = 0;
-    custom.slots[0].costume_package_id = (NativeContentId) { 0 };
     assert(nativeLobbyMatch_Validate(&custom));
     size_t custom_size = nativeLobbyMatch_Encode(&custom, bytes,
                                                   sizeof(bytes));
@@ -90,6 +89,9 @@ int main(void)
     assert(decoded.slots[0].costume_id == 0);
     assert(memcmp(&decoded.slots[0].character_package_id,
                   &custom.slots[0].character_package_id,
+                  sizeof(NativeContentId)) == 0);
+    assert(memcmp(&decoded.slots[0].costume_package_id,
+                  &custom.slots[0].costume_package_id,
                   sizeof(NativeContentId)) == 0);
     size = nativeLobbyMatch_Encode(&original, bytes, sizeof(bytes));
     assert(size != 0);
