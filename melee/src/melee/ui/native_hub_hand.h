@@ -1,6 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <melee/sc/forward.h>
+#include <dolphin/mtx.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,7 +11,7 @@ extern "C" {
 void nativeHubHand_Load(const StaticModelDesc* model);
 void nativeHubHand_Unload(void);
 bool nativeHubHand_Ready(void);
-void nativeHubHand_Draw(float x, float y, bool pressed);
+void nativeHubHand_Draw(float x, float y, bool pressed, const Mtx canvas);
 #ifdef __cplusplus
 }
 #endif

@@ -18,7 +18,7 @@ requirement. The stock hand, portraits and transition tracks are already reused.
 Replacing the frame, navigation and page controls with stock menu components is
 the current implementation priority.
 
-Preserve the proportions of the navigation ribbons' end caps while changing
+Preserve the proportions of the left navigation ribbons' end caps while changing
 their width. Stretch the middle section. Cut suitable baked artwork into
 reusable corners, edges and centers. New lobby controls should match the stock
 menus' colors, gradients and border widths; use source pieces where they suit
@@ -31,6 +31,9 @@ buttons. Shared border artwork now also supports CSS/practice controls,
 fighter-delivery notices and the Quick Play countdown, independently of the
 main-menu scene lifetime. Page captions use their recovered italic face through
 the original caption joint, with its material opacity.
+Hub controls and the hand now follow the visible stock frame's joint and camera,
+including the original C-stick orbit. Mouse hit testing uses the same projected
+surface, and page transitions compose with that view.
 The [menu asset checkpoint](native_menu_assets_checkpoint.md) records
 the source references, native checks and remaining typography/layout work.
 

@@ -182,8 +182,10 @@ They do not establish timing on friends' machines. See
   checks pass with the new captions.
 - [ ] Review reconstructed glyphs and adapt the remaining CSS control labels to
   their surrounding components.
-- [ ] Move the hub's content through scene anchors/cameras and keep hand hit
-  testing aligned with the edited components, including during transitions.
+- [x] Move the hub's content through scene anchors/cameras and keep hand hit
+  testing aligned with the edited components. Original C-stick orbit, projected
+  clicks and stationary mouse positions pass across seven camera poses and
+  three window sizes; transitions block clicks until the controls settle.
 - [x] Recheck CSS/practice/editor scene lifetimes, two-client caching/gifts and
   shared-PC Quick Play doubles with the adapted controls. Tests pass against
   the local service. Flow tests do not substitute for asset/style acceptance.

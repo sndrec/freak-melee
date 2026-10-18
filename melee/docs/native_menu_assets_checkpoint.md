@@ -1,6 +1,6 @@
 # Native menu asset checkpoint
 
-Updated: 2026-10-17. This records the stock-asset and caption integration passes.
+Updated: 2026-10-17. This records the stock-asset, caption and camera integration.
 The current requirements remain in `PROJECT_PLAN.md` and
 `native_social_hub_design.md`.
 
@@ -15,7 +15,22 @@ navigation ribbons and transition tracks. It loads `MenMainBack_Top`,
 `MenMainPanel_Top`, `MenMainCursor_Top` and the original camera/light descriptors.
 The outer frame and scrolling decoration use their authored animations.
 
-The ribbon border mesh has separate end geometry and connecting triangles.
+The hub shares the original C-stick camera orbit with the retail menus through
+`mncamera.c`. Each camera owns its resting descriptor, so opening the hub does
+not change another menu's camera. The visible panel's joint 2 anchors the hub
+content, navigation and hand. Its authored depth is 17 world units, close to the
+caption's original joint at 17.2. Using the panel root instead placed the new
+controls behind the frame and made them drift apart when the camera tilted.
+Page transitions compose their authored transforms with this shared view.
+
+Mouse positions are projected onto that same surface for hit testing. A
+stationary mouse stays at its screen position as the C-stick changes the camera.
+The controller hand moves in menu coordinates. Practice retains its own flat
+overlay and camera; opening the hub restores the stock menu view, and closing
+it returns to the practice camera.
+
+The left navigation's ribbon mesh has separate end geometry and connecting
+triangles.
 Owned vertex arrays move the ends apart or together while keeping their shape
 and border thickness. The middle changes width. The selected ornament follows
 the right end. Shared archive geometry remains intact.
@@ -50,7 +65,21 @@ Options references before entering the adapted hub.
 
 - Native client, content tool and skin-weight target built successfully with
   the new scene owner, caption placement and shared skin. Latest local log:
-  `.local/native-menu-skin-build-1.log`.
+  `.local/native-menu-camera-build-6.log`.
+- The camera build passed seven C-stick poses at three window sizes, projected
+  button clicks, stationary mouse placement and profile editing/return:
+  `.local/native-menu-camera-projection-2`. Neutral and tilted PNGs were reviewed.
+  Forward/back/profile transitions, blocked transition clicks and the
+  CSS/practice/hub round trip passed in `.local/native-menu-camera-motion-2`.
+  Original Main, 1-P, VS and Options navigation and the adapted hub were also
+  captured in `.local/native-menu-camera-retail-1`; screenshots were reviewed.
+- The camera build's doubles check exposed a Ready click being consumed during
+  the CSS entrance delay. The request now waits until START is accepted.
+  The corrected build passed ready practice, B-to-unready, countdown restart
+  and actual four-player netplay in `.local/native-menu-camera-quick-doubles-3`,
+  with no session failure or checksum mismatch during the five-second input
+  interval. An earlier retry hit Windows's paging-file limit; it is not counted
+  as a successful run.
 - Retail references and the adapted hub were captured in one hidden, muted,
   isolated client: `.local/native-menu-assets-2`. The screenshots were reviewed.
   That capture exposed an invisible-gradient bug, corrected in build 6.
@@ -86,10 +115,8 @@ Options references before entering the adapted hub.
 
 The reconstructed glyphs and typography in the remaining CSS controls need the
 user's visual review. The caption uses its original scene anchor; page content
-still uses its 640-by-480 layout during the stock transition and is not yet laid
-out through all original menu anchors.
+uses its 640-by-480 authoring coordinates on the original frame surface.
 
-Review the adapted hub and CSS controls with the user. Page content and pointer
-projection still need to follow the stock scene anchors/camera together. The
-working stock frame, sliced borders and local online checks do not establish
-final style acceptance for the whole hub.
+Review the adapted hub and CSS controls with the user. The stock frame, sliced
+borders, camera-aligned hand and local online checks do not establish final
+style acceptance or the feel of physical controller navigation.

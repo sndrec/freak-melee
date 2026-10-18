@@ -101,7 +101,7 @@ bool nativeHubHand_Ready(void)
 {
     return hand_owner && camera_owner;
 }
-void nativeHubHand_Draw(float x, float y, bool pressed)
+void nativeHubHand_Draw(float x, float y, bool pressed, const Mtx canvas)
 {
     if (!nativeHubHand_Ready()) {
         return;
@@ -126,14 +126,19 @@ void nativeHubHand_Draw(float x, float y, bool pressed)
     if (!previous) {
         return;
     }
-    if (!HSD_CObjSetCurrent(camera)) {
+    if (!canvas && !HSD_CObjSetCurrent(camera)) {
         return;
     }
     // The pointing fingertip is (4.5, -0.5) in the authored hand's
     // coordinates. Anchor that point to the input position rather than the
     // model origin.
-    Mtx view = { { 4, 0, 0, x - 18 }, { 0, 4, 0, -y + 2 }, { 0, 0, 4, -100 } };
+    Mtx model = { { 4, 0, 0, x - 18 }, { 0, 4, 0, -y + 2 }, { 0, 0, 4, canvas ? -5 : -100 } };
+    Mtx view;
+    if (canvas) C_MTXConcat(canvas, model, view);
+    else C_MTXCopy(model, view);
     HSD_JObjDispAll(hand, view, HSD_TRSP_ALL, 0);
-    HSD_CObjEndCurrent();
-    HSD_CObjSetCurrent(previous);
+    if (!canvas) {
+        HSD_CObjEndCurrent();
+        HSD_CObjSetCurrent(previous);
+    }
 }
