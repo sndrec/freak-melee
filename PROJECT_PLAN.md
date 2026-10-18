@@ -294,7 +294,7 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   copied animations and owned resources through isolated stores, room auto-cache
   and explicit gifting. Zelda/Sheik, Popo/Nana and Fox pass the
   [family content batch](melee/docs/native_family_content_checkpoint.md).
-- [ ] Recheck separately packaged costumes and their parent-fighter dependencies
+- [x] Recheck separately packaged costumes and their parent-fighter dependencies
   through caching, explicit acceptance and current match setup.
   One outfit package coordinates every member of a fighter family. X/Y cycles
   installed outfits on CSS, and the player card shows the outfit name. Import
@@ -306,7 +306,9 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   [outfit checkpoint](melee/docs/native_family_outfit_checkpoint.md).
   [Missing-parent outfit gifts](melee/docs/native_outfit_gift_checkpoint.md) now
   fetch and validate both packages, install them on acceptance and add the
-  parent to the roster. Current online match setup remains open.
+  parent to the roster. [Current room matches](melee/docs/native_outfit_match_checkpoint.md)
+  pass remote caching, exact per-slot models, Zelda's form change, rollback,
+  Results and return to CSS, including four Ice Climbers slots on two shared PCs.
 - [x] Confirm a recipient can edit received content without the author's draft
   directory, SDK or behavior DLL. The earlier
   [single-fighter release check](melee/docs/native_received_fighter_authoring_checkpoint.md)

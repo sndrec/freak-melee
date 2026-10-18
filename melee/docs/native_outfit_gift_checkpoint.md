@@ -56,3 +56,6 @@ input failure, not evidence of a network or package failure.
 These checks cover local direct transfers and actual source/model validation
 during acceptance. A fresh online match using these received outfits, relay
 transport and other-PC behavior remain open. The broader goal remains active.
+
+The subsequent [2026-10-18 room-match checkpoint](native_outfit_match_checkpoint.md)
+adds current online match, rollback and Results evidence for received outfits.

@@ -19,5 +19,8 @@
 /* 25BB5C */ void mnStageSel_Scene_OnExit(UNK_T);
 /* 25BBD4 */ int mnSelStageRandom(void);
 /* 25BC08 */ int mnStageSel_8025BC08(int);
+#ifdef MELEE_NATIVE
+void mnStageSel_Inspect(void);
+#endif
 
 #endif

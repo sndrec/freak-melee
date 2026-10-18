@@ -5,6 +5,7 @@
 #include "native_online_sss.h"
 #include <melee/gm/gmvsmelee.h>
 #include <melee/gm/native_online_session.h>
+#include <stdio.h>
 #endif
 
 #include <placeholder.h>
@@ -40,6 +41,30 @@
 static void order_sdata2(void)
 {
     (void) S32_TO_F32;
+}
+#endif
+
+#ifdef MELEE_NATIVE
+void mnStageSel_Inspect(void)
+{
+    if (!nativeOnlineSss_IsActive()) {
+        fprintf(stderr, "[sss-state] inactive\n");
+        return;
+    }
+    fprintf(stderr, "[sss-state] selected=%u\n", mnStageSel_804D6CAE);
+    for (HSD_GObj* object = HSD_GObjPLinkHead[5]; object; object = object->next)
+        for (HSD_GObjProc* proc = object->proc; proc; proc = proc->child)
+            if (proc->on_invoke == fn_8025A310) {
+                HSD_JObj* cursor = GET_JOBJ(object);
+                fprintf(stderr, "[sss-cursor] x=%.6f y=%.6f\n", cursor->translate.x, cursor->translate.y);
+            }
+    for (unsigned i = 0; i < NUM_STAGES; ++i) {
+        if (!mnStageSel_803F06D0[i].x0 || mnStageSel_803F06D0[i].x8 < 2) continue;
+        Vec3 position;
+        lb_8000B1CC(mnStageSel_803F06D0[i].x0, NULL, &position);
+        fprintf(stderr, "[sss-tile] index=%u stage=%u x=%.6f y=%.6f\n",
+            i, mnStageSel_803F06D0[i].stkind, position.x, position.y);
+    }
 }
 #endif
 
