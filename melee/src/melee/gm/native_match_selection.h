@@ -9,6 +9,10 @@
 #include "native_lobby_match.h"
 
 typedef struct VsModeData VsModeData;
+struct MatchEnd;
+// Lowest match port with the worst result rank; 255 for a draw/cancel.
+uint8_t nativeMatchSelection_LoserPort(const NativeLobbyMatch* match,
+                                      const struct MatchEnd* result);
 
 // Builds the gameplay portion of a match proposal. The online session assigns
 // its fresh session ID and the room topology assigns peers before validation.

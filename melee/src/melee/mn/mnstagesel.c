@@ -875,6 +875,8 @@ void mnStageSel_Scene_OnFrame(void)
             mnStageSel_804D6CAD = 0;
             return;
         }
+        if (action == NativeOnlineSssAction_PlayerInput)
+            mnStageSel_804D50A0 = nativeOnlineSession_StagePort();
     }
 #endif
     if (mnStageSel_804D50A0 < 0) {

@@ -418,12 +418,14 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   Watch match control, viewer asset activation, verified catch-up, cancellation
   and Results with source-only paired fighters, including a cold-cache run
   through 5,982 verified frames and return to the local roster. A separate
-  one-minute tie verifies both sudden-death phases through Results. Match start
-  by a room owner with no active fighter remains open. The
+  one-minute tie verifies both sudden-death phases through Results. The
   [spectating-host backend](melee/docs/native_spectator_owner_checkpoint.md)
   now publishes active-player proposals without configuring the host as a
-  fighter; two successive sessions and input transport pass. Stage-selection
-  scene integration remains open. Filling the existing
+  fighter; two successive sessions and input transport pass. The
+  [lobby stage-selection flow](melee/docs/native_lobby_stage_checkpoint.md)
+  also passes a native match with a spectating owner and shared-PC stage input.
+  The previous loser receives the next pick, with lowest-active-index fallback.
+  Filling the existing
   transfer window reduces the cold-cache setup from 89.297 to 28.781 seconds;
   the sampled active clients maintain about 60 ticks/s without added input waits.
   Concurrent content, chat and two viewers also pass the local load check below.
@@ -516,6 +518,10 @@ pause/exit chord returns to character select; ordinary B remains Special.
 Local match and online room flows use the locked practice characters. Once
 assigned fighters are ready, the host's Start match control opens stage select;
 no automatic start or second CSS. Preserve the current home flow during design.
+In player-created lobbies, the previous loser chooses the stage, or the
+lowest-index player on the losing team. With no previous loser, or when that
+player leaves or spectates, the lowest-index active player chooses. These are
+canonical match indices, independent of the CSS's local-first card order.
 
 Players choose fighting/waiting/spectating and the host can override; players
 can change their choice again. Teams/FFA assignments are manual. 1v1 supports

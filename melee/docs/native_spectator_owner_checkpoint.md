@@ -48,10 +48,10 @@ The probe uses its existing connection-only build configuration. These results
 prove session publication, agreement, input transport and return. They do not
 exercise game scenes, package downloads or spectator playback.
 
-## Remaining integration
+## Stage-selection follow-up
 
-The native menu flow still assumes the host is fighting when collecting the
-start request and entering stage selection. Choosing who selects the stage for
-a spectating host remains a UI decision. That scene flow and its full native
-game acceptance remain open; this checkpoint does not complete the spectator
-plan item.
+The later [lobby stage-selection checkpoint](native_lobby_stage_checkpoint.md)
+implements the native menu flow: the previous loser chooses, with the
+lowest-index active player as fallback. A spectating owner starts the match
+while staying in practice. That record contains the subsequent full-client
+scene evidence; the connection-only probe above remains its own bounded check.

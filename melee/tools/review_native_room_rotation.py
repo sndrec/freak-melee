@@ -166,7 +166,11 @@ def main():
             for c in clients:
                 c.click('play-ready'); c.element('play-selection')
             wait(lambda: 'enabled=1' in clients[0].inspect('play-start'), 'ready active seats')
-            clients[0].click('play-start'); select_stage(clients[0])
+            clients[0].click('play-start')
+            chooser = wait(lambda: next(((c, int(m[1])) for c in clients
+                if (m := re.search(r'\[room-stage\].*physical=([0-3])', c.inspect('room-state')))), None),
+                'active stage chooser')
+            select_stage(*chooser)
             sessions = [session(c,number) for c in clients]
             assert sessions[0][:2] == sessions[1][:2]
             for index,c in enumerate(clients):

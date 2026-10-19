@@ -292,7 +292,7 @@ int main(int argc, char** argv)
         // A fighting peer reports Results; the service clears the proposal even
         // when the owner never watches. Both fighters can return for a rematch.
         passed = nativeSignalingClient_ReportMatch(&first.room.connection.signaling,
-                     first.room.agreed_match_epoch, "", UINT8_MAX, false) &&
+                     first.room.agreed_match_epoch, "", UINT8_MAX, false, UINT8_MAX) &&
                  nativeLobbySession_FinishMatch(&first) &&
                  nativeLobbySession_FinishMatch(&second);
         bool returned = false;

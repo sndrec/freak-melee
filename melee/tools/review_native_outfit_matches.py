@@ -56,7 +56,7 @@ def choose(client, fighter, title, port):
     raise RuntimeError('Installed outfit could not be selected: '+text)
 
 
-def select_stage(client):
+def select_stage(client, port=0):
     text = wait(lambda: (s if '[sss-cursor]' in (s := client.inspect('sss-state')) else None), 'stage select')
     tile = re.search(r'\[sss-tile\] index=(\d+) stage=32 x=([\d.-]+) y=([\d.-]+)', text)
     assert tile, text
@@ -75,14 +75,14 @@ def select_stage(client):
                 break
             magnitude = 80 if abs(error) > 4 else 45 if abs(error) > 1 else 35
             frames = min(20, max(1, round(abs(error)/(.03*(magnitude-30)))))
-            client.command('tap', 0, f's{axis}={magnitude if error > 0 else -magnitude}', f'frames={frames}')
+            client.command('tap', port, f's{axis}={magnitude if error > 0 else -magnitude}', f'frames={frames}')
             # Wait for the whole input pulse and its neutral sample before reading.
             time.sleep(frames/30+.4)
         else:
             raise RuntimeError('Stage cursor failed to reach '+axis)
     text = client.inspect('sss-state')
     assert 'selected='+index in text, text
-    client.tap('a')
+    client.tap('a', port=port)
 
 
 def session(client):

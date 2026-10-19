@@ -57,9 +57,8 @@ static void write_u64(uint8_t* bytes, uint64_t value)
 
 bool nativeLobbySelection_Validate(const NativeLobbySelection* selection)
 {
-    if (selection == NULL || selection->player_count == 0 ||
-        selection->player_count > NATIVE_LOBBY_SELECTION_MAX_PLAYERS ||
-        (selection->start_requested && !selection->confirmed))
+    if (selection == NULL ||
+        selection->player_count > NATIVE_LOBBY_SELECTION_MAX_PLAYERS)
     {
         return false;
     }
@@ -151,7 +150,7 @@ bool nativeLobbySelection_Decode(NativeLobbySelection* selection,
 {
     if (selection == NULL || bytes == NULL || size < SELECTION_HEADER_BYTES ||
         read_u32(bytes) != SELECTION_MAGIC || bytes[4] != SELECTION_VERSION ||
-        bytes[5] == 0 || bytes[5] > NATIVE_LOBBY_SELECTION_MAX_PLAYERS ||
+        bytes[5] > NATIVE_LOBBY_SELECTION_MAX_PLAYERS ||
         bytes[6] > 3 || size > NATIVE_LOBBY_SELECTION_MAX_WIRE_BYTES ||
         size < SELECTION_HEADER_BYTES + bytes[5] * SELECTION_PLAYER_BYTES)
     {

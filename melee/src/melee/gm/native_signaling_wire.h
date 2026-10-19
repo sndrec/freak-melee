@@ -63,11 +63,14 @@ typedef struct NativeSignalingPresence {
     NativeSignalingParticipant participants[NATIVE_SIGNALING_MAX_PARTICIPANTS];
     uint8_t match[NATIVE_SIGNALING_MAX_MATCH_BYTES];
     char owner_peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    char stage_peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     uint64_t revision;
     uint64_t match_epoch;
     uint16_t match_size;
     uint8_t participant_count;
     uint8_t rotation_policy;
+    uint8_t stage_seat;
+    uint8_t stage;
 } NativeSignalingPresence;
 
 typedef struct NativeSignalingSignal {
@@ -170,8 +173,12 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
                                              const char* winner_peer_id,
                                              uint8_t winner_seat,
                                              bool eligible,
+                                             uint8_t loser_port,
                                              uint8_t* output,
                                              size_t output_capacity);
+size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,
+                                                uint8_t stage,
+                                                uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodePostChat(uint32_t nonce, const char* text,
                                         uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeRequestChat(uint8_t* output, size_t capacity);

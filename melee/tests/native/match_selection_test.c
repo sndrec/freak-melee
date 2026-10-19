@@ -13,9 +13,35 @@ static struct GamePrefs prefs = {.item_freq=UINT8_MAX};
 GameRules* gmMainLib_GetGameRules(void) { return &rules; }
 struct GamePrefs* gmMainLib_GetGamePrefs(void) { return &prefs; }
 u8 gm_GetNumCostumesForCKind(u8 character) { (void)character; return 4; }
+bool gm_WasMatchCanceled(u8 outcome) { return outcome == OUTCOME_NO_CONTEST || outcome == OUTCOME_RETRY; }
+
+static void test_loser(void)
+{
+    NativeLobbyMatch match = {0};
+    MatchEnd result = {0};
+    for (unsigned i=0;i<4;++i) {
+        match.slots[i].kind = NativeLobbyMatchSlot_Human;
+        match.slots[i].team = i & 1;
+    }
+    assert(nativeMatchSelection_LoserPort(&match,&result)==255);
+    result.player_standings[2].is_big_loser = 3;
+    result.player_standings[3].is_big_loser = 3;
+    assert(nativeMatchSelection_LoserPort(&match,&result)==2);
+    match.teams = true;
+    result.team_standings[1].is_big_loser = 1;
+    assert(nativeMatchSelection_LoserPort(&match,&result)==1);
+    match.slots[1].kind = NativeLobbyMatchSlot_Empty;
+    assert(nativeMatchSelection_LoserPort(&match,&result)==3);
+    result.outcome = OUTCOME_NO_CONTEST;
+    assert(nativeMatchSelection_LoserPort(&match,&result)==255);
+    result.outcome = OUTCOME_RETRY;
+    assert(nativeMatchSelection_LoserPort(&match,&result)==255);
+    assert(nativeMatchSelection_LoserPort(&match,NULL)==255);
+}
 
 int main(void)
 {
+    test_loser();
     VsModeData vs = {0};
     NativeContentId fighters[4] = {0}, costumes[4] = {0};
     for (unsigned port=0; port<4; ++port) {

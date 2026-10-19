@@ -10,7 +10,7 @@ typedef struct SSSData SSSData;
 
 typedef enum NativeOnlineSssAction {
     NativeOnlineSssAction_Offline,
-    NativeOnlineSssAction_OwnerInput,
+    NativeOnlineSssAction_PlayerInput,
     NativeOnlineSssAction_Wait,
     NativeOnlineSssAction_Start,
     NativeOnlineSssAction_Failed,

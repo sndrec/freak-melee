@@ -6,10 +6,29 @@
 
 #include "forward.h"
 #include "gmmain_lib.h"
+#include "gmresult.h"
 #include "native_stock_content.h"
 #include "types.h"
 #include <melee/ft/forward.h>
 #include <melee/mn/types.h>
+
+uint8_t nativeMatchSelection_LoserPort(const NativeLobbyMatch* match,
+                                      const MatchEnd* result)
+{
+    if (!match || !result || gm_WasMatchCanceled(result->outcome))
+        return UINT8_MAX;
+    uint8_t loser = UINT8_MAX, worst = 0;
+    for (uint8_t port = 0; port < 4; ++port) {
+        if (match->slots[port].kind != NativeLobbyMatchSlot_Human) continue;
+        uint8_t team = match->slots[port].team;
+        if (match->teams && team >= GM_MAX_TEAMS) return UINT8_MAX;
+        uint8_t rank = match->teams
+            ? result->team_standings[team].is_big_loser
+            : result->player_standings[port].is_big_loser;
+        if (rank > worst) { worst = rank; loser = port; }
+    }
+    return loser;
+}
 
 static bool valid_stock_identity(uint8_t character, uint8_t color)
 {

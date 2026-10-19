@@ -20,6 +20,7 @@
 #include "gmvsmelee.h"
 #include "gmvsmode.h"
 #include "native_match_launch.h"
+#include "native_match_selection.h"
 #include "native_spectator_match.h"
 #include "native_online_session.h"
 #include "native_practice.h"
@@ -1473,19 +1474,19 @@ static bool collect_room_players(VsModeData* combined, bool* owner_requested,
     for (unsigned peer = 0; peer < presence->participant_count; ++peer) {
         const NativeSignalingParticipant* participant =
             &presence->participants[peer];
+        NativeLobbySelection selection;
+        bool decoded = nativeLobbySelection_Decode(&selection, participant->selection,
+                                                    participant->selection_size);
+        if (strcmp(participant->peer_id, presence->owner_peer_id) == 0)
+            *owner_requested = decoded && selection.start_requested;
         if (participant->active_mask == 0) {
             continue;
         }
-        NativeLobbySelection selection;
-        if (!nativeLobbySelection_Decode(&selection, participant->selection,
-                                         participant->selection_size) ||
+        if (!decoded ||
             !selection.confirmed ||
             selection.player_count != participant->local_players)
         {
             return false;
-        }
-        if (strcmp(participant->peer_id, presence->owner_peer_id) == 0) {
-            *owner_requested = selection.start_requested;
         }
         for (unsigned local = 0; local < selection.player_count; ++local) {
             if ((participant->active_mask & (1U << local)) == 0) {
@@ -1595,6 +1596,19 @@ bool nativeHome_LocalRosterMatchesRoom(void)
         }
     }
     return true;
+}
+
+bool nativeHome_PublishRoomMatch(uint8_t stage)
+{
+    NativeLobbyMatch match;
+    NativeContentId costumes[4], fighters[4];
+    VsModeData combined = *gmVsMelee_GetVsData();
+    bool requested;
+    return nativeOnlineSession_IsOwner() &&
+        collect_room_players(&combined, &requested, costumes, fighters) && requested &&
+        (!combined.start.rules.is_teams || has_opposing_teams(combined.start.players)) &&
+        nativeMatchSelection_Build(&match, &combined, stage, costumes, fighters) &&
+        nativeOnlineSession_BeginMatch(&match);
 }
 
 bool nativeHome_CanStartMatch(void)
@@ -1948,6 +1962,9 @@ void nativeHome_Tick(void)
         home.start_requested = false;
     }
     if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {
+        const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+        if (presence && presence->match_size != 0)
+            home.start_requested = false;
         if (home.start_requested && nativeHome_TeamsNeedOpponents()) {
             home.start_requested = false;
         }
@@ -1980,9 +1997,8 @@ void nativeHome_Tick(void)
                     }
                 }
             }
-        } else {
-            published.start_requested = home.start_requested;
         }
+        published.start_requested = home.start_requested;
         nativeOnlineSession_UpdateSelection(&published);
     }
     if (home.authoring || home.preview_active ||
@@ -2011,8 +2027,7 @@ void nativeHome_Tick(void)
     }
     if (nativeOnlineSession_State() == NativeLobbySessionState_Disconnected) {
         home.enter_stage_select = home.start_requested;
-    } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting &&
-               nativeOnlineSession_LocalActiveSeats()) {
+    } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {
         bool owner_requested;
         VsModeData combined = *gmVsMelee_GetVsData();
         if (collect_room_players(&combined, &owner_requested, NULL, NULL) &&
@@ -2020,9 +2035,15 @@ void nativeHome_Tick(void)
             (!nativeOnlineSession_IsOwner() ||
              !combined.start.rules.is_teams ||
              has_opposing_teams(combined.start.players))) {
-            *gmVsMelee_GetVsData() = combined;
-            home.enter_stage_select = true;
-            home.online_match = true;
+            if (nativeOnlineSession_LocalActiveSeats()) {
+                *gmVsMelee_GetVsData() = combined;
+                home.enter_stage_select = true;
+                home.online_match = true;
+            } else if (nativeOnlineSession_IsOwner()) {
+                const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+                if (p && p->stage != UINT8_MAX && p->match_size == 0)
+                    nativeHome_PublishRoomMatch(p->stage);
+            }
         }
     }
     if (home.enter_stage_select) {
