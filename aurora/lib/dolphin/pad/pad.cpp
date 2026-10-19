@@ -39,6 +39,8 @@ std::array<PADButtonMapping, PAD_BUTTON_COUNT> g_defaultButtonsStandard{{
 
 std::array<PADStatus, PAD_CHANMAX> g_virtualPadStatus{};
 std::array<bool, PAD_CHANMAX> g_virtualPadActive{};
+std::array<PADDeadZones, PAD_CHANMAX> g_portDeadZones{};
+std::array<bool, PAD_CHANMAX> g_portDeadZonesActive{};
 PADReadCallback g_readCallback = nullptr;
 
 std::array<PADButtonMapping, PAD_BUTTON_COUNT> g_defaultButtonsXBox360{{
@@ -815,6 +817,7 @@ u32 PADRead(PADStatus* status) {
 
     if (controller) {
       EnsureMappingLoaded(controller);
+      const auto& deadZones = g_portDeadZonesActive[i] ? g_portDeadZones[i] : controller->m_deadZones;
       bool leftTriggerSet = false;
       bool rightTriggerSet = false;
       std::ranges::for_each(controller->m_buttonMapping, [&controller, &i, &status, &leftTriggerSet,
@@ -864,13 +867,13 @@ u32 PADRead(PADStatus* status) {
       auto xl = static_cast<Sint16>((xlPos + -xlNeg) / 2);
       // SDL's gamepad y-axis is inverted from GC's
       auto yl = static_cast<Sint16>((-ylPos + ylNeg) / 2);
-      if (controller->m_deadZones.useDeadzones) {
-        if (std::abs(xl) > controller->m_deadZones.stickDeadZone) {
+      if (deadZones.useDeadzones) {
+        if (std::abs(xl) > deadZones.stickDeadZone) {
           xl /= 256;
         } else {
           xl = 0;
         }
-        if (std::abs(yl) > controller->m_deadZones.stickDeadZone) {
+        if (std::abs(yl) > deadZones.stickDeadZone) {
           yl = static_cast<Sint16>(-(yl + 1u) / 256u);
         } else {
           yl = 0;
@@ -891,14 +894,14 @@ u32 PADRead(PADStatus* status) {
       auto xr = static_cast<Sint16>((xrPos + -xrNeg) / 2);
       // SDL's gamepad y-axis is inverted from GC's
       auto yr = static_cast<Sint16>((-yrPos + yrNeg) / 2);
-      if (controller->m_deadZones.useDeadzones) {
-        if (std::abs(xr) > controller->m_deadZones.substickDeadZone) {
+      if (deadZones.useDeadzones) {
+        if (std::abs(xr) > deadZones.substickDeadZone) {
           xr /= 256;
         } else {
           xr = 0;
         }
 
-        if (std::abs(yr) > controller->m_deadZones.substickDeadZone) {
+        if (std::abs(yr) > deadZones.substickDeadZone) {
           yr = static_cast<Sint16>(-(yr + 1u) / 256u);
         } else {
           yr = 0;
@@ -914,11 +917,11 @@ u32 PADRead(PADStatus* status) {
       Sint16 tl = std::max(static_cast<Sint16>(0), _get_axis_value(controller, PAD_AXIS_TRIGGER_L));
       Sint16 tr = std::max(static_cast<Sint16>(0), _get_axis_value(controller, PAD_AXIS_TRIGGER_R));
 
-      if (controller->m_deadZones.emulateTriggers) {
-        if (!leftTriggerSet && tl > controller->m_deadZones.leftTriggerActivationZone) {
+      if (deadZones.emulateTriggers) {
+        if (!leftTriggerSet && tl > deadZones.leftTriggerActivationZone) {
           status[i].button |= PAD_TRIGGER_L;
         }
-        if (!rightTriggerSet && tr > controller->m_deadZones.rightTriggerActivationZone) {
+        if (!rightTriggerSet && tr > deadZones.rightTriggerActivationZone) {
           status[i].button |= PAD_TRIGGER_R;
         }
       }
@@ -1508,6 +1511,16 @@ PADDeadZones* PADGetDeadZones(const u32 port) {
     return nullptr;
   }
   return &controller->m_deadZones;
+}
+
+void PADSetPortDeadZones(const u32 port, const PADDeadZones* deadZones) {
+  if (port >= PAD_CHANMAX) {
+    return;
+  }
+  g_portDeadZonesActive[port] = deadZones != nullptr;
+  if (deadZones != nullptr) {
+    g_portDeadZones[port] = *deadZones;
+  }
 }
 
 static constexpr std::array<std::pair<PADButton, std::string_view>, PAD_BUTTON_COUNT> skButtonNames = {{

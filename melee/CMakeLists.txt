@@ -1060,6 +1060,16 @@ if(MELEE_BUILD_TESTS)
         aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
     aurora_copy_runtime_dlls(native_aram_transfer_test)
     add_test(NAME native_aram_transfer COMMAND native_aram_transfer_test)
+    add_executable(native_profile_pad_test tests/native/profile_pad_test.cpp
+        src/melee/gm/native_profile.c src/melee/gm/native_profile_input.c)
+    target_include_directories(native_profile_pad_test PRIVATE src
+        "${MELEE_AURORA_SOURCE}/lib")
+    target_compile_definitions(native_profile_pad_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(native_profile_pad_test PRIVATE aurora_pad aurora_os
+        aurora_gx aurora_vi aurora_mtx aurora_dvd aurora_card aurora_thp absl::flat_hash_map)
+    aurora_copy_runtime_dlls(native_profile_pad_test)
+    add_test(NAME native_profile_pad COMMAND native_profile_pad_test
+        "${CMAKE_BINARY_DIR}/profile-pad-fixture")
     add_executable(native_dvd_transfer_test tests/native/dvd_transfer_test.cpp)
     target_include_directories(native_dvd_transfer_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_dvd_transfer_test PRIVATE MELEE_NATIVE=1)

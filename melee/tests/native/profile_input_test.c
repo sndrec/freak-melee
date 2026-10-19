@@ -8,6 +8,9 @@
 static bool native_buttons[PAD_MAX_CONTROLLERS][32];
 static int16_t native_axes[PAD_MAX_CONTROLLERS][8];
 static PADDeadZones dead_zones[PAD_MAX_CONTROLLERS];
+static PADDeadZones port_dead_zones[PAD_MAX_CONTROLLERS];
+static bool has_port_dead_zones[PAD_MAX_CONTROLLERS];
+static void require(bool condition, const char* message);
 
 BOOL PADGetNativeButtonState(u32 port, s32 button)
 {
@@ -22,9 +25,11 @@ s16 PADGetNativeAxisState(u32 port, s32 axis)
                : 0;
 }
 
-PADDeadZones* PADGetDeadZones(u32 port)
+void PADSetPortDeadZones(u32 port, const PADDeadZones* calibration)
 {
-    return port < PAD_MAX_CONTROLLERS ? &dead_zones[port] : NULL;
+    require(port < PAD_MAX_CONTROLLERS, "configure a valid physical port");
+    has_port_dead_zones[port] = calibration != NULL;
+    if (calibration) port_dead_zones[port] = *calibration;
 }
 
 static void require(bool condition, const char* message)
@@ -136,9 +141,10 @@ int main(void)
         .rightTriggerActivationZone = 4567,
     };
     require(nativeProfileInput_Assign(0, &profile) &&
-                dead_zones[0].useDeadzones &&
-                dead_zones[0].stickDeadZone == 8000 &&
-                dead_zones[0].leftTriggerActivationZone == 31150,
+                has_port_dead_zones[0] && port_dead_zones[0].useDeadzones &&
+                port_dead_zones[0].stickDeadZone == 8000 &&
+                port_dead_zones[0].leftTriggerActivationZone == 31150 &&
+                dead_zones[0].stickDeadZone == 1234,
             "assign profile-owned calibration to the controller port");
     PADStatus pads[4] = {
         { .button = PAD_BUTTON_A | PAD_BUTTON_B | PAD_BUTTON_Y,
@@ -273,6 +279,7 @@ int main(void)
     nativeProfileInput_Apply(pads);
     require(nativeProfileInput_Assigned(0) == NULL &&
                 pads[0].button == PAD_BUTTON_A &&
+                !has_port_dead_zones[0] &&
                 !dead_zones[0].useDeadzones &&
                 dead_zones[0].stickDeadZone == 1234 &&
                 dead_zones[0].rightTriggerActivationZone == 4567 &&

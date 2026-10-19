@@ -7,9 +7,7 @@
 
 typedef struct NativeProfileInputSlot {
     NativeProfile profile;
-    PADDeadZones previous_dead_zones;
     bool assigned;
-    bool has_previous_dead_zones;
 } NativeProfileInputSlot;
 
 static NativeProfileInputSlot slots[PAD_MAX_CONTROLLERS];
@@ -172,35 +170,26 @@ bool nativeProfileInput_Assign(uint32_t port, const NativeProfile* profile)
     if (port >= PAD_MAX_CONTROLLERS || !nativeProfile_Validate(profile)) {
         return false;
     }
-    PADDeadZones* dead_zones = PADGetDeadZones(port);
-    if (!slots[port].assigned && dead_zones != NULL) {
-        slots[port].previous_dead_zones = *dead_zones;
-        slots[port].has_previous_dead_zones = true;
-    }
     slots[port].profile = *profile;
     slots[port].assigned = true;
-    if (dead_zones != NULL) {
-        *dead_zones = (PADDeadZones){
-            .emulateTriggers = profile->calibration.emulate_digital_triggers,
-            .useDeadzones = profile->calibration.use_dead_zones,
-            .stickDeadZone = profile->calibration.main_stick_dead_zone,
-            .substickDeadZone = profile->calibration.c_stick_dead_zone,
-            .leftTriggerActivationZone =
-                profile->calibration.left_trigger_activation,
-            .rightTriggerActivationZone =
-                profile->calibration.right_trigger_activation,
-        };
-    }
+    const PADDeadZones dead_zones = {
+        .emulateTriggers = profile->calibration.emulate_digital_triggers,
+        .useDeadzones = profile->calibration.use_dead_zones,
+        .stickDeadZone = profile->calibration.main_stick_dead_zone,
+        .substickDeadZone = profile->calibration.c_stick_dead_zone,
+        .leftTriggerActivationZone =
+            profile->calibration.left_trigger_activation,
+        .rightTriggerActivationZone =
+            profile->calibration.right_trigger_activation,
+    };
+    PADSetPortDeadZones(port, &dead_zones);
     return true;
 }
 
 void nativeProfileInput_Clear(uint32_t port)
 {
     if (port < PAD_MAX_CONTROLLERS) {
-        PADDeadZones* dead_zones = PADGetDeadZones(port);
-        if (slots[port].has_previous_dead_zones && dead_zones != NULL) {
-            *dead_zones = slots[port].previous_dead_zones;
-        }
+        PADSetPortDeadZones(port, NULL);
         memset(&slots[port], 0, sizeof(slots[port]));
     }
 }
