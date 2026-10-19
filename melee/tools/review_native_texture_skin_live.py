@@ -62,7 +62,7 @@ def sphere(path):
                     struct.pack('<II',len(binary),0x004e4942)+binary)
 
 
-def texture_fixture(full, joints, follow=False):
+def texture_fixture(full, joints, follow=False, distinct_basis=False):
     """Author two canonical envelopes and add a per-corner texture selector."""
     data_size, relocation_count = struct.unpack_from('>II', full, 4)
     data = bytearray(full[32:32+data_size])
@@ -89,6 +89,12 @@ def texture_fixture(full, joints, follow=False):
         for axis in range(3): struct.pack_into('>f', data, bind+(axis*4+axis)*4, 1)
         link(joints[0]+56, bind)
     assert joints[4]+56 in links, 'Choose a deform bone with an inverse bind'
+    if distinct_basis:
+        # A real legacy rigid shortcut reads normals before the root bind
+        # conversion. Shear and nonuniform scale make lost basis data visible.
+        bind = word(joints[0]+56)
+        for row, values in enumerate(((1.2,.25,0),(0,.8,.1),(0,0,1.1))):
+            for col,value in enumerate(values): struct.pack_into('>f',data,bind+(row*4+col)*4,value)
     for polygon in polygon_chain(data, word(mesh+12)):
         old = word(polygon+8)
         assert [word(old+i*24) for i in range(5)] == [0,9,10,13,255]
@@ -106,7 +112,8 @@ def texture_fixture(full, joints, follow=False):
             link(table+slot*4, entries)
             for i in range(2):
                 link(entries+i*8, bone)
-                struct.pack_into('>f', data, entries+i*8+4, .5)
+                weight = (1.0 if i==0 else 0.0) if distinct_basis and slot==0 else .5
+                struct.pack_into('>f', data, entries+i*8+4, weight)
         link(polygon+20, table)
         struct.pack_into('>H', data, polygon+12,
                          (struct.unpack_from('>H',data,polygon+12)[0]&~0x3000)|0x2000)
@@ -144,6 +151,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('exe','tool','test','iso','output'):
         parser.add_argument('--'+name,type=Path,required=True)
+    parser.add_argument('--distinct-basis',action='store_true')
     args = parser.parse_args()
     output = args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     profile = output/'profile'
@@ -175,8 +183,8 @@ def main():
                                                tool('project-model-joints',draft))]
     assert len(joints)>4
     plain = (draft/'costume.dat').read_bytes()
-    original = texture_fixture(plain,joints)
-    broken = texture_fixture(plain,joints,follow=True)
+    original = texture_fixture(plain,joints,distinct_basis=args.distinct_basis)
+    broken = texture_fixture(plain,joints,follow=True,distinct_basis=args.distinct_basis)
     (output/'original.dat').write_bytes(original)
     (output/'negative-control.dat').write_bytes(broken)
     # Use the actual skin writer and compactor, not a Python approximation.

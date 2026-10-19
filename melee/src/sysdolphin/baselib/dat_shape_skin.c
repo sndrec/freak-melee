@@ -71,13 +71,17 @@ static bool formats_equal(const ShapeStream* a,const ShapeStream* b)
     return true;
 }
 
-static bool bindings_valid(HSD_EnvelopeDesc** table,unsigned* count)
+static bool bindings_valid(HSD_EnvelopeDesc** table,unsigned* count,unsigned constant_mask)
 {
     *count=0;
     if(!table)return false;
     while(table[*count]) {
         if(*count==10)return false;
         const HSD_EnvelopeDesc* entry=table[(*count)++];
+        if (constant_mask & (1U << (*count-1))) {
+            if (entry->joint || entry->weight != 0) return false;
+            continue;
+        }
         // Native batches always include inverse binds. A sole full influence
         // is encoded as two halves instead of taking HSD's rigid shortcut.
         if(entry->weight>=1.0f)return false;
@@ -110,13 +114,21 @@ bool HSD_DatValidateEnvelopeMatrices(HSD_PObjDesc* polygon)
 {
     const HSD_EnvelopeMatricesDesc* matrices = polygon->u.matrices;
     unsigned positions, textures;
-    if (!matrices || !bindings_valid(matrices->positions, &positions) ||
-        !bindings_valid(matrices->textures, &textures)) return false;
+    if (!matrices || !bindings_valid(matrices->positions, &positions, 0) ||
+        !bindings_valid(matrices->textures, &textures, matrices->constant_mask) ||
+        (matrices->constant_mask >> textures)) return false;
+    if (matrices->normal_bases)
+        for (unsigned i=0;i<10;++i) for (unsigned r=0;r<3;++r) for (unsigned c=0;c<3;++c)
+            if (!isfinite(matrices->normal_bases[i][r][c])) return false;
     for (unsigned i = 0; i < 10; ++i) {
         const unsigned follower = matrices->followers[i];
         if (follower == 255) continue;
         if (i >= textures || follower >= positions ||
+            (matrices->constant_mask & (1U << i)) ||
             !bindings_equal(matrices->textures[i], matrices->positions[follower])) return false;
+        if (matrices->normal_bases)
+            for (unsigned r=0;r<3;++r) for (unsigned c=0;c<3;++c)
+                if (matrices->normal_bases[i][r][c] != (r==c?1.0f:0.0f)) return false;
     }
     ShapeStream stream;
     if (!stream_begin(&stream, polygon) || !stream.attributes[GX_VA_PNMTXIDX] ||
@@ -168,7 +180,8 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
         HSD_EnvelopeDesc** position_table = separate ? batch->u.matrices->positions : batch->u.envelope_p;
         HSD_EnvelopeDesc** texture_table = separate ? batch->u.matrices->textures : position_table;
         unsigned count, texture_count;
-        if(!bindings_valid(position_table,&count) || !bindings_valid(texture_table,&texture_count))goto cleanup;
+        if(!bindings_valid(position_table,&count,0) ||
+           !bindings_valid(texture_table,&texture_count,separate?batch->u.matrices->constant_mask:0))goto cleanup;
         ShapeStream generated;
         if(!stream_begin(&generated,batch) || !formats_equal(&authored,&generated))goto cleanup;
         const u8* a[26];const u8* b[26];
@@ -183,7 +196,9 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
                 if(attr<=GX_VA_TEX7MTXIDX) {
                     const unsigned source=a[attr][0], target=b[attr][0];
                     if(source==GX_IDENTITY) {
-                        if(target!=GX_IDENTITY)goto cleanup;
+                        if(target!=GX_IDENTITY && (!separate || target<GX_TEXMTX0 ||
+                            target>=GX_IDENTITY || target%3 ||
+                            !(batch->u.matrices->constant_mask & (1U<<((target-GX_TEXMTX0)/3)))))goto cleanup;
                     } else if(source<GX_TEXMTX0 || source>=GX_IDENTITY || source%3 ||
                               target<GX_TEXMTX0 || target>=GX_IDENTITY || target%3 ||
                               (target-GX_TEXMTX0)/3>=texture_count)goto cleanup;

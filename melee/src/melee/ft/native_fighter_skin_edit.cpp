@@ -174,10 +174,22 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
     u32 matrix_data = table;
     if (separate) {
         const u32 textures = dat.allocate((chunk.texture_bindings.size()+1)*4);
-        matrix_data = dat.allocate(20);
+        matrix_data = dat.allocate(24);
         if (textures == UINT32_MAX || matrix_data == UINT32_MAX) return false;
         dat.link(matrix_data, table); dat.link(matrix_data+4, textures);
         std::memset(dat.data.data()+matrix_data+8, 255, 10);
+        u16 constant_mask = 0;
+        bool has_basis = false;
+        for (u32 tag : chunk.texture_ids)
+            if (tag != NATIVE_SKIN_TEXTURE_FOLLOW && part.texture_bases[tag] != nativeSkinIdentityBasis)
+                has_basis = true;
+        const u32 bases = has_basis ? dat.allocate(360) : 0;
+        if (bases == UINT32_MAX) return false;
+        if (has_basis) {
+            for (unsigned i=0;i<10;++i) for (unsigned j=0;j<9;++j)
+                real(dat,bases+(i*9+j)*4,nativeSkinIdentityBasis[j]);
+            dat.link(matrix_data+20,bases);
+        }
         for (unsigned slot = 0; slot < chunk.texture_bindings.size(); ++slot) {
             u32 entries;
             if (chunk.texture_ids[slot] == NATIVE_SKIN_TEXTURE_FOLLOW) {
@@ -185,10 +197,17 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
                 if (position >= position_entries.size()) return false;
                 entries = position_entries[position];
                 dat.data[matrix_data+8+slot] = (u8)position;
-            } else entries = write_binding(chunk.texture_bindings[slot]);
+            } else {
+                const auto& weights = chunk.texture_bindings[slot];
+                if (!weights.count) { constant_mask |= 1U<<slot; entries=dat.allocate(8); }
+                else entries = write_binding(weights);
+                if (has_basis) for (unsigned j=0;j<9;++j)
+                    real(dat,bases+(slot*9+j)*4,part.texture_bases[chunk.texture_ids[slot]][j]);
+            }
             if (entries == UINT32_MAX) return false;
             dat.link(textures+slot*4, entries);
         }
+        dat.half(matrix_data+18,constant_mask);
     }
     u32 name; const char* external;
     const auto name_kind = part.source==UINT32_MAX?HSD_DAT_REF_NULL:HSD_DatResolve(&source, part.source, &name, &external);
@@ -239,6 +258,7 @@ bool nativeSkinMesh_Encode(NativeAssetDat& dat, const NativeFighterModelEditor& 
     u32 previous = 0;
     unsigned sections = 0;
     for (const auto& part : skin.parts) {
+        if (part.texture_bases.size() != part.texture_bindings.size()) return false;
         const bool shaped = (part.flags & 0x3000) == POBJ_SHAPEANIM;
         NativeSkinMorphEncoded morph = {};
         u32 private_previous = 0;
