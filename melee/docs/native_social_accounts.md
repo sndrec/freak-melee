@@ -29,7 +29,8 @@ To invite a friend, open their profile and choose **Invite to lobby**. If you
 have no lobby, choose **Create & invite** instead. Enter the lobby name, listing
 visibility and local player count, then confirm. The invitation is sent after
 the new lobby confirms your membership and its name. B returns to the friend's
-profile without creating a lobby or sending an invitation.
+profile without creating a lobby or sending an invitation. Enter in the lobby
+name field also confirms a completed form.
 
 The invitation remains in their Inbox while they are offline. Open it and choose **Join lobby** to leave your current lobby and join
 the sender. Invitations last fifteen minutes. Joining checks that the sender
@@ -43,7 +44,8 @@ Deleting a letter removes your copy. The recipient keeps theirs, and queued
 letters continue toward delivery.
 
 The composer accepts a subject and multiline text. Enter inserts a new line;
-Ctrl+Enter sends. Up/Down moves the text cursor between wrapped lines.
+Ctrl+Enter sends when the recipient, subject and body are filled in and the
+Send letter button is available. Up/Down moves the text cursor between wrapped lines.
 Long received letters have Up/Down controls and mouse-wheel scrolling.
 An unfinished draft stays in memory while you move between hub pages. It is
 cleared when you choose Clear draft, sign out, change accounts or close the
@@ -249,3 +251,17 @@ key; only that phase was rerun against the same local service state. The full
 driver has not been rerun after this fixture correction. Test-owned clients and
 the local service are stopped. Service behavior, protocol and artwork are
 unchanged; hosted and physical multi-PC acceptance remain separate.
+
+## Keyboard follow-up, 2026-10-19
+
+Enter and Ctrl+Enter now use the enabled control registered for the current
+form. This covers account submission, account lookup, letters, chat, lobby
+creation/joining, starter cloning, renaming and profile saves. Incomplete or busy
+forms keep their editing focus when the corresponding control is disabled.
+The account request path also waits for successful submission before clearing
+focus. Enter in a lobby-name field now confirms the named-lobby form.
+
+The final native build passes: `.local/hub-keyboard-build-final.log`.
+This small follow-up has source/build verification; the earlier UI receipts
+describe the preceding executable. Keyboard interaction acceptance remains for
+the user's next hub review. No game clients were launched for this follow-up.
