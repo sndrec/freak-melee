@@ -103,6 +103,8 @@ struct HubState {
     char lobby_title[65];
     char account_handle[25], account_recovery[44];
     char social_handle[25], letter_to[25], letter_subject[65], letter_body[2049];
+    char lobby_invite_to[25];
+    bool lobby_invite_queued;
     bool lobby_listed = true, pending_listing;
     NativeContentId gift_id;
     char gift_title[64];

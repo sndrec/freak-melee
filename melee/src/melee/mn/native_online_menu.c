@@ -24,6 +24,11 @@ bool nativeOnlineMenu_IsAvailable(void)
     return nativeHome_IsSelection() || nativeHome_IsPractice();
 }
 
+bool nativeOnlineMenu_HasPendingAction(void)
+{
+    return menu.pending != NativeOnlineMenuAction_None;
+}
+
 bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
                               const char* code, uint8_t local_players)
 {

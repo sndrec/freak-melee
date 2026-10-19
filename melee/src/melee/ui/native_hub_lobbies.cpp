@@ -93,7 +93,8 @@ void nativeHubLobbies_Render(bool create)
         nativeHub_Field("lobby-title", hub.lobby_title, 194, 162, 390, 28, HubAction::FieldLobbyTitle);
         nativeHub_Button("list-lobby", hub.lobby_listed ? "Listed in Lobbies" : "Unlisted - join with code",
             194, 213, 390, 29, HubAction::ToggleListing, 0, hub.lobby_listed);
-        nativeMenuPaint_Text(hub.lobby_listed ? "Players can find and join your lobby." : "Give your code to the people you want to invite.",
+        char invitation[96]; std::snprintf(invitation, sizeof(invitation), "Invite @%s when the lobby is ready.", hub.lobby_invite_to);
+        nativeMenuPaint_Text(*hub.lobby_invite_to ? invitation : hub.lobby_listed ? "Players can find and join your lobby." : "Give your code to the people you want to invite.",
             194, 250, 390, 9, muted);
         nativeMenuPaint_Text("Players on this PC", 194, 283, 180, 10, gold);
         for (unsigned players = 1; players <= 4; ++players) {
@@ -102,7 +103,7 @@ void nativeHubLobbies_Render(bool create)
             nativeHub_Button(id, label, 389 + (players - 1) * 48, 275, 42, 26,
                 HubAction::LocalPlayers, players, unsigned(hub.local_players) == players);
         }
-        nativeHub_Button("confirm-create-lobby", "Create lobby", 194, 322, 390, 30,
+        nativeHub_Button("confirm-create-lobby", *hub.lobby_invite_to ? "Create & invite" : "Create lobby", 194, 322, 390, 30,
             HubAction::CreateNamedLobby, 0, true, hub.lobby_title[0] != 0);
         return;
     }
@@ -146,6 +147,7 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
 {
     switch (action) {
     case HubAction::NewLobby:
+        hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
         std::snprintf(hub.lobby_title, sizeof(hub.lobby_title), "%.32s's lobby", hub.public_name);
         nativeHub_ChangePage(NativeHubPage_CreateLobby);
         return true;
@@ -162,6 +164,7 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
         if (nativeOnlineSession_State() == NativeLobbySessionState_Failed) nativeOnlineSession_Stop();
         if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Create, hub.public_name, "", uint8_t(hub.local_players))) {
             hub.pending_listing = true;
+            hub.lobby_invite_queued = *hub.lobby_invite_to != 0;
             nativeHub_ChangePage(NativeHubPage_Lobbies);
         } else nativeHub_Notice("Could not create the lobby. Try again shortly.");
         return true;
