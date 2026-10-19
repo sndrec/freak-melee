@@ -2,6 +2,7 @@
 #include "native_fighter_rest_matrices.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
+#include "native_mesh_vertex_ids.h"
 
 extern "C" {
 #include <sysdolphin/baselib/mtx.h>
@@ -10,6 +11,7 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <iterator>
 
 extern "C" bool nativeFighterModel_RestMatrices(const NativeFighterModelEditor* model,
                                                  Mtx* world, Vec3* scales)
@@ -490,6 +492,8 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                    Mtx* old_world, Mtx* new_world,
                    const bool* changed)
 {
+    std::vector<NativeMeshVertexIdRow> vertex_ids, added_ids;
+    if (!nativeMeshVertexIds_Read(editor.dat, &vertex_ids)) return false;
     for (unsigned mesh = 0; mesh < editor.mesh_count; ++mesh) {
         const auto& entry = editor.meshes[mesh];
         u32 polygon;
@@ -570,11 +574,15 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                 }
             }
             dat.link(link, replacement);
+            if (const auto* ids = nativeMeshVertexIds_Find(vertex_ids, (uint32_t)p.source))
+                added_ids.push_back({ (uint32_t)replacement, ids->ids });
             link = replacement + 4;
         }
         dat.link(link, 0);
     }
-    return true;
+    if (added_ids.empty()) return true;
+    vertex_ids.insert(vertex_ids.end(), std::make_move_iterator(added_ids.begin()), std::make_move_iterator(added_ids.end()));
+    return nativeMeshVertexIds_Write(dat, vertex_ids);
 }
 } // namespace
 

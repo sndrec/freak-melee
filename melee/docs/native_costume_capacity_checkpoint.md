@@ -61,6 +61,7 @@ checks; this change adds no new Workshop controls or live visual acceptance.
 ## Remaining model limits
 
 This removes the fixed import-workspace rejection. Large-mesh authoring still
-needs proper partitioning of 16-bit vertex indices with stable vertex identities
-across draw sections. Morph painting and the unusual binding domains listed in
-the Model plan remain open.
+needs [draw-section partitioning and stable vertex identities](native_large_skin_checkpoint.md)
+through the GLB/glTF importer. The native weight writer now has that support.
+Morph painting and the unusual binding domains listed in the Model plan remain
+open.

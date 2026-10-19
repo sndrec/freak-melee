@@ -250,8 +250,12 @@ import, materials, rigging and skinning, not mesh modeling.
   bindings and larger meshes remain open.
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
-  2,048 records. Compaction follows the same capacity policy. Larger-mesh vertex
-  indexing remains separate work; match-time pool capacities are unchanged.
+  2,048 records. Compaction follows the same capacity policy. Match-time pool
+  capacities are unchanged.
+  [Painting across large draw sections](melee/docs/native_large_skin_checkpoint.md)
+  now uses local position arrays and saved vertex identities. Large native
+  meshes retain shared vertices through painting, rest compensation and
+  compaction. Extending GLB/glTF source admission and its encoder remains open.
   [Costume compaction](melee/docs/native_costume_compaction_checkpoint.md) now
   reclaims dead geometry/texture storage while preserving editor identities;
   128 consecutive brush edits stay bounded, all retail costumes pass, and both

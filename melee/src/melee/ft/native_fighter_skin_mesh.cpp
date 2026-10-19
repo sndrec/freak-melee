@@ -1,5 +1,6 @@
 #include "native_fighter_skin_mesh.h"
 #include "native_asset_dat.h"
+#include "native_mesh_vertex_ids.h"
 extern "C" {
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mtx.h>
@@ -161,14 +162,14 @@ bool bindings(const NativeFighterModelEditor& model, u32 table,
     return false;
 }
 struct Identity {
-    u32 source;
+    u64 source;
     NativeSkinVertex vertex;
 };
 u64 identity_hash(const Identity& key)
 {
     u64 hash = 1469598103934665603ULL;
     auto add = [&](u32 value) { hash = (hash ^ value) * 1099511628211ULL; };
-    add(key.source);
+    add((u32)key.source); add((u32)(key.source >> 32));
     for (float value : key.vertex.position) {
         u32 bits; std::memcpy(&bits, &value, 4); add(bits);
     }
@@ -208,6 +209,8 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
     if (!out || mesh >= model.mesh_count) return fail();
     *out = {};
     const auto& dat = model.dat;
+    std::vector<NativeMeshVertexIdRow> vertex_ids;
+    if (!nativeMeshVertexIds_Read(dat, &vertex_ids)) return fail();
     const unsigned owner = model.meshes[mesh].joint;
     const bool root = (model.joints[owner].flags & JOBJ_SKELETON_ROOT) != 0;
     u32 polygon;
@@ -219,6 +222,7 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
         if (!header) return fail();
         NativeSkinPart part = {};
         part.source = polygon; part.flags = half(header + 12);
+        const auto* ids = nativeMeshVertexIds_Find(vertex_ids, (uint32_t)polygon);
         const unsigned type = part.flags & 0x3000;
         if (type != POBJ_SKIN && type != POBJ_ENVELOPE) return fail();
         u32 descriptors, display, table;
@@ -323,7 +327,9 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                     std::memcpy(corner.normal + n * 3, &converted, sizeof(converted));
                 }
                 for (float value : corner.normal) if (!std::isfinite(value)) return fail();
-                Identity key = { position_source, vertex };
+                if (ids && part.corners.size() >= ids->ids.size()) return fail();
+                const u64 identity = ids ? (UINT64_C(1) << 32) | ids->ids[part.corners.size()] : position_source;
+                Identity key = { identity, vertex };
                 auto& bucket = lookup[identity_hash(key)];
                 unsigned id = UINT32_MAX;
                 for (unsigned candidate : bucket) {
@@ -350,7 +356,7 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                 else triangle(i % 2 ? i - 1 : i - 2, i % 2 ? i - 2 : i - 1, i);
             }
         }
-        if (part.corners.empty()) return fail();
+        if (part.corners.empty() || (ids && ids->ids.size() != part.corners.size())) return fail();
         out->parts.push_back(std::move(part));
         if (part_index + 1 < model.meshes[mesh].polygon_count &&
             !reference(dat, polygon + 4, &polygon)) return fail();

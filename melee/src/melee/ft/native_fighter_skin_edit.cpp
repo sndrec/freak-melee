@@ -1,6 +1,7 @@
 #include "native_fighter_skin_mesh.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
+#include "native_mesh_vertex_ids.h"
 extern "C" {
 #include <melee/ft/ftcostume_assets.h>
 #include <sysdolphin/baselib/jobj.h>
@@ -10,6 +11,7 @@ extern "C" {
 #include <cstdlib>
 #include <array>
 #include <map>
+#include <unordered_map>
 
 namespace {
 void fail(char* error, size_t size, const char* message)
@@ -34,9 +36,25 @@ unsigned palette_slot(const std::vector<NativeSkinWeights>& bindings,
 }
 bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
                   const NativeSkinPart& part, const Chunk& chunk,
-                  u32 positions, u32* polygon)
+                  const NativeSkinMesh& skin, u32 positions, bool local_positions,
+                  std::vector<NativeMeshVertexIdRow>* vertex_ids, u32* polygon)
 {
     const auto& source = model.dat;
+    std::unordered_map<unsigned, u16> position_indices;
+    if (local_positions) {
+        position_indices.reserve(chunk.corners.size());
+        std::vector<unsigned> vertices;
+        for (unsigned corner : chunk.corners) {
+            const unsigned vertex = part.corners[corner].vertex;
+            auto [entry, added] = position_indices.emplace(vertex, (u16)vertices.size());
+            if (added) vertices.push_back(vertex);
+        }
+        positions = dat.allocate(vertices.size()*12);
+        if (positions == UINT32_MAX) return false;
+        for (unsigned i = 0; i < vertices.size(); ++i)
+            for (unsigned axis = 0; axis < 3; ++axis)
+                real(dat, positions+i*12+axis*4, skin.vertices[vertices[i]].position[axis]);
+    }
     std::vector<u8> display;
     display.push_back(0x90);
     display.push_back((u8)(chunk.corners.size() >> 8));
@@ -65,7 +83,8 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
         for (const auto& attr : part.attributes) {
             const u8* bytes = source.data + cursor;
             if (attr.attr == 9 || attr.attr == 10 || attr.attr == 25) {
-                const unsigned index = attr.attr == 9 ? corner.vertex : normal_indices[i];
+                const unsigned index = attr.attr == 9
+                    ? (local_positions ? position_indices.at(corner.vertex) : corner.vertex) : normal_indices[i];
                 display.push_back((u8)(index >> 8)); display.push_back((u8)index);
             } else if (attr.attr >= 1 && attr.attr <= 8) {
                 // Envelope-generated texture matrices follow the same binding
@@ -131,6 +150,12 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
     dat.half(*polygon + 12, (part.flags & ~0x3000) | POBJ_ENVELOPE);
     dat.half(*polygon + 14, (u16)(display.size() / 32));
     dat.link(*polygon + 16, commands); dat.link(*polygon + 20, table);
+    if (local_positions) {
+        NativeMeshVertexIdRow row = { (uint32_t)*polygon, {} };
+        row.ids.reserve(chunk.corners.size());
+        for (unsigned corner : chunk.corners) row.ids.push_back(part.corners[corner].vertex);
+        vertex_ids->push_back(std::move(row));
+    }
     return true;
 }
 }
@@ -153,10 +178,13 @@ bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat& dat,const NativeFighterMod
 bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& model,
                  unsigned mesh, const NativeSkinMesh& skin)
 {
-    if (skin.vertices.size() > 65536) return false;
-    const u32 positions = dat.allocate(skin.vertices.size() * 12);
+    if (mesh >= model.mesh_count || skin.vertices.size() > UINT32_MAX/12) return false;
+    const bool local_positions = skin.vertices.size() > 65536;
+    std::vector<NativeMeshVertexIdRow> vertex_ids;
+    if (local_positions && !nativeMeshVertexIds_Read(model.dat, &vertex_ids)) return false;
+    const u32 positions = local_positions ? 0 : dat.allocate(skin.vertices.size() * 12);
     if (positions == UINT32_MAX) return false;
-    for (unsigned i = 0; i < skin.vertices.size(); ++i)
+    if (!local_positions) for (unsigned i = 0; i < skin.vertices.size(); ++i)
         for (unsigned axis = 0; axis < 3; ++axis)
             real(dat, positions + i * 12 + axis * 4, skin.vertices[i].position[axis]);
     u32 previous = 0;
@@ -172,7 +200,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         auto flush = [&]() {
             if (chunk.corners.empty()) return true;
             u32 emitted;
-            if (!write_chunk(dat, model, part, chunk, positions, &emitted)) return false;
+            if (!write_chunk(dat, model, part, chunk, skin, positions, local_positions, &vertex_ids, &emitted)) return false;
             dat.link(previous ? previous + 4 : model.meshes[mesh].offset + 12, emitted);
             previous = emitted; chunk = {}; return true;
         };
@@ -197,7 +225,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         }
         if (!flush()) return false;
     }
-    return previous != 0;
+    return previous != 0 && (!local_positions || nativeMeshVertexIds_Write(dat, vertex_ids));
 }
 
 unsigned nativeFighterSkin_Vertices(const NativeFighterProject* project, unsigned mesh,
