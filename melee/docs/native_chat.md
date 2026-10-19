@@ -1,6 +1,6 @@
 # Chat
 
-Updated: 2026-10-17.
+Updated: 2026-10-19.
 
 ## Using chat
 
@@ -28,9 +28,11 @@ button. Retry sends the same message identifier, preventing a second copy while
 the original remains in history. If that entry has expired, the service reports
 that it is no longer retained. You can write a fresh message after that.
 
-Accounts, persistent friends, letters and offline fighter gifts remain planned.
-The current peer identifiers belong to running client sessions. Display names
-come from the local profile.
+Signed-in players carry their verified account name in global and lobby
+presence. Selecting them opens their account profile. Guest connections use
+their local display name. [Friends and letters](native_social_accounts.md)
+provides persistent contacts, correspondence and lobby invitations. Fighter
+sharing uses the connected lobby's delivery flow.
 
 ## Native implementation
 

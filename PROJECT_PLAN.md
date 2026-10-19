@@ -79,6 +79,12 @@ their own builds; their old "remaining" lists are not the current backlog.
   service confirms membership and the lobby name. Five invitation UI checks
   and the full local social review pass:
   `.local/create-invite-social-1/receipt.json`.
+- Friends and account profiles now show Online/Offline/Checking from verified
+  player snapshots and current lobby membership. Four native contracts and
+  seven local invitation/presence UI checks pass, including sign-out to a guest
+  with the same displayed name: `.local/social-presence-review-1/receipt.json`.
+- Access to chat during a real match remains deferred to a collaborative design
+  pass at the user's request. Preserve the current CSS/practice chat flow.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the

@@ -1,6 +1,7 @@
 #include "native_hub_social.h"
 #include "native_hub_account.h"
 #include "native_hub_lobbies.h"
+#include "native_social_presence.h"
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL.h>
@@ -15,6 +16,12 @@ namespace {
     char owner[44], opened[44], nonce[44], invitation_nonce[44], invitation_room[13], invitation_to[25], pending_join[44];
     unsigned join_revision;
     constexpr uint32_t gold = 0xD9B754FF, muted = 0xB9ADBDFF;
+
+    const char* presence_label(const char* account_id)
+    {
+        static const char* labels[] = { "Checking...", "Offline", "Online" };
+        return labels[nativeSocialPresence_Account(nativeChat_View(), nativeOnlineSession_Presence(), account_id)];
+    }
 
     bool can_invite(const NativeAccountView& account)
     {
@@ -167,7 +174,7 @@ void nativeHubSocial_Render(NativeHubPage page)
             return;
         }
         nativeMenuPaint_Text(social.profile.name, 194, 134, 370, 19, gold, NativeMenuFont_MenuOption);
-        char handle[64]; std::snprintf(handle, sizeof(handle), "@%s", social.profile.handle);
+        char handle[64]; std::snprintf(handle, sizeof(handle), "@%s | %s", social.profile.handle, presence_label(social.profile.id));
         nativeMenuPaint_Text(handle, 194, 161, 370, 10, muted);
         nativeHub_TextBlock(*social.profile.bio ? social.profile.bio : "This player has not shared a bio.", 194, 192, 370, 100, 11, muted);
         const bool self = !std::strcmp(account.id, social.profile.id);
@@ -226,7 +233,7 @@ void nativeHubSocial_Render(NativeHubPage page)
                 const auto& entry = social.friends[i];
                 std::snprintf(title, sizeof(title), "%s", entry.name);
                 std::snprintf(detail, sizeof(detail), "@%s | %s", entry.handle, !std::strcmp(entry.state, "incoming") ? "Friend request" :
-                    !std::strcmp(entry.state, "outgoing") ? "Request sent" : "Friend");
+                    !std::strcmp(entry.state, "outgoing") ? "Request sent" : presence_label(entry.id));
             } else {
                 const auto& entry = social.messages[i];
                 std::snprintf(title, sizeof(title), "%s%s", entry.unread ? "* " : "", entry.title);
@@ -331,6 +338,9 @@ void nativeHubSocial_Inspect()
         account.signed_in, account.busy, social.loaded, social.folder, social.offset, social.count, social.total, social.unread, social.friends_total,
         *opened && !std::strcmp(opened, social.opened.id), *social.profile.id != 0,
         social.profile.handle, social.opened.kind, *invitation_nonce != 0, hub.lobby_invite_to, hub.lobby_invite_queued);
+    for (unsigned i = 0; i < social.friend_count; ++i)
+        std::fprintf(stderr, "[hub-friend] handle=%s relationship=%s presence=%s\n", social.friends[i].handle,
+            social.friends[i].state, presence_label(social.friends[i].id));
 }
 void nativeHubSocial_Shutdown()
 {
