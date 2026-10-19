@@ -23,8 +23,11 @@ bool nativeFighterGltf_Preserve(const NativeFighterModelEditor& model,unsigned m
     for(unsigned p=0;p<model.meshes[mesh].polygon_count;++p) {
         const u8* flags=HSD_DatBytes(&model.dat,polygon+12,2);u32 joint;
         if(!flags) return fail("Could not read the mesh's geometry.");
+        const unsigned type = ((unsigned)flags[0]<<8|flags[1])&0x3000;
+        if(type==POBJ_SHAPEANIM)
+            return fail("Keeping this mesh's morph targets requires target-aware reimport.");
         const auto reference=HSD_DatResolve(&model.dat,polygon+20,&joint,&external);
-        attached &= (((unsigned)flags[0]<<8|flags[1])&0x3000)==POBJ_SKIN &&
+        attached &= type==POBJ_SKIN &&
             reference==HSD_DAT_REF_LOCAL && joint==model.joints[owner].offset;
         if(p+1<model.meshes[mesh].polygon_count &&
            HSD_DatResolve(&model.dat,polygon+4,&polygon,&external)!=HSD_DAT_REF_LOCAL)

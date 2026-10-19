@@ -62,11 +62,9 @@ static void decode_shape_components(const HSD_VtxDescList* desc,
     }
 }
 
-static void shape_vector(const HSD_VtxDescList* desc, u8* const* tables,
-                         unsigned target, unsigned vertex, unsigned components,
-                         f32 output[9])
+void HSD_ShapeSetReadVector(const HSD_VtxDescList* desc, const u8* indices,
+                            unsigned vertex, unsigned components, f32 output[9])
 {
-    const u8* indices = tables[target];
     const unsigned index = desc->attr_type==GX_INDEX16
         ? (unsigned)indices[vertex*2] << 8 | indices[vertex*2+1] : indices[vertex];
     decode_shape_components(desc, (const u8*)desc->vertex + index*desc->stride,
@@ -88,19 +86,19 @@ static void evaluate_attribute(const HSD_ShapeSet* shape, bool normal,
         const float fraction = MIN(MAX(0.0f, value-(f32)first), 1.0f);
         for (unsigned i=0;i<count;++i) {
             float a[9],b[9];
-            shape_vector(desc,indices,first,i,vectors*3,a);
-            shape_vector(desc,indices,next,i,vectors*3,b);
+            HSD_ShapeSetReadVector(desc,indices[first],i,vectors*3,a);
+            HSD_ShapeSetReadVector(desc,indices[next],i,vectors*3,b);
             for(unsigned c=0;c<vectors*3;++c)
                 output[i*vectors+c/3][c%3]=(b[c]-a[c])*fraction+a[c];
         }
     } else {
         for(unsigned i=0;i<count;++i) {
             float base[9];
-            shape_vector(desc,indices,0,i,vectors*3,base);
+            HSD_ShapeSetReadVector(desc,indices[0],i,vectors*3,base);
             for(unsigned c=0;c<vectors*3;++c)output[i*vectors+c/3][c%3]=base[c];
             for(unsigned target=0;target<shape->nb_shape;++target) {
                 const float weight=MAX(0.0f,shape->blend.bp[target]);
-                float offset[9];shape_vector(desc,indices,target+1,i,vectors*3,offset);
+                float offset[9];HSD_ShapeSetReadVector(desc,indices[target+1],i,vectors*3,offset);
                 for(unsigned c=0;c<vectors*3;++c)
                     output[i*vectors+c/3][c%3]+=offset[c]*weight;
             }

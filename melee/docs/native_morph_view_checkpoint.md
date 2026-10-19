@@ -62,11 +62,11 @@ blend settings, quantization and lighting-vector formats. Native build:
 hash. `.local/native-morph-query-receipt.json` collects the reviewed hashes and
 test outputs.
 
-## Remaining morph work
+## Later morph work
 
-Bone-weight painting of morph meshes remains open. The current shape polygon
-stores its controller where an envelope polygon stores its weights. Converting
-one into the other would discard its animation. The
-[weighted-morph implementation plan](native_morph_skin_design.md) records the
-combined representation and the acceptance work still required. The Model
-painting/storage milestone remains incomplete.
+The [weighted morph runtime](native_morph_skin_checkpoint.md) and
+[painting checkpoint](native_morph_paint_checkpoint.md) add private envelope
+batches while keeping the original controller. The
+[authoring design](native_morph_skin_design.md) records the remaining GLB target
+encoder and target-aware source reimport. The broader Model painting/storage
+milestone remains incomplete.

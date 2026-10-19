@@ -1,8 +1,9 @@
 # Weighted morph meshes
 
-The runtime can combine morph targets and envelope skinning. The authoring
-reader and writer still need to expose this representation to weight painting
-and GLB morph import. Morph bone-weight painting remains unavailable.
+The runtime and authoring reader/writer combine morph targets with envelope
+skinning. Weight painting preserves complete/additive targets and their normal
+seams. See the [painting checkpoint](native_morph_paint_checkpoint.md). GLB
+morph-target encoding and target-aware source reimport remain open.
 
 ## Required behavior
 

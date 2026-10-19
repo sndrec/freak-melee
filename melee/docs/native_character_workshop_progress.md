@@ -1,6 +1,6 @@
 # Workshop: current capabilities and remaining work
 
-Updated: 2026-10-17. This is a current summary, not a chronological log.
+Updated: 2026-10-19. This is a current summary, not a chronological log.
 Use the [project plan](../../PROJECT_PLAN.md) for priorities and the
 [approved UI](native_character_workshop_ui.md) / [Model design](native_model_workspace_design.md)
 for the agreed layout. Historical bring-up is preserved in the pre-cleanup Git
@@ -52,6 +52,10 @@ named render/blend/depth/alpha controls. These exist; they are not a substitute
 for the missing import/rigging capabilities below or user usability acceptance.
 Compatible glTF skins can retain their source weights on the fighter rig;
 see the [source-skin checkpoint](native_source_skin_checkpoint.md).
+Morph meshes support weight painting while retaining their complete/additive
+targets, normal seams and animation controllers. Native Save/Undo/Redo checks
+pass; see the [morph painting checkpoint](native_morph_paint_checkpoint.md).
+GLB morph-target encoding and target-aware reimport remain open.
 
 Frozen editing uses a character-centered void preview with axes and camera
 controls, without match HUD. Test Character restarts normal grid practice with
@@ -79,14 +83,18 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 
 ## Required implementation gaps
 
-1. Extra-bone authoring with coherent rig facts, references and gameplay roles.
-2. Rest-edit acceptance for rigid attachments and skinned polygons.
-3. Source-aware reimport retaining deliberate project edits.
-4. Wider painting support and storage suitable for useful imported models.
-5. Remaining room/release acceptance in the project plan. Coordinated outfits now
+1. Remaining unusual helper-node and independent texture-matrix binding domains.
+2. GLB morph-target encoding and target-aware reimport; morph geometry currently
+   retains its existing fixed runtime capacities.
+3. Remaining room/release acceptance in the project plan. Coordinated outfits now
    pass [current room matches](native_outfit_match_checkpoint.md), including four
    Ice Climbers slots across two PCs. Source-only single/paired fighter delivery and independent
    recipient editing now have [current evidence](native_family_content_checkpoint.md).
+
+Extra-bone editing, rigid/skinned rest compensation and ordinary source-aware
+reimport now have acceptance evidence in the [current plan](../../PROJECT_PLAN.md).
+Large imported meshes also pass painting, saved source reimport and native
+rendering checks; see the [large-GLB checkpoint](native_large_gltf_checkpoint.md).
 
 Arbitrary foreign armature conversion, mesh modeling and whole-move copying are
 not gates for the current Model/editor pass. Keep native animation and rig-role
