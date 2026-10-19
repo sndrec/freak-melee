@@ -70,6 +70,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
                              NativeSkinMorphEncoded* out)
 {
     const auto& morph = part.morph;
+    const u8* attribute_data=part.attribute_bytes.empty()?model.dat.data:part.attribute_bytes.data();
     const unsigned mode = morph.flags & 3;
     if ((mode != SHAPESET_AVERAGE && mode != SHAPESET_ADDITIVE) || !morph.shape_count ||
         !morph.position_count || morph.position_count > HSD_DEFAULT_MAX_SHAPE_VERTICES ||
@@ -113,7 +114,8 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
     if (normals.size()*size_t(morph.normal_components/3) > HSD_DEFAULT_MAX_SHAPE_NORMALS) return false;
     out->normal_components = morph.normal_components;
     const unsigned targets = morph.shape_count + (mode == SHAPESET_ADDITIVE);
-    out->shape = dat.allocate(32); out->polygon = dat.allocate(24);
+    const bool properties=!morph.default_blend.empty() || !morph.target_names.empty();
+    out->shape = dat.allocate(properties?40:32); out->polygon = dat.allocate(24);
     if (out->shape == UINT32_MAX || out->polygon == UINT32_MAX) return false;
     u32 descriptors[2], tables[2];
     if (!target_arrays(dat, morph.positions, morph.position_count, 3, targets, positions, GX_VA_POS,
@@ -121,7 +123,31 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
         !target_arrays(dat, morph.normals, morph.normal_count, morph.normal_components, targets, normals,
                         morph.normal_components == 9 ? GX_VA_NBT : GX_VA_NRM,
                         &descriptors[1], &tables[1], &out->normals)) return false;
-    dat.half(out->shape, morph.flags | SHAPESET_SKIN); dat.half(out->shape+2, morph.shape_count);
+    if(properties) {
+        const unsigned defaults=mode==SHAPESET_ADDITIVE?morph.shape_count:1;
+        if(!morph.default_blend.empty()) {
+            if(morph.default_blend.size()!=defaults)return false;
+            const u32 array=dat.allocate(defaults*4);if(array==UINT32_MAX)return false;
+            dat.link(out->shape+32,array);
+            for(unsigned i=0;i<defaults;++i) {
+                if(!std::isfinite(morph.default_blend[i]))return false;
+                real(dat,array+i*4,morph.default_blend[i]);
+            }
+        }
+        if(!morph.target_names.empty()) {
+            if(morph.target_names.size()!=morph.shape_count)return false;
+            const u32 table=dat.allocate(morph.shape_count*4);if(table==UINT32_MAX)return false;
+            dat.link(out->shape+36,table);
+            for(unsigned i=0;i<morph.shape_count;++i) {
+                const auto& name=morph.target_names[i];
+                if(name.empty() || name.size()>127 || name.find('\0')!=std::string::npos)return false;
+                const u32 text=dat.allocate(name.size()+1);if(text==UINT32_MAX)return false;
+                std::memcpy(dat.data.data()+text,name.c_str(),name.size()+1);dat.link(table+i*4,text);
+            }
+        }
+    }
+    dat.half(out->shape, (morph.flags&~SHAPESET_PROPERTIES) | SHAPESET_SKIN | (properties?SHAPESET_PROPERTIES:0));
+    dat.half(out->shape+2, morph.shape_count);
     dat.word(out->shape+4, morph.position_count); dat.word(out->shape+16, (u32)normals.size());
     for (unsigned a = 0; a < 2; ++a) {
         dat.link(out->shape+8+a*12, descriptors[a]); dat.link(out->shape+12+a*12, tables[a]);
@@ -133,7 +159,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
     for (const auto& attr : part.attributes) {
         if (attr.attr == GX_VA_PNMTXIDX) continue;
         const u32 at = attrs+descriptor++*24;
-        std::memcpy(dat.data.data()+at, model.dat.data+attr.source, 24);
+        std::memcpy(dat.data.data()+at, attribute_data+attr.source, 24);
         if (attr.attr == GX_VA_POS || attr.attr == GX_VA_NRM || attr.attr == GX_VA_NBT) {
             const bool position = attr.attr == GX_VA_POS;
             const unsigned components = position ? 3 : morph.normal_components;
@@ -159,7 +185,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
                     const unsigned index = attr.attr == GX_VA_POS ? out->corner_positions[corner_index] : out->corner_normals[corner_index];
                     display.push_back((u8)(index>>8)); display.push_back((u8)index);
                 } else if (attr.attr != GX_VA_PNMTXIDX) {
-                    const u8* bytes = model.dat.data+cursor;
+                    const u8* bytes = attribute_data+cursor;
                     display.insert(display.end(), bytes, bytes+attr.display_bytes);
                 }
                 cursor += attr.display_bytes;
@@ -173,7 +199,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
     if (commands == UINT32_MAX) return false;
     std::memcpy(dat.data.data()+commands, display.data(), display.size());
     u32 name; const char* external;
-    const auto kind = HSD_DatResolve(&model.dat, part.source, &name, &external);
+    const auto kind = part.source==UINT32_MAX?HSD_DAT_REF_NULL:HSD_DatResolve(&model.dat, part.source, &name, &external);
     if (kind == HSD_DAT_REF_LOCAL) dat.link_local(out->polygon, name);
     else if (kind != HSD_DAT_REF_NULL) return false;
     dat.link(out->polygon+8, attrs); dat.half(out->polygon+12, part.flags);

@@ -129,6 +129,8 @@ typedef void (*HSD_MObjSetupFunc)(HSD_MObj* mobj, u32 rendermode);
 #define SHAPESET_AVERAGE 1
 #define SHAPESET_ADDITIVE 1 << 1
 #define SHAPESET_SKIN (1 << 15)
+#define SHAPESET_PROPERTIES (1 << 14)
+#define SHAPESET_SIGNED_WEIGHTS (1 << 13)
 
 typedef enum PObjSetupFlag {
     SETUP_NORMAL = 1,

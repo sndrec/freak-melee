@@ -69,7 +69,7 @@ pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
 Remaining Model work includes unusual model-node/texture-matrix binding domains,
-GLB morph targets and advanced texture/UV controls. Continuous surface brushing
+larger morph capacities, additional target channels and advanced texture/UV controls. Continuous surface brushing
 and the broader interface still need user review. Extra-bone editing, ordinary
 source-aware reimport and large imported meshes have the evidence linked in the
 [current plan](../../PROJECT_PLAN.md). Ordinary stock
@@ -80,7 +80,9 @@ through the shared runtime target decoder. Their targets and controller indices
 survive saved strokes and Undo/Redo; see the
 [morph painting checkpoint](native_morph_paint_checkpoint.md). Two-slot rigid
 attachments also support painting; see the [rigid checkpoint](native_rigid_skin_checkpoint.md).
-GLB morph-target import and target-aware reimport remain open. Painting, rest edits and
+GLB position/normal targets retain source defaults and named slots through
+reimport; see the [GLB morph checkpoint](native_gltf_morph_checkpoint.md).
+Painting, rest edits and
 mesh/texture imports reclaim unreachable records in supported costume graphs.
 Editor object identities stay stable, so pinned records can leave gaps. Unknown
 roots and opaque extensions keep their original storage. See the

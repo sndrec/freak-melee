@@ -40,6 +40,10 @@ and hidden-action choices are local editing preferences.
 
 ## Paint bone weights
 
+GLB import keeps position and normal shape keys and their initial expression
+weights. Give shape keys unique names so reimport can keep their animation
+slots when the exporter changes their order.
+
 In **Model → Skinning**, choose a mesh and a bone. The surface shows that bone's
 weight from blue at zero through yellow and orange to red at one. Paint adds
 weight to the selected bone and distributes the remainder among the other bones.
@@ -70,6 +74,11 @@ Binding starts with **Keep current painted weights**. This carries your weights
 over when the source vertex and triangle order is unchanged. For changed
 geometry topology, choose **Transfer painted weights from replaced mesh**, or
 choose source weights or generated weights to make a new binding.
+
+For named morph targets, **Keep current painted weights** also keeps the target
+slots. New targets are added after the existing ones. If an existing target is
+missing from the export, the import explains which name is missing and keeps
+the draft unchanged. Unnamed target sets need the same count and order.
 
 **Reimport matched meshes** updates the working draft. **Save** keeps the result;
 Undo restores the previous geometry, materials and source links. The saved

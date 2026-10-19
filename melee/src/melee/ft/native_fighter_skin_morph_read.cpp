@@ -69,6 +69,25 @@ bool envelope(const HSD_EnvelopeDesc* input,
 }
 }
 
+int nativeSkinMorph_RigidDomain(const NativeFighterModelEditor& model,unsigned owner,
+                                 Mtx conversion,Mtx normal_conversion)
+{
+    if(owner>=model.joint_count)return -1;
+    int rigid=(int)owner;
+    while(rigid>=0 && !(model.joints[rigid].flags&(JOBJ_SKELETON|JOBJ_SKELETON_ROOT)))rigid=model.joints[rigid].parent;
+    if(rigid<0)return -1;
+    Mtx inverse;C_MTXIdentity(conversion);C_MTXIdentity(normal_conversion);
+    if(!nativeSkinMesh_InverseBind(model,rigid,inverse))return -1;
+    if(model.joints[owner].flags&JOBJ_SKELETON_ROOT) {
+        if(!C_MTXInverse(inverse,conversion))return -1;
+        C_MTXTranspose(inverse,normal_conversion);
+    } else if(model.joints[rigid].flags&JOBJ_SKELETON_ROOT) {
+        for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
+            if(inverse[r][c]!=(r==c?1.f:0.f))return -1;
+    }
+    return rigid;
+}
+
 bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                            const FtCostumeAssets& imported, NativeSkinPart* part,
                            NativeSkinMesh* mesh)
@@ -85,32 +104,25 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                     joints.emplace((const HSD_Joint*)record.object, bone);
         }
     }
-    if (!polygon || !polygon->u.shape_set) return false;
+    if (!polygon || !polygon->u.shape_set || !polygon->display || !polygon->n_display) return false;
     const auto& shape = *polygon->u.shape_set;
     auto& morph = part->morph;
     morph.flags = shape.flags;
     morph.shape_count = shape.nb_shape;
+    if(shape.default_blend)morph.default_blend.assign(shape.default_blend,
+        shape.default_blend+(shape.flags&SHAPESET_ADDITIVE?shape.nb_shape:1));
+    if(shape.target_names)for(unsigned i=0;i<shape.nb_shape;++i)morph.target_names.emplace_back(shape.target_names[i]);
     morph.position_count = shape.nb_vertex_index;
     morph.normal_count = shape.nb_normal_index;
     morph.normal_components = morph.normal_count ? shape.normal_desc->attr == GX_VA_NBT ? 9 : 3 : 0;
     if (!morph.position_count || mesh->vertices.size() > UINT32_MAX - morph.position_count) return false;
     Mtx conversion, normal_conversion;
     C_MTXIdentity(conversion); C_MTXIdentity(normal_conversion);
-    int rigid = (int)owner;
-    while (rigid >= 0 && !(model.joints[rigid].flags & (JOBJ_SKELETON | JOBJ_SKELETON_ROOT)))
-        rigid = model.joints[rigid].parent;
-    if (rigid < 0) return false;
-    if (!(morph.flags & SHAPESET_SKIN)) {
-        Mtx inverse;
-        if (!nativeSkinMesh_InverseBind(model, rigid, inverse)) return false;
-        if (model.joints[owner].flags & JOBJ_SKELETON_ROOT) {
-            if (!C_MTXInverse(inverse, conversion)) return false;
-            C_MTXTranspose(inverse, normal_conversion);
-        } else if (model.joints[rigid].flags & JOBJ_SKELETON_ROOT) {
-            for (unsigned r = 0; r < 3; ++r) for (unsigned c = 0; c < 4; ++c)
-                if (inverse[r][c] != (r == c ? 1.f : 0.f)) return false;
-        }
-    }
+    int rigid=(int)owner;
+    if(morph.flags&SHAPESET_SKIN)
+        while(rigid>=0 && !(model.joints[rigid].flags&(JOBJ_SKELETON|JOBJ_SKELETON_ROOT)))rigid=model.joints[rigid].parent;
+    else rigid=nativeSkinMorph_RigidDomain(model,owner,conversion,normal_conversion);
+    if(rigid<0)return false;
     if (!targets(shape, false, conversion, &morph.positions) ||
         !targets(shape, true, normal_conversion, &morph.normals)) return false;
     const unsigned first_vertex = (unsigned)mesh->vertices.size();

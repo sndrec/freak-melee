@@ -272,7 +272,7 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
     Mtx inverse, normal;
     if (!C_MTXInverse(adjustment, inverse)) return false;
     C_MTXTranspose(inverse, normal);
-    const unsigned shape_bytes=flags&SHAPESET_SKIN?32:28;
+    const unsigned shape_bytes=flags&SHAPESET_PROPERTIES?40:flags&SHAPESET_SKIN?32:28;
     const u32 new_shape = output.allocate(shape_bytes);
     const u32 new_polygon = output.allocate(24);
     if (new_shape == UINT32_MAX || new_polygon == UINT32_MAX) return false;
@@ -282,6 +282,13 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
     if(flags&SHAPESET_SKIN) {
         u32 skin;if(!reference(&source,shape+28,&skin))return false;
         output.link_local(new_shape+28,skin);
+    }
+    if(flags&SHAPESET_PROPERTIES)for(unsigned member:{32u,36u}) {
+        u32 target=0;const char* external;
+        const auto kind=HSD_DatResolve(&source,shape+member,&target,&external);
+        if(kind==HSD_DAT_REF_LOCAL)output.link_local(new_shape+member,target);
+        else if(kind==HSD_DAT_REF_NULL)output.link(new_shape+member,0);
+        else return false;
     }
     for (unsigned member : {8u, 12u, 20u, 24u}) {
         u32 target = 0; const char* external;

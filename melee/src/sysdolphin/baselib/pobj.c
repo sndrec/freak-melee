@@ -279,12 +279,13 @@ static HSD_ShapeSet* loadShapeSetDesc(HSD_ShapeSetDesc* sdesc)
             shape_set->nb_shape ? (f32*) hsdAllocMemPiece(
                 shape_set->nb_shape * sizeof(f32)) : NULL;
         for (i = 0; i < shape_set->nb_shape; i++) {
-            shape_set->blend.bp[i] = 0.0f;
+            shape_set->blend.bp[i] = sdesc->default_blend ? sdesc->default_blend[i] : 0.0f;
         }
     } else {
-        shape_set->blend.bl = 0.0f;
+        shape_set->blend.bl = sdesc->default_blend ? sdesc->default_blend[0] : 0.0f;
     }
     shape_set->aobj = NULL;
+    shape_set->target_names = sdesc->target_names;
     shape_set->skin = sdesc->flags&SHAPESET_SKIN ? HSD_PObjLoadDesc(sdesc->skin) : NULL;
     HSD_ASSERT(0, !(sdesc->flags&SHAPESET_SKIN) || shape_set->skin);
     return shape_set;

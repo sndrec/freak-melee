@@ -1,4 +1,5 @@
 #include "dat_import_internal.h"
+#include <math.h>
 
 // GX fetches attributes in hardware order, independent of descriptor order.
 // This runs once during asset import, before any renderer can consume the bytes.
@@ -130,6 +131,11 @@ static bool shape_attribute(HSD_DatImport* import, HSD_VtxDescList* desc,
 bool HSD_DatValidateShape(HSD_DatImport* import, HSD_ShapeSetDesc* shape)
 {
     const unsigned mode=shape->flags&3;
+    if ((shape->flags&SHAPESET_SIGNED_WEIGHTS) && mode!=SHAPESET_ADDITIVE) return false;
+    if (shape->default_blend) {
+        const unsigned count=mode==SHAPESET_ADDITIVE?shape->nb_shape:1;
+        for(unsigned i=0;i<count;++i)if(!isfinite(shape->default_blend[i]))return false;
+    }
     if((mode!=SHAPESET_AVERAGE && mode!=SHAPESET_ADDITIVE) ||
        shape->nb_vertex_index<0 || shape->nb_vertex_index>HSD_DEFAULT_MAX_SHAPE_VERTICES ||
        shape->nb_normal_index<0 || shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS ||
