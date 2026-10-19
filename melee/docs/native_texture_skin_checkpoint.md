@@ -80,6 +80,9 @@ for independently attached reflected textures.
 
 ## Remaining limits
 
+The shared-slot limit below describes this checkpoint's original build. The
+[separate-table follow-up](native_separate_envelopes_checkpoint.md) removes it.
+
 Each draw section uses the existing ten GX matrix slots for positions and
 generated texture coordinates. Sections split between triangles. A triangle
 requiring more than ten distinct position/independent-texture bindings rejects

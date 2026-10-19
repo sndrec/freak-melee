@@ -246,16 +246,30 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                 !reference(dat, polygon + 4, &polygon)) return fail();
             continue;
         }
-        if (type != POBJ_SKIN && type != POBJ_ENVELOPE) return fail();
+        if (type != POBJ_SKIN && type != POBJ_ENVELOPE && type != POBJ_SEPARATE_ENVELOPES) return fail();
         u32 descriptors, display, table;
         if (!reference(dat, polygon + 8, &descriptors) ||
             !nativeSkinMesh_ReadAttributes(dat, descriptors, &part.attributes) ||
             !reference(dat, polygon + 16, &display)) return fail();
         bool single[10] = {};
+        std::vector<NativeSkinWeights> texture_groups;
+        const u8* followers = nullptr;
         int rigid_bone=-1;
-        if (type == POBJ_ENVELOPE) {
-            if (!reference(dat, polygon + 20, &table) ||
+        if (type == POBJ_ENVELOPE || type == POBJ_SEPARATE_ENVELOPES) {
+            u32 matrices;
+            if (type == POBJ_SEPARATE_ENVELOPES) {
+                bool unused[10] = {};
+                u32 textures;
+                if (!reference(dat, polygon+20, &matrices) ||
+                    !reference(dat, matrices+4, &textures) ||
+                    !bindings(model, textures, &texture_groups, unused) ||
+                    !(followers = HSD_DatBytes(&dat, matrices+8, 10))) return fail();
+                for (bool value : unused) if (value) return fail();
+            }
+            if (!(type == POBJ_SEPARATE_ENVELOPES ? reference(dat, matrices, &table) :
+                  reference(dat, polygon + 20, &table)) ||
                 !bindings(model, table, &part.bindings, single)) return fail();
+            if (followers) for (bool value : single) if (value) return fail();
         } else {
             int bone = (int)owner;
             while (bone >= 0 && !(model.joints[bone].flags & 3)) bone = model.joints[bone].parent;
@@ -345,8 +359,9 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                 for (unsigned channel = 0; channel < 8; ++channel) {
                     if (!(texture_mask & (1u << channel))) continue;
                     if (!nativeSkinMesh_ReadTexture(texture_reader, part, corner, channel, textures[channel],
-                                                     corner.matrix, part.bindings)) return fail();
+                        corner.matrix, followers ? texture_groups : part.bindings, followers)) return fail();
                     if (corner.textures[channel] >= NATIVE_SKIN_TEXTURE_IDENTITY) continue;
+                    if (followers) continue; // Native separated bindings already share the canonical normal domain.
                     const unsigned slot = (textures[channel]-30)/3;
                     for (unsigned r=0; r<3; ++r) for (unsigned c=0; c<3; ++c)
                         if (conversion[slot][r][c] != conversion[corner.matrix][r][c]) {

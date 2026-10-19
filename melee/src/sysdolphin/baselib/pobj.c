@@ -306,6 +306,12 @@ static s32 PObjLoad(HSD_PObj* pobj, HSD_PObjDesc* desc)
     case POBJ_ENVELOPE:
         pobj->u.envelope_list = loadEnvelopeDesc(desc->u.envelope_p);
         break;
+    case POBJ_SEPARATE_ENVELOPES:
+        pobj->u.matrices = hsdAllocMemPiece(sizeof(*pobj->u.matrices));
+        HSD_ASSERT(0, pobj->u.matrices);
+        pobj->u.matrices->positions = loadEnvelopeDesc(desc->u.matrices->positions);
+        pobj->u.matrices->textures = loadEnvelopeDesc(desc->u.matrices->textures);
+        break;
 
     case POBJ_SKIN:
         break;
@@ -430,6 +436,10 @@ void HSD_PObjResolveRefs(HSD_PObj* pobj, HSD_PObjDesc* pdesc)
         break;
     case POBJ_ENVELOPE:
         resolveEnvelope(pobj->u.envelope_list, pdesc->u.envelope_p);
+        break;
+    case POBJ_SEPARATE_ENVELOPES:
+        resolveEnvelope(pobj->u.matrices->positions, pdesc->u.matrices->positions);
+        resolveEnvelope(pobj->u.matrices->textures, pdesc->u.matrices->textures);
         break;
 
     case POBJ_SKIN:
@@ -932,6 +942,59 @@ static void SetupEnvelopeModelMtx(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx,
     }
 }
 
+// Native authored meshes use the same envelope math with independent position
+// and texture slots. Stock polygons retain their original setup path.
+void HSD_PObjSetupEnvelopeMatrices(HSD_PObj* pobj, Mtx view, u32 rendermode,
+                                   MtxPtr normal_adjustment)
+{
+    HSD_JObj* owner = HSD_JObjGetCurrent();
+    const PObjSetupFlag flags = GetSetupFlags(owner, rendermode);
+    Mtx right_storage;
+    MtxPtr right = _HSD_mkEnvelopeModelNodeMtx(owner, right_storage);
+    HSD_PObjClearMtxMark(NULL, HSD_MTX_ENVELOPE);
+    for (unsigned texture = 0; texture < 2; ++texture) {
+        HSD_SList* list = texture ? pobj->u.matrices->textures : pobj->u.matrices->positions;
+        for (unsigned slot = 0; list && slot < 10; list = list->next, ++slot) {
+            Mtx matrix = { 0 }, temporary, transformed;
+            HSD_Envelope* binding = list->data;
+            unsigned influences = 0;
+            // Admission requires normalized inverse-bind envelopes. Evaluate
+            // both sets even without a reflected material, matching hidden pose
+            // reconstruction's joint/constraint processing.
+            for (; binding; binding = binding->next) {
+                HSD_JObjSetupMatrix(binding->jobj);
+                C_MTXConcat(binding->jobj->mtx, binding->jobj->envelopemtx, temporary);
+                HSD_MtxScaledAdd(temporary, matrix, matrix, binding->weight);
+                ++influences;
+            }
+            HSD_PerfCountEnvelopeBlending(influences);
+            if (right) {
+                C_MTXConcat(matrix, right, temporary);
+                C_MTXCopy(temporary, matrix);
+            }
+            C_MTXConcat(view, matrix, transformed);
+            const u32 position_slot = HSD_Index2PosNrmMtx(slot);
+            if (!texture) {
+                GXLoadPosMtxImm(transformed, position_slot);
+                HSD_PerfCountMtxLoad();
+            }
+            if (!(flags & SETUP_NORMAL)) continue;
+            if (normal_adjustment) {
+                C_MTXConcat(normal_adjustment, transformed, temporary);
+                HSD_MtxInverseTranspose(temporary, matrix);
+            } else HSD_MtxInverseTranspose(transformed, matrix);
+            if (!texture && (owner->flags & JOBJ_LIGHTING)) {
+                GXLoadNrmMtxImm(matrix, position_slot);
+                HSD_PerfCountMtxLoad();
+            }
+            if (texture && (flags & SETUP_NORMAL_PROJECTION)) {
+                GXLoadTexMtxImm(matrix, HSD_Index2TexMtx(slot), GX_MTX3x4);
+                HSD_PerfCountMtxLoad();
+            }
+        }
+    }
+}
+
 #ifdef MELEE_NATIVE
 static void PObjPreparePose(HSD_PObj* pobj)
 {
@@ -962,23 +1025,28 @@ static void PObjPreparePose(HSD_PObj* pobj)
             for(HSD_PObj* batch=pobj->u.shape_set->skin;batch;batch=batch->next)PObjPreparePose(batch);
         } else HSD_PObjSetMtxMark(0, jobj, HSD_MTX_RIGID);
         break;
-    case POBJ_ENVELOPE: {
+    case POBJ_ENVELOPE:
+    case POBJ_SEPARATE_ENVELOPES: {
         HSD_SList* list;
         int index;
         HSD_PObjClearMtxMark(NULL, HSD_MTX_ENVELOPE);
         /* Match the draw path's palette limit and single-weight shortcut.
          * SetupMatrix can evaluate joint constraints and dirty parents; keep
          * that order without constructing camera/normal/skin matrices. */
-        for (index = 0, list = pobj->u.envelope_list; index < 10 && list;
-             ++index, list = list->next) {
-            HSD_Envelope* envelope = list->data;
-            HSD_JObjSetupMatrix(envelope->jobj);
-            if (envelope->weight >= (1.0f - FLT_EPSILON)) {
-                continue;
-            }
-            for (envelope = envelope->next; envelope;
-                 envelope = envelope->next) {
+        const unsigned sets = pobj_type(pobj) == POBJ_SEPARATE_ENVELOPES ? 2 : 1;
+        for (unsigned set = 0; set < sets; ++set) {
+            list = sets == 1 ? pobj->u.envelope_list : set ? pobj->u.matrices->textures : pobj->u.matrices->positions;
+            for (index = 0; index < 10 && list;
+                 ++index, list = list->next) {
+                HSD_Envelope* envelope = list->data;
                 HSD_JObjSetupMatrix(envelope->jobj);
+                if (envelope->weight >= (1.0f - FLT_EPSILON)) {
+                    continue;
+                }
+                for (envelope = envelope->next; envelope;
+                     envelope = envelope->next) {
+                    HSD_JObjSetupMatrix(envelope->jobj);
+                }
             }
         }
         break;
@@ -1008,6 +1076,9 @@ static void PObjSetupMtx(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)
         break;
     case POBJ_ENVELOPE:
         SetupEnvelopeModelMtx(pobj, vmtx, pmtx, rendermode);
+        break;
+    case POBJ_SEPARATE_ENVELOPES:
+        HSD_PObjSetupEnvelopeMatrices(pobj, vmtx, rendermode, NULL);
         break;
     }
 }
@@ -1077,6 +1148,11 @@ static void PObjRelease(HSD_Class* o)
         break;
     case POBJ_ENVELOPE:
         HSD_EnvelopeListFree(pobj->u.envelope_list);
+        break;
+    case POBJ_SEPARATE_ENVELOPES:
+        HSD_EnvelopeListFree(pobj->u.matrices->positions);
+        HSD_EnvelopeListFree(pobj->u.matrices->textures);
+        hsdFreeMemPiece(pobj->u.matrices, sizeof(*pobj->u.matrices));
         break;
     case POBJ_SKIN:
         HSD_JObjUnrefThis(pobj->u.jobj);

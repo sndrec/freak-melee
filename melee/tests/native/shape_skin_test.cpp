@@ -275,7 +275,8 @@ std::vector<float> surface(const std::vector<u8>& file,const Fixture& f,unsigned
             unsigned corners=0;
             for(HSD_PObj* batch=shape->skin?shape->skin:mesh->pobj;batch;batch=shape->skin?batch->next:nullptr) {
                 Mtx matrices[10]={};unsigned slots=0;
-                if(shape->skin)for(HSD_SList* slot=batch->u.envelope_list;slot;slot=slot->next,++slots) {
+                if(shape->skin)for(HSD_SList* slot=pobj_type(batch)==POBJ_SEPARATE_ENVELOPES?
+                    batch->u.matrices->positions:batch->u.envelope_list;slot;slot=slot->next,++slots) {
                     for(HSD_Envelope* env=(HSD_Envelope*)slot->data;env;env=env->next) {
                         HSD_JObjSetupMatrix(env->jobj);Mtx part;C_MTXConcat(env->jobj->mtx,env->jobj->envelopemtx,part);
                         for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)matrices[slots][r][c]+=part[r][c]*env->weight;
@@ -515,6 +516,29 @@ void texture_attachments(unsigned owner,unsigned normals,bool additive)
         check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
         std::vector<u8> next;check(edit.finish(&next));
         check(nativeFighterCostume_Compact(&project,&next,nullptr,error,sizeof(error)));file=std::move(next);
+    }
+    {
+        Imported imported;check(imported.open(file));
+        HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root);
+        auto* actor=(HSD_JObj*)HSD_IDGetData((uintptr_t)imported.joint(f.bones[owner]),nullptr);
+        check(actor&&actor->u.dobj&&actor->u.dobj->pobj->u.shape_set->skin);
+        auto* batch=actor->u.dobj->pobj->u.shape_set->skin;
+        check(pobj_type(batch)==POBJ_SEPARATE_ENVELOPES);
+        HSD_JObjSetCurrent(actor);nativeRenderGeometryEnabled=false;
+        Mtx identity;C_MTXIdentity(identity);
+        for(auto* part=batch;part;part=part->next)
+            HSD_POBJ_METHOD(part)->setup_mtx(part,identity,identity,0);
+        nativeRenderGeometryEnabled=true;HSD_JObjSetCurrent(nullptr);
+        auto* texture_list=batch->u.matrices->textures;
+        auto* position=(HSD_Envelope*)batch->u.matrices->positions->data;
+        auto* texture=(HSD_Envelope*)texture_list->data;
+        const float position_weight=position->weight,texture_weight=texture->weight;
+        std::vector<u8> snapshot(nativeHsdArena.capacity+nativeHsdArena.root_bytes);NativeMatchArenaFrame frame;
+        check(nativeMatchArena_BindFrame(&nativeHsdArena,&frame,snapshot.data(),snapshot.size())&&nativeMatchArena_Save(&frame));
+        position->weight=.123f;texture->weight=.234f;batch->u.matrices->textures=nullptr;
+        check(nativeMatchArena_Load(&frame));near(position->weight,position_weight);near(texture->weight,texture_weight);
+        check(batch->u.matrices->textures==texture_list);
+        check(nativeHsdArena_ResetHistory());HSD_JObjRemoveAll(root);
     }
     if(owner==0&&normals==1&&!additive)for(unsigned fault=0;fault<5;++fault) {
         NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));

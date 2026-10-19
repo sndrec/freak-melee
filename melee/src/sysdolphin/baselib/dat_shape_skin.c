@@ -106,6 +106,39 @@ static unsigned vertex_index(const HSD_VtxDescList* attr,const u8* value)
     return attr->attr_type==GX_INDEX8?value[0]:(unsigned)value[0]<<8|value[1];
 }
 
+bool HSD_DatValidateEnvelopeMatrices(HSD_PObjDesc* polygon)
+{
+    const HSD_EnvelopeMatricesDesc* matrices = polygon->u.matrices;
+    unsigned positions, textures;
+    if (!matrices || !bindings_valid(matrices->positions, &positions) ||
+        !bindings_valid(matrices->textures, &textures)) return false;
+    for (unsigned i = 0; i < 10; ++i) {
+        const unsigned follower = matrices->followers[i];
+        if (follower == 255) continue;
+        if (i >= textures || follower >= positions ||
+            !bindings_equal(matrices->textures[i], matrices->positions[follower])) return false;
+    }
+    ShapeStream stream;
+    if (!stream_begin(&stream, polygon) || !stream.attributes[GX_VA_PNMTXIDX] ||
+        stream.attributes[GX_VA_PNMTXIDX]->attr_type != GX_DIRECT) return false;
+    const u8* values[26];
+    int next;
+    while ((next = stream_next(&stream, values)) > 0) {
+        const unsigned position = values[GX_VA_PNMTXIDX][0];
+        if (position % 3 || position / 3 >= positions) return false;
+        for (unsigned attr = GX_VA_TEX0MTXIDX; attr <= GX_VA_TEX7MTXIDX; ++attr) {
+            if (!values[attr]) continue;
+            const unsigned selector = values[attr][0];
+            if (selector == GX_IDENTITY) continue;
+            if (selector < GX_TEXMTX0 || selector >= GX_IDENTITY || selector % 3) return false;
+            const unsigned slot = (selector - GX_TEXMTX0) / 3;
+            if (slot >= textures || (matrices->followers[slot] != 255 &&
+                matrices->followers[slot] != position / 3)) return false;
+        }
+    }
+    return next == 0;
+}
+
 bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
 {
     const HSD_ShapeSetDesc* shape=parent->u.shape_set;
@@ -129,10 +162,13 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
     if(!stream_begin(&authored,parent))goto cleanup;
     unsigned batches=0,corners=0;
     for(HSD_PObjDesc* batch=shape->skin;batch;batch=batch->next) {
-        if(++batches>65535 || pobj_type(batch)!=POBJ_ENVELOPE || batch->class_name ||
+        const bool separate = pobj_type(batch) == POBJ_SEPARATE_ENVELOPES;
+        if(++batches>65535 || (pobj_type(batch)!=POBJ_ENVELOPE && !separate) || batch->class_name ||
            !HSD_DatValidateGeometry(import,batch))goto cleanup;
-        unsigned count;
-        if(!bindings_valid(batch->u.envelope_p,&count))goto cleanup;
+        HSD_EnvelopeDesc** position_table = separate ? batch->u.matrices->positions : batch->u.envelope_p;
+        HSD_EnvelopeDesc** texture_table = separate ? batch->u.matrices->textures : position_table;
+        unsigned count, texture_count;
+        if(!bindings_valid(position_table,&count) || !bindings_valid(texture_table,&texture_count))goto cleanup;
         ShapeStream generated;
         if(!stream_begin(&generated,batch) || !formats_equal(&authored,&generated))goto cleanup;
         const u8* a[26];const u8* b[26];
@@ -141,7 +177,7 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
             if(stream_next(&authored,a)!=1)goto cleanup;
             const unsigned matrix=b[GX_VA_PNMTXIDX][0];
             if(matrix%3 || matrix/3>=count || (a[GX_VA_PNMTXIDX] && a[GX_VA_PNMTXIDX][0]))goto cleanup;
-            const HSD_EnvelopeDesc* binding=batch->u.envelope_p[matrix/3];
+            const HSD_EnvelopeDesc* binding=position_table[matrix/3];
             for(unsigned attr=GX_VA_TEX0MTXIDX;attr<=GX_VA_TEX7;++attr) {
                 if(!a[attr])continue;
                 if(attr<=GX_VA_TEX7MTXIDX) {
@@ -150,7 +186,7 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
                         if(target!=GX_IDENTITY)goto cleanup;
                     } else if(source<GX_TEXMTX0 || source>=GX_IDENTITY || source%3 ||
                               target<GX_TEXMTX0 || target>=GX_IDENTITY || target%3 ||
-                              (target-GX_TEXMTX0)/3>=count)goto cleanup;
+                              (target-GX_TEXMTX0)/3>=texture_count)goto cleanup;
                 } else if(memcmp(a[attr],b[attr],authored.widths[attr]))goto cleanup;
             }
             const unsigned position=vertex_index(authored.attributes[GX_VA_POS],a[GX_VA_POS]);

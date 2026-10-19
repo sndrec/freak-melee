@@ -12,6 +12,7 @@ it does not relabel old results as final-source acceptance.
 
 ## Source-runtime and fighter integration
 
+- [Separate position and texture attachments (2026-10-19)](native_separate_envelopes_checkpoint.md)
 - [Profiles, optional controls and combined shielding (2026-10-19)](native_profile_controls_checkpoint.md)
 - [Port calibration through controller replacement (2026-10-19)](native_profile_hotplug_checkpoint.md)
 - [Texture attachments during weight painting (2026-10-19)](native_texture_skin_checkpoint.md)

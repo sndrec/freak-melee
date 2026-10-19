@@ -90,8 +90,10 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 
 ## Required implementation gaps
 
-1. Remaining unusual helper-node domains, differing texture normal bases and
-   triangles exceeding ten combined matrix bindings. [Independent texture
+1. Remaining unusual helper-node domains and differing texture normal bases.
+   [Separate matrix tables](native_separate_envelopes_checkpoint.md) remove
+   the combined ten-binding limit while retaining each GX set's ten slots.
+   [Independent texture
    attachments](native_texture_skin_checkpoint.md) now pass ordinary/morph
    painting checks and the retail batch.
 2. Morph logical capacity and additional tangent/UV/color target channels.

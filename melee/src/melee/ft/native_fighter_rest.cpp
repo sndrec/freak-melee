@@ -473,6 +473,10 @@ bool envelope_matrices(const NativeFighterModelEditor& model, unsigned owner,
     if(!model_node_matrix(model,owner,world,bind_data,bind_size,right))return false;
     u32 table;
     if (!reference(&model.dat, polygon + 20, &table)) return false;
+    u16 flags;
+    if (!HSD_DatReadU16(&model.dat, polygon+12, &flags)) return false;
+    if ((flags & 0x3000) == POBJ_SEPARATE_ENVELOPES &&
+        !reference(&model.dat, table, &table)) return false;
     *count = 0;
     for (unsigned slot = 0; slot < 10; ++slot) {
         u32 entry;
@@ -558,7 +562,7 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                 for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
                     p.compensate|=std::fabs(p.adjustment[0][r][c]-(r==c?1.f:0.f))>.00002f;
                 affected|=p.compensate;
-            } else if (type == 0x2000) {
+            } else if (type == POBJ_ENVELOPE || type == POBJ_SEPARATE_ENVELOPES) {
                 Mtx old_palette[10], new_palette[10]; unsigned old_count, new_count;
                 if (!envelope_matrices(old, entry.joint, polygon, old_world,
                         old.dat.data, old.dat.data_size, old_palette, &old_count) ||

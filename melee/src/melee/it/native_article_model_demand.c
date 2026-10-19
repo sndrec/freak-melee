@@ -278,6 +278,7 @@ bool nativeArticleModel_Census(const HSD_Joint* root, NativeArticleModelDemand* 
                     break;
                 case POBJ_SHAPEANIM: d.uncovered |= NativeArticleModel_Shape; break;
                 case POBJ_ENVELOPE: d.uncovered |= NativeArticleModel_Envelope; break;
+                case POBJ_SEPARATE_ENVELOPES: d.uncovered |= NativeArticleModel_Envelope; break;
                 default: return false;
                 }
             }

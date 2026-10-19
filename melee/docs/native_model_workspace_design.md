@@ -70,8 +70,13 @@ This is ready for the next usability review, not final Model milestone acceptanc
 
 Independent texture attachments now retain their original bone weights through
 surface painting; see the [texture checkpoint](native_texture_skin_checkpoint.md).
+Separate position and texture tables now preserve independent attachments when
+painting creates more than ten combined bindings; see the
+[matrix-table checkpoint](native_separate_envelopes_checkpoint.md). Each draw
+section supports ten position bindings and ten texture bindings, with section
+splits between triangles. A triangle exceeding either set rejects the edit.
 Remaining Model work includes unusual model-node domains, different texture
-normal bases, triangles exceeding ten combined matrix bindings,
+normal bases,
 morph logical capacity, additional target channels and advanced texture/UV controls. Continuous surface brushing
 and the broader interface still need user review. Extra-bone editing, ordinary
 source-aware reimport and large imported meshes have the evidence linked in the

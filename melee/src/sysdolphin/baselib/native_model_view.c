@@ -160,7 +160,7 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
     if (type == POBJ_SHAPEANIM) {
         return true;
     }
-    if (type != POBJ_ENVELOPE) {
+    if (type != POBJ_ENVELOPE && type != POBJ_SEPARATE_ENVELOPES) {
         if (p->u.jobj) {
             HSD_JObjSetupMatrix(p->u.jobj);
             C_MTXCopy(p->u.jobj->mtx, output[1]);
@@ -172,7 +172,8 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
     Mtx right_storage;
     MtxPtr right = _HSD_mkEnvelopeModelNodeMtx(mesh->owner, right_storage);
     *count = 0;
-    for (HSD_SList* list = p->u.envelope_list; list && *count < 10;
+    for (HSD_SList* list = type == POBJ_SEPARATE_ENVELOPES ? p->u.matrices->positions : p->u.envelope_list;
+         list && *count < 10;
          list = list->next)
     {
         const unsigned slot = (*count)++;

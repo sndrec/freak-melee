@@ -25,6 +25,8 @@ typedef struct HSD_DObjDesc HSD_DObjDesc;
 typedef struct HSD_DObjInfo HSD_DObjInfo;
 typedef struct HSD_Envelope HSD_Envelope;
 typedef struct HSD_EnvelopeDesc HSD_EnvelopeDesc;
+typedef struct HSD_EnvelopeMatrices HSD_EnvelopeMatrices;
+typedef struct HSD_EnvelopeMatricesDesc HSD_EnvelopeMatricesDesc;
 typedef struct HSD_Exp HSD_Exp;
 typedef struct HSD_ExpDesc HSD_ExpDesc;
 typedef struct HSD_FObj HSD_FObj;
@@ -123,6 +125,7 @@ typedef void (*HSD_MObjSetupFunc)(HSD_MObj* mobj, u32 rendermode);
 #define POBJ_SKIN (0 << 12)
 #define POBJ_SHAPEANIM (1 << 12)
 #define POBJ_ENVELOPE (2 << 12)
+#define POBJ_SEPARATE_ENVELOPES (3 << 12)
 
 #define pobj_type(o) (o->flags & 0x3000)
 

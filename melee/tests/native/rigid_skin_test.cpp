@@ -133,8 +133,11 @@ std::array<Vec3,6> runtime_positions(const NativeFighterModelEditor& model,unsig
     HSD_PObj p={};p.verts=descriptor->verts;p.flags=descriptor->flags;
     p.n_display=descriptor->n_display;p.display=descriptor->display;
     HSD_Envelope envelopes[10][17]={};HSD_SList lists[10]={};
-    if((p.flags&0x3000)==POBJ_ENVELOPE) {
-        const u32 table=word(model,polygon+20);
+    HSD_EnvelopeMatrices matrix_sets={lists,nullptr};
+    if((p.flags&0x3000)==POBJ_ENVELOPE || (p.flags&0x3000)==POBJ_SEPARATE_ENVELOPES) {
+        const bool separate = (word(model,polygon+12)>>16&0x3000)==POBJ_SEPARATE_ENVELOPES;
+        const u32 metadata=word(model,polygon+20);
+        const u32 table=separate?word(model,metadata):metadata;
         for(unsigned slot=0;slot<10&&word(model,table+slot*4);++slot) {
             u32 at=word(model,table+slot*4);lists[slot].data=&envelopes[slot][0];
             if(slot)lists[slot-1].next=&lists[slot];
@@ -148,7 +151,7 @@ std::array<Vec3,6> runtime_positions(const NativeFighterModelEditor& model,unsig
                 if(i)envelopes[slot][i-1].next=&envelopes[slot][i];
             }
         }
-        p.u.envelope_list=lists;
+        if(separate)p.u.matrices=&matrix_sets;else p.u.envelope_list=lists;
     } else {
         u32 other;const char* external;
         const auto reference=HSD_DatResolve(&model.dat,polygon+20,&other,&external);
@@ -286,7 +289,9 @@ std::vector<float> texture_vectors(const NativeFighterModelEditor& model,unsigne
     std::vector<float> result;
     for(u32 polygon=word(model,model.meshes[0].offset+12);polygon;polygon=word(model,polygon+4)) {
         std::vector<NativeSkinAttribute> attrs;check(nativeSkinMesh_ReadAttributes(model.dat,word(model,polygon+8),&attrs));
-        const u32 table=word(model,polygon+20);
+        const bool separate=(word(model,polygon+12)>>16&0x3000)==POBJ_SEPARATE_ENVELOPES;
+        const u32 metadata=word(model,polygon+20);
+        const u32 table=separate?word(model,metadata+4):metadata;
         std::vector<std::array<float,12>> matrices;
         for(unsigned slot=0;word(model,table+slot*4);++slot) {
             Mtx matrix={};
@@ -318,7 +323,11 @@ std::vector<float> texture_vectors(const NativeFighterModelEditor& model,unsigne
                     }
                     cursor+=attr.display_bytes;
                 }
-                check(selectors[1]==30+position_matrix);
+                if (!separate) check(selectors[1]==30+position_matrix);
+                else if (selectors[1]!=60) {
+                    const unsigned follower=model.dat.data[metadata+8+(selectors[1]-30)/3];
+                    if(follower!=255)check(follower==position_matrix/3);
+                }
                 for(unsigned channel:{0u,7u}) {
                     float value[3];
                     if(selectors[channel]==60)std::memcpy(value,normal,sizeof(value));
@@ -378,8 +387,10 @@ void textures(unsigned owner,unsigned indexing,bool nbt)
             binding.weights[0]=.1f+.01f*i;binding.weights[1]=1-binding.weights[0];
             part.texture_bindings.push_back(binding);
         }
-        for(auto& vertex:skin.vertices) {
-            vertex.skin={};vertex.skin.count=1;vertex.skin.joints[0]=0;vertex.skin.weights[0]=1;
+        for(unsigned i=0;i<skin.vertices.size();++i) {
+            auto& vertex=skin.vertices[i];vertex.skin={};vertex.skin.count=2;
+            vertex.skin.joints[0]=0;vertex.skin.joints[1]=3;
+            vertex.skin.weights[0]=.2f+.1f*i;vertex.skin.weights[1]=1-vertex.skin.weights[0];
         }
         for(unsigned c=0;c<part.corners.size();++c) {
             part.corners[c].textures[0]=c%3*3;
@@ -393,17 +404,43 @@ void textures(unsigned owner,unsigned indexing,bool nbt)
         std::memcpy(project.costume_dat,file.data(),file.size());project.costume_size=file.size();
         check(nativeFighterModel_Open(model.get(),&project));check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
         check(skin.parts[0].texture_bindings.size()==9);
-        const auto* before=project.costume_dat;
+        check((word(*model,polygon+12)>>16&0x3000)==POBJ_SEPARATE_ENVELOPES);
+        const u32 metadata=word(*model,polygon+20),positions=word(*model,metadata),textures=word(*model,metadata+4);
+        for(unsigned fault=0;fault<8;++fault) {
+            NativeAssetDat bad;check(bad.open(file.data(),file.size()));
+            const u32 commands=word(*model,polygon+16);
+            if(fault<2)bad.data[metadata+8]=fault?0:99;
+            else if(fault==2)bad.data[commands+3]=30;
+            else if(fault==3)bad.data[commands+4]=57;
+            else if(fault==4)bad.word(word(*model,positions)+4,0x3f800000);
+            else if(fault==5)bad.word(word(*model,textures)+4,0x7fc00000);
+            else if(fault==6)bad.link(metadata+4,0);
+            else {
+                const u32 excessive=bad.allocate(12*4);
+                for(unsigned i=0;i<11;++i)bad.link_local(excessive+i*4,word(*model,textures+(i%9)*4));
+                bad.link(metadata+4,excessive);
+            }
+            std::vector<u8> malformed;check(bad.finish(&malformed));const auto unchanged=malformed;
+            HSD_Dat source;check(HSD_DatOpen(&source,malformed.data(),malformed.size())==HSD_DAT_OK);
+            std::vector<u8> arena(1024*1024);HSD_DatImport importer;
+            check(HSD_DatImportInit(&importer,&source,arena.data(),arena.size(),1024)==HSD_DAT_OK);
+            check(!HSD_DatImportGraph(&importer,polygon,DAT_POBJ));
+            check(importer.status!=HSD_DAT_OK&&malformed==unchanged);
+        }
+        const auto before_texture=texture_vectors(*model,7);
         NativeSkinBrushPoint center;std::memcpy(center.position,skin.vertices[0].position,sizeof(center.position));
         unsigned affected=99;
-        check(!nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.2f,false,&affected,error,sizeof(error)));
-        check(!affected&&project.costume_dat==before&&project.costume_size==file.size()&&
-              !std::memcmp(project.costume_dat,file.data(),file.size()));
+        check(nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.2f,false,&affected,error,sizeof(error)));
+        check(affected==2);
+        check(nativeFighterModel_Open(model.get(),&project));
+        const auto after_texture=texture_vectors(*model,7);check(before_texture.size()==after_texture.size());
+        for(unsigned i=0;i<after_texture.size();++i)near(after_texture[i],before_texture[i],&max_normal_error);
         // A root shortcut changes normal coordinates. Reject independent
         // attachments needing a distinct basis before committing any stroke.
+        file.assign(project.costume_dat,project.costume_dat+project.costume_size);
         NativeAssetDat different;check(different.open(file.data(),file.size()));
         const u32 head=word(*model,model->meshes[0].offset+12);
-        const u32 table=word(*model,head+20),entries=word(*model,table);
+        const u32 table=word(*model,word(*model,head+20)),entries=word(*model,table);
         different.word(entries+4,0x3f800000);different.word(entries+12,0);
         std::vector<u8> different_file;check(different.finish(&different_file));file=std::move(different_file);
         std::free(project.costume_dat);project.costume_dat=(u8*)std::malloc(file.size());check(project.costume_dat);

@@ -314,9 +314,12 @@ unsigned nativeFighterModel_EnvelopeGroups(const NativeFighterModelEditor* edito
     for (unsigned p = 0; p < editor->meshes[mesh].polygon_count; ++p) {
         u16 flags = 0;
         if (!HSD_DatReadU16(&editor->dat, polygon + 12, &flags)) break;
-        if ((flags & 0x3000) == POBJ_ENVELOPE) {
+        if ((flags & 0x3000) == POBJ_ENVELOPE || (flags & 0x3000) == POBJ_SEPARATE_ENVELOPES) {
             u32 table;
-            if (reference(&editor->dat, polygon + 20, &table))
+            bool valid = reference(&editor->dat, polygon + 20, &table);
+            if (valid && (flags & 0x3000) == POBJ_SEPARATE_ENVELOPES)
+                valid = reference(&editor->dat, table, &table);
+            if (valid)
                 for (unsigned palette = 0; palette < 10; ++palette) {
                     u32 entries;
                     if (!reference(&editor->dat, table + palette * 4,

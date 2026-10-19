@@ -65,12 +65,13 @@ void* HSD_DatImportObject(HSD_DatImport* import, u32 offset, u32 type, u32 count
         sizeof(HSD_LightAnim), sizeof(HSD_WObjAnim), sizeof(void*),
         sizeof(HSD_ShapeSetDesc), sizeof(HSD_SList), sizeof(HSD_Spline),
         sizeof(HSD_ExpDesc), sizeof(HSD_ByteCodeExpDesc),
+        sizeof(HSD_EnvelopeMatricesDesc),
     };
     static const u32 source_sizes[] = { 0, 24, 92, 20, 12, 24, 16, 16, 32,
                                        12, 16, 24, 16, 20, 4, 4,
                                        64, 16, 24, 48, 24, 4, 8, 12, 8, 20, 8,
                                        56, 20, 12, 20, 68, 28, 12, 20, 24,
-                                       12, 8, 8, 16, 8, 4, 28, 8, 24, 8, 8 };
+                                       12, 8, 8, 16, 8, 4, 28, 8, 24, 8, 8, 20 };
     u32 slot;
     HSD_DatImportRecord* record;
     if (import->status != HSD_DAT_OK) {
@@ -238,7 +239,8 @@ void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType ty
                    record->type == DAT_SLIST ||
                    record->type == DAT_SPLINE ||
                    record->type == DAT_EXP ||
-                   record->type == DAT_BYTECODE_EXP) {
+                   record->type == DAT_BYTECODE_EXP ||
+                   record->type == DAT_ENVELOPE_MATRICES) {
             HSD_DatDecodeModelRecord(import, record);
         } else if (record->type >= DAT_SHAPE_JOINT) {
             HSD_DatDecodeAnimationRecord(import, record);
