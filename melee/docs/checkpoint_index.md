@@ -12,6 +12,7 @@ it does not relabel old results as final-source acceptance.
 
 ## Source-runtime and fighter integration
 
+- [32-bit morph target indices (2026-10-19)](native_morph_wide_indices_checkpoint.md)
 - [Source reimport after rest edits (2026-10-19)](native_gltf_rest_checkpoint.md)
 - [Larger morph meshes and fixed scratch capacity (2026-10-19)](native_morph_capacity_checkpoint.md)
 - [GLB morph import, defaults and named reimport (2026-10-19)](native_gltf_morph_checkpoint.md)

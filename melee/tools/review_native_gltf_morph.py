@@ -133,7 +133,7 @@ def main():
     for name, options in [('large', {}), ('large-reordered', dict(reordered=True)),
                           ('large-skin', dict(skinned=True)),
                           ('large-skin-reordered', dict(skinned=True, reordered=True))]:
-        fixture(output/(name+'.glb'), joints, count=12000, **options)
+        fixture(output/(name+'.glb'), joints, count=36000, **options)
     result = subprocess.run([str(args.test.resolve()), str(args.draft.resolve()), str(output)],
         capture_output=True, text=True, encoding='utf-8', env=env, creationflags=subprocess.CREATE_NO_WINDOW)
     receipt = dict(status='PASS' if result.returncode == 0 else 'FAIL', exit_code=result.returncode,

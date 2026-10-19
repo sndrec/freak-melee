@@ -63,11 +63,12 @@ static void decode_shape_components(const HSD_VtxDescList* desc,
 }
 
 void HSD_ShapeSetReadVector(const HSD_VtxDescList* desc, const u8* indices,
-                            unsigned vertex, unsigned components, f32 output[9])
+                            unsigned index_bytes,unsigned vertex, unsigned components, f32 output[9])
 {
-    const unsigned index = desc->attr_type==GX_INDEX16
-        ? (unsigned)indices[vertex*2] << 8 | indices[vertex*2+1] : indices[vertex];
-    decode_shape_components(desc, (const u8*)desc->vertex + index*desc->stride,
+    const u8* source=indices+(size_t)vertex*index_bytes;
+    const u32 index=index_bytes==4?(u32)source[0]<<24|(u32)source[1]<<16|(u32)source[2]<<8|source[3]:
+        index_bytes==2?(u32)source[0]<<8|source[1]:source[0];
+    decode_shape_components(desc, (const u8*)desc->vertex + (size_t)index*desc->stride,
                             output, components);
 }
 
@@ -79,6 +80,7 @@ static void evaluate_attribute(const HSD_ShapeSet* shape, bool normal,
     const HSD_VtxDescList* desc = normal ? shape->normal_desc : shape->vertex_desc;
     u8* const* indices = normal ? shape->normal_idx_list : shape->vertex_idx_list;
     const unsigned vectors = normal && desc->attr == GX_VA_NBT ? 3 : 1;
+    const unsigned index_bytes=shape->flags&SHAPESET_INDEX32?4:desc->attr_type==GX_INDEX16?2:1;
     if (shape->flags & SHAPESET_AVERAGE) {
         const float value = shape->blend.bl;
         const unsigned first = value<=0 ? 0 : value>=shape->nb_shape-1 ? shape->nb_shape-1 : (unsigned)value;
@@ -86,19 +88,19 @@ static void evaluate_attribute(const HSD_ShapeSet* shape, bool normal,
         const float fraction = MIN(MAX(0.0f, value-(f32)first), 1.0f);
         for (unsigned i=0;i<count;++i) {
             float a[9],b[9];
-            HSD_ShapeSetReadVector(desc,indices[first],i,vectors*3,a);
-            HSD_ShapeSetReadVector(desc,indices[next],i,vectors*3,b);
+            HSD_ShapeSetReadVector(desc,indices[first],index_bytes,i,vectors*3,a);
+            HSD_ShapeSetReadVector(desc,indices[next],index_bytes,i,vectors*3,b);
             for(unsigned c=0;c<vectors*3;++c)
                 output[i*vectors+c/3][c%3]=(b[c]-a[c])*fraction+a[c];
         }
     } else {
         for(unsigned i=0;i<count;++i) {
             float base[9];
-            HSD_ShapeSetReadVector(desc,indices[0],i,vectors*3,base);
+            HSD_ShapeSetReadVector(desc,indices[0],index_bytes,i,vectors*3,base);
             for(unsigned c=0;c<vectors*3;++c)output[i*vectors+c/3][c%3]=base[c];
             for(unsigned target=0;target<shape->nb_shape;++target) {
                 const float weight=shape->flags&SHAPESET_SIGNED_WEIGHTS ? shape->blend.bp[target] : MAX(0.0f,shape->blend.bp[target]);
-                float offset[9];HSD_ShapeSetReadVector(desc,indices[target+1],i,vectors*3,offset);
+                float offset[9];HSD_ShapeSetReadVector(desc,indices[target+1],index_bytes,i,vectors*3,offset);
                 for(unsigned c=0;c<vectors*3;++c)
                     output[i*vectors+c/3][c%3]+=offset[c]*weight;
             }

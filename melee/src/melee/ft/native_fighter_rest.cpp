@@ -15,6 +15,7 @@ extern "C" {
 #include <memory>
 #include <iterator>
 #include <unordered_set>
+#include <unordered_map>
 
 extern "C" bool nativeFighterModel_RestMatrices(const NativeFighterModelEditor* model,
                                                  Mtx* world, Vec3* scales)
@@ -170,7 +171,7 @@ bool append_vector(std::vector<u8>& bytes, const float* value)
 // each polygon private float arrays, retaining its display-list indices.
 bool compensate_shape_attribute(NativeAssetDat& output, const HSD_Dat& source,
                                 u32 shape, bool normals, unsigned targets,
-                                bool additive, Mtx adjustment,
+                                bool additive, bool wide, Mtx adjustment,
                                 u32 replacement_shape)
 {
     const unsigned member = normals ? 16 : 4;
@@ -206,28 +207,28 @@ bool compensate_shape_attribute(NativeAssetDat& output, const HSD_Dat& source,
     // Retain sharing across targets. A position used as both an additive
     // offset and a base position needs two entries: only the base translates.
     const bool split_base = additive && !normals;
-    std::vector<u32> remap((UINT16_MAX + size_t(1)) * (split_base ? 2 : 1), UINT32_MAX);
+    std::unordered_map<uint64_t,uint32_t> remap;
     std::vector<u8> values;
     for (unsigned target = 0; target < targets; ++target) {
         u32 indices;
         if (!reference(&source, table + target * 4, &indices)) return false;
-        const unsigned index_width = a.type == 2 ? 1 : 2;
+        const unsigned index_width = wide?4:a.type == 2 ? 1 : 2;
         const u8* list = HSD_DatBytes(&source, indices, count * index_width);
         if (!list) return false;
-        const u32 new_list = output.allocate(count * 2);
+        const u32 new_list = output.allocate(count * 4);
         if (new_list == UINT32_MAX) return false;
         output.link(new_table + target * 4, new_list);
         for (unsigned i = 0; i < count; ++i) {
-            const unsigned index = index_width == 1 ? list[i] :
+            const unsigned index = wide?NativeAssetDat::read32(list+i*4):index_width == 1 ? list[i] :
                 unsigned(list[i * 2]) << 8 | list[i * 2 + 1];
-            u32& mapped = remap[index + (split_base && target ? UINT16_MAX + 1u : 0)];
-            if (mapped != UINT32_MAX) {
-                output.half(new_list + i * 2, (u16) mapped);
+            const uint64_t key=uint64_t(index)|(split_base && target?uint64_t(1)<<32:0);
+            const auto found=remap.find(key);
+            if (found!=remap.end()) {
+                output.word(new_list + i * 4, found->second);
                 continue;
             }
-            mapped = (u32) (values.size() / (vectors * 12));
-            if (mapped > UINT16_MAX) return false;
-            output.half(new_list + i * 2, (u16) mapped);
+            const auto mapped = (uint32_t) (values.size() / (vectors * 12));
+            remap.emplace(key,mapped);output.word(new_list + i * 4, mapped);
             const size_t at = size_t(a.array) + size_t(index) * a.stride;
             if (at > UINT32_MAX) return false;
             const u8* value = HSD_DatBytes(&source, (u32) at, vectors * 3 * a.width);
@@ -280,6 +281,7 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
     const u8* shape_data=HSD_DatBytes(&source,shape,shape_bytes);
     if(!shape_data)return false;
     std::memcpy(output.data.data() + new_shape, shape_data, shape_bytes);
+    output.half(new_shape,flags|SHAPESET_INDEX32);
     if(flags&SHAPESET_SKIN) {
         u32 skin;if(!reference(&source,shape+28,&skin))return false;
         output.link_local(new_shape+28,skin);
@@ -298,8 +300,8 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
         if (kind == HSD_DAT_REF_LOCAL) output.link_local(new_shape + member, target);
         else output.link(new_shape + member, 0);
     }
-    if (!compensate_shape_attribute(output, source, shape, false, targets, additive, adjustment, new_shape) ||
-        !compensate_shape_attribute(output, source, shape, true, targets, additive, normal, new_shape)) return false;
+    if (!compensate_shape_attribute(output, source, shape, false, targets, additive, (flags&SHAPESET_INDEX32)!=0, adjustment, new_shape) ||
+        !compensate_shape_attribute(output, source, shape, true, targets, additive, (flags&SHAPESET_INDEX32)!=0, normal, new_shape)) return false;
     std::memcpy(output.data.data() + new_polygon, HSD_DatBytes(&source, polygon, 24), 24);
     for (unsigned member : {0u, 4u, 8u, 16u}) {
         u32 target = 0; const char* external;

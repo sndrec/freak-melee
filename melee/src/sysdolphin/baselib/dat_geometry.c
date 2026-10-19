@@ -100,11 +100,12 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
 }
 
 static bool shape_attribute(HSD_DatImport* import, HSD_VtxDescList* desc,
-                              u8** indices, s32 count, u32 shapes, bool normal)
+                              u8** indices, s32 count, u32 shapes, bool normal,bool wide)
 {
     if (count == 0) return true;
     if (count < 0 || !desc || !indices || !desc->vertex || !desc->stride ||
         (desc->attr_type != GX_INDEX8 && desc->attr_type != GX_INDEX16)) return false;
+    if(wide && desc->attr_type!=GX_INDEX16)return false;
     if (normal ? (desc->attr != GX_VA_NRM && desc->attr != GX_VA_NBT) : desc->attr != GX_VA_POS) return false;
     if ((u32)desc->comp_type > GX_F32 || desc->comp_cnt != (normal ? GX_NRM_XYZ : GX_POS_XYZ)) return false;
     const u32 scalar = desc->comp_type <= GX_S8 ? 1 : desc->comp_type <= GX_S16 ? 2 :
@@ -114,11 +115,13 @@ static bool shape_attribute(HSD_DatImport* import, HSD_VtxDescList* desc,
     size_t extent = 0;
     const size_t base = (const u8*)desc->vertex - import->dat->data;
     if (base > import->dat->data_size) return false;
+    const unsigned index_bytes=wide?4:desc->attr_type==GX_INDEX8?1:2;
     for (u32 shape = 0; shape < shapes; ++shape) {
         if (!indices[shape]) return false;
         for (s32 i = 0; i < count; ++i) {
-            const u8* p = indices[shape] + (size_t)i * (desc->attr_type == GX_INDEX8 ? 1 : 2);
-            const u32 index = desc->attr_type == GX_INDEX8 ? p[0] : (u32)p[0] << 8 | p[1];
+            const u8* p = indices[shape] + (size_t)i * index_bytes;
+            const u32 index=wide?(u32)p[0]<<24|(u32)p[1]<<16|(u32)p[2]<<8|p[3]:
+                index_bytes==1?p[0]:(u32)p[0]<<8|p[1];
             const size_t end = (size_t)index * desc->stride + width;
             if (end > import->dat->data_size - base) return false;
             if (end > extent) extent = end;
@@ -141,7 +144,7 @@ bool HSD_DatValidateShape(HSD_DatImport* import, HSD_ShapeSetDesc* shape)
        shape->nb_normal_index<0 || shape->nb_normal_index>HSD_MAX_SHAPE_NORMALS)return false;
     const u32 count = shape->nb_shape + ((shape->flags & SHAPESET_ADDITIVE) != 0);
     return shape_attribute(import, shape->vertex_desc, shape->vertex_idx_list,
-                              shape->nb_vertex_index, count, false) &&
+                              shape->nb_vertex_index, count, false,(shape->flags&SHAPESET_INDEX32)!=0) &&
            shape_attribute(import, shape->normal_desc, shape->normal_idx_list,
-                              shape->nb_normal_index, count, true);
+                              shape->nb_normal_index, count, true,(shape->flags&SHAPESET_INDEX32)!=0);
 }

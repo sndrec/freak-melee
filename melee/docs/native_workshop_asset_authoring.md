@@ -54,8 +54,8 @@ and lighting vectors stay intact. Save keeps the painted model; Undo restores
 the complete previous costume.
 
 Morph meshes allow 65,536 positions and 65,536 normal entries. Each normal entry
-can also contain a tangent and bitangent. The targets share a limit of 65,536
-distinct stored position vectors and 65,536 distinct stored lighting entries.
+can also contain a tangent and bitangent. Each expression target can have its
+own position and lighting data. All targets share the costume's storage budget.
 Vertices with different weights can need separate normal entries; an edit that
 exceeds capacity leaves the draft unchanged.
 

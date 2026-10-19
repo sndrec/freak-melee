@@ -161,7 +161,7 @@ static f32* import_float_array(HSD_DatImport* import, u32 slot, u32 count,
 
 static u8** import_shape_index_table(HSD_DatImport* import, u32 slot,
                                      u32 shape_count, u32 index_count,
-                                     GXAttrType index_type)
+                                     GXAttrType index_type,bool wide)
 {
     u32 table_offset;
     const char* external;
@@ -184,7 +184,7 @@ static u8** import_shape_index_table(HSD_DatImport* import, u32 slot,
         import->external_symbol = external;
         return NULL;
     }
-    if (index_type != GX_INDEX8 && index_type != GX_INDEX16) {
+    if ((index_type != GX_INDEX8 && index_type != GX_INDEX16) || (wide && index_type!=GX_INDEX16)) {
         import->status = HSD_DAT_DESCRIPTOR;
         import->error_offset = slot;
         return NULL;
@@ -196,7 +196,7 @@ static u8** import_shape_index_table(HSD_DatImport* import, u32 slot,
         return NULL;
     }
     size_t byte_count = (size_t) index_count *
-                        (index_type == GX_INDEX16 ? 2 : 1);
+                        (wide?4:index_type == GX_INDEX16 ? 2 : 1);
     for (u32 i = 0; i < shape_count; ++i) {
         u32 data_offset;
         kind = HSD_DatResolve(import->dat, table_offset + i * 4, &data_offset,
@@ -512,7 +512,7 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
         }
         obj->vertex_idx_list = import_shape_index_table(
             import, offset + 12, shape_count, vertex_count,
-            (GXAttrType) vertex_type);
+            (GXAttrType) vertex_type,(obj->flags&SHAPESET_INDEX32)!=0);
         if (normal_count != 0) {
             u32 normal_desc_offset;
             u32 normal_type;
@@ -527,7 +527,7 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
             }
             obj->normal_idx_list = import_shape_index_table(
                 import, offset + 24, shape_count, normal_count,
-                (GXAttrType) normal_type);
+                (GXAttrType) normal_type,(obj->flags&SHAPESET_INDEX32)!=0);
         }
         break;
     }
