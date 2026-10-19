@@ -1,5 +1,8 @@
 # Morph surfaces in the Model viewport
 
+The [weighted morph checkpoint](native_morph_skin_checkpoint.md) extends this
+path to private envelope batches and records the newer runtime/rest-edit tests.
+
 Morph meshes now participate in viewport picking, outliner hover highlighting
 and posed corner queries. These paths evaluate the same local positions as the
 normal renderer, then apply the owning joint's current matrix.

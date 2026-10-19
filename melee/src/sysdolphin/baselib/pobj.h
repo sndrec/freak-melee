@@ -88,6 +88,7 @@ struct HSD_ShapeSet {
         f32 bl;
     } blend;
     HSD_AObj* aobj;
+    HSD_PObj* skin;
 };
 
 struct HSD_ShapeSetDesc {
@@ -99,6 +100,7 @@ struct HSD_ShapeSetDesc {
     s32 nb_normal_index;
     HSD_VtxDescList* normal_desc;
     u8** normal_idx_list;
+    HSD_PObjDesc* skin;
 };
 
 struct HSD_ShapeAnim {

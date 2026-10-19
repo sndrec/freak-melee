@@ -255,6 +255,7 @@ static void HSD_ShapeSetRemove(HSD_ShapeSet* shape_set)
     }
 
     HSD_AObjRemove(shape_set->aobj);
+    HSD_PObjRemoveAll(shape_set->skin);
     HSD_ShapeSetFree(shape_set);
 }
 
@@ -284,6 +285,8 @@ static HSD_ShapeSet* loadShapeSetDesc(HSD_ShapeSetDesc* sdesc)
         shape_set->blend.bl = 0.0f;
     }
     shape_set->aobj = NULL;
+    shape_set->skin = sdesc->flags&SHAPESET_SKIN ? HSD_PObjLoadDesc(sdesc->skin) : NULL;
+    HSD_ASSERT(0, !(sdesc->flags&SHAPESET_SKIN) || shape_set->skin);
     return shape_set;
 }
 
@@ -421,6 +424,9 @@ void HSD_PObjResolveRefs(HSD_PObj* pobj, HSD_PObjDesc* pdesc)
     }
 
     switch (pobj_type(pobj)) {
+    case POBJ_SHAPEANIM:
+        HSD_PObjResolveRefsAll(pobj->u.shape_set->skin,pdesc->u.shape_set->skin);
+        break;
     case POBJ_ENVELOPE:
         resolveEnvelope(pobj->u.envelope_list, pdesc->u.envelope_p);
         break;
@@ -554,7 +560,7 @@ static void setupShapeAnimVtxDesc(HSD_PObj* pobj)
     prev_vtxdesc = NULL;
 }
 
-static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
+static void interpretShapeAnimDisplayList(HSD_PObj* pobj, const HSD_ShapeSet* shape, float (*vertex)[3],
                                           float (*normal)[3])
 {
     u8* dl = pobj->display;
@@ -596,7 +602,7 @@ static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
                             idx = (idx << 8) | dl[m++];
                         }
                         // Only this draw's regenerated prefix is valid scratch.
-                        HSD_ASSERT(0, idx < pobj->u.shape_set->nb_vertex_index);
+                        HSD_ASSERT(0, idx < shape->nb_vertex_index);
                         GXPosition3f32(vertex[idx][0], vertex[idx][1],
                                        vertex[idx][2]);
                         break;
@@ -605,7 +611,7 @@ static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
                         if (desc->attr_type == GX_INDEX16) {
                             idx = (idx << 8) | dl[m++];
                         }
-                        HSD_ASSERT(0, idx < pobj->u.shape_set->nb_normal_index);
+                        HSD_ASSERT(0, idx < shape->nb_normal_index);
                         GXNormal3f32(normal[idx][0], normal[idx][1],
                                      normal[idx][2]);
                         break;
@@ -614,7 +620,7 @@ static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
                         if (desc->attr_type == GX_INDEX16) {
                             idx = (idx << 8) | dl[m++];
                         }
-                        HSD_ASSERT(0, idx < pobj->u.shape_set->nb_normal_index);
+                        HSD_ASSERT(0, idx < shape->nb_normal_index);
                         idx *= 3;
                         GXNormal3f32(normal[idx + 0][0], normal[idx + 0][1],
                                      normal[idx + 0][2]);
@@ -951,7 +957,9 @@ static void PObjPreparePose(HSD_PObj* pobj)
         HSD_PObjSetMtxMark(0, jobj, HSD_MTX_RIGID);
         break;
     case POBJ_SHAPEANIM:
-        HSD_PObjSetMtxMark(0, jobj, HSD_MTX_RIGID);
+        if(pobj->u.shape_set->skin) {
+            for(HSD_PObj* batch=pobj->u.shape_set->skin;batch;batch=batch->next)PObjPreparePose(batch);
+        } else HSD_PObjSetMtxMark(0, jobj, HSD_MTX_RIGID);
         break;
     case POBJ_ENVELOPE: {
         HSD_SList* list;
@@ -995,7 +1003,7 @@ static void PObjSetupMtx(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)
         }
         break;
     case POBJ_SHAPEANIM:
-        SetupRigidModelMtx(pobj, vmtx, pmtx, rendermode);
+        if(!pobj->u.shape_set->skin)SetupRigidModelMtx(pobj, vmtx, pmtx, rendermode);
         break;
     case POBJ_ENVELOPE:
         SetupEnvelopeModelMtx(pobj, vmtx, pmtx, rendermode);
@@ -1011,14 +1019,21 @@ static void PObjDispSimplePrimitive(HSD_PObj* pobj, u32 rendermode)
     GXCallDisplayList(pobj->display, pobj->n_display << 5);
 }
 
-static void PObjDispShapeAnim(HSD_PObj* pobj, u32 rendermode)
+static void PObjDispShapeAnim(HSD_PObj* pobj, Mtx view, Mtx model, u32 rendermode)
 {
-    setupShapeAnimArrayDesc(pobj->verts);
-    setupShapeAnimVtxDesc(pobj);
-
     HSD_ASSERT(0x7B1, pobj->u.shape_set);
-    HSD_ASSERT(0, HSD_ShapeSetEvaluate(pobj->u.shape_set, vertex_buffer, normal_buffer));
-    interpretShapeAnimDisplayList(pobj, vertex_buffer, normal_buffer);
+    HSD_ShapeSet* shape=pobj->u.shape_set;
+    HSD_ASSERT(0, HSD_ShapeSetEvaluate(shape, vertex_buffer, normal_buffer));
+    if(shape->skin) {
+        for(HSD_PObj* batch=shape->skin;batch;batch=batch->next) {
+            HSD_POBJ_METHOD(batch)->setup_mtx(batch,view,model,rendermode);
+            setupShapeAnimArrayDesc(batch->verts);setupShapeAnimVtxDesc(batch);
+            interpretShapeAnimDisplayList(batch,shape,vertex_buffer,normal_buffer);
+        }
+    } else {
+        setupShapeAnimArrayDesc(pobj->verts);setupShapeAnimVtxDesc(pobj);
+        interpretShapeAnimDisplayList(pobj,shape,vertex_buffer,normal_buffer);
+    }
 }
 
 void HSD_PObjDisp(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)
@@ -1045,7 +1060,7 @@ void HSD_PObjDisp(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)
     }
 #endif
     if (pobj_type(pobj) == POBJ_SHAPEANIM) {
-        PObjDispShapeAnim(pobj, rendermode);
+        PObjDispShapeAnim(pobj, vmtx, pmtx, rendermode);
     } else {
         PObjDispSimplePrimitive(pobj, rendermode);
     }

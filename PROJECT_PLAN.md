@@ -251,9 +251,11 @@ import, materials, rigging and skinning, not mesh modeling.
   [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
   shares one runtime evaluator between drawing, picking, highlighting and
   posed-corner queries. Complete/additive native hover reviews pass. The
-  [weighted-morph implementation plan](melee/docs/native_morph_skin_design.md)
-  records the combined controller/batch representation still required for
-  painting, rest compensation and asset ownership.
+  [Weighted morph runtime and rest edits](melee/docs/native_morph_skin_checkpoint.md)
+  now preserve one controller across private envelope batches, compaction and
+  save/load. Posed native drawing, picking and highlighting agree. The
+  [authoring design](melee/docs/native_morph_skin_design.md) still requires the
+  target-aware painting reader/writer and GLB morph encoder.
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
   2,048 records. Compaction follows the same capacity policy. Match-time

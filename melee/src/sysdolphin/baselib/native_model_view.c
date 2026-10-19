@@ -222,17 +222,25 @@ typedef void (*EndFn)(void* user);
 // Reads the original GX descriptor order, including stock indexed/quantized
 // positions. No imported-mesh layout assumptions and no draw-time allocations.
 static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
-                  VertexFn vertex, EndFn end, void* user)
+                  VertexFn vertex, EndFn end, void* user, const HSD_ShapeSet* generated)
 {
     if (!mesh->owner || !p->verts || !p->display || !p->n_display) return false;
+    const HSD_ShapeSet* shape=generated;
+    if(pobj_type(p)==POBJ_SHAPEANIM) {
+        shape=p->u.shape_set;
+        if(!HSD_ShapeSetEvaluate(shape,shape_positions,NULL))return false;
+        if(shape->skin) {
+            for(HSD_PObj* batch=shape->skin;batch;batch=batch->next)
+                if(!visit(mesh,batch,begin,vertex,end,user,shape))return false;
+            return true;
+        }
+    }
     Mtx mtx[10];
     float weights[10];
     unsigned matrix_count;
     if (!matrices(mesh, p, mtx, weights, &matrix_count)) {
         return false;
     }
-    const HSD_ShapeSet* shape = pobj_type(p)==POBJ_SHAPEANIM ? p->u.shape_set : NULL;
-    if (pobj_type(p)==POBJ_SHAPEANIM && !HSD_ShapeSetEvaluate(shape,shape_positions,NULL)) return false;
     // GX consumes hardware slots, regardless of descriptor-list ordering.
     // NBT uses the normal slot rather than its descriptor enum value (25).
     const HSD_VtxDescList* ordered[26];
@@ -386,7 +394,7 @@ bool nativeModelView_Draw(HSD_DObj* mesh, Mtx view)
         return false;
     }
     for (HSD_PObj* p = mesh->pobj; p; p = p->next) {
-        if (!visit(entry, p, NULL, NULL, NULL, NULL)) {
+        if (!visit(entry, p, NULL, NULL, NULL, NULL, NULL)) {
             return false;
         }
     }
@@ -417,7 +425,7 @@ bool nativeModelView_Draw(HSD_DObj* mesh, Mtx view)
         GXSetCullMode(cull == POBJ_CULLFRONT  ? GX_CULL_FRONT
                       : cull == POBJ_CULLBACK ? GX_CULL_BACK
                                               : GX_CULL_NONE);
-        visit(entry, p, draw_begin, draw_vertex, draw_end, entry);
+        visit(entry, p, draw_begin, draw_vertex, draw_end, entry, NULL);
     }
     HSD_ClearVtxDesc();
     HSD_PObjClearMtxMark(NULL, 0);
@@ -518,7 +526,7 @@ int nativeModelView_Pick(const float origin[3], const float direction[3])
         }
         pick.mesh = (int) i;
         for (HSD_PObj* p = mesh->mesh->pobj; p; p = p->next) {
-            visit(mesh, p, pick_begin, pick_vertex, NULL, &pick);
+            visit(mesh, p, pick_begin, pick_vertex, NULL, &pick, NULL);
         }
     }
     return pick.selected;
@@ -547,6 +555,6 @@ bool nativeModelView_CornerPositions(unsigned mesh, Vec3* positions, unsigned co
         !meshes[mesh].owner || !meshes[mesh].mesh || meshes[mesh].hidden) return false;
     CornerPositions output = { positions, count, 0, true };
     for (HSD_PObj* p = meshes[mesh].mesh->pobj; p; p = p->next)
-        if (!visit(&meshes[mesh], p, NULL, store_corner, NULL, &output)) return false;
+        if (!visit(&meshes[mesh], p, NULL, store_corner, NULL, &output, NULL)) return false;
     return output.valid && output.count == count;
 }

@@ -19,6 +19,7 @@ from review_native_css_room import Client
 from review_native_large_gltf import hashes
 from review_native_rest import make_shape, mesh_offsets
 from review_native_skin_weights import make_glb
+from review_native_morph_skin_fixture import weighted_shape
 
 
 def only_shape(asset, joints, mesh):
@@ -61,13 +62,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('exe', 'tool', 'iso', 'draft', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--weighted', action='store_true')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     source_hashes = hashes(args.draft)
     source = output/'quad.glb'
     make_glb(source)
-    receipt = dict(status='RUNNING', cases=[], exe_sha256=hashlib.sha256(args.exe.read_bytes()).hexdigest())
+    receipt = dict(status='RUNNING', weighted=args.weighted, cases=[], exe_sha256=hashlib.sha256(args.exe.read_bytes()).hexdigest())
 
     def tool(*parts):
         result = subprocess.run([str(args.tool.resolve()), *map(str, parts)],
@@ -90,7 +92,10 @@ def main():
             added = mesh_offsets(asset, joints)-previous
             assert len(added) == 1
             mesh = added.pop()
-            (draft/'costume.dat').write_bytes(only_shape(make_shape(asset, mesh, mode), joints, mesh))
+            asset = only_shape(make_shape(asset, mesh, mode), joints, mesh)
+            if args.weighted:
+                asset = weighted_shape(asset, joints, mesh)
+            (draft/'costume.dat').write_bytes(asset)
             client = None
             try:
                 client = Client(args.exe.resolve(), args.iso.resolve(), folder/'profile',
@@ -118,6 +123,19 @@ def main():
                 client.command('ui-move', 30, 30); before = capture()
                 client.command('ui-move', *client.element('workshop-model-mesh-0')); tree = capture()
                 assert tree['blue_pixels'] > before['blue_pixels']+1000, (before, tree)
+                if args.weighted:
+                    drawn = Image.open(before['path']).convert('RGB').crop(region)
+                    highlight = Image.open(tree['path']).convert('RGB').crop(region)
+                    surface = matched = highlighted = 0
+                    for a,b in zip(drawn.getdata(), highlight.getdata()):
+                        white = all(c > 240 for c in a)
+                        blue = all(abs(c-target)<8 for c,target in zip(b,(137,210,255)))
+                        surface += white
+                        highlighted += blue
+                        matched += white and blue
+                    assert surface > 1000 and matched/surface > .95 and matched/highlighted > .95
+                    tree['drawn_surface_pixels'] = surface
+                    tree['overlapping_surface_pixels'] = matched
                 # Pick an interior surface pixel away from the bone handles at
                 # the viewport center; those handles deliberately receive input.
                 image = Image.open(tree['path']).convert('RGB')

@@ -1,7 +1,8 @@
-# Weighted morph meshes: implementation plan
+# Weighted morph meshes
 
-Status: pending implementation. Morph evaluation and editor surface queries
-are implemented; morph bone-weight painting remains unavailable.
+The runtime can combine morph targets and envelope skinning. The authoring
+reader and writer still need to expose this representation to weight painting
+and GLB morph import. Morph bone-weight painting remains unavailable.
 
 ## Required behavior
 
@@ -18,7 +19,7 @@ create independently ticking copies of that controller.
 
 ## Draw representation
 
-Extend the native shape descriptor with an explicit reference to private skin
+The native shape descriptor has an explicit reference to private skin
 draw batches. Each batch uses ordinary envelope descriptors with at most ten
 weight combinations. Their display lists address the controller's evaluated
 position and normal indices. The parent retains the authored shape topology and
@@ -36,7 +37,14 @@ Picking, highlighting and brush projection need the same binding for each
 logical shape vertex as drawing. Keep that mapping explicit in the loaded
 shape data. Position and normal indices can differ. A normal shared by vertices
 with different bindings must be split together with every one of its targets.
-Admission must prove all maps and batches fit the admitted scratch capacities.
+Admission checks that maps and batches fit the admitted scratch capacities.
+It also checks corner order, matching attributes, binding consistency, normalized
+finite weights and inverse-bind matrices. Private batches contain triangles.
+Shared normals must have the same binding wherever their index appears.
+
+Each native batch always uses inverse binds, including vertices attached to one
+bone. A full single-bone influence is stored as two half influences so HSD uses
+the same coordinate domain for rigid and blended vertices.
 
 ## Authoring and ownership
 
@@ -51,9 +59,13 @@ undoable costume transaction. Failed validation leaves every asset unchanged.
 Save/reopen, package preparation, compaction and bone-reference traversal must
 follow the added graph. Retired batches and arrays must be reclaimed.
 
-Rest edits must compensate each logical vertex using its binding. The current
-rigid shape compensation cannot be applied unchanged to a weighted shape.
-Normals and their targets must follow the same binding-dependent compensation.
+Rest edits update inverse binds to preserve each bone's world-space skin matrix.
+This preserves every blended palette matrix in these canonical native batches.
+The remaining adjustment is the owner's model-node matrix: multiply all complete
+targets by `inverse(new_owner_matrix) * old_owner_matrix`, use its linear part
+for additive offsets, and its inverse transpose for normal targets. Root-owned
+meshes need no target adjustment. Deform-bone and helper owners use their actual
+HSD coordinate domains. This avoids a separate rest-edit transform per binding.
 Adding/removing/reordering bones must keep all batch envelope references valid.
 
 The current GLB importer emits base geometry and has no morph-target encoder.

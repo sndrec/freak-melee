@@ -955,6 +955,7 @@ if(MELEE_BUILD_TESTS)
         tests/native/dat_import_test.c src/sysdolphin/baselib/dat_import.c
         tests/native/dat_animation_test.c src/sysdolphin/baselib/dat_animation.c
         src/sysdolphin/baselib/dat_model.c src/sysdolphin/baselib/dat_geometry.c
+        src/sysdolphin/baselib/dat_shape_skin.c
         src/sysdolphin/baselib/dat_scene.c
         tests/native/dat_model_test.c
         src/sysdolphin/baselib/dat_material.c src/sysdolphin/baselib/dat_texture.c)
@@ -1033,6 +1034,7 @@ if(MELEE_BUILD_TESTS)
         src/sysdolphin/baselib/dat_import.c src/sysdolphin/baselib/dat_material.c
         src/sysdolphin/baselib/dat_texture.c src/sysdolphin/baselib/dat_animation.c
         src/sysdolphin/baselib/dat_model.c src/sysdolphin/baselib/dat_geometry.c
+        src/sysdolphin/baselib/dat_shape_skin.c
         src/sysdolphin/baselib/dat_scene.c
         tests/native/class_test.c src/sysdolphin/baselib/class.c src/sysdolphin/baselib/native_hsd_arena.c src/melee/gm/native_match_arena.c
         src/sysdolphin/baselib/hash.c
@@ -2580,6 +2582,7 @@ add_executable(native_fighter_visibility_runtime_test
     src/melee/ft/native_callback_lifetime.c
     src/sysdolphin/baselib/dat.c src/sysdolphin/baselib/dat_import.c
     src/sysdolphin/baselib/dat_model.c src/sysdolphin/baselib/dat_geometry.c
+    src/sysdolphin/baselib/dat_shape_skin.c
     src/sysdolphin/baselib/dat_material.c src/sysdolphin/baselib/dat_animation.c
     src/sysdolphin/baselib/dat_scene.c src/sysdolphin/baselib/dat_texture.c)
 target_include_directories(native_fighter_visibility_runtime_test PRIVATE
