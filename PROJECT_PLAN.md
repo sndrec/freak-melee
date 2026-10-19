@@ -474,6 +474,11 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
   the user. Preserve 4:3 scaling during resizing/fullscreen.
 - [ ] Recheck profile binding/calibration and default-control equivalence,
   optional tap-jump/short-hop/attack-stick behavior and controller feedback.
+  The [local controls recheck](melee/docs/native_profile_controls_checkpoint.md)
+  covers saved profile UI, all button masks on four canonical ports, optional
+  jump/attack-stick behavior in gameplay and rumble suppression. Custom Shield
+  bindings now retain full strength alongside mapped analog triggers. Raw-device
+  rebinding, physical adapter response and motor feedback still need hands-on review.
 
 ### 5. Later external acceptance
 

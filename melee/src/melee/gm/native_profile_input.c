@@ -52,14 +52,14 @@ static bool action_pressed(uint32_t port,
     return false;
 }
 
-static void apply_action(uint32_t port, PADStatus* pad,
+static bool apply_action(uint32_t port, PADStatus* pad,
                          NativeProfileAction action, uint16_t button_mask)
 {
     const NativeProfileActionBindings* bindings =
         &slots[port].profile.actions[action];
     if (action_has_default(bindings)) {
         if (!action_pressed(port, bindings)) {
-            return;
+            return false;
         }
     } else {
         pad->button &= (uint16_t) ~button_mask;
@@ -68,7 +68,7 @@ static void apply_action(uint32_t port, PADStatus* pad,
             pad->triggerRight = 0;
         }
         if (!action_pressed(port, bindings)) {
-            return;
+            return false;
         }
     }
     if (action == NativeProfileAction_Jump) {
@@ -79,6 +79,7 @@ static void apply_action(uint32_t port, PADStatus* pad,
     } else {
         pad->button |= button_mask;
     }
+    return true;
 }
 
 static int8_t scaled_stick_axis(int16_t raw, int8_t direction,
@@ -233,8 +234,9 @@ void nativeProfileInput_Apply(PADStatus pads[4])
                      PAD_BUTTON_B);
         apply_action(port, &pads[port], NativeProfileAction_Jump,
                      PAD_BUTTON_X | PAD_BUTTON_Y);
-        apply_action(port, &pads[port], NativeProfileAction_Shield,
-                     PAD_TRIGGER_L | PAD_TRIGGER_R);
+        const bool digital_shield =
+            apply_action(port, &pads[port], NativeProfileAction_Shield,
+                         PAD_TRIGGER_L | PAD_TRIGGER_R);
         apply_action(port, &pads[port], NativeProfileAction_Grab,
                      PAD_TRIGGER_Z);
         const NativeProfileActionBindings* short_hop =
@@ -256,6 +258,12 @@ void nativeProfileInput_Apply(PADStatus pads[4])
         }
         for (uint32_t axis = 0; axis < NativeProfileAxis_Count; ++axis) {
             apply_axis(port, &pads[port], (NativeProfileAxis) axis);
+        }
+        // Explicit digital Shield requests full strength even when a mapped
+        // analog trigger is released or partly pressed in the same sample.
+        if (digital_shield) {
+            pads[port].button |= PAD_TRIGGER_L;
+            pads[port].triggerLeft = UINT8_MAX;
         }
     }
 }

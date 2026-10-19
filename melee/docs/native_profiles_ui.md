@@ -31,6 +31,10 @@ shield. Calibration now shows six live stick/trigger signals for the selected
 port. The meters use draft axis mappings where assigned, update at 10 Hz, and
 show a dash when no controller is connected.
 
+A custom digital Shield binding gives full shield strength while held, including
+when the same profile also maps the analog triggers. Releasing that binding
+returns shield strength to the mapped analog input.
+
 The editor opens only in home CSS and closes if the scene changes. Controller
 input while it is open does not drive the underlying character selection. Settings remain
 fixed during matches. The editor's presentation state is excluded from rollback.
@@ -69,6 +73,9 @@ Keyboard/gameplay text capture continues to use the existing shell behavior.
   deletion rejects invalid IDs and leaves a second saved profile intact.
 
 ## Remaining acceptance
+
+The [2026-10-19 controls recheck](native_profile_controls_checkpoint.md) records
+the current UI, input-combination and optional gameplay checks.
 
 Physical-device capture through the new UI still needs hands-on verification;
 the native diagnostic pad override does not pretend to be a raw SDL controller.
