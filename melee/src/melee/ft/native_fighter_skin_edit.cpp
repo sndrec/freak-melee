@@ -2,16 +2,19 @@
 #include "native_fighter_skin_morph.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
+#include "native_fighter_authoring.h"
 #include "native_mesh_vertex_ids.h"
 extern "C" {
 #include <melee/ft/ftcostume_assets.h>
 #include <sysdolphin/baselib/jobj.h>
+#include <sysdolphin/baselib/mtx.h>
 }
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <array>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 namespace {
@@ -308,6 +311,38 @@ bool nativeFighterSkin_Paint(NativeFighterProject* project, unsigned mesh, unsig
         changed += !nativeSkinWeights_Equal(&before, &vertex.skin);
     }
     if (!changed) return true;
+    std::unique_ptr<NativeFighterAuthoring,decltype(&std::free)> authoring(nullptr,&std::free);
+    if(const auto* source=nativeFighterMeshSource_Get(project,(uint32_t)model.meshes[mesh].offset)) {
+        const unsigned owner=model.meshes[mesh].joint;
+        bool rigid=false,other=false;
+        for(const auto& part:skin.parts) {
+            rigid|=(part.flags&0x3000)==POBJ_SKIN;other|=(part.flags&0x3000)!=POBJ_SKIN;
+        }
+        if(rigid && (model.joints[owner].flags&JOBJ_SKELETON_ROOT)) {
+            if(other){fail(error,error_size,"This imported mesh has several source coordinate domains.");return false;}
+            for(const auto& part:skin.parts)for(const auto& binding:part.bindings)
+                if(binding.count!=1 || binding.joints[0]!=owner){fail(error,error_size,"This imported mesh has several source coordinate domains.");return false;}
+            Mtx inverse,conversion;bool different=false;
+            if(!nativeSkinMesh_InverseBind(model,owner,inverse)||!C_MTXInverse(inverse,conversion))return false;
+            for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)different|=conversion[r][c]!=(r==c?1.f:0.f);
+            if(different) {
+                // The reader converts rigid root-local geometry into bind
+                // coordinates before painting. Reimport needs that same basis.
+                Mtx previous,composed;C_MTXIdentity(previous);
+                if(source->has_rest_adjustment)for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
+                    previous[r][c]=source->rest_adjustment[r+c*4];
+                C_MTXConcat(conversion,previous,composed);
+                auto updated=*source;updated.has_rest_adjustment=true;
+                std::memset(updated.rest_adjustment,0,sizeof(updated.rest_adjustment));updated.rest_adjustment[15]=1;
+                for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)updated.rest_adjustment[r+c*4]=composed[r][c];
+                authoring.reset((NativeFighterAuthoring*)std::malloc(sizeof(NativeFighterAuthoring)));
+                if(!authoring)return false;
+                *authoring=*project->authoring;
+                auto candidate=*project;candidate.authoring=authoring.get();
+                if(!nativeFighterMeshSource_Set(&candidate,&updated))return false;
+            }
+        }
+    }
     NativeAssetDat dat;
     std::vector<u8> converted;
     uint32_t polygon;
@@ -328,6 +363,7 @@ bool nativeFighterSkin_Paint(NativeFighterProject* project, unsigned mesh, unsig
     if (!bytes) return false;
     std::memcpy(bytes, converted.data(), converted.size());
     std::free(project->costume_dat); project->costume_dat = bytes; project->costume_size = converted.size();
+    if(authoring){std::free(project->authoring);project->authoring=authoring.release();}
     if (affected) *affected = changed;
     return true;
 }

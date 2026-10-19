@@ -76,6 +76,10 @@ over when the source vertex and triangle order is unchanged. For changed
 geometry topology, choose **Transfer painted weights from replaced mesh**, or
 choose source weights or generated weights to make a new binding.
 
+Rest-pose edits also carry through **Keep current painted weights**. You can
+adjust the rig, paint its mesh and reimport the same source while keeping the
+mesh in place. Save keeps the source correction; Undo restores it with the model.
+
 For named morph targets, **Keep current painted weights** also keeps the target
 slots. New targets are added after the existing ones. If an existing target is
 missing from the export, the import explains which name is missing and keeps

@@ -116,6 +116,7 @@ def main():
         assert len(added)==1
         (project/'costume.dat').write_bytes(make_shape(asset,added.pop(),args.shape_mode))
     original = (project/'costume.dat').read_bytes()
+    original_names = (project/'workshop_names.txt').read_bytes()
     results = []
     # Each command saves, validates the actual fighter resources and reopens.
     for channel, axis, value in [('rotation',2,.73), ('scale',0,1.7), ('position',0,2.25)]:
@@ -137,6 +138,7 @@ def main():
         destination.parent.mkdir()
         shutil.copytree(project, destination)
         (destination/'costume.dat').write_bytes(original)
+        (destination/'workshop_names.txt').write_bytes(original_names)
         client = Client(args.exe.resolve(), args.iso.resolve(), profile,
             output/'preview', 'Rest Edit Review', window_size=(1440,810),
             control=args.control.resolve() if args.control else None)
@@ -177,6 +179,8 @@ def main():
             client.click('workshop-save-top')
             saved = client.data/'projects/rest-review/costume.dat'
             edited = saved.read_bytes()
+            saved_names = saved.with_name('workshop_names.txt')
+            edited_names = saved_names.read_bytes()
             assert edited != original
             joint = int(joints[bone][2],16)
             assert abs(struct.unpack_from('>f', edited,32+joint+28)[0] - .5235988) < 1e-5
@@ -196,10 +200,12 @@ def main():
             client.click('workshop-undo')
             client.click('workshop-save-top')
             assert saved.read_bytes() == original, 'Undo did not restore the complete original asset'
+            assert saved_names.read_bytes() == original_names, 'Undo did not restore source rest facts'
             client.screenshot()
             client.click('workshop-redo')
             client.click('workshop-save-top')
             assert saved.read_bytes() == edited, 'Redo did not restore the expanded asset'
+            assert saved_names.read_bytes() == edited_names, 'Redo did not restore source rest facts'
             for mode in ['pose','animation']:
                 client.click('workshop-model-rig-'+mode)
                 client.screenshot()

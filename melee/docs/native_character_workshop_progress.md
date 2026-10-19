@@ -57,6 +57,8 @@ targets, normal seams and animation controllers. Native Save/Undo/Redo checks
 pass; see the [morph painting checkpoint](native_morph_paint_checkpoint.md).
 GLB position/normal morphs retain source defaults and stable named target slots
 through source reimport; see the [GLB morph checkpoint](native_gltf_morph_checkpoint.md).
+Rest edits retain an imported mesh's coordinate correction through saved source
+reimport and Model history; see the [rest/reimport checkpoint](native_gltf_rest_checkpoint.md).
 The shared morph capacity now covers 65,536 logical position/normal entries
 without enlarging rollback state; see the [capacity checkpoint](native_morph_capacity_checkpoint.md).
 

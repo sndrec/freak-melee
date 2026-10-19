@@ -2,6 +2,7 @@
 #include "native_fighter_rest_matrices.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
+#include "native_fighter_authoring.h"
 #include "native_mesh_vertex_ids.h"
 
 extern "C" {
@@ -515,7 +516,7 @@ bool envelope_matrices(const NativeFighterModelEditor& model, unsigned owner,
 bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& editor,
                         const NativeFighterModelEditor& old,
                    Mtx* old_world, Mtx* new_world,
-                   const bool* changed)
+                   const bool* changed,std::vector<NativeFighterMeshSource>* source_edits)
 {
     std::vector<NativeMeshVertexIdRow> vertex_ids, added_ids;
     if (!nativeMeshVertexIds_Read(editor.dat, &vertex_ids)) return false;
@@ -589,6 +590,26 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
             u32 next = 0; reference(&editor.dat, polygon + 4, &next); polygon = next;
         }
         if (!affected) continue;
+        if(const auto* source=nativeFighterMeshSource_Get(editor.project,(uint32_t)entry.offset)) {
+            // Imported geometry has one coordinate domain. Retain its rest
+            // correction separately from source node placement and unit scale.
+            Mtx correction,identity;C_MTXIdentity(identity);bool first=true;
+            for(const auto& p:chain)for(unsigned slot=0;slot<p.slots;++slot) {
+                const auto* matrix=p.compensate?p.adjustment[slot]:identity;
+                if(first){std::memcpy(correction,matrix,sizeof(correction));first=false;}
+                else for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
+                    if(std::fabs(matrix[r][c]-correction[r][c])>.00004f*std::fmax(1.f,std::fabs(correction[r][c])))return false;
+            }
+            if(first)return false;
+            Mtx previous,composed;C_MTXIdentity(previous);
+            if(source->has_rest_adjustment)for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
+                previous[r][c]=source->rest_adjustment[r+c*4];
+            C_MTXConcat(correction,previous,composed);
+            auto updated=*source;updated.has_rest_adjustment=true;
+            std::memset(updated.rest_adjustment,0,sizeof(updated.rest_adjustment));updated.rest_adjustment[15]=1;
+            for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)updated.rest_adjustment[r+c*4]=composed[r][c];
+            source_edits->push_back(updated);
+        }
         // Clone the whole chain: modifying an unchanged predecessor's next
         // pointer would otherwise affect another mesh sharing that polygon.
         u32 link = entry.offset + 12;
@@ -672,7 +693,8 @@ bool nativeFighterModel_CompensateRest(NativeFighterModelEditor* editor,
         matrix_write(dat, replacement, new_bind);
         dat.link(editor->joints[i].offset + 56, replacement);
     }
-    if (!compensate_meshes(dat, *editor, *old, old_world.get(), new_world.get(), changed)) return false;
+    std::vector<NativeFighterMeshSource> source_edits;
+    if (!compensate_meshes(dat, *editor, *old, old_world.get(), new_world.get(), changed,&source_edits)) return false;
     std::vector<u8> result;
     if (!dat.finish(&result, UINT32_MAX)) return false;
     char compact_error[192] = {};
@@ -685,11 +707,22 @@ bool nativeFighterModel_CompensateRest(NativeFighterModelEditor* editor,
     std::memcpy(owned.get(), result.data(), result.size());
     NativeFighterProject candidate = *editor->project;
     candidate.costume_dat = owned.get(); candidate.costume_size = result.size();
+    std::unique_ptr<NativeFighterAuthoring,decltype(&std::free)> authoring(nullptr,&std::free);
+    if(!source_edits.empty()) {
+        if(!candidate.authoring)return false;
+        authoring.reset((NativeFighterAuthoring*)std::malloc(sizeof(NativeFighterAuthoring)));
+        if(!authoring)return false;
+        *authoring=*candidate.authoring;candidate.authoring=authoring.get();
+        for(const auto& source:source_edits)if(!nativeFighterMeshSource_Set(&candidate,&source))return false;
+    }
     auto verified = std::make_unique<NativeFighterModelEditor>();
     if (!nativeFighterModel_Open(verified.get(), &candidate)) return false;
     NativeFighterProject* project = editor->project;
     std::free(project->costume_dat);
     project->costume_dat = owned.release(); project->costume_size = result.size();
+    if(authoring) {
+        std::free(project->authoring);project->authoring=authoring.release();
+    }
     *editor = *verified;
     editor->project = project;
     return true;

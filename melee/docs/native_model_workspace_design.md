@@ -82,6 +82,8 @@ survive saved strokes and Undo/Redo; see the
 attachments also support painting; see the [rigid checkpoint](native_rigid_skin_checkpoint.md).
 GLB position/normal targets retain source defaults and named slots through
 reimport; see the [GLB morph checkpoint](native_gltf_morph_checkpoint.md).
+Source reimport retains saved rest-coordinate corrections, including Model
+history; see the [rest/reimport checkpoint](native_gltf_rest_checkpoint.md).
 The [capacity checkpoint](native_morph_capacity_checkpoint.md) covers 65,536
 logical position/normal entries and NBT triples in fixed scratch outside rollback state.
 Painting, rest edits and

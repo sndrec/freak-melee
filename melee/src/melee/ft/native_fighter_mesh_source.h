@@ -13,6 +13,8 @@ typedef struct NativeFighterMeshSource {
     float scale;
     bool used, mirrored, uses_bind_shape;
     float transform[16];
+    bool has_rest_adjustment;
+    float rest_adjustment[16]; // Column-major, applied after source placement/scale.
     char path[512], identity[256];
 } NativeFighterMeshSource;
 
@@ -26,7 +28,9 @@ bool nativeFighterMeshSource_Set(NativeFighterProject*,const NativeFighterMeshSo
 void nativeFighterMeshSource_Clear(NativeFighterProject*,uint32_t mesh);
 // Tagged rows in the existing Workshop metadata file. Parsing a bad row leaves
 // the project unchanged; percent characters are escaped in text fields.
+// Format emits the source row and its optional mesh-rest correction row.
 bool nativeFighterMeshSource_Parse(NativeFighterProject*,char* row);
+bool nativeFighterMeshSource_ParseRest(NativeFighterProject*,char* row);
 size_t nativeFighterMeshSource_Format(const NativeFighterMeshSource*,char* row,size_t capacity);
 #ifdef __cplusplus
 }
