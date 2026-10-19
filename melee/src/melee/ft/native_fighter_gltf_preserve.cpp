@@ -31,8 +31,6 @@ bool nativeFighterGltf_Preserve(const NativeFighterModelEditor& model,unsigned m
             return fail("Could not read all mesh parts.");
     }
     if(attached) {*rigid=true;*output={};return true;}
-    if(!(model.joints[owner].flags&JOBJ_SKELETON_ROOT))
-        return fail("Preserving painted weights needs a root-owned editable mesh.");
     if(source.topology!=nativeGltfTopology(primitive))
         return fail("The source topology changed. Choose weight transfer or a new binding explicitly.");
     NativeSkinMesh current;

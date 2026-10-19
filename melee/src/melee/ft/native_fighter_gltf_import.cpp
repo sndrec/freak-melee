@@ -342,7 +342,9 @@ bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
         for (unsigned b = 0; b < stored_count; ++b) {
             const unsigned source = palette.count == 1 ? 0
                 : b == 0 ? first : b <= first ? b - 1 : b;
-            dat->link(entries + b * 8, model.joints[palette.joints[source]].offset);
+            const unsigned bone=palette.joints[source];
+            if(!nativeSkinMesh_EnsureInverseBind(*dat,model,bone))return false;
+            dat->link_local(entries + b * 8, model.joints[bone].offset);
             befloat(dat->data.data() + entries + b * 8 + 4,
                     palette.count == 1 ? 0.5f : palette.weights[source]);
         }
@@ -893,7 +895,9 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         fail(error, error_size, "Choose a valid fighter joint.");
         return false;
     }
-    if (binding != NATIVE_GLTF_BIND_RIGID && binding != NATIVE_GLTF_BIND_KEEP) {
+    if(binding==NATIVE_GLTF_BIND_TRANSFER && replacement_mesh<existing.mesh_count)
+        joint=existing.meshes[replacement_mesh].joint;
+    if (binding != NATIVE_GLTF_BIND_RIGID && binding != NATIVE_GLTF_BIND_KEEP && binding!=NATIVE_GLTF_BIND_TRANSFER) {
         while (joint < existing.joint_count &&
                !(existing.joints[joint].flags & JOBJ_SKELETON_ROOT)) {
             const int parent = existing.joints[joint].parent;
@@ -936,17 +940,17 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
             previous_source,scale,&authored,&kept_rigid,error,error_size)) return false;
     }
     const bool skinned=binding!=NATIVE_GLTF_BIND_RIGID && !(binding==NATIVE_GLTF_BIND_KEEP && kept_rigid);
-    if (skinned && !prepare_skin(existing, joint, &skin, error, error_size)) return false;
+    if (skinned && binding!=NATIVE_GLTF_BIND_KEEP && binding!=NATIVE_GLTF_BIND_TRANSFER &&
+        !prepare_skin(existing, joint, &skin, error, error_size)) return false;
     if (binding == NATIVE_GLTF_BIND_SOURCE &&
         !nativeFighterGltf_ReadSkin(existing,joint,primitive.node,primitive.mesh,
                                     scale,&authored,error,error_size)) return false;
     if (binding == NATIVE_GLTF_BIND_TRANSFER &&
         (replacement_mesh == UINT_MAX ||
-         !(existing.joints[existing.meshes[replacement_mesh].joint].flags & JOBJ_SKELETON_ROOT) ||
          !nativeSkinMesh_Read(existing, replacement_mesh, &old_skin, error, error_size) ||
          !transfer.prepare(&old_skin))) {
         fail(error, error_size,
-             "Weight transfer needs a root-owned mesh with editable weights.");
+             "Weight transfer needs an existing mesh with editable weights.");
         return false;
     }
     uint32_t polygon;

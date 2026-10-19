@@ -83,6 +83,7 @@ def main():
                           ('material', dict(rename_material=True)), ('slots', dict(slots=True)),
                           ('slots-reversed', dict(slots=True, reverse=True)),
                           ('deformed', dict(deformed=True)), ('topology', dict(topology=True)),
+                          ('deformed-topology', dict(deformed=True,topology=True)),
                           ('mirrored', dict(mirrored=True)), ('mirrored-deformed', dict(mirrored=True, deformed=True))]:
         paths[name] = output/(name+'.glb')
         fixture(paths[name], **options)
@@ -172,6 +173,43 @@ def main():
         assert snapshot()==before
         tool('project-reimport',draft,hull,paths['topology'],'whole','transfer','keep-materials')
         receipt['cases'].append('Saved whole-source reimport preserves painted weights, replaces materials independently and requires a choice for changed topology')
+        # Root and bone-attached rigid imports become editable envelopes, keeping
+        # the attachment's coordinate domain through painting and reimport.
+        data=(args.draft/'costume.dat').read_bytes()[32:]
+        deform=[int(index) for index,at,flags in joints if int(flags,16)&1 and
+                struct.unpack_from('>I',data,int(at,16)+56)[0]]
+        for owner in (0,deform[0]):
+            attached=output/('attached-'+str(owner));shutil.copytree(args.draft.resolve(),attached)
+            tool('project-model-import',attached,paths['original100%'],0,owner,'add',1,'rigid')
+            def attached_mesh():
+                row=re.search(r'^(\d+) mesh=0x([0-9A-Fa-f]+).* identity=mesh:4:Hull path=',
+                              tool('project-model-sources',attached),re.M)
+                return int(row[1]),int(row[2],16)
+            mesh,offset=attached_mesh()
+            # Exercises creating a root inverse bind when rigid geometry never
+            # needed one, and transfer while retaining a non-root owner.
+            tool('project-reimport',attached,mesh,paths['original100%'],'one','transfer','keep-materials')
+            mesh,offset=attached_mesh()
+            bone=next(i for i in deform if i!=owner)
+            tool('project-model-paint',attached,mesh,bone,*POSITIONS[0],.05,.375,'add')
+            _,painted,_,_,_=raw_mesh(attached/'costume.dat',offsets,mesh)
+            tool('project-reimport',attached,mesh,paths['deformed'],'one','keep','keep-materials')
+            mesh,offset=attached_mesh()
+            _,retained,_,_,_=raw_mesh(attached/'costume.dat',offsets,mesh,expected_positions=placed)
+            assert retained==painted
+            tool('project-reimport',attached,mesh,paths['deformed-topology'],'one','transfer','keep-materials')
+            mesh,offset=attached_mesh()
+            _,retained,_,_,_=raw_mesh(attached/'costume.dat',offsets,mesh,expected_positions=placed)
+            assert retained==painted
+            data=(attached/'costume.dat').read_bytes()[32:]
+            actual_owner=None
+            for i,joint in enumerate(offsets):
+                current=struct.unpack_from('>I',data,joint+16)[0]
+                while current:
+                    if current==offset:actual_owner=i;break
+                    current=struct.unpack_from('>I',data,current+4)[0]
+            assert actual_owner==owner,(owner,actual_owner)
+        receipt['cases'].append('Rigid imports retain root/bone ownership through painting, preserved-weight reimport and changed-topology transfer')
         # Reject corrupt metadata at project admission, leaving saved files intact.
         names = (draft/'workshop_names.txt').read_bytes()
         try:

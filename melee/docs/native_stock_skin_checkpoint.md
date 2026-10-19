@@ -96,8 +96,10 @@ profile; its arguments identify the existing draft and mesh.
 
 ## Remaining Model work
 
-The overall Model painting/storage task remains open. Morph-target painting,
-secondary-joint rigid polygons, independent texture-matrix bindings and helper
+The overall Model painting/storage task remains open. The subsequent
+[rigid-attachment pass](native_rigid_skin_checkpoint.md) adds secondary-joint
+rigid polygons under root/deform-bone owners and helper self-attachments.
+Morph-target painting, independent texture-matrix bindings and helper
 attachments under a root with a nonidentity inverse bind need further support.
 These cases are rejected rather than silently converted. The retail inventory
 does not contain them. Painting still has a 65,536-vertex mesh limit and sixteen
@@ -106,6 +108,7 @@ bone influences per vertex. The subsequent
 reclamation of unreachable costume data. Larger authored models remain work to
 do.
 
-Root-owned weight transfer now reads stock meshes and painted imported meshes.
-Non-root transfer still needs conversion into a common bind space. Extra bones
-and source-aware reimport remain separate Model tasks.
+Weight transfer now reads editable stock and imported meshes while keeping the
+destination's current attachment and coordinate domain. The rigid-attachment
+checkpoint covers root/non-root painting, reimport and changed-topology transfer.
+Extra bones and source-aware reimport have their own completed checkpoints.

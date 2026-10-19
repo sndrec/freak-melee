@@ -223,3 +223,8 @@ Final reviewed executable:
 
 Game SHA-256: `b07c2c2fd3a8886e4c9c2fc71cd186bf284aeb079556ea1172713d97ea8476f9`.
 Tool SHA-256: `3506647e73e62c1974c0223c57e56723d02a808a4ae246765a76a085cfb62e59`.
+
+The subsequent [rigid-attachment pass](native_rigid_skin_checkpoint.md) extends
+preservation and transfer to editable non-root attachments. Both retain the
+destination's owner and coordinate domain. It also supplies implicit root binds
+when a rigid import becomes an envelope and preserves offset-zero bone links.

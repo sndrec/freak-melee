@@ -33,6 +33,8 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor&, unsigned mesh,
 bool nativeSkinMesh_InverseBind(const NativeFighterModelEditor&, unsigned joint,
                                 float output[3][4]);
 struct NativeAssetDat;
+// Realize the identity bind used implicitly by an unbound skeleton root.
+bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat&,const NativeFighterModelEditor&,unsigned joint);
 bool nativeSkinMesh_Write(NativeAssetDat&, const NativeFighterModelEditor&,
                           unsigned mesh, const NativeSkinMesh&);
 #endif
