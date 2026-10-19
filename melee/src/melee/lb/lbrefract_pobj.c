@@ -21,7 +21,7 @@ s32 lbRefract_PObjLoad(HSD_PObj* pobj, HSD_PObjDesc* desc)
         return ret;
     }
 
-    if (!(HSD_PObjGetFlags(pobj) & 0x2000)) {
+    if (pobj_type(pobj) != POBJ_ENVELOPE) {
         return 0;
     }
 

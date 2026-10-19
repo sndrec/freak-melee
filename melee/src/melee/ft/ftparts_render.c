@@ -321,6 +321,9 @@ void ftParts_PObjSetupMtx(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)
     case POBJ_ENVELOPE:
         ftPartsSetupEnvelopeMtx(pobj, vmtx, pmtx, rendermode);
         break;
+    case POBJ_SEPARATE_ENVELOPES:
+        HSD_PObjSetupEnvelopeMatrices(pobj, vmtx, rendermode, ft_jobj_scale.mtx);
+        break;
     }
 }
 

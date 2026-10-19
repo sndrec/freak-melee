@@ -64,7 +64,8 @@ struct NativeSkinTextureReader {
 };
 bool nativeSkinMesh_ReadTexture(NativeSkinTextureReader&, NativeSkinPart&, NativeSkinCorner&, unsigned channel,
                                  unsigned selector, unsigned position_matrix,
-                                 const std::vector<NativeSkinWeights>& bindings);
+                                 const std::vector<NativeSkinWeights>& bindings,
+                                 const uint8_t* followers);
 bool nativeSkinMesh_InverseBind(const NativeFighterModelEditor&, unsigned joint,
                                 float output[3][4]);
 struct NativeAssetDat;

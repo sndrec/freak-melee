@@ -31,6 +31,7 @@ struct HSD_PObj {
         HSD_JObj* jobj;
         HSD_ShapeSet* shape_set;
         HSD_SList* envelope_list;
+        HSD_EnvelopeMatrices* matrices;
         struct _unk_struct_pobj* unk;
     } u;
 };
@@ -46,6 +47,7 @@ struct HSD_PObjDesc {
         HSD_Joint* joint;
         HSD_ShapeSetDesc* shape_set;
         HSD_EnvelopeDesc** envelope_p;
+        HSD_EnvelopeMatricesDesc* matrices;
     } u;
 };
 
@@ -72,6 +74,18 @@ struct HSD_Envelope {
 struct HSD_EnvelopeDesc {
     HSD_Joint* joint;
     f32 weight;
+};
+
+// Position/normal and generated-texture matrices have separate GX slots.
+// A texture's follower entry is its position slot, or 255 for a fixed binding.
+struct HSD_EnvelopeMatricesDesc {
+    HSD_EnvelopeDesc** positions;
+    HSD_EnvelopeDesc** textures;
+    u8 followers[10];
+};
+struct HSD_EnvelopeMatrices {
+    HSD_SList* positions;
+    HSD_SList* textures;
 };
 
 struct HSD_ShapeSet {
@@ -158,5 +172,7 @@ void HSD_PObjRemoveAll(HSD_PObj*);
 void HSD_PObjRemoveAnimByFlags(HSD_PObj* pobj, u32 flags);
 
 void HSD_PObjDisp(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode);
+void HSD_PObjSetupEnvelopeMatrices(HSD_PObj*, Mtx view, u32 rendermode,
+                                   MtxPtr normal_adjustment);
 
 #endif

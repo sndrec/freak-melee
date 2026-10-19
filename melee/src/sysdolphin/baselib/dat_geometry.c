@@ -32,6 +32,8 @@ u32 HSD_DatVertexElementBytes(const HSD_VtxDescList* v)
 
 bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
 {
+    if (pobj_type(polygon) == POBJ_SEPARATE_ENVELOPES &&
+        !HSD_DatValidateEnvelopeMatrices(polygon)) return false;
     HSD_VtxDescList* ordered[GX_VA_TEX7 + 1] = { 0 };
     u32 sizes[GX_VA_TEX7 + 1] = { 0 };
     const u8* display = polygon->display;

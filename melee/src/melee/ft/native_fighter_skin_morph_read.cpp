@@ -159,7 +159,7 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                 else if (!(morph.flags & SHAPESET_SKIN) && attr.attr >= GX_VA_TEX0MTXIDX &&
                          attr.attr <= GX_VA_TEX7MTXIDX &&
                          !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, attr.attr-GX_VA_TEX0MTXIDX,
-                                                      cursor[0], 0, part->bindings)) return false;
+                                                      cursor[0], 0, part->bindings, nullptr)) return false;
                 cursor += attr.display_bytes;
             }
             if (vertex >= morph.position_count || (morph.normal_count && corner.normal_index >= morph.normal_count)) return false;
@@ -184,11 +184,19 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
     std::vector<bool> assigned(morph.position_count);
     size_t corner_index = 0;
     for (const HSD_PObjDesc* batch = shape.skin; batch; batch = batch->next) {
-        std::vector<NativeSkinWeights> bindings;
-        for (unsigned i = 0; batch->u.envelope_p[i]; ++i) {
+        const bool separate = pobj_type(batch) == POBJ_SEPARATE_ENVELOPES;
+        auto* position_table = separate ? batch->u.matrices->positions : batch->u.envelope_p;
+        auto* texture_table = separate ? batch->u.matrices->textures : position_table;
+        std::vector<NativeSkinWeights> bindings, textures_weights;
+        for (unsigned i = 0; position_table[i]; ++i) {
             NativeSkinWeights weights;
-            if (!envelope(batch->u.envelope_p[i], joints, &weights)) return false;
+            if (!envelope(position_table[i], joints, &weights)) return false;
             bindings.push_back(weights);
+        }
+        if (separate) for (unsigned i = 0; texture_table[i]; ++i) {
+            NativeSkinWeights weights;
+            if (!envelope(texture_table[i], joints, &weights)) return false;
+            textures_weights.push_back(weights);
         }
         cursor = batch->display; end = cursor + size_t(batch->n_display)*32;
         while (cursor < end) {
@@ -222,7 +230,8 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                 for (unsigned channel = 0; channel < 8; ++channel)
                     if ((texture_mask & (1u << channel)) &&
                         !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, channel, textures[channel],
-                                                     matrix, bindings)) return false;
+                            matrix, separate ? textures_weights : bindings,
+                            separate ? batch->u.matrices->followers : nullptr)) return false;
                 const unsigned vertex = part->corners[corner_index].vertex-first_vertex;
                 auto& weights = mesh->vertices[first_vertex+vertex].skin;
                 if (assigned[vertex] && !nativeSkinWeights_Equal(&weights, &bindings[matrix])) return false;

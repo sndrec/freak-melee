@@ -4,7 +4,8 @@
 bool nativeSkinMesh_ReadTexture(NativeSkinTextureReader& reader, NativeSkinPart& part, NativeSkinCorner& corner,
                                  unsigned channel, unsigned selector,
                                  unsigned position_matrix,
-                                 const std::vector<NativeSkinWeights>& bindings)
+                                 const std::vector<NativeSkinWeights>& bindings,
+                                 const uint8_t* followers)
 {
     if (channel >= 8) return false;
     if (selector == 60) {
@@ -14,7 +15,8 @@ bool nativeSkinMesh_ReadTexture(NativeSkinTextureReader& reader, NativeSkinPart&
     if (selector < 30 || selector >= 60 || selector % 3) return false;
     const unsigned matrix = (selector - 30) / 3;
     if (matrix >= bindings.size()) return false;
-    if (matrix == position_matrix) {
+    if (followers ? followers[matrix] != 255 : matrix == position_matrix) {
+        if (followers && followers[matrix] != position_matrix) return false;
         corner.textures[channel] = NATIVE_SKIN_TEXTURE_FOLLOW;
         return true;
     }

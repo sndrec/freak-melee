@@ -26,13 +26,19 @@ void real(NativeAssetDat& dat, u32 offset, float value)
 {
     u32 bits; std::memcpy(&bits, &value, 4); dat.word(offset, bits);
 }
-unsigned palette_slot(const NativeSkinChunk& chunk, const NativeSkinWeights& weights,
-                       uint32_t texture = NATIVE_SKIN_TEXTURE_FOLLOW)
+unsigned palette_slot(const NativeSkinChunk& chunk, const NativeSkinWeights& weights)
 {
     unsigned slot = 0;
     while (slot < chunk.bindings.size() &&
+           !nativeSkinWeights_Equal(&chunk.bindings[slot], &weights)) ++slot;
+    return slot;
+}
+unsigned texture_slot(const NativeSkinChunk& chunk, const NativeSkinWeights& weights, uint32_t texture)
+{
+    unsigned slot = 0;
+    while (slot < chunk.texture_bindings.size() &&
            (chunk.texture_ids[slot] != texture ||
-            !nativeSkinWeights_Equal(&chunk.bindings[slot], &weights))) ++slot;
+            !nativeSkinWeights_Equal(&chunk.texture_bindings[slot], &weights))) ++slot;
     return slot;
 }
 }
@@ -43,6 +49,7 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
                   const NativeSkinMorphEncoded* morph, uint32_t* polygon)
 {
     const auto& source = model.dat;
+    const bool separate = !chunk.texture_bindings.empty();
     const u8* attribute_data=part.attribute_bytes.empty()?source.data:part.attribute_bytes.data();
     std::unordered_map<unsigned, u16> position_indices;
     if (local_positions) {
@@ -96,12 +103,15 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
             } else if (attr.attr >= 1 && attr.attr <= 8) {
                 const uint32_t texture = corner.textures[attr.attr-1];
                 if (texture == NATIVE_SKIN_TEXTURE_IDENTITY) display.push_back(60);
-                else if (texture == NATIVE_SKIN_TEXTURE_FOLLOW)
-                    display.push_back((u8)(30 + chunk.slots[i] * 3));
                 else {
-                    if (texture >= part.texture_bindings.size()) return false;
-                    const unsigned slot = palette_slot(chunk, part.texture_bindings[texture], texture);
-                    if (slot >= chunk.bindings.size()) return false;
+                    unsigned slot = chunk.slots[i];
+                    if (separate) {
+                        if (texture != NATIVE_SKIN_TEXTURE_FOLLOW && texture >= part.texture_bindings.size()) return false;
+                        const auto& weights = texture == NATIVE_SKIN_TEXTURE_FOLLOW ?
+                            skin.vertices[corner.vertex].skin : part.texture_bindings[texture];
+                        slot = texture_slot(chunk, weights, texture);
+                        if (slot >= chunk.texture_bindings.size()) return false;
+                    } else if (texture != NATIVE_SKIN_TEXTURE_FOLLOW) return false;
                     display.push_back((u8)(30 + slot * 3));
                 }
             } else if (attr.attr != 0) {
@@ -137,12 +147,10 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
         else dat.link(at + 20, 0);
     }
     dat.word(descriptors + descriptor * 24, 255);
-    for (unsigned slot = 0; slot < chunk.bindings.size(); ++slot) {
-        const auto& weights = chunk.bindings[slot];
+    auto write_binding = [&](const NativeSkinWeights& weights) -> u32 {
         const unsigned count = weights.count == 1 ? 2 : weights.count;
         const u32 entries = dat.allocate((count + 1) * 8);
-        if (entries == UINT32_MAX) return false;
-        dat.link(table + slot * 4, entries);
+        if (entries == UINT32_MAX) return UINT32_MAX;
         unsigned first = 0;
         for (unsigned i = 1; i < weights.count; ++i)
             if (weights.weights[i] < weights.weights[first]) first = i;
@@ -150,9 +158,36 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
             const unsigned from = weights.count == 1 ? 0 : i == 0 ? first : i <= first ? i - 1 : i;
             const unsigned bone = weights.joints[from];
             const u32 offset = model.joints[bone].offset;
-            if(!nativeSkinMesh_EnsureInverseBind(dat,model,bone))return false;
+            if(!nativeSkinMesh_EnsureInverseBind(dat,model,bone))return UINT32_MAX;
             dat.link_local(entries + i * 8, offset);
             real(dat, entries + i * 8 + 4, weights.count == 1 ? .5f : weights.weights[from]);
+        }
+        return entries;
+    };
+    std::vector<u32> position_entries;
+    for (const auto& weights : chunk.bindings) {
+        const u32 entries = write_binding(weights);
+        if (entries == UINT32_MAX) return false;
+        dat.link(table + position_entries.size()*4, entries);
+        position_entries.push_back(entries);
+    }
+    u32 matrix_data = table;
+    if (separate) {
+        const u32 textures = dat.allocate((chunk.texture_bindings.size()+1)*4);
+        matrix_data = dat.allocate(20);
+        if (textures == UINT32_MAX || matrix_data == UINT32_MAX) return false;
+        dat.link(matrix_data, table); dat.link(matrix_data+4, textures);
+        std::memset(dat.data.data()+matrix_data+8, 255, 10);
+        for (unsigned slot = 0; slot < chunk.texture_bindings.size(); ++slot) {
+            u32 entries;
+            if (chunk.texture_ids[slot] == NATIVE_SKIN_TEXTURE_FOLLOW) {
+                const unsigned position = palette_slot(chunk, chunk.texture_bindings[slot]);
+                if (position >= position_entries.size()) return false;
+                entries = position_entries[position];
+                dat.data[matrix_data+8+slot] = (u8)position;
+            } else entries = write_binding(chunk.texture_bindings[slot]);
+            if (entries == UINT32_MAX) return false;
+            dat.link(textures+slot*4, entries);
         }
     }
     u32 name; const char* external;
@@ -160,9 +195,10 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
     if (!morph && name_kind == HSD_DAT_REF_LOCAL) dat.link_local(*polygon, name);
     else if (!morph && name_kind != HSD_DAT_REF_NULL) return false;
     dat.link(*polygon + 8, descriptors);
-    dat.half(*polygon + 12, (part.flags & ~0x3000) | POBJ_ENVELOPE);
+    dat.half(*polygon + 12, (part.flags & ~0x3000) |
+        (separate ? POBJ_SEPARATE_ENVELOPES : POBJ_ENVELOPE));
     dat.half(*polygon + 14, (u16)(display.size() / 32));
-    dat.link(*polygon + 16, commands); dat.link(*polygon + 20, table);
+    dat.link(*polygon + 16, commands); dat.link(*polygon + 20, matrix_data);
     if (local_positions) {
         NativeMeshVertexIdRow row = { (uint32_t)*polygon, {} };
         row.ids.reserve(chunk.corners.size());
@@ -236,38 +272,48 @@ bool nativeSkinMesh_Encode(NativeAssetDat& dat, const NativeFighterModelEditor& 
             chunk = {}; return true;
         };
         for (unsigned start = 0; start < part.triangles.size(); start += 3) {
-            const NativeSkinWeights* requested[27];
+            const bool separate = !part.texture_bindings.empty();
+            const NativeSkinWeights* requested[3];
+            const NativeSkinWeights* textures[27];
             uint32_t texture_ids[27];
-            unsigned count = 0;
-            auto request = [&](const NativeSkinWeights& weights, uint32_t texture) {
-                for (unsigned i = 0; i < count; ++i)
-                    if (texture_ids[i] == texture && nativeSkinWeights_Equal(requested[i], &weights)) return;
-                requested[count] = &weights; texture_ids[count++] = texture;
-            };
+            unsigned count = 0, texture_count = 0;
             for (unsigned c = 0; c < 3; ++c) {
                 const auto& corner = part.corners[part.triangles[start+c]];
-                request(skin.vertices[corner.vertex].skin, NATIVE_SKIN_TEXTURE_FOLLOW);
+                const auto& position = skin.vertices[corner.vertex].skin;
+                unsigned index = 0;
+                while (index < count && !nativeSkinWeights_Equal(requested[index], &position)) ++index;
+                if (index == count) requested[count++] = &position;
+                if (!separate) continue;
                 for (const auto& attr : part.attributes) {
                     if (attr.attr < 1 || attr.attr > 8) continue;
                     const uint32_t texture = corner.textures[attr.attr-1];
-                    if (texture >= NATIVE_SKIN_TEXTURE_IDENTITY) continue;
-                    if (texture >= part.texture_bindings.size()) return false;
-                    request(part.texture_bindings[texture], texture);
+                    if (texture == NATIVE_SKIN_TEXTURE_IDENTITY) continue;
+                    if (texture != NATIVE_SKIN_TEXTURE_FOLLOW && texture >= part.texture_bindings.size()) return false;
+                    const auto& weights = texture == NATIVE_SKIN_TEXTURE_FOLLOW ? position : part.texture_bindings[texture];
+                    unsigned t = 0;
+                    while (t < texture_count && (texture_ids[t] != texture ||
+                        !nativeSkinWeights_Equal(textures[t], &weights))) ++t;
+                    if (t == texture_count) {
+                        textures[texture_count] = &weights;texture_ids[texture_count++] = texture;
+                    }
                 }
             }
-            // Ten GX matrix slots serve both positions and generated texture
-            // coordinates. A triangle's independent attachments stay together.
-            if (count > 10) return false;
-            unsigned additional = 0;
+            // GX has independent ten-slot position/normal and texture sets.
+            // Keep every triangle together within each set's actual limit.
+            if (texture_count > 10) return false;
+            unsigned additional = 0, additional_textures = 0;
             for (unsigned i = 0; i < count; ++i)
-                additional += palette_slot(chunk, *requested[i], texture_ids[i]) == chunk.bindings.size();
-            if ((chunk.bindings.size() + additional > 10 || chunk.corners.size() + 3 > max_corners) && !flush()) return false;
-            for (unsigned i = 0; i < count; ++i) {
-                if (palette_slot(chunk, *requested[i], texture_ids[i]) == chunk.bindings.size()) {
-                    chunk.bindings.push_back(*requested[i]);
-                    chunk.texture_ids.push_back(texture_ids[i]);
+                additional += palette_slot(chunk, *requested[i]) == chunk.bindings.size();
+            for (unsigned i = 0; i < texture_count; ++i)
+                additional_textures += texture_slot(chunk, *textures[i], texture_ids[i]) == chunk.texture_bindings.size();
+            if ((chunk.bindings.size()+additional > 10 || chunk.texture_bindings.size()+additional_textures > 10 ||
+                 chunk.corners.size()+3 > max_corners) && !flush()) return false;
+            for (unsigned i = 0; i < count; ++i)
+                if (palette_slot(chunk, *requested[i]) == chunk.bindings.size()) chunk.bindings.push_back(*requested[i]);
+            for (unsigned i = 0; i < texture_count; ++i)
+                if (texture_slot(chunk, *textures[i], texture_ids[i]) == chunk.texture_bindings.size()) {
+                    chunk.texture_bindings.push_back(*textures[i]);chunk.texture_ids.push_back(texture_ids[i]);
                 }
-            }
             for (unsigned c = 0; c < 3; ++c) {
                 const unsigned corner = part.triangles[start + c];
                 const auto& weights = skin.vertices[part.corners[corner].vertex].skin;

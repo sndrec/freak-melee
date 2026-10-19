@@ -288,11 +288,21 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
         case POBJ_ENVELOPE:
             obj->u.envelope_p = HSD_DatImportList(import, offset + 20, DAT_ENVELOPE_TABLE);
             break;
+        case POBJ_SEPARATE_ENVELOPES:
+            obj->u.matrices = HSD_DatImportReference(import, offset + 20, DAT_ENVELOPE_MATRICES, 1);
+            break;
         default:
             import->status = HSD_DAT_DESCRIPTOR;
             import->error_offset = offset;
             break;
         }
+        break;
+    }
+    case DAT_ENVELOPE_MATRICES: {
+        HSD_EnvelopeMatricesDesc* obj = record->object;
+        obj->positions = HSD_DatImportList(import, offset, DAT_ENVELOPE_TABLE);
+        obj->textures = HSD_DatImportList(import, offset + 4, DAT_ENVELOPE_TABLE);
+        memcpy(obj->followers, HSD_DatBytes(dat, offset + 8, 10), 10);
         break;
     }
     case DAT_MATRIX: {

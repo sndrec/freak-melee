@@ -1,6 +1,6 @@
 # Freak Melee: current project plan
 
-Updated: 2026-10-17. This is the current product contract and work list.
+Updated: 2026-10-19. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
@@ -253,8 +253,11 @@ import, materials, rigging and skinning, not mesh modeling.
   including when position weights temporarily match them. The current native
   suites and retail batch pass. A reflected-texture fixture is pixel-identical
   after rewriting at two native poses; an incorrect attachment changes 12,944
-  pixels. Triangles exceeding ten combined matrix slots,
-  differing texture normal bases and unusual helper model-node domains remain open.
+  pixels. [Separate position and texture tables](melee/docs/native_separate_envelopes_checkpoint.md)
+  now remove the shared ten-slot restriction, including painting a triangle with
+  nine fixed texture attachments and several position bindings. Each table retains
+  its own ten-slot draw limit. Differing texture normal bases and unusual helper
+  model-node domains remain open.
   [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
   shares one runtime evaluator between drawing, picking, highlighting and
   posed-corner queries. Complete/additive native hover reviews pass. The
