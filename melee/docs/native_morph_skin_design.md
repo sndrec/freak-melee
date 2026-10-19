@@ -4,8 +4,10 @@ The runtime and authoring reader/writer combine morph targets with envelope
 skinning. Weight painting preserves complete/additive targets and their normal
 seams. See the [painting checkpoint](native_morph_paint_checkpoint.md). GLB
 position/normal targets and named source reimport now have
-[runtime and native UI evidence](native_gltf_morph_checkpoint.md). Larger morph
-capacities and additional target channels remain open.
+[runtime and native UI evidence](native_gltf_morph_checkpoint.md).
+[Larger morph meshes](native_morph_capacity_checkpoint.md) support 65,536 logical
+position/normal entries. Further physical-index capacity and additional target
+channels remain open.
 
 ## Required behavior
 
@@ -75,7 +77,8 @@ GLB position and normal targets use the painting writer, with signed additive
 evaluation, initial weights and stable names. Keep binding reimport retains
 named target indices and appends newly exported targets. Additional tangent,
 UV and color channels need representation work; the current importer rejects
-them. Existing fixed morph scratch capacities also remain a storage boundary.
+them. The scratch covers the full 16-bit logical range, including NBT triples.
+Physical target arrays still share their 16-bit index range across all targets.
 
 ## Acceptance
 

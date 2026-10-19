@@ -71,7 +71,9 @@ std::vector<float> runtime(NativeFighterProject& project,uint32_t mesh_offset,co
     std::vector<float> result;
     for(unsigned pose=0;pose<4;++pose) {
         if(pose)for(unsigned t=0;t<shape->nb_shape;++t)shape->blend.bp[t]=pose==1?0:pose==2?-.4f+.65f*t:1.25f-.1f*t;
-        float positions[HSD_DEFAULT_MAX_SHAPE_VERTICES][3],normals[HSD_DEFAULT_MAX_SHAPE_NORMALS][3];
+        std::vector<std::array<float,3>> positions_storage(shape->nb_vertex_index), normals_storage(size_t(shape->nb_normal_index)*3);
+        auto* positions=reinterpret_cast<float(*)[3]>(positions_storage.data());
+        auto* normals=reinterpret_cast<float(*)[3]>(normals_storage.data());
         check(HSD_ShapeSetEvaluate(shape,positions,normals));
         if(oracle) {
             const auto* pos=attribute(primitive.attributes,primitive.attributes_count,cgltf_attribute_type_position);
@@ -115,12 +117,14 @@ std::vector<float> runtime(NativeFighterProject& project,uint32_t mesh_offset,co
     nativeModelView_Clear();HSD_JObjRemoveAll(root);std::free(imported.arena);return result;
 }
 
-void run(const std::filesystem::path& base,const std::filesystem::path& fixtures,NativeGltfBindingMode binding)
+void run(const std::filesystem::path& base,const std::filesystem::path& fixtures,NativeGltfBindingMode binding,bool large=false)
 {
-    const auto folder=fixtures/("case-"+std::to_string(binding));std::filesystem::create_directory(folder);
+    const std::string prefix=large?"large-":"";
+    const auto folder=fixtures/(prefix+"case-"+std::to_string(binding));std::filesystem::create_directory(folder);
     std::filesystem::copy(base,folder,std::filesystem::copy_options::recursive);
     NativeFighterProject project={};check(nativeFighterProject_Open(folder.string().c_str(),&project));
-    const auto original=fixtures/(binding==NATIVE_GLTF_BIND_SOURCE?"skin.glb":"original.glb");Source source(original);
+    const auto original=fixtures/(large?(binding==NATIVE_GLTF_BIND_SOURCE?"large-skin.glb":"large.glb"):
+        (binding==NATIVE_GLTF_BIND_SOURCE?"skin.glb":"original.glb"));Source source(original);
     NativeGltfImportRequest request={0,0,UINT_MAX,binding,1.25f,false};
     check(nativeFighterGltf_ApplyBatch(&project,original.string().c_str(),&request,1,error,sizeof(error)));
     auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
@@ -149,7 +153,7 @@ void run(const std::filesystem::path& base,const std::filesystem::path& fixtures
     runtime(project,offset,source,true);
     check(nativeFighterModel_Open(model.get(),&project));mesh=ordinal(*model,offset);
     NativeSkinMesh saved;check(nativeSkinMesh_Read(*model,mesh,&saved,error,sizeof(error)));
-    const auto update=fixtures/(binding==NATIVE_GLTF_BIND_SOURCE?"skin-reordered.glb":"reordered.glb");Source updated(update);
+    const auto update=fixtures/(prefix+(binding==NATIVE_GLTF_BIND_SOURCE?"skin-reordered.glb":"reordered.glb"));Source updated(update);
     request={0,model->meshes[mesh].joint,mesh,NATIVE_GLTF_BIND_KEEP,1.25f,false};
     check(nativeFighterGltf_ApplyBatch(&project,update.string().c_str(),&request,1,error,sizeof(error)));
     check(nativeFighterModel_Open(model.get(),&project));mesh=ordinal(*model,offset);NativeSkinMesh current;
@@ -160,7 +164,7 @@ void run(const std::filesystem::path& base,const std::filesystem::path& fixtures
     NativeFighterCoreAssetState stable;check(nativeFighterCoreAssets_Capture(project,stable));
     const char* rejected[][2]={{"missing.glb","missing morph target"},{"bad-count.glb","Could not parse"},
         {"nan.glb","finite vectors"},{"tangent.glb","supports position and normal"}};
-    for(const auto& item:rejected) {
+    if(!large)for(const auto& item:rejected) {
         check(!nativeFighterGltf_ApplyBatch(&project,(fixtures/item[0]).string().c_str(),&request,1,error,sizeof(error)));
         check(std::strstr(error,item[1])!=nullptr);
         check(nativeFighterCoreAssets_Matches(project,stable));
@@ -189,8 +193,9 @@ void defaults_case(const std::filesystem::path& base,const std::filesystem::path
 }
 int main(int argc,char** argv)
 {
-    try {check(argc==3);HSD_ObjInit();for(auto binding:{NATIVE_GLTF_BIND_RIGID,NATIVE_GLTF_BIND_AUTOMATIC,NATIVE_GLTF_BIND_SOURCE})
-        run(std::filesystem::absolute(argv[1]),std::filesystem::absolute(argv[2]),binding);
+    try {check(argc==3);HSD_ObjInit();for(bool large:{false,true})
+        for(auto binding:{NATIVE_GLTF_BIND_RIGID,NATIVE_GLTF_BIND_AUTOMATIC,NATIVE_GLTF_BIND_SOURCE})
+            run(std::filesystem::absolute(argv[1]),std::filesystem::absolute(argv[2]),binding,large);
         for(const char* name:{"mesh-default","zero","anonymous","mirrored"})
             defaults_case(std::filesystem::absolute(argv[1]),std::filesystem::absolute(argv[2]),name);
         std::printf("PASS: %u GLB morph import, signed/default weights, rest, history and reimport checks\n",checks);return 0;

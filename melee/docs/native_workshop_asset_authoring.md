@@ -53,10 +53,11 @@ Each vertex uses the same bone weights in every target. Its target positions
 and lighting vectors stay intact. Save keeps the painted model; Undo restores
 the complete previous costume.
 
-Morph meshes currently allow 2,000 positions and 2,000 lighting vectors. A
-normal, tangent and bitangent count as three vectors. Vertices with different weights can
-need separate normal entries; an edit that exceeds capacity leaves the draft
-unchanged.
+Morph meshes allow 65,536 positions and 65,536 normal entries. Each normal entry
+can also contain a tangent and bitangent. The targets share a limit of 65,536
+distinct stored position vectors and 65,536 distinct stored lighting entries.
+Vertices with different weights can need separate normal entries; an edit that
+exceeds capacity leaves the draft unchanged.
 
 ## Reimport an edited model
 

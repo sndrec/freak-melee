@@ -63,7 +63,7 @@ bool nativeFighterGltf_EncodeMorph(NativeAssetDat& dat,const NativeFighterModelE
     const auto* primitive=input.primitive;
     const unsigned vertices=(unsigned)(input.positions.size()/3);
     const size_t targets=primitive->targets_count;
-    if(!vertices || vertices>HSD_DEFAULT_MAX_SHAPE_VERTICES || vertices>HSD_DEFAULT_MAX_SHAPE_NORMALS ||
+    if(!vertices || vertices>HSD_MAX_SHAPE_VERTICES || vertices>HSD_MAX_SHAPE_NORMALS ||
         !targets || targets>UINT16_MAX || (targets+1)*vertices*3>FT_COSTUME_IMPORT_MAX_ARENA_SIZE/sizeof(float))
         return fail("This morph mesh exceeds the current position, normal or target storage capacity.");
     if((input.node && input.node->weights_count && input.node->weights_count!=targets) ||

@@ -57,6 +57,8 @@ targets, normal seams and animation controllers. Native Save/Undo/Redo checks
 pass; see the [morph painting checkpoint](native_morph_paint_checkpoint.md).
 GLB position/normal morphs retain source defaults and stable named target slots
 through source reimport; see the [GLB morph checkpoint](native_gltf_morph_checkpoint.md).
+The shared morph capacity now covers 65,536 logical position/normal entries
+without enlarging rollback state; see the [capacity checkpoint](native_morph_capacity_checkpoint.md).
 
 Frozen editing uses a character-centered void preview with axes and camera
 controls, without match HUD. Test Character restarts normal grid practice with
@@ -85,7 +87,7 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 ## Required implementation gaps
 
 1. Remaining unusual helper-node and independent texture-matrix binding domains.
-2. Larger morph capacities and additional tangent/UV/color target channels.
+2. Morph physical-index capacity and additional tangent/UV/color target channels.
 3. Remaining room/release acceptance in the project plan. Coordinated outfits now
    pass [current room matches](native_outfit_match_checkpoint.md), including four
    Ice Climbers slots across two PCs. Source-only single/paired fighter delivery and independent

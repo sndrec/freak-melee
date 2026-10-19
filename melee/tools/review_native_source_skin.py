@@ -67,8 +67,10 @@ class Glb:
         a=dict(componentType=component,count=count,type=kind)
         if normalized:a['normalized']=True
         if sparse:
-            a['sparse']=dict(count=count,indices=dict(bufferView=self.view(bytes(range(count))),
-                componentType=5121),values=dict(bufferView=self.view(data)))
+            index_type,index_format=(5121,'B') if count<=256 else (5123,'H') if count<=65536 else (5125,'I')
+            index_data=struct.pack('<'+index_format*count,*range(count))
+            a['sparse']=dict(count=count,indices=dict(bufferView=self.view(index_data),
+                componentType=index_type),values=dict(bufferView=self.view(data)))
         else:a['bufferView']=self.view(data)
         self.doc['accessors'].append(a)
         return len(self.doc['accessors'])-1

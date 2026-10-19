@@ -13,30 +13,32 @@ from review_native_source_skin import Glb, mul, inverse, column_major, hashes
 
 
 def fixture(path, joints, *, skinned=False, reordered=False, fault=None,
-            defaults='node', anonymous=False, mirrored=False):
+            defaults='node', anonymous=False, mirrored=False, count=4):
     g = Glb()
     unit = 1.25 if skinned else 1
-    points = [(-3, 1, 0), (2, 1, 0), (2, 6, .25), (-3, 6, -.5)]
-    pos = g.accessor([c/unit for p in points for c in p], 5126, 4, 'VEC3')
+    base = [(-3, 1, 0), (2, 1, 0), (2, 6, .25), (-3, 6, -.5)]
+    points = [(base[i % 4][0]+(i//4 % 50)*.125, base[i % 4][1]+(i//200)*.125,
+               base[i % 4][2]+(i//4)*.00001) for i in range(count)]
+    pos = g.accessor([c/unit for p in points for c in p], 5126, count, 'VEC3')
     g.doc['accessors'][pos].update(min=[min(p[c] for p in points)/unit for c in range(3)],
                                    max=[max(p[c] for p in points)/unit for c in range(3)])
-    attributes = dict(POSITION=pos, NORMAL=g.accessor([0, 0, 1]*4, 5126, 4, 'VEC3'),
-                      TEXCOORD_0=g.accessor([0, 0, 1, 0, 1, 1, 0, 1], 5126, 4, 'VEC2'))
+    attributes = dict(POSITION=pos, NORMAL=g.accessor([0, 0, 1]*count, 5126, count, 'VEC3'),
+                      TEXCOORD_0=g.accessor([0, 0, 1, 0, 1, 1, 0, 1]*(count//4), 5126, count, 'VEC2'))
     targets = {}
     for name in ('Wide', 'Lean', 'Blink'):
         target = {}
         if name != 'Lean':
-            values = [c/unit for i in range(4) for c in (.3*(i+1), .1*i, -.05*i)]
+            values = [c/unit for i in range(count) for c in (.3*(i+1)*4/count, .1*(i % 4), -.05*(i % 4))]
             if fault == 'nan' and name == 'Wide':
                 values[0] = float('nan')
-            count = 3 if fault == 'bad-count' and name == 'Wide' else 4
-            target['POSITION'] = g.accessor(values[:count*3], 5126, count, 'VEC3', sparse=name == 'Wide')
+            target_count = count-1 if fault == 'bad-count' and name == 'Wide' else count
+            target['POSITION'] = g.accessor(values[:target_count*3], 5126, target_count, 'VEC3', sparse=name == 'Wide')
             g.doc['accessors'][target['POSITION']].update(
-                min=[min(v for v in values[c:count*3:3] if math.isfinite(v)) for c in range(3)],
-                max=[max(v for v in values[c:count*3:3] if math.isfinite(v)) for c in range(3)])
+                min=[min(v for v in values[c:target_count*3:3] if math.isfinite(v)) for c in range(3)],
+                max=[max(v for v in values[c:target_count*3:3] if math.isfinite(v)) for c in range(3)])
         if name != 'Blink':
-            target['NORMAL'] = g.accessor([c for i in range(4) for c in (.025*i, -.04*(i+1), .05)],
-                                          5126, 4, 'VEC3', sparse=name == 'Lean')
+            target['NORMAL'] = g.accessor([c for i in range(count) for c in (.025*(i % 4), -.04*(i % 4+1), .05)],
+                                          5126, count, 'VEC3', sparse=name == 'Lean')
         targets[name] = target
     names = ['Lean', 'Wide', 'Blink'] if reordered else ['Wide', 'Lean']
     if fault == 'missing':
@@ -44,7 +46,8 @@ def fixture(path, joints, *, skinned=False, reordered=False, fault=None,
     if fault == 'tangent':
         attributes['TANGENT'] = g.accessor([1, 0, 0, 1]*4, 5126, 4, 'VEC4')
         targets['Wide']['TANGENT'] = g.accessor([.1, 0, 0]*4, 5126, 4, 'VEC3')
-    primitive = dict(attributes=attributes, indices=g.accessor([0, 1, 2, 0, 2, 3], 5123, 6, 'SCALAR'),
+    indices = [i+v for i in range(0, count, 4) for v in (0, 1, 2, 0, 2, 3)]
+    primitive = dict(attributes=attributes, indices=g.accessor(indices, 5123, len(indices), 'SCALAR'),
                      targets=[targets[name] for name in names])
     mesh = dict(name='Expressions', primitives=[primitive], extras=dict(targetNames=names),
                 weights=[dict(Wide=.3, Lean=.45, Blink=.1)[name] for name in names])
@@ -69,9 +72,9 @@ def fixture(path, joints, *, skinned=False, reordered=False, fault=None,
         binds = g.accessor([v for matrix in source_inverse for v in column_major(matrix)],
                            5126, len(joints), 'MAT4')
         g.doc['skins'] = [dict(joints=list(range(1, len(joints)+1)), inverseBindMatrices=binds, skeleton=0)]
-        attributes['JOINTS_0'] = g.accessor([0, 1, 0, 0]*4, 5123, 4, 'VEC4')
-        attributes['WEIGHTS_0'] = g.accessor([v for i in range(4) for v in (.25+.1*i, .75-.1*i, 0, 0)],
-                                            5126, 4, 'VEC4')
+        attributes['JOINTS_0'] = g.accessor([0, 1, 0, 0]*count, 5123, count, 'VEC4')
+        attributes['WEIGHTS_0'] = g.accessor([v for i in range(count) for v in (.25+.1*(i % 4), .75-.1*(i % 4), 0, 0)],
+                                            5126, count, 'VEC4')
     node = dict(mesh=0, matrix=column_major([[1.2, -.3, .15, 3], [.2, .8, -.1, 2], [0, .1, 1.5, -1]]),
                 weights=[dict(Wide=-.25, Lean=1.3, Blink=.2)[name] for name in names])
     if skinned:
@@ -123,6 +126,10 @@ def main():
         fixture(output/(name+'.glb'), joints, **options)
     for fault in ('missing', 'bad-count', 'nan', 'tangent'):
         fixture(output/(fault+'.glb'), joints, fault=fault, reordered=fault != 'missing')
+    for name, options in [('large', {}), ('large-reordered', dict(reordered=True)),
+                          ('large-skin', dict(skinned=True)),
+                          ('large-skin-reordered', dict(skinned=True, reordered=True))]:
+        fixture(output/(name+'.glb'), joints, count=12000, **options)
     result = subprocess.run([str(args.test.resolve()), str(args.draft.resolve()), str(output)],
         capture_output=True, text=True, encoding='utf-8', env=env, creationflags=subprocess.CREATE_NO_WINDOW)
     receipt = dict(status='PASS' if result.returncode == 0 else 'FAIL', exit_code=result.returncode,

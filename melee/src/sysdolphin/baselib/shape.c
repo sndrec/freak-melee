@@ -112,10 +112,8 @@ bool HSD_ShapeSetEvaluate(const HSD_ShapeSet* shape, f32 (*positions)[3], f32 (*
        ((shape->flags&3)!=SHAPESET_AVERAGE && (shape->flags&3)!=SHAPESET_ADDITIVE) ||
        (shape->nb_vertex_index && (!shape->vertex_desc || !shape->vertex_idx_list)) ||
        (normals && shape->nb_normal_index && (!shape->normal_desc || !shape->normal_idx_list)) ||
-       shape->nb_vertex_index<0 || shape->nb_vertex_index>HSD_DEFAULT_MAX_SHAPE_VERTICES ||
-       shape->nb_normal_index<0 || shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS ||
-       (shape->nb_normal_index && shape->normal_desc && shape->normal_desc->attr==GX_VA_NBT &&
-        shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS/3) ||
+       shape->nb_vertex_index<0 || shape->nb_vertex_index>HSD_MAX_SHAPE_VERTICES ||
+       shape->nb_normal_index<0 || shape->nb_normal_index>HSD_MAX_SHAPE_NORMALS ||
        (!(shape->flags&SHAPESET_AVERAGE) && !shape->blend.bp))return false;
     evaluate_attribute(shape,false,positions);
     evaluate_attribute(shape,true,normals);

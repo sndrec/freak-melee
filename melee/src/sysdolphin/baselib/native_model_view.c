@@ -29,7 +29,7 @@ static bool override_visibility;
 static struct { const HSD_JObj* joint; u32 passes; } view_joints[512];
 static unsigned view_joint_count;
 #pragma clang section data = "" bss = ""
-static f32 shape_positions[HSD_DEFAULT_MAX_SHAPE_VERTICES][3];
+static f32 shape_positions[HSD_MAX_SHAPE_VERTICES][3];
 #pragma clang section data = ".mstate$m"
 
 void nativeModelView_Clear(void)

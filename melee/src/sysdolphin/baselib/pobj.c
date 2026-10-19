@@ -33,8 +33,8 @@ static HSD_PObjInfo* default_class = NULL;
 #ifdef MELEE_NATIVE
 #pragma clang section data = "" bss = ""
 #endif
-static f32 vertex_buffer[HSD_DEFAULT_MAX_SHAPE_VERTICES][3];
-static f32 normal_buffer[HSD_DEFAULT_MAX_SHAPE_NORMALS][3];
+static f32 vertex_buffer[HSD_MAX_SHAPE_VERTICES][3];
+static f32 normal_buffer[HSD_MAX_SHAPE_NORMAL_VECTORS][3];
 #ifdef MELEE_NATIVE
 #pragma clang section data = ".mstate$m"
 #endif

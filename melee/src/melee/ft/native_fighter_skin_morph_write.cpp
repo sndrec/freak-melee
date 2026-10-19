@@ -19,7 +19,7 @@ bool target_arrays(NativeAssetDat& dat, const std::vector<float>& source,
                      u32* descriptor, u32* table, uint32_t* array)
 {
     if (!components) { *descriptor = *table = *array = 0; return source.empty(); }
-    if (source.size() != size_t(targets)*old_count*components || logical.size() > UINT16_MAX) return false;
+    if (source.size() != size_t(targets)*old_count*components || logical.size() > size_t(UINT16_MAX)+1) return false;
     std::vector<float> physical;
     std::vector<u16> indices;
     std::map<std::array<u32, 9>, u16> lookup;
@@ -73,7 +73,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
     const u8* attribute_data=part.attribute_bytes.empty()?model.dat.data:part.attribute_bytes.data();
     const unsigned mode = morph.flags & 3;
     if ((mode != SHAPESET_AVERAGE && mode != SHAPESET_ADDITIVE) || !morph.shape_count ||
-        !morph.position_count || morph.position_count > HSD_DEFAULT_MAX_SHAPE_VERTICES ||
+        !morph.position_count || morph.position_count > HSD_MAX_SHAPE_VERTICES ||
         morph.vertices.size() != morph.position_count || part.triangles.empty() || part.triangles.size()%3) return false;
     std::vector<unsigned> positions(morph.position_count), normals(morph.normal_count);
     std::iota(positions.begin(), positions.end(), 0);
@@ -108,10 +108,10 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
             if (used_normal[corner.normal_index]) normals.push_back(corner.normal_index);
             used_normal[corner.normal_index] = true; normal_bindings.emplace(key, normal);
         }
-        if ((size_t(normal)+1)*(morph.normal_components/3) > HSD_DEFAULT_MAX_SHAPE_NORMALS) return false;
+        if (normal >= HSD_MAX_SHAPE_NORMALS) return false;
         out->corner_normals[i] = (u16)normal;
     }
-    if (normals.size()*size_t(morph.normal_components/3) > HSD_DEFAULT_MAX_SHAPE_NORMALS) return false;
+    if (normals.size() > HSD_MAX_SHAPE_NORMALS) return false;
     out->normal_components = morph.normal_components;
     const unsigned targets = morph.shape_count + (mode == SHAPESET_ADDITIVE);
     const bool properties=!morph.default_blend.empty() || !morph.target_names.empty();
