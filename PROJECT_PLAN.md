@@ -38,14 +38,17 @@ their own builds; their old "remaining" lists are not the current backlog.
   counts, browsing and joining by row. The host can change listing visibility.
   The [browser checkpoint](melee/docs/native_lobby_browser_checkpoint.md) records
   local verification. Account creation/sign-in should stay inside the program;
-  native Windows passkey handling and the account screens still need integration.
+  Windows passkey handling and the native account screens are implemented;
+  real Windows approval still needs interactive acceptance.
   Accounts, friends, inbox, invitations and service deployment remain open.
 - The account service now implements passkey registration/sign-in, recovery,
   key management and device-session revocation with persistent account IDs.
   The [account contract](melee/docs/native_account_auth.md) records storage,
-  API behavior and test scope. Native Windows passkey/HTTP handling, token
-  protection, account screens and social-identity integration remain open;
-  the service has not been deployed.
+  API behavior and test scope. Native HTTP/passkey handling, DPAPI session
+  storage, recovery export and account management screens are implemented.
+  Native contract checks and eight real local account-service checks pass.
+  Windows passkey ceremony acceptance and social-identity integration remain
+  open; the service has not been deployed.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the

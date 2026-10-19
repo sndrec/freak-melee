@@ -1,6 +1,7 @@
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
+#include "native_hub_account.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -349,8 +350,10 @@ namespace {
     {
         description("Your controls and profile.");
         nativeHub_Panel(175, 116, 430, 256);
-        nativeHub_Button("controls", "Controls & bindings", 193, 135, 392, 36,
+        nativeHub_Button("controls", "Controls & bindings", 193, 135, 187, 36,
                          HubAction::Controls, 0, true, nativeHome_IsSelection());
+        nativeHub_Button("settings-account", "Online account", 391, 135, 194, 36,
+                         HubAction::Account);
         nativeHub_Button("settings-rules", "Match rules", 193, 310, 187, 31,
                          HubAction::Rules, 0, false, nativeHome_IsSelection());
         nativeHub_Button("settings-costumes", "Costumes", 391, 310, 194, 31,
@@ -500,6 +503,9 @@ void nativeHub_RenderPage(NativeHubPage page)
         break;
     case NativeHubPage_Profile:
         profile();
+        break;
+    case NativeHubPage_Account:
+        nativeHubAccount_Render();
         break;
     case NativeHubPage_Send:
         send();
