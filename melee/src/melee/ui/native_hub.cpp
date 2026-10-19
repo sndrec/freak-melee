@@ -2,6 +2,7 @@
 #include "native_hub_hand.h"
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
+#include "native_hub_lobbies.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -41,7 +42,7 @@ namespace {
     const char* page_names[] = { "Quick Play",  "Lobbies", "Chatroom",
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
-                                 "Send fighter", "Lobby chat", "Stage select" };
+                                 "Send fighter", "Lobby chat", "Stage select", "Create lobby" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -494,6 +495,7 @@ void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
     if (nativeHubQuickStage_Activate(action,value)) return;
+    if (nativeHubLobbies_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
             unsigned(action) - unsigned(HubAction::QuickPlay)));
@@ -516,7 +518,7 @@ void nativeHub_Activate(HubAction action, int value)
         } else if (hub.page == NativeHubPage_QuickStage) {
             hub.dismissed = true;
             hub.visible = false;
-        } else if (hub.page == NativeHubPage_RoomChat) {
+        } else if (hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) {
             nativeHub_ChangePage(NativeHubPage_Lobbies, true);
         } else if (hub.opened_from_play && hub.page <= NativeHubPage_Settings) {
             hub.dismissed = true;
@@ -681,6 +683,9 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::FieldCode:
         text_focus(hub.code, sizeof(hub.code));
         break;
+    case HubAction::FieldLobbyTitle:
+        text_focus(hub.lobby_title, sizeof(hub.lobby_title));
+        break;
     case HubAction::FieldTitle:
         text_focus(hub.title, sizeof(hub.title));
         break;
@@ -725,6 +730,7 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::Join:
     case HubAction::Leave:
     case HubAction::StartMatch: {
+        if (action == HubAction::Join || action == HubAction::Leave) hub.pending_listing = false;
         if (action == HubAction::StartMatch && nativeOnlineSession_Quick()) {
             const auto* quick = nativeOnlineSession_Quick();
             if (!nativeOnlineSession_SearchQuick(quick->state == NativeQuickState_Idle))
@@ -985,6 +991,7 @@ extern "C" void nativeHub_Tick(void)
         }
     }
     hub.visible = hub.initialized && (selection || practice) && !tool && !hub.dismissed;
+    nativeHubLobbies_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
@@ -1115,7 +1122,8 @@ extern "C" void nativeHub_Draw(void)
                          352, 21, 132, 19, HubAction::Close);
     for (unsigned i = 0; i < 7; ++i) {
         float y = 88 + i * 38;
-        bool selected = unsigned(hub.page) == i || (hub.page == NativeHubPage_RoomChat && i == NativeHubPage_Lobbies);
+        bool selected = unsigned(hub.page) == i ||
+            ((hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
         nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover, page_names[i]);
         nativeMenuPaint_Begin(canvas);
@@ -1337,6 +1345,7 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strcmp(id, "hub-lobbies")) { nativeHubLobbies_Inspect(); return; }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
@@ -1404,6 +1413,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativeHubHand_Unload();
     nativeMenuScene_Unload();
     nativePlayMenu_Shutdown();
+    nativeHubLobbies_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();
         nativeMenuSkin_Release();

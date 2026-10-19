@@ -1,5 +1,6 @@
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
+#include "native_hub_lobbies.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -207,44 +208,21 @@ namespace {
         bool connected = state != NativeLobbySessionState_Disconnected &&
                          state != NativeLobbySessionState_Failed;
         if (!connected) {
-            nativeHub_Panel(175, 118, 430, 250);
-            nativeMenuPaint_Text("Create a lobby", 192, 137, 350, 15, gold,
-                                NativeMenuFont_MenuOption);
-            nativeMenuPaint_Text("Invite friends with your lobby code.", 192,
-                                161, 350, 9, muted);
-            nativeHub_Button("create-lobby", "Create lobby", 192, 185, 148, 30,
-                             HubAction::Create, 0, true);
-            nativeMenuPaint_Text("Join a lobby", 192, 239, 350, 15, gold,
-                                NativeMenuFont_MenuOption);
-            nativeHub_Field("lobby-code", hub.code, 192, 267, 240, 27,
-                            HubAction::FieldCode);
-            nativeHub_Button("join-lobby", "Join", 444, 267, 140, 27,
-                             HubAction::Join, 0, true,
-                             std::strlen(hub.code) >= 6);
-            nativeMenuPaint_Text("Players on this PC", 192, 315, 185, 10, gold);
-            for (unsigned players = 1; players <= 4; ++players) {
-                char label[2] = { char('0' + players), 0 };
-                char id[24];
-                std::snprintf(id, sizeof(id), "local-players-%u", players);
-                nativeHub_Button(id, label, 389 + (players - 1) * 48, 307, 42,
-                                 26, HubAction::LocalPlayers, players,
-                                 unsigned(hub.local_players) == players);
-            }
-            const char* failure = nativeOnlineSession_Failure();
-            if (failure && *failure) {
-                nativeMenuPaint_Text(failure, 190, 342, 400, 10, 0xF4A49DFF);
-            }
+            nativeHubLobbies_Render(false);
             return;
         }
         char heading[96];
-        std::snprintf(heading, sizeof(heading), "Lobby %s",
-                      code && *code ? code : "connecting...");
+        const auto* listing = nativeOnlineSession_Listing();
+        std::snprintf(heading, sizeof(heading), "%s", listing && listing->title[0] ? listing->title :
+                      code && *code ? code : "Connecting...");
         nativeMenuPaint_Text(heading, 181, 119, 194, 17, gold,
                             NativeMenuFont_MenuOption);
         nativeHub_Button("lobby-chat", "Chat", 388, 115, 94, 25, HubAction::RoomChat);
         nativeHub_Button("copy-code", "Copy code", 490, 115, 114, 25,
                          HubAction::CopyCode);
         nativeHub_Panel(175, 150, 430, 170);
+        if (listing && listing->title[0] && nativeOnlineSession_IsOwner() && !nativeOnlineSession_Quick())
+            nativeHub_Button("change-listing", listing->listed ? "Listed" : "Unlisted", 175, 400, 141, 17, HubAction::ChangeListing);
         const NativeSignalingPresence* p = nativeOnlineSession_Presence();
         const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
         float y = 161;
@@ -498,6 +476,9 @@ void nativeHub_RenderPage(NativeHubPage page)
         break;
     case NativeHubPage_QuickPlay:
         quick_play();
+        break;
+    case NativeHubPage_CreateLobby:
+        nativeHubLobbies_Render(true);
         break;
     case NativeHubPage_Lobbies:
         lobbies();

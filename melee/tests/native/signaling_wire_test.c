@@ -338,12 +338,49 @@ static void test_quick_wire(void)
     assert(!nativeSignalingWire_EncodeUnreadyQuick(42, bytes, 15));
 }
 
+static void test_lobby_directory(void)
+{
+    uint8_t bytes[2048];
+    NativeSignalingServerMessage decoded;
+    assert(nativeSignalingWire_EncodeLobbies(8, bytes, sizeof(bytes)) == 10);
+    assert(bytes[5] == 19 && bytes[8] == 0 && bytes[9] == 8);
+    assert(nativeSignalingWire_EncodeListing("Twilight's lobby", true, bytes, sizeof(bytes)));
+    assert(bytes[5] == 18 && bytes[8] == 16);
+    assert(!nativeSignalingWire_EncodeListing("", true, bytes, sizeof(bytes)));
+    assert(!nativeSignalingWire_EncodeListing("bad\nname", true, bytes, sizeof(bytes)));
+    size_t size = header(bytes, 0x8B);
+    put_u16(bytes + size, 8); size += 2;
+    put_u16(bytes + size, 9); size += 2;
+    bytes[size++] = 1;
+    size = string8(bytes, size, "BROWSE77");
+    size = string8(bytes, size, "Twilight's lobby");
+    size = string8(bytes, size, "Twilight");
+    size_t counts = size;
+    bytes[size++] = 3; bytes[size++] = 1; bytes[size++] = 2; bytes[size++] = 4; bytes[size++] = 0;
+    finish(bytes, size);
+    assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    assert(decoded.type == NativeSignalingServerMessage_Lobbies);
+    assert(decoded.data.directory.offset == 8 && decoded.data.directory.total == 9);
+    assert(!strcmp(decoded.data.directory.entries[0].title, "Twilight's lobby"));
+    for (size_t cut = 0; cut < size; ++cut) assert(!nativeSignalingWire_DecodeServer(bytes, cut, &decoded));
+    bytes[counts] = 5;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[counts] = 3; bytes[12] = 9;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    size = header(bytes, 0x8C); size = string8(bytes, size, "A lobby"); bytes[size++] = 1; finish(bytes, size);
+    assert(nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    assert(decoded.data.listing.listed && !strcmp(decoded.data.listing.title, "A lobby"));
+    bytes[size - 1] = 2;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+}
+
 int main(void)
 {
     test_client_encoding();
     test_server_decoding();
     test_chat_wire();
     test_quick_wire();
+    test_lobby_directory();
     puts("native signaling wire tests passed");
     return 0;
 }

@@ -12,6 +12,13 @@ alone does not meet this requirement. Add new artwork or components where the
 existing assets cannot express a feature. Detailed Workshop tools retain their
 existing interface.
 
+Every asset edit needs a specific base-game reference and a reason tied to
+matching it. Compare the original asset, the proposed result and that reference
+before accepting the edit. Preserve intentional shapes, colors, gradients,
+border widths, proportions and decorative details. Adapt existing components
+to the new functionality while retaining their visual language. An unusual
+shape or a resemblance to a letter is not evidence of an artwork error.
+
 The initial hub below uses custom procedural frames and controls. Its service
 and flow checks remain valid, but do not establish this asset-integration
 requirement. The stock hand, portraits and transition tracks are already reused.
@@ -23,6 +30,9 @@ their width. Stretch the middle section. Cut suitable baked artwork into
 reusable corners, edges and centers. New lobby controls should match the stock
 menus' colors, gradients and border widths; use source pieces where they suit
 the component rather than forcing every control into a complete stock asset.
+Retain intentional details in that artwork. In particular, the navigation
+ribbon's interior shape resembles a P; preserve it as part of the stock border.
+Discuss visual reinterpretations with the user before changing them.
 
 The first adapted pass now uses the stock background, panel frame, camera,
 lights and animated ribbons. Ribbon ends retain their proportions as the middle
@@ -361,6 +371,29 @@ Offline delivery stores letters, friend requests and invitations. Fighter
 sharing uses the connected lobby's content transfer, validation, cache and
 installation paths. Sign-in, recovery, storage limits and update presentation
 need concrete design before service implementation.
+
+The user prefers account creation and sign-in inside Freak Melee and asks us
+to minimize sensitive information held by the service. Evaluate native Windows
+WebAuthn/passkeys first: the game's account screens can invoke the Windows
+security prompt without launching a browser. Confirm registration, signing in
+on another PC and recovery before implementing this choice. Account identity
+and offline records remain server-side; a locally saved credential does not
+make the account local-only.
+
+## Lobby browser
+
+Lobbies lists named player-created lobbies for the running client build.
+Creating a lobby includes its name, local player count and a Listed/Unlisted
+choice. A listed lobby can be joined directly from its row. An unlisted lobby
+can be joined using its code. The host can change listing visibility later.
+Quick Play parties and assigned matches remain outside this directory.
+
+Each row shows fighting seats, waiting seats, spectators and whether a match
+is in progress. The service reads those values from the live room, including
+hibernated connections. Closing the last connection unlists the lobby.
+The directory displays eight rows per page, refreshes while open, and keeps
+its network connection separate from gameplay signaling and global chat.
+The initial private service bounds the directory to 512 listed rooms.
 
 ## Quick Play
 

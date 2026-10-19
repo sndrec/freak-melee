@@ -4,6 +4,7 @@ import { turnCredentialsResponse } from "./turn";
 export { Room } from "./room";
 export { GlobalChat } from "./chat";
 export { QuickPlayQueue } from "./quick-queue";
+export { LobbyDirectory } from "./lobby-directory";
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
@@ -24,6 +25,9 @@ export default {
 
       if (url.pathname === "/chat/connect") {
         return env.GLOBAL_CHAT.getByName("friends").fetch(request);
+      }
+      if (url.pathname === "/v1/lobbies/connect") {
+        return env.LOBBY_DIRECTORY.getByName("public").fetch(request);
       }
 
       const match = /^\/v1\/rooms\/([^/]+)\/connect$/.exec(url.pathname);

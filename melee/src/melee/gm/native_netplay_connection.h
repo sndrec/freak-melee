@@ -43,6 +43,7 @@ typedef struct NativeNetplayConnection {
     NativeRoomChat chat;
     NativeSignalingPresence presence;
     NativeQuickAssignment quick;
+    NativeLobbyListing listing;
     char quick_error[129];
     uint32_t quick_revision;
     NativeNetplayConnectionPeer

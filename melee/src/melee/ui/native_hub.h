@@ -18,7 +18,8 @@ typedef enum NativeHubPage {
     NativeHubPage_Clone,
     NativeHubPage_Send,
     NativeHubPage_RoomChat,
-    NativeHubPage_QuickStage
+    NativeHubPage_QuickStage,
+    NativeHubPage_CreateLobby
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

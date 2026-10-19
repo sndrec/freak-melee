@@ -27,6 +27,19 @@ their own builds; their old "remaining" lists are not the current backlog.
   mode → CSS → ready practice → countdown flow. Workshop
   dogfooding continues when the user is ready. This document does not change
   the app's goal control.
+- Justify every asset change against a specific base-game reference. Compare
+  before and after with that reference and make the result closer to Melee's
+  existing artwork. Preserve intentional shapes, colors, gradients, borders
+  and proportions. A detail looking unusual is not evidence that it is wrong.
+- Keep work on the hub until its implementation is complete. Remaining Model
+  workspace work is deferred; its current backend is saved in the
+  [texture-basis checkpoint](melee/docs/native_texture_basis_checkpoint.md).
+- The native Lobbies page now has named listed/unlisted lobbies, live seat
+  counts, browsing and joining by row. The host can change listing visibility.
+  The [browser checkpoint](melee/docs/native_lobby_browser_checkpoint.md) records
+  local verification. Account creation/sign-in should stay inside the program;
+  evaluate native Windows passkeys and recovery before implementing accounts.
+  Accounts, friends, inbox, invitations and service deployment remain open.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the
