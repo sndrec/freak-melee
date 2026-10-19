@@ -20,6 +20,9 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor&, unsigned owner,
 bool nativeSkinMorph_Encode(NativeAssetDat&, const NativeFighterModelEditor&,
                              const NativeSkinPart&, const NativeSkinMesh&,
                              NativeSkinMorphEncoded*);
+// Canonical envelope domain for a rigid morph. Returns its deform/root joint.
+int nativeSkinMorph_RigidDomain(const NativeFighterModelEditor&, unsigned owner,
+                                 float position[3][4], float normal[3][4]);
 bool nativeSkinMesh_WriteChunk(NativeAssetDat&, const NativeFighterModelEditor&,
                                 const NativeSkinPart&, const NativeSkinChunk&,
                                 const NativeSkinMesh&, uint32_t positions,

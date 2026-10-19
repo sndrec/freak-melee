@@ -8,6 +8,7 @@
 #include "native_fighter_gltf_skin.h"
 #include "native_fighter_gltf_identity.h"
 #include "native_fighter_gltf_preserve.h"
+#include "native_fighter_gltf_morph.h"
 #include "native_fighter_skin_mesh.h"
 #include "native_mesh_vertex_ids.h"
 
@@ -473,14 +474,18 @@ struct TransferSkin {
 };
 
 bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
-                     float scale, uint32_t joint_offset,
+                     float scale, unsigned owner,
                      const NativeFighterModelEditor& model,
                      const SkinBinding* skin, const TransferSkin* transfer,
                      const NativeGltfSourceSkin* authored,
                      uint32_t* polygon, NativeFighterMeshSource* metadata,
                      char* error, size_t error_size)
 {
+    const uint32_t joint_offset=(uint32_t)model.joints[owner].offset;
     const cgltf_primitive* mesh = primitive.mesh;
+    if(authored && authored->morph_count && !mesh->targets_count) {
+        fail(error,error_size,"The source export is missing this mesh's morph targets.");return false;
+    }
     const cgltf_accessor* position = attribute(mesh, cgltf_attribute_type_position);
     const cgltf_accessor* normal = attribute(mesh, cgltf_attribute_type_normal);
     const cgltf_accessor* uv = attribute(mesh, cgltf_attribute_type_texcoord);
@@ -535,6 +540,15 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
     if (skin && !authored) generated.resize(vertices);
     if (authored && authored->vertices.size() != vertices) return false;
     const auto& vertex_palette = authored ? authored->vertices : generated;
+    NativeGltfMorphImport morph;
+    if(mesh->targets_count) {
+        morph.mesh=primitive.owner;morph.primitive=mesh;morph.node=primitive.node;
+        morph.previous=authored;morph.weights=skin?&vertex_palette:nullptr;
+        morph.scale=scale;morph.texcoords=uvs;
+        std::memcpy(morph.transform,world,sizeof(world));
+        for(unsigned i=0;i<9;++i)morph.normal_transform[i]=cofactors[i]/determinant;
+        morph.positions.resize(vertices*3);morph.normals.resize(vertices*3);morph.normal_scale.resize(vertices);
+    }
     for (unsigned i = 0; i < vertices; ++i) {
         float xyz[3], n[3], tex[2];
         if (!cgltf_accessor_read_float(position, i, xyz, 3) ||
@@ -570,7 +584,13 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                     transformed[axis] / length);
         if (uv) for (unsigned axis = 0; axis < 2; ++axis)
             befloat(dat->data.data() + uvs + i * 8 + axis * 4, tex[axis]);
+        if(mesh->targets_count) {
+            std::copy(world_position,world_position+3,morph.positions.data()+i*3);
+            for(unsigned axis=0;axis<3;++axis)morph.normals[i*3+axis]=transformed[axis]/length;
+            morph.normal_scale[i]=1/length;
+        }
     }
+    if(mesh->targets_count)return nativeFighterGltf_EncodeMorph(*dat,model,owner,morph,polygon,metadata,error,error_size);
     std::vector<NativeMeshVertexIdRow> vertex_ids;
     if (vertices > 65536 && !nativeMeshVertexIds_Read(dat->original,&vertex_ids)) return false;
     GeometryChunk chunk;
@@ -929,7 +949,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         fail(error,error_size,"Could not record this model's source path.");return false;
     }
     if (!encode_geometry(primitive, &dat, scale,
-                         existing.joints[joint].offset, existing,
+                         joint, existing,
                          skinned ? &skin : nullptr,
                          binding == NATIVE_GLTF_BIND_TRANSFER ? &transfer : nullptr,
                          binding == NATIVE_GLTF_BIND_SOURCE || (binding==NATIVE_GLTF_BIND_KEEP && !kept_rigid) ? &authored : nullptr,

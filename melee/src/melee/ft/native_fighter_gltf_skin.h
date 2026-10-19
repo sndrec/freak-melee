@@ -4,10 +4,13 @@
 #include "native_fighter_skin_weights.h"
 #include "../../../extern/cgltf/cgltf.h"
 #include <vector>
+#include <string>
 
 struct NativeGltfSourceSkin {
     std::vector<NativeSkinWeights> vertices;
     float bind_shape[16]{}; // Column-major; translation is in Melee units.
+    unsigned morph_count=0;
+    std::vector<std::string> morph_order;
 };
 
 // Match source names/roles and hierarchy to the existing rig. All weighted

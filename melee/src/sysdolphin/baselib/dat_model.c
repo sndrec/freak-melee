@@ -453,6 +453,33 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
         }
         obj->nb_vertex_index = (s32) vertex_count;
         obj->nb_normal_index = (s32) normal_count;
+        if(obj->flags & SHAPESET_PROPERTIES) {
+            if(!HSD_DatBytes(dat,offset,40)) {
+                import->status=HSD_DAT_DESCRIPTOR;import->error_offset=offset;break;
+            }
+            HSD_DatImportSource(import,offset,40,DAT_SHAPE_SET);
+            const unsigned values=obj->flags&SHAPESET_ADDITIVE?obj->nb_shape:1;
+            obj->default_blend=import_float_array(import,offset+32,values,false);
+            u32 names;const char* external;
+            const HSD_DatReferenceKind kind=HSD_DatResolve(dat,offset+36,&names,&external);
+            if(kind==HSD_DAT_REF_LOCAL) {
+                if(!HSD_DatBytes(dat,names,(size_t)obj->nb_shape*4)) {
+                    import->status=HSD_DAT_DESCRIPTOR;import->error_offset=names;break;
+                }
+                HSD_DatImportSource(import,names,(size_t)obj->nb_shape*4,0);
+                obj->target_names=HSD_DatImportAlloc(import,(size_t)obj->nb_shape*sizeof(*obj->target_names));
+                if(!obj->target_names)break;
+                for(unsigned i=0;i<obj->nb_shape && import->status==HSD_DAT_OK;++i) {
+                    obj->target_names[i]=HSD_DatImportString(import,names+i*4);
+                    if(!obj->target_names[i] || !*obj->target_names[i] || strlen(obj->target_names[i])>127) {
+                        import->status=HSD_DAT_DESCRIPTOR;import->error_offset=names+i*4;
+                    }
+                }
+            } else if(kind!=HSD_DAT_REF_NULL) {
+                import->status=HSD_DAT_DESCRIPTOR;import->error_offset=offset+36;
+            }
+            if(import->status!=HSD_DAT_OK)break;
+        }
         if(obj->flags & SHAPESET_SKIN) {
             if(!HSD_DatBytes(dat,offset,32)) {
                 import->status=HSD_DAT_DESCRIPTOR;import->error_offset=offset;break;

@@ -97,7 +97,7 @@ static void evaluate_attribute(const HSD_ShapeSet* shape, bool normal,
             HSD_ShapeSetReadVector(desc,indices[0],i,vectors*3,base);
             for(unsigned c=0;c<vectors*3;++c)output[i*vectors+c/3][c%3]=base[c];
             for(unsigned target=0;target<shape->nb_shape;++target) {
-                const float weight=MAX(0.0f,shape->blend.bp[target]);
+                const float weight=shape->flags&SHAPESET_SIGNED_WEIGHTS ? shape->blend.bp[target] : MAX(0.0f,shape->blend.bp[target]);
                 float offset[9];HSD_ShapeSetReadVector(desc,indices[target+1],i,vectors*3,offset);
                 for(unsigned c=0;c<vectors*3;++c)
                     output[i*vectors+c/3][c%3]+=offset[c]*weight;

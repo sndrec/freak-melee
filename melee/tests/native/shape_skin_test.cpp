@@ -371,7 +371,8 @@ std::vector<u8> rewritten(const Fixture& f,NativeSkinMesh* output=nullptr)
     check(skin.vertices.size()==6&&skin.parts.size()==1&&skin.corner_vertices.size()==6);
     for(unsigned i=0;i<6;++i)check(skin.corner_vertices[i]==vertices[i]);
     NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));
-    check(nativeSkinMesh_Write(edit,*model,0,skin));std::vector<u8> result;check(edit.finish(&result));
+    uint32_t polygon;check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
+    std::vector<u8> result;check(edit.finish(&result));
     check(nativeFighterCostume_Compact(&project,&result,nullptr,error,sizeof(error)));
     if(output)*output=std::move(skin);return result;
 }
@@ -445,7 +446,8 @@ void multiple_controllers(unsigned normals,bool additive)
     NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
     project.costume_dat=(u8*)f.file.data();project.costume_size=f.file.size();
     auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
-    NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));check(nativeSkinMesh_Write(edit,*model,0,skin));
+    NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));uint32_t polygon;
+    check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
     std::vector<u8> file;check(edit.finish(&file));char error[256]={};
     check(nativeFighterCostume_Compact(&project,&file,nullptr,error,sizeof(error)));
     Imported imported;check(imported.open(file));HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root&&root->u.dobj);

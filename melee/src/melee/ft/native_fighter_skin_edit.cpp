@@ -38,6 +38,7 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
                   const NativeSkinMorphEncoded* morph, uint32_t* polygon)
 {
     const auto& source = model.dat;
+    const u8* attribute_data=part.attribute_bytes.empty()?source.data:part.attribute_bytes.data();
     std::unordered_map<unsigned, u16> position_indices;
     if (local_positions) {
         position_indices.reserve(chunk.corners.size());
@@ -81,7 +82,7 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
         display.push_back((u8)(chunk.slots[i] * 3));
         u32 cursor = corner.source;
         for (const auto& attr : part.attributes) {
-            const u8* bytes = source.data + cursor;
+            const u8* bytes = attribute_data + cursor;
             if (attr.attr == 9 || attr.attr == 10 || attr.attr == 25) {
                 const unsigned index = morph ? (attr.attr == 9 ? morph->corner_positions[chunk.corners[i]] :
                     morph->corner_normals[chunk.corners[i]]) : attr.attr == 9
@@ -112,7 +113,7 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
     for (const auto& attr : part.attributes) {
         if (attr.attr == 0) continue;
         const u32 at = descriptors + descriptor++ * 24;
-        std::memcpy(dat.data.data() + at, source.data + attr.source, 24);
+        std::memcpy(dat.data.data() + at, attribute_data + attr.source, 24);
         if (attr.attr == 9 || attr.attr == 10 || attr.attr == 25) {
             const unsigned components = attr.attr == 9 ? 3 : normal_components;
             dat.word(at + 4, 3); // GX_INDEX16.
@@ -144,7 +145,7 @@ bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEdit
         }
     }
     u32 name; const char* external;
-    const auto name_kind = HSD_DatResolve(&source, part.source, &name, &external);
+    const auto name_kind = part.source==UINT32_MAX?HSD_DAT_REF_NULL:HSD_DatResolve(&source, part.source, &name, &external);
     if (!morph && name_kind == HSD_DAT_REF_LOCAL) dat.link_local(*polygon, name);
     else if (!morph && name_kind != HSD_DAT_REF_NULL) return false;
     dat.link(*polygon + 8, descriptors);
@@ -175,10 +176,11 @@ bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat& dat,const NativeFighterMod
     for(unsigned axis=0;axis<3;++axis)real(dat,identity+(axis*4+axis)*4,1);
     dat.link(slot,identity);return true;
 }
-bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& model,
-                 unsigned mesh, const NativeSkinMesh& skin)
+bool nativeSkinMesh_Encode(NativeAssetDat& dat, const NativeFighterModelEditor& model,
+                            const NativeSkinMesh& skin,uint32_t* polygon)
 {
-    if (mesh >= model.mesh_count || skin.vertices.size() > UINT32_MAX/12) return false;
+    if (!polygon || skin.vertices.size() > UINT32_MAX/12) return false;
+    *polygon=0;
     const bool local_positions = skin.vertices.size() > 65536;
     std::vector<NativeMeshVertexIdRow> vertex_ids;
     if (local_positions && !nativeMeshVertexIds_Read(model.dat, &vertex_ids)) return false;
@@ -196,7 +198,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         unsigned private_sections = 0;
         if (shaped) {
             if (++sections > NATIVE_MODEL_MAX_POLYGONS || !nativeSkinMorph_Encode(dat, model, part, skin, &morph)) return false;
-            dat.link(previous ? previous+4 : model.meshes[mesh].offset+12, morph.polygon);
+            if(previous)dat.link(previous+4,morph.polygon);else *polygon=morph.polygon;
             previous = morph.polygon;
         }
         size_t stride = 1;
@@ -217,7 +219,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
                 dat.link(private_previous ? private_previous+4 : morph.shape+28, emitted);
                 private_previous = emitted;
             } else {
-                dat.link(previous ? previous+4 : model.meshes[mesh].offset+12, emitted);
+                if(previous)dat.link(previous+4,emitted);else *polygon=emitted;
                 previous = emitted;
             }
             chunk = {}; return true;
@@ -308,9 +310,13 @@ bool nativeFighterSkin_Paint(NativeFighterProject* project, unsigned mesh, unsig
     if (!changed) return true;
     NativeAssetDat dat;
     std::vector<u8> converted;
-    if (!dat.open(project->costume_dat, project->costume_size) || !nativeSkinMesh_Write(dat, model, mesh, skin) ||
-        !dat.finish(&converted, UINT32_MAX)) {
+    uint32_t polygon;
+    if (!dat.open(project->costume_dat, project->costume_size) || !nativeSkinMesh_Encode(dat, model, skin, &polygon)) {
         fail(error, error_size, "Could not rebuild this mesh's weights and vertex attributes."); return false;
+    }
+    dat.link(model.meshes[mesh].offset+12,polygon);
+    if(!dat.finish(&converted,UINT32_MAX)) {
+        fail(error,error_size,"Could not encode the painted costume.");return false;
     }
     if (!nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size)) return false;
     FtCostumeAssets imported;

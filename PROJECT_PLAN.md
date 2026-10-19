@@ -255,8 +255,11 @@ import, materials, rigging and skinning, not mesh modeling.
   save/load. Posed native drawing, picking and highlighting agree. The
   [Morph painting](melee/docs/native_morph_paint_checkpoint.md) now preserves
   targets, normal seams and controller indices through saved strokes and
-  native Undo/Redo. The [authoring design](melee/docs/native_morph_skin_design.md)
-  still requires the GLB morph encoder and target-aware source reimport.
+  native Undo/Redo. [GLB morph import and named reimport](melee/docs/native_gltf_morph_checkpoint.md)
+  now retain position/normal deltas, signed defaults and target slots across
+  export reordering. Native painting, history, rest and snapshot checks pass.
+  Larger morph scratch capacities and tangent/UV/color target channels remain
+  open in the [authoring design](melee/docs/native_morph_skin_design.md).
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
   2,048 records. Compaction follows the same capacity policy. Match-time

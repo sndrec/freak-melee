@@ -24,8 +24,6 @@ bool nativeFighterGltf_Preserve(const NativeFighterModelEditor& model,unsigned m
         const u8* flags=HSD_DatBytes(&model.dat,polygon+12,2);u32 joint;
         if(!flags) return fail("Could not read the mesh's geometry.");
         const unsigned type = ((unsigned)flags[0]<<8|flags[1])&0x3000;
-        if(type==POBJ_SHAPEANIM)
-            return fail("Keeping this mesh's morph targets requires target-aware reimport.");
         const auto reference=HSD_DatResolve(&model.dat,polygon+20,&joint,&external);
         attached &= type==POBJ_SKIN &&
             reference==HSD_DAT_REF_LOCAL && joint==model.joints[owner].offset;
@@ -42,6 +40,11 @@ bool nativeFighterGltf_Preserve(const NativeFighterModelEditor& model,unsigned m
     for(const auto& part:current.parts) corners+=part.triangles.size();
     if(corners!=source.corners) return fail("The edited mesh no longer has its imported corner order. Choose weight transfer.");
     NativeGltfSourceSkin kept;
+    for(const auto& part:current.parts)if((part.flags&0x3000)==POBJ_SHAPEANIM) {
+        if(current.parts.size()!=1 || !(part.morph.flags&SHAPESET_ADDITIVE))
+            return fail("This source uses a different morph animation layout.");
+        kept.morph_count=part.morph.shape_count;kept.morph_order=part.morph.target_names;
+    }
     kept.vertices.resize(source.vertices);
     size_t at=0;
     for(const auto& part:current.parts) for(unsigned triangle:part.triangles) {

@@ -76,7 +76,8 @@ void run_case(const char* draft,const char* original,const char* updated,const c
     CHECK(weights.count==16);CHECK(nativeSkinWeights_Normalize(&weights));
     skin.vertices[skin.parts[0].corners[0].vertex].skin=weights;
     NativeAssetDat dat;CHECK(dat.open(project.costume_dat,project.costume_size));
-    CHECK(nativeSkinMesh_Write(dat,*model,mesh,skin));publish(project,dat);
+    uint32_t polygon;CHECK(nativeSkinMesh_Encode(dat,*model,skin,&polygon));
+    dat.link(model->meshes[mesh].offset+12,polygon);publish(project,dat);
     CHECK(nativeFighterModel_Open(model.get(),&project));mesh=ordinal(*model,hull);
     const unsigned material=model->meshes[mesh].material;
     const uint32_t material_offset=(uint32_t)model->materials[material].offset;

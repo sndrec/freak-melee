@@ -3,7 +3,9 @@
 The runtime and authoring reader/writer combine morph targets with envelope
 skinning. Weight painting preserves complete/additive targets and their normal
 seams. See the [painting checkpoint](native_morph_paint_checkpoint.md). GLB
-morph-target encoding and target-aware source reimport remain open.
+position/normal targets and named source reimport now have
+[runtime and native UI evidence](native_gltf_morph_checkpoint.md). Larger morph
+capacities and additional target channels remain open.
 
 ## Required behavior
 
@@ -69,9 +71,11 @@ meshes need no target adjustment. Deform-bone and helper owners use their actual
 HSD coordinate domains. This avoids a separate rest-edit transform per binding.
 Adding/removing/reordering bones must keep all batch envelope references valid.
 
-The current GLB importer emits base geometry and has no morph-target encoder.
-Preserving imported GLB targets remains part of integrating the combined model
-representation. It must use the same target and binding rules as painting.
+GLB position and normal targets use the painting writer, with signed additive
+evaluation, initial weights and stable names. Keep binding reimport retains
+named target indices and appends newly exported targets. Additional tangent,
+UV and color channels need representation work; the current importer rejects
+them. Existing fixed morph scratch capacities also remain a storage boundary.
 
 ## Acceptance
 

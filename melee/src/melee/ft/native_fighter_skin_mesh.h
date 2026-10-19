@@ -3,6 +3,7 @@
 #include "native_fighter_skin_edit.h"
 #include "native_fighter_model_editor.h"
 #include <vector>
+#include <string>
 
 struct NativeSkinAttribute {
     uint32_t source, attr, type, count, format, array;
@@ -21,6 +22,8 @@ struct NativeSkinMorph {
     // when their base values coincide. Vertices maps them to the mesh editor.
     std::vector<float> positions, normals;
     std::vector<unsigned> vertices;
+    std::vector<float> default_blend;
+    std::vector<std::string> target_names;
 };
 struct NativeSkinPart {
     uint32_t source;
@@ -30,6 +33,9 @@ struct NativeSkinPart {
     std::vector<NativeSkinCorner> corners;
     std::vector<unsigned> triangles;
     NativeSkinMorph morph;
+    // Fresh imports own descriptor/corner bytes. Indexed non-morph arrays
+    // already belong to the asset transaction. Read edits use model.dat.
+    std::vector<uint8_t> attribute_bytes;
 };
 struct NativeSkinMesh {
     std::vector<NativeSkinVertex> vertices;
@@ -47,6 +53,6 @@ bool nativeSkinMesh_InverseBind(const NativeFighterModelEditor&, unsigned joint,
 struct NativeAssetDat;
 // Realize the identity bind used implicitly by an unbound skeleton root.
 bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat&,const NativeFighterModelEditor&,unsigned joint);
-bool nativeSkinMesh_Write(NativeAssetDat&, const NativeFighterModelEditor&,
-                          unsigned mesh, const NativeSkinMesh&);
+bool nativeSkinMesh_Encode(NativeAssetDat&, const NativeFighterModelEditor&,
+                            const NativeSkinMesh&, uint32_t* polygon);
 #endif

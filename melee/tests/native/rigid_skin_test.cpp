@@ -203,7 +203,8 @@ void run(unsigned owner,int secondary,unsigned indexing,bool nbt,bool helper,boo
     std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
     auto before=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(before.get(),&project));
     NativeSkinMesh skin;char error[256]={};check(nativeSkinMesh_Read(*before,0,&skin,error,sizeof(error)));
-    NativeAssetDat dat;check(dat.open(project.costume_dat,project.costume_size));check(nativeSkinMesh_Write(dat,*before,0,skin));
+    NativeAssetDat dat;check(dat.open(project.costume_dat,project.costume_size));uint32_t polygon;
+    check(nativeSkinMesh_Encode(dat,*before,skin,&polygon));dat.link(before->meshes[0].offset+12,polygon);
     std::vector<u8> rewritten;check(dat.finish(&rewritten));
     NativeFighterProject view=project;view.costume_dat=rewritten.data();view.costume_size=rewritten.size();
     auto after=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(after.get(),&view));
@@ -263,7 +264,8 @@ void large_mesh(bool helper)
         auto current=corner;current.vertex=id;part.triangles.push_back((unsigned)part.corners.size());part.corners.push_back(current);
     }
     NativeAssetDat dat;check(dat.open(project.costume_dat,project.costume_size));
-    check(nativeSkinMesh_Write(dat,*model,0,skin));std::vector<u8> bytes;check(dat.finish(&bytes));
+    uint32_t polygon;check(nativeSkinMesh_Encode(dat,*model,skin,&polygon));dat.link(model->meshes[0].offset+12,polygon);
+    std::vector<u8> bytes;check(dat.finish(&bytes));
     if(helper) {
         check(NativeAssetDat::read32(bytes.data()+12)==2);
         const size_t roots=32+NativeAssetDat::read32(bytes.data()+4)+size_t(NativeAssetDat::read32(bytes.data()+8))*4;

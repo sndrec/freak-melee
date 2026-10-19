@@ -309,8 +309,10 @@ int main(int argc, char** argv)
             NativeSkinMesh skin; char error[192] = {};
             if (!nativeSkinMesh_Read(*before, mesh, &skin, error, sizeof(error)))
                 throw std::runtime_error("read mesh " + std::to_string(mesh) + ": " + error);
-            if (!nativeSkinMesh_Write(transaction, *before, mesh, skin))
+            uint32_t polygon;
+            if (!nativeSkinMesh_Encode(transaction, *before, skin, &polygon))
                 throw std::runtime_error("write mesh " + std::to_string(mesh));
+            transaction.link(before->meshes[mesh].offset+12,polygon);
         }
         std::vector<u8> result;
         check(transaction.finish(&result), "archive round trip");
