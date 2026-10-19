@@ -467,7 +467,7 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   covers both rotation policies, player self-reassignment after host override,
   waiting-controller isolation and the promoted seat's gameplay/Results input
   in a second live match.
-- [ ] Implement and verify spectator match viewing and live catch-up. On a PC
+- [x] Implement and verify spectator match viewing and live catch-up. On a PC
   with no active fighters, keep local practice running until the player chooses
   Watch match. The [confirmed input history](melee/docs/native_match_stream_checkpoint.md)
   records the seed, exact match packages and corrected inputs. The
@@ -492,6 +492,12 @@ starting pose. Auto Key starts off; explicit insertion remains available.
   transfer window reduces the cold-cache setup from 89.297 to 28.781 seconds;
   the sampled active clients maintain about 60 ticks/s without added input waits.
   Concurrent content, chat and two viewers also pass the local load check below.
+  The 2026-10-19 closure audit checked the saved runtime receipts, matching
+  viewer/source endpoints, cache audits and the spectating-host rematch driver.
+  The four core playback source files still match the cold-playback audit, and
+  the current stream/playback contracts pass. Evidence:
+  `.local/spectator-closure-audit.json`. This closes local implementation and
+  verification; physical multi-PC and relay-route acceptance remain below.
 - [x] Confirm downloads/spectator/chat activity does not stall active matches.
   The [concurrent-load check](melee/docs/native_auxiliary_load_checkpoint.md)
   covers two cold-cache viewers and private chat during both a paired-family

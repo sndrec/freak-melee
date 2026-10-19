@@ -100,20 +100,37 @@ screenshot shows both fighters at 300%. Receipt:
 `.local/native-watch-sudden-death-1/receipt.json`.
 
 `review_native_watch_playback.py --sudden-death` exercises that transition.
-Its `--inactive-owner` case reproduces a separate start-flow gap: Start match
-is enabled, but active players never enter stage selection because roster
-collection skips the inactive owner's start request. The stage-selection and
-proposal paths also assume the owner is an active player. The choice of who
-selects the stage in this case is awaiting user feedback.
-
-Match start by an inactive room owner and concurrent content/chat performance
-acceptance remain open.
+Its original `--inactive-owner` case exposed a separate start-flow gap:
+Start match was enabled, but roster collection skipped the inactive owner's
+request, and stage selection assumed the owner was an active player. The later
+[spectating-host backend](native_spectator_owner_checkpoint.md) and
+[lobby stage-selection flow](native_lobby_stage_checkpoint.md) resolve that gap.
 
 The subsequent [bounded-upload check](native_spectator_content_checkpoint.md#bounded-upload-throughput)
 reduces the same cold dependency setup from 89.297 to 28.781 seconds, with
 verified playback, Results and local-roster return on the current build.
 
 The [concurrent-load check](native_auxiliary_load_checkpoint.md) also passes with
-two viewers and private chat during four-player shared-PC matches. The remaining
-start-flow issue here is the inactive room owner, whose stage-picker choice is
-awaiting user feedback.
+two viewers and private chat during four-player shared-PC matches. A spectating
+host now starts matches while remaining in practice. The previous loser chooses
+the next stage, with the lowest-index active player as fallback.
+
+## Local acceptance audit, 2026-10-19
+
+The saved cold-cache, sudden-death and eight-fighter concurrent receipts reach
+Results with viewer digests matching their recorded source endpoints. Their
+drivers also check cancellation/re-entry and return to the local roster. The
+spectating-host stage driver checks two distinct match sessions, shared-PC
+stage-input ownership and the previous loser's next pick.
+
+The core viewing files (`native_spectator_match.c`, `native_match_playback.c`,
+`native_netplay_room_watch.c` and `lb_0195.c`) still match the cold-playback
+audit's hashes. The current `native_match_stream` and `native_match_playback`
+tests pass. The receipt inventory and source comparison are in
+`.local/spectator-closure-audit.json`; current test output is in
+`.local/spectator-closure-contracts.log`.
+
+This closes the plan's local spectator implementation and verification item.
+No new game run was made for this audit. Runtime receipts retain their original
+executable hashes; physical multi-PC, relay routes and user presentation/input
+acceptance remain separate.
