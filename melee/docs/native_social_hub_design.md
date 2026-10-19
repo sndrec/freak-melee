@@ -19,11 +19,9 @@ border widths, proportions and decorative details. Adapt existing components
 to the new functionality while retaining their visual language. An unusual
 shape or a resemblance to a letter is not evidence of an artwork error.
 
-The initial hub below uses custom procedural frames and controls. Its service
-and flow checks remain valid, but do not establish this asset-integration
-requirement. The stock hand, portraits and transition tracks are already reused.
-Replacing the frame, navigation and page controls with stock menu components is
-the current implementation priority.
+The early hub used custom procedural frames and controls. The current hub uses
+the stock menu components described below. Earlier service and flow checks
+remain useful; visual acceptance belongs to the adapted interface.
 
 Preserve the proportions of the left navigation ribbons' end caps while changing
 their width. Stretch the middle section. Cut suitable baked artwork into
@@ -78,22 +76,27 @@ for at most 511 ms; existing destinations remain protected. Queued player
 actions retain peer identities, and fighter delivery retains its package ID,
 so changes to the displayed lists preserve the selected recipient and fighter.
 
-Account sign-in, offline inbox storage and persistent friends remain separate
-work. Quick Play queueing, assigned-room handoff, cancellable countdown and
-fixed-rule matches now have local native checks. Result agreement and rematches
-also work through the native six-stage page, with a pick and teammate confirmation
-in doubles. Local mouse/controller checks cover shared-PC and separate-client
-teams. User visual review and deployment remain open. Show their real
-availability in the native menus. Browser sample players, messages and queue
-results are examples, not native service evidence.
+Account-key sign-in, offline letters, friends and lobby invitations are now
+implemented and deployed. The user confirmed account creation on their PC;
+native checks cover the hosted invitation flow. Friends and profiles show
+verified online presence. See [friends and letters](native_social_accounts.md)
+for controls, current limitations and evidence.
+
+Quick Play queueing, assigned-room handoff, cancellable countdown and fixed-rule
+matches have local native checks. Result agreement and rematches work through
+the native six-stage page, with a pick and teammate confirmation in doubles.
+Local mouse/controller checks cover shared-PC and separate-client teams. The
+service is deployed; physical multi-PC testing and the user's visual review
+remain open. Browser sample players, messages and queue results are examples.
 
 Global Chatroom now shows the live connected-player directory, including
 players who have not posted. The service keeps names in WebSocket attachments
 and broadcasts complete bounded snapshots on joins, leaves and renames. The
 native menu supports 128 players with compact rows and paging. Local native
-probes and the actual hidden, muted game verified this path; the service's
-18 tests include hibernation and quiet-player name changes. Account identities
-remain separate work; chat peer IDs identify a running client session.
+probes and the hidden, muted game verified this path; service checks include
+hibernation and quiet-player name changes. Chat peer IDs
+identify a running client session; signed-in connections also carry the
+verified account identity used to open profiles and report friend presence.
 
 Lobby chat uses the existing room connection and includes fighting, waiting and
 spectating members. Its recent history survives server hibernation while the
@@ -249,7 +252,7 @@ The hub replaces the default sidebars. The Workshop landing page presents the
 personal roster and authoring commands. Its Edit fighter action opens the
 existing detailed editor. Simple Settings pages use the game's menu presentation;
 advanced authoring workspaces keep their dedicated interfaces. Chat and room
-controls remain accessible during gameplay; the user explicitly deferred
+controls are accessible from CSS and practice. The user explicitly deferred
 match-time chat to a collaborative design pass on 2026-10-19. Keep the current
 CSS/practice flow until that presentation is agreed.
 
@@ -280,7 +283,7 @@ within a lobby.
 Reply composes a new letter. Received and Sent views keep correspondence easy
 to find. The supported chat types are global and room chat.
 
-Players can address a letter to any player by name or friend code. Friendship,
+Players can address a letter to any player by account name. Friendship,
 current room membership and online presence do not restrict inbox recipients.
 Friends have a room-invite command; invitations arrive in the recipient's
 inbox with a Join room action. If the sender has no room, offer Create & invite.

@@ -593,8 +593,9 @@ then carry a fighter tile to another player's card, or use Roster's Send fighter
 command. Accepted fighters join the roster; match downloads remain cached.
 Friends can send lobby invitations. The contextual player list is visible only
 with global or room chat; Friends has its own menu.
-The planned hub replaces the default sidebars. Chat and room controls remain
-accessible during play; Workshop, Options and management retain dedicated space.
+The hub replaces the default sidebars. Chat and room controls are available
+from CSS and practice; match-time chat awaits collaborative design. Workshop,
+Options and management retain dedicated space.
 All simple menus use the Melee hand for controller and optional mouse navigation,
 with keyboard input for typing. The detailed Workshop editors keep their editing
 controls. Workshop and Settings are full-size main-menu destinations. Workshop
@@ -614,9 +615,10 @@ Pokémon Stadium and Yoshi's Story. The first stage is random; the losing side
 picks subsequent stages. Opponents stay together until someone leaves. These
 queues and fixed rules now have native local checks. Result agreement and
 rematches also have native checks using stage-vote automation. The player-facing
-stage-confirmation controls and their full controller/mouse acceptance remain
-open. Late cancellation and opponent-exit party recovery have local native
-checks. The interactive mockup uses local sample opponents.
+stage-confirmation controls have local controller/mouse checks; the user's
+presentation review remains open. Late cancellation and opponent-exit party
+recovery have local native checks. The interactive mockup uses local sample
+opponents.
 
 CSS tile labels use the supplied angular glyph set, fill the name bar vertically
 and compress horizontally. Ganondorf remains on one line. Truly long names can
