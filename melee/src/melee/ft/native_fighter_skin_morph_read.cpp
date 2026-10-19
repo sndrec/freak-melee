@@ -108,6 +108,7 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
     }
     if (!polygon || !polygon->u.shape_set || !polygon->display || !polygon->n_display) return false;
     const auto& shape = *polygon->u.shape_set;
+    NativeSkinTextureReader texture_reader;
     auto& morph = part->morph;
     morph.flags = shape.flags;
     morph.shape_count = shape.nb_shape;
@@ -134,6 +135,7 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
         vertex.skin.count = 1; vertex.skin.joints[0] = (u16)rigid; vertex.skin.weights[0] = 1;
         morph.vertices.push_back(first_vertex+i); mesh->vertices.push_back(vertex);
     }
+    if (!(morph.flags & SHAPESET_SKIN)) part->bindings.push_back(mesh->vertices[first_vertex].skin);
     u32 descriptors;
     if (!reference(model.dat, part->source+8, &descriptors) ||
         !nativeSkinMesh_ReadAttributes(model.dat, descriptors, &part->attributes)) return false;
@@ -154,6 +156,10 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                 if (attr.attr == GX_VA_POS) vertex = index(cursor, attr.type);
                 else if (attr.attr == GX_VA_NRM || attr.attr == GX_VA_NBT)
                     corner.normal_index = index(cursor, attr.type);
+                else if (!(morph.flags & SHAPESET_SKIN) && attr.attr >= GX_VA_TEX0MTXIDX &&
+                         attr.attr <= GX_VA_TEX7MTXIDX &&
+                         !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, attr.attr-GX_VA_TEX0MTXIDX,
+                                                      cursor[0], 0, part->bindings)) return false;
                 cursor += attr.display_bytes;
             }
             if (vertex >= morph.position_count || (morph.normal_count && corner.normal_index >= morph.normal_count)) return false;
@@ -190,10 +196,15 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
             const unsigned count = unsigned(cursor[0]) << 8 | cursor[1]; cursor += 2;
             for (unsigned i = 0; i < count; ++i, ++corner_index) {
                 unsigned matrix = 0;
+                unsigned textures[8] = {}, texture_mask = 0;
                 for (unsigned hardware = 0; hardware <= GX_VA_TEX7; ++hardware) {
                     for (const HSD_VtxDescList* attr = batch->verts; attr->attr != GX_VA_NULL; ++attr) {
                         if ((attr->attr == GX_VA_NBT ? GX_VA_NRM : attr->attr) != hardware || attr->attr_type == GX_NONE) continue;
                         if (hardware == GX_VA_PNMTXIDX) matrix = cursor[0]/3;
+                        else if (hardware >= GX_VA_TEX0MTXIDX && hardware <= GX_VA_TEX7MTXIDX) {
+                            textures[hardware-GX_VA_TEX0MTXIDX] = cursor[0];
+                            texture_mask |= 1u << (hardware-GX_VA_TEX0MTXIDX);
+                        }
                         const unsigned width = attr->attr_type == GX_INDEX8 ? 1 : attr->attr_type == GX_INDEX16 ? 2 :
                             hardware <= GX_VA_TEX7MTXIDX ? 1 : 0;
                         // Direct color/UV widths are already known from the
@@ -206,6 +217,12 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                     }
                 }
                 if (corner_index >= part->corners.size() || matrix >= bindings.size()) return false;
+                auto& corner = part->corners[corner_index];
+                corner.matrix = matrix;
+                for (unsigned channel = 0; channel < 8; ++channel)
+                    if ((texture_mask & (1u << channel)) &&
+                        !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, channel, textures[channel],
+                                                     matrix, bindings)) return false;
                 const unsigned vertex = part->corners[corner_index].vertex-first_vertex;
                 auto& weights = mesh->vertices[first_vertex+vertex].skin;
                 if (assigned[vertex] && !nativeSkinWeights_Equal(&weights, &bindings[matrix])) return false;

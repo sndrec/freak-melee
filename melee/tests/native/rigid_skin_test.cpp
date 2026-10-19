@@ -4,6 +4,7 @@
 #include <melee/ft/native_mesh_vertex_ids.h>
 extern "C" {
 #include <sysdolphin/baselib/dat_import.h>
+#include <sysdolphin/baselib/displayfunc.h>
 #include <sysdolphin/baselib/dobj.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/list.h>
@@ -235,6 +236,184 @@ void rejection()
     check(!affected && project.costume_dat==pointer && f.file==original);
 }
 
+Fixture texture_fixture(unsigned owner,unsigned indexing,bool nbt)
+{
+    auto f=fixture(owner,-1,indexing,nbt,owner==2,false);
+    NativeAssetDat dat;check(dat.open(f.file.data(),f.file.size()));
+    const u32 old=NativeAssetDat::read32(dat.data.data()+f.polygon+8);
+    const u32 attrs=dat.allocate(9*24);
+    std::memcpy(dat.data.data()+attrs,dat.data.data()+old,5*24);
+    for(unsigned i=0;i<5;++i)
+        if(NativeAssetDat::read32(dat.data.data()+attrs+i*24+4)>GX_DIRECT)
+            dat.link_local(attrs+i*24+20,NativeAssetDat::read32(dat.data.data()+attrs+i*24+20));
+    for(unsigned i=0;i<3;++i) {
+        dat.word(attrs+(5+i)*24,i==2?8:i+1);dat.word(attrs+(5+i)*24+4,GX_DIRECT);
+    }
+    dat.word(attrs+8*24,GX_VA_NULL);dat.link(f.polygon+8,attrs);
+    const u32 table=dat.allocate(4*4);dat.link(f.polygon+20,table);
+    dat.half(f.polygon+12,POBJ_ENVELOPE);
+    for(unsigned slot=0;slot<3;++slot) {
+        const u32 entries=dat.allocate(3*8);dat.link(table+slot*4,entries);
+        for(unsigned i=0;i<2;++i) {
+            dat.link_local(entries+i*8,f.bones[slot+i]);
+            const float value=i?.75f:.25f;u32 bits;std::memcpy(&bits,&value,4);dat.word(entries+i*8+4,bits);
+        }
+    }
+    std::vector<u8> bytes={GX_TRIANGLES,0,6};
+    for(unsigned corner=0;corner<6;++corner) {
+        bytes.push_back((u8)(corner%3*3));
+        bytes.push_back((u8)(30+(corner+1)%3*3)); // Independent reflected normal.
+        bytes.push_back((u8)(30+corner%3*3)); // Follows position weights.
+        bytes.push_back(60); // Identity.
+        for(unsigned attr:{9u,10u}) {
+            (void)attr;if(indexing==GX_INDEX16)bytes.push_back(0);bytes.push_back((u8)(corner/2));
+        }
+        bytes.insert(bytes.end(),{(u8)(20+corner),40,60,255});
+        if(indexing==GX_INDEX16)bytes.push_back(0);bytes.push_back((u8)(corner/2));
+    }
+    bytes.resize((bytes.size()+31)&~size_t(31));f.display=dat.allocate(bytes.size(),32);
+    std::memcpy(dat.data.data()+f.display,bytes.data(),bytes.size());
+    dat.link(f.polygon+16,f.display);dat.half(f.polygon+14,(u16)(bytes.size()/32));
+    std::vector<u8> file;check(dat.finish(&file));f.file=std::move(file);return f;
+}
+
+// Independently read the saved selectors/envelopes, then apply the runtime's
+// model-node transform to animated reflected normals. No editable texture tags.
+std::vector<float> texture_vectors(const NativeFighterModelEditor& model,unsigned tick)
+{
+    HSD_JObj joints[4];Mtx binds[4];pose(joints,model,binds,tick);
+    Mtx right_storage;MtxPtr right=_HSD_mkEnvelopeModelNodeMtx(&joints[model.meshes[0].joint],right_storage);
+    std::vector<float> result;
+    for(u32 polygon=word(model,model.meshes[0].offset+12);polygon;polygon=word(model,polygon+4)) {
+        std::vector<NativeSkinAttribute> attrs;check(nativeSkinMesh_ReadAttributes(model.dat,word(model,polygon+8),&attrs));
+        const u32 table=word(model,polygon+20);
+        std::vector<std::array<float,12>> matrices;
+        for(unsigned slot=0;word(model,table+slot*4);++slot) {
+            Mtx matrix={};
+            for(u32 entry=word(model,table+slot*4);;entry+=8) {
+                u32 bone;const char* external;
+                const auto kind=HSD_DatResolve(&model.dat,entry,&bone,&external);
+                if(kind==HSD_DAT_REF_NULL)break;
+                check(kind==HSD_DAT_REF_LOCAL);const int index=bone_index(model,bone);check(index>=0);
+                float weight;check(HSD_DatReadF32(&model.dat,entry+4,&weight));
+                Mtx effective;C_MTXConcat(joints[index].mtx,binds[index],effective);
+                for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)matrix[r][c]+=weight*effective[r][c];
+            }
+            if(right)C_MTXConcat(matrix,right,matrix);
+            std::array<float,12> stored;std::memcpy(stored.data(),matrix,sizeof(matrix));matrices.push_back(stored);
+        }
+        u32 cursor=word(model,polygon+16),end=cursor+(word(model,polygon+12)&0xffff)*32;
+        while(cursor<end) {
+            const u8 command=model.dat.data[cursor++];if(!command)continue;check(command==GX_TRIANGLES);
+            const unsigned count=unsigned(model.dat.data[cursor])<<8|model.dat.data[cursor+1];cursor+=2;
+            for(unsigned i=0;i<count;++i) {
+                unsigned selectors[8]={},position_matrix=0;float normal[3]={};
+                for(const auto& attr:attrs) {
+                    const u8* bytes=model.dat.data+cursor;
+                    if(attr.attr==GX_VA_PNMTXIDX)position_matrix=bytes[0];
+                    if(attr.attr>=1&&attr.attr<=8)selectors[attr.attr-1]=bytes[0];
+                    if(attr.attr==GX_VA_NRM||attr.attr==GX_VA_NBT) {
+                        const unsigned index=attr.type==GX_INDEX8?bytes[0]:unsigned(bytes[0])<<8|bytes[1];
+                        for(unsigned a=0;a<3;++a)check(HSD_DatReadF32(&model.dat,attr.array+index*attr.stride+a*4,&normal[a]));
+                    }
+                    cursor+=attr.display_bytes;
+                }
+                check(selectors[1]==30+position_matrix);
+                for(unsigned channel:{0u,7u}) {
+                    float value[3];
+                    if(selectors[channel]==60)std::memcpy(value,normal,sizeof(value));
+                    else {
+                        check(selectors[channel]>=30&&selectors[channel]%3==0);
+                        const unsigned matrix=(selectors[channel]-30)/3;check(matrix<matrices.size());
+                        normal_matrix((float(*)[4])matrices[matrix].data(),normal,value);
+                    }
+                    result.insert(result.end(),value,value+3);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+void textures(unsigned owner,unsigned indexing,bool nbt)
+{
+    auto f=texture_fixture(owner,indexing,nbt);
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    project.costume_dat=(u8*)std::malloc(f.file.size());check(project.costume_dat);
+    std::memcpy(project.costume_dat,f.file.data(),f.file.size());project.costume_size=f.file.size();
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    std::vector<std::vector<float>> expected;
+    for(unsigned tick=0;tick<19;++tick)expected.push_back(texture_vectors(*model,tick));
+    NativeSkinMesh skin;char error[256]={};check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+    check(skin.parts[0].texture_bindings.size()==3);
+    const auto fixed=skin.parts[0].texture_bindings[skin.parts[0].corners[0].textures[0]];
+    // Equal weights must retain two distinct slots: only position is painted.
+    skin.vertices[skin.parts[0].corners[0].vertex].skin=fixed;
+    NativeAssetDat dat;check(dat.open(project.costume_dat,project.costume_size));uint32_t polygon;
+    check(nativeSkinMesh_Encode(dat,*model,skin,&polygon));dat.link(model->meshes[0].offset+12,polygon);
+    std::vector<u8> file;check(dat.finish(&file));
+    NativeCostumeCompaction stats;check(nativeFighterCostume_Compact(&project,&file,&stats,error,sizeof(error))&&stats.supported);
+    std::free(project.costume_dat);project.costume_dat=(u8*)std::malloc(file.size());check(project.costume_dat);
+    std::memcpy(project.costume_dat,file.data(),file.size());project.costume_size=file.size();
+    for(unsigned stroke=0;stroke<3;++stroke) {
+        check(nativeFighterModel_Open(model.get(),&project));check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+        const auto& part=skin.parts[0];const auto& corner=part.corners[0];
+        check(corner.textures[0]<part.texture_bindings.size());
+        check(nativeSkinWeights_Equal(&part.texture_bindings[corner.textures[0]],&fixed));
+        check(corner.textures[1]==NATIVE_SKIN_TEXTURE_FOLLOW&&corner.textures[7]==NATIVE_SKIN_TEXTURE_IDENTITY);
+        for(unsigned tick=0;tick<19;++tick) {
+            const auto actual=texture_vectors(*model,tick);check(actual.size()==expected[tick].size());
+            for(unsigned i=0;i<actual.size();++i)near(actual[i],expected[tick][i],&max_normal_error);
+        }
+        if(stroke==2)break;
+        NativeSkinBrushPoint center;std::memcpy(center.position,skin.vertices[corner.vertex].position,sizeof(center.position));
+        unsigned affected=0;check(nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.2f,false,&affected,error,sizeof(error)));
+        check(affected==2);
+    }
+    if(owner==0&&indexing==GX_INDEX16&&!nbt) {
+        check(nativeFighterModel_Open(model.get(),&project));check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+        auto& part=skin.parts[0];part.texture_bindings.clear();
+        for(unsigned i=0;i<9;++i) {
+            NativeSkinWeights binding={};binding.count=2;binding.joints[0]=0;binding.joints[1]=1;
+            binding.weights[0]=.1f+.01f*i;binding.weights[1]=1-binding.weights[0];
+            part.texture_bindings.push_back(binding);
+        }
+        for(auto& vertex:skin.vertices) {
+            vertex.skin={};vertex.skin.count=1;vertex.skin.joints[0]=0;vertex.skin.weights[0]=1;
+        }
+        for(unsigned c=0;c<part.corners.size();++c) {
+            part.corners[c].textures[0]=c%3*3;
+            part.corners[c].textures[1]=c%3*3+1;
+            part.corners[c].textures[7]=c%3*3+2;
+        }
+        NativeAssetDat bounded;check(bounded.open(project.costume_dat,project.costume_size));
+        check(nativeSkinMesh_Encode(bounded,*model,skin,&polygon));bounded.link(model->meshes[0].offset+12,polygon);
+        check(bounded.finish(&file));
+        std::free(project.costume_dat);project.costume_dat=(u8*)std::malloc(file.size());check(project.costume_dat);
+        std::memcpy(project.costume_dat,file.data(),file.size());project.costume_size=file.size();
+        check(nativeFighterModel_Open(model.get(),&project));check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+        check(skin.parts[0].texture_bindings.size()==9);
+        const auto* before=project.costume_dat;
+        NativeSkinBrushPoint center;std::memcpy(center.position,skin.vertices[0].position,sizeof(center.position));
+        unsigned affected=99;
+        check(!nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.2f,false,&affected,error,sizeof(error)));
+        check(!affected&&project.costume_dat==before&&project.costume_size==file.size()&&
+              !std::memcmp(project.costume_dat,file.data(),file.size()));
+        // A root shortcut changes normal coordinates. Reject independent
+        // attachments needing a distinct basis before committing any stroke.
+        NativeAssetDat different;check(different.open(file.data(),file.size()));
+        const u32 head=word(*model,model->meshes[0].offset+12);
+        const u32 table=word(*model,head+20),entries=word(*model,table);
+        different.word(entries+4,0x3f800000);different.word(entries+12,0);
+        std::vector<u8> different_file;check(different.finish(&different_file));file=std::move(different_file);
+        std::free(project.costume_dat);project.costume_dat=(u8*)std::malloc(file.size());check(project.costume_dat);
+        std::memcpy(project.costume_dat,file.data(),file.size());project.costume_size=file.size();
+        check(nativeFighterModel_Open(model.get(),&project));
+        check(!nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+    }
+    std::free(project.costume_dat);++cases;
+}
+
 void large_mesh(bool helper)
 {
     Fixture f=fixture(helper?2:0,-1,3,false,helper,false);
@@ -343,6 +522,7 @@ int main()
             run(2,-1,indexing,nbt,true,false);
         }
         rejection();
+        for(unsigned owner:{0u,1u,2u})for(unsigned indexing:{2u,3u})for(bool nbt:{false,true})textures(owner,indexing,nbt);
         large_mesh(false);large_mesh(true);
         std::printf("PASS: %u rigid skin cases, %u checks; max position=%g normal=%g\n",cases,checks,max_position_error,max_normal_error);
         return 0;

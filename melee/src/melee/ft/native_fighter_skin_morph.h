@@ -9,6 +9,9 @@ struct NativeSkinChunk {
     std::vector<unsigned> corners;
     std::vector<uint8_t> slots;
     std::vector<NativeSkinWeights> bindings;
+    // One tag per matrix: FOLLOW is a painted-position binding, otherwise the
+    // index of a fixed texture binding. Keep the slots distinct even if equal.
+    std::vector<uint32_t> texture_ids;
 };
 struct NativeSkinMorphEncoded {
     uint32_t polygon, shape, positions, normals;

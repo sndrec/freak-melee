@@ -57,7 +57,7 @@ float value(bool additive,unsigned target,unsigned vertex,unsigned axis)
     const float delta=(float(vertex+1)*.125f)*(axis==1?-.5f:1.f)*target;
     return additive&&target?delta:base[vertex][axis]+delta;
 }
-Fixture fixture(unsigned owner,unsigned normals,bool additive)
+Fixture fixture(unsigned owner,unsigned normals,bool additive,bool textures=false)
 {
     Dat d;Fixture f={};f.owner=owner;f.normals=normals;f.additive=additive;
     for(u32& bone:f.bones)bone=d.allocate(64);
@@ -91,9 +91,12 @@ Fixture fixture(unsigned owner,unsigned normals,bool additive)
         }
     }
     const u32 uv=d.allocate(48);for(unsigned i=0;i<12;++i)d.real(uv+i*4,.05f*i);
-    f.attrs=d.allocate((normals?6:5)*24);
+    f.attrs=d.allocate(((normals?6:5)+(textures?3:0))*24);
     const unsigned attributes[]={GX_VA_PNMTXIDX,GX_VA_POS,normals==2?(unsigned)GX_VA_NBT:(unsigned)GX_VA_NRM,GX_VA_CLR0,GX_VA_TEX0};
     unsigned number=0;
+    if(textures)for(unsigned channel:{0u,1u,7u}) {
+        const u32 at=f.attrs+number++*24;d.word(at,GX_VA_TEX0MTXIDX+channel);d.word(at+4,GX_DIRECT);
+    }
     for(unsigned attr:attributes) {
         if(!normals&&attr==GX_VA_NRM)continue;
         const u32 at=f.attrs+number++*24;d.word(at,attr);
@@ -109,7 +112,9 @@ Fixture fixture(unsigned owner,unsigned normals,bool additive)
     auto display=[&](unsigned start,unsigned count,bool skin) {
         std::vector<u8> bytes={GX_TRIANGLES,0,(u8)count};
         for(unsigned c=start;c<start+count;++c) {
-            bytes.push_back(skin?(c%3)*3:0);bytes.push_back(0);bytes.push_back((u8)vertices[c]);
+            bytes.push_back(skin?(c%3)*3:0);
+            if(textures)bytes.insert(bytes.end(),{(u8)(skin?30+(c+1)%3*3:30),(u8)(skin?30+c%3*3:30),GX_IDENTITY});
+            bytes.push_back(0);bytes.push_back((u8)vertices[c]);
             if(normals){bytes.push_back(0);bytes.push_back((u8)c);}
             bytes.insert(bytes.end(),{(u8)(100+c),50,70,255,0,(u8)vertices[c]});
         }
@@ -482,6 +487,45 @@ void multiple_controllers(unsigned normals,bool additive)
     nativeModelView_Clear();HSD_JObjRemoveAll(root);check(nativeAObjPool.used==0);++cases;
 }
 
+void texture_attachments(unsigned owner,unsigned normals,bool additive)
+{
+    auto f=fixture(owner,normals,additive,true);
+    const auto expected=surface(f.file,f);
+    NativeSkinMesh original;auto file=rewritten(f,&original);
+    const auto actual=surface(file,f);check(actual.size()==expected.size());
+    for(unsigned i=0;i<actual.size();++i)near(actual[i],expected[i]);
+    check(original.parts[0].texture_bindings.size()==3);
+    NativeSkinWeights fixed[6];
+    for(unsigned c=0;c<6;++c)fixed[c]=original.parts[0].texture_bindings[original.parts[0].corners[c].textures[0]];
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    for(unsigned stroke=0;stroke<3;++stroke) {
+        project.costume_dat=file.data();project.costume_size=file.size();
+        auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+        NativeSkinMesh skin;char error[256]={};check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+        auto& part=skin.parts[0];check(part.corners.size()==6);
+        for(unsigned c=0;c<6;++c) {
+            const auto& corner=part.corners[c];check(corner.textures[0]<part.texture_bindings.size());
+            check(nativeSkinWeights_Equal(&part.texture_bindings[corner.textures[0]],&fixed[c]));
+            check(corner.textures[1]==NATIVE_SKIN_TEXTURE_FOLLOW&&corner.textures[7]==NATIVE_SKIN_TEXTURE_IDENTITY);
+        }
+        if(stroke==2)break;
+        auto& position=skin.vertices[part.corners[0].vertex].skin;
+        if(!stroke)position=fixed[0];else check(nativeSkinWeights_Set(&position,3,.2f));
+        NativeAssetDat edit;check(edit.open(file.data(),file.size()));uint32_t polygon;
+        check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
+        std::vector<u8> next;check(edit.finish(&next));
+        check(nativeFighterCostume_Compact(&project,&next,nullptr,error,sizeof(error)));file=std::move(next);
+    }
+    if(owner==0&&normals==1&&!additive)for(unsigned fault=0;fault<5;++fault) {
+        NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));
+        const u32 offset=f.display[fault?1:0]+3+(fault==4?3:1);
+        edit.data[offset]=fault==2?57:fault==3?60:fault==4?30:31;
+        std::vector<u8> malformed;check(edit.finish(&malformed));const auto before=malformed;
+        Imported imported;check(!imported.open(malformed));check(imported.loader.status!=HSD_DAT_OK&&malformed==before);
+    }
+    ++cases;
+}
+
 void full_index_domain(unsigned normals,bool additive)
 {
     const auto f=fixture(1,normals,additive);NativeSkinMesh original;rewritten(f,&original);
@@ -592,6 +636,7 @@ int main()
             for(bool weighted:{false,true})for(unsigned format=0;format<5;++format)authoring(owner,normals,additive,weighted,format);
         for(unsigned owner:{0u,1u,3u})for(unsigned normals:{1u,2u})for(bool additive:{false,true})painting(owner,normals,additive);
         for(unsigned normals:{1u,2u})for(bool additive:{false,true})multiple_controllers(normals,additive);
+        for(unsigned owner:{0u,1u,3u})for(unsigned normals:{1u,2u})for(bool additive:{false,true})texture_attachments(owner,normals,additive);
         for(unsigned normals:{1u,2u})for(bool additive:{false,true})full_index_domain(normals,additive);
         std::printf("PASS: %u morph runtime/authoring cases, %u construction, pose, paint, compaction and snapshot checks\n",cases,checks);
         return 0;
