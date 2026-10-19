@@ -41,9 +41,10 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
          image = !strcmp(args[0], "project-texture-image"),
          meshes = !strcmp(args[0], "project-import-meshes"),
          sources = !strcmp(args[0], "project-model-sources"),
-         reimport = !strcmp(args[0], "project-reimport-plan");
+         reimport = !strcmp(args[0], "project-reimport-plan"),
+         apply_reimport = !strcmp(args[0], "project-reimport");
     if (!create && !copy && !labels && !hidden && !sequences && !image &&
-        !meshes && !sources && !reimport)
+        !meshes && !sources && !reimport && !apply_reimport)
     {
         return false;
     }
@@ -75,6 +76,27 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
         ok=nativeFighterGltf_PlanReimport(&p,a,args[3],!strcmp(args[4],"whole"),&plan,error,sizeof(error));
         if(ok) for(unsigned i=0;i<plan.count;++i)
             printf("match primitive=%u mesh=%u\n",plan.matches[i].primitive,plan.matches[i].mesh);
+    }
+    if(apply_reimport && count==7 && number(args[2],&a) &&
+       (!strcmp(args[4],"one") || !strcmp(args[4],"whole")) &&
+       (!strcmp(args[6],"keep-materials") || !strcmp(args[6],"replace-materials"))) {
+        NativeGltfBindingMode binding;
+        if(!strcmp(args[5],"keep")) binding=NATIVE_GLTF_BIND_KEEP;
+        else if(!strcmp(args[5],"transfer")) binding=NATIVE_GLTF_BIND_TRANSFER;
+        else if(!strcmp(args[5],"source")) binding=NATIVE_GLTF_BIND_SOURCE;
+        else if(!strcmp(args[5],"auto")) binding=NATIVE_GLTF_BIND_AUTOMATIC;
+        else if(!strcmp(args[5],"rigid")) binding=NATIVE_GLTF_BIND_RIGID;
+        else goto done;
+        NativeGltfReimportPlan plan;
+        ok=nativeFighterGltf_PlanReimport(&p,a,args[3],!strcmp(args[4],"whole"),&plan,error,sizeof(error));
+        if(ok) {
+            NativeGltfImportRequest requests[NATIVE_GLTF_MAX_PRIMITIVES];
+            for(unsigned i=0;i<plan.count;++i) requests[i]=(NativeGltfImportRequest){
+                plan.matches[i].primitive,plan.matches[i].joint,plan.matches[i].mesh,
+                binding,plan.matches[i].scale,!strcmp(args[6],"replace-materials")};
+            ok=nativeFighterGltf_ApplyBatch(&p,args[3],requests,plan.count,error,sizeof(error)) &&
+                nativeFighterProject_SaveCostume(args[1],&p) && nativeFighterAuthoring_Save(args[1],&p);
+        }
     }
     if (create && count == 5 && number(args[2], &a) && number(args[4], &b)) {
         ok = nativeFighterAnimation_CreateRest(&p, a, args[3], b) &&
@@ -145,15 +167,16 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
             NativeGltfImportRequest requests[NATIVE_GLTF_MAX_PRIMITIVES];
             for (unsigned i = 0; i < scan.count; ++i) {
                 requests[i] =
-                    (NativeGltfImportRequest){ i, a, UINT_MAX, binding };
+                    (NativeGltfImportRequest){ i, a, UINT_MAX, binding, scale, false };
             }
             ok =
                 nativeFighterGltf_ApplyBatch(&p, args[2], requests, scan.count,
-                                             scale, error, sizeof(error)) &&
+                                             error, sizeof(error)) &&
                 nativeFighterProject_SaveCostume(args[1], &p) &&
                 nativeFighterAuthoring_Save(args[1], &p);
         }
     }
+done:
     if (!ok) {
         fprintf(stderr, "Authoring operation failed: %s\n",
                 *error ? error : args[0]);

@@ -73,6 +73,7 @@ static void usage(void)
         "  project-model-scan SOURCE.glb\n"
         "  project-model-sources PROJECT_DIRECTORY\n"
         "  project-reimport-plan PROJECT_DIRECTORY MESH SOURCE.glb one|whole\n"
+        "  project-reimport PROJECT_DIRECTORY MESH SOURCE.glb one|whole keep|transfer|source|auto|rigid keep-materials|replace-materials\n"
         "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid|source\n"
         "  project-label PROJECT_DIRECTORY bone|mesh|material|action KEY NAME\n"
         "  project-hide-action PROJECT_DIRECTORY ACTION_INDEX 0|1\n"
@@ -81,7 +82,7 @@ static void usage(void)
         "  project-texture-sequences PROJECT_DIRECTORY MATERIAL\n"
         "  project-texture-image PROJECT_DIRECTORY MATERIAL SEQUENCE_OFFSET IMAGE_INDEX IMAGE_FILE\n"
         "  project-model-import PROJECT_DIRECTORY SOURCE.glb PRIMITIVE JOINT "
-        "ADD_OR_MESH_INDEX SCALE rigid|auto|transfer|source\n"
+        "ADD_OR_MESH_INDEX SCALE rigid|auto|transfer|source|keep\n"
         "  project-model-weights PROJECT_DIRECTORY\n"
         "  project-model-vertices PROJECT_DIRECTORY MESH\n"
         "  project-model-joints PROJECT_DIRECTORY\n"
@@ -1769,12 +1770,14 @@ static int project_model_import(const char* path, const char* source,
         binding = NATIVE_GLTF_BIND_TRANSFER;
     else if (strcmp(binding_text, "source") == 0)
         binding = NATIVE_GLTF_BIND_SOURCE;
+    else if (strcmp(binding_text, "keep") == 0)
+        binding = NATIVE_GLTF_BIND_KEEP;
     else return 1;
     NativeFighterProject project;
     if (!nativeFighterProject_Open(path, &project)) return 1;
     char error[192] = { 0 };
-    const NativeGltfImportRequest request={(unsigned)primitive,(unsigned)joint,(unsigned)replacement,binding};
-    bool ok = nativeFighterGltf_ApplyBatch(&project,source,&request,1,scale,error,sizeof(error)) &&
+    const NativeGltfImportRequest request={(unsigned)primitive,(unsigned)joint,(unsigned)replacement,binding,scale,false};
+    bool ok = nativeFighterGltf_ApplyBatch(&project,source,&request,1,error,sizeof(error)) &&
         nativeFighterProject_SaveCostume(path,&project) && nativeFighterAuthoring_Save(path,&project);
     if (!ok) fprintf(stderr, "Model import failed: %s\n", error);
     else printf("Imported primitive %lu into %s.\n", primitive, path);

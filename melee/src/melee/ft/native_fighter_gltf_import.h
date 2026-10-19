@@ -17,6 +17,7 @@ typedef enum NativeGltfBindingMode {
     NATIVE_GLTF_BIND_AUTOMATIC,
     NATIVE_GLTF_BIND_TRANSFER,
     NATIVE_GLTF_BIND_SOURCE,
+    NATIVE_GLTF_BIND_KEEP,
 } NativeGltfBindingMode;
 
 typedef struct NativeGltfPrimitiveInfo {
@@ -38,7 +39,7 @@ typedef struct NativeGltfScan {
 
 typedef struct NativeGltfReimportPlan {
     unsigned count;
-    struct { unsigned primitive, mesh; } matches[NATIVE_GLTF_MAX_PRIMITIVES];
+    struct { unsigned primitive, mesh, joint; float scale; } matches[NATIVE_GLTF_MAX_PRIMITIVES];
 } NativeGltfReimportPlan;
 // Match the selected imported mesh, or all meshes imported from its source,
 // against a newly exported file. Missing/ambiguous identities publish no plan.
@@ -52,16 +53,18 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
 // Imports one triangle primitive using rigid, generated, transferred or
 // compatible source weights on the fighter's rig. A new mesh receives
 // its glTF base-color texture/tint in GX form;
-// a replacement changes geometry only and keeps the chosen DObj's material.
+// a replacement keeps its material unless replace_material is selected.
 // Existing skin data on other meshes is untouched. UINT_MAX appends a DObj.
 typedef struct NativeGltfImportRequest {
     unsigned primitive, joint, replacement_mesh;
     NativeGltfBindingMode binding;
+    float scale;
+    bool replace_material;
 } NativeGltfImportRequest;
 // One import transaction: a failed primitive publishes none of the batch.
 bool nativeFighterGltf_ApplyBatch(NativeFighterProject*, const char* path,
                                   const NativeGltfImportRequest*,
-                                  unsigned count, float scale, char* error,
+                                  unsigned count, char* error,
                                   size_t error_size);
 
 // Embeds a PNG/JPEG as a GX RGBA8 texture in an existing shared material.

@@ -229,7 +229,7 @@ bool nativeFighterModel_RemapMaterialAnimations(
         return false;
     }
     struct Pair {
-        u32 mesh, animation;
+        u32 mesh, material, animation;
     };
     std::vector<Pair> pairs;
     unsigned visited = 0;
@@ -251,7 +251,9 @@ bool nativeFighterModel_RemapMaterialAnimations(
             pairs.clear();
             for (unsigned i = 0; i < before.mesh_count; ++i) {
                 if (before.joints[before.meshes[i].joint].offset == joint) {
-                    pairs.push_back({ before.meshes[i].offset, mat });
+                    pairs.push_back({ before.meshes[i].offset,
+                        before.meshes[i].material<before.material_count
+                            ?before.materials[before.meshes[i].material].offset:UINT32_MAX, mat });
                     if (mat) {
                         if (!HSD_DatBytes(&before.dat, mat, 16)) {
                             return false;
@@ -266,7 +268,9 @@ bool nativeFighterModel_RemapMaterialAnimations(
                     if (after.joints[after.meshes[i].joint].offset == joint) {
                         u32 old = 0;
                         for (const auto& p : pairs) {
-                            if (p.mesh == after.meshes[i].offset) {
+                            const u32 material=after.meshes[i].material<after.material_count
+                                ?after.materials[after.meshes[i].material].offset:UINT32_MAX;
+                            if (p.mesh == after.meshes[i].offset && p.material == material) {
                                 old = p.animation;
                             }
                         }

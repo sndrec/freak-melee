@@ -12,20 +12,22 @@
 
 static unsigned checks;
 static char error[256];
+unsigned nativeGltfPreserveTests(const char*,const char*,const char*,const char*,const char*,const char*);
 #define CHECK(x) do{++checks;if(!(x)){std::fprintf(stderr,"FAIL %d: %s [%s]\n",__LINE__,#x,error);std::exit(1);}}while(0)
 
 int main(int argc,char** argv)
 {
-    CHECK(argc==4);
+    CHECK(argc==8);
+    checks+=nativeGltfPreserveTests(argv[1],argv[2],argv[4],argv[5],argv[6],argv[7]);
     NativeFighterProject project={};CHECK(nativeFighterProject_Open(argv[1],&project));
     auto model=std::make_unique<NativeFighterModelEditor>();
     CHECK(nativeFighterModel_Open(model.get(),&project));
     const unsigned original=model->mesh_count;
     // Imports on different owners, then replaces them in the order which moves
     // an earlier destination ordinal. Targets must follow DObj identity.
-    NativeGltfImportRequest add[2]={{0,5,UINT_MAX,NATIVE_GLTF_BIND_RIGID},
-                                   {1,10,UINT_MAX,NATIVE_GLTF_BIND_RIGID}};
-    CHECK(nativeFighterGltf_ApplyBatch(&project,argv[2],add,2,1,error,sizeof(error)));
+    NativeGltfImportRequest add[2]={{0,5,UINT_MAX,NATIVE_GLTF_BIND_RIGID,1,false},
+                                   {1,10,UINT_MAX,NATIVE_GLTF_BIND_RIGID,1,false}};
+    CHECK(nativeFighterGltf_ApplyBatch(&project,argv[2],add,2,error,sizeof(error)));
     CHECK(nativeFighterModel_Open(model.get(),&project));CHECK(model->mesh_count==original+2);
     uint32_t offsets[2]={};unsigned ordinals[2]={};
     for(unsigned mesh=0;mesh<model->mesh_count;++mesh) {
@@ -35,9 +37,9 @@ int main(int argc,char** argv)
         if(!std::strcmp(source->identity,"mesh:4:Trim")) {offsets[1]=source->mesh;ordinals[1]=mesh;}
     }
     CHECK(offsets[0]&&offsets[1]&&offsets[0]!=offsets[1]);
-    NativeGltfImportRequest replace[2]={{1,10,ordinals[1],NATIVE_GLTF_BIND_AUTOMATIC},
-                                       {0,5,ordinals[0],NATIVE_GLTF_BIND_AUTOMATIC}};
-    CHECK(nativeFighterGltf_ApplyBatch(&project,argv[2],replace,2,1,error,sizeof(error)));
+    NativeGltfImportRequest replace[2]={{1,10,ordinals[1],NATIVE_GLTF_BIND_AUTOMATIC,1,false},
+                                       {0,5,ordinals[0],NATIVE_GLTF_BIND_AUTOMATIC,1,false}};
+    CHECK(nativeFighterGltf_ApplyBatch(&project,argv[2],replace,2,error,sizeof(error)));
     CHECK(nativeFighterModel_Open(model.get(),&project));CHECK(model->mesh_count==original+2);
     for(unsigned n=0;n<2;++n) {
         const auto* source=nativeFighterMeshSource_Get(&project,offsets[n]);CHECK(source);
@@ -53,13 +55,13 @@ int main(int argc,char** argv)
     const auto* names=project.authoring;
     auto saved=std::make_unique<NativeFighterAuthoring>(*names);
     // The first mesh converts successfully; the later one lacks normals.
-    CHECK(!nativeFighterGltf_ApplyBatch(&project,argv[3],add,2,1,error,sizeof(error)));
+    CHECK(!nativeFighterGltf_ApplyBatch(&project,argv[3],add,2,error,sizeof(error)));
     CHECK(nativeFighterCoreAssets_Matches(project,before));
     CHECK(project.fighter_dat==fighter&&project.costume_dat==costume&&project.authoring==names);
     CHECK(!std::memcmp(project.authoring,saved.get(),sizeof(*names)));
     // Duplicate replacement destinations fail before doing any conversion.
     replace[0].replacement_mesh=replace[1].replacement_mesh=0;
-    CHECK(!nativeFighterGltf_ApplyBatch(&project,argv[2],replace,2,1,error,sizeof(error)));
+    CHECK(!nativeFighterGltf_ApplyBatch(&project,argv[2],replace,2,error,sizeof(error)));
     CHECK(nativeFighterCoreAssets_Matches(project,before));
     CHECK(!std::memcmp(project.authoring,saved.get(),sizeof(*names)));
 

@@ -2,8 +2,9 @@
 
 Imports now record their source file and mesh identity in the editable project.
 The matching backend can find those meshes in a new export even when its mesh
-or material-slot arrays are reordered. The weight-preserving reimport operation
-and its Workshop controls remain open.
+or material-slot arrays are reordered. The backend can preserve painted weights
+and edited materials while replacing geometry. Its Workshop controls and
+coordinated metadata/asset saving remain open.
 
 ## Source identity
 
@@ -81,16 +82,49 @@ transitions and adds no match-tick work.
 
 ## Remaining work
 
-- Preserve current weights by verified source-corner correspondence when the
-  source topology is unchanged. Keep source bind placement coherent with the
-  edited rig.
-- Require an explicit transfer/rebinding choice when correspondence changes.
-- Expose material preservation/replacement independently of weight handling.
 - Connect selected-mesh and whole-source reimport to the existing import flow,
   with matched destinations and clear failure messages.
-- Preserve each mesh's import scale when a source has been imported with
-  different scales, and save source links coherently with their geometry.
+- Expose the backend's independent material and weight choices in that flow.
+- Save source links coherently with their geometry.
 - Verify painted weights, edited/shared materials, new source geometry,
   Undo/Redo, save/reopen, and Test Character together in the native client.
 
 The Model plan item stays unchecked until this complete workflow passes.
+
+## Weight and material preservation backend
+
+`NATIVE_GLTF_BIND_KEEP` copies current floating-point weights through the saved
+source-corner correspondence. It retains all 16 influences without renormalizing
+them. The source's ordered topology must match; changed topology requires an
+explicit transfer or new binding. Conflicting corner weights also require that
+choice. Rigid attachments keep their attachment. Source-skinned geometry keeps
+its recorded bind placement, while ordinary node geometry uses the new export's
+placement. Each request carries its own scale.
+
+Material replacement is a separate request option. Keeping materials retains
+the current MObj. Replacing a material creates a new MObj for that destination;
+other meshes using the old shared material retain it. Material-animation remap
+retains an old track only when the destination still uses the same MObj.
+
+`native_content_tool project-reimport` exposes selected/whole-source matching,
+binding choice and material choice for saved-project checks. The normal Workshop
+import caller uses the revised batch API; its Reimport interface is still open.
+
+Verification:
+
+- `.local/native-gltf-preserve-final-2/receipt.json`: 409 native checks and saved
+  project cases pass. Coverage includes 16 authored influences, mirrored corner
+  order, a change in winding, different import scales, edited/shared materials,
+  independent material replacement and atomic rejection of changed topology.
+- `.local/native-source-skin-preserve-1/passed.json`: nine source-skin cases pass
+  weight-preserving replacement, including sparse/interleaved accessors, integer
+  weights, 16 influences, source poses and unit conversion; 16 rejection cases
+  retain the original saved assets.
+- `.local/native-model-gltf-preserve-regression/receipt.json`: the existing native
+  Model workflow passes painting in pose/animation preview, rest compensation,
+  Save/Undo/Redo, reopen without the GLB, Test Character and return. This is a
+  regression of those workflows, not acceptance of the future Reimport controls.
+
+Game SHA-256: `517615b657e7294e52fb7f089b1813996c19430eabf7ca85b57edf5fc979135d`.
+Tool SHA-256: `1f91b79150a415d87a72c0f41b40495d68953ad6f000ff9260a0fc354da15773`.
+Test SHA-256: `7032fbc1a57ac74605a5c9898ee9e561e05803e69be993bc2a2ee368c0aa48ee`.

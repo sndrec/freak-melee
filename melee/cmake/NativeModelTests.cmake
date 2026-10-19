@@ -90,7 +90,7 @@ target_link_libraries(native_core_asset_state_test PRIVATE melee_runtime aurora_
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_core_asset_state_test)
 
-add_executable(native_gltf_reimport_test tests/native/gltf_reimport_test.cpp)
+add_executable(native_gltf_reimport_test tests/native/gltf_reimport_test.cpp tests/native/gltf_preserve_test.cpp)
 target_include_directories(native_gltf_reimport_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_gltf_reimport_test PRIVATE MELEE_NATIVE=1)
 target_link_libraries(native_gltf_reimport_test PRIVATE melee_runtime aurora_os
