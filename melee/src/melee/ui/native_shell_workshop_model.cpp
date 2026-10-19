@@ -1,5 +1,6 @@
 #include <melee/ft/native_fighter_skin_edit.h>
 #include "native_shell_workshop_model.h"
+#include "native_shell_workshop_model_internal.h"
 
 #include "native_shell_workshop_materials.h"
 #include "native_shell_workshop_transform.h"
@@ -38,64 +39,9 @@
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/native_model_view.h>
 
-namespace {
-
-enum class Context { Meshes, Materials, Skeleton, Skinning };
-enum class RigMode { Edit, Pose, Animation };
+namespace WorkshopModelInternal {
 
 Rml::ElementDocument* document;
-struct Change {
-    uint32_t offset;
-    uint8_t count;
-    uint8_t before[4];
-    uint8_t after[4];
-    std::vector<uint8_t> before_asset;
-    std::vector<uint8_t> after_asset;
-    bool labels_saved = false;
-    std::vector<uint8_t> before_labels, after_labels;
-    std::vector<uint8_t> before_fighter,after_fighter;
-    uint64_t rig_revision = 0;
-};
-
-struct ModelSession {
-    NativeFighterProject* project = nullptr;
-    char path[512] = {};
-    bool model_available = false;
-    NativeFighterModelEditor model = {};
-    const NativeFighterActionInfo* actions = nullptr;
-    const bool* has_clip = nullptr;
-    const float* clip_frames = nullptr;
-    size_t action_count = 0;
-    Context context = Context::Skeleton;
-    RigMode rig_mode = RigMode::Edit;
-    int selected_mesh = -1;
-    int selected_material = -1;
-    int selected_joint = 0;
-    bool selected_joints[NATIVE_MODEL_MAX_JOINTS] = {};
-    int selected_clip = -1;
-    int frame = 0;
-    bool bones_visible = true;
-    bool roles_applied = false;
-    bool pose_initialized = false;
-    uint8_t hidden_meshes[NATIVE_MODEL_MAX_MESHES] = {};
-    NativeHomeWorkshopBoneLocal pose[NATIVE_MODEL_MAX_JOINTS] = {};
-    bool pose_changed[NATIVE_MODEL_MAX_JOINTS] = {};
-    std::vector<Change> changes;
-    size_t change_cursor = 0;
-    NativeFighterCoreAssetState saved_assets;
-    char import_path[MAX_PATH] = {};
-    NativeGltfScan import_scan = {};
-    bool import_selected[NATIVE_GLTF_MAX_PRIMITIVES] = {};
-    unsigned import_step = 0;
-    unsigned import_replacement = UINT_MAX;
-    unsigned import_joint = 0;
-    float import_scale = 1.0f;
-    NativeGltfBindingMode import_binding = NATIVE_GLTF_BIND_AUTOMATIC;
-    bool import_visible = false;
-    float brush_radius = 5.0f;
-    float brush_strength = 0.25f;
-    bool brush_subtract = false;
-};
 
 ModelSession sessions[2];
 ModelSession* active = &sessions[0];
@@ -180,89 +126,6 @@ bool index(const char* id, const char* prefix, unsigned* result)
     return true;
 }
 
-void buttons()
-{
-    for (auto button : { std::pair<const char*, bool>{ "workshop-undo",
-                         active->change_cursor != 0 },
-                         { "workshop-redo", active->change_cursor < active->changes.size() } }) {
-        if (button.second) element(button.first)->RemoveAttribute("disabled");
-        else element(button.first)->SetAttribute("disabled", "");
-    }
-}
-
-void record(uint32_t offset, unsigned count, const uint8_t before[4])
-{
-    if (active->project == nullptr || count == 0 || count > 4 ||
-        offset > active->project->costume_size ||
-        count > active->project->costume_size - offset) return;
-    Change change = {};
-    change.rig_revision = active->project->rig_edit_revision;
-    change.offset = offset;
-    change.count = (uint8_t) count;
-    std::memcpy(change.before, before, count);
-    std::memcpy(change.after, active->project->costume_dat + offset, count);
-    if (std::memcmp(change.before, change.after, count) == 0) return;
-    active->changes.erase(active->changes.begin() + active->change_cursor, active->changes.end());
-    if (active->changes.size() == 64) {
-        active->changes.erase(active->changes.begin());
-        --active->change_cursor;
-    }
-    active->changes.push_back(change);
-    active->change_cursor = active->changes.size();
-    buttons();
-}
-
-void record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>& fighter = {})
-{
-    if (before.size() == active->project->costume_size &&
-        std::memcmp(before.data(), active->project->costume_dat,
-                    before.size()) == 0) return;
-    Change change = {};
-    change.rig_revision = active->project->rig_edit_revision;
-    change.before_asset = before;
-    change.after_asset.assign(active->project->costume_dat,
-                              active->project->costume_dat + active->project->costume_size);
-    if(!fighter.empty()) {
-        change.before_fighter=fighter;
-        change.after_fighter.assign(active->project->fighter_dat,active->project->fighter_dat+active->project->fighter_size);
-    }
-    active->changes.erase(active->changes.begin() + active->change_cursor, active->changes.end());
-    if (active->changes.size() == 64) {
-        active->changes.erase(active->changes.begin());
-        --active->change_cursor;
-    }
-    active->changes.push_back(std::move(change));
-    active->change_cursor = active->changes.size();
-    buttons();
-}
-
-std::vector<uint8_t> label_snapshot()
-{
-    if (!active->project->authoring) {
-        return {};
-    }
-    auto* begin = (uint8_t*) active->project->authoring;
-    return std::vector<uint8_t>(begin, begin + sizeof(NativeFighterAuthoring));
-}
-void record_label_change(const std::vector<uint8_t>& before, bool asset)
-{
-    if (!asset) {
-        active->changes.erase(active->changes.begin() + active->change_cursor,
-                              active->changes.end());
-        if (active->changes.size() == 64) {
-            active->changes.erase(active->changes.begin());
-            --active->change_cursor;
-        }
-        active->changes.push_back(Change{});
-        active->change_cursor = active->changes.size();
-    }
-    auto& change = active->changes.back();
-    change.rig_revision = active->project->rig_edit_revision;
-    change.labels_saved = true;
-    change.before_labels = before;
-    change.after_labels = label_snapshot();
-    buttons();
-}
 
 std::string joint_label(unsigned joint)
 {
@@ -322,9 +185,7 @@ void render_tree()
             "id='workshop-model-skin-mesh' class='room-input'></select>"
             "<p class='workshop-muted'>The existing compatible rig is retained.</p>");
     else if (active->context == Context::Skeleton)
-        element("workshop-model-tree-actions")->SetInnerRML(
-            "<p class='workshop-muted'>Required Melee helper joints and their "
-            "hierarchy are protected.</p>");
+        element("workshop-model-tree-actions")->SetInnerRML(rig_tree_controls());
     else element("workshop-model-tree-actions")->SetInnerRML("");
     if (active->context == Context::Skinning) {
         std::string options;
@@ -549,6 +410,7 @@ void render_inspector()
                  "class='room-button'>Save name</button></div>" +
                  markup;
     }
+    if (active->context == Context::Skeleton) markup += rig_inspector();
     element("workshop-model-inspector")->SetInnerRML(markup);
 }
 
@@ -741,11 +603,14 @@ void render_import()
     text("workshop-model-import-note", "Native glTF 2.0 import · compatible rig");
 }
 
-void reopen_model()
+void reopen_model(const RigView* restored)
 {
-    const unsigned joint_count = active->model.joint_count;
-    uint32_t joint_offsets[NATIVE_MODEL_MAX_JOINTS];
-    for (unsigned i = 0; i < joint_count; ++i) joint_offsets[i] = active->model.joints[i].offset;
+    RigView previous;
+    rig_capture_view(previous);
+    const uint32_t mesh_offset = active->selected_mesh >= 0 && active->selected_mesh < active->model.mesh_count
+        ? active->model.meshes[active->selected_mesh].offset : UINT32_MAX;
+    const uint32_t material_offset = active->selected_material >= 0 && active->selected_material < active->model.material_count
+        ? active->model.materials[active->selected_material].offset : UINT32_MAX;
     uint32_t hidden_offsets[NATIVE_MODEL_MAX_MESHES];
     unsigned hidden_count = 0;
     for (unsigned i = 0; i < active->model.mesh_count; ++i) {
@@ -754,10 +619,6 @@ void reopen_model()
         }
     }
     nativeFighterModel_Open(&active->model, active->project);
-    bool same_rig = joint_count == active->model.joint_count;
-    for (unsigned i = 0; same_rig && i < joint_count; ++i)
-        same_rig = joint_offsets[i] == active->model.joints[i].offset;
-    if (!same_rig) active->pose_initialized = false;
     std::memset(active->hidden_meshes, 0, sizeof(active->hidden_meshes));
     for (unsigned i = 0; i < active->model.mesh_count; ++i) {
         for (unsigned j = 0; j < hidden_count; ++j) {
@@ -767,21 +628,12 @@ void reopen_model()
         }
     }
     active->roles_applied = false;
-    active->selected_joint = std::clamp(active->selected_joint, 0,
-        std::max(0, (int) active->model.joint_count - 1));
-    active->selected_mesh = active->model.mesh_count
-        ? std::clamp(active->selected_mesh, 0, (int) active->model.mesh_count - 1) : -1;
-    active->selected_material = active->model.material_count
-        ? std::clamp(active->selected_material, 0, (int) active->model.material_count - 1) : -1;
-    if (!active->pose_initialized) {
-        for (unsigned i = 0; i < active->model.joint_count; ++i)
-            for (unsigned a = 0; a < 3; ++a) {
-                active->pose[i].rotation[a] = active->model.joints[i].rotation[a];
-                active->pose[i].scale[a] = active->model.joints[i].scale[a];
-                active->pose[i].position[a] = active->model.joints[i].position[a];
-            }
-        std::memset(active->pose_changed, 0, sizeof(active->pose_changed));
-    }
+    active->selected_mesh = active->selected_material = -1;
+    for (unsigned i=0; i<active->model.mesh_count; ++i)
+        if (active->model.meshes[i].offset == mesh_offset) active->selected_mesh=(int)i;
+    for (unsigned i=0; i<active->model.material_count; ++i)
+        if (active->model.materials[i].offset == material_offset) active->selected_material=(int)i;
+    rig_restore_view(restored ? *restored : previous);
     build_bones();
     render();
 }
@@ -1190,7 +1042,9 @@ void position_bones()
     }
 }
 
-} // namespace
+} // namespace WorkshopModelInternal
+
+using namespace WorkshopModelInternal;
 
 void nativeShellWorkshopModel_Init(Rml::ElementDocument* shell)
 {
@@ -1332,6 +1186,7 @@ void nativeShellWorkshopModel_Show(bool show)
 
 bool nativeShellWorkshopModel_Click(const char* id, bool shift)
 {
+    if (rig_click(id)) return true;
     if (!std::strcmp(id, "workshop-import-select-all") ||
         !std::strcmp(id, "workshop-import-select-none"))
     {
@@ -1891,15 +1746,17 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member)
 
 void nativeShellWorkshopModel_Inspect()
 {
-    std::fprintf(stderr, "[workshop-model] visible=%u context=%u mode=%u mesh=%d joint=%d clip=%d frame=%d playing=%u\n",
+    std::fprintf(stderr, "[workshop-model] visible=%u context=%u mode=%u mesh=%d joint=%d clip=%d frame=%d playing=%u joints=%u revision=%llu\n",
                  visible, (unsigned) active->context, (unsigned) active->rig_mode,
-                 active->selected_mesh, active->selected_joint, active->selected_clip, active->frame, playing);
+                 active->selected_mesh, active->selected_joint, active->selected_clip, active->frame, playing,
+                 active->model.joint_count, (unsigned long long)(active->project?active->project->rig_edit_revision:0));
     if (visible && active->project && active->selected_mesh >= 0)
         nativeWorkshopSkinning_Inspect(active->project, (unsigned) active->selected_mesh);
     if (visible && active->pose_initialized)
         for (unsigned i = 0; i < active->model.joint_count; ++i) {
             const auto& pose = active->pose[i];
-            std::fprintf(stderr, "[workshop-model-pose] index=%u apply=%u local=", i, active->pose_changed[i]);
+            std::fprintf(stderr, "[workshop-model-pose] index=%u offset=%u selected=%u apply=%u local=", i,
+                         (unsigned)active->model.joints[i].offset, active->selected_joints[i], active->pose_changed[i]);
             for (unsigned a = 0; a < 3; ++a)
                 std::fprintf(stderr, "%.9f,%.9f,%.9f,", pose.position[a], pose.rotation[a], pose.scale[a]);
             std::fprintf(stderr, "\n");
@@ -1914,64 +1771,6 @@ void nativeShellWorkshopModel_MarkSaved(unsigned member)
     nativeFighterCoreAssets_Capture(*session.project,session.saved_assets);
 }
 
-bool nativeShellWorkshopModel_Undo(bool redo)
-{
-    if (!visible || active->project == nullptr ||
-        (redo ? active->change_cursor == active->changes.size() : active->change_cursor == 0))
-        return false;
-    const Change& change = active->changes[redo ? active->change_cursor : active->change_cursor - 1];
-    if(change.rig_revision != active->project->rig_edit_revision) {
-        status("Undo the bone edits in Model before restoring this edit.");
-        return false;
-    }
-    NativeFighterAuthoring* names = nullptr;
-    if(!change.before_fighter.empty() && (change.before_fighter.size()!=change.after_fighter.size()||active->project->fighter_size<change.before_fighter.size()))return false;
-    if (change.labels_saved) {
-        const auto& bytes = redo ? change.after_labels : change.before_labels;
-        if (!bytes.empty()) {
-            names = (NativeFighterAuthoring*) std::malloc(bytes.size());
-            if (!names) {
-                return false;
-            }
-            std::memcpy(names, bytes.data(), bytes.size());
-        }
-    }
-    if (!change.before_asset.empty()) {
-        const std::vector<uint8_t>& asset =
-            redo ? change.after_asset : change.before_asset;
-        uint8_t* copy = (uint8_t*) std::malloc(asset.size());
-        if (!copy) {
-            std::free(names);
-            return false;
-        }
-        std::memcpy(copy, asset.data(), asset.size());
-        std::free(active->project->costume_dat);
-        active->project->costume_dat = copy;
-        active->project->costume_size = asset.size();
-    } else {
-        std::memcpy(active->project->costume_dat + change.offset,
-                    redo ? change.after : change.before, change.count);
-    }
-    if (change.labels_saved) {
-        std::free(active->project->authoring);
-        active->project->authoring = names;
-        nativeFighterAuthoring_Save(active->path, active->project);
-    }
-    // Restore only reference bytes changed by this model operation. Preserve
-    // unrelated action, attribute and clip edits made in the other workspaces.
-    const auto& fighter=redo?change.after_fighter:change.before_fighter;
-    for(size_t i=0;i<change.before_fighter.size();++i)
-        if(change.before_fighter[i]!=change.after_fighter[i])active->project->fighter_dat[i]=fighter[i];
-    if (redo) ++active->change_cursor;
-    else --active->change_cursor;
-    buttons();
-    reopen_model();
-    if (!change.before_asset.empty())
-        nativeShellWorkshop_RefreshPreview();
-    nativeHome_WorkshopPoseInvalidate();
-    status(redo ? "Reapplied Model edit." : "Undid Model edit.");
-    return true;
-}
 
 int nativeShellWorkshopModel_SelectedClip()
 {

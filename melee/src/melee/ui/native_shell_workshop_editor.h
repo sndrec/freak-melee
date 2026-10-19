@@ -7,6 +7,7 @@
 
 namespace Rml { class ElementDocument; }
 struct NativeFighterProject;
+struct NativeFighterModelEditor;
 
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* document);
 void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* project,
@@ -34,6 +35,8 @@ bool nativeShellWorkshopEditor_IsGraphFocused();
 float nativeShellWorkshopEditor_TimelineFraction();
 bool nativeShellWorkshopEditor_IsOpen();
 void nativeShellWorkshopEditor_SetTesting(bool testing);
+void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before,
+                                         const NativeFighterModelEditor& after);
 
 #endif
 #endif

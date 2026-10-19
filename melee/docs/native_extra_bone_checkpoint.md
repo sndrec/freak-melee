@@ -1,14 +1,64 @@
 # Extra-bone authoring checkpoint
 
-The animation-node remapper, rig-aware bank rewriting, coordinated core-asset
-save, stable script bone references and physical fighter-reference rewriting
-are implemented.
-A coordinated in-memory add/reparent/remove transaction is implemented and
-passes the complete test sequence on all 26 supported stock definitions and Glim.
-Alternate poses own stable target-bone mappings. Model controls and structural
-history remain open. Metal visibility now
-follows the retained mesh instances when their draw order changes.
-The Model workspace does not expose a partial structural edit.
+The Model workspace now exposes coordinated bone editing in Skeleton/Edit
+mode. Add a child to the selected bone, change an extra bone's parent, or remove
+an unreferenced extra bone. Changing a parent preserves the world rest pose;
+removing a bone moves its children to its parent while keeping them in place.
+Base helper bones retain their required hierarchy.
+
+The transaction updates fighter, animation, costume and rig facts together.
+Stable IDs preserve script references, and physical references, metal visibility
+and alternate-pose mappings follow the edited hierarchy. Backend checks pass on
+all 26 supported stock definitions and Glim.
+
+## Native editor acceptance
+
+The structural controls share the existing Model history. Each entry owns the
+complete before/after core assets and its selected bones and temporary local
+poses. Undo/Redo restores the matching assets together after admission. Retained
+joint, mesh and material selections follow their DAT object identities through
+reordering. Action events, animation tracks, graph selections and copied poses
+are refreshed against the new hierarchy. A later asset edit must be undone in
+its workspace before an earlier structural edit can be restored.
+
+`tools/review_native_rig_workflow.py` drives the hidden, muted native client with
+an isolated Mario draft and an imported four-vertex fixture. The final review
+passes these checks:
+
+- Add child, change parent and remove a parent while retaining its child, with
+  byte-exact Save/Undo/Redo across all four core files for each operation.
+- A temporary pose stays attached to its original joint after that joint's
+  ordinal changes. An explicitly selected unanimated bone remains selected
+  through a hierarchy edit and Undo/Redo.
+- Paint a vertex onto an added bone. An independent DAT reader confirms its
+  saved 0.25 weight; complete-asset Undo/Redo restores the exact buffers.
+- Create a Position X animation channel for the added bone in Animation mode.
+  Reopening the saved bank samples its new frame-zero value as 3.25; Undo/Redo
+  restores its exact bytes too.
+- Switch between Action, Animation and Model, then save/reopen with the GLB
+  deleted. Enter real practice with the edited fighter and return to the editor.
+- The original draft's four-file hashes remain unchanged.
+
+Receipt: `.local/native-rig-ui-final-2/receipt.json`.
+Game SHA-256: `b68c614535d96fba45f956ccefbae079c972179785e36a8a1c1b6656c9f4f47b`.
+The existing Model workflow also checks posed and paused-animation painting,
+rest compensation, byte-exact Undo/Redo, reopen and practice. Its receipt is
+`.local/native-model-rig-regression-final/receipt.json`.
+
+Reproduce with a complete current-format draft and a new output directory:
+
+```powershell
+python melee/tools/review_native_rig_workflow.py `
+  --exe melee/build/native/melee_native.exe `
+  --tool melee/build/native/native_content_tool.exe `
+  --control melee/build/native/melee_native_control.exe `
+  --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
+  --draft PATH_TO_DRAFT --output .local/rig-workflow-review
+```
+
+The following sections retain the backend checkpoints and their detailed
+coverage. Their earlier UI-acceptance limitations are resolved by the native
+review above.
 
 ## Animation remapping
 
