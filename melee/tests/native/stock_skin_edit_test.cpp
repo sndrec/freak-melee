@@ -107,8 +107,20 @@ std::vector<u8> extras(const HSD_Dat& dat, const NativeSkinPart& part, const Nat
         if (attr.attr == 0 || attr.attr == 9 || attr.attr == 10 || attr.attr == 25) continue;
         bytes.push_back((u8)attr.attr);
         if (attr.attr >= 1 && attr.attr <= 8) {
-            check(data[0] == 60 || data[0] == 30 + corner.matrix*3, "texture binding follows position");
-            bytes.push_back(data[0] == 60); continue;
+            const uint32_t texture=corner.textures[attr.attr-1];
+            if(texture==NATIVE_SKIN_TEXTURE_IDENTITY)bytes.push_back(1);
+            else if(texture==NATIVE_SKIN_TEXTURE_FOLLOW)bytes.push_back(0);
+            else {
+                check(texture<part.texture_bindings.size(), "independent texture binding");
+                bytes.push_back(2);const auto& weights=part.texture_bindings[texture];
+                bytes.push_back((u8)weights.count);
+                for(unsigned i=0;i<weights.count;++i) {
+                    bytes.push_back((u8)(weights.joints[i]>>8));bytes.push_back((u8)weights.joints[i]);
+                    u32 bits;std::memcpy(&bits,&weights.weights[i],4);
+                    for(unsigned shift:{24u,16u,8u,0u})bytes.push_back((u8)(bits>>shift));
+                }
+            }
+            continue;
         }
         if (attr.type != 1) {
             const unsigned index = attr.type == 2 ? data[0] : unsigned(data[0]) << 8 | data[1];

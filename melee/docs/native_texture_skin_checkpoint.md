@@ -50,8 +50,33 @@ or tick allocations are added.
   the test targets build. `.local/native-skin-texture-receipt.json` pins sources
   and binaries.
 
-These are native backend and runtime-pose checks. No native UI or GPU texture
-pixel comparison was run for the new independent attachment fixtures.
+### Native reflected-texture check
+
+`tools/review_native_texture_skin_live.py` creates a fresh Mario draft and
+imports a sphere with a generated checker/gradient texture. The sphere follows
+the skeleton root. A separate HipN envelope drives its reflected coordinates.
+The actual skin writer rewrites and compacts the complete costume, then three
+hidden, muted Workshop clients render the source, rewritten costume and a
+deliberately incorrect surface-following control.
+
+The source and rewritten sphere have **zero changed RGB pixels** at rest and
+with HipN rotated 40 degrees. Bounds come from the native runtime's projected
+fixture vertices. The incorrect attachment matches at rest but changes
+**12,944 pixels** after rotation, with a maximum channel difference of 220.
+This confirms the check exercises the independent texture matrix. Full-UI PNGs
+were inspected. All three clients stopped, with no fatal VM, shader or device
+errors in their logs.
+
+Receipt: `.local/native-texture-visual-2/receipt.json`. The costume rewrite
+passes **60 meshes and 1,225,984 checks**. The stock comparison oracle now
+compares following, independent and identity attachments instead of assuming
+every texture follows its position. Its updated retail batch passes all 130
+costumes, 8,149 meshes and 227 brushes, with **123,896,453 checks** in
+`.local/native-texture-visual-retail-1/receipt.json`.
+
+This checks saved rewrite/rendering; the actual brush cases remain covered by
+the backend suite above. It does not claim native mouse/Undo/Redo acceptance
+for independently attached reflected textures.
 
 ## Remaining limits
 

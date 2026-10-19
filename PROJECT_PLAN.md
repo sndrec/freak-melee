@@ -251,7 +251,9 @@ import, materials, rigging and skinning, not mesh modeling.
   [Independent texture attachments](melee/docs/native_texture_skin_checkpoint.md)
   now retain their weights through ordinary/morph painting and compaction,
   including when position weights temporarily match them. The current native
-  suites and retail batch pass. Triangles exceeding ten combined matrix slots,
+  suites and retail batch pass. A reflected-texture fixture is pixel-identical
+  after rewriting at two native poses; an incorrect attachment changes 12,944
+  pixels. Triangles exceeding ten combined matrix slots,
   differing texture normal bases and unusual helper model-node domains remain open.
   [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
   shares one runtime evaluator between drawing, picking, highlighting and
