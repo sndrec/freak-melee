@@ -267,12 +267,11 @@ bool nativeFighterSkin_Paint(NativeFighterProject* project, unsigned mesh, unsig
         fail(error, error_size, "Could not rebuild this mesh's weights and vertex attributes."); return false;
     }
     if (!nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size)) return false;
-    std::vector<u8> arena(FT_COSTUME_IMPORT_ARENA_SIZE);
     FtCostumeAssets imported;
-    if (!ftCostumeAssets_Import(converted.data(), converted.size(), model.root_name, nullptr,
-            arena.data(), arena.size(), FT_COSTUME_IMPORT_RECORD_CAPACITY, &imported)) {
+    if (!ftCostumeAssets_Load(converted.data(), converted.size(), model.root_name, nullptr, &imported)) {
         fail(error, error_size, "The painted model failed geometry validation."); return false;
     }
+    std::free(imported.arena);
     u8* bytes = (u8*)std::malloc(converted.size());
     if (!bytes) return false;
     std::memcpy(bytes, converted.data(), converted.size());

@@ -123,7 +123,7 @@ int main(int argc,char** argv)
     CHECK(accepted.character.fighter_items[0]&&accepted.character.fighter_items[2]);++cases;
     NativeSourceImportedAssets* saved=malloc(sizeof(*saved));CHECK(saved);memcpy(saved,&accepted,sizeof(*saved));
     bad=facts;++bad.joints;CHECK(!nativeSourceAssets_Import(&bad,&input,Ft_Kind_CustomFirst,&candidate,&diagnostic));
-    CHECK(!candidate.ready&&!candidate.motions&&!candidate.character_arena&&!candidate.animation_arena&&!candidate.costume_arena);
+    CHECK(!candidate.ready&&!candidate.motions&&!candidate.character_arena&&!candidate.animation_arena&&!candidate.costume.arena);
     CHECK(!memcmp(saved,&accepted,sizeof(*saved)));++cases;
     bad=facts;bad.articles[1].kind_attribute_offset=FT_CHARACTER_EXT_ATTR_CAPACITY-4;
     CHECK(nativeSourceAssets_Validate(&bad,&diagnostic));CHECK(!nativeSourceAssets_Import(&bad,&input,Ft_Kind_CustomFirst,&candidate,&diagnostic));

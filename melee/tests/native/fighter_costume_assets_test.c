@@ -78,6 +78,16 @@ int main(int argc, char** argv)
                         (names->matanim_joint_name == NULL ||
                          assets.matanim_joint != NULL),
                     "decoded costume roots\n");
+            FtCostumeAssets owned;
+            require(ftCostumeAssets_Load(bytes, size, names->joint_name,
+                        names->matanim_joint_name, &owned) &&
+                        owned.import.record_count == assets.import.record_count &&
+                        owned.import.arena_used == assets.import.arena_used &&
+                        owned.joint_count == assets.joint_count &&
+                        owned.arena == owned.import.arena &&
+                        owned.import.dat == &owned.dat,
+                    "owned costume import matches caller-supplied storage\n");
+            free(owned.arena);
             if (kind == Ft_Kind_Purin && purin_hats[costume_id] != NULL) {
                 u32 root;
                 require(HSD_DatFindRoot(&assets.dat,

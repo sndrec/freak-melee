@@ -248,6 +248,10 @@ import, materials, rigging and skinning, not mesh modeling.
   reimport workflow. Two-slot rigid meshes retain root/deform-bone domains.
   Morph painting, unusual helper model-node and independent texture-matrix
   bindings and larger meshes remain open.
+  [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
+  now grows during asset construction instead of rejecting every graph above
+  2,048 records. Compaction follows the same capacity policy. Larger-mesh vertex
+  indexing remains separate work; match-time pool capacities are unchanged.
   [Costume compaction](melee/docs/native_costume_compaction_checkpoint.md) now
   reclaims dead geometry/texture storage while preserving editor identities;
   128 consecutive brush edits stay bounded, all retail costumes pass, and both

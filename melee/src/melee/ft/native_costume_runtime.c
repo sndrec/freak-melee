@@ -17,7 +17,6 @@
 #include <string.h>
 
 typedef struct NativeCostumeSlot {
-    void* arena;
     FtCostumeAssets assets;
     UnkCostumeStruct costume;
     FighterKind kind;
@@ -142,11 +141,8 @@ static bool load_costume(unsigned port, const NativeContentId* id,
             joint_name = custom_info.members[m].joint_name;
             matanim_name = custom_info.members[m].matanim_name;
         }
-        slot->arena = malloc(FT_COSTUME_IMPORT_ARENA_SIZE);
-        valid = slot->arena && ftCostumeAssets_Import(data.members[m].dat,
-            data.members[m].size, joint_name, matanim_name, slot->arena,
-            FT_COSTUME_IMPORT_ARENA_SIZE, FT_COSTUME_IMPORT_RECORD_CAPACITY,
-            &slot->assets) &&
+        valid = ftCostumeAssets_Load(data.members[m].dat,
+            data.members[m].size, joint_name, matanim_name, &slot->assets) &&
             (!custom || slot->assets.joint_count == custom_info.members[m].joint_count);
         slot->kind = (FighterKind)(kind + m);
         slot->base_costume = base_costume;
@@ -155,7 +151,7 @@ static bool load_costume(unsigned port, const NativeContentId* id,
     }
     if (!valid) {
         fprintf(stderr, "Selected outfit model failed native import.\n");
-        for (unsigned m = 0; m < candidate.member_count; ++m) free(candidate.members[m].arena);
+        for (unsigned m = 0; m < candidate.member_count; ++m) free(candidate.members[m].assets.arena);
         free(package);
         return false;
     }
@@ -163,7 +159,7 @@ static bool load_costume(unsigned port, const NativeContentId* id,
     for (unsigned m = 0; m < candidate.member_count; ++m) {
         NativeCostumeSlot* slot = &players[port].members[m];
         slot->assets.owned_bytes = package;
-        slot->assets.arena = slot->arena;
+        slot->assets.import.dat = &slot->assets.dat;
         slot->costume.joint = slot->assets.joint;
         slot->costume.x4 = slot->assets.matanim_joint;
         slot->costume.native_assets = &slot->assets;
@@ -259,7 +255,7 @@ void nativeCostumeRuntime_Clear(void)
     // Call only after fighters from the previous scene have been destroyed.
     for (unsigned port = 0; port < 4; ++port) {
         for (unsigned m = 0; m < players[port].member_count; ++m)
-            free(players[port].members[m].arena);
+            free(players[port].members[m].assets.arena);
         free(players[port].package);
     }
     memset(players, 0, sizeof(players));

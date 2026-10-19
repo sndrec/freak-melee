@@ -35,12 +35,22 @@ bool trace(const HSD_Dat& dat, const std::vector<Root>& roots,
              std::vector<Span>* spans, char* error, size_t error_size)
 {
     std::vector<u8> arena(FT_COSTUME_IMPORT_ARENA_SIZE);
+    u32 records = FT_COSTUME_IMPORT_RECORD_CAPACITY;
     HSD_DatImport import;
     for (const auto& root : roots) {
-        if (HSD_DatImportInit(&import, &dat, arena.data(), arena.size(), FT_COSTUME_IMPORT_RECORD_CAPACITY) != HSD_DAT_OK)
-            return false;
-        if (spans) { import.source_range = source_span; import.source_context = spans; }
-        if (!HSD_DatImportGraph(&import, root.offset, root.type)) {
+        const size_t before = spans ? spans->size() : 0;
+        for (;;) {
+            if (spans) spans->resize(before);
+            HSD_DatImportInit(&import, &dat, arena.data(), arena.size(), records);
+            if (spans) { import.source_range = source_span; import.source_context = spans; }
+            if (HSD_DatImportGraph(&import, root.offset, root.type)) break;
+            const bool record_limit = import.record_count == records;
+            if (import.status == HSD_DAT_CAPACITY &&
+                (record_limit || arena.size() < FT_COSTUME_IMPORT_MAX_ARENA_SIZE)) {
+                if (record_limit) records *= 2;
+                else arena.resize(arena.size() * 2);
+                continue;
+            }
             if (error && error_size) std::snprintf(error, error_size,
                 "Costume graph failed validation (DAT status %u at 0x%lX; records %lu, arena %zu).",
                 (unsigned)import.status, (unsigned long)import.error_offset,

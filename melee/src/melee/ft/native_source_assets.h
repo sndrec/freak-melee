@@ -22,7 +22,6 @@ typedef struct NativeSourceImportedAssets {
     FtCostumeAssets costume;
     void* character_arena;
     void* animation_arena;
-    void* costume_arena;
     MotionState* motions;
     const MotionState* common_motions;
     ItemKind article_kinds[NATIVE_SOURCE_ARTICLES];
