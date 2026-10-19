@@ -1,5 +1,6 @@
 #include "native_chat_wire.h"
 #include "../lb/native_utf8.h"
+#include <melee/gm/native_account_identity.h>
 
 #include <string.h>
 
@@ -10,6 +11,12 @@ static uint64_t read_be(const uint8_t* p, size_t size)
         result = result * 256 + *p++;
     }
     return result;
+}
+static bool read_account(const uint8_t* bytes, size_t size, char* id, char* handle)
+{
+    if (size < 2 || bytes[0] > 43 || bytes[1] > 24 || size != 2 + bytes[0] + bytes[1]) return false;
+    memcpy(id, bytes + 2, bytes[0]); memcpy(handle, bytes + 2 + bytes[0], bytes[1]);
+    return strlen(id) == bytes[0] && strlen(handle) == bytes[1] && nativeAccountIdentity_Valid(id, handle);
 }
 
 
@@ -32,8 +39,8 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
         return packet->online <= NATIVE_CHAT_PLAYERS;
     }
     if (bytes[0] == 0x86) {
-        if (size < 35 || !bytes[33] || bytes[33] > NATIVE_CHAT_NAME_BYTES ||
-            size != 34 + bytes[33] || !nativeUtf8_IsVisibleText(bytes + 34, bytes[33]))
+        if (size < 37 || !bytes[33] || bytes[33] > NATIVE_CHAT_NAME_BYTES ||
+            size < 36 + bytes[33] || !nativeUtf8_IsVisibleText(bytes + 34, bytes[33]))
         {
             return false;
         }
@@ -46,7 +53,7 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
         }
         memcpy(packet->player.peer, bytes + 1, 32);
         memcpy(packet->player.name, bytes + 34, bytes[33]);
-        return true;
+        return read_account(bytes + 34 + bytes[33], size - 34 - bytes[33], packet->player.account_id, packet->player.account_handle);
     }
     if (bytes[0] != 0x81 || size < 48) {
         return false;
@@ -55,7 +62,7 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
     size_t text_size = (size_t) read_be(bytes + 46, 2);
     if (!name_size || name_size > NATIVE_CHAT_NAME_BYTES || !text_size ||
         text_size > NATIVE_CHAT_TEXT_BYTES ||
-        size != 48 + name_size + text_size ||
+        size < 50 + name_size + text_size ||
         !nativeUtf8_IsVisibleText(bytes + 48, name_size) ||
         !nativeUtf8_IsVisibleText(bytes + 48 + name_size, text_size))
     {
@@ -74,7 +81,8 @@ bool nativeChatWire_Decode(const uint8_t* bytes, size_t size,
     memcpy(message->peer, bytes + 13, 32);
     memcpy(message->name, bytes + 48, name_size);
     memcpy(message->text, bytes + 48 + name_size, text_size);
-    return message->id != 0 && message->nonce != 0;
+    return message->id != 0 && message->nonce != 0 &&
+        read_account(bytes + 48 + name_size + text_size, size - 48 - name_size - text_size, message->account_id, message->account_handle);
 }
 
 size_t nativeChatWire_Identify(const char* name, uint8_t* bytes,

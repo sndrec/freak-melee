@@ -67,8 +67,6 @@ enum class HubAction {
     Seat,
     ShowProfile,
     WriteLetter,
-    AddFriend,
-    Invite,
     StageSeat,
     PickStage,
     ConfirmStage,
@@ -82,13 +80,14 @@ enum class HubAction {
     AccountRefresh, AccountCancel, AccountConfirm,
     SocialLookup, FieldSocialHandle, FieldLetterTo, FieldLetterSubject,
     FieldLetterBody, ComposeLetter, SendLetter, OpenLetter, DeleteLetter, ReplyLetter,
-    MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock
+    MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock,
+    OpenAccount, SendInvitation, JoinInvitation
 };
 struct HubRegion {
     float x, y, w, h;
     HubAction action;
     int value;
-    char id[40], peer[65], peer_name[33];
+    char id[40], peer[65], peer_name[33], account[25];
     bool enabled;
 };
 struct HubState {
@@ -120,7 +119,7 @@ struct HubState {
     bool passive_page;
     unsigned pending_action;
     int pending_value;
-    char pending_peer[65], pending_name[33];
+    char pending_peer[65], pending_name[33], pending_account[25];
     unsigned back_frames;
     unsigned stage_seat;
     uint64_t notice_until;
@@ -129,11 +128,13 @@ extern HubState hub;
 bool nativeHub_Hover(float x, float y, float w, float h);
 void nativeHub_Region(const char* id, float x, float y, float w, float h,
                       HubAction action, int value = 0, bool enabled = true,
-                      const char* peer = nullptr, const char* name = nullptr);
+                      const char* peer = nullptr, const char* name = nullptr,
+                      const char* account = nullptr);
 void nativeHub_Button(const char* id, const char* label, float x, float y,
                       float w, float h, HubAction action, int value = 0,
                       bool gold = false, bool enabled = true,
-                      const char* peer = nullptr, const char* name = nullptr);
+                      const char* peer = nullptr, const char* name = nullptr,
+                      const char* account = nullptr);
 void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action, bool secret = false);
 unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,

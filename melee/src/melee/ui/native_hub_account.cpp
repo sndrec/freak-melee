@@ -1,6 +1,8 @@
 #include "native_hub_account.h"
 #include <melee/gm/native_account.h>
 #include <melee/gm/native_services.h>
+#include <melee/gm/native_online_session.h>
+#include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstring>
@@ -8,7 +10,7 @@
 
 namespace {
     NativeAccountView account;
-    bool started, attempted;
+    bool started, attempted, leave_lobby;
     void* window;
     unsigned mode, offset, profile_revision;
     HubAction confirmation = HubAction::None;
@@ -60,7 +62,18 @@ void nativeHubAccount_Tick()
             return;
         }
     }
-    if (!nativeAccount_Poll(account)) return;
+    const bool was_signed_in = account.signed_in;
+    char previous[44]; std::snprintf(previous, sizeof(previous), "%s", account.id);
+    const bool changed = nativeAccount_Poll(account);
+    if (was_signed_in && (!account.signed_in || std::strcmp(previous, account.id))) leave_lobby = true;
+    if (leave_lobby && !account.busy && nativeOnlineMenu_IsAvailable()) {
+        if (nativeOnlineSession_State() != NativeLobbySessionState_Disconnected) {
+            nativeOnlineSession_Stop(); hub.pending_listing = false;
+            nativeHub_Notice("You left the lobby because your account signed out.");
+        }
+        leave_lobby = false;
+    }
+    if (!changed) return;
     if (!*hub.account_handle && *account.handle) std::snprintf(hub.account_handle, sizeof(hub.account_handle), "%s", account.handle);
     if (account.signed_in && !account.busy && account.profile_revision != profile_revision) {
         profile_revision = account.profile_revision;
@@ -93,6 +106,7 @@ void nativeHubAccount_Render()
             confirmation == HubAction::AccountRemoveKey ? "Remove this passkey?" : "Sign out this device?";
         nativeMenuPaint_Text(title, 194, 192, 370, 15, gold);
         nativeMenuPaint_Text(confirmation == HubAction::AccountRotateRecovery ? "Your previous recovery code will expire." :
+            confirmation == HubAction::AccountLogout || confirmation == HubAction::AccountRevokeAll ? "You will also leave your current lobby." :
             confirmation == HubAction::AccountRemoveKey ? "You will need another passkey to sign in." : "You can sign in again with a passkey.",
             194, 225, 370, 10, muted);
         nativeHub_Button("account-confirm", "Confirm", 194, 280, 187, 32, HubAction::AccountConfirm, 1, true);
@@ -191,6 +205,6 @@ void nativeHubAccount_Inspect()
 const NativeAccountView& nativeHubAccount_View() { return account; }
 void nativeHubAccount_Shutdown()
 {
-    nativeAccount_Shutdown(); account = {}; started = attempted = false; window = nullptr; mode = offset = profile_revision = 0;
+    nativeAccount_Shutdown(); account = {}; started = attempted = leave_lobby = false; window = nullptr; mode = offset = profile_revision = 0;
     nativeHubAccount_Leave();
 }

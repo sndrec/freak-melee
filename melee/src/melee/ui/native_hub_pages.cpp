@@ -232,9 +232,10 @@ namespace {
         if (p) {
             for (unsigned i = unsigned(hub.lobby_scroll); i < p->participant_count && i < unsigned(hub.lobby_scroll + 6); ++i) {
                 const auto& person = p->participants[i];
-                nativeHub_Button("lobby-player", person.name, 187, y, 182, 19,
-                                 HubAction::ShowProfile, 0, false, true,
-                                 person.peer_id, person.name);
+                char name[64]; std::snprintf(name, sizeof(name), *person.account_handle ? "@%s" : "%s", *person.account_handle ? person.account_handle : person.name);
+                nativeHub_Button("lobby-player", name, 187, y, 182, 19,
+                                 *person.account_handle ? HubAction::OpenAccount : HubAction::ShowProfile, 0, false, true,
+                                 person.peer_id, person.name, person.account_handle);
                 for (unsigned seat = 0;
                      seat < person.local_players && seat < 4; ++seat)
                 {
@@ -313,6 +314,10 @@ namespace {
         for (unsigned i = count; i > 0 && y >= 151; --i) {
             const char* text = room ? lobby->messages[i - 1].text : global->messages[i - 1].text;
             const char* name = room ? lobby->messages[i - 1].name : global->messages[i - 1].name;
+            char account_name[32];
+            if (!room && *global->messages[i - 1].account_handle) {
+                std::snprintf(account_name, sizeof(account_name), "@%s", global->messages[i - 1].account_handle); name = account_name;
+            }
             MessageLines lines = wrap_message(text);
             for (int row = int(lines.count) + 1; row >= 0 && y >= 151; --row) {
                 if (skip) { --skip; continue; }
@@ -328,8 +333,10 @@ namespace {
         for (unsigned i = unsigned(people_scroll); i < last; ++i) {
             const char* name = room ? presence->participants[i].name : global->players[i].name;
             const char* peer = room ? presence->participants[i].peer_id : global->players[i].peer;
-            nativeHub_Button("chat-player", name, 487, 149 + (i - people_scroll) * 14, 108, 13,
-                HubAction::ShowProfile, 0, false, true, peer, name);
+            const char* account = room ? presence->participants[i].account_handle : global->players[i].account_handle;
+            char label[64]; std::snprintf(label, sizeof(label), *account ? "@%s" : "%s", *account ? account : name);
+            nativeHub_Button("chat-player", label, 487, 149 + (i - people_scroll) * 14, 108, 13,
+                *account ? HubAction::OpenAccount : HubAction::ShowProfile, 0, false, true, peer, name, account);
         }
         if (people > 12) {
             nativeHub_Button("people-prev", "<", 489, 324, 28, 18, HubAction::PeopleScroll, -12, false, people_scroll > 0);
@@ -381,14 +388,10 @@ namespace {
             nativeHub_Button("save-bio", "Save profile", 194, 263, 165, 30,
                              HubAction::SaveProfile, 0, true);
         } else {
-            nativeMenuPaint_Text("This player has not shared a bio.", 194, 175,
+            nativeMenuPaint_Text("This guest has no linked online account.", 194, 175,
                                 380, 10, muted);
-            nativeHub_Button("write-letter", "Write a letter", 193, 251, 120,
-                             30, HubAction::WriteLetter);
-            nativeHub_Button("add-friend", "Add friend", 321, 251, 120, 30,
-                             HubAction::AddFriend);
-            nativeHub_Button("invite-player", "Invite to lobby", 449, 251, 138,
-                             30, HubAction::Invite);
+            nativeHub_Button("guest-find-account", "Find an account", 193, 251, 394,
+                             30, HubAction::Friends);
         }
     }
     void send()

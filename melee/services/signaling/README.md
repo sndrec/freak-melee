@@ -20,10 +20,21 @@ delivery semantics and current test evidence.
 
 The local account service provides persistent identities, passkey registration
 and sign-in, recovery codes and device-session management. Its cryptographic
-checks use SimpleWebAuthn Server. Native account screens and Windows WebAuthn
-integration remain open. See the [account contract](../../docs/native_account_auth.md)
+checks use SimpleWebAuthn Server. Native account screens, Windows WebAuthn handling
+and protected session storage are implemented; real Windows approval remains open.
+See the [account contract](../../docs/native_account_auth.md)
 for the API, stored information and verification scope. Accounts, the lobby
 browser and the current Quick Play changes have not been deployed.
+
+The local service also implements friends, offline letters, verified chat/lobby
+profiles and expiring lobby invitations. Its account socket upgrade uses
+`Authorization: Bearer <session>` and `X-Freak-Account: <account_name>`.
+The service supplies public account metadata in presence and chat records.
+Update the service and client together: the new presence records require both
+ends of the updated wire format. Local native checks set both
+`FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
+localhost service. The [social guide](../../docs/native_social_accounts.md)
+records the 79-test service result and two-client native verification.
 
 Local checks:
 

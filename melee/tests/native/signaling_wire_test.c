@@ -161,6 +161,10 @@ static void test_server_decoding(void)
     memcpy(bytes + size, selection, sizeof(selection));
     size += sizeof(selection);
 
+    const size_t account_offset = size;
+    size = string8(bytes, size, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    size = string8(bytes, size, "twilight");
+
     size = string8(bytes, size, "peer_two");
     size = string8(bytes, size, "Bob");
     size = string8(bytes, size, "build-a");
@@ -174,6 +178,8 @@ static void test_server_decoding(void)
     size += 4;
     put_u16(bytes + size, 0);
     size += 2;
+    size = string8(bytes, size, "");
+    size = string8(bytes, size, "");
     put_u64(bytes + size, 3);
     size += 8;
     const uint8_t match[] = { 0x46, 0x4D, 0x4C };
@@ -194,6 +200,9 @@ static void test_server_decoding(void)
     assert(strcmp(decoded.data.presence.owner_peer_id, "peer_one") == 0);
     assert(decoded.data.presence.participant_count == 2);
     assert(strcmp(decoded.data.presence.participants[0].name, "Alice") == 0);
+    assert(!strcmp(decoded.data.presence.participants[0].account_id, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+    assert(!strcmp(decoded.data.presence.participants[0].account_handle, "twilight"));
+    assert(!*decoded.data.presence.participants[1].account_id && !*decoded.data.presence.participants[1].account_handle);
     assert(decoded.data.presence.participants[0].local_players == 2);
     assert(decoded.data.presence.participants[0].active_mask == 1);
     assert(decoded.data.presence.participants[0].waiting_mask == 2);
@@ -214,6 +223,9 @@ static void test_server_decoding(void)
     assert(memcmp(decoded.data.presence.match, match, sizeof(match)) == 0);
 
     assert(!nativeSignalingWire_DecodeServer(bytes, size - 1, &decoded));
+    bytes[account_offset + 1] = '+';
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[account_offset + 1] = 'A';
     bytes[first_rank_offset + 1] = 0;
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
     bytes[first_rank_offset + 1] = 1;

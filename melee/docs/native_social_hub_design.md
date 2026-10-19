@@ -362,10 +362,10 @@ Start with one signed-in social account per running client. Local guests can
 still participate in matches. Friends, letters and inbox state belong to that
 account.
 
-The current room peer IDs are temporary, and the current global chat retains a
-small shared history. Add persistent account identity, friend relationships,
-letters, room chat, unread state and delivery records. Keep account identity
-separate from a room connection and its local match seats.
+Room peer IDs identify temporary connections. A verified connection also carries
+the signed-in account's permanent ID and account name. Global chat retains a
+small shared history with that public identity attached to each message.
+Account identity remains separate from the room connection and local match seats.
 
 Offline delivery stores letters, friend requests and invitations. Fighter
 sharing uses the connected lobby's content transfer, validation, cache and
@@ -373,9 +373,11 @@ installation paths. The local passkey account service now supplies persistent
 identity, recovery and device-session management. Native account screens,
 Windows passkey/HTTP handling and DPAPI session storage are implemented.
 Persistent friends and the email-style Inbox/Sent pages now use those account
-sessions. Their delivery rules and evidence are in the
-[friends and letters guide](native_social_accounts.md). Windows security-prompt
-acceptance, authenticated chat/lobby identity and invitations remain open.
+sessions. Global/lobby player lists open verified account profiles. Friends can
+send expiring lobby invitations through Inbox; joining rechecks the sender's
+membership and friendship. Signing out leaves the current lobby. Their delivery
+rules and local evidence are in the [friends and letters guide](native_social_accounts.md).
+Windows security-prompt acceptance and deployment remain open.
 
 The user prefers account creation and sign-in inside Freak Melee and asks us
 to minimize sensitive information held by the service. Use native Windows

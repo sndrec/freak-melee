@@ -52,7 +52,7 @@ function entry(bytes: Uint8Array) {
     id: view.getBigUint64(1), nonce: view.getUint32(9),
     peer: decoder.decode(bytes.subarray(13, 45)),
     name: decoder.decode(bytes.subarray(48, 48 + bytes[45])),
-    text: decoder.decode(bytes.subarray(48 + bytes[45])),
+    text: decoder.decode(bytes.subarray(48 + bytes[45], 48 + bytes[45] + view.getUint16(46))),
   };
 }
 
@@ -63,8 +63,8 @@ async function players(connection: Awaited<ReturnType<typeof connect>>) {
   for (let i = 0; i < count; ++i) {
     const record = await connection.next(0x86);
     result.push({ peer: decoder.decode(record.subarray(1, 33)),
-                  name: decoder.decode(record.subarray(34)) });
-    expect(record[33]).toBe(record.length - 34);
+                  name: decoder.decode(record.subarray(34, 34 + record[33])) });
+    expect(record[33] + 2).toBe(record.length - 34);
   }
   expect(Array.from(await connection.next(0x87))).toEqual([0x87]);
   return result;

@@ -1,5 +1,7 @@
 #include "native_hub_social.h"
 #include "native_hub_account.h"
+#include <melee/gm/native_online_session.h>
+#include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
@@ -9,8 +11,20 @@ namespace {
     unsigned folder, offset, friends_offset, read_scroll, read_lines;
     uint64_t refreshed;
     bool wanted;
-    char owner[44], opened[44], nonce[44];
+    char owner[44], opened[44], nonce[44], invitation_nonce[44], invitation_room[13], invitation_to[25], pending_join[44];
+    unsigned join_revision;
     constexpr uint32_t gold = 0xD9B754FF, muted = 0xB9ADBDFF;
+
+    bool can_invite(const NativeAccountView& account)
+    {
+        const auto* presence = nativeOnlineSession_Presence();
+        const char* peer = nativeOnlineSession_LocalPeerId();
+        if (!account.signed_in || !presence || !peer || !nativeOnlineSession_RoomCode()) return false;
+        for (unsigned i = 0; i < presence->participant_count; ++i)
+            if (!std::strcmp(peer, presence->participants[i].peer_id))
+                return !std::strcmp(account.id, presence->participants[i].account_id);
+        return false;
+    }
 
     void clear_draft()
     {
@@ -33,6 +47,18 @@ namespace {
             std::snprintf(request.subject, sizeof(request.subject), "%s", hub.letter_subject);
             std::snprintf(request.text, sizeof(request.text), "%s", hub.letter_body);
             std::snprintf(request.nonce, sizeof(request.nonce), "%s", nonce);
+        }
+        if (operation == NativeAccountOperation::SendInvitation) {
+            const char* room = nativeOnlineSession_RoomCode();
+            if (!room || !*room || !can_invite(nativeHubAccount_View())) { nativeHub_Notice("Join a lobby with your account before inviting a friend."); return false; }
+            if (std::strcmp(invitation_room, room) || std::strcmp(invitation_to, handle)) {
+                invitation_nonce[0] = 0;
+                std::snprintf(invitation_room, sizeof(invitation_room), "%s", room);
+                std::snprintf(invitation_to, sizeof(invitation_to), "%s", handle);
+            }
+            if (!*invitation_nonce && !nativeAccount_NewNonce(invitation_nonce)) { nativeHub_Notice("Could not prepare the invitation. Try again."); return false; }
+            std::snprintf(request.room, sizeof(request.room), "%s", invitation_room);
+            std::snprintf(request.nonce, sizeof(request.nonce), "%s", invitation_nonce);
         }
         nativeHub_ChangePage(hub.page);
         const bool ok = nativeAccount_Submit(request);
@@ -59,12 +85,28 @@ void nativeHubSocial_Tick()
     const auto& account = nativeHubAccount_View();
     if ((!account.signed_in && *owner) || (account.signed_in && std::strcmp(owner, account.id))) {
         clear_draft(); SDL_memset(opened, 0, sizeof(opened));
+        SDL_memset(invitation_nonce, 0, sizeof(invitation_nonce)); pending_join[0] = 0;
         std::snprintf(owner, sizeof(owner), "%s", account.signed_in ? account.id : "");
         wanted = true; folder = offset = friends_offset = read_scroll = 0;
     }
     if (!account.busy && *nonce && !std::strcmp(nonce, account.social.last_sent_nonce)) {
         clear_draft(); folder = 1; offset = 0; wanted = true;
         if (hub.page == NativeHubPage_ComposeLetter) nativeHub_ChangePage(NativeHubPage_Inbox);
+    }
+    if (!account.busy && *invitation_nonce && !std::strcmp(invitation_nonce, account.social.last_sent_nonce)) {
+        invitation_nonce[0] = 0;
+        nativeHub_Notice("Lobby invitation sent.");
+    }
+    if (!account.busy && *pending_join && account.revision != join_revision) {
+        const bool checked = !std::strcmp(pending_join, account.social.join_id) && *account.social.join_room;
+        pending_join[0] = 0;
+        if (checked && nativeOnlineMenu_IsAvailable()) {
+            if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Join, hub.public_name, account.social.join_room, uint8_t(hub.local_players))) {
+                nativeOnlineSession_Stop(); hub.pending_listing = false;
+                std::snprintf(hub.code, sizeof(hub.code), "%s", account.social.join_room);
+                nativeHub_ChangePage(NativeHubPage_Lobbies);
+            } else nativeHub_Notice("Could not join the lobby. Please try again.");
+        } else nativeHub_Notice(checked ? "Return to character select or practice to join this lobby." : account.status);
     }
     if (account.signed_in && !account.busy && hub.visible && nativeHubSocial_Page(hub.page) &&
         hub.page != NativeHubPage_ComposeLetter && hub.page != NativeHubPage_SocialProfile && (wanted || SDL_GetTicks() - refreshed >= 10000)) {
@@ -108,11 +150,13 @@ void nativeHubSocial_Render(NativeHubPage page)
         nativeHub_TextBlock(*social.profile.bio ? social.profile.bio : "This player has not shared a bio.", 194, 192, 370, 100, 11, muted);
         const bool self = !std::strcmp(account.id, social.profile.id);
         const char* state = social.relationship;
-        nativeHub_Button("profile-letter", "Write a letter", 194, 307, 187, 30, HubAction::WriteLetter, 0, true, enabled && !self);
+        nativeHub_Button("profile-letter", "Write a letter", 194, 307, 187, 30, HubAction::WriteLetter, 0, true, enabled && !self && !social.profile_blocked);
         nativeHub_Button("profile-friend", !std::strcmp(state, "incoming") ? "Accept friend request" : !std::strcmp(state, "outgoing") ? "Cancel friend request" :
             !std::strcmp(state, "friend") ? "Remove friend" : "Add friend", 395, 307, 189, 30, HubAction::SocialFriend, 0, false, enabled && !self && !social.profile_blocked);
         nativeHub_Button("profile-block", social.profile_blocked ? "Unblock player" : "Block player", 194, 354, 187, 25,
             HubAction::SocialBlock, 0, false, enabled && !self);
+        nativeHub_Button("profile-invite", "Invite to lobby", 395, 354, 189, 25,
+            HubAction::SendInvitation, 0, true, enabled && !self && !social.profile_blocked && !std::strcmp(state, "friend") && can_invite(account));
         return;
     }
     if (page == NativeHubPage_Letter) {
@@ -128,8 +172,13 @@ void nativeHubSocial_Render(NativeHubPage page)
         nativeHub_Button("letter-up", "Up", 506, 320, 35, 22, HubAction::MailPage, -1, false, read_scroll > 0);
         nativeHub_Button("letter-down", "Down", 549, 320, 35, 22, HubAction::MailPage, 1, false, read_scroll + 9 < read_lines);
         bool request = !std::strcmp(message.kind, "friend_request") && !std::strcmp(message.status, "pending");
-        nativeHub_Button("letter-reply", request ? "Accept" : "Reply", 194, 359, 120, 28,
-            request ? HubAction::SocialFriend : HubAction::ReplyLetter, request ? 1 : 0, true, enabled && !message.folder);
+        bool invitation = !std::strcmp(message.kind, "room_invite");
+        SDL_Time now = 0; SDL_GetCurrentTime(&now);
+        bool expired = invitation && message.expires <= uint64_t(now / SDL_NS_PER_MS);
+        if (invitation) nativeMenuPaint_Text(expired ? "Invitation expired" : "Invitation lasts 15 minutes", 194, 327, 298, 9, muted);
+        nativeHub_Button("letter-reply", request ? "Accept" : invitation ? "Join lobby" : "Reply", 194, 359, 120, 28,
+            request ? HubAction::SocialFriend : invitation ? HubAction::JoinInvitation : HubAction::ReplyLetter, request ? 1 : 0, true,
+            enabled && !message.folder && !expired && (!invitation || nativeOnlineMenu_IsAvailable()));
         if (request) nativeHub_Button("letter-decline", "Decline", 325, 359, 120, 28, HubAction::SocialFriend, 2, false, enabled);
         nativeHub_Button("letter-delete", "Delete letter", 459, 359, 125, 28, HubAction::DeleteLetter, 0, false, enabled);
         return;
@@ -181,6 +230,13 @@ bool nativeHubSocial_Activate(HubAction action, int value)
 {
     const auto& account = nativeHubAccount_View(); const auto& social = account.social;
     switch (action) {
+    case HubAction::OpenAccount:
+        if (*hub.pending_account) {
+            std::snprintf(hub.social_handle, sizeof(hub.social_handle), "%s", hub.pending_account);
+            nativeHub_ChangePage(NativeHubPage_SocialProfile);
+            submit(NativeAccountOperation::LookupProfile, hub.social_handle);
+        }
+        return true;
     case HubAction::Friends: case HubAction::Inbox:
         nativeHub_ChangePage(action == HubAction::Friends ? NativeHubPage_Friends : NativeHubPage_Inbox);
         wanted = true; return true;
@@ -194,12 +250,16 @@ bool nativeHubSocial_Activate(HubAction action, int value)
     case HubAction::WriteLetter:
         if (hub.page != NativeHubPage_SocialProfile) { nativeHub_Notice("Find this player's account in Friends to write a letter."); return true; }
         compose(social.profile.handle, nullptr); return true;
-    case HubAction::AddFriend:
-        nativeHub_ChangePage(NativeHubPage_Friends); wanted = true;
-        nativeHub_Notice("Find this player's account name. Display names can be different."); return true;
     case HubAction::ReplyLetter: compose(social.opened.handle, social.opened.title); return true;
     case HubAction::SendLetter:
         folder = 1; offset = 0; submit(NativeAccountOperation::SendLetter); return true;
+    case HubAction::SendInvitation:
+        submit(NativeAccountOperation::SendInvitation, social.profile.handle); return true;
+    case HubAction::JoinInvitation:
+        if (nativeOnlineMenu_IsAvailable() && submit(NativeAccountOperation::JoinInvitation, nullptr, opened)) {
+            std::snprintf(pending_join, sizeof(pending_join), "%s", opened); join_revision = account.revision;
+        }
+        return true;
     case HubAction::OpenLetter:
         if (value >= 0 && unsigned(value) < social.count) {
             std::snprintf(opened, sizeof(opened), "%s", social.messages[value].id); read_scroll = 0;
@@ -238,12 +298,15 @@ void nativeHubSocial_Scroll(int amount)
 void nativeHubSocial_Inspect()
 {
     const auto& account = nativeHubAccount_View(); const auto& social = account.social;
-    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d\n",
+    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d profile-handle=%s kind=%s invite-pending=%d\n",
         account.signed_in, account.busy, social.loaded, social.folder, social.offset, social.count, social.total, social.unread, social.friends_total,
-        *opened && !std::strcmp(opened, social.opened.id), *social.profile.id != 0);
+        *opened && !std::strcmp(opened, social.opened.id), *social.profile.id != 0,
+        social.profile.handle, social.opened.kind, *invitation_nonce != 0);
 }
 void nativeHubSocial_Shutdown()
 {
     clear_draft(); SDL_memset(owner, 0, sizeof(owner)); SDL_memset(opened, 0, sizeof(opened));
+    SDL_memset(invitation_nonce, 0, sizeof(invitation_nonce)); pending_join[0] = 0;
+    invitation_room[0] = invitation_to[0] = 0;
     wanted = false; refreshed = folder = offset = friends_offset = read_scroll = read_lines = 0;
 }

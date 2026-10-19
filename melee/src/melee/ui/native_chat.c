@@ -1,4 +1,5 @@
 #include "native_chat.h"
+#include <melee/gm/native_account_transport.h>
 
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_RAND_S
@@ -45,6 +46,8 @@ static struct {
     _Atomic bool connected;
     HANDLE thread, stop, wake;
     char peer[33];
+    char endpoint[512];
+    uint64_t account_generation;
     wchar_t url[1024];
 } network;
 static NativeChatView view;
@@ -234,17 +237,26 @@ static bool open_connection(ChatConnection* c)
         return false;
     }
     c->request_callback = set_callback(c->request, &c->http);
+    wchar_t headers[192] = { 0 };
+    nativeAccountTransport_Headers(network.url, headers, 192);
+    DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+    DWORD disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
+    bool policy = WinHttpSetOption(c->request, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects)) &&
+        WinHttpSetOption(c->request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled));
     if (!c->request_callback ||
+        !policy ||
         !WinHttpSetOption(c->request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
                           NULL, 0) ||
-        !WinHttpSendRequest(c->request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        !WinHttpSendRequest(c->request, headers, (DWORD) -1,
                             WINHTTP_NO_REQUEST_DATA, 0, 0,
                             (DWORD_PTR) &c->http) ||
         !wait_write(&c->http) || !WinHttpReceiveResponse(c->request, NULL) ||
         !wait_write(&c->http))
     {
+        SecureZeroMemory(headers, sizeof(headers));
         return false;
     }
+    SecureZeroMemory(headers, sizeof(headers));
     DWORD status = 0, size = sizeof(status);
     if (!WinHttpQueryHeaders(
             c->request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
@@ -373,6 +385,9 @@ bool nativeChat_Start(const char* endpoint)
         return false;
     }
     memset(&network, 0, sizeof(network));
+    if (strlen(endpoint) >= sizeof(network.endpoint)) return false;
+    memcpy(network.endpoint, endpoint, strlen(endpoint) + 1);
+    network.account_generation = nativeAccountTransport_Generation();
     memset(&view, 0, sizeof(view));
     view.state = NativeChat_Offline;
     next_nonce = 0;
@@ -414,6 +429,10 @@ bool nativeChat_Start(const char* endpoint)
 
 void nativeChat_Update(void)
 {
+    if (network.thread && network.account_generation != nativeAccountTransport_Generation()) {
+        char endpoint[512]; memcpy(endpoint, network.endpoint, sizeof(endpoint));
+        nativeChat_Stop(); nativeChat_Start(endpoint);
+    }
     uint32_t r =
         atomic_load_explicit(&network.event_read, memory_order_relaxed);
     uint32_t w =

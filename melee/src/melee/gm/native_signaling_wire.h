@@ -60,6 +60,7 @@ typedef enum NativeRoomRotationPolicy {
 } NativeRoomRotationPolicy;
 
 typedef struct NativeSignalingParticipant {
+    char account_id[44], account_handle[25];
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
     char build[NATIVE_SIGNALING_MAX_BUILD_BYTES + 1];

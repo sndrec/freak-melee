@@ -1,14 +1,20 @@
 import { DurableObject } from "cloudflare:workers";
+import { connectionAccount, currentConnectionAccount, type ConnectionAccount } from "./connection-account";
 
 // This is one shared conversation for the private client, independent of Rooms.
 export const CHAT_HISTORY = 64;
 export const CHAT_NAME_BYTES = 32;
 export const CHAT_TEXT_BYTES = 512;
-export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES;
+export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES + 2 + 43 + 24;
 export const CHAT_PLAYERS = 128;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-interface ChatIdentity { peer: string; name: string }
+interface ChatIdentity { peer: string; name: string; account?: ConnectionAccount }
+function accountBytes(id: string, handle: string): Uint8Array {
+  const bytes = new Uint8Array(2 + id.length + handle.length);
+  bytes.set([id.length, handle.length]); bytes.set(encoder.encode(id), 2);
+  bytes.set(encoder.encode(handle), 2 + id.length); return bytes;
+}
 
 export function encodeChatIdentity(name: string): Uint8Array {
   const encoded = encoder.encode(name);
@@ -20,11 +26,13 @@ export function encodeChatIdentity(name: string): Uint8Array {
 
 function identityPacket(identity: ChatIdentity): Uint8Array {
   const name = encoder.encode(identity.name);
-  const bytes = new Uint8Array(34 + name.length);
+  const account = accountBytes(identity.account?.profile.id ?? "", identity.account?.profile.handle ?? "");
+  const bytes = new Uint8Array(34 + name.length + account.length);
   bytes[0] = 0x86;
   bytes.set(encoder.encode(identity.peer), 1);
   bytes[33] = name.length;
   bytes.set(name, 34);
+  bytes.set(account, 34 + name.length);
   return bytes;
 }
 
@@ -34,6 +42,7 @@ interface ChatRow extends Record<string, SqlStorageValue> {
   nonce: number;
   name: string;
   text: string;
+  account_id: string; account_handle: string;
 }
 
 export function encodeChatPost(nonce: number, name: string, text: string): Uint8Array {
@@ -53,7 +62,8 @@ export function encodeChatPost(nonce: number, name: string, text: string): Uint8
 function encodeEntry(row: ChatRow): Uint8Array {
   const n = encoder.encode(row.name);
   const t = encoder.encode(row.text);
-  const bytes = new Uint8Array(48 + n.length + t.length);
+  const account = accountBytes(row.account_id, row.account_handle);
+  const bytes = new Uint8Array(48 + n.length + t.length + account.length);
   const view = new DataView(bytes.buffer);
   bytes[0] = 0x81;
   view.setBigUint64(1, BigInt(row.id));
@@ -63,6 +73,7 @@ function encodeEntry(row: ChatRow): Uint8Array {
   view.setUint16(46, t.length);
   bytes.set(n, 48);
   bytes.set(t, 48 + n.length);
+  bytes.set(account, 48 + n.length + t.length);
   return bytes;
 }
 
@@ -74,6 +85,7 @@ function countPacket(type: number, count: number): Uint8Array {
 }
 
 export class GlobalChat extends DurableObject<CloudflareBindings> {
+  private accountMessages = new Map<string, Promise<void>>();
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -83,6 +95,12 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
         name TEXT NOT NULL, text TEXT NOT NULL,
         UNIQUE(peer, nonce)
       )`);
+      const columns = ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(chat_messages)").toArray();
+      if (!columns.some(column => column.name === "account_id"))
+        ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
+      if (!columns.some(column => column.name === "account_handle"))
+        ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN account_handle TEXT NOT NULL DEFAULT ''");
+      ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS chat_accounts (peer TEXT PRIMARY KEY, account_id TEXT NOT NULL)");
     });
   }
 
@@ -92,12 +110,16 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket", { status: 426 });
     }
+    const account = connectionAccount(request);
+    const binding = this.ctx.storage.sql.exec<{ account_id: string }>("SELECT account_id FROM chat_accounts WHERE peer=?", peer).toArray()[0];
+    if (binding && binding.account_id !== account?.profile.id) return new Response("This connection belongs to another account", { status: 403 });
     for (const old of this.ctx.getWebSockets(peer)) old.close(4001, "Reconnected");
     if (this.connections().length >= CHAT_PLAYERS) {
       return new Response("Chatroom is full", { status: 503 });
     }
     const pair = new WebSocketPair();
-    pair[1].serializeAttachment({ peer, name: "Player" } satisfies ChatIdentity);
+    if (account) this.ctx.storage.sql.exec("INSERT OR IGNORE INTO chat_accounts VALUES (?,?)", peer, account.profile.id);
+    pair[1].serializeAttachment({ peer, name: account?.profile.name ?? "Player", account } satisfies ChatIdentity);
     this.ctx.acceptWebSocket(pair[1], [peer]);
     const rows = this.ctx.storage.sql.exec<ChatRow>(
       "SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?", CHAT_HISTORY,
@@ -108,8 +130,26 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
-  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): void {
+  async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const initial = socket.deserializeAttachment() as ChatIdentity;
+    let release: (() => void) | undefined, lane: Promise<void> | undefined;
+    if (initial.account) {
+      const previous = this.accountMessages.get(initial.peer);
+      lane = new Promise<void>(resolve => { release = resolve; });
+      this.accountMessages.set(initial.peer, lane);
+      if (previous) await previous;
+    }
     try {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      const identity = socket.deserializeAttachment() as ChatIdentity;
+      if (identity.account) {
+        const profile = await currentConnectionAccount(identity.account, this.env);
+        if (!profile) { socket.close(1008, "Account sign-in expired"); return; }
+        if (socket.readyState !== WebSocket.OPEN) return;
+        identity.account.profile = profile;
+        socket.serializeAttachment(identity);
+        this.identify(socket, profile.name);
+      }
       if (typeof message === "string" || message.byteLength > CHAT_PACKET_BYTES) throw new Error();
       const bytes = new Uint8Array(message);
       if (bytes.length === 1 && bytes[0] === 2) {
@@ -131,7 +171,8 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       const textSize = view.getUint16(6);
       if (!nonce || !nameSize || nameSize > CHAT_NAME_BYTES || !textSize ||
           textSize > CHAT_TEXT_BYTES || bytes.length !== 8 + nameSize + textSize) throw new Error();
-      const name = decoder.decode(bytes.subarray(8, 8 + nameSize));
+      const suppliedName = decoder.decode(bytes.subarray(8, 8 + nameSize));
+      const name = identity.account?.profile.name ?? suppliedName;
       const text = decoder.decode(bytes.subarray(8 + nameSize));
       if (!name.trim() || !text.trim() || /[\x00-\x1f\x7f]/.test(name + text)) throw new Error();
       const { peer } = socket.deserializeAttachment() as ChatIdentity;
@@ -145,8 +186,8 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
         return;
       }
       const row = this.ctx.storage.sql.exec<ChatRow>(
-        "INSERT INTO chat_messages (peer, nonce, name, text) VALUES (?, ?, ?, ?) RETURNING *",
-        peer, nonce, name, text,
+        "INSERT INTO chat_messages (peer, nonce, name, text, account_id, account_handle) VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
+        peer, nonce, name, text, identity.account?.profile.id ?? "", identity.account?.profile.handle ?? "",
       ).one();
       this.ctx.storage.sql.exec(
         "DELETE FROM chat_messages WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT ?)",
@@ -157,6 +198,9 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       for (const connection of this.connections()) this.send(connection, packet);
     } catch {
       socket.close(1008, "Invalid chat message");
+    } finally {
+      release?.();
+      if (this.accountMessages.get(initial.peer) === lane) this.accountMessages.delete(initial.peer);
     }
   }
 
@@ -185,6 +229,7 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
 
   private identify(socket: WebSocket, name: string): void {
     const identity = socket.deserializeAttachment() as ChatIdentity;
+    if (identity.account) name = identity.account.profile.name;
     if (identity.name === name) return;
     identity.name = name;
     socket.serializeAttachment(identity);

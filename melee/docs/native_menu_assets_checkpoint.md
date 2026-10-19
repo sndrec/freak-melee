@@ -6,6 +6,10 @@ The current requirements remain in `PROJECT_PLAN.md` and
 
 ## Current implementation
 
+Asset edits require a specific base-game reference and a before/after comparison
+showing closer agreement with that reference. Stock shapes and ornamentation,
+including the navigation ribbon's interior cutout, are intentional artwork.
+
 The hub loads `MnMaAll` through the same archive decoder as the original main
 menus. Each scene owns its archive buffers and imported descriptors. Existing
 retail-menu call sites now pass their menu asset context directly.

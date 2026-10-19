@@ -65,6 +65,10 @@ export class SocialFriendship extends DurableObject<CloudflareBindings> {
     }
   }
   private pending(): boolean { return this.ctx.storage.sql.exec("SELECT recipient FROM friend_updates LIMIT 1").toArray().length > 0; }
+  accepted(first: string, second: string): boolean {
+    return pairName(first, second) === this.ctx.id.name &&
+      this.ctx.storage.sql.exec<PairRow>("SELECT * FROM friendship WHERE id=1").toArray()[0]?.state === 3;
+  }
   private async drain(): Promise<void> {
     // Revisions committed during an await get another pass, with bounded work.
     for (let pass = 0; pass < 4; ++pass) {

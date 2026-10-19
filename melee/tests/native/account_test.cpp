@@ -1,4 +1,5 @@
 #include <melee/gm/native_account_internal.h>
+#include <melee/gm/native_account_transport.h>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -53,6 +54,8 @@ static int client(const char* root, const char* endpoint, bool seed)
         if (text) assert(nativeAccount_String(text, request.text, sizeof(request.text), true));
         if (nonce) assert(nativeAccount_String(nonce, request.nonce, sizeof(request.nonce)));
         if (action) assert(nativeAccount_String(action, request.action, sizeof(request.action)));
+        auto* room = yyjson_obj_get(object, "room");
+        if (room) assert(nativeAccount_String(room, request.room, sizeof(request.room)));
         request.folder = unsigned(yyjson_get_uint(yyjson_obj_get(object, "folder")));
         request.offset = unsigned(yyjson_get_uint(yyjson_obj_get(object, "offset")));
         request.friends_offset = unsigned(yyjson_get_uint(yyjson_obj_get(object, "friends_offset")));
@@ -103,6 +106,22 @@ int main(int argc, char** argv)
     std::snprintf(original.handle, sizeof(original.handle), "twilight");
     assert(nativeAccount_Base64Encode(bytes, 32, original.token, sizeof(original.token)));
     assert(nativeAccount_Base64Encode(bytes + 32, 32, original.recovery, sizeof(original.recovery)));
+    nativeAccountTransport_Clear();
+    const auto generation = nativeAccountTransport_Generation();
+    assert(nativeAccountTransport_Publish(original.origin, original.handle, original.token));
+    assert(nativeAccountTransport_Generation() == generation + 1);
+    assert(nativeAccountTransport_Publish(original.origin, original.handle, original.token));
+    assert(nativeAccountTransport_Generation() == generation + 1);
+    wchar_t headers[192];
+    assert(nativeAccountTransport_Headers(L"https://EXAMPLE.com:443/chat/connect", headers, 192));
+    assert(wcsstr(headers, L"Authorization: Bearer ") == headers && wcsstr(headers, L"X-Freak-Account: twilight\r\n"));
+    for (const wchar_t* url : {L"https://example.com.evil/chat/connect", L"https://elsewhere.test/chat/connect", L"http://example.com/chat/connect",
+        L"https://example.com:444/chat/connect", L"https://user@example.com/chat/connect"}) {
+        assert(!nativeAccountTransport_Headers(url, headers, 192) && !*headers);
+    }
+    nativeAccountTransport_Clear();
+    assert(nativeAccountTransport_Generation() == generation + 2);
+    assert(!nativeAccountTransport_Headers(L"https://example.com/chat/connect", headers, 192));
     assert(nativeAccount_Store(path, original));
     assert(nativeAccount_Load(path, original.origin, loaded) && !memcmp(&loaded, &original, sizeof(original)));
     assert(!nativeAccount_Load(path, "https://other.example.com", loaded));

@@ -106,9 +106,25 @@ try {
   const code = await new Promise(resolve => ui.once('exit', resolve)); await uiLog.close();
   assert.equal(code, 0, 'native UI review failed; inspect its local ui.log');
   checks.push('Two signed-in hidden/muted game clients pass the native social UI review');
+  // Give the invitation review accepted friends with empty mailboxes.
+  await call(a, 'social/friend', { to: b.handle, action: 'request' });
+  await call(b, 'social/friend', { to: a.handle, action: 'accept' });
+  for (const person of [a, b]) for (const folder of [0, 1])
+    for (const message of (await call(person, 'social/state', { folder })).messages)
+      await call(person, 'social/delete', { id: message.id });
+  const invitationLog = await open(resolve(output, 'invitations.log'), 'w');
+  const invitationReview = spawn(python, [resolve(root, 'melee/tools/review_native_invitations.py'),
+    '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
+    '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
+    '--endpoint', endpoint, '--output', resolve(output, 'invitations')],
+    { windowsHide: true, stdio: ['ignore', invitationLog.fd, invitationLog.fd] });
+  clients.push(invitationReview);
+  const invitationCode = await new Promise(resolve => invitationReview.once('exit', resolve)); await invitationLog.close();
+  assert.equal(invitationCode, 0, 'native invitation review failed; inspect invitations.log');
+  checks.push('Verified global/lobby profiles, lobby invitations, joining and account sign-out pass in two native clients');
   await writeFile(resolve(output, 'receipt.json'), JSON.stringify({ checks, limitations: [
     'Software authenticator sessions exercise normal saved-session validation; real Windows Hello remains unverified.',
-    'Chat/lobby identities and invitations remain separate integration work.'
+    'The service remains local to this review; no production deployment or multi-PC acceptance.'
   ] }, null, 2));
   console.log(`${checks.length} native social integration checks passed`);
 } finally {

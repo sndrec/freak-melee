@@ -168,9 +168,9 @@ yyjson license included: `.local/native-account-release-payload.log`.
 
 Persistent friends and the offline inbox now use the account identity and
 session. The [friends and letters guide](native_social_accounts.md) covers the
-native pages, delivery rules and evidence. Remaining work includes real Windows
-passkey creation, sign-in and recovery acceptance, authenticated social presence,
-invitations and deployment. The account client does not complete the hub milestone.
+native pages, verified chat/lobby profiles, invitations, delivery rules and
+evidence. Remaining work includes real Windows passkey creation, sign-in and
+recovery acceptance, deployment and the user's hub presentation/input review.
 
 References: [SimpleWebAuthn Server](https://simplewebauthn.dev/docs/packages/server),
 [Windows WebAuthn APIs](https://learn.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/webauthn-apis).

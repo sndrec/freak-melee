@@ -16,7 +16,7 @@ import time
 
 class Client:
     def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False,
-                 window_size=None, control=None, without_drafts=False, launch_args=()):
+                 window_size=None, control=None, without_drafts=False, launch_args=(), chat_endpoint=None):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
@@ -50,6 +50,8 @@ class Client:
                    FREAK_MELEE_CHAT_ENDPOINT='http://127.0.0.1:1')
         if live_chat:
             env.pop('FREAK_MELEE_CHAT_ENDPOINT', None)
+        if chat_endpoint:
+            env['FREAK_MELEE_CHAT_ENDPOINT'] = chat_endpoint
         with (folder / 'stdout.log').open('w') as out, self.stderr.open('w') as err:
             self.process = subprocess.Popen(
                 [str(exe), '--iso', str(iso), '--hidden', '--mute',*map(str,launch_args)],

@@ -1,4 +1,5 @@
 #include "native_signaling_wire.h"
+#include "native_account_identity.h"
 
 #ifdef MELEE_NATIVE
 
@@ -471,7 +472,10 @@ static bool decode_participant(WireReader* reader,
                     sizeof(participant->waiting_ranks)) ||
         !reader_bytes16(reader, participant->selection,
                         sizeof(participant->selection),
-                        &participant->selection_size))
+                        &participant->selection_size) ||
+        !reader_string8(reader, participant->account_id, sizeof(participant->account_id)) ||
+        !reader_string8(reader, participant->account_handle, sizeof(participant->account_handle)) ||
+        !nativeAccountIdentity_Valid(participant->account_id, participant->account_handle))
     {
         return false;
     }
