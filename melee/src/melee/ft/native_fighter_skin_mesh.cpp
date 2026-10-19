@@ -1,12 +1,16 @@
 #include "native_fighter_skin_mesh.h"
+#include "native_fighter_skin_morph.h"
 #include "native_asset_dat.h"
 #include "native_mesh_vertex_ids.h"
 extern "C" {
+#include <melee/ft/ftcostume_assets.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mtx.h>
 }
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
 #include <unordered_map>
 
 namespace {
@@ -17,7 +21,8 @@ bool reference(const HSD_Dat& dat, u32 slot, u32* target)
            *target < dat.data_size;
 }
 u16 half(const u8* p) { return u16(p[0]) << 8 | p[1]; }
-bool attributes(const HSD_Dat& dat, u32 source,
+}
+bool nativeSkinMesh_ReadAttributes(const HSD_Dat& dat, uint32_t source,
                  std::vector<NativeSkinAttribute>* output)
 {
     bool seen[26] = {};
@@ -66,6 +71,7 @@ bool attributes(const HSD_Dat& dat, u32 source,
     }
     return false;
 }
+namespace {
 float scalar(const NativeSkinAttribute& a, const u8* p)
 {
     if (a.format == 4) {
@@ -217,6 +223,8 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
     if (!reference(dat, model.meshes[mesh].offset + 12, &polygon)) return fail();
     std::unordered_map<u64, std::vector<unsigned>> lookup;
     std::vector<Identity> identities;
+    FtCostumeAssets imported = {};
+    std::unique_ptr<void, decltype(&std::free)> imported_arena(nullptr, &std::free);
     for (unsigned part_index = 0; part_index < model.meshes[mesh].polygon_count; ++part_index) {
         const u8* header = HSD_DatBytes(&dat, polygon, 24);
         if (!header) return fail();
@@ -224,10 +232,23 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
         part.source = polygon; part.flags = half(header + 12);
         const auto* ids = nativeMeshVertexIds_Find(vertex_ids, (uint32_t)polygon);
         const unsigned type = part.flags & 0x3000;
+        if (type == POBJ_SHAPEANIM) {
+            if (!imported_arena) {
+                if (!ftCostumeAssets_Load(model.project->costume_dat, model.project->costume_size,
+                                         model.root_name, nullptr, &imported)) return fail();
+                imported_arena.reset(imported.arena);
+            }
+            if (!nativeSkinMorph_Read(model, owner, imported, &part, out)) return fail();
+            identities.resize(out->vertices.size());
+            out->parts.push_back(std::move(part));
+            if (part_index + 1 < model.meshes[mesh].polygon_count &&
+                !reference(dat, polygon + 4, &polygon)) return fail();
+            continue;
+        }
         if (type != POBJ_SKIN && type != POBJ_ENVELOPE) return fail();
         u32 descriptors, display, table;
         if (!reference(dat, polygon + 8, &descriptors) ||
-            !attributes(dat, descriptors, &part.attributes) ||
+            !nativeSkinMesh_ReadAttributes(dat, descriptors, &part.attributes) ||
             !reference(dat, polygon + 16, &display)) return fail();
         bool single[10] = {};
         int rigid_bone=-1;

@@ -5,6 +5,10 @@ morph targets with bone weights. Weight painting and GLB morph import still
 need the authoring reader and writer described in the
 [implementation design](native_morph_skin_design.md).
 
+The later [painting checkpoint](native_morph_paint_checkpoint.md) adds the
+authoring reader/writer and native brush/Undo/Redo coverage. The results below
+describe the initial runtime checkpoint.
+
 ## Representation and lifetime
 
 `SHAPESET_SKIN` adds a private envelope-batch pointer at byte 28 of the serialized

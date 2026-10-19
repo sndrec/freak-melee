@@ -246,16 +246,17 @@ import, materials, rigging and skinning, not mesh modeling.
   mouse/Save/Undo/Redo check. [Rigid attachment painting](melee/docs/native_rigid_skin_checkpoint.md)
   now passes 52 matrix cases, the retail batch and a native mouse/Save/Undo/Redo/
   reimport workflow. Two-slot rigid meshes retain root/deform-bone domains.
-  Morph painting, unusual helper model-node and independent texture-matrix
-  bindings remain open.
+  Unusual helper model-node and independent texture-matrix bindings remain open.
   [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
   shares one runtime evaluator between drawing, picking, highlighting and
   posed-corner queries. Complete/additive native hover reviews pass. The
   [Weighted morph runtime and rest edits](melee/docs/native_morph_skin_checkpoint.md)
   now preserve one controller across private envelope batches, compaction and
   save/load. Posed native drawing, picking and highlighting agree. The
-  [authoring design](melee/docs/native_morph_skin_design.md) still requires the
-  target-aware painting reader/writer and GLB morph encoder.
+  [Morph painting](melee/docs/native_morph_paint_checkpoint.md) now preserves
+  targets, normal seams and controller indices through saved strokes and
+  native Undo/Redo. The [authoring design](melee/docs/native_morph_skin_design.md)
+  still requires the GLB morph encoder and target-aware source reimport.
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
   2,048 records. Compaction follows the same capacity policy. Match-time

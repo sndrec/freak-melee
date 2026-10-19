@@ -1,6 +1,7 @@
 #include <melee/ft/native_asset_dat.h>
 #include <melee/ft/native_fighter_costume_compact.h>
 #include <melee/ft/native_fighter_model_editor.h>
+#include <melee/ft/native_fighter_skin_mesh.h>
 extern "C" {
 #include <sysdolphin/baselib/dat_import.h>
 #include <sysdolphin/baselib/dobj.h>
@@ -241,11 +242,18 @@ void malformed()
     }
 }
 
-std::vector<float> surface(const std::vector<u8>& file,const Fixture& f)
+std::vector<float> surface(const std::vector<u8>& file,const Fixture& f,unsigned pose=0)
 {
     Imported imported;check(imported.open(file));HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root);
     HSD_JObj* owner=(HSD_JObj*)HSD_IDGetData((uintptr_t)imported.joint(f.bones[f.owner]),nullptr);check(owner);
     HSD_DObj* mesh=owner->u.dobj;HSD_ShapeSet* shape=mesh->pobj->u.shape_set;
+    if(pose)for(unsigned i=0;i<4;++i) {
+        HSD_JObj* bone=(HSD_JObj*)HSD_IDGetData((uintptr_t)imported.joint(f.bones[i]),nullptr);check(bone);
+        C_MTXIdentity(bone->mtx);bone->flags&=~JOBJ_MTX_DIRTY;
+        bone->mtx[0][0]=1+.03f*i*pose;bone->mtx[1][1]=1+.02f*i*pose;
+        bone->mtx[0][1]=.025f*i*pose;bone->mtx[0][3]=float(i)+.2f*pose;
+        bone->mtx[1][3]=.5f*i-.1f*pose;bone->mtx[2][3]=.15f*i*pose;
+    }
     std::vector<float> result;
     for(float blend:{-.25f,0.f,.6f,1.25f,2.f,3.f}) {
         if(f.additive){shape->blend.bp[0]=blend;shape->blend.bp[1]=1.3f-blend;}else shape->blend.bl=blend;
@@ -256,23 +264,40 @@ std::vector<float> surface(const std::vector<u8>& file,const Fixture& f)
         check(HSD_ShapeSetEvaluate(shape,local,normals));
         if(f.normals) {
             Mtx right_storage;MtxPtr right=_HSD_mkEnvelopeModelNodeMtx(owner,right_storage);
-            unsigned corner=0;
-            for(HSD_PObj* batch=shape->skin;batch;batch=batch->next) {
-                for(HSD_SList* slot=batch->u.envelope_list;slot;slot=slot->next,++corner) {
-                    Mtx matrix={};
+            unsigned corners=0;
+            for(HSD_PObj* batch=shape->skin?shape->skin:mesh->pobj;batch;batch=shape->skin?batch->next:nullptr) {
+                Mtx matrices[10]={};unsigned slots=0;
+                if(shape->skin)for(HSD_SList* slot=batch->u.envelope_list;slot;slot=slot->next,++slots) {
                     for(HSD_Envelope* env=(HSD_Envelope*)slot->data;env;env=env->next) {
                         HSD_JObjSetupMatrix(env->jobj);Mtx part;C_MTXConcat(env->jobj->mtx,env->jobj->envelopemtx,part);
-                        for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)matrix[r][c]+=part[r][c]*env->weight;
+                        for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)matrices[slots][r][c]+=part[r][c]*env->weight;
                     }
-                    if(right){Mtx tmp;C_MTXConcat(matrix,right,tmp);C_MTXCopy(tmp,matrix);}
-                    Mtx inverse;check(C_MTXInverse(matrix,inverse));
-                    const unsigned vectors=f.normals==2?3:1;
-                    for(unsigned n=0;n<vectors;++n)for(unsigned r=0;r<3;++r) {
-                        float value=0;for(unsigned c=0;c<3;++c)value+=inverse[c][r]*normals[corner*vectors+n][c];
-                        result.push_back(value);
+                    if(right){Mtx tmp;C_MTXConcat(matrices[slots],right,tmp);C_MTXCopy(tmp,matrices[slots]);}
+                } else {slots=1;C_MTXCopy(owner->mtx,matrices[0]);}
+                const u8* cursor=batch->display;const u8* end=cursor+size_t(batch->n_display)*32;
+                while(cursor<end) {
+                    if(*cursor++==GX_NOP)continue;
+                    const unsigned count=unsigned(cursor[0])<<8|cursor[1];cursor+=2;
+                    for(unsigned i=0;i<count;++i,++corners) {
+                        unsigned matrix=0,normal=0;
+                        for(unsigned hardware=0;hardware<=GX_VA_TEX7;++hardware)
+                            for(auto* a=batch->verts;a->attr!=GX_VA_NULL;++a) {
+                                if((a->attr==GX_VA_NBT?GX_VA_NRM:a->attr)!=hardware||a->attr_type==GX_NONE)continue;
+                                if(hardware==GX_VA_PNMTXIDX)matrix=cursor[0]/3;
+                                if(hardware==GX_VA_NRM)normal=a->attr_type==GX_INDEX8?cursor[0]:unsigned(cursor[0])<<8|cursor[1];
+                                cursor+=a->attr_type==GX_INDEX8?1:a->attr_type==GX_INDEX16?2:hardware<=GX_VA_TEX7MTXIDX?1:4;
+                            }
+                        check(matrix<slots&&normal<(unsigned)shape->nb_normal_index);
+                        Mtx inverse;check(C_MTXInverse(matrices[matrix],inverse));
+                        const unsigned vectors=f.normals==2?3:1;
+                        for(unsigned n=0;n<vectors;++n)for(unsigned r=0;r<3;++r) {
+                            float value=0;for(unsigned c=0;c<3;++c)value+=inverse[c][r]*normals[normal*vectors+n][c];
+                            result.push_back(value);
+                        }
                     }
                 }
             }
+            check(corners==6);
         }
     }
     nativeModelView_Clear();HSD_JObjRemoveAll(root);return result;
@@ -296,6 +321,161 @@ void rest(unsigned owner,unsigned normals,bool additive)
         std::free(project.costume_dat);++cases;
     }
 }
+
+Fixture authoring_fixture(unsigned owner,unsigned normals,bool additive,bool weighted,
+                           unsigned format,bool shared=false)
+{
+    auto f=fixture(owner,normals,additive);NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));
+    if(!weighted) {
+        edit.half(f.shape,additive?SHAPESET_ADDITIVE:SHAPESET_AVERAGE);edit.link(f.shape+28,0);
+        const u32 bind=NativeAssetDat::read32(edit.data.data()+f.bones[0]+56);
+        edit.word(bind+12,0xbf400000);edit.word(bind+28,0x3e800000);
+    }
+    for(unsigned attr=0;attr<(normals?2u:1u);++attr) {
+        const u32 descriptor=NativeAssetDat::read32(edit.data.data()+f.shape+8+attr*12);
+        const u32 array=NativeAssetDat::read32(edit.data.data()+descriptor+20);
+        const unsigned components=attr&&normals==2?9:3,width=format<=1?1:format<=3?2:4;
+        const unsigned fraction=format==4?0:format<=1?3:8;
+        const u32 converted=edit.allocate(18*components*width);check(converted!=UINT32_MAX);
+        edit.word(descriptor+12,format);edit.data[descriptor+16]=(u8)fraction;
+        edit.half(descriptor+18,(u16)(components*width));edit.link(descriptor+20,converted);
+        for(unsigned i=0;i<18*components;++i) {
+            u32 bits=NativeAssetDat::read32(edit.data.data()+array+i*4);float value;std::memcpy(&value,&bits,4);
+            if(format==4)edit.word(converted+i*4,bits);
+            else {
+                const long low=format==0||format==2?0:format==1?-128:-32768;
+                const long high=format==0?255:format==1?127:format==2?65535:32767;
+                const long integer=std::clamp(std::lround(std::ldexp(value,(int)fraction)),low,high);
+                if(width==1)edit.data[converted+i]=(u8)integer;
+                else edit.half(converted+i*2,(u16)integer);
+            }
+        }
+        // Distinct target identities survive coincident base positions.
+        if(!attr&&!shared)std::memcpy(edit.data.data()+converted+components*width,
+                                     edit.data.data()+converted,components*width);
+    }
+    if(shared) {
+        check(normals&&!weighted);
+        const unsigned stride=11;
+        edit.half(f.display[0]+3+stride+3,0); // Second corner shares the first normal.
+    }
+    std::vector<u8> result;check(edit.finish(&result));f.file=std::move(result);return f;
+}
+
+std::vector<u8> rewritten(const Fixture& f,NativeSkinMesh* output=nullptr)
+{
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    project.costume_dat=(u8*)f.file.data();project.costume_size=f.file.size();
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    NativeSkinMesh skin;char error[256]={};check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+    check(skin.vertices.size()==6&&skin.parts.size()==1&&skin.corner_vertices.size()==6);
+    for(unsigned i=0;i<6;++i)check(skin.corner_vertices[i]==vertices[i]);
+    NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));
+    check(nativeSkinMesh_Write(edit,*model,0,skin));std::vector<u8> result;check(edit.finish(&result));
+    check(nativeFighterCostume_Compact(&project,&result,nullptr,error,sizeof(error)));
+    if(output)*output=std::move(skin);return result;
+}
+
+void authoring(unsigned owner,unsigned normals,bool additive,bool weighted,unsigned format)
+{
+    const auto f=authoring_fixture(owner,normals,additive,weighted,format);
+    const auto rewritten_file=rewritten(f);
+    for(unsigned pose:{0u,3u,8u}) {
+        const auto before=surface(f.file,f,pose),after=surface(rewritten_file,f,pose);check(before.size()==after.size());
+        for(unsigned i=0;i<before.size();++i)near(before[i],after[i]);
+    }
+    ++cases;
+}
+
+void painting(unsigned owner,unsigned normals,bool additive)
+{
+    auto f=authoring_fixture(owner,normals,additive,false,GX_F32,true);
+    NativeSkinMesh before;rewritten(f,&before);
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    project.costume_dat=(u8*)std::malloc(f.file.size());check(project.costume_dat);
+    project.costume_size=f.file.size();std::memcpy(project.costume_dat,f.file.data(),f.file.size());
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    unsigned bones[2]={};for(unsigned i=0;i<model->joint_count;++i)for(unsigned b=0;b<2;++b)
+        if(model->joints[i].offset==f.bones[b+1])bones[b]=i;
+    NativeSkinBrushPoint center;std::memcpy(center.position,before.vertices[1].position,sizeof(center.position));
+    char error[256]={};unsigned affected=0;
+    check(nativeFighterSkin_Paint(&project,0,bones[1],&center,1,.01f,.35f,false,&affected,error,sizeof(error))&&affected==1);
+    NativeSkinMesh after;check(nativeFighterModel_Open(model.get(),&project));
+    check(nativeSkinMesh_Read(*model,0,&after,error,sizeof(error)));
+    check(after.parts.size()==1&&after.vertices.size()==6&&after.parts[0].morph.normal_count==7);
+    check(after.parts[0].morph.positions==before.parts[0].morph.positions);
+    for(unsigned v=0;v<6;++v)if(v!=1)check(nativeSkinWeights_Equal(&before.vertices[v].skin,&after.vertices[v].skin));
+    near(nativeSkinWeights_Get(&after.vertices[1].skin,(u16)bones[1]),.35f);
+    const unsigned components=normals==2?9:3;
+    for(unsigned target=0;target<3;++target)for(unsigned n=0;n<7;++n)for(unsigned c=0;c<components;++c)
+        near(after.parts[0].morph.normals[(target*7+n)*components+c],
+             before.parts[0].morph.normals[(target*6+(n==6?0:n))*components+c]);
+    const size_t size=project.costume_size;
+    for(unsigned stroke=0;stroke<16;++stroke) {
+        check(nativeFighterSkin_Paint(&project,0,bones[stroke%2],&center,1,.01f,.09f,false,&affected,error,sizeof(error))&&affected==1);
+        check(project.costume_size<=size+1024);
+    }
+    f.file.assign(project.costume_dat,project.costume_dat+project.costume_size);
+    const auto noop=rewritten(f);
+    for(unsigned pose:{0u,5u}) {
+        const auto a=surface(f.file,f,pose),b=surface(noop,f,pose);check(a.size()==b.size());
+        for(unsigned i=0;i<a.size();++i)near(a[i],b[i]);
+    }
+    std::free(project.costume_dat);++cases;
+}
+
+void multiple_controllers(unsigned normals,bool additive)
+{
+    const auto f=fixture(0,normals,additive);NativeSkinMesh original;rewritten(f,&original);
+    NativeSkinMesh skin;NativeSkinPart part=original.parts[0];
+    part.corners.clear();part.triangles.clear();part.morph.position_count=30;part.morph.vertices.clear();
+    part.morph.positions.resize(3*30*3);
+    for(unsigned i=0;i<30;++i) {
+        auto vertex=original.vertices[i%6];vertex.skin={};vertex.skin.count=2;
+        vertex.skin.joints[0]=0;vertex.skin.joints[1]=1;
+        vertex.skin.weights[1]=.05f+.03f*i;vertex.skin.weights[0]=1-vertex.skin.weights[1];
+        for(unsigned target=0;target<3;++target)for(unsigned axis=0;axis<3;++axis)
+            part.morph.positions[(target*30+i)*3+axis]=original.parts[0].morph.positions[(target*6+i%6)*3+axis]+float(i)*.125f;
+        std::memcpy(vertex.position,part.morph.positions.data()+i*3,sizeof(vertex.position));
+        skin.vertices.push_back(vertex);part.morph.vertices.push_back(i);
+        auto corner=original.parts[0].corners[i%6];corner.vertex=i;
+        part.corners.push_back(corner);part.triangles.push_back(i);
+    }
+    skin.parts.push_back(part);skin.parts.push_back(part);
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    project.costume_dat=(u8*)f.file.data();project.costume_size=f.file.size();
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));check(nativeSkinMesh_Write(edit,*model,0,skin));
+    std::vector<u8> file;check(edit.finish(&file));char error[256]={};
+    check(nativeFighterCostume_Compact(&project,&file,nullptr,error,sizeof(error)));
+    Imported imported;check(imported.open(file));HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root&&root->u.dobj);
+    HSD_PObj* first=root->u.dobj->pobj;check(first&&first->next&&!first->next->next);
+    HSD_AObjDesc animation[2]={};animation[0].end_frame=20;animation[1].end_frame=40;
+    HSD_ShapeAnim clips[2]={};clips[0].next=&clips[1];clips[0].aobjdesc=&animation[0];clips[1].aobjdesc=&animation[1];
+    HSD_PObjAddAnimAll(first,clips);check(nativeAObjPool.used==2);
+    unsigned controller=0;
+    for(HSD_PObj* parent=first;parent;parent=parent->next,++controller) {
+        check(pobj_type(parent)==POBJ_SHAPEANIM&&parent->u.shape_set->aobj);
+        auto* shape=parent->u.shape_set;check(shape->nb_vertex_index==30&&shape->nb_normal_index==30);
+        unsigned batches=0;for(HSD_PObj* batch=shape->skin;batch;batch=batch->next)++batches;
+        check(batches==4); // Ten-slot limit partitions the draw without changing either animation index.
+        if(additive){shape->blend.bp[0]=.2f+.3f*controller;shape->blend.bp[1]=.65f-.1f*controller;}
+        else shape->blend.bl=.25f+1.2f*controller;
+    }
+    nativeModelView_Begin(1,true);nativeModelView_Mesh(0,root,root->u.dobj,false,false,nullptr);
+    Vec3 actual[60];check(nativeModelView_CornerPositions(0,actual,60));
+    for(unsigned p=0;p<2;++p)for(unsigned i=0;i<30;++i)for(unsigned axis=0;axis<3;++axis) {
+        auto value=[&](unsigned target){return part.morph.positions[(target*30+i)*3+axis];};
+        float expected;
+        if(additive)expected=value(0)+value(1)*(.2f+.3f*p)+value(2)*(.65f-.1f*p);
+        else {const float t=.25f+1.2f*p;const unsigned target=(unsigned)t;
+            expected=value(target)+(value(target+1)-value(target))*(t-target);}
+        if(axis==0)expected-=skin.vertices[i].skin.weights[1];
+        if(axis==1)expected-=.5f*skin.vertices[i].skin.weights[1];
+        near(((float*)&actual[p*30+i])[axis],expected);
+    }
+    nativeModelView_Clear();HSD_JObjRemoveAll(root);check(nativeAObjPool.used==0);++cases;
+}
 }
 int main()
 {
@@ -304,7 +484,11 @@ int main()
         malformed();
         for(unsigned owner:{0u,1u,3u})for(unsigned normals:{0u,1u,2u})for(bool additive:{false,true})valid(owner,normals,additive);
         for(unsigned owner:{0u,1u,3u})for(unsigned normals:{0u,1u,2u})for(bool additive:{false,true})rest(owner,normals,additive);
-        std::printf("PASS: %u weighted morph cases, %u construction, pose, compaction and snapshot checks\n",cases,checks);
+        for(unsigned owner:{0u,1u,3u})for(unsigned normals:{0u,1u,2u})for(bool additive:{false,true})
+            for(bool weighted:{false,true})for(unsigned format=0;format<5;++format)authoring(owner,normals,additive,weighted,format);
+        for(unsigned owner:{0u,1u,3u})for(unsigned normals:{1u,2u})for(bool additive:{false,true})painting(owner,normals,additive);
+        for(unsigned normals:{1u,2u})for(bool additive:{false,true})multiple_controllers(normals,additive);
+        std::printf("PASS: %u morph runtime/authoring cases, %u construction, pose, paint, compaction and snapshot checks\n",cases,checks);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"FAIL: %s\n",error.what());return 1;}
 }

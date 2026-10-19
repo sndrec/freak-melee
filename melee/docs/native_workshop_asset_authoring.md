@@ -38,6 +38,22 @@ the label in the editor. **Save** keeps names and hidden-action choices together
 with the edited model and animations. Undo restores the previous edit. Names
 and hidden-action choices are local editing preferences.
 
+## Paint bone weights
+
+In **Model → Skinning**, choose a mesh and a bone. The surface shows that bone's
+weight from blue at zero through yellow and orange to red at one. Paint adds
+weight to the selected bone and distributes the remainder among the other bones.
+
+Painting also works on meshes with morph targets, such as facial expressions.
+Each vertex uses the same bone weights in every target. Its target positions
+and lighting vectors stay intact. Save keeps the painted model; Undo restores
+the complete previous costume.
+
+Morph meshes currently allow 2,000 positions and 2,000 lighting vectors. A
+normal, tangent and bitangent count as three vectors. Vertices with different weights can
+need separate normal entries; an edit that exceeds capacity leaves the draft
+unchanged.
+
 ## Reimport an edited model
 
 Select an imported mesh in **Model → Meshes**, then choose **Reimport source…**

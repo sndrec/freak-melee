@@ -1,4 +1,5 @@
 #include "native_fighter_skin_mesh.h"
+#include "native_fighter_skin_morph.h"
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
 #include "native_mesh_vertex_ids.h"
@@ -22,11 +23,6 @@ void real(NativeAssetDat& dat, u32 offset, float value)
 {
     u32 bits; std::memcpy(&bits, &value, 4); dat.word(offset, bits);
 }
-struct Chunk {
-    std::vector<unsigned> corners;
-    std::vector<u8> slots;
-    std::vector<NativeSkinWeights> bindings;
-};
 unsigned palette_slot(const std::vector<NativeSkinWeights>& bindings,
                        const NativeSkinWeights& weights)
 {
@@ -34,10 +30,12 @@ unsigned palette_slot(const std::vector<NativeSkinWeights>& bindings,
     while (slot < bindings.size() && !nativeSkinWeights_Equal(&bindings[slot], &weights)) ++slot;
     return slot;
 }
-bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
-                  const NativeSkinPart& part, const Chunk& chunk,
-                  const NativeSkinMesh& skin, u32 positions, bool local_positions,
-                  std::vector<NativeMeshVertexIdRow>* vertex_ids, u32* polygon)
+}
+bool nativeSkinMesh_WriteChunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
+                  const NativeSkinPart& part, const NativeSkinChunk& chunk,
+                  const NativeSkinMesh& skin, uint32_t positions, bool local_positions,
+                  std::vector<NativeMeshVertexIdRow>* vertex_ids,
+                  const NativeSkinMorphEncoded* morph, uint32_t* polygon)
 {
     const auto& source = model.dat;
     std::unordered_map<unsigned, u16> position_indices;
@@ -61,11 +59,12 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
     display.push_back((u8)chunk.corners.size());
     const auto normal = std::find_if(part.attributes.begin(), part.attributes.end(),
         [](const auto& attr) { return attr.attr == 10 || attr.attr == 25; });
-    const unsigned normal_components = normal == part.attributes.end() ? 0 : normal->count ? 9 : 3;
+    const unsigned normal_components = morph ? morph->normal_components :
+        normal == part.attributes.end() ? 0 : normal->count ? 9 : 3;
     std::vector<float> normal_values;
     std::vector<u16> normal_indices;
     std::map<std::array<float, 9>, u16> normal_lookup;
-    if (normal_components) for (unsigned index : chunk.corners) {
+    if (normal_components && !morph) for (unsigned index : chunk.corners) {
         const auto& corner = part.corners[index];
         std::array<float, 9> key;
         std::copy(corner.normal, corner.normal + 9, key.begin());
@@ -73,7 +72,8 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
         if (added) normal_values.insert(normal_values.end(), corner.normal, corner.normal + normal_components);
         normal_indices.push_back(entry->second);
     }
-    const u32 normals = normal_components ? dat.allocate(normal_values.size() * 4) : 0;
+    if (morph) positions = morph->positions;
+    const u32 normals = morph ? morph->normals : normal_components ? dat.allocate(normal_values.size() * 4) : 0;
     if (normals == UINT32_MAX) return false;
     for (unsigned i = 0; i < normal_values.size(); ++i) real(dat, normals + i * 4, normal_values[i]);
     for (unsigned i = 0; i < chunk.corners.size(); ++i) {
@@ -83,7 +83,8 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
         for (const auto& attr : part.attributes) {
             const u8* bytes = source.data + cursor;
             if (attr.attr == 9 || attr.attr == 10 || attr.attr == 25) {
-                const unsigned index = attr.attr == 9
+                const unsigned index = morph ? (attr.attr == 9 ? morph->corner_positions[chunk.corners[i]] :
+                    morph->corner_normals[chunk.corners[i]]) : attr.attr == 9
                     ? (local_positions ? position_indices.at(corner.vertex) : corner.vertex) : normal_indices[i];
                 display.push_back((u8)(index >> 8)); display.push_back((u8)index);
             } else if (attr.attr >= 1 && attr.attr <= 8) {
@@ -144,8 +145,8 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
     }
     u32 name; const char* external;
     const auto name_kind = HSD_DatResolve(&source, part.source, &name, &external);
-    if (name_kind == HSD_DAT_REF_LOCAL) dat.link_local(*polygon, name);
-    else if (name_kind != HSD_DAT_REF_NULL) return false;
+    if (!morph && name_kind == HSD_DAT_REF_LOCAL) dat.link_local(*polygon, name);
+    else if (!morph && name_kind != HSD_DAT_REF_NULL) return false;
     dat.link(*polygon + 8, descriptors);
     dat.half(*polygon + 12, (part.flags & ~0x3000) | POBJ_ENVELOPE);
     dat.half(*polygon + 14, (u16)(display.size() / 32));
@@ -157,7 +158,6 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
         vertex_ids->push_back(std::move(row));
     }
     return true;
-}
 }
 bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat& dat,const NativeFighterModelEditor& model,unsigned bone)
 {
@@ -190,6 +190,15 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
     u32 previous = 0;
     unsigned sections = 0;
     for (const auto& part : skin.parts) {
+        const bool shaped = (part.flags & 0x3000) == POBJ_SHAPEANIM;
+        NativeSkinMorphEncoded morph = {};
+        u32 private_previous = 0;
+        unsigned private_sections = 0;
+        if (shaped) {
+            if (++sections > NATIVE_MODEL_MAX_POLYGONS || !nativeSkinMorph_Encode(dat, model, part, skin, &morph)) return false;
+            dat.link(previous ? previous+4 : model.meshes[mesh].offset+12, morph.polygon);
+            previous = morph.polygon;
+        }
         size_t stride = 1;
         for (const auto& attr : part.attributes)
             if (attr.attr != 0)
@@ -197,14 +206,21 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         const size_t max_corners = std::min(size_t(65532),
             ((size_t(UINT16_MAX) * 32 - 3) / stride / 3) * 3);
         if (max_corners < 3) return false;
-        Chunk chunk;
+        NativeSkinChunk chunk;
         auto flush = [&]() {
             if (chunk.corners.empty()) return true;
-            if (++sections > NATIVE_MODEL_MAX_POLYGONS) return false;
-            u32 emitted;
-            if (!write_chunk(dat, model, part, chunk, skin, positions, local_positions, &vertex_ids, &emitted)) return false;
-            dat.link(previous ? previous + 4 : model.meshes[mesh].offset + 12, emitted);
-            previous = emitted; chunk = {}; return true;
+            if ((shaped ? ++private_sections : ++sections) > NATIVE_MODEL_MAX_POLYGONS) return false;
+            uint32_t emitted;
+            if (!nativeSkinMesh_WriteChunk(dat, model, part, chunk, skin, positions,
+                    !shaped && local_positions, &vertex_ids, shaped ? &morph : nullptr, &emitted)) return false;
+            if (shaped) {
+                dat.link(private_previous ? private_previous+4 : morph.shape+28, emitted);
+                private_previous = emitted;
+            } else {
+                dat.link(previous ? previous+4 : model.meshes[mesh].offset+12, emitted);
+                previous = emitted;
+            }
+            chunk = {}; return true;
         };
         for (unsigned start = 0; start < part.triangles.size(); start += 3) {
             unsigned additional = 0;

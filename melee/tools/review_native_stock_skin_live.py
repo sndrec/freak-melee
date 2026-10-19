@@ -21,11 +21,14 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--project', required=True, help='Project directory below Freak Melee')
     parser.add_argument('--mesh', type=int, default=0)
+    parser.add_argument('--draft', action='store_true', help='Open the first isolated draft directly')
     parser.add_argument('--reimport', type=Path, help='Reimport this source after painting and verify retained weights and pose')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    receipt = dict(status='RUNNING', mesh=args.mesh, screenshots=[])
+    receipt = dict(status='RUNNING', mesh=args.mesh, screenshots=[],
+                   exe_sha256=hashlib.sha256(args.exe.read_bytes()).hexdigest(),
+                   tool_sha256=hashlib.sha256(args.tool.read_bytes()).hexdigest())
     client = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
                     output/'client', 'Stock Skin Review', window_size=(1440, 900),
                     control=args.control.resolve())
@@ -74,7 +77,11 @@ def main():
             client.click('workshop-save-top')
             assert 'Draft saved.' in client.inspect('workshop-save-status'), 'Draft Save did not complete'
             return costume.read_bytes()
-        client.click('nav-5'); client.click('edit-fighter')
+        client.click('nav-5')
+        if args.draft:
+            client.click('import-fighter'); client.click('workshop-draft-0')
+        else:
+            client.click('edit-fighter')
         client.element('workshop-editor-header'); ready()
         client.click('workshop-mode-model')
         client.click('workshop-model-context-skinning')
