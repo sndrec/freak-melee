@@ -43,6 +43,75 @@ static NativeProfileBinding button(int16_t native_button)
     };
 }
 
+static void default_equivalence(void)
+{
+    NativeProfile profile;
+    nativeProfile_Default(&profile, "Default equivalence");
+    memset(native_buttons, 0, sizeof(native_buttons));
+    memset(native_axes, 0, sizeof(native_axes));
+    for (unsigned port = 0; port < PAD_MAX_CONTROLLERS; ++port)
+        require(nativeProfileInput_Assign(port, &profile), "assign default profiles on four ports");
+    for (unsigned mask = 0; mask <= UINT16_MAX; ++mask) {
+        PADStatus pads[4] = { 0 }, expected[4];
+        for (unsigned port = 0; port < 4; ++port) {
+            pads[port] = (PADStatus){
+                .button = (uint16_t)(mask ^ (port * 0x1111)),
+                .stickX = (int8_t)(mask + port), .stickY = (int8_t)(mask >> 8),
+                .substickX = (int8_t)~mask, .substickY = (int8_t)(mask >> 4),
+                .triggerLeft = (uint8_t)mask, .triggerRight = (uint8_t)(mask >> 8),
+                .analogA = (uint8_t)(mask >> 3), .analogB = (uint8_t)(mask >> 5),
+                .extButton = (mask * 37u) & UINT32_C(0x1fffffff),
+                .err = PAD_ERR_NONE,
+            };
+        }
+        memcpy(expected, pads, sizeof(pads));
+        nativeProfileInput_Apply(pads);
+        require(!memcmp(pads, expected, sizeof(pads)),
+                "default profiles preserve canonical buttons, axes, triggers and other extensions");
+    }
+    nativeProfileInput_ClearAll();
+}
+
+static void combined_shield(void)
+{
+    static const int16_t values[] = { 0, 16384, 32767 };
+    for (unsigned defaults = 0; defaults < 2; ++defaults)
+    for (unsigned emulate = 0; emulate < 2; ++emulate) {
+        NativeProfile profile;
+        nativeProfile_Default(&profile, "Combined shield");
+        profile.actions[NativeProfileAction_Shield].count = defaults ? 2 : 1;
+        profile.actions[NativeProfileAction_Shield].bindings[0] = button(7);
+        if (defaults) profile.actions[NativeProfileAction_Shield].bindings[1] =
+            (NativeProfileBinding){ .native_input = -1, .type = NativeProfileBinding_Default };
+        profile.axes[NativeProfileAxis_LeftTrigger] =
+            (NativeProfileAxisBinding){ .native_axis = 4, .direction = 1, .assigned = true };
+        profile.axes[NativeProfileAxis_RightTrigger] =
+            (NativeProfileAxisBinding){ .native_axis = 5, .direction = 1, .assigned = true };
+        profile.calibration.emulate_digital_triggers = emulate != 0;
+        require(nativeProfileInput_Assign(3, &profile), "assign mixed analog/digital shielding");
+        for (unsigned left = 0; left < 3; ++left)
+        for (unsigned right = 0; right < 3; ++right)
+        for (unsigned pressed = 0; pressed < 2; ++pressed) {
+            native_axes[3][4] = values[left];native_axes[3][5] = values[right];
+            native_buttons[3][7] = pressed != 0;
+            PADStatus pads[4] = { 0 };
+            pads[3].err = PAD_ERR_NONE;
+            nativeProfileInput_Apply(pads);
+            require(pads[3].triggerLeft == (pressed ? 255 : values[left] / 128),
+                    "a custom digital Shield wins over its mapped analog trigger");
+            require(pads[3].triggerRight == values[right] / 128,
+                    "the other analog shield retains its current strength");
+            require(((pads[3].button & PAD_TRIGGER_L) != 0) ==
+                        (pressed || (emulate && values[left] >= profile.calibration.left_trigger_activation)),
+                    "digital shielding merges with analog click emulation");
+            require(((pads[3].button & PAD_TRIGGER_R) != 0) ==
+                        (emulate && values[right] >= profile.calibration.right_trigger_activation),
+                    "the right trigger retains independent click emulation");
+        }
+        nativeProfileInput_ClearAll();
+    }
+}
+
 int main(void)
 {
     require(HSD_PadProfileTapJumpEnabled(0) &&
@@ -210,6 +279,8 @@ int main(void)
                 !nativeProfileInput_Assign(PAD_MAX_CONTROLLERS, &profile),
             "clearing restores canonical samples and controller calibration");
     nativeProfileInput_ClearAll();
+    default_equivalence();
+    combined_shield();
     puts("Native profile actions combine physical controls before rollback");
     return 0;
 }
