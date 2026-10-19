@@ -104,7 +104,7 @@ bool nativeAccount_RunSocial(NativeAccountWorker& w, const NativeAccountRequest&
     }
     if (!view.signed_in) { std::snprintf(view.status, sizeof(view.status), "Sign in to use friends and your inbox."); return true; }
     if (operation == NativeAccountOperation::RefreshSocial) {
-        if (refresh(w, request, view)) std::snprintf(view.status, sizeof(view.status), "Mailbox updated.");
+        if (refresh(w, request, view)) std::snprintf(view.status, sizeof(view.status), "Friends and letters updated.");
         return true;
     }
     auto* body = w.json.object();
