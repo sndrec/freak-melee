@@ -81,6 +81,7 @@ Rigid-test SHA-256: `edbfaf557dcf5644a2f604e0af58ae15986b4a6385fc61df5d332354ab9
 ## Remaining painting work
 
 Morph targets, independently bound texture matrices, helper attachments whose
-model-node transform cannot be represented by the existing envelopes, and
-larger meshes remain open. The overall Model painting/storage plan item stays
-unchecked.
+model-node transform cannot be represented by the existing envelopes remain
+open. Subsequent [large-mesh work](native_large_gltf_checkpoint.md) extends the
+writer and source importer across draw sections. The overall Model
+painting/storage plan item stays unchecked.

@@ -102,11 +102,11 @@ rigid polygons under root/deform-bone owners and helper self-attachments.
 Morph-target painting, independent texture-matrix bindings and helper
 attachments under a root with a nonidentity inverse bind need further support.
 These cases are rejected rather than silently converted. The retail inventory
-does not contain them. Painting still has a 65,536-vertex mesh limit and sixteen
-bone influences per vertex. The subsequent
+does not contain them. The subsequent [large-mesh work](native_large_gltf_checkpoint.md)
+removes the 65,536-vertex limit from the writer and GLB importer. The editor
+retains a sixteen-influence limit per vertex. The subsequent
 [compaction checkpoint](native_costume_compaction_checkpoint.md) covers automatic
-reclamation of unreachable costume data. Larger authored models remain work to
-do.
+reclamation of unreachable costume data.
 
 Weight transfer now reads editable stock and imported meshes while keeping the
 destination's current attachment and coordinate domain. The rigid-attachment

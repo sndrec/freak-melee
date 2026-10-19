@@ -129,5 +129,7 @@ Test Character and editor return. Receipts:
 Both `surface-images.json` comparisons report **zero changed pixels**, with
 matching camera and actor reports. The native captures exercise each format at
 its default blend; the independent geometry suite covers the other blend
-settings. Native viewport PNGs were inspected. Shape-specific editor picking,
-highlighting and weight heatmaps remain separate from rest compensation.
+settings. Native viewport PNGs were inspected. Subsequent
+[morph surface work](native_morph_view_checkpoint.md) adds editor picking and
+highlighting through the shared runtime evaluator. Weighted morph editing
+remains in progress.
