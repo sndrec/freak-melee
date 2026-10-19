@@ -41,6 +41,8 @@ uint32_t nativeOnlineSession_CacheRevision(void);
 const char* nativeOnlineSession_Failure(void);
 const char* nativeOnlineSession_RoomCode(void);
 const char* nativeOnlineSession_LocalPeerId(void);
+// Private per-connection proof for the account worker. Keep out of diagnostics.
+const char* nativeOnlineSession_ConnectionId(void);
 void nativeOnlineSession_Inspect(void);
 bool nativeOnlineSession_WatchMatch(void);
 void nativeOnlineSession_StopWatching(void);

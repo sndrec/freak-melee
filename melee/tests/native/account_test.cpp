@@ -29,7 +29,8 @@ static int client(const char* root, const char* endpoint)
         const char* names[] = {"Refresh", "Register", "Login", "Recover", "Approve", "AddKey", "SaveProfile",
             "Logout", "RevokeSession", "RevokeAll", "RemoveKey", "RotateRecovery", "RefreshSocial", "LookupProfile",
             "SendLetter", "ReadLetter", "DeleteLetter", "ChangeFriend", "BlockPlayer", "SendInvitation", "JoinInvitation",
-            "ImportKey", "ExportKey", "ExportRecovery"};
+            "ImportKey", "ExportKey", "ExportRecovery", "AttachLobby"};
+        static_assert(sizeof(names) / sizeof(*names) == unsigned(NativeAccountOperation::Count));
         unsigned operation = 0;
         for (; operation < sizeof(names) / sizeof(names[0]); ++operation)
             if (yyjson_equals_str(yyjson_obj_get(object, "operation"), names[operation])) break;

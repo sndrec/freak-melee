@@ -7,6 +7,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { accountKey } from '../../services/signaling/test/account-key.ts';
+import { reviewGuestAccount } from './guest_account_hosted.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const output = resolve(process.argv[2]);
@@ -14,6 +15,7 @@ const endpoint = 'https://freak-melee-signaling.sndrec32exe.workers.dev';
 const fixture = resolve(root, '.local/native-room-rotation-2/base');
 const cli = resolve(root, 'melee/build/native/native_account_test.exe');
 const children = [], accounts = [], checks = [];
+const guestAccountOnly = process.argv.includes('--guest-account-only');
 let completed = false;
 await mkdir(output, { recursive: false });
 let nextRequest = 0;
@@ -64,20 +66,24 @@ try {
   assert.equal((await fetch(`${endpoint}/health`)).status, 200);
   const a = await player('a'), b = await player('b');
   checks.push('Hosted registration options and signed proofs issue sessions accepted by the normal native HTTPS/DPAPI path');
-  await call(a, 'social/friend', { to: b.handle, action: 'request' });
-  await call(b, 'social/friend', { to: a.handle, action: 'accept' });
-  for (const message of (await call(b, 'social/state', {})).messages)
-    await call(b, 'social/delete', { id: message.id });
-  const log = await open(resolve(output, 'ui.log'), 'w');
-  const python = resolve(process.env.LOCALAPPDATA, 'Programs/Python/Python311/python.exe');
-  const ui = spawn(python, [resolve(root, 'melee/tools/review_native_invitations.py'),
-    '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
-    '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
-    '--endpoint', endpoint, '--unlisted', '--output', resolve(output, 'ui')],
-    { windowsHide: true, stdio: ['ignore', log.fd, log.fd] });
-  children.push(ui); const code = await new Promise(resolve => ui.once('exit', resolve)); await log.close();
-  assert.equal(code, 0, 'Hosted native UI review failed; inspect ui.log');
-  checks.push('Two hidden/muted native clients pass verified global/lobby profiles, offline invitations, lobby switching and sign-out against the hosted service');
+  if (guestAccountOnly) {
+    await reviewGuestAccount(endpoint, a, b, call, checks);
+  } else {
+    await call(a, 'social/friend', { to: b.handle, action: 'request' });
+    await call(b, 'social/friend', { to: a.handle, action: 'accept' });
+    for (const message of (await call(b, 'social/state', {})).messages)
+      await call(b, 'social/delete', { id: message.id });
+    const log = await open(resolve(output, 'ui.log'), 'w');
+    const python = resolve(process.env.LOCALAPPDATA, 'Programs/Python/Python311/python.exe');
+    const ui = spawn(python, [resolve(root, 'melee/tools/review_native_invitations.py'),
+      '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
+      '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
+      '--endpoint', endpoint, '--unlisted', '--output', resolve(output, 'ui')],
+      { windowsHide: true, stdio: ['ignore', log.fd, log.fd] });
+    children.push(ui); const code = await new Promise(resolve => ui.once('exit', resolve)); await log.close();
+    assert.equal(code, 0, 'Hosted native UI review failed; inspect ui.log');
+    checks.push('Two hidden/muted native clients pass verified global/lobby profiles, offline invitations, lobby switching and sign-out against the hosted service');
+  }
   completed = true;
 } finally {
   for (const child of children) if (child.exitCode === null) child.kill();
@@ -96,6 +102,8 @@ try {
 }
 assert(completed);
 await writeFile(resolve(output, 'receipt.json'), JSON.stringify({ endpoint, accounts: accounts.map(person => person.handle), checks,
-  limitations: ['Two clients on one PC; this review does not establish multi-PC acceptance.'],
+  limitations: [guestAccountOnly
+    ? 'Native account CLI plus two WebSocket clients on one PC; the game-screen attachment check has separate local evidence.'
+    : 'Two clients on one PC; this review does not establish multi-PC acceptance.'],
   cleanup: 'Native clients closed; both test sessions verified revoked. TEST profiles, public keys and test mailbox records remain; temporary key files and protected local test-key records were removed.' }, null, 2));
 console.log(`${checks.length} hosted integration checks passed`);

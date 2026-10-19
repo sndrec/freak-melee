@@ -478,6 +478,13 @@ const char* nativeOnlineSession_LocalPeerId(void)
     return online.active ? online.peer_id : NULL;
 }
 
+const char* nativeOnlineSession_ConnectionId(void)
+{
+    const NativeNetplayConnection* connection = &online.lobby.room.connection;
+    return online.active && connection->signaling_connected && connection->connection_id[0]
+        ? connection->connection_id : NULL;
+}
+
 bool nativeOnlineSession_ContentProgress(NativeNetplayContentProgress* progress)
 {
     if (!online.active || !progress) return false;
@@ -641,6 +648,8 @@ void nativeOnlineSession_Inspect(void)
             p ? (unsigned long long)p->match_epoch : 0,
             p ? p->match_size : 0, p ? p->rotation_policy : 0,
             p ? p->participant_count : 0);
+    const char* failure = nativeLobbySession_Failure(&online.lobby);
+    if (failure) fprintf(stderr, "[room-failure] %s\n", failure);
     if (p) fprintf(stderr, "[room-stage] peer=%s seat=%u stage=%u physical=%d\n",
         p->stage_peer_id, p->stage_seat, p->stage, nativeOnlineSession_StagePort());
     for (unsigned i = 0; p && i < p->participant_count; ++i) {

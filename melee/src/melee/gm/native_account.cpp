@@ -136,6 +136,16 @@ bool nativeAccount_Refresh(NativeAccountWorker& w, NativeAccountView& view)
 namespace {
     void run(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
     {
+        if (request.operation == NativeAccountOperation::AttachLobby) {
+            if (!view.signed_in) return;
+            auto* body = w.json.object();
+            yyjson_mut_obj_add_str(w.json.output, body, "room", request.room);
+            yyjson_mut_obj_add_str(w.json.output, body, "connection", request.target);
+            if (!w.json.write(w.send, sizeof(w.send))) return;
+            if (nativeAccount_Http(w, w.secrets.handle, "lobby/attach", true, true, view))
+                std::snprintf(view.status, sizeof(view.status), "Account connected to lobby.");
+            return;
+        }
         if (request.operation >= NativeAccountOperation::ImportKey) { nativeAccount_RunFile(w, request, view); return; }
         if (nativeAccount_RunSocial(w, request, view)) return;
         const auto operation = request.operation;
@@ -264,7 +274,7 @@ bool nativeAccount_Start(const char* root, const char* endpoint)
 }
 bool nativeAccount_Submit(const NativeAccountRequest& request)
 {
-    if (!worker || request.operation > NativeAccountOperation::ExportRecovery ||
+    if (!worker || unsigned(request.operation) >= unsigned(NativeAccountOperation::Count) ||
         !std::memchr(request.handle, 0, sizeof(request.handle)) || !std::memchr(request.name, 0, sizeof(request.name)) ||
         !std::memchr(request.bio, 0, sizeof(request.bio)) || !std::memchr(request.recovery, 0, sizeof(request.recovery)) ||
         !std::memchr(request.target, 0, sizeof(request.target)) ||

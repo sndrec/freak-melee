@@ -15,6 +15,7 @@ const endpoint = `http://localhost:${port}`;
 const fixture = resolve(process.argv[4] || resolve(root, '.local/native-room-rotation-2/base'));
 const serviceRoot = resolve(root, 'melee/services/signaling');
 const cli = resolve(root, 'melee/build/native/native_account_test.exe');
+const guestAccountOnly = process.argv.includes('--guest-account-only');
 await mkdir(output, { recursive: false });
 const log = await open(resolve(output, 'service.log'), 'w');
 const service = spawn(process.execPath, [resolve(serviceRoot, 'node_modules/wrangler/bin/wrangler.js'),
@@ -96,13 +97,15 @@ try {
   assert.equal((await call(b, 'social/state', {})).total, 1);
   checks.push('Native letter send/read/delete and retry preserve exactly one delivery');
   await a.close(); await b.close();
-  // Leave one fresh incoming request for the actual in-game UI to accept.
-  await call(a, 'social/friend', { to: b.handle, action: 'remove' });
-  for (const message of (await call(b, 'social/state', {})).messages) await call(b, 'social/delete', { id: message.id });
-  await call(a, 'social/friend', { to: b.handle, action: 'request' });
+  if (!guestAccountOnly) {
+    // Leave one fresh incoming request for the actual in-game UI to accept.
+    await call(a, 'social/friend', { to: b.handle, action: 'remove' });
+    for (const message of (await call(b, 'social/state', {})).messages) await call(b, 'social/delete', { id: message.id });
+    await call(a, 'social/friend', { to: b.handle, action: 'request' });
+  }
   const python = resolve(process.env.LOCALAPPDATA, 'Programs/Python/Python311/python.exe');
   const uiLog = await open(resolve(output, 'ui.log'), 'w');
-  const ui = spawn(python, [resolve(root, 'melee/tools/review_native_social.py'),
+  const ui = spawn(python, [resolve(root, guestAccountOnly ? 'melee/tools/review_native_guest_account.py' : 'melee/tools/review_native_social.py'),
     '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
     '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
     '--endpoint', endpoint, '--output', resolve(output, 'ui')],
@@ -110,56 +113,59 @@ try {
   clients.push(ui);
   const code = await new Promise(resolve => ui.once('exit', resolve)); await uiLog.close();
   assert.equal(code, 0, 'native UI review failed; inspect its local ui.log');
-  checks.push('Two signed-in hidden/muted game clients pass the native social UI review');
-  console.log('Social pages passed; waiting for the native request-rate window before the invitation review.');
-  await new Promise(resolve => setTimeout(resolve, 61000));
-  // Give the invitation review accepted friends with empty mailboxes.
-  await call(a, 'social/friend', { to: b.handle, action: 'request' });
-  await call(b, 'social/friend', { to: a.handle, action: 'accept' });
-  for (const person of [a, b]) for (const folder of [0, 1])
-    for (const message of (await call(person, 'social/state', { folder })).messages)
-      await call(person, 'social/delete', { id: message.id });
-  const invitationLog = await open(resolve(output, 'invitations.log'), 'w');
-  const invitationReview = spawn(python, [resolve(root, 'melee/tools/review_native_invitations.py'),
-    '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
-    '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
-    '--endpoint', endpoint, '--output', resolve(output, 'invitations')],
-    { windowsHide: true, stdio: ['ignore', invitationLog.fd, invitationLog.fd] });
-  clients.push(invitationReview);
-  const invitationCode = await new Promise(resolve => invitationReview.once('exit', resolve)); await invitationLog.close();
-  assert.equal(invitationCode, 0, 'native invitation review failed; inspect invitations.log');
-  checks.push('Verified global/lobby profiles, lobby invitations, joining and account sign-out pass in two native clients');
-  // Exercise a populated second page, including deletion of its final row.
-  // These additional fixture keys stay in memory and never enter a player store.
-  for (let i = 0; i < 8; ++i) {
-    const person = { handle: `paging_friend_${i}` }, key = accountKey();
-    const options = await call(person, 'register/options', { name: `Paging friend ${i}`, public_key: key.publicKey }, null);
-    person.grant = await call(person, 'register/finish', key.proof(person.handle, options), null);
-    await call(person, 'social/friend', { to: b.handle, action: 'request' });
-    await call(b, 'social/friend', { to: person.handle, action: 'accept' });
-  }
-  for (const folder of [0, 1]) {
-    for (;;) {
-      const page = (await call(b, 'social/state', { folder })).messages;
-      if (!page.length) break;
-      for (const message of page) await call(b, 'social/delete', { id: message.id });
+  checks.push(guestAccountOnly ? 'A guest host signs in without leaving or changing seats, sends an invitation and leaves on sign-out'
+    : 'Two signed-in hidden/muted game clients pass the native social UI review');
+  if (!guestAccountOnly) {
+    console.log('Social pages passed; waiting for the native request-rate window before the invitation review.');
+    await new Promise(resolve => setTimeout(resolve, 61000));
+    // Give the invitation review accepted friends with empty mailboxes.
+    await call(a, 'social/friend', { to: b.handle, action: 'request' });
+    await call(b, 'social/friend', { to: a.handle, action: 'accept' });
+    for (const person of [a, b]) for (const folder of [0, 1])
+      for (const message of (await call(person, 'social/state', { folder })).messages)
+        await call(person, 'social/delete', { id: message.id });
+    const invitationLog = await open(resolve(output, 'invitations.log'), 'w');
+    const invitationReview = spawn(python, [resolve(root, 'melee/tools/review_native_invitations.py'),
+      '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
+      '--profile-a', a.profile, '--profile-b', b.profile, '--a-handle', a.handle, '--b-handle', b.handle,
+      '--endpoint', endpoint, '--output', resolve(output, 'invitations')],
+      { windowsHide: true, stdio: ['ignore', invitationLog.fd, invitationLog.fd] });
+    clients.push(invitationReview);
+    const invitationCode = await new Promise(resolve => invitationReview.once('exit', resolve)); await invitationLog.close();
+    assert.equal(invitationCode, 0, 'native invitation review failed; inspect invitations.log');
+    checks.push('Verified global/lobby profiles, lobby invitations, joining and account sign-out pass in two native clients');
+    // Exercise a populated second page, including deletion of its final row.
+    // These additional fixture keys stay in memory and never enter a player store.
+    for (let i = 0; i < 8; ++i) {
+      const person = { handle: `paging_friend_${i}` }, key = accountKey();
+      const options = await call(person, 'register/options', { name: `Paging friend ${i}`, public_key: key.publicKey }, null);
+      person.grant = await call(person, 'register/finish', key.proof(person.handle, options), null);
+      await call(person, 'social/friend', { to: b.handle, action: 'request' });
+      await call(b, 'social/friend', { to: person.handle, action: 'accept' });
     }
+    for (const folder of [0, 1]) {
+      for (;;) {
+        const page = (await call(b, 'social/state', { folder })).messages;
+        if (!page.length) break;
+        for (const message of page) await call(b, 'social/delete', { id: message.id });
+      }
+    }
+    for (let i = 0; i < 9; ++i) await call(a, 'social/send', {
+      to: b.handle, title: `Paging letter ${i}`, body: `Fixture letter ${i}.`,
+      nonce: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url'),
+    });
+    console.log('Invitations passed; waiting for the native request-rate window before the paging review.');
+    await new Promise(resolve => setTimeout(resolve, 61000));
+    const pagingLog = await open(resolve(output, 'paging.log'), 'w');
+    const pagingReview = spawn(python, [resolve(root, 'melee/tools/review_native_social_paging.py'),
+      '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
+      '--profile', b.profile, '--lookup-handle', a.handle, '--endpoint', endpoint, '--output', resolve(output, 'paging')],
+      { windowsHide: true, stdio: ['ignore', pagingLog.fd, pagingLog.fd] });
+    clients.push(pagingReview);
+    const pagingCode = await new Promise(resolve => pagingReview.once('exit', resolve)); await pagingLog.close();
+    assert.equal(pagingCode, 0, 'native social paging review failed; inspect paging.log');
+    checks.push('Background refresh preserves typing; deleting the last row recovers Friends and Inbox pagination');
   }
-  for (let i = 0; i < 9; ++i) await call(a, 'social/send', {
-    to: b.handle, title: `Paging letter ${i}`, body: `Fixture letter ${i}.`,
-    nonce: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url'),
-  });
-  console.log('Invitations passed; waiting for the native request-rate window before the paging review.');
-  await new Promise(resolve => setTimeout(resolve, 61000));
-  const pagingLog = await open(resolve(output, 'paging.log'), 'w');
-  const pagingReview = spawn(python, [resolve(root, 'melee/tools/review_native_social_paging.py'),
-    '--exe', resolve(root, 'melee/build/native/melee_native.exe'), '--iso', resolve(root, 'Super Smash Bros. Melee (USA) (v1.02).iso'),
-    '--profile', b.profile, '--lookup-handle', a.handle, '--endpoint', endpoint, '--output', resolve(output, 'paging')],
-    { windowsHide: true, stdio: ['ignore', pagingLog.fd, pagingLog.fd] });
-  clients.push(pagingReview);
-  const pagingCode = await new Promise(resolve => pagingReview.once('exit', resolve)); await pagingLog.close();
-  assert.equal(pagingCode, 0, 'native social paging review failed; inspect paging.log');
-  checks.push('Background refresh preserves typing; deleting the last row recovers Friends and Inbox pagination');
   await writeFile(resolve(output, 'receipt.json'), JSON.stringify({ checks, limitations: [
     'Ed25519 key import and native signatures exercise the normal saved-session path.',
     'The service remains local to this review; no production deployment or multi-PC acceptance.'

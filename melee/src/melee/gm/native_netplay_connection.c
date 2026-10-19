@@ -204,6 +204,7 @@ static bool process_signaling(NativeNetplayConnection* connection)
         }
         if (event.type == NativeSignalingClientEvent_Disconnected) {
             connection->signaling_connected = false;
+            connection->connection_id[0] = '\0';
             if (connection->topology_locked ||
                 connection->quick.state == NativeQuickState_Aborted) {
                 continue;
@@ -212,6 +213,11 @@ static bool process_signaling(NativeNetplayConnection* connection)
                                  ? "room signaling disconnected"
                                  : event.detail);
             return false;
+        }
+        if (event.message.type == NativeSignalingServerMessage_Welcome) {
+            snprintf(connection->connection_id, sizeof(connection->connection_id), "%s",
+                     event.message.data.welcome.connection_id);
+            continue;
         }
         if (event.message.type == NativeSignalingServerMessage_Listing) {
             connection->listing = event.message.data.listing;

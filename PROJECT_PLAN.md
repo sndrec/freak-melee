@@ -46,7 +46,7 @@ their own builds; their old "remaining" lists are not the current backlog.
   and can issue independently revocable keys for additional PCs. The service
   stores public keys and hashed session/recovery secrets. See the
   [account contract](melee/docs/native_account_auth.md) for details.
-  The new service suite passes 68 tests; six real native/service checks cover
+  The current service suite passes 71 tests; six real native/service checks cover
   key generation, interoperability, restart, import/export, revocation and recovery.
   The native build, six account-screen checks and hosted two-client invitation
   review pass. Earlier Windows passkey acceptance is superseded by this design.
@@ -54,14 +54,14 @@ their own builds; their old "remaining" lists are not the current backlog.
   interaction and presentation remain for user review.
 - The private signaling service now includes account keys, social pages,
   lobby browsing and Quick Play: deployment
-  `c59460c2-3719-49ab-9093-2db550ed5bf4` at the existing private endpoint.
+  `8e1f76a3-9a77-4ade-8efe-7eee190a196a` at the existing private endpoint.
   The account-key native path is verified against that hosted service.
 - Persistent friends and offline letters now have account-owned mailboxes,
   shared friendship records, read/delete state, blocking and durable delivery
   retries. The native Friends, profile, composer, Inbox and Sent pages use the
   existing menu components. The [social account guide](melee/docs/native_social_accounts.md)
   records behavior and verification. Existing friend/letter checks and the
-  current 68-test service suite cover persistent social behavior.
+  current 71-test service suite cover persistent social behavior.
 - Chat and lobby sockets now carry verified account identities. Player-list
   clicks open account profiles; friends can send offline lobby invitations,
   and joining checks live membership, friendship and expiry. Sign-out leaves
@@ -71,8 +71,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   `.local/account-key-hosted-1/receipt.json`. Six account-screen checks cover
   in-game creation and recovery entry: `.local/account-key-ui-1/receipt.json`.
   Standard file-picker interaction and the user's presentation/input review
-  remain open. Signing in after entering a lobby as a guest currently requires
-  leaving and rejoining that lobby to attach the account.
+  remain open. Signing in from a guest lobby now attaches the account to the
+  existing connection, preserving host, seats, readiness and match data. Four
+  hidden/muted native UI checks pass in `.local/lobby-account-attach-ui-4/receipt.json`;
+  service tests also cover readiness, hibernation, account replacement and stale
+  connections. The private service includes this route.
 - Friends now offer Create & invite when the sender has no lobby. The existing
   form keeps name/listing/local-player controls and shows the recipient. B
   returns to their profile without delivery; confirmation sends once the

@@ -174,7 +174,8 @@ describe("Quick Play assembly", () => {
     try {
       await old.configure(1); await b.configure(1);
       await old.search(); await old.state(1);
-      replacement = await quickJoin("QREPLACEA", "replace_a");
+      // The public peer ID alone cannot replace an active guest connection.
+      replacement = await quickJoin("QREPLACEA", "replace_a", 1, "quick-test", undefined, old.connectionId);
       await replacement.state(0); await replacement.search(); await replacement.state(1);
       await b.search();
       expect((await replacement.state(2)).matchRoom).toBe((await b.state(2)).matchRoom);
