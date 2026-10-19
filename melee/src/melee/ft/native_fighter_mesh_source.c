@@ -1,6 +1,7 @@
 #include "native_fighter_mesh_source.h"
 #include "native_fighter_authoring.h"
 #include <errno.h>
+#include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,27 +110,35 @@ bool nativeFighterMeshSource_Parse(NativeFighterProject* project,char* row)
        !decode(source.identity,sizeof(source.identity),fields[10])) return false;
     source.used=true;return nativeFighterMeshSource_Set(project,&source);
 }
-static bool encoded(FILE* file,const char* text)
+static bool encoded(char** at,size_t* remaining,const char* text)
 {
-    for(const unsigned char* at=(const unsigned char*)text;*at;++at) {
-        if(*at=='%' || *at=='\t' || *at=='\r' || *at=='\n') {
-            if(fprintf(file,"%%%02X",*at)<0) return false;
-        } else if(fputc(*at,file)==EOF) return false;
+    for(const unsigned char* c=(const unsigned char*)text;*c;++c) {
+        const bool escape=*c=='%';
+        const unsigned n=escape?3:1;
+        if(*remaining<=n)return false;
+        if(escape)snprintf(*at,*remaining,"%%%02X",*c);
+        else **at=(char)*c;
+        *at+=n;*remaining-=n;
     }
-    return true;
+    **at=0;return true;
 }
-bool nativeFighterMeshSource_Write(const NativeFighterProject* project,FILE* file)
+size_t nativeFighterMeshSource_Format(const NativeFighterMeshSource* source,char* row,size_t capacity)
 {
-    for(unsigned i=0;project->authoring && i<NATIVE_MESH_SOURCE_CAPACITY;++i) {
-        const NativeFighterMeshSource* source=&project->authoring->sources[i];
-        if(!source->used) continue;
-        if(!valid(source) || fprintf(file,"mesh-source\t%u\t%u\t%u\t%llx\t%u\t%u\t%u\t%.9g\t",
-            source->mesh,source->vertices,source->corners,(unsigned long long)source->topology,
-            source->binding,source->mirrored,source->uses_bind_shape,source->scale)<0) return false;
-        for(unsigned f=0;f<16;++f)
-            if(fprintf(file,"%s%.9g",f?",":"",source->transform[f])<0) return false;
-        if(fputc('\t',file)==EOF || !encoded(file,source->path) ||
-           fputc('\t',file)==EOF || !encoded(file,source->identity) || fputc('\n',file)==EOF) return false;
+    if(!row || !capacity || !valid(source))return 0;
+    int n=snprintf(row,capacity,"mesh-source\t%u\t%u\t%u\t%llx\t%u\t%u\t%u\t%.9g\t",
+        source->mesh,source->vertices,source->corners,(unsigned long long)source->topology,
+        source->binding,source->mirrored,source->uses_bind_shape,source->scale);
+    if(n<=0 || (size_t)n>=capacity)return 0;
+    char* at=row+n;size_t remaining=capacity-n;
+    for(unsigned f=0;f<16;++f) {
+        n=snprintf(at,remaining,"%s%.9g",f?",":"",source->transform[f]);
+        if(n<=0 || (size_t)n>=remaining)return 0;
+        at+=n;remaining-=n;
     }
-    return !ferror(file);
+    if(remaining<2)return 0;
+    *at++='\t';--remaining;
+    if(!encoded(&at,&remaining,source->path) || remaining<2)return 0;
+    *at++='\t';--remaining;
+    if(!encoded(&at,&remaining,source->identity) || remaining<2)return 0;
+    *at++='\n';*at=0;return (size_t)(at-row);
 }

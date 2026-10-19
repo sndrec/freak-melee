@@ -1,15 +1,17 @@
 #include "native_fighter_project.h"
 #include "native_source_assets.h"
+#include "native_fighter_authoring.h"
 #ifdef MELEE_NATIVE
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-enum { ASSET_COUNT = 4, PATH_BYTES = 600, REPLACE_COUNT = ASSET_COUNT * 2 };
+enum { CORE_COUNT = 4, ASSET_COUNT = 5, PATH_BYTES = 600, REPLACE_COUNT = ASSET_COUNT * 2 };
 static const char* const asset_names[ASSET_COUNT] = {
-    "fighter.dat", "animation.dat", "costume.dat", "assets.fma"
+    "fighter.dat", "animation.dat", "costume.dat", "assets.fma", "workshop_names.txt"
 };
 typedef struct AssetBytes { const void* data; size_t size; } AssetBytes;
 typedef struct AssetReplace {
@@ -42,12 +44,12 @@ static bool stage(AssetReplace* file)
     file->staged_owned = true;
     DWORD written = 0;
     bool ok = file->bytes.size <= MAXDWORD &&
-        WriteFile(handle, file->bytes.data, (DWORD)file->bytes.size, &written, NULL) &&
+        WriteFile(handle, file->bytes.data ? file->bytes.data : "", (DWORD)file->bytes.size, &written, NULL) &&
         written == file->bytes.size && FlushFileBuffers(handle);
     if (!CloseHandle(handle)) ok = false;
     return ok;
 }
-static void assets(const NativeFighterProject* p, AssetBytes output[ASSET_COUNT])
+static void assets(const NativeFighterProject* p, AssetBytes output[CORE_COUNT])
 {
     output[0] = (AssetBytes){p->fighter_dat, p->fighter_size};
     output[1] = (AssetBytes){p->animation_dat, p->animation_size};
@@ -58,8 +60,8 @@ bool nativeFighterProject_ValidateAssets(const NativeFighterProject* p,
                                          char* message, size_t capacity)
 {
     if (!p) return error(message, capacity, "Asset validation needs a project.");
-    AssetBytes bytes[ASSET_COUNT]; assets(p, bytes);
-    for (unsigned i = 0; i < ASSET_COUNT; ++i)
+    AssetBytes bytes[CORE_COUNT]; assets(p, bytes);
+    for (unsigned i = 0; i < CORE_COUNT; ++i)
         if (!bytes[i].data || !bytes[i].size || bytes[i].size > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
             return error(message, capacity, "The draft has a missing or oversized asset.");
     NativeSourceAssetFacts facts;
@@ -137,6 +139,22 @@ static bool publish(const char* path, const AssetBytes current[ASSET_COUNT],
     if (message && capacity) message[0] = 0;
     return true;
 }
+static bool read_saved(const char* path,unsigned asset,const char* suffix,bool optional,
+                         uint8_t** bytes,size_t* size)
+{
+    char name[PATH_BYTES];
+    if(!filename(name,path,asset_names[asset],suffix))return false;
+    FILE* file=fopen(name,"rb");
+    if(!file)return optional && errno==ENOENT;
+    long length=0;
+    bool ok=!fseek(file,0,SEEK_END) && (length=ftell(file))>=0 &&
+        (size_t)length<=NATIVE_CONTENT_MAX_PACKAGE_BYTES && !fseek(file,0,SEEK_SET);
+    uint8_t* data=ok?malloc((size_t)length+1):NULL;
+    ok=ok && data && fread(data,1,(size_t)length,file)==(size_t)length;
+    if(fclose(file))ok=false;
+    if(!ok){free(data);return false;}
+    *bytes=data;*size=(size_t)length;return true;
+}
 bool nativeFighterProject_SaveAssets(const char* path,
     const NativeFighterProject* p, char* message, size_t capacity)
 {
@@ -149,14 +167,23 @@ bool nativeFighterProject_SaveAssets(const char* path,
         !strcmp(disk.template_key, p->template_key) &&
         !strcmp(disk.fighter_root, p->fighter_root) &&
         !strcmp(disk.facts.costume_joint, p->facts.costume_joint);
-    AssetBytes before[ASSET_COUNT], after[ASSET_COUNT];
+    AssetBytes before[ASSET_COUNT]={0}, after[ASSET_COUNT]={0};
     assets(&disk, before); assets(p, after);
+    uint8_t* old_names=NULL;size_t old_size=0;
+    uint8_t* names=NULL;size_t names_size=0;
+    bool ok=same && read_saved(path,CORE_COUNT,"",true,&old_names,&old_size) &&
+        nativeFighterAuthoring_Encode(p,&names,&names_size);
+    before[CORE_COUNT]=(AssetBytes){old_names,old_size};
+    after[CORE_COUNT]=(AssetBytes){names,names_size};
     bool changed = false;
-    for (unsigned i = 0; i < ASSET_COUNT; ++i)
-        changed |= before[i].size != after[i].size || !after[i].data ||
-            (before[i].size == after[i].size && memcmp(before[i].data, after[i].data, before[i].size));
-    bool ok = same && nativeFighterProject_ValidateAssets(p, message, capacity) &&
-        (!changed || publish(path, after, before, message, capacity));
+    for (unsigned i = 0; ok && i < ASSET_COUNT; ++i)
+        changed |= before[i].size != after[i].size ||
+            (before[i].size && before[i].size == after[i].size &&
+             (!before[i].data || !after[i].data || memcmp(before[i].data, after[i].data, before[i].size)));
+    if(ok)ok=nativeFighterProject_ValidateAssets(p,message,capacity) &&
+        (!changed || publish(path,after,before,message,capacity));
+    else error(message,capacity,"Could not encode or read the draft's editor metadata.");
+    free(old_names);free(names);
     nativeFighterProject_Close(&disk);
     if (!same) return error(message, capacity, "The saved directory belongs to a different draft.");
     if (ok && message && capacity) message[0] = 0;
@@ -169,26 +196,17 @@ bool nativeFighterProject_UndoLastAssetSave(const char* path, char* message, siz
         return error(message, capacity, "Could not open the saved draft.");
     uint8_t* previous[ASSET_COUNT] = {0}; size_t sizes[ASSET_COUNT] = {0};
     bool ok = true;
-    for (unsigned i = 0; ok && i < ASSET_COUNT; ++i) {
-        char name[PATH_BYTES];
-        ok = filename(name, path, asset_names[i], ".rig.previous");
-        FILE* file = ok ? fopen(name, "rb") : NULL;
-        if (!file) { ok = false; break; }
-        long size;
-        ok = !fseek(file, 0, SEEK_END) && (size = ftell(file)) > 0 &&
-            (size_t)size <= NATIVE_CONTENT_MAX_PACKAGE_BYTES && !fseek(file, 0, SEEK_SET);
-        if (ok) { sizes[i] = (size_t)size; previous[i] = malloc(sizes[i]); }
-        ok = ok && previous[i] && fread(previous[i], 1, sizes[i], file) == sizes[i];
-        if (fclose(file)) ok = false;
-    }
+    for (unsigned i = 0; ok && i < ASSET_COUNT; ++i)
+        ok=read_saved(path,i,".rig.previous",false,&previous[i],&sizes[i]) && (i==CORE_COUNT || sizes[i]);
     NativeSourceAssetFacts facts; NativeScriptDiagnostic diagnostic = {0};
-    ok = ok && nativeSourceAssets_Read(previous[3], sizes[3], &facts, &diagnostic);
+    ok = ok && nativeSourceAssets_Read(previous[3], sizes[3], &facts, &diagnostic) &&
+        nativeFighterAuthoring_Decode(previous[CORE_COUNT],sizes[CORE_COUNT],&p);
     if (ok) {
         free(p.fighter_dat); p.fighter_dat = previous[0]; p.fighter_size = sizes[0];
         free(p.animation_dat); p.animation_dat = previous[1]; p.animation_size = sizes[1];
         free(p.costume_dat); p.costume_dat = previous[2]; p.costume_size = sizes[2];
         free(p.asset_record); p.asset_record = previous[3]; p.asset_record_size = sizes[3];
-        memset(previous, 0, sizeof(previous));
+        memset(previous, 0, CORE_COUNT*sizeof(*previous));
         p.facts = facts; p.action_count = facts.actions; p.demo_count = facts.demo_count;
         snprintf(p.fighter_root, sizeof(p.fighter_root), "%s", facts.fighter_root);
         ok = nativeFighterProject_SaveAssets(path, &p, message, capacity);

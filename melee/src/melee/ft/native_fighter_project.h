@@ -96,7 +96,7 @@ bool nativeFighterProject_SetAttribute(NativeFighterProject* project,
 // Save fighter DAT edits atomically and retain the immediately previous file.
 bool nativeFighterProject_Save(const char* path,
                                const NativeFighterProject* project);
-// Save the matching fighter, animation, costume and owned rig facts together.
+// Save the matching fighter, animation, costume, rig facts and editor metadata together.
 // Validates the complete candidate before staging files. A failed replacement
 // restores the previous files; a successful save retains one complete asset
 // predecessor. This is operation-level rollback, not power-loss recovery.

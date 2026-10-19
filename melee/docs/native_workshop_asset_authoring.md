@@ -32,10 +32,10 @@ Existing expressions and mesh visibility stay attached to their original meshes.
 Undoing a move or attribute edit preserves the costume's current assignments.
 
 Source mesh and material names appear in the outliner. Select a mesh, material
-or bone and use its **Name** field to give it a useful name. **Save name** keeps
-the name in the draft immediately. Editor names and hidden-action choices are
-stored in `workshop_names.txt` beside the draft's assets. They are local editing
-preferences; exported fighter packages contain the gameplay assets and scripts.
+or bone and use its **Name** field to give it a useful name. **Apply name** changes
+the label in the editor. **Save** keeps names and hidden-action choices together
+with the edited model and animations. Undo restores the previous edit. Names
+and hidden-action choices are local editing preferences.
 
 ## Replace expression images
 

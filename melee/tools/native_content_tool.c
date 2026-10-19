@@ -1778,7 +1778,7 @@ static int project_model_import(const char* path, const char* source,
     char error[192] = { 0 };
     const NativeGltfImportRequest request={(unsigned)primitive,(unsigned)joint,(unsigned)replacement,binding,scale,false};
     bool ok = nativeFighterGltf_ApplyBatch(&project,source,&request,1,error,sizeof(error)) &&
-        nativeFighterProject_SaveCostume(path,&project) && nativeFighterAuthoring_Save(path,&project);
+        nativeFighterProject_SaveAssets(path,&project,error,sizeof(error));
     if (!ok) fprintf(stderr, "Model import failed: %s\n", error);
     else printf("Imported primitive %lu into %s.\n", primitive, path);
     nativeFighterProject_Close(&project);

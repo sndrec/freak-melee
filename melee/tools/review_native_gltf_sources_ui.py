@@ -95,13 +95,21 @@ def main():
         c.click('workshop-model-import-load')
         c.click('workshop-model-import-next')
         c.click('workshop-model-import-target')
-        c.command('ui-key', 'home')
-        c.command('ui-key', 'down')
+        selected = re.search(r'\[ui-inspect-value\] workshop-model-import-target:.* value=(\S+) text=',
+                             c.inspect('workshop-model-import-target'))[1]
+        if selected == 'add':
+            c.command('ui-key', 'down')
+        else:
+            for _ in range(int(selected)):
+                c.command('ui-key', 'up')
         c.command('ui-key', 'enter')
-        assert 'value=0 text=' in c.inspect('workshop-model-import-target')
+        assert re.search(r'\[ui-inspect-value\] workshop-model-import-target:.* value=0 text=',
+                         c.inspect('workshop-model-import-target'))
         c.click('workshop-model-import-next')
         c.click('workshop-model-import-next')
         ready(c)
+        overlay = c.inspect('workshop-model-import-overlay')
+        assert 'visible=0' in overlay, c.inspect('workshop-model-import-note')
 
     def source_path(c):
         return tool('project-model-sources', c.data/'projects/source-history')
@@ -111,9 +119,11 @@ def main():
         baseline = save(client)
         assert 'original.glb' in source_path(client)
         reimport(client)
+        assert 'original.glb' in source_path(client), 'Import published metadata before Save'
         assert save(client) == baseline
         assert 'relocated.glb' in source_path(client)
         client.click('workshop-undo')
+        assert 'relocated.glb' in source_path(client), 'Undo published metadata before Save'
         assert save(client) == baseline
         assert 'original.glb' in source_path(client)
         client.click('workshop-redo')
@@ -123,8 +133,10 @@ def main():
         reimport(client)
         assert save(client) == baseline
         client.click('workshop-undo')
+        assert save(client) == baseline
         assert 'original.glb' in source_path(client), 'A no-op import inserted an empty history entry'
         client.click('workshop-redo')
+        assert save(client) == baseline
         assert 'relocated.glb' in source_path(client)
         receipt['cases'].append('Repeated no-op import retains the existing history entry')
         receipt['screenshot'] = str(client.screenshot())

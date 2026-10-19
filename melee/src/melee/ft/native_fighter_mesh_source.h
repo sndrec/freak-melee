@@ -1,6 +1,5 @@
 #pragma once
 #include "native_fighter_project.h"
-#include <stdio.h>
 
 enum { NATIVE_MESH_SOURCE_CAPACITY=1024 };
 typedef struct NativeFighterMeshSource {
@@ -24,7 +23,7 @@ void nativeFighterMeshSource_Clear(NativeFighterProject*,uint32_t mesh);
 // Tagged rows in the existing Workshop metadata file. Parsing a bad row leaves
 // the project unchanged; percent characters are escaped in text fields.
 bool nativeFighterMeshSource_Parse(NativeFighterProject*,char* row);
-bool nativeFighterMeshSource_Write(const NativeFighterProject*,FILE*);
+size_t nativeFighterMeshSource_Format(const NativeFighterMeshSource*,char* row,size_t capacity);
 #ifdef __cplusplus
 }
 #endif
