@@ -345,13 +345,9 @@ static int inspect_costume(const char* path, const char* joint_name,
         fprintf(stderr, "Could not read costume DAT: %s\n", path);
         return 1;
     }
-    void* arena = malloc(FT_COSTUME_IMPORT_ARENA_SIZE);
     FtCostumeAssets* assets = calloc(1, sizeof(*assets));
-    bool valid = arena != NULL && assets != NULL &&
-                 ftCostumeAssets_Import(
-                     bytes, size, joint_name, matanim_name, arena,
-                     FT_COSTUME_IMPORT_ARENA_SIZE,
-                     FT_COSTUME_IMPORT_RECORD_CAPACITY, assets);
+    bool valid = assets != NULL && ftCostumeAssets_Load(
+        bytes, size, joint_name, matanim_name, assets);
     if (valid) {
         printf("Costume DAT imported: %lu records, %zu arena bytes, "
                "%u joints, root scale %.4f %.4f %.4f\n",
@@ -360,7 +356,7 @@ static int inspect_costume(const char* path, const char* joint_name,
                (unsigned) assets->joint_count,
                assets->joint->scale.x, assets->joint->scale.y,
                assets->joint->scale.z);
-    } else if (arena != NULL && assets != NULL) {
+    } else if (assets != NULL) {
         fprintf(stderr,
                 "Costume DAT import failed: status=%d offset=0x%lx "
                 "records=%lu external=%s\n",
@@ -372,8 +368,8 @@ static int inspect_costume(const char* path, const char* joint_name,
     } else {
         fputs("Could not reserve costume import memory.\n", stderr);
     }
+    if (assets) free(assets->arena);
     free(assets);
-    free(arena);
     free(bytes);
     return valid ? 0 : 1;
 }

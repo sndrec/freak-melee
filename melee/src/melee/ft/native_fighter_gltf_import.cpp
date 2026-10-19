@@ -812,12 +812,8 @@ bool encode_material(const char* path,const cgltf_primitive* primitive,NativeAss
 bool validate_costume(const std::vector<uint8_t>& bytes,
                       const char* root, char* error, size_t error_size)
 {
-    std::vector<uint8_t> arena(FT_COSTUME_IMPORT_ARENA_SIZE);
     FtCostumeAssets imported;
-    if (!ftCostumeAssets_Import(bytes.data(), bytes.size(), root, nullptr,
-                                arena.data(), arena.size(),
-                                FT_COSTUME_IMPORT_RECORD_CAPACITY,
-                                &imported)) {
+    if (!ftCostumeAssets_Load(bytes.data(), bytes.size(), root, nullptr, &imported)) {
         if (error && error_size)
             std::snprintf(error, error_size,
                 "The generated Melee model failed validation (DAT status %d at 0x%lX).",
@@ -825,6 +821,7 @@ bool validate_costume(const std::vector<uint8_t>& bytes,
                 (unsigned long) imported.import.error_offset);
         return false;
     }
+    std::free(imported.arena);
     return true;
 }
 

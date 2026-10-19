@@ -11,13 +11,13 @@ static bool error(NativeScriptDiagnostic* d,const char* text)
 void nativeSourceAssets_Release(NativeSourceImportedAssets* assets)
 {
     if(!assets)return;
-    free(assets->motions);free(assets->costume_arena);free(assets->animation_arena);free(assets->character_arena);
+    free(assets->motions);free(assets->costume.arena);free(assets->animation_arena);free(assets->character_arena);
     memset(assets,0,sizeof(*assets));
 }
 bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeSourceAssetInput* input,
     FighterKind target,NativeSourceImportedAssets* output,NativeScriptDiagnostic* d)
 {
-    if(!output || output->ready || output->character_arena || output->animation_arena || output->costume_arena || output->motions)
+    if(!output || output->ready || output->character_arena || output->animation_arena || output->costume.arena || output->motions)
         return error(d,"Source asset import requires a vacant candidate at its stable address");
     if(!input || !input->fighter || !input->animation || !input->costume ||
        (unsigned)target>=Ft_Kind_RuntimeCapacity || target==Ft_Kind_None || !nativeSourceAssets_Validate(facts,d))return false;
@@ -28,9 +28,8 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
     output->facts=*facts;facts=&output->facts;
     output->character_arena=malloc(FT_CHARACTER_IMPORT_ARENA_SIZE);
     output->animation_arena=malloc(FT_ANIMATION_IMPORT_ARENA_SIZE);
-    output->costume_arena=malloc(FT_COSTUME_IMPORT_ARENA_SIZE);
     output->motions=calloc(facts->moves.count?facts->moves.count:1,sizeof(*output->motions));
-    if(!output->character_arena || !output->animation_arena || !output->costume_arena || !output->motions) {
+    if(!output->character_arena || !output->animation_arena || !output->motions) {
         error(d,"Could not reserve source asset candidate storage");goto failure;
     }
     if(!ftCharacterAssets_Import(input->fighter,input->fighter_bytes,&facts->layout,
@@ -54,9 +53,8 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
         if(d)snprintf(d->message,sizeof(d->message),"Source animation import failed at table %u clip %u (status %u)",
             (unsigned)animation.failed_table,(unsigned)animation.failed_index,(unsigned)animation.status);goto failure;
     }
-    if(!ftCostumeAssets_Import(input->costume,input->costume_bytes,facts->costume_joint,
-            facts->costume_matanim,output->costume_arena,FT_COSTUME_IMPORT_ARENA_SIZE,
-            FT_COSTUME_IMPORT_RECORD_CAPACITY,&output->costume) || output->costume.joint_count!=facts->joints ||
+    if(!ftCostumeAssets_Load(input->costume,input->costume_bytes,facts->costume_joint,
+            facts->costume_matanim,&output->costume) || output->costume.joint_count!=facts->joints ||
        !ftCharacterAssets_ValidateVisibility(&output->character,facts->layout.visibility_mask,output->costume.joint)) {
         error(d,"Source costume graph, rig count or visibility data is invalid");goto failure;
     }

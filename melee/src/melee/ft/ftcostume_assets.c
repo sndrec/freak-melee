@@ -3,6 +3,7 @@
 #include <sysdolphin/baselib/jobj.h>
 
 #include <string.h>
+#include <stdlib.h>
 
 static u32 count_joints(const HSD_Joint* joint)
 {
@@ -24,16 +25,16 @@ bool ftCostumeAssets_Import(const void* bytes, size_t size,
 {
     u32 joint_root;
     u32 matanim_root;
-    if (output == NULL || joint_name == NULL) {
-        return false;
-    }
+    if (output == NULL) return false;
     memset(output, 0, sizeof(*output));
-    if (HSD_DatOpen(&output->dat, bytes, size) != HSD_DAT_OK ||
-        HSD_DatImportInit(&output->import, &output->dat, arena, arena_size,
-                          record_capacity) != HSD_DAT_OK)
-    {
+    if (joint_name == NULL) {
+        output->import.status = HSD_DAT_SYMBOL;
         return false;
     }
+    output->import.status = HSD_DatOpen(&output->dat, bytes, size);
+    if (output->import.status != HSD_DAT_OK) return false;
+    if (HSD_DatImportInit(&output->import, &output->dat, arena, arena_size,
+                          record_capacity) != HSD_DAT_OK) return false;
     if (!HSD_DatFindRoot(&output->dat, joint_name, &joint_root)) {
         output->import.status = HSD_DAT_SYMBOL;
         return false;
@@ -58,4 +59,45 @@ bool ftCostumeAssets_Import(const void* bytes, size_t size,
         }
     }
     return true;
+}
+
+bool ftCostumeAssets_Load(const void* bytes, size_t size,
+                          const char* joint_name,
+                          const char* matanim_joint_name,
+                          FtCostumeAssets* output)
+{
+    if (!output) return false;
+    memset(output, 0, sizeof(*output));
+    size_t arena_size = FT_COSTUME_IMPORT_ARENA_SIZE;
+    u32 records = FT_COSTUME_IMPORT_RECORD_CAPACITY;
+    for (;;) {
+        void* arena = malloc(arena_size);
+        if (!arena) {
+            memset(output, 0, sizeof(*output));
+            output->import.status = HSD_DAT_CAPACITY;
+            return false;
+        }
+        if (ftCostumeAssets_Import(bytes, size, joint_name, matanim_joint_name,
+                                   arena, arena_size, records, output)) {
+            output->arena = arena;
+            return true;
+        }
+        const bool capacity = output->import.status == HSD_DAT_CAPACITY;
+        const bool record_limit = output->import.record_count == records;
+        free(arena);
+        // Preserve diagnostics, but never expose pointers into a failed arena.
+        output->joint = NULL;
+        output->matanim_joint = NULL;
+        output->joint_count = 0;
+        output->import.arena = NULL;
+        output->import.records = NULL;
+        output->import.slots = NULL;
+        if (!capacity) return false;
+        if (record_limit) {
+            records *= 2;
+        } else {
+            if (arena_size == FT_COSTUME_IMPORT_MAX_ARENA_SIZE) return false;
+            arena_size *= 2;
+        }
+    }
 }
