@@ -369,24 +369,21 @@ Account identity remains separate from the room connection and local match seats
 
 Offline delivery stores letters, friend requests and invitations. Fighter
 sharing uses the connected lobby's content transfer, validation, cache and
-installation paths. The local passkey account service now supplies persistent
-identity, recovery and device-session management. Native account screens,
-Windows passkey/HTTP handling and DPAPI session storage are implemented.
-Persistent friends and the email-style Inbox/Sent pages now use those account
+installation paths. Persistent accounts use generated Ed25519 key pairs, automatic
+local sign-in, portable account-key files and recovery codes. Native account
+screens, HTTPS handling and protected local storage are implemented. The service
+stores public keys and hashes of random session tokens and recovery codes.
+The private key stays on the client and can be exported to another PC. Windows
+security-key prompts and user-chosen passwords are outside this flow.
+
+Persistent friends and the email-style Inbox/Sent pages use those account
 sessions. Global/lobby player lists open verified account profiles. Friends can
 send expiring lobby invitations through Inbox; joining rechecks the sender's
-membership and friendship. Signing out leaves the current lobby. Their delivery
-rules and local evidence are in the [friends and letters guide](native_social_accounts.md).
-Windows security-prompt acceptance and deployment remain open.
-
-The user prefers account creation and sign-in inside Freak Melee and asks us
-to minimize sensitive information held by the service. Use native Windows
-WebAuthn/passkeys: the game's account screens can invoke the Windows security
-prompt without launching a browser. The service stores public keys and hashes
-of session tokens and generated recovery codes. Confirm native registration,
-signing in on another PC and recovery before release. Account identity and
-offline records remain server-side. See the [account contract](native_account_auth.md)
-for the implemented service and remaining client work.
+membership and friendship. Signing out leaves the current lobby. The account-key
+service is deployed and has native two-client checks. The user confirmed that
+in-game account creation works on their PC. Standard file-picker interaction
+and multi-PC acceptance remain separate checks. See the
+[account guide](native_account_auth.md) and [friends and letters guide](native_social_accounts.md).
 
 ## Lobby browser
 

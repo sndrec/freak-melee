@@ -20,9 +20,13 @@ name and have a guest profile. Signing out leaves your current lobby and
 reconnects global chat as a guest. If you sign in after joining a lobby as a
 guest, leave and rejoin that lobby to use your account there.
 
-To invite a friend, join a lobby while signed in, open their profile and choose
-**Invite to lobby**. The invitation remains in their Inbox while they are
-offline. Open it and choose **Join lobby** to leave your current lobby and join
+To invite a friend, open their profile and choose **Invite to lobby**. If you
+have no lobby, choose **Create & invite** instead. Enter the lobby name, listing
+visibility and local player count, then confirm. The invitation is sent after
+the new lobby confirms your membership and its name. B returns to the friend's
+profile without creating a lobby or sending an invitation.
+
+The invitation remains in their Inbox while they are offline. Open it and choose **Join lobby** to leave your current lobby and join
 the sender. Invitations last fifteen minutes. Joining checks that the sender
 is still in that lobby and the friendship is active. Invitations also support
 an idle doubles party with space for a teammate.
@@ -160,3 +164,24 @@ interaction and user presentation/input review remain open.
 Signing in after joining a lobby as a guest currently requires leaving and
 rejoining that lobby to attach the account. Physical multi-PC acceptance
 remains with the user.
+
+
+## Create and invite check, 2026-10-19
+
+The native friend profile now opens the existing lobby form when the sender
+has no lobby. The form identifies the recipient and uses Create & invite for
+confirmation. Pending invitations clear on cancellation, sign-out, account
+change, explicit leave/join, Quick Play entry or creation failure. Sending
+waits for authenticated owner membership and the service's listing response;
+the existing request nonce keeps retries associated with the same invitation.
+
+The full local native social review passes four integration checks, including
+five social UI checks and five invitation UI checks. The invitation review
+covers backing out without delivery, creating a named lobby and automatically
+sending exactly one invitation, Inbox receipt, joining from another lobby,
+verified profiles and sign-out. Eight invitation PNGs include the new form.
+Evidence: `.local/create-invite-social-1/receipt.json` and
+`.local/create-invite-social-1/invitations/receipt.json`. The form screenshot
+was visually reviewed. This is two clients on one PC using a local service;
+physical multi-PC acceptance and network-failure injection remain separate.
+The earlier account-key hosted receipt still describes that earlier build.

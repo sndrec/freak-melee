@@ -406,6 +406,8 @@ void nativeHub_ChangePage(NativeHubPage page, bool backwards)
 {
     if (hub.page != page) {
         if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
+        if (hub.page == NativeHubPage_CreateLobby && !hub.lobby_invite_queued)
+            hub.lobby_invite_to[0] = 0;
         hub.motion_from = hub.page;
         BOOL animations = TRUE;
         SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0);
@@ -524,7 +526,8 @@ void nativeHub_Activate(HubAction action, int value)
         } else if (hub.page == NativeHubPage_Account) {
             nativeHub_ChangePage(NativeHubPage_Settings, true);
         } else if (hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) {
-            nativeHub_ChangePage(NativeHubPage_Lobbies, true);
+            nativeHub_ChangePage(hub.page == NativeHubPage_CreateLobby && *hub.lobby_invite_to ?
+                NativeHubPage_SocialProfile : NativeHubPage_Lobbies, true);
         } else if (hub.opened_from_play && hub.page <= NativeHubPage_Settings) {
             hub.dismissed = true;
             hub.visible = false;
@@ -539,6 +542,8 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::Close:
         if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
+        if (hub.page == NativeHubPage_CreateLobby && !hub.lobby_invite_queued)
+            hub.lobby_invite_to[0] = 0;
         hub.dismissed = true;
         hub.visible = false;
         text_focus(nullptr, 0);
@@ -746,7 +751,10 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::Join:
     case HubAction::Leave:
     case HubAction::StartMatch: {
-        if (action == HubAction::Join || action == HubAction::Leave) hub.pending_listing = false;
+        if (action == HubAction::Join || action == HubAction::Leave) {
+            hub.pending_listing = false;
+            hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
+        }
         if (action == HubAction::StartMatch && nativeOnlineSession_Quick()) {
             const auto* quick = nativeOnlineSession_Quick();
             if (!nativeOnlineSession_SearchQuick(quick->state == NativeQuickState_Idle))

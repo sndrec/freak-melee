@@ -153,6 +153,7 @@ The reviewed executable SHA-256 is
 Four native contracts and seven release-payload checks also pass. Task-owned
 clients were closed, hosted test sessions revoked and test key files removed.
 
+The user confirmed in-game account creation on their PC on 2026-10-19.
 The file worker paths are tested; interaction with the normal OS file picker
 remains a user acceptance check. Multi-PC testing also remains with the user.
 Earlier Windows WebAuthn receipts describe the replaced architecture.

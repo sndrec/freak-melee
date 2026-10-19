@@ -21,6 +21,7 @@ typedef enum NativeOnlineMenuAction {
 bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
                               const char* code, uint8_t local_players);
 bool nativeOnlineMenu_IsAvailable(void);
+bool nativeOnlineMenu_HasPendingAction(void);
 void nativeOnlineMenu_Pump(void);
 void nativeOnlineMenu_Focus(void);
 

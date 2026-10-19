@@ -50,7 +50,8 @@ their own builds; their old "remaining" lists are not the current backlog.
   key generation, interoperability, restart, import/export, revocation and recovery.
   The native build, six account-screen checks and hosted two-client invitation
   review pass. Earlier Windows passkey acceptance is superseded by this design.
-  Standard file-picker interaction and presentation remain for user review.
+  The user confirmed account creation on their PC. Standard file-picker
+  interaction and presentation remain for user review.
 - The private signaling service now includes account keys, social pages,
   lobby browsing and Quick Play: deployment
   `c59460c2-3719-49ab-9093-2db550ed5bf4` at the existing private endpoint.
@@ -72,6 +73,12 @@ their own builds; their old "remaining" lists are not the current backlog.
   Standard file-picker interaction and the user's presentation/input review
   remain open. Signing in after entering a lobby as a guest currently requires
   leaving and rejoining that lobby to attach the account.
+- Friends now offer Create & invite when the sender has no lobby. The existing
+  form keeps name/listing/local-player controls and shows the recipient. B
+  returns to their profile without delivery; confirmation sends once the
+  service confirms membership and the lobby name. Five invitation UI checks
+  and the full local social review pass:
+  `.local/create-invite-social-1/receipt.json`.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the

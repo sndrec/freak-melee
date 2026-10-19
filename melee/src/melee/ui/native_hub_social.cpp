@@ -1,5 +1,6 @@
 #include "native_hub_social.h"
 #include "native_hub_account.h"
+#include "native_hub_lobbies.h"
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL.h>
@@ -24,6 +25,13 @@ namespace {
             if (!std::strcmp(peer, presence->participants[i].peer_id))
                 return !std::strcmp(account.id, presence->participants[i].account_id);
         return false;
+    }
+
+    bool can_create()
+    {
+        const auto state = nativeOnlineSession_State();
+        return nativeOnlineMenu_IsAvailable() && !nativeOnlineSession_Quick() &&
+            (state == NativeLobbySessionState_Disconnected || state == NativeLobbySessionState_Failed);
     }
 
     void clear_draft()
@@ -86,6 +94,7 @@ void nativeHubSocial_Tick()
     if ((!account.signed_in && *owner) || (account.signed_in && std::strcmp(owner, account.id))) {
         clear_draft(); SDL_memset(opened, 0, sizeof(opened));
         SDL_memset(invitation_nonce, 0, sizeof(invitation_nonce)); pending_join[0] = 0;
+        hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
         std::snprintf(owner, sizeof(owner), "%s", account.signed_in ? account.id : "");
         wanted = true; folder = offset = friends_offset = read_scroll = 0;
     }
@@ -96,6 +105,19 @@ void nativeHubSocial_Tick()
     if (!account.busy && *invitation_nonce && !std::strcmp(invitation_nonce, account.social.last_sent_nonce)) {
         invitation_nonce[0] = 0;
         nativeHub_Notice("Lobby invitation sent.");
+    }
+    if (hub.lobby_invite_queued) {
+        const auto state = nativeOnlineSession_State();
+        const auto* listing = nativeOnlineSession_Listing();
+        if (!account.signed_in || nativeOnlineSession_Quick() || state == NativeLobbySessionState_Failed ||
+            (state == NativeLobbySessionState_Disconnected && !nativeOnlineMenu_HasPendingAction())) {
+            hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
+            nativeHub_Notice("The lobby was not created. The invitation was not sent.");
+        } else if (!account.busy && can_invite(account) && nativeOnlineSession_IsOwner() && !hub.pending_listing && listing &&
+            !std::strcmp(listing->title, hub.lobby_title) && listing->listed == hub.lobby_listed &&
+            submit(NativeAccountOperation::SendInvitation, hub.lobby_invite_to)) {
+            hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
+        }
     }
     if (!account.busy && *pending_join && account.revision != join_revision) {
         const bool checked = !std::strcmp(pending_join, account.social.join_id) && *account.social.join_room;
@@ -155,8 +177,8 @@ void nativeHubSocial_Render(NativeHubPage page)
             !std::strcmp(state, "friend") ? "Remove friend" : "Add friend", 395, 307, 189, 30, HubAction::SocialFriend, 0, false, enabled && !self && !social.profile_blocked);
         nativeHub_Button("profile-block", social.profile_blocked ? "Unblock player" : "Block player", 194, 354, 187, 25,
             HubAction::SocialBlock, 0, false, enabled && !self);
-        nativeHub_Button("profile-invite", "Invite to lobby", 395, 354, 189, 25,
-            HubAction::SendInvitation, 0, true, enabled && !self && !social.profile_blocked && !std::strcmp(state, "friend") && can_invite(account));
+        nativeHub_Button("profile-invite", can_create() ? "Create & invite" : "Invite to lobby", 395, 354, 189, 25,
+            HubAction::SendInvitation, 0, true, enabled && !self && !social.profile_blocked && !std::strcmp(state, "friend") && (can_invite(account) || can_create()));
         return;
     }
     if (page == NativeHubPage_Letter) {
@@ -254,9 +276,16 @@ bool nativeHubSocial_Activate(HubAction action, int value)
     case HubAction::SendLetter:
         folder = 1; offset = 0; submit(NativeAccountOperation::SendLetter); return true;
     case HubAction::SendInvitation:
-        submit(NativeAccountOperation::SendInvitation, social.profile.handle); return true;
+        if (!account.signed_in || account.busy || social.profile_blocked ||
+            std::strcmp(social.relationship, "friend") || !*social.profile.handle || !std::strcmp(account.id, social.profile.id)) return true;
+        if (can_create()) {
+            nativeHubLobbies_Activate(HubAction::NewLobby, 0);
+            std::snprintf(hub.lobby_invite_to, sizeof(hub.lobby_invite_to), "%s", social.profile.handle);
+        } else submit(NativeAccountOperation::SendInvitation, social.profile.handle);
+        return true;
     case HubAction::JoinInvitation:
         if (nativeOnlineMenu_IsAvailable() && submit(NativeAccountOperation::JoinInvitation, nullptr, opened)) {
+            hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
             std::snprintf(pending_join, sizeof(pending_join), "%s", opened); join_revision = account.revision;
         }
         return true;
@@ -298,15 +327,16 @@ void nativeHubSocial_Scroll(int amount)
 void nativeHubSocial_Inspect()
 {
     const auto& account = nativeHubAccount_View(); const auto& social = account.social;
-    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d profile-handle=%s kind=%s invite-pending=%d\n",
+    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d profile-handle=%s kind=%s invite-pending=%d create-invite=%s create-queued=%d\n",
         account.signed_in, account.busy, social.loaded, social.folder, social.offset, social.count, social.total, social.unread, social.friends_total,
         *opened && !std::strcmp(opened, social.opened.id), *social.profile.id != 0,
-        social.profile.handle, social.opened.kind, *invitation_nonce != 0);
+        social.profile.handle, social.opened.kind, *invitation_nonce != 0, hub.lobby_invite_to, hub.lobby_invite_queued);
 }
 void nativeHubSocial_Shutdown()
 {
     clear_draft(); SDL_memset(owner, 0, sizeof(owner)); SDL_memset(opened, 0, sizeof(opened));
     SDL_memset(invitation_nonce, 0, sizeof(invitation_nonce)); pending_join[0] = 0;
     invitation_room[0] = invitation_to[0] = 0;
+    hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
     wanted = false; refreshed = folder = offset = friends_offset = read_scroll = read_lines = 0;
 }
