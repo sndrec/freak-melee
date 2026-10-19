@@ -11,6 +11,7 @@
 #include "mobj.h"
 #include "pobj.h"
 #include "state.h"
+#include "shape.h"
 #include <dolphin/gx.h>
 
 enum {
@@ -27,6 +28,9 @@ static unsigned mesh_count;
 static bool override_visibility;
 static struct { const HSD_JObj* joint; u32 passes; } view_joints[512];
 static unsigned view_joint_count;
+#pragma clang section data = "" bss = ""
+static f32 shape_positions[HSD_DEFAULT_MAX_SHAPE_VERTICES][3];
+#pragma clang section data = ".mstate$m"
 
 void nativeModelView_Clear(void)
 {
@@ -154,7 +158,7 @@ static bool matrices(const ViewMesh* mesh, HSD_PObj* p, Mtx output[10],
     weights[0] = mesh->weight_bone == mesh->owner ? 1 : 0;
     const unsigned type = p->flags & 0x3000;
     if (type == POBJ_SHAPEANIM) {
-        return false;
+        return true;
     }
     if (type != POBJ_ENVELOPE) {
         if (p->u.jobj) {
@@ -227,6 +231,8 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
     if (!matrices(mesh, p, mtx, weights, &matrix_count)) {
         return false;
     }
+    const HSD_ShapeSet* shape = pobj_type(p)==POBJ_SHAPEANIM ? p->u.shape_set : NULL;
+    if (pobj_type(p)==POBJ_SHAPEANIM && !HSD_ShapeSetEvaluate(shape,shape_positions,NULL)) return false;
     // GX consumes hardware slots, regardless of descriptor-list ordering.
     // NBT uses the normal slot rather than its descriptor enum value (25).
     const HSD_VtxDescList* ordered[26];
@@ -284,6 +290,13 @@ static bool visit(const ViewMesh* mesh, HSD_PObj* p, BeginFn begin,
                     matrix = value[0] / 3;
                 }
                 if (d->attr != GX_VA_POS) {
+                    continue;
+                }
+                if (shape) {
+                    if (d->attr_type!=GX_INDEX8 && d->attr_type!=GX_INDEX16)return false;
+                    const unsigned index=d->attr_type==GX_INDEX8?value[0]:be16(value);
+                    if(index>=(unsigned)shape->nb_vertex_index)return false;
+                    memcpy(&pos,shape_positions[index],sizeof(pos));have_pos=true;
                     continue;
                 }
                 const bool direct = d->attr_type == GX_DIRECT;

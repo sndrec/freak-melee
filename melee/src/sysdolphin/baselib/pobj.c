@@ -15,6 +15,7 @@
 #include "mtx.h"
 #include "perf.h"
 #include "state.h"
+#include "shape.h"
 #include "tobj.h"
 #include "util.h"
 #include <dolphin/gx.h>
@@ -553,132 +554,6 @@ static void setupShapeAnimVtxDesc(HSD_PObj* pobj)
     prev_vtxdesc = NULL;
 }
 
-static inline u16 shape_read_u16(const HSD_VtxDescList* desc, const u8* src)
-{
-#if defined(MELEE_NATIVE)
-    if (!desc->vertex_little_endian) {
-        return (u16) src[0] << 8 | src[1];
-    }
-#endif
-    u16 value;
-    memcpy(&value, src, sizeof(value));
-    return value;
-}
-
-static inline f32 shape_read_f32(const HSD_VtxDescList* desc, const u8* src)
-{
-#if defined(MELEE_NATIVE)
-    if (!desc->vertex_little_endian) {
-        u32 bits = (u32) src[0] << 24 | (u32) src[1] << 16 |
-                   (u32) src[2] << 8 | src[3];
-        f32 value;
-        memcpy(&value, &bits, sizeof(value));
-        return value;
-    }
-#endif
-    f32 value;
-    memcpy(&value, src, sizeof(value));
-    return value;
-}
-
-static void decode_shape_components(const HSD_VtxDescList* desc,
-                                    const void* source, f32* destination,
-                                    u32 count)
-{
-    const u8* src = source;
-    int scale = 1 << desc->frac;
-    for (u32 i = 0; i < count; ++i) {
-        switch (desc->comp_type) {
-        case GX_U8:
-            destination[i] = (f32) src[i] / scale;
-            break;
-        case GX_S8:
-            destination[i] = (f32) ((const s8*) src)[i] / scale;
-            break;
-        case GX_U16:
-            destination[i] =
-                (f32) shape_read_u16(desc, src + i * 2) / scale;
-            break;
-        case GX_S16:
-            destination[i] =
-                (f32) (s16) shape_read_u16(desc, src + i * 2) / scale;
-            break;
-        case GX_F32:
-            destination[i] = shape_read_f32(desc, src + i * 4);
-            break;
-        default:
-            HSD_Panic(__FILE__, 0, "unexpected shape component type.\n");
-        }
-    }
-}
-
-static void get_shape_vertex_xyz(HSD_ShapeSet* shape_set, int shape_id,
-                                 int arrayidx, f32 dst[3])
-{
-    u8* index_array = shape_set->vertex_idx_list[shape_id];
-    int idx;
-    void* src_base;
-
-    if (shape_set->vertex_desc->attr_type == GX_INDEX16) {
-        idx = index_array[arrayidx * 2];
-        idx = (idx << 8) + index_array[arrayidx * 2 + 1];
-    } else {
-        idx = index_array[arrayidx];
-    }
-
-    HSD_ASSERT(1102, shape_set->vertex_desc->comp_cnt == GX_POS_XYZ);
-    src_base = ((u8*) shape_set->vertex_desc->vertex) +
-               idx * shape_set->vertex_desc->stride;
-
-    decode_shape_components(shape_set->vertex_desc, src_base, dst, 3);
-}
-
-static void get_shape_normal_xyz(HSD_ShapeSet* shape_set, int shape_id,
-                                 int arrayidx, float dst[3])
-{
-    u8* index_array = shape_set->normal_idx_list[shape_id];
-    int idx;
-    void* src_base;
-
-    if (shape_set->normal_desc->attr_type == GX_INDEX16) {
-        idx = index_array[arrayidx * 2];
-        idx = (idx << 8) + index_array[arrayidx * 2 + 1];
-    } else {
-        idx = index_array[arrayidx];
-    }
-
-    HSD_ASSERT(1165, shape_set->normal_desc->comp_cnt == GX_NRM_XYZ);
-    src_base = ((u8*) shape_set->normal_desc->vertex) +
-               idx * shape_set->normal_desc->stride;
-
-    decode_shape_components(shape_set->normal_desc, src_base, dst, 3);
-}
-
-/// https://decomp.me/scratch/aleJ2
-static void get_shape_nbt_xyz(HSD_ShapeSet* shape_set, int shape_id,
-                              int arrayidx, float* dst)
-{
-    u8* index_array = shape_set->normal_idx_list[shape_id];
-    int idx;
-    void* src_base;
-
-    HSD_ASSERT(1221, shape_set->normal_desc->attr == GX_VA_NBT);
-
-    if (shape_set->normal_desc->attr_type == GX_INDEX16) {
-        idx = index_array[arrayidx * 2];
-        idx = (idx << 8) + index_array[arrayidx * 2 + 1];
-    } else {
-        idx = index_array[arrayidx];
-    }
-
-    HSD_ASSERT(1230, shape_set->normal_desc->comp_cnt == GX_NRM_XYZ);
-
-    src_base = ((u8*) shape_set->normal_desc->vertex) +
-               idx * shape_set->normal_desc->stride;
-
-    decode_shape_components(shape_set->normal_desc, src_base, dst, 9);
-}
-
 static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
                                           float (*normal)[3])
 {
@@ -806,124 +681,6 @@ static void interpretShapeAnimDisplayList(HSD_PObj* pobj, float (*vertex)[3],
         l += m;
         dl += m;
     }
-}
-
-#define pobj_min(x, y) (x < y ? x : y)
-
-static void drawShapeAnim(HSD_PObj* pobj)
-{
-    HSD_ShapeSet* shape_set = pobj->u.shape_set;
-    f32 blend;
-    int shape_id, i;
-    int blend_nbt;
-
-    HSD_ASSERT(1407, (u32) HSD_DEFAULT_MAX_SHAPE_VERTICES >= shape_set->nb_vertex_index);
-
-    if (shape_set->normal_desc) {
-        if (shape_set->normal_desc->attr == GX_VA_NRM) {
-            HSD_ASSERT(1416, (u32) HSD_DEFAULT_MAX_SHAPE_NORMALS >= shape_set->nb_normal_index);
-            blend_nbt = 0;
-        } else {
-            HSD_ASSERT(1419, (u32) HSD_DEFAULT_MAX_SHAPE_NORMALS >= shape_set->nb_normal_index * 3);
-            blend_nbt = 1;
-        }
-    }
-
-    if (shape_set->flags & SHAPESET_AVERAGE) {
-        blend = shape_set->blend.bl;
-        shape_id = pobj_min(MAX(0, (int) blend), shape_set->nb_shape - 1);
-        blend = pobj_min(MAX(0.0, blend - (f32) shape_id), 1.0f);
-        for (i = 0; i < shape_set->nb_vertex_index; i++) {
-            f32 s0[3], s1[3];
-
-            get_shape_vertex_xyz(shape_set, shape_id, i, s0);
-            get_shape_vertex_xyz(
-                shape_set, pobj_min(shape_id + 1, shape_set->nb_shape - 1), i,
-                s1);
-            vertex_buffer[i][0] = (s1[0] - s0[0]) * blend + s0[0];
-            vertex_buffer[i][1] = (s1[1] - s0[1]) * blend + s0[1];
-            vertex_buffer[i][2] = (s1[2] - s0[2]) * blend + s0[2];
-        }
-        if (shape_set->nb_normal_index) {
-            if (blend_nbt) {
-                for (i = 0; i < shape_set->nb_normal_index; i++) {
-                    f32 s0[9], s1[9];
-                    int j, idx = i * 3;
-
-                    get_shape_nbt_xyz(shape_set, shape_id, i, s0);
-                    get_shape_nbt_xyz(
-                        shape_set,
-                        pobj_min(shape_id + 1, shape_set->nb_shape - 1), i,
-                        s1);
-                    for (j = 0; j < 9; j++) {
-                        normal_buffer[idx][j] =
-                            (s1[j] - s0[j]) * blend + s0[j];
-                    }
-                }
-            } else {
-                for (i = 0; i < shape_set->nb_normal_index; i++) {
-                    f32 s0[3], s1[3];
-
-                    get_shape_normal_xyz(shape_set, shape_id, i, s0);
-                    get_shape_normal_xyz(
-                        shape_set,
-                        pobj_min(shape_id + 1, shape_set->nb_shape - 1), i,
-                        s1);
-                    normal_buffer[i][0] = (s1[0] - s0[0]) * blend + s0[0];
-                    normal_buffer[i][1] = (s1[1] - s0[1]) * blend + s0[1];
-                    normal_buffer[i][2] = (s1[2] - s0[2]) * blend + s0[2];
-                }
-            }
-        }
-    } else {
-        int j;
-        f32* blend_bp;
-        blend_bp = shape_set->blend.bp;
-        for (i = 0; i < shape_set->nb_vertex_index; i++) {
-            get_shape_vertex_xyz(shape_set, 0, i, vertex_buffer[i]);
-            for (j = 0; j < shape_set->nb_shape; j++) {
-                f32 b = MAX(0.0, blend_bp[j]);
-                f32 s[3];
-
-                get_shape_vertex_xyz(shape_set, j + 1, i, s);
-                vertex_buffer[i][0] += s[0] * b;
-                vertex_buffer[i][1] += s[1] * b;
-                vertex_buffer[i][2] += s[2] * b;
-            }
-        }
-        if (shape_set->nb_normal_index) {
-            if (blend_nbt) {
-                for (i = 0; i < shape_set->nb_normal_index; i++) {
-                    s32 idx = i * 3;
-                    get_shape_nbt_xyz(shape_set, 0, i, normal_buffer[idx]);
-                    for (j = 0; j < shape_set->nb_shape; j++) {
-                        f32 b = MAX(0.0, blend_bp[j]);
-                        f32 s[9];
-                        int k;
-
-                        get_shape_nbt_xyz(shape_set, j + 1, i, s);
-                        for (k = 0; k < 9; k++) {
-                            normal_buffer[idx][k] += s[k] * b;
-                        }
-                    }
-                }
-            } else {
-                for (i = 0; i < shape_set->nb_normal_index; i++) {
-                    get_shape_normal_xyz(shape_set, 0, i, normal_buffer[i]);
-                    for (j = 0; j < shape_set->nb_shape; j++) {
-                        f32 b = MAX(0.0, blend_bp[j]);
-                        f32 s[3];
-
-                        get_shape_normal_xyz(shape_set, j + 1, i, s);
-                        normal_buffer[i][0] += s[0] * b;
-                        normal_buffer[i][1] += s[1] * b;
-                        normal_buffer[i][2] += s[2] * b;
-                    }
-                }
-            }
-        }
-    }
-    interpretShapeAnimDisplayList(pobj, vertex_buffer, normal_buffer);
 }
 
 void HSD_PObjClearMtxMark(void* obj, u32 mark)
@@ -1260,7 +1017,8 @@ static void PObjDispShapeAnim(HSD_PObj* pobj, u32 rendermode)
     setupShapeAnimVtxDesc(pobj);
 
     HSD_ASSERT(0x7B1, pobj->u.shape_set);
-    drawShapeAnim(pobj);
+    HSD_ASSERT(0, HSD_ShapeSetEvaluate(pobj->u.shape_set, vertex_buffer, normal_buffer));
+    interpretShapeAnimDisplayList(pobj, vertex_buffer, normal_buffer);
 }
 
 void HSD_PObjDisp(HSD_PObj* pobj, Mtx vmtx, Mtx pmtx, u32 rendermode)

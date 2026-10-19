@@ -2,6 +2,7 @@
 #include <melee/ft/native_asset_dat.h>
 extern "C" {
 #include <sysdolphin/baselib/dat_import.h>
+#include <sysdolphin/baselib/shape.h>
 }
 
 #include <array>
@@ -354,15 +355,37 @@ std::vector<double> shape_geometry(const NativeFighterModelEditor& e) {
 }
 void import_shapes(const NativeFighterModelEditor& e){
     std::vector<u8> arena(256*1024);
+    std::vector<double> actual;
+    auto word=[&](u32 at){u32 value;check(HSD_DatReadU32(&e.dat,at,&value));return value;};
     for(unsigned mesh=0;mesh<e.mesh_count;++mesh){
-        u32 polygon=NativeAssetDat::read32(e.dat.data+e.meshes[mesh].offset+12);
-        const u32 shape=NativeAssetDat::read32(e.dat.data+polygon+20);
-        HSD_DatImport loader;
-        check(HSD_DatImportInit(&loader,&e.dat,arena.data(),arena.size(),256)==HSD_DAT_OK);
-        auto* imported=(HSD_ShapeSetDesc*)HSD_DatImportGraph(&loader,shape,DAT_SHAPE_SET);
-        check(imported&&loader.status==HSD_DAT_OK);
-        check(imported->vertex_desc->comp_cnt==GX_POS_XYZ&&imported->vertex_idx_list);
+        const Matrix position=world(e,e.meshes[mesh].joint),normal=normal_matrix(position);
+        for(u32 polygon=word(e.meshes[mesh].offset+12);polygon;polygon=word(polygon+4)) {
+            HSD_DatImport loader;
+            check(HSD_DatImportInit(&loader,&e.dat,arena.data(),arena.size(),256)==HSD_DAT_OK);
+            auto* desc=(HSD_ShapeSetDesc*)HSD_DatImportGraph(&loader,word(polygon+20),DAT_SHAPE_SET);
+            check(desc&&loader.status==HSD_DAT_OK);
+            HSD_ShapeSet shape={};shape.flags=desc->flags;shape.nb_shape=desc->nb_shape;
+            shape.nb_vertex_index=desc->nb_vertex_index;shape.vertex_desc=desc->vertex_desc;shape.vertex_idx_list=desc->vertex_idx_list;
+            shape.nb_normal_index=desc->nb_normal_index;shape.normal_desc=desc->normal_desc;shape.normal_idx_list=desc->normal_idx_list;
+            float positions[HSD_DEFAULT_MAX_SHAPE_VERTICES][3],normals[HSD_DEFAULT_MAX_SHAPE_NORMALS][3];
+            for(float blend:{-1.f,0.f,.25f,.8f,1.f,1.4f,2.f,3.f}) {
+                float weights[]={blend,1.3f-blend};
+                if(shape.flags&SHAPESET_ADDITIVE)shape.blend.bp=weights;else shape.blend.bl=blend;
+                check(HSD_ShapeSetEvaluate(&shape,positions,normals));
+                for(unsigned attr=0;attr<2;++attr) {
+                    const unsigned count=attr?shape.nb_normal_index:shape.nb_vertex_index;
+                    const unsigned vectors=attr&&shape.normal_desc&&shape.normal_desc->attr==GX_VA_NBT?3:1;
+                    const Matrix& matrix=attr?normal:position;
+                    for(unsigned i=0;i<count*vectors;++i)for(unsigned row=0;row<3;++row) {
+                        const auto& point=attr?normals[i]:positions[i];
+                        actual.push_back(matrix[row][0]*point[0]+matrix[row][1]*point[1]+matrix[row][2]*point[2]+matrix[row][3]);
+                    }
+                }
+            }
+        }
     }
+    const auto expected=shape_geometry(e);check(actual.size()==expected.size());
+    for(unsigned i=0;i<actual.size();++i)check(std::isfinite(actual[i])&&std::fabs(actual[i]-expected[i])<.00005);
 }
 void run_shape(unsigned format,unsigned indexing,unsigned normals,bool additive,unsigned edited,unsigned channel){
     Fixture f=shape_fixture(format,indexing,normals,additive);

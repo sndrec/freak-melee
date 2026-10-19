@@ -248,6 +248,12 @@ import, materials, rigging and skinning, not mesh modeling.
   reimport workflow. Two-slot rigid meshes retain root/deform-bone domains.
   Morph painting, unusual helper model-node and independent texture-matrix
   bindings remain open.
+  [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
+  shares one runtime evaluator between drawing, picking, highlighting and
+  posed-corner queries. Complete/additive native hover reviews pass. The
+  [weighted-morph implementation plan](melee/docs/native_morph_skin_design.md)
+  records the combined controller/batch representation still required for
+  painting, rest compensation and asset ownership.
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
   2,048 records. Compaction follows the same capacity policy. Match-time
