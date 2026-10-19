@@ -11,6 +11,9 @@ and explicitly chooses one of four local controller ports. Save & use writes
 the profile atomically under LocalAppData and applies it to that port. Merely
 editing or selecting a draft does not change live controls. Use default controls
 clears the chosen port's assignment without deleting the saved profile.
+The assigned calibration stays with that port when a controller connects or is
+replaced. A controller moved to another port uses that port's profile, if assigned.
+Use default controls returns to the connected device's own calibration.
 Delete saved profile requires a second click on Confirm delete. Deleting its
 file removes it from the picker but leaves any already assigned in-memory
 controls in effect until the player changes that port's assignment.
@@ -76,6 +79,8 @@ Keyboard/gameplay text capture continues to use the existing shell behavior.
 
 The [2026-10-19 controls recheck](native_profile_controls_checkpoint.md) records
 the current UI, input-combination and optional gameplay checks.
+The [port-calibration check](native_profile_hotplug_checkpoint.md) adds actual
+SDL virtual-device coverage for connection, replacement and raw input mapping.
 
 Physical-device capture through the new UI still needs hands-on verification;
 the native diagnostic pad override does not pretend to be a raw SDL controller.

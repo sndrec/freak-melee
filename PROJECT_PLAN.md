@@ -479,6 +479,9 @@ receipts are historical; the purpose is closing integrated current-backend gaps.
   jump/attack-stick behavior in gameplay and rumble suppression. Custom Shield
   bindings now retain full strength alongside mapped analog triggers. Raw-device
   rebinding, physical adapter response and motor feedback still need hands-on review.
+  [Port calibration](melee/docs/native_profile_hotplug_checkpoint.md) now survives
+  connection, replacement and physical port changes through the actual SDL/Aurora
+  provider, preserving each device's saved settings.
 
 ### 5. Later external acceptance
 

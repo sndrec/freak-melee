@@ -13,6 +13,7 @@ it does not relabel old results as final-source acceptance.
 ## Source-runtime and fighter integration
 
 - [Profiles, optional controls and combined shielding (2026-10-19)](native_profile_controls_checkpoint.md)
+- [Port calibration through controller replacement (2026-10-19)](native_profile_hotplug_checkpoint.md)
 - [Texture attachments during weight painting (2026-10-19)](native_texture_skin_checkpoint.md)
 - [32-bit morph target indices (2026-10-19)](native_morph_wide_indices_checkpoint.md)
 - [Source reimport after rest edits (2026-10-19)](native_gltf_rest_checkpoint.md)

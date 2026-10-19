@@ -203,6 +203,9 @@ void PADClearKeyBindings(u32 port);
 void PADSetKeyboardActive(u32 port, BOOL active);
 
 PADDeadZones* PADGetDeadZones(u32 port);
+/* Session calibration follows the port across device replacement. NULL clears
+ * the override and uses the connected controller's saved calibration. */
+void PADSetPortDeadZones(u32 port, const PADDeadZones* deadZones);
 const char* PADGetButtonName(PADButton);
 const char* PADGetNativeButtonName(u32 button);
 const char* PADGetAxisName(PADAxis);

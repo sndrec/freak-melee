@@ -112,6 +112,7 @@ void PADClearAllVirtualStatus(void);
 typedef void (*PADReadCallback)(PADStatus* status);
 void PADSetReadCallback(PADReadCallback callback);
 PADDeadZones* PADGetDeadZones(u32 port);
+void PADSetPortDeadZones(u32 port, const PADDeadZones* dead_zones);
 const char* PADGetName(u32 port);
 s32 PADGetIndexForPort(u32 port);
 BOOL PADGetNativeButtonState(u32 port, s32 button);
