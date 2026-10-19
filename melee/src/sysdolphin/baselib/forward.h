@@ -113,8 +113,11 @@ typedef void (*HSD_GObjInteraction)(HSD_GObj* gobj0, HSD_GObj* gobj1);
 typedef void (*HSD_MObjSetupFunc)(HSD_MObj* mobj, u32 rendermode);
 
 #define HSD_A_S_W0 2
-#define HSD_DEFAULT_MAX_SHAPE_VERTICES 2000
-#define HSD_DEFAULT_MAX_SHAPE_NORMALS 2000
+// Shape display lists use 16-bit logical indices. NBT stores three vectors
+// at each normal index; its scratch capacity is separate from that index limit.
+#define HSD_MAX_SHAPE_VERTICES 65536
+#define HSD_MAX_SHAPE_NORMALS 65536
+#define HSD_MAX_SHAPE_NORMAL_VECTORS (HSD_MAX_SHAPE_NORMALS * 3)
 
 #define POBJ_ANIM (1 << 3)
 #define POBJ_SKIN (0 << 12)

@@ -27,6 +27,14 @@ target_link_libraries(native_shape_skin_test PRIVATE melee_runtime aurora_os
 aurora_copy_runtime_dlls(native_shape_skin_test)
 add_test(NAME native_shape_skin COMMAND native_shape_skin_test)
 
+add_executable(native_shape_capacity_test tests/native/shape_capacity_test.cpp)
+target_include_directories(native_shape_capacity_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_shape_capacity_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_shape_capacity_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_shape_capacity_test)
+add_test(NAME native_shape_capacity COMMAND native_shape_capacity_test)
+
 add_executable(native_gltf_morph_test tests/native/gltf_morph_test.cpp)
 target_include_directories(native_gltf_morph_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_gltf_morph_test PRIVATE MELEE_NATIVE=1)

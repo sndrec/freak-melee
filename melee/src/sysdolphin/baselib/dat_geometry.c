@@ -137,10 +137,8 @@ bool HSD_DatValidateShape(HSD_DatImport* import, HSD_ShapeSetDesc* shape)
         for(unsigned i=0;i<count;++i)if(!isfinite(shape->default_blend[i]))return false;
     }
     if((mode!=SHAPESET_AVERAGE && mode!=SHAPESET_ADDITIVE) ||
-       shape->nb_vertex_index<0 || shape->nb_vertex_index>HSD_DEFAULT_MAX_SHAPE_VERTICES ||
-       shape->nb_normal_index<0 || shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS ||
-       (shape->nb_normal_index && shape->normal_desc && shape->normal_desc->attr==GX_VA_NBT &&
-        shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS/3))return false;
+       shape->nb_vertex_index<0 || shape->nb_vertex_index>HSD_MAX_SHAPE_VERTICES ||
+       shape->nb_normal_index<0 || shape->nb_normal_index>HSD_MAX_SHAPE_NORMALS)return false;
     const u32 count = shape->nb_shape + ((shape->flags & SHAPESET_ADDITIVE) != 0);
     return shape_attribute(import, shape->vertex_desc, shape->vertex_idx_list,
                               shape->nb_vertex_index, count, false) &&

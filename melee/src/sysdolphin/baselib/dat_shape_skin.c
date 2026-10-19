@@ -1,5 +1,6 @@
 #include "dat_import_internal.h"
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct ShapeStream {
@@ -109,54 +110,62 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
 {
     const HSD_ShapeSetDesc* shape=parent->u.shape_set;
     if(!shape || !shape->skin || shape->nb_vertex_index<0 ||
-       shape->nb_vertex_index>HSD_DEFAULT_MAX_SHAPE_VERTICES || shape->nb_normal_index<0 ||
-       shape->nb_normal_index>HSD_DEFAULT_MAX_SHAPE_NORMALS)return false;
+       shape->nb_vertex_index>HSD_MAX_SHAPE_VERTICES || shape->nb_normal_index<0 ||
+       shape->nb_normal_index>HSD_MAX_SHAPE_NORMALS)return false;
     const HSD_PObjDesc* slow=shape->skin;
     const HSD_PObjDesc* fast=slow;
     while(fast && fast->next) {
         slow=slow->next;fast=fast->next->next;
         if(slow==fast)return false;
     }
-    const HSD_EnvelopeDesc* positions[HSD_DEFAULT_MAX_SHAPE_VERTICES]={0};
-    const HSD_EnvelopeDesc* normals[HSD_DEFAULT_MAX_SHAPE_NORMALS]={0};
+    // Construction-only correspondence maps. Size them to this shape and
+    // release them before admission returns; no large stack or resident map.
+    const size_t entries=(size_t)shape->nb_vertex_index+shape->nb_normal_index;
+    const HSD_EnvelopeDesc** positions=calloc(entries,sizeof(*positions));
+    if(!positions)return false;
+    const HSD_EnvelopeDesc** normals=positions+shape->nb_vertex_index;
+    bool valid=false;
     ShapeStream authored;
-    if(!stream_begin(&authored,parent))return false;
+    if(!stream_begin(&authored,parent))goto cleanup;
     unsigned batches=0,corners=0;
     for(HSD_PObjDesc* batch=shape->skin;batch;batch=batch->next) {
         if(++batches>65535 || pobj_type(batch)!=POBJ_ENVELOPE || batch->class_name ||
-           !HSD_DatValidateGeometry(import,batch))return false;
+           !HSD_DatValidateGeometry(import,batch))goto cleanup;
         unsigned count;
-        if(!bindings_valid(batch->u.envelope_p,&count))return false;
+        if(!bindings_valid(batch->u.envelope_p,&count))goto cleanup;
         ShapeStream generated;
-        if(!stream_begin(&generated,batch) || !formats_equal(&authored,&generated))return false;
+        if(!stream_begin(&generated,batch) || !formats_equal(&authored,&generated))goto cleanup;
         const u8* a[26];const u8* b[26];
         int next;
         while((next=stream_next(&generated,b))>0) {
-            if(stream_next(&authored,a)!=1)return false;
+            if(stream_next(&authored,a)!=1)goto cleanup;
             const unsigned matrix=b[GX_VA_PNMTXIDX][0];
-            if(matrix%3 || matrix/3>=count || (a[GX_VA_PNMTXIDX] && a[GX_VA_PNMTXIDX][0]))return false;
+            if(matrix%3 || matrix/3>=count || (a[GX_VA_PNMTXIDX] && a[GX_VA_PNMTXIDX][0]))goto cleanup;
             const HSD_EnvelopeDesc* binding=batch->u.envelope_p[matrix/3];
             for(unsigned attr=GX_VA_TEX0MTXIDX;attr<=GX_VA_TEX7;++attr) {
                 if(!a[attr])continue;
                 if(attr<=GX_VA_TEX7MTXIDX) {
                     const unsigned expected=a[attr][0]==GX_IDENTITY?GX_IDENTITY:GX_TEXMTX0+matrix;
-                    if((a[attr][0]!=GX_IDENTITY && a[attr][0]!=GX_TEXMTX0) || b[attr][0]!=expected)return false;
-                } else if(memcmp(a[attr],b[attr],authored.widths[attr]))return false;
+                    if((a[attr][0]!=GX_IDENTITY && a[attr][0]!=GX_TEXMTX0) || b[attr][0]!=expected)goto cleanup;
+                } else if(memcmp(a[attr],b[attr],authored.widths[attr]))goto cleanup;
             }
             const unsigned position=vertex_index(authored.attributes[GX_VA_POS],a[GX_VA_POS]);
-            if(position>=(unsigned)shape->nb_vertex_index)return false;
-            if(positions[position] && !bindings_equal(positions[position],binding))return false;
+            if(position>=(unsigned)shape->nb_vertex_index)goto cleanup;
+            if(positions[position] && !bindings_equal(positions[position],binding))goto cleanup;
             positions[position]=binding;
             if(a[GX_VA_NRM]) {
                 const unsigned normal=vertex_index(authored.attributes[GX_VA_NRM],a[GX_VA_NRM]);
-                if(normal>=(unsigned)shape->nb_normal_index)return false;
-                if(normals[normal] && !bindings_equal(normals[normal],binding))return false;
+                if(normal>=(unsigned)shape->nb_normal_index)goto cleanup;
+                if(normals[normal] && !bindings_equal(normals[normal],binding))goto cleanup;
                 normals[normal]=binding;
             }
             ++corners;
         }
-        if(next<0)return false;
+        if(next<0)goto cleanup;
     }
     const u8* unused[26];
-    return corners!=0 && stream_next(&authored,unused)==0;
+    valid=corners!=0 && stream_next(&authored,unused)==0;
+cleanup:
+    free(positions);
+    return valid;
 }

@@ -175,7 +175,7 @@ bool compensate_shape_attribute(NativeAssetDat& output, const HSD_Dat& source,
     const unsigned member = normals ? 16 : 4;
     u32 count, descriptor, table;
     if (!HSD_DatReadU32(&source, shape + member, &count) ||
-        count > HSD_DEFAULT_MAX_SHAPE_VERTICES) return false;
+        count > HSD_MAX_SHAPE_VERTICES) return false;
     if (!count) return normals;
     if (!reference(&source, shape + member + 4, &descriptor) ||
         !reference(&source, shape + member + 8, &table) ||
@@ -197,7 +197,7 @@ bool compensate_shape_attribute(NativeAssetDat& output, const HSD_Dat& source,
                    a.attr != 9 || a.count != 1) ||
         !reference(&source, descriptor + 20, &a.array)) return false;
     const unsigned vectors = a.attr == 25 ? 3 : 1;
-    if (normals && count * vectors > HSD_DEFAULT_MAX_SHAPE_NORMALS) return false;
+    if (normals && count * vectors > HSD_MAX_SHAPE_NORMAL_VECTORS) return false;
     a.width = a.format <= 1 ? 1 : a.format <= 3 ? 2 : 4;
     const u32 new_table = output.allocate(targets * 4);
     const u32 new_descriptor = output.allocate(48);

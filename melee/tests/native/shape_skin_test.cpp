@@ -173,7 +173,8 @@ void valid(unsigned owner,unsigned normals,bool additive)
         }
         for(float blend:{-.5f,0.f,.25f,1.f,1.75f,3.f}) {
             if(additive){shape->blend.bp[0]=blend;shape->blend.bp[1]=1.3f-blend;}else shape->blend.bl=blend;
-            float points[HSD_DEFAULT_MAX_SHAPE_VERTICES][3];check(HSD_ShapeSetEvaluate(shape,points,nullptr));
+            std::vector<std::array<float,3>> storage(shape->nb_vertex_index);auto* points=reinterpret_cast<float(*)[3]>(storage.data());
+            check(HSD_ShapeSetEvaluate(shape,points,nullptr));
             nativeModelView_Begin(1,true);nativeModelView_Mesh(0,bones[owner],mesh,false,false,bones[1]);
             Vec3 actual[6];check(nativeModelView_CornerPositions(0,actual,6));
             Mtx right;C_MTXIdentity(right);
@@ -260,7 +261,9 @@ std::vector<float> surface(const std::vector<u8>& file,const Fixture& f,unsigned
         nativeModelView_Begin(1,true);nativeModelView_Mesh(0,owner,mesh,false,false,nullptr);
         Vec3 points[6];check(nativeModelView_CornerPositions(0,points,6));
         for(auto& point:points)result.insert(result.end(),{point.x,point.y,point.z});
-        float local[HSD_DEFAULT_MAX_SHAPE_VERTICES][3],normals[HSD_DEFAULT_MAX_SHAPE_NORMALS][3];
+        std::vector<std::array<float,3>> local_storage(shape->nb_vertex_index), normals_storage(size_t(shape->nb_normal_index)*3);
+        auto* local=reinterpret_cast<float(*)[3]>(local_storage.data());
+        auto* normals=reinterpret_cast<float(*)[3]>(normals_storage.data());
         check(HSD_ShapeSetEvaluate(shape,local,normals));
         if(f.normals) {
             Mtx right_storage;MtxPtr right=_HSD_mkEnvelopeModelNodeMtx(owner,right_storage);
@@ -478,6 +481,54 @@ void multiple_controllers(unsigned normals,bool additive)
     }
     nativeModelView_Clear();HSD_JObjRemoveAll(root);check(nativeAObjPool.used==0);++cases;
 }
+
+void full_index_domain(unsigned normals,bool additive)
+{
+    const auto f=fixture(0,normals,additive);NativeSkinMesh original;rewritten(f,&original);
+    NativeSkinMesh skin;NativeSkinPart part=original.parts[0];
+    const unsigned count=HSD_MAX_SHAPE_VERTICES,components=normals==2?9:3;
+    part.corners.clear();part.triangles.clear();part.morph.position_count=count;
+    part.morph.normal_count=count;part.morph.vertices.clear();
+    part.morph.positions.resize(size_t(3)*count*3);part.morph.normals.resize(size_t(3)*count*components);
+    for(unsigned i=0;i<count;++i) {
+        NativeSkinVertex vertex={};vertex.position[0]=float(i)/1024;vertex.position[1]=float(i%31);
+        vertex.skin.count=1;vertex.skin.joints[0]=0;vertex.skin.weights[0]=1;
+        skin.vertices.push_back(vertex);part.morph.vertices.push_back(i);
+        for(unsigned target=0;target<3;++target) {
+            for(unsigned axis=0;axis<3;++axis)
+                part.morph.positions[(size_t(target)*count+i)*3+axis]=additive&&target?0:vertex.position[axis];
+            for(unsigned c=0;c<components;++c)
+                part.morph.normals[(size_t(target)*count+i)*components+c]=additive&&target?0:float(i!=0&&c%3==c/3);
+        }
+    }
+    // Two GX primitives/private batches, including logical index 65535.
+    for(unsigned i=0;i<count+2;++i) {
+        auto corner=original.parts[0].corners[i%6];corner.vertex=corner.normal_index=i%count;
+        part.corners.push_back(corner);part.triangles.push_back(i);
+    }
+    skin.parts.push_back(std::move(part));
+    NativeFighterProject project={};std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    project.costume_dat=(u8*)f.file.data();project.costume_size=f.file.size();
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));uint32_t polygon;
+    check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
+    std::vector<u8> file;check(edit.finish(&file));
+    Imported imported;imported.arena.resize(4*1024*1024);check(imported.open(file));
+    HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root&&root->u.dobj);
+    auto* shape=root->u.dobj->pobj->u.shape_set;
+    check(shape->nb_vertex_index==count&&shape->nb_normal_index==count&&shape->skin&&shape->skin->next);
+    if(additive){shape->blend.bp[0]=.3f;shape->blend.bp[1]=.7f;}else shape->blend.bl=1.5f;
+    std::vector<std::array<float,3>> positions(count),lighting(size_t(count)*(normals==2?3:1));
+    check(HSD_ShapeSetEvaluate(shape,reinterpret_cast<float(*)[3]>(positions.data()),reinterpret_cast<float(*)[3]>(lighting.data())));
+    for(unsigned i=0;i<count;++i)for(unsigned axis=0;axis<3;++axis)near(positions[i][axis],skin.vertices[i].position[axis]);
+    for(unsigned i=0;i<count;++i)for(unsigned c=0;c<components;++c)
+        near(lighting[size_t(i)*(normals==2?3:1)+c/3][c%3],float(i!=0&&c%3==c/3));
+    nativeModelView_Begin(1,true);nativeModelView_Mesh(0,root,root->u.dobj,false,false,nullptr);
+    std::vector<Vec3> corners(count+2);check(nativeModelView_CornerPositions(0,corners.data(),(unsigned)corners.size()));
+    for(unsigned i=0;i<corners.size();++i)for(unsigned axis=0;axis<3;++axis)
+        near(((float*)&corners[i])[axis],skin.vertices[i%count].position[axis]);
+    nativeModelView_Clear();HSD_JObjRemoveAll(root);++cases;
+}
 }
 int main()
 {
@@ -490,6 +541,7 @@ int main()
             for(bool weighted:{false,true})for(unsigned format=0;format<5;++format)authoring(owner,normals,additive,weighted,format);
         for(unsigned owner:{0u,1u,3u})for(unsigned normals:{1u,2u})for(bool additive:{false,true})painting(owner,normals,additive);
         for(unsigned normals:{1u,2u})for(bool additive:{false,true})multiple_controllers(normals,additive);
+        for(unsigned normals:{1u,2u})for(bool additive:{false,true})full_index_domain(normals,additive);
         std::printf("PASS: %u morph runtime/authoring cases, %u construction, pose, paint, compaction and snapshot checks\n",cases,checks);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"FAIL: %s\n",error.what());return 1;}

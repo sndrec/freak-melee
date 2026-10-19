@@ -258,8 +258,11 @@ import, materials, rigging and skinning, not mesh modeling.
   native Undo/Redo. [GLB morph import and named reimport](melee/docs/native_gltf_morph_checkpoint.md)
   now retain position/normal deltas, signed defaults and target slots across
   export reordering. Native painting, history, rest and snapshot checks pass.
-  Larger morph scratch capacities and tangent/UV/color target channels remain
-  open in the [authoring design](melee/docs/native_morph_skin_design.md).
+  [Larger morph meshes](melee/docs/native_morph_capacity_checkpoint.md) now use
+  the full 65,536-entry logical index range, including NBT triples, without
+  enlarging rollback state. Whole-target physical-index limits and additional
+  tangent/UV/color channels remain open in the
+  [authoring design](melee/docs/native_morph_skin_design.md).
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
   2,048 records. Compaction follows the same capacity policy. Match-time

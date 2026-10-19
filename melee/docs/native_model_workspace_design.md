@@ -69,7 +69,7 @@ pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
 Remaining Model work includes unusual model-node/texture-matrix binding domains,
-larger morph capacities, additional target channels and advanced texture/UV controls. Continuous surface brushing
+morph physical-index capacity, additional target channels and advanced texture/UV controls. Continuous surface brushing
 and the broader interface still need user review. Extra-bone editing, ordinary
 source-aware reimport and large imported meshes have the evidence linked in the
 [current plan](../../PROJECT_PLAN.md). Ordinary stock
@@ -82,6 +82,8 @@ survive saved strokes and Undo/Redo; see the
 attachments also support painting; see the [rigid checkpoint](native_rigid_skin_checkpoint.md).
 GLB position/normal targets retain source defaults and named slots through
 reimport; see the [GLB morph checkpoint](native_gltf_morph_checkpoint.md).
+The [capacity checkpoint](native_morph_capacity_checkpoint.md) covers 65,536
+logical position/normal entries and NBT triples in fixed scratch outside rollback state.
 Painting, rest edits and
 mesh/texture imports reclaim unreachable records in supported costume graphs.
 Editor object identities stay stable, so pinned records can leave gaps. Unknown

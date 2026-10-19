@@ -367,7 +367,9 @@ void import_shapes(const NativeFighterModelEditor& e){
             HSD_ShapeSet shape={};shape.flags=desc->flags;shape.nb_shape=desc->nb_shape;
             shape.nb_vertex_index=desc->nb_vertex_index;shape.vertex_desc=desc->vertex_desc;shape.vertex_idx_list=desc->vertex_idx_list;
             shape.nb_normal_index=desc->nb_normal_index;shape.normal_desc=desc->normal_desc;shape.normal_idx_list=desc->normal_idx_list;
-            float positions[HSD_DEFAULT_MAX_SHAPE_VERTICES][3],normals[HSD_DEFAULT_MAX_SHAPE_NORMALS][3];
+            std::vector<std::array<float,3>> positions_storage(shape.nb_vertex_index), normals_storage(size_t(shape.nb_normal_index)*3);
+            auto* positions=reinterpret_cast<float(*)[3]>(positions_storage.data());
+            auto* normals=reinterpret_cast<float(*)[3]>(normals_storage.data());
             for(float blend:{-1.f,0.f,.25f,.8f,1.f,1.4f,2.f,3.f}) {
                 float weights[]={blend,1.3f-blend};
                 if(shape.flags&SHAPESET_ADDITIVE)shape.blend.bp=weights;else shape.blend.bl=blend;
