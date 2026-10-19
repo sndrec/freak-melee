@@ -145,8 +145,12 @@ bool HSD_DatValidateShapeSkin(HSD_DatImport* import,HSD_PObjDesc* parent)
             for(unsigned attr=GX_VA_TEX0MTXIDX;attr<=GX_VA_TEX7;++attr) {
                 if(!a[attr])continue;
                 if(attr<=GX_VA_TEX7MTXIDX) {
-                    const unsigned expected=a[attr][0]==GX_IDENTITY?GX_IDENTITY:GX_TEXMTX0+matrix;
-                    if((a[attr][0]!=GX_IDENTITY && a[attr][0]!=GX_TEXMTX0) || b[attr][0]!=expected)goto cleanup;
+                    const unsigned source=a[attr][0], target=b[attr][0];
+                    if(source==GX_IDENTITY) {
+                        if(target!=GX_IDENTITY)goto cleanup;
+                    } else if(source<GX_TEXMTX0 || source>=GX_IDENTITY || source%3 ||
+                              target<GX_TEXMTX0 || target>=GX_IDENTITY || target%3 ||
+                              (target-GX_TEXMTX0)/3>=count)goto cleanup;
                 } else if(memcmp(a[attr],b[attr],authored.widths[attr]))goto cleanup;
             }
             const unsigned position=vertex_index(authored.attributes[GX_VA_POS],a[GX_VA_POS]);

@@ -229,6 +229,7 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
         const u8* header = HSD_DatBytes(&dat, polygon, 24);
         if (!header) return fail();
         NativeSkinPart part = {};
+        NativeSkinTextureReader texture_reader;
         part.source = polygon; part.flags = half(header + 12);
         const auto* ids = nativeMeshVertexIds_Find(vertex_ids, (uint32_t)polygon);
         const unsigned type = part.flags & 0x3000;
@@ -319,12 +320,16 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
             for (unsigned i = 0; i < count; ++i) {
                 NativeSkinCorner corner = {}; corner.source = (u32)cursor;
                 NativeSkinVertex vertex = {};
+                unsigned textures[8] = {}, texture_mask = 0;
                 u32 position_source = 0;
                 for (const auto& attr : part.attributes) {
                     if (cursor + attr.display_bytes > end) return fail();
                     if (attr.attr == 0) {
                         if (dat.data[cursor] % 3) return fail();
                         corner.matrix = dat.data[cursor] / 3;
+                    } else if (attr.attr >= 1 && attr.attr <= 8) {
+                        textures[attr.attr-1] = dat.data[cursor];
+                        texture_mask |= 1u << (attr.attr-1);
                     } else if (attr.attr == 9) {
                         if (!vectors(dat, attr, (u32)cursor, vertex.position, &position_source)) return fail();
                     } else if (attr.attr == 10 || attr.attr == 25) {
@@ -337,6 +342,19 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                     cursor += attr.display_bytes;
                 }
                 if (corner.matrix >= part.bindings.size()) return fail();
+                for (unsigned channel = 0; channel < 8; ++channel) {
+                    if (!(texture_mask & (1u << channel))) continue;
+                    if (!nativeSkinMesh_ReadTexture(texture_reader, part, corner, channel, textures[channel],
+                                                     corner.matrix, part.bindings)) return fail();
+                    if (corner.textures[channel] >= NATIVE_SKIN_TEXTURE_IDENTITY) continue;
+                    const unsigned slot = (textures[channel]-30)/3;
+                    for (unsigned r=0; r<3; ++r) for (unsigned c=0; c<3; ++c)
+                        if (conversion[slot][r][c] != conversion[corner.matrix][r][c]) {
+                            if (error && error_size) std::snprintf(error,error_size,
+                                "This texture attachment uses a different normal coordinate basis.");
+                            return false;
+                        }
+                }
                 vertex.skin = part.bindings[corner.matrix];
                 Vec3 point = { vertex.position[0], vertex.position[1], vertex.position[2] }, converted;
                 C_MTXMultVec(conversion[corner.matrix], &point, &converted);

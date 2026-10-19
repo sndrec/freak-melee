@@ -53,6 +53,9 @@ Each vertex uses the same bone weights in every target. Its target positions
 and lighting vectors stay intact. Save keeps the painted model; Undo restores
 the complete previous costume.
 
+Reflected textures can follow the surface or stay attached to a separate bone.
+Painting keeps existing independent texture attachments in place.
+
 Morph meshes allow 65,536 positions and 65,536 normal entries. Each normal entry
 can also contain a tangent and bitangent. Each expression target can have its
 own position and lighting data. All targets share the costume's storage budget.

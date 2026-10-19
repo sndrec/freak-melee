@@ -184,6 +184,11 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
                 if (attr.attr == GX_VA_POS || attr.attr == GX_VA_NRM || attr.attr == GX_VA_NBT) {
                     const unsigned index = attr.attr == GX_VA_POS ? out->corner_positions[corner_index] : out->corner_normals[corner_index];
                     display.push_back((u8)(index>>8)); display.push_back((u8)index);
+                } else if (attr.attr >= GX_VA_TEX0MTXIDX && attr.attr <= GX_VA_TEX7MTXIDX) {
+                    // The parent records topology and identity selection. Its
+                    // private batches own the actual texture matrix palette.
+                    display.push_back(corner.textures[attr.attr-GX_VA_TEX0MTXIDX] ==
+                        NATIVE_SKIN_TEXTURE_IDENTITY ? GX_IDENTITY : GX_TEXMTX0);
                 } else if (attr.attr != GX_VA_PNMTXIDX) {
                     const u8* bytes = attribute_data+cursor;
                     display.insert(display.end(), bytes, bytes+attr.display_bytes);

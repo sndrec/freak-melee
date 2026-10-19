@@ -90,7 +90,10 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 
 ## Required implementation gaps
 
-1. Remaining unusual helper-node and independent texture-matrix binding domains.
+1. Remaining unusual helper-node domains, differing texture normal bases and
+   triangles exceeding ten combined matrix bindings. [Independent texture
+   attachments](native_texture_skin_checkpoint.md) now pass ordinary/morph
+   painting checks and the retail batch.
 2. Morph logical capacity and additional tangent/UV/color target channels.
 3. Remaining room/release acceptance in the project plan. Coordinated outfits now
    pass [current room matches](native_outfit_match_checkpoint.md), including four

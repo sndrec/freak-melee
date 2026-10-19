@@ -68,7 +68,10 @@ channels. Native UI checks exercised mesh hover/hide, surface weight rendering,
 pose transforms/cancellation, explicit key insertion and material apply/reload.
 This is ready for the next usability review, not final Model milestone acceptance.
 
-Remaining Model work includes unusual model-node/texture-matrix binding domains,
+Independent texture attachments now retain their original bone weights through
+surface painting; see the [texture checkpoint](native_texture_skin_checkpoint.md).
+Remaining Model work includes unusual model-node domains, different texture
+normal bases, triangles exceeding ten combined matrix bindings,
 morph logical capacity, additional target channels and advanced texture/UV controls. Continuous surface brushing
 and the broader interface still need user review. Extra-bone editing, ordinary
 source-aware reimport and large imported meshes have the evidence linked in the

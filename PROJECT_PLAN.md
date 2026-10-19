@@ -248,7 +248,11 @@ import, materials, rigging and skinning, not mesh modeling.
   mouse/Save/Undo/Redo check. [Rigid attachment painting](melee/docs/native_rigid_skin_checkpoint.md)
   now passes 52 matrix cases, the retail batch and a native mouse/Save/Undo/Redo/
   reimport workflow. Two-slot rigid meshes retain root/deform-bone domains.
-  Unusual helper model-node and independent texture-matrix bindings remain open.
+  [Independent texture attachments](melee/docs/native_texture_skin_checkpoint.md)
+  now retain their weights through ordinary/morph painting and compaction,
+  including when position weights temporarily match them. The current native
+  suites and retail batch pass. Triangles exceeding ten combined matrix slots,
+  differing texture normal bases and unusual helper model-node domains remain open.
   [Morph surface evaluation](melee/docs/native_morph_view_checkpoint.md) now
   shares one runtime evaluator between drawing, picking, highlighting and
   posed-corner queries. Complete/additive native hover reviews pass. The
