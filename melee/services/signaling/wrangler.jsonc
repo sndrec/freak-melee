@@ -6,6 +6,11 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "vars": {
+    "AUTH_ORIGIN": "https://freak-melee-signaling.sndrec32exe.workers.dev",
+    "AUTH_RP_ID": "freak-melee-signaling.sndrec32exe.workers.dev"
+  },
+  "ratelimits": [{ "name": "ACCOUNT_LIMIT", "namespace_id": "710019", "simple": { "limit": 60, "period": 60 } }],
   "durable_objects": {
     "bindings": [
       {
@@ -23,6 +28,10 @@
       {
         "name": "LOBBY_DIRECTORY",
         "class_name": "LobbyDirectory"
+      },
+      {
+        "name": "ACCOUNTS",
+        "class_name": "Account"
       }
     ]
   },
@@ -48,6 +57,10 @@
     {
       "tag": "lobby-directory",
       "new_sqlite_classes": ["LobbyDirectory"]
+    },
+    {
+      "tag": "accounts",
+      "new_sqlite_classes": ["Account"]
     }
   ],
   "observability": {

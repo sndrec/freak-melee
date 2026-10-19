@@ -369,16 +369,18 @@ separate from a room connection and its local match seats.
 
 Offline delivery stores letters, friend requests and invitations. Fighter
 sharing uses the connected lobby's content transfer, validation, cache and
-installation paths. Sign-in, recovery, storage limits and update presentation
-need concrete design before service implementation.
+installation paths. The local passkey account service now supplies persistent
+identity, recovery and device-session management. Native account screens,
+protected credential storage and social-identity integration remain open.
 
 The user prefers account creation and sign-in inside Freak Melee and asks us
-to minimize sensitive information held by the service. Evaluate native Windows
-WebAuthn/passkeys first: the game's account screens can invoke the Windows
-security prompt without launching a browser. Confirm registration, signing in
-on another PC and recovery before implementing this choice. Account identity
-and offline records remain server-side; a locally saved credential does not
-make the account local-only.
+to minimize sensitive information held by the service. Use native Windows
+WebAuthn/passkeys: the game's account screens can invoke the Windows security
+prompt without launching a browser. The service stores public keys and hashes
+of session tokens and generated recovery codes. Confirm native registration,
+signing in on another PC and recovery before release. Account identity and
+offline records remain server-side. See the [account contract](native_account_auth.md)
+for the implemented service and remaining client work.
 
 ## Lobby browser
 
