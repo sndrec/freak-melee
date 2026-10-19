@@ -2,7 +2,7 @@
 
 // GX fetches attributes in hardware order, independent of descriptor order.
 // This runs once during asset import, before any renderer can consume the bytes.
-static u32 element_size(const HSD_VtxDescList* v)
+u32 HSD_DatVertexElementBytes(const HSD_VtxDescList* v)
 {
     u32 count, scalar;
     if (v->attr <= GX_VA_TEX7MTXIDX) return 1;
@@ -37,6 +37,7 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
     size_t length = (size_t) polygon->n_display * 32;
     size_t cursor = 0;
     const HSD_ShapeSetDesc* shape = (polygon->flags & 0x3000) == POBJ_SHAPEANIM ? polygon->u.shape_set : NULL;
+    if(pobj_type(polygon)==POBJ_SHAPEANIM && !shape)return false;
     if (length && (!display || !polygon->verts)) return false;
     if (!polygon->verts) return true;
     for (HSD_VtxDescList* v = polygon->verts; v->attr != GX_VA_NULL; ++v) {
@@ -44,7 +45,7 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
         if (attr > GX_VA_TEX7 || ordered[attr] || (u32) v->attr_type > GX_INDEX16) return false;
         ordered[attr] = v;
         if (v->attr_type == GX_NONE) continue;
-        sizes[attr] = element_size(v);
+        sizes[attr] = HSD_DatVertexElementBytes(v);
         if (!sizes[attr] || (attr < GX_VA_POS && v->attr_type != GX_DIRECT)) return false;
         const bool generated = shape && (attr == GX_VA_POS || attr == GX_VA_NRM);
         if (generated) {
@@ -94,7 +95,7 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
         if (v && !(shape && (attr == GX_VA_POS || attr == GX_VA_NRM)) && v->attr_type > GX_DIRECT && v->vertex_size)
             HSD_DatImportSource(import, (u32)((const u8*)v->vertex - import->dat->data), v->vertex_size, 0);
     }
-    return true;
+    return !shape || !(shape->flags&SHAPESET_SKIN) || HSD_DatValidateShapeSkin(import,polygon);
 }
 
 static bool shape_attribute(HSD_DatImport* import, HSD_VtxDescList* desc,

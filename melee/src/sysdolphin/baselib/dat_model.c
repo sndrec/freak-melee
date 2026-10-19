@@ -453,6 +453,16 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
         }
         obj->nb_vertex_index = (s32) vertex_count;
         obj->nb_normal_index = (s32) normal_count;
+        if(obj->flags & SHAPESET_SKIN) {
+            if(!HSD_DatBytes(dat,offset,32)) {
+                import->status=HSD_DAT_DESCRIPTOR;import->error_offset=offset;break;
+            }
+            HSD_DatImportSource(import,offset,32,DAT_SHAPE_SET);
+            obj->skin=HSD_DatImportReference(import,offset+28,DAT_POBJ,1);
+            if(!obj->skin) {
+                import->status=HSD_DAT_DESCRIPTOR;import->error_offset=offset+28;break;
+            }
+        }
         obj->vertex_desc =
             HSD_DatImportList(import, offset + 8, DAT_VTXDESC);
         obj->normal_desc =

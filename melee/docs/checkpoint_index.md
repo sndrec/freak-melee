@@ -1,6 +1,6 @@
 # Dated checkpoint evidence
 
-Indexed: 2026-10-18. These records describe their own snapshots of source and
+Indexed: 2026-10-19. These records describe their own snapshots of source and
 tests. They are not a merged task list. Read the [current plan](../../PROJECT_PLAN.md),
 [Workshop status](native_character_workshop_progress.md), [roster status](SCRIPT_PORT_CHECKPOINT.md)
 and [rollback architecture](native_rollback_current.md) first.
@@ -12,6 +12,7 @@ it does not relabel old results as final-source acceptance.
 
 ## Source-runtime and fighter integration
 
+- [Weighted morph runtime and rest edits (2026-10-19)](native_morph_skin_checkpoint.md)
 - [Outfit dependency acceptance (2026-10-17)](native_costume_dependency_checkpoint.md)
 - [Coordinated custom outfits and CSS selection (2026-10-17)](native_family_outfit_checkpoint.md)
 - [Outfit delivery with missing parent fighters (2026-10-17)](native_outfit_gift_checkpoint.md)

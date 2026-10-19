@@ -5,6 +5,7 @@
 #include "native_mesh_vertex_ids.h"
 
 extern "C" {
+#include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mtx.h>
 }
 #include <cmath>
@@ -271,10 +272,17 @@ bool compensate_shape(NativeAssetDat& output, const HSD_Dat& source,
     Mtx inverse, normal;
     if (!C_MTXInverse(adjustment, inverse)) return false;
     C_MTXTranspose(inverse, normal);
-    const u32 new_shape = output.allocate(28);
+    const unsigned shape_bytes=flags&SHAPESET_SKIN?32:28;
+    const u32 new_shape = output.allocate(shape_bytes);
     const u32 new_polygon = output.allocate(24);
     if (new_shape == UINT32_MAX || new_polygon == UINT32_MAX) return false;
-    std::memcpy(output.data.data() + new_shape, HSD_DatBytes(&source, shape, 28), 28);
+    const u8* shape_data=HSD_DatBytes(&source,shape,shape_bytes);
+    if(!shape_data)return false;
+    std::memcpy(output.data.data() + new_shape, shape_data, shape_bytes);
+    if(flags&SHAPESET_SKIN) {
+        u32 skin;if(!reference(&source,shape+28,&skin))return false;
+        output.link_local(new_shape+28,skin);
+    }
     for (unsigned member : {8u, 12u, 20u, 24u}) {
         u32 target = 0; const char* external;
         const auto kind = HSD_DatResolve(&source, shape + member, &target, &external);
@@ -418,15 +426,12 @@ bool read_bind(const u8* data, size_t size, u32 joint, Mtx bind)
     return true;
 }
 
-// Evaluate the same rest-space palette as HSD: root-owned single-bone
-// envelopes bypass inverse binds; non-root owners add a model-node matrix.
-bool envelope_matrices(const NativeFighterModelEditor& model, unsigned owner,
-                        u32 polygon, Mtx* world, const u8* bind_data,
-                        size_t bind_size, Mtx* matrices, unsigned* count)
+// HSD applies this owner-domain matrix after a blended inverse-bind palette.
+bool model_node_matrix(const NativeFighterModelEditor& model,unsigned owner,
+                        Mtx* world,const u8* bind_data,size_t bind_size,Mtx right)
 {
-    const bool has_right = !(model.joints[owner].flags & 2);
-    Mtx right;
-    if (has_right) {
+    C_MTXIdentity(right);
+    if (!(model.joints[owner].flags&JOBJ_SKELETON_ROOT)) {
         int skeleton = (int) owner;
         while (skeleton >= 0 && !(model.joints[skeleton].flags & 3)) skeleton = model.joints[skeleton].parent;
         if (skeleton < 0) return false;
@@ -444,6 +449,18 @@ bool envelope_matrices(const NativeFighterModelEditor& model, unsigned owner,
             C_MTXConcat(inverse, world[owner], right);
         }
     }
+    return true;
+}
+
+// Evaluate the same rest-space palette as HSD: root-owned single-bone
+// envelopes bypass inverse binds; non-root owners add a model-node matrix.
+bool envelope_matrices(const NativeFighterModelEditor& model, unsigned owner,
+                        u32 polygon, Mtx* world, const u8* bind_data,
+                        size_t bind_size, Mtx* matrices, unsigned* count)
+{
+    const bool has_right = !(model.joints[owner].flags & 2);
+    Mtx right;
+    if(!model_node_matrix(model,owner,world,bind_data,bind_size,right))return false;
     u32 table;
     if (!reference(&model.dat, polygon + 20, &table)) return false;
     *count = 0;
@@ -519,7 +536,19 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
                     joints[1] = i;
                 }
             }
-            if (type == 0x2000) {
+            u32 shape=0;u16 shape_flags=0;
+            if(type==POBJ_SHAPEANIM && (!reference(&editor.dat,polygon+20,&shape) ||
+                !HSD_DatReadU16(&editor.dat,shape,&shape_flags)))return false;
+            if(type==POBJ_SHAPEANIM && (shape_flags&SHAPESET_SKIN)) {
+                Mtx before,after,inverse;
+                if(!model_node_matrix(old,entry.joint,old_world,old.dat.data,old.dat.data_size,before) ||
+                   !model_node_matrix(editor,entry.joint,new_world,dat.data.data(),dat.data.size(),after) ||
+                   !C_MTXInverse(after,inverse))return false;
+                p.slots=1;C_MTXConcat(inverse,before,p.adjustment[0]);
+                for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)
+                    p.compensate|=std::fabs(p.adjustment[0][r][c]-(r==c?1.f:0.f))>.00002f;
+                affected|=p.compensate;
+            } else if (type == 0x2000) {
                 Mtx old_palette[10], new_palette[10]; unsigned old_count, new_count;
                 if (!envelope_matrices(old, entry.joint, polygon, old_world,
                         old.dat.data, old.dat.data_size, old_palette, &old_count) ||
