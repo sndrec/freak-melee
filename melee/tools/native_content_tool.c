@@ -71,6 +71,8 @@ static void usage(void)
         "  inspect-project PROJECT_DIRECTORY\n"
         "  project-assets-undo PROJECT_DIRECTORY\n"
         "  project-model-scan SOURCE.glb\n"
+        "  project-model-sources PROJECT_DIRECTORY\n"
+        "  project-reimport-plan PROJECT_DIRECTORY MESH SOURCE.glb one|whole\n"
         "  project-import-meshes PROJECT_DIRECTORY SOURCE.glb JOINT SCALE auto|rigid|source\n"
         "  project-label PROJECT_DIRECTORY bone|mesh|material|action KEY NAME\n"
         "  project-hide-action PROJECT_DIRECTORY ACTION_INDEX 0|1\n"

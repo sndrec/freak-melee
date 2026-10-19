@@ -126,7 +126,7 @@ bool nativeFighterAuthoring_Load(const char* path, NativeFighterProject* p)
     if (!file) {
         return errno == ENOENT;
     }
-    char line[160];
+    char line[4096];
     bool ok = true;
     while (ok && fgets(line, sizeof(line), file)) {
         line[strcspn(line, "\r\n")] = 0;
@@ -139,6 +139,10 @@ bool nativeFighterAuthoring_Load(const char* path, NativeFighterProject* p)
             break;
         }
         *tab++ = 0;
+        if (!strcmp(line, "mesh-source")) {
+            ok = nativeFighterMeshSource_Parse(p, tab);
+            continue;
+        }
         char* end;
         unsigned long index = strtoul(tab, &end, 10);
         if (end == tab || index > UINT32_MAX) {
@@ -198,6 +202,7 @@ bool nativeFighterAuthoring_Save(const char* path,
             ok = false;
         }
     }
+    if(ok) ok=nativeFighterMeshSource_Write(p,file);
     if (fclose(file)) {
         ok = false;
     }

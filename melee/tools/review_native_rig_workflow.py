@@ -106,6 +106,7 @@ def main():
 
     def save(c):
         c.click('workshop-save-top')
+        assert 'Draft saved.' in c.inspect('workshop-save-status'), 'Draft Save did not complete'
         path = c.data/'projects/rig-workflow'
         return {name: (path/name).read_bytes() for name in ASSETS}
 
@@ -122,7 +123,17 @@ def main():
 
     def round_trip(c, before, after, label):
         c.click('workshop-undo')
-        assert save(c) == before, label+' Undo changed retained asset bytes'
+        undo_status=c.inspect('workshop-editor-status')
+        actual=save(c)
+        if actual!=before:
+            diagnostics=output/'undo-failure'
+            diagnostics.mkdir(exist_ok=True)
+            for name in ASSETS:
+                (diagnostics/(name+'.expected')).write_bytes(before[name])
+                (diagnostics/(name+'.actual')).write_bytes(actual[name])
+            (diagnostics/'status.txt').write_text(undo_status+'\n'+json.dumps(model(c),indent=2))
+            receipt['screenshots'].append(str(c.screenshot()))
+        assert actual == before, label+' Undo changed retained asset bytes: '+undo_status
         ready(c)
         c.click('workshop-redo')
         assert save(c) == after, label+' Redo changed retained asset bytes'
@@ -176,6 +187,7 @@ def main():
         client.click('workshop-mode-animation')
         click(client, 'workshop-joint-'+str(child['selected']), 'workshop-editor-browser')
         assert 'Workshop extra B' in client.inspect('workshop-bone-name')
+        assert save(client)==third, 'Selecting an unanimated bone changed core assets'
         client.click('workshop-mode-model')
         # The added child follows its selected parent in depth-first order.
         click(client, 'workshop-model-joint-'+str(reparented['selected']), 'workshop-model-outliner')

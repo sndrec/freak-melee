@@ -225,6 +225,11 @@ import, materials, rigging and skinning, not mesh modeling.
   [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
 - [ ] Reimport by source identity, retaining project-owned materials and weights
   unless the author explicitly replaces them.
+  [Source tracking and matching](melee/docs/native_gltf_reimport_checkpoint.md)
+  now retain document/mesh/material-slot identities through export reordering
+  and editor renaming. Native transaction and metadata checks pass, as does
+  source-only import Undo/Redo and reopen in the native client. Weight-preserving
+  apply, independent material replacement and the Reimport controls remain open.
 - [ ] Extend painting across the supported editable mesh set and remove storage
   limits that prevent useful authored models; do not introduce tick allocation.
   Imported meshes now retain up to 16 floating-point influences through painting

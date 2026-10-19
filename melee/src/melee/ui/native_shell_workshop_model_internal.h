@@ -91,7 +91,7 @@ void status(const std::string&);
 std::string escape(const std::string&);
 void buttons();
 void record(uint32_t,unsigned,const uint8_t[4]);
-void record_asset(const std::vector<uint8_t>&,const std::vector<uint8_t>& fighter = {});
+bool record_asset(const std::vector<uint8_t>&,const std::vector<uint8_t>& fighter = {});
 std::vector<uint8_t> label_snapshot();
 void record_label_change(const std::vector<uint8_t>&,bool);
 void reopen_model(const RigView* restored=nullptr);

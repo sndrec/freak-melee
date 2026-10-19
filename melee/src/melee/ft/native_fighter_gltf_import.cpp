@@ -6,6 +6,7 @@
 #include "native_fighter_material_animation.h"
 #include "native_fighter_model_references.h"
 #include "native_fighter_gltf_skin.h"
+#include "native_fighter_gltf_identity.h"
 #include "native_fighter_skin_mesh.h"
 
 #ifdef MELEE_NATIVE
@@ -35,6 +36,8 @@ extern "C" {
 #include <cstring>
 #include <filesystem>
 #include <limits>
+#include <memory>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -63,6 +66,7 @@ struct Source {
 };
 
 struct Primitive {
+    const cgltf_mesh* owner = nullptr;
     const cgltf_primitive* mesh = nullptr;
     const cgltf_node* node = nullptr;
     const char* name = nullptr;
@@ -83,6 +87,7 @@ bool find_primitive(const cgltf_data* data, unsigned wanted, Primitive* out,
             }
         for (cgltf_size p = 0; p < data->meshes[mesh].primitives_count; ++p) {
             if (cursor == wanted && out) {
+                out->owner = &data->meshes[mesh];
                 out->mesh = &data->meshes[mesh].primitives[p];
                 out->node = node;
                 out->name = data->meshes[mesh].name;
@@ -430,7 +435,8 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                      const NativeFighterModelEditor& model,
                      const SkinBinding* skin, const TransferSkin* transfer,
                      const NativeGltfSourceSkin* authored,
-                     uint32_t* polygon, char* error, size_t error_size)
+                     uint32_t* polygon, NativeFighterMeshSource* metadata,
+                     char* error, size_t error_size)
 {
     const cgltf_primitive* mesh = primitive.mesh;
     const cgltf_accessor* position = attribute(mesh, cgltf_attribute_type_position);
@@ -451,6 +457,8 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         return false;
     }
     const unsigned vertices = (unsigned) position->count;
+    metadata->vertices=vertices;metadata->corners=(uint32_t)indices;
+    metadata->topology=nativeGltfTopology(mesh);
     const uint32_t positions = dat->allocate((size_t) vertices * 12, 32);
     const uint32_t normals = dat->allocate((size_t) vertices * 12, 32);
     const uint32_t uvs = uv ? dat->allocate((size_t) vertices * 8, 32) : 0;
@@ -474,6 +482,9 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
     const float determinant = world[0] * cofactors[0] +
                               world[1] * cofactors[1] +
                               world[2] * cofactors[2];
+    metadata->mirrored=determinant<0;
+    metadata->uses_bind_shape=authored!=nullptr;
+    std::memcpy(metadata->transform,world,sizeof(world));
     if (!std::isfinite(determinant) || std::fabs(determinant) < 1e-9f) {
         fail(error, error_size, "Mesh node has a non-invertible transform.");
         return false;
@@ -812,6 +823,7 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
         info->has_texture = primitive.mesh->material &&
             primitive.mesh->material->has_pbr_metallic_roughness &&
             primitive.mesh->material->pbr_metallic_roughness.base_color_texture.texture;
+        nativeGltfIdentity(source.data,primitive.owner,primitive.mesh,info->identity);
     }
     scan->count = count;
     return true;
@@ -889,14 +901,21 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         return false;
     }
     uint32_t polygon;
+    NativeFighterMeshSource metadata={};metadata.used=true;
+    metadata.binding=(unsigned)binding;metadata.scale=scale;
+    nativeGltfIdentity(source_data,primitive.owner,primitive.mesh,metadata.identity);
+    if(metadata.identity[0] && !nativeGltfSourcePath(path,metadata.path)) {
+        fail(error,error_size,"Could not record this model's source path.");return false;
+    }
     if (!encode_geometry(primitive, &dat, scale,
                          existing.joints[joint].offset, existing,
                          binding == NATIVE_GLTF_BIND_RIGID ? nullptr : &skin,
                          binding == NATIVE_GLTF_BIND_TRANSFER ? &transfer : nullptr,
                          binding == NATIVE_GLTF_BIND_SOURCE ? &authored : nullptr,
-                         &polygon, error, error_size)) return false;
+                         &polygon, &metadata, error, error_size)) return false;
     if (replacement_mesh != UINT_MAX) {
         const NativeModelMesh& destination = existing.meshes[replacement_mesh];
+        metadata.mesh=(uint32_t)destination.offset;
         if (destination.joint != joint) {
             const uint32_t old_head = existing.joints[destination.joint].offset + 16;
             uint32_t previous_slot = old_head;
@@ -926,6 +945,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         const uint32_t material = dat.allocate(20);
         const uint32_t mobj = dat.allocate(24);
         const uint32_t dobj = dat.allocate(16);
+        metadata.mesh=dobj;
         if (material == UINT32_MAX || mobj == UINT32_MAX ||
             dobj == UINT32_MAX) return false;
         const cgltf_material* source_material = primitive.mesh->material;
@@ -1018,6 +1038,11 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
             }
         }
     }
+    if(metadata.identity[0]) {
+        if(!nativeFighterMeshSource_Set(project,&metadata)) {
+            fail(error,error_size,"Could not record this imported mesh's source identity.");return false;
+        }
+    } else nativeFighterMeshSource_Clear(project,metadata.mesh);
     std::vector<uint8_t> converted;
     if (!dat.finish(&converted, UINT32_MAX) ||
         !nativeFighterCostume_Compact(project, &converted, nullptr, error, error_size) ||
@@ -1046,6 +1071,22 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
     if (!source.open(path, error, error_size)) {
         return false;
     }
+    std::unique_ptr<NativeFighterModelEditor> original(new(std::nothrow) NativeFighterModelEditor{}),
+        current(new(std::nothrow) NativeFighterModelEditor{});
+    if(!original||!current||!nativeFighterModel_Open(original.get(),project)) return false;
+    uint32_t replacements[NATIVE_GLTF_MAX_PRIMITIVES];
+    for(unsigned i=0;i<count;++i) {
+        if(requests[i].replacement_mesh==UINT_MAX) replacements[i]=UINT32_MAX;
+        else {
+            if(requests[i].replacement_mesh>=original->mesh_count) {
+                fail(error,error_size,"Choose a valid replacement mesh.");return false;
+            }
+            replacements[i]=(uint32_t)original->meshes[requests[i].replacement_mesh].offset;
+            for(unsigned earlier=0;earlier<i;++earlier) if(replacements[earlier]==replacements[i]) {
+                fail(error,error_size,"A batch can replace each mesh once.");return false;
+            }
+        }
+    }
     NativeFighterProject staging = *project;
     staging.fighter_dat = (uint8_t*)std::malloc(project->fighter_size);
     staging.costume_dat = (uint8_t*) std::malloc(project->costume_size);
@@ -1068,19 +1109,26 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
     }
     bool ok = true;
     for (unsigned i = 0; i < count && ok; ++i) {
+        unsigned replacement=UINT_MAX;
+        if(replacements[i]!=UINT32_MAX) {
+            ok=nativeFighterModel_Open(current.get(),&staging);
+            for(unsigned mesh=0;ok && mesh<current->mesh_count;++mesh)
+                if(current->meshes[mesh].offset==replacements[i]) {replacement=mesh;break;}
+            if(replacement==UINT_MAX) {ok=false;fail(error,error_size,"The replacement mesh disappeared during import.");}
+        }
+        if(!ok) break;
         ok =
             apply_primitive(&staging, path, source.data, requests[i].primitive,
-                            requests[i].joint, requests[i].replacement_mesh,
+                            requests[i].joint, replacement,
                             scale, requests[i].binding, error, error_size);
     }
     if(ok) {
-        NativeFighterModelEditor before={},after={};
         NativeAssetDat costume;
         std::vector<uint8_t> final;
-        ok=nativeFighterModel_Open(&before,project)&&nativeFighterModel_Open(&after,&staging)&&
-            nativeFighterModel_RemapSelectors(&before,&after,&staging)&&
+        ok=nativeFighterModel_Open(current.get(),&staging)&&
+            nativeFighterModel_RemapSelectors(original.get(),current.get(),&staging)&&
             costume.open(staging.costume_dat,staging.costume_size)&&
-            nativeFighterModel_RemapMaterialAnimations(before,after,costume)&&costume.finish(&final,UINT32_MAX)&&
+            nativeFighterModel_RemapMaterialAnimations(*original,*current,costume)&&costume.finish(&final,UINT32_MAX)&&
             nativeFighterCostume_Compact(&staging,&final,nullptr,error,error_size);
         if(ok) {
             auto* bytes=(uint8_t*)std::malloc(final.size());

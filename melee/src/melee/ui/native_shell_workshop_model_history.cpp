@@ -41,11 +41,14 @@ void record(uint32_t offset, unsigned count, const uint8_t before[4])
     buttons();
 }
 
-void record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>& fighter)
+bool record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>& fighter)
 {
-    if (before.size() == active->project->costume_size &&
+    const bool same_costume=before.size() == active->project->costume_size &&
         std::memcmp(before.data(), active->project->costume_dat,
-                    before.size()) == 0) return;
+                    before.size()) == 0;
+    const bool same_fighter=fighter.empty() || (fighter.size()==active->project->fighter_size &&
+        std::memcmp(fighter.data(),active->project->fighter_dat,fighter.size())==0);
+    if(same_costume && same_fighter) return false;
     Change change = {};
     change.rig_revision = active->project->rig_edit_revision;
     change.before_asset = before;
@@ -63,6 +66,7 @@ void record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>&
     active->changes.push_back(std::move(change));
     active->change_cursor = active->changes.size();
     buttons();
+    return true;
 }
 
 std::vector<uint8_t> label_snapshot()
@@ -75,6 +79,8 @@ std::vector<uint8_t> label_snapshot()
 }
 void record_label_change(const std::vector<uint8_t>& before, bool asset)
 {
+    auto after=label_snapshot();
+    if(before==after) return;
     if (!asset) {
         active->changes.erase(active->changes.begin() + active->change_cursor,
                               active->changes.end());
@@ -89,7 +95,7 @@ void record_label_change(const std::vector<uint8_t>& before, bool asset)
     change.rig_revision = active->project->rig_edit_revision;
     change.labels_saved = true;
     change.before_labels = before;
-    change.after_labels = label_snapshot();
+    change.after_labels = std::move(after);
     buttons();
 }
 

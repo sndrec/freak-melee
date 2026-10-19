@@ -39,9 +39,11 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
          hidden = !strcmp(args[0], "project-hide-action"),
          sequences = !strcmp(args[0], "project-texture-sequences"),
          image = !strcmp(args[0], "project-texture-image"),
-         meshes = !strcmp(args[0], "project-import-meshes");
+         meshes = !strcmp(args[0], "project-import-meshes"),
+         sources = !strcmp(args[0], "project-model-sources"),
+         reimport = !strcmp(args[0], "project-reimport-plan");
     if (!create && !copy && !labels && !hidden && !sequences && !image &&
-        !meshes)
+        !meshes && !sources && !reimport)
     {
         return false;
     }
@@ -56,6 +58,24 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
     bool ok = false;
     unsigned a = 0, b = 0, c = 0;
     char error[192] = {};
+    if(sources && count==2) {
+        NativeFighterModelEditor* model=calloc(1,sizeof(*model));
+        ok=model && nativeFighterModel_Open(model,&p);
+        for(unsigned mesh=0;ok && mesh<model->mesh_count;++mesh) {
+            const NativeFighterMeshSource* source=nativeFighterMeshSource_Get(&p,(uint32_t)model->meshes[mesh].offset);
+            if(source) printf("%u mesh=0x%X vertices=%u corners=%u binding=%u scale=%.9g topology=%016llx identity=%s path=%s\n",
+                mesh,source->mesh,source->vertices,source->corners,source->binding,source->scale,
+                (unsigned long long)source->topology,source->identity,source->path);
+        }
+        free(model);
+    }
+    if(reimport && count==5 && number(args[2],&a) &&
+       (!strcmp(args[4],"one") || !strcmp(args[4],"whole"))) {
+        NativeGltfReimportPlan plan;
+        ok=nativeFighterGltf_PlanReimport(&p,a,args[3],!strcmp(args[4],"whole"),&plan,error,sizeof(error));
+        if(ok) for(unsigned i=0;i<plan.count;++i)
+            printf("match primitive=%u mesh=%u\n",plan.matches[i].primitive,plan.matches[i].mesh);
+    }
     if (create && count == 5 && number(args[2], &a) && number(args[4], &b)) {
         ok = nativeFighterAnimation_CreateRest(&p, a, args[3], b) &&
              nativeFighterProject_SaveAnimation(args[1], &p);
