@@ -157,9 +157,12 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
                 else if (attr.attr == GX_VA_NRM || attr.attr == GX_VA_NBT)
                     corner.normal_index = index(cursor, attr.type);
                 else if (!(morph.flags & SHAPESET_SKIN) && attr.attr >= GX_VA_TEX0MTXIDX &&
-                         attr.attr <= GX_VA_TEX7MTXIDX &&
-                         !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, attr.attr-GX_VA_TEX0MTXIDX,
-                                                      cursor[0], 0, part->bindings, nullptr)) return false;
+                         attr.attr <= GX_VA_TEX7MTXIDX) {
+                    NativeSkinNormalBasis basis;
+                    if (!nativeSkinMesh_TextureBasis(conversion,conversion,cursor[0]==GX_IDENTITY,&basis) ||
+                        !nativeSkinMesh_ReadTexture(texture_reader, *part, corner, attr.attr-GX_VA_TEX0MTXIDX,
+                                                      cursor[0], 0, part->bindings, nullptr,&basis)) return false;
+                }
                 cursor += attr.display_bytes;
             }
             if (vertex >= morph.position_count || (morph.normal_count && corner.normal_index >= morph.normal_count)) return false;
@@ -194,9 +197,16 @@ bool nativeSkinMorph_Read(const NativeFighterModelEditor& model, unsigned owner,
             bindings.push_back(weights);
         }
         if (separate) for (unsigned i = 0; texture_table[i]; ++i) {
-            NativeSkinWeights weights;
-            if (!envelope(texture_table[i], joints, &weights)) return false;
+            NativeSkinWeights weights = {};
+            if (!(batch->u.matrices->constant_mask & (1U<<i)) &&
+                !envelope(texture_table[i], joints, &weights)) return false;
             textures_weights.push_back(weights);
+        }
+        texture_reader.constant_mask = separate ? batch->u.matrices->constant_mask : 0;
+        for (unsigned i=0;i<10;++i) {
+            texture_reader.bases[i]=nativeSkinIdentityBasis;
+            if (separate && batch->u.matrices->normal_bases)
+                std::memcpy(texture_reader.bases[i].data(),batch->u.matrices->normal_bases[i],sizeof(HSD_NormalBasis));
         }
         cursor = batch->display; end = cursor + size_t(batch->n_display)*32;
         while (cursor < end) {

@@ -76,16 +76,22 @@ struct HSD_EnvelopeDesc {
     f32 weight;
 };
 
+typedef f32 HSD_NormalBasis[3][3];
+
 // Position/normal and generated-texture matrices have separate GX slots.
 // A texture's follower entry is its position slot, or 255 for a fixed binding.
 struct HSD_EnvelopeMatricesDesc {
     HSD_EnvelopeDesc** positions;
     HSD_EnvelopeDesc** textures;
     u8 followers[10];
+    u16 constant_mask;
+    const HSD_NormalBasis* normal_bases;
 };
 struct HSD_EnvelopeMatrices {
     HSD_SList* positions;
     HSD_SList* textures;
+    const HSD_NormalBasis* normal_bases;
+    u16 constant_mask;
 };
 
 struct HSD_ShapeSet {

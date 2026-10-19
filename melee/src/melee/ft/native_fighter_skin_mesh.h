@@ -5,6 +5,10 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <array>
+
+using NativeSkinNormalBasis = std::array<float,9>;
+inline constexpr NativeSkinNormalBasis nativeSkinIdentityBasis = {1,0,0,0,1,0,0,0,1};
 
 struct NativeSkinAttribute {
     uint32_t source, attr, type, count, format, array;
@@ -41,6 +45,9 @@ struct NativeSkinPart {
     // Independent texture attachments retain their original weights as the
     // surface is painted. Corner selectors distinguish them from following it.
     std::vector<NativeSkinWeights> texture_bindings;
+    // Post-transform of each fixed texture normal; empty weights mean a
+    // constant texture matrix, independent of skeleton and camera motion.
+    std::vector<NativeSkinNormalBasis> texture_bases;
     std::vector<NativeSkinCorner> corners;
     std::vector<unsigned> triangles;
     NativeSkinMorph morph;
@@ -61,11 +68,17 @@ bool nativeSkinMesh_ReadAttributes(const HSD_Dat&, uint32_t source,
                                     std::vector<NativeSkinAttribute>*);
 struct NativeSkinTextureReader {
     std::unordered_multimap<uint64_t, unsigned> bindings;
+    NativeSkinNormalBasis bases[10];
+    unsigned constant_mask = 0;
 };
+bool nativeSkinMesh_ReadTextureBases(NativeSkinTextureReader&,const HSD_Dat&,uint32_t metadata);
+bool nativeSkinMesh_TextureBasis(const float position[3][4],const float texture[3][4],
+                                  bool constant,NativeSkinNormalBasis* basis);
 bool nativeSkinMesh_ReadTexture(NativeSkinTextureReader&, NativeSkinPart&, NativeSkinCorner&, unsigned channel,
                                  unsigned selector, unsigned position_matrix,
                                  const std::vector<NativeSkinWeights>& bindings,
-                                 const uint8_t* followers);
+                                 const uint8_t* followers,
+                                 const NativeSkinNormalBasis* basis = nullptr);
 bool nativeSkinMesh_InverseBind(const NativeFighterModelEditor&, unsigned joint,
                                 float output[3][4]);
 struct NativeAssetDat;

@@ -311,6 +311,8 @@ static s32 PObjLoad(HSD_PObj* pobj, HSD_PObjDesc* desc)
         HSD_ASSERT(0, pobj->u.matrices);
         pobj->u.matrices->positions = loadEnvelopeDesc(desc->u.matrices->positions);
         pobj->u.matrices->textures = loadEnvelopeDesc(desc->u.matrices->textures);
+        pobj->u.matrices->normal_bases = desc->u.matrices->normal_bases;
+        pobj->u.matrices->constant_mask = desc->u.matrices->constant_mask;
         break;
 
     case POBJ_SKIN:
@@ -956,6 +958,19 @@ void HSD_PObjSetupEnvelopeMatrices(HSD_PObj* pobj, Mtx view, u32 rendermode,
         HSD_SList* list = texture ? pobj->u.matrices->textures : pobj->u.matrices->positions;
         for (unsigned slot = 0; list && slot < 10; list = list->next, ++slot) {
             Mtx matrix = { 0 }, temporary, transformed;
+            if (texture && (pobj->u.matrices->constant_mask & (1U << slot))) {
+                // GX_IDENTITY reads the untransformed normal, including no view
+                // rotation. A converted mesh can retain that space explicitly.
+                C_MTXIdentity(matrix);
+                if (pobj->u.matrices->normal_bases)
+                    for (unsigned r=0;r<3;++r) for (unsigned c=0;c<3;++c)
+                        matrix[r][c] = pobj->u.matrices->normal_bases[slot][r][c];
+                if (flags & SETUP_NORMAL_PROJECTION) {
+                    GXLoadTexMtxImm(matrix, HSD_Index2TexMtx(slot), GX_MTX3x4);
+                    HSD_PerfCountMtxLoad();
+                }
+                continue;
+            }
             HSD_Envelope* binding = list->data;
             unsigned influences = 0;
             // Admission requires normalized inverse-bind envelopes. Evaluate
@@ -988,6 +1003,15 @@ void HSD_PObjSetupEnvelopeMatrices(HSD_PObj* pobj, Mtx view, u32 rendermode,
                 HSD_PerfCountMtxLoad();
             }
             if (texture && (flags & SETUP_NORMAL_PROJECTION)) {
+                if (pobj->u.matrices->normal_bases) {
+                    const f32 (*basis)[3] = pobj->u.matrices->normal_bases[slot];
+                    for (unsigned r=0;r<3;++r) for (unsigned c=0;c<3;++c) {
+                        temporary[r][c] = 0;
+                        for (unsigned k=0;k<3;++k) temporary[r][c] += matrix[r][k]*basis[k][c];
+                    }
+                    for (unsigned r=0;r<3;++r) temporary[r][3] = matrix[r][3];
+                    C_MTXCopy(temporary,matrix);
+                }
                 GXLoadTexMtxImm(matrix, HSD_Index2TexMtx(slot), GX_MTX3x4);
                 HSD_PerfCountMtxLoad();
             }

@@ -114,7 +114,7 @@ int joint_index(const NativeFighterModelEditor& model, u32 offset)
     return -1;
 }
 bool bindings(const NativeFighterModelEditor& model, u32 table,
-               std::vector<NativeSkinWeights>* groups, bool single[10])
+               std::vector<NativeSkinWeights>* groups, bool single[10],unsigned constant_mask=0)
 {
     for (unsigned slot = 0; slot < 11; ++slot) {
         u32 entry, value;
@@ -142,6 +142,10 @@ bool bindings(const NativeFighterModelEditor& model, u32 table,
             weights.weights[weights.count++] = weight;
             sum += weight; entry += 8;
             if (single[slot]) break;
+        }
+        if (constant_mask & (1U<<slot)) {
+            if (weights.count || sum != 0) return false;
+            groups->push_back(weights);continue;
         }
         if (std::fabs(sum - 1.0) > .01) return false;
         // Reading an existing envelope must preserve its authored float values.
@@ -262,7 +266,8 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                 u32 textures;
                 if (!reference(dat, polygon+20, &matrices) ||
                     !reference(dat, matrices+4, &textures) ||
-                    !bindings(model, textures, &texture_groups, unused) ||
+                    !nativeSkinMesh_ReadTextureBases(texture_reader,dat,matrices) ||
+                    !bindings(model, textures, &texture_groups, unused,texture_reader.constant_mask) ||
                     !(followers = HSD_DatBytes(&dat, matrices+8, 10))) return fail();
                 for (bool value : unused) if (value) return fail();
             }
@@ -358,17 +363,16 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                 if (corner.matrix >= part.bindings.size()) return fail();
                 for (unsigned channel = 0; channel < 8; ++channel) {
                     if (!(texture_mask & (1u << channel))) continue;
+                    NativeSkinNormalBasis basis = nativeSkinIdentityBasis;
+                    if (!followers) {
+                        const bool constant = textures[channel] == 60;
+                        const unsigned slot = constant ? corner.matrix : (textures[channel]-30)/3;
+                        if (slot >= part.bindings.size() ||
+                            !nativeSkinMesh_TextureBasis(conversion[corner.matrix],conversion[slot],constant,&basis)) return fail();
+                    }
                     if (!nativeSkinMesh_ReadTexture(texture_reader, part, corner, channel, textures[channel],
-                        corner.matrix, followers ? texture_groups : part.bindings, followers)) return fail();
-                    if (corner.textures[channel] >= NATIVE_SKIN_TEXTURE_IDENTITY) continue;
-                    if (followers) continue; // Native separated bindings already share the canonical normal domain.
-                    const unsigned slot = (textures[channel]-30)/3;
-                    for (unsigned r=0; r<3; ++r) for (unsigned c=0; c<3; ++c)
-                        if (conversion[slot][r][c] != conversion[corner.matrix][r][c]) {
-                            if (error && error_size) std::snprintf(error,error_size,
-                                "This texture attachment uses a different normal coordinate basis.");
-                            return false;
-                        }
+                        corner.matrix, followers ? texture_groups : part.bindings, followers,
+                        followers ? nullptr : &basis)) return fail();
                 }
                 vertex.skin = part.bindings[corner.matrix];
                 Vec3 point = { vertex.position[0], vertex.position[1], vertex.position[2] }, converted;

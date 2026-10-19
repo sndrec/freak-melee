@@ -303,6 +303,13 @@ void HSD_DatDecodeModelRecord(HSD_DatImport* import,
         obj->positions = HSD_DatImportList(import, offset, DAT_ENVELOPE_TABLE);
         obj->textures = HSD_DatImportList(import, offset + 4, DAT_ENVELOPE_TABLE);
         memcpy(obj->followers, HSD_DatBytes(dat, offset + 8, 10), 10);
+        HSD_DatReadU16(dat, offset + 18, &obj->constant_mask);
+        obj->normal_bases = HSD_DatImportReference(import, offset + 20, DAT_NORMAL_BASES, 1);
+        break;
+    }
+    case DAT_NORMAL_BASES: {
+        f32* values = record->object;
+        for (u32 i = 0; i < 90; ++i) HSD_DatReadF32(dat, offset + i*4, &values[i]);
         break;
     }
     case DAT_MATRIX: {
