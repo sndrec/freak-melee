@@ -5,6 +5,7 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import { AccountError, accountJson, accountHandle, secret, secretHash, secretValue, equalHash,
   text, readAccountBody, credentialResponse, CHALLENGE_MS, SESSION_MS, RECENT_AUTH_MS,
   MAX_PASSKEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
+import type { SocialProfile } from "./social-protocol";
 
 interface AccountRow extends Record<string, SqlStorageValue> {
   user_id: string; display_name: string; bio: string; recovery_hash: string; epoch: number;
@@ -46,9 +47,11 @@ export class Account extends DurableObject<CloudflareBindings> {
   private keys(): KeyRow[] { return this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM passkeys ORDER BY created, id").toArray(); }
   private profile() {
     const account = this.account();
-    if (!account) throw new AccountError(404, "Account not found.");
-    return { id: account.user_id, handle: this.ctx.id.name, name: account.display_name, bio: account.bio };
+    const handle = this.ctx.id.name;
+    if (!account || !handle) throw new AccountError(404, "Account not found.");
+    return { id: account.user_id, handle, name: account.display_name, bio: account.bio };
   }
+  lookupProfile(): SocialProfile | null { return this.account() ? this.profile() : null; }
   private clean(): void {
     const now = Date.now();
     this.ctx.storage.sql.exec("DELETE FROM challenges WHERE expires<=?", now);
@@ -245,6 +248,15 @@ export class Account extends DurableObject<CloudflareBindings> {
       }
       if (request.method !== "POST") throw new AccountError(405, "Method not allowed.");
       const body = await readAccountBody(request);
+      if (path.startsWith("social/")) {
+        const session = await this.authorize(request);
+        const profile = this.profile();
+        const result = await this.env.SOCIAL.getByName(profile.id).dispatch(profile, path.slice(7), body);
+        this.stillAuthorized(session, session.epoch);
+        if (typeof result.error === "string") return accountJson({ error: result.error },
+          typeof result.status === "number" ? result.status : 400);
+        return accountJson(result);
+      }
       if (path === "cancel") {
         this.ctx.storage.sql.exec("DELETE FROM challenges WHERE id=?", secretValue(body.attempt));
         return accountJson({ ok: true });

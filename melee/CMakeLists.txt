@@ -477,8 +477,11 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_lobbies.cpp
     src/melee/ui/native_hub_account.cpp
+    src/melee/ui/native_hub_text.cpp
+    src/melee/ui/native_hub_social.cpp
     src/melee/gm/native_account.cpp
     src/melee/gm/native_account_json.cpp
+    src/melee/gm/native_account_social.cpp
     src/melee/gm/native_account_passkey.cpp
     src/melee/gm/native_account_store.cpp
     src/melee/ui/native_hub_catalog.cpp
@@ -1003,10 +1006,11 @@ if(MELEE_BUILD_TESTS)
     add_executable(native_account_test tests/native/account_test.cpp
         src/melee/gm/native_account.cpp src/melee/gm/native_account_json.cpp
         src/melee/gm/native_account_passkey.cpp src/melee/gm/native_account_store.cpp)
+    target_sources(native_account_test PRIVATE src/melee/gm/native_account_social.cpp)
     target_include_directories(native_account_test PRIVATE src)
     target_compile_definitions(native_account_test PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_options(native_account_test PRIVATE -UNDEBUG)
-    target_link_libraries(native_account_test PRIVATE yyjson winhttp crypt32 comdlg32)
+    target_link_libraries(native_account_test PRIVATE yyjson winhttp crypt32 comdlg32 bcrypt)
     add_test(NAME native_account COMMAND native_account_test)
 endif()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)

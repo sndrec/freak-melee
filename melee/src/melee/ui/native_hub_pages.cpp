@@ -2,6 +2,7 @@
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
 #include "native_hub_account.h"
+#include "native_hub_social.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -390,23 +391,6 @@ namespace {
                              30, HubAction::Invite);
         }
     }
-    void social(bool inbox)
-    {
-        description(inbox ? "Letters, friend requests and invitations."
-                    : "Find your people. Invite them to play.");
-        nativeHub_Panel(175, 119, 430, 226);
-        nativeMenuPaint_Text(inbox ? "Your mailbox" : "Your friends", 194, 143,
-                            370, 20, gold, NativeMenuFont_MenuOption);
-        nativeMenuPaint_Text(
-            "Account sign-in and offline delivery are being connected.", 194,
-            187, 382, 10, muted);
-        nativeMenuPaint_Text("Global chat and lobbies are available now.", 194,
-                            211, 382, 10);
-        nativeHub_Button("go-chat", "Open Chatroom", 194, 263, 172, 32,
-                         HubAction::Chat, 0, true);
-        nativeHub_Button("go-lobbies", "Open Lobbies", 379, 263, 205, 32,
-                         HubAction::Lobbies);
-    }
     void send()
     {
         description("Choose someone in your lobby.");
@@ -493,10 +477,11 @@ void nativeHub_RenderPage(NativeHubPage page)
         chat();
         break;
     case NativeHubPage_Friends:
-        social(false);
-        break;
     case NativeHubPage_Inbox:
-        social(true);
+    case NativeHubPage_Letter:
+    case NativeHubPage_ComposeLetter:
+    case NativeHubPage_SocialProfile:
+        nativeHubSocial_Render(page);
         break;
     case NativeHubPage_Settings:
         settings();

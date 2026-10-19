@@ -79,7 +79,10 @@ enum class HubAction {
     Account, AccountMode, AccountSubmit, FieldAccountHandle, FieldAccountRecovery,
     AccountApprove, AccountAddKey, AccountRemoveKey, AccountRevokeSession,
     AccountRevokeAll, AccountRotateRecovery, AccountSaveRecovery, AccountLogout,
-    AccountRefresh, AccountCancel, AccountConfirm
+    AccountRefresh, AccountCancel, AccountConfirm,
+    SocialLookup, FieldSocialHandle, FieldLetterTo, FieldLetterSubject,
+    FieldLetterBody, ComposeLetter, SendLetter, OpenLetter, DeleteLetter, ReplyLetter,
+    MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock
 };
 struct HubRegion {
     float x, y, w, h;
@@ -100,6 +103,7 @@ struct HubState {
     char viewed_name[33], viewed_peer[65], recipient[65], recipient_name[33];
     char lobby_title[65];
     char account_handle[25], account_recovery[44];
+    char social_handle[25], letter_to[25], letter_subject[65], letter_body[2049];
     bool lobby_listed = true, pending_listing;
     NativeContentId gift_id;
     char gift_title[64];
@@ -132,6 +136,9 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
                       const char* peer = nullptr, const char* name = nullptr);
 void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action, bool secret = false);
+unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,
+    float size, uint32_t color, unsigned first_line = 0);
+unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, float width);
 void nativeHub_Panel(float x, float y, float w, float h);
 void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);
 void nativeHub_RenderPage(NativeHubPage page);
