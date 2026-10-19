@@ -282,31 +282,39 @@ namespace {
         unsigned length = unsigned(std::strlen(field));
         hub.caret = std::min(hub.caret, length);
         if (key == SDLK_RETURN) {
+            HubAction action = HubAction::None;
             if (field == hub.letter_body) {
-                if (modifiers & SDL_KMOD_CTRL) queue(HubAction::SendLetter);
+                if (modifiers & SDL_KMOD_CTRL) action = HubAction::SendLetter;
                 else nativeHub_EnterText("\n");
             } else if (field == hub.bio && (modifiers & SDL_KMOD_SHIFT)) {
                 nativeHub_EnterText("\n");
             } else if (field == hub.social_handle) {
-                queue(HubAction::SocialLookup);
+                action = HubAction::SocialLookup;
             } else if (field == hub.letter_to) {
                 text_focus(hub.letter_subject, sizeof(hub.letter_subject));
             } else if (field == hub.letter_subject) {
                 text_focus(hub.letter_body, sizeof(hub.letter_body));
             } else if (hub.page == NativeHubPage_Account) {
-                queue(HubAction::AccountSubmit);
+                action = HubAction::AccountSubmit;
             } else if (field == hub.chat) {
-                queue(HubAction::SendChat);
+                action = HubAction::SendChat;
             } else if (field == hub.room_chat) {
-                queue(HubAction::SendRoomChat);
+                action = HubAction::SendRoomChat;
             } else if (field == hub.code) {
-                queue(HubAction::Join);
+                action = HubAction::Join;
+            } else if (field == hub.lobby_title) {
+                action = HubAction::CreateNamedLobby;
             } else if (field == hub.title) {
-                queue(hub.rename ? HubAction::ApplyRename
-                                 : HubAction::CreateClone);
+                action = hub.rename ? HubAction::ApplyRename : HubAction::CreateClone;
             } else {
-                text_focus(nullptr, 0);
-                queue(HubAction::SaveProfile);
+                action = HubAction::SaveProfile;
+            }
+            for (unsigned i = 0; action != HubAction::None && i < hub.region_count; ++i) {
+                const auto& region = hub.regions[i];
+                if (region.enabled && region.action == action) {
+                    queue(region.action, region.value, region.peer, region.peer_name, region.account);
+                    break;
+                }
             }
             return;
         }

@@ -26,8 +26,8 @@ namespace {
         std::snprintf(request.bio, sizeof(request.bio), "%s", hub.bio);
         std::snprintf(request.recovery, sizeof(request.recovery), "%s", hub.account_recovery);
         if (target) std::snprintf(request.target, sizeof(request.target), "%s", target);
-        nativeHub_ChangePage(hub.page);
-        if (!nativeAccount_Submit(request)) nativeHub_Notice("An account request is already running. Please wait.");
+        if (nativeAccount_Submit(request)) nativeHub_ChangePage(hub.page);
+        else nativeHub_Notice("An account request is already running. Please wait.");
         SDL_memset(hub.account_recovery, 0, sizeof(hub.account_recovery));
         SDL_memset(&request, 0, sizeof(request));
     }
