@@ -36,6 +36,8 @@ def main():
         draft = client.data/args.project
         costume = draft/'costume.dat'
         original = costume.read_bytes()
+        names=draft/'workshop_names.txt'
+        original_names=names.read_bytes() if names.exists() else b''
         def tool(*parts):
             result = subprocess.run([str(args.tool.resolve()), *map(str, parts)],
                 capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -68,10 +70,10 @@ def main():
                     return {int(index): (float(x), float(y)) for index, x, y in rows}
                 time.sleep(.1)
             raise RuntimeError('Surface query failed: '+text)
-        def weights():
-            return {int(index): {int(bone): float(weight) for bone, weight in
-                    re.findall(r'joint (\d+) ([\d.e+-]+)', tail)}
-                    for index, tail in re.findall(r'vertex (\d+):[^\n]*?\)([^\n]*)',
+        def vertices():
+            return {int(index): (tuple(float(v.strip()) for v in position.split(',')),
+                    {int(bone): float(weight) for bone, weight in re.findall(r'joint (\d+) ([\d.e+-]+)', tail)})
+                    for index, position, tail in re.findall(r'vertex (\d+): \(([^)]+)\)([^\n]*)',
                         tool('project-model-vertices', draft, args.mesh))}
         def save():
             client.click('workshop-save-top')
@@ -99,13 +101,13 @@ def main():
         # different vertex. This exercises the same native mouse brush as users.
         chosen = max(points, key=lambda i: min((points[i][0]-p[0])**2 + (points[i][1]-p[1])**2
                                               for j, p in points.items() if j != i))
-        before = weights()
+        before = vertices()
         joints = re.findall(r'joint (\d+) parent -?\d+ offset 0x([\da-fA-F]+) flags 0x([\da-fA-F]+)',
                             tool('project-model-joints', draft))
         data=costume.read_bytes()[32:]
         target = next(int(index) for index, offset, flags in joints
                       if int(flags, 16)&1 and struct.unpack_from('>I',data,int(offset,16)+56)[0] and
-                      before[chosen].get(int(index), 0) < .8)
+                      before[chosen][1].get(int(index), 0) < .8)
         client.click(f'workshop-model-joint-{target}')
         points = surface()
         receipt.update(vertex=chosen, joint=target, original_sha256=hashlib.sha256(original).hexdigest())
@@ -119,12 +121,13 @@ def main():
         client.command('ui-click', round(x+(width-w)/2+point[0]*w), round(y+(height-h)/2+point[1]*h))
         time.sleep(.6); ready()
         painted = save()
+        painted_names=names.read_bytes()
         assert painted != original, client.inspect('workshop-editor-status')
-        after = weights()
-        expected = before[chosen].get(target, 0)+.2
-        assert abs(after[chosen].get(target, 0)-expected) < 2e-6, (chosen, target, expected, after[chosen])
+        after = vertices()
+        expected = before[chosen][1].get(target, 0)+.2
+        assert abs(after[chosen][1].get(target, 0)-expected) < 2e-6, (chosen, target, expected, after[chosen])
         retained = surface()
-        unchanged = [index for index in points if before[index] == after[index]]
+        unchanged = [index for index in points if before[index][1] == after[index][1]]
         assert unchanged and all(index in retained for index in unchanged)
         displacement = max(max(abs(points[index][axis]-retained[index][axis]) for axis in range(2))
                            for index in unchanged)
@@ -132,9 +135,14 @@ def main():
         receipt.update(unchanged_vertices=len(unchanged), max_screen_displacement=displacement)
         receipt['screenshots'].append(str(client.screenshot()))
         client.click('workshop-undo'); assert save() == original
+        assert names.read_bytes()==original_names, 'Undo did not restore source facts'
         client.click('workshop-redo'); assert save() == painted
+        assert names.read_bytes()==painted_names, 'Redo did not restore source facts'
+        receipt.update(source_facts_undo_redo_exact=True,
+                       original_source_facts_sha256=hashlib.sha256(original_names).hexdigest(),
+                       painted_source_facts_sha256=hashlib.sha256(painted_names).hexdigest())
         if args.reimport:
-            prior_weights=weights();prior_points=surface()
+            prior_vertices=vertices();prior_points=surface()
             client.click('workshop-model-context-meshes')
             client.click('workshop-model-reimport')
             client.enter('workshop-model-import-path',str(args.reimport.resolve()))
@@ -144,16 +152,25 @@ def main():
                              client.inspect('workshop-model-import-binding'))
             client.click('workshop-model-import-next')
             assert 'visible=0' in client.inspect('workshop-model-import-overlay'),client.inspect('workshop-model-import-note')
-            ready();save();assert weights()==prior_weights
+            ready();save();following_vertices=vertices()
+            # Rest compensation can duplicate a corner's source position;
+            # reimport restores the source sharing. Compare weighted geometry
+            # in both directions, allowing identical aliases to share a vertex.
+            for first,second in ((prior_vertices,following_vertices),(following_vertices,prior_vertices)):
+                for position,weights in first.values():
+                    assert any(weights==other_weights and max(abs(position[a]-other[a]) for a in range(3))<4e-5
+                               for other,other_weights in second.values()), (position,weights)
             client.click('workshop-model-context-skinning')
             following=surface()
-            assert prior_points.keys()==following.keys()
-            reimport_displacement=max(max(abs(prior_points[i][a]-following[i][a]) for a in range(2)) for i in prior_points)
+            assert prior_points and following
+            reimport_displacement=max(min(max(abs(point[a]-other[a]) for a in range(2)) for other in second.values())
+                                      for first,second in ((prior_points,following),(following,prior_points)) for point in first.values())
             assert reimport_displacement<1e-5, reimport_displacement
-            receipt.update(reimport_weights_preserved=True,reimport_screen_displacement=reimport_displacement)
+            receipt.update(reimport_weights_preserved=True,reimport_screen_displacement=reimport_displacement,
+                           reimport_vertices_before=len(prior_vertices),reimport_vertices_after=len(following_vertices))
             receipt['screenshots'].append(str(client.screenshot()))
         receipt.update(status='PASS', painted_sha256=hashlib.sha256(painted).hexdigest(),
-                       weight_before=before[chosen].get(target, 0), weight_after=after[chosen][target])
+                       weight_before=before[chosen][1].get(target, 0), weight_after=after[chosen][1][target])
         print('PASS: native stock brush, saved weight, exact Undo/Redo')
     except Exception as error:
         receipt.update(status='FAIL', error=str(error))

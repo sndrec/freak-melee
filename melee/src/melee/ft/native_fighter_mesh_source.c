@@ -22,6 +22,14 @@ static bool valid(const NativeFighterMeshSource* source)
        !text_valid(source->path,sizeof(source->path)) ||
        !text_valid(source->identity,sizeof(source->identity))) return false;
     for(unsigned i=0;i<16;++i) if(!isfinite(source->transform[i])) return false;
+    if(source->has_rest_adjustment) {
+        const float* m=source->rest_adjustment;
+        for(unsigned i=0;i<16;++i)if(!isfinite(m[i]))return false;
+        if(m[3]!=0 || m[7]!=0 || m[11]!=0 || m[15]!=1)return false;
+        const double determinant=(double)m[0]*((double)m[5]*m[10]-(double)m[6]*m[9])-
+            (double)m[4]*((double)m[1]*m[10]-(double)m[2]*m[9])+(double)m[8]*((double)m[1]*m[6]-(double)m[2]*m[5]);
+        if(!isfinite(determinant)||determinant==0)return false;
+    }
     return true;
 }
 const NativeFighterMeshSource* nativeFighterMeshSource_Get(const NativeFighterProject* project,uint32_t mesh)
@@ -110,6 +118,20 @@ bool nativeFighterMeshSource_Parse(NativeFighterProject* project,char* row)
        !decode(source.identity,sizeof(source.identity),fields[10])) return false;
     source.used=true;return nativeFighterMeshSource_Set(project,&source);
 }
+bool nativeFighterMeshSource_ParseRest(NativeFighterProject* project,char* row)
+{
+    char* tab=strchr(row,'\t');if(!tab)return false;*tab++=0;
+    uint64_t mesh;if(!integer(row,UINT32_MAX,10,&mesh))return false;
+    const NativeFighterMeshSource* existing=nativeFighterMeshSource_Get(project,(uint32_t)mesh);
+    if(!existing || existing->has_rest_adjustment)return false;
+    NativeFighterMeshSource source=*existing;source.has_rest_adjustment=true;
+    for(unsigned i=0;i<16;++i) {
+        char* end;errno=0;source.rest_adjustment[i]=strtof(tab,&end);
+        if(errno || end==tab || *end!=(i==15?0:','))return false;
+        tab=end+1;
+    }
+    return nativeFighterMeshSource_Set(project,&source);
+}
 static bool encoded(char** at,size_t* remaining,const char* text)
 {
     for(const unsigned char* c=(const unsigned char*)text;*c;++c) {
@@ -140,5 +162,18 @@ size_t nativeFighterMeshSource_Format(const NativeFighterMeshSource* source,char
     if(!encoded(&at,&remaining,source->path) || remaining<2)return 0;
     *at++='\t';--remaining;
     if(!encoded(&at,&remaining,source->identity) || remaining<2)return 0;
-    *at++='\n';*at=0;return (size_t)(at-row);
+    *at++='\n';--remaining;*at=0;
+    if(source->has_rest_adjustment) {
+        n=snprintf(at,remaining,"mesh-rest\t%u\t",source->mesh);
+        if(n<=0 || (size_t)n>=remaining)return 0;
+        at+=n;remaining-=n;
+        for(unsigned i=0;i<16;++i) {
+            n=snprintf(at,remaining,"%s%.9g",i?",":"",source->rest_adjustment[i]);
+            if(n<=0 || (size_t)n>=remaining)return 0;
+            at+=n;remaining-=n;
+        }
+        if(remaining<2)return 0;
+        *at++='\n';*at=0;
+    }
+    return (size_t)(at-row);
 }

@@ -17,6 +17,7 @@ bool parse_row(char* row,NativeFighterProject* candidate)
     if(!tab)return false;
     *tab++=0;
     if(!std::strcmp(row,"mesh-source"))return nativeFighterMeshSource_Parse(candidate,tab);
+    if(!std::strcmp(row,"mesh-rest"))return nativeFighterMeshSource_ParseRest(candidate,tab);
     char* end;
     if(*tab<'0'||*tab>'9')return false;
     errno=0;

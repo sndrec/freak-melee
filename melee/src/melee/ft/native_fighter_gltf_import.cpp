@@ -28,6 +28,7 @@ extern "C" {
 #include <sysdolphin/baselib/mobj.h>
 #include <sysdolphin/baselib/displayfunc.h>
 #include <sysdolphin/baselib/tobj.h>
+#include <sysdolphin/baselib/mtx.h>
 #ifdef __cplusplus
 }
 #endif
@@ -478,6 +479,7 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                      const NativeFighterModelEditor& model,
                      const SkinBinding* skin, const TransferSkin* transfer,
                      const NativeGltfSourceSkin* authored,
+                     const float* rest_adjustment,
                      uint32_t* polygon, NativeFighterMeshSource* metadata,
                      char* error, size_t error_size)
 {
@@ -536,6 +538,12 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         fail(error, error_size, "Mesh node has a non-invertible transform.");
         return false;
     }
+    Mtx rest,rest_normal;C_MTXIdentity(rest);C_MTXIdentity(rest_normal);
+    if(rest_adjustment) {
+        for(unsigned r=0;r<3;++r)for(unsigned c=0;c<4;++c)rest[r][c]=rest_adjustment[r+c*4];
+        Mtx inverse;if(!C_MTXInverse(rest,inverse))return false;
+        C_MTXTranspose(inverse,rest_normal);
+    }
     std::vector<NativeSkinWeights> generated;
     if (skin && !authored) generated.resize(vertices);
     if (authored && authored->vertices.size() != vertices) return false;
@@ -546,7 +554,13 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         morph.previous=authored;morph.weights=skin?&vertex_palette:nullptr;
         morph.scale=scale;morph.texcoords=uvs;
         std::memcpy(morph.transform,world,sizeof(world));
-        for(unsigned i=0;i<9;++i)morph.normal_transform[i]=cofactors[i]/determinant;
+        for(unsigned r=0;r<3;++r)for(unsigned c=0;c<3;++c) {
+            morph.transform[r+c*4]=0;morph.normal_transform[r+c*3]=0;
+            for(unsigned k=0;k<3;++k) {
+                morph.transform[r+c*4]+=rest[r][k]*world[k+c*4];
+                morph.normal_transform[r+c*3]+=rest_normal[r][k]*cofactors[k+c*3]/determinant;
+            }
+        }
         morph.positions.resize(vertices*3);morph.normals.resize(vertices*3);morph.normal_scale.resize(vertices);
     }
     for (unsigned i = 0; i < vertices; ++i) {
@@ -562,8 +576,12 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                 p += world[axis + k * 4] * xyz[k];
             world_position[axis] = p * scale + (authored ? world[12+axis] : 0);
             if (!std::isfinite(world_position[axis])) return false;
-            befloat(dat->data.data() + positions + i * 12 + axis * 4,
-                    world_position[axis]);
+        }
+        Vec3 point,placed;std::memcpy(&point,world_position,sizeof(point));C_MTXMultVec(rest,&point,&placed);
+        std::memcpy(world_position,&placed,sizeof(placed));
+        for(unsigned axis=0;axis<3;++axis) {
+            if(!std::isfinite(world_position[axis]))return false;
+            befloat(dat->data.data()+positions+i*12+axis*4,world_position[axis]);
         }
         if (skin && !authored) generated[i] = transfer
             ? transfer->palette(world_position)
@@ -579,14 +597,17 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
                                        transformed[1] * transformed[1] +
                                        transformed[2] * transformed[2]);
         if (!std::isfinite(length) || length < 1e-9f) return false;
-        for (unsigned axis = 0; axis < 3; ++axis)
-            befloat(dat->data.data() + normals + i * 12 + axis * 4,
-                    transformed[axis] / length);
+        for(unsigned axis=0;axis<3;++axis)((float*)&point)[axis]=transformed[axis]/length;
+        C_MTXMultVecSR(rest_normal,&point,&placed);
+        for(unsigned axis=0;axis<3;++axis) {
+            if(!std::isfinite(((float*)&placed)[axis]))return false;
+            befloat(dat->data.data()+normals+i*12+axis*4,((float*)&placed)[axis]);
+        }
         if (uv) for (unsigned axis = 0; axis < 2; ++axis)
             befloat(dat->data.data() + uvs + i * 8 + axis * 4, tex[axis]);
         if(mesh->targets_count) {
             std::copy(world_position,world_position+3,morph.positions.data()+i*3);
-            for(unsigned axis=0;axis<3;++axis)morph.normals[i*3+axis]=transformed[axis]/length;
+            std::memcpy(morph.normals.data()+i*3,&placed,sizeof(placed));
             morph.normal_scale[i]=1/length;
         }
     }
@@ -953,7 +974,12 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
                          skinned ? &skin : nullptr,
                          binding == NATIVE_GLTF_BIND_TRANSFER ? &transfer : nullptr,
                          binding == NATIVE_GLTF_BIND_SOURCE || (binding==NATIVE_GLTF_BIND_KEEP && !kept_rigid) ? &authored : nullptr,
+                         binding==NATIVE_GLTF_BIND_KEEP && previous_source.has_rest_adjustment?previous_source.rest_adjustment:nullptr,
                          &polygon, &metadata, error, error_size)) return false;
+    if(binding==NATIVE_GLTF_BIND_KEEP && previous_source.has_rest_adjustment) {
+        metadata.has_rest_adjustment=true;
+        std::memcpy(metadata.rest_adjustment,previous_source.rest_adjustment,sizeof(metadata.rest_adjustment));
+    }
     if(binding==NATIVE_GLTF_BIND_KEEP && !kept_rigid) {
         metadata.uses_bind_shape=previous_source.uses_bind_shape;
         if(!metadata.uses_bind_shape)

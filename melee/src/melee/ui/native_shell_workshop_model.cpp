@@ -564,6 +564,7 @@ bool apply_joint_transform()
         return true;
     }
     NativeModelJoint& target = active->model.joints[active->selected_joint];
+    const auto before_labels=label_snapshot();
     const std::vector<uint8_t> before(active->project->costume_dat,
         active->project->costume_dat + active->project->costume_size);
     for (unsigned a = 0; a < 3; ++a) {
@@ -588,7 +589,8 @@ bool apply_joint_transform()
         status("This rest edit could not preserve the model. Check for invalid or singular transforms.");
         return false;
     }
-    record_asset(before);
+    const bool asset_changed=record_asset(before);
+    record_label_change(before_labels,asset_changed);
     nativeHome_WorkshopPoseInvalidate();
     status(nativeShellWorkshop_RefreshPreview()
         ? "Rest rig updated; meshes kept in place. Review inherited clips."
@@ -742,6 +744,7 @@ void stroke_end()
     }
     const std::vector<uint8_t> before(active->project->costume_dat,
                                       active->project->costume_dat + active->project->costume_size);
+    const auto before_labels=label_snapshot();
     unsigned affected = 0;
     char error[192] = {};
     if (!nativeFighterSkin_Paint(active->project, (unsigned) active->selected_mesh,
@@ -760,7 +763,8 @@ void stroke_end()
         status("This brush stroke did not change any vertex weights.");
         return;
     }
-    record_asset(before);
+    const bool asset_changed=record_asset(before);
+    record_label_change(before_labels,asset_changed);
     reopen_model();
     const bool preview = nativeShellWorkshop_RefreshPreview();
     status(std::to_string(affected) + " vertices painted. " +

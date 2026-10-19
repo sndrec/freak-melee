@@ -235,7 +235,9 @@ import, materials, rigging and skinning, not mesh modeling.
   dialog now handles selected/whole-source reimport with per-mesh scales and
   separate material/binding choices. Native checks pass painted/shared data,
   topology rejection/transfer, byte-exact Undo/Redo, reopen without the source,
-  and Test Character. See the checkpoint for receipts and limits.
+  and Test Character. [Rest edits and reimport](melee/docs/native_gltf_rest_checkpoint.md)
+  now retain attachment coordinate corrections and publish them with Model
+  history. See the checkpoints for receipts and limits.
 - [ ] Extend painting across the supported editable mesh set and remove storage
   limits that prevent useful authored models; do not introduce tick allocation.
   Imported meshes now retain up to 16 floating-point influences through painting

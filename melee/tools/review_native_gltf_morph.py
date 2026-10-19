@@ -13,7 +13,7 @@ from review_native_source_skin import Glb, mul, inverse, column_major, hashes
 
 
 def fixture(path, joints, *, skinned=False, reordered=False, fault=None,
-            defaults='node', anonymous=False, mirrored=False, count=4):
+            defaults='node', anonymous=False, mirrored=False, count=4, morph=True):
     g = Glb()
     unit = 1.25 if skinned else 1
     base = [(-3, 1, 0), (2, 1, 0), (2, 6, .25), (-3, 6, -.5)]
@@ -89,6 +89,9 @@ def fixture(path, joints, *, skinned=False, reordered=False, fault=None,
         for row in range(3):
             node['matrix'][row] *= -1
     mesh_node = len(nodes)
+    if not morph:
+        del primitive['targets']
+        mesh.pop('weights', None);mesh.pop('extras', None);node.pop('weights', None)
     nodes.append(node)
     g.doc.update(meshes=[mesh], nodes=nodes, scenes=[dict(nodes=[0, mesh_node] if skinned else [0])], scene=0)
     g.save(path)
@@ -124,6 +127,7 @@ def main():
                            ('mesh-default', dict(defaults='mesh')), ('zero', dict(defaults='zero')),
                            ('anonymous', dict(anonymous=True)), ('mirrored', dict(mirrored=True))]:
         fixture(output/(name+'.glb'), joints, **options)
+    fixture(output/'ordinary.glb', joints, morph=False)
     for fault in ('missing', 'bad-count', 'nan', 'tangent'):
         fixture(output/(fault+'.glb'), joints, fault=fault, reordered=fault != 'missing')
     for name, options in [('large', {}), ('large-reordered', dict(reordered=True)),
