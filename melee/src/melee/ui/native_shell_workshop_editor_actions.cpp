@@ -995,9 +995,7 @@ void apply_history(bool redo)
                 session->project, NativeAuthoring_Action, edit.label_action,
                 value.c_str()) ||
             !nativeFighterAuthoring_SetHidden(session->project,
-                                              edit.label_action, hidden) ||
-            !nativeFighterAuthoring_Save(session->project_path,
-                                         session->project))
+                                              edit.label_action, hidden))
         {
             return;
         }

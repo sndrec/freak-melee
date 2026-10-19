@@ -407,7 +407,7 @@ void render_inspector()
                  "type='text' maxlength='63' value='" +
                  escape(label) +
                  "'/><button id='workshop-model-rename' "
-                 "class='room-button'>Save name</button></div>" +
+                 "class='room-button'>Apply name</button></div>" +
                  markup;
     }
     if (active->context == Context::Skeleton) markup += rig_inspector();
@@ -1073,6 +1073,9 @@ bool nativeShellWorkshopModel_Open(unsigned member,
         session.project = fighter;
         session.selected_joints[0] = true;
         if(!nativeFighterCoreAssets_Capture(*fighter,session.saved_assets))return false;
+        uint8_t* names=nullptr;size_t names_size=0;
+        if(!nativeFighterAuthoring_Encode(fighter,&names,&names_size))return false;
+        session.saved_authoring.assign(names,names+names_size);std::free(names);
         loaded = nativeFighterModel_Open(&session.model, fighter);
         if (loaded) {
             session.selected_mesh = session.model.mesh_count ? 0 : -1;
@@ -1245,14 +1248,13 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
                       : category == NativeAuthoring_Material
                           ? active->model.materials[selected].offset
                           : active->model.joints[selected].offset,
-                      input("workshop-model-name")->GetValue().c_str()) &&
-                  nativeFighterAuthoring_Save(active->path, active->project);
+                      input("workshop-model-name")->GetValue().c_str());
         if (ok) {
             record_label_change(before_labels, false);
         }
         reopen_model();
         render();
-        status(ok ? "Name saved to the draft."
+        status(ok ? "Name applied. Save to keep it."
                   : "Could not save this name. Use up to 63 bytes without "
                     "tabs or newlines.");
         return true;
@@ -1599,7 +1601,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         }
         const bool asset_changed=record_asset(before,fighter);
         record_label_change(before_labels, asset_changed);
-        nativeFighterAuthoring_Save(active->path, active->project);
         reopen_model();
         for (unsigned i = 0; i < active->model.mesh_count; ++i)
             if (destination_offset
@@ -1740,8 +1741,13 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member)
 {
     if (member >= 2) return false;
     const ModelSession& session = sessions[member];
-    return session.project != nullptr &&
-           !nativeFighterCoreAssets_Matches(*session.project,session.saved_assets);
+    if(!session.project)return false;
+    if(!nativeFighterCoreAssets_Matches(*session.project,session.saved_assets))return true;
+    uint8_t* names=nullptr;size_t size=0;
+    if(!nativeFighterAuthoring_Encode(session.project,&names,&size))return true;
+    const bool changed=size!=session.saved_authoring.size() ||
+        (size && std::memcmp(names,session.saved_authoring.data(),size));
+    std::free(names);return changed;
 }
 
 void nativeShellWorkshopModel_Inspect()
@@ -1769,6 +1775,10 @@ void nativeShellWorkshopModel_MarkSaved(unsigned member)
     ModelSession& session = sessions[member];
     if (session.project == nullptr) return;
     nativeFighterCoreAssets_Capture(*session.project,session.saved_assets);
+    uint8_t* names=nullptr;size_t size=0;
+    if(nativeFighterAuthoring_Encode(session.project,&names,&size)) {
+        session.saved_authoring.assign(names,names+size);std::free(names);
+    }
 }
 
 

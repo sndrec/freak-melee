@@ -111,7 +111,7 @@
           <button id="workshop-action-tools-toggle" class="workshop-action-group-button">Edit name / visibility</button>
           <div id="workshop-action-tools" style="display: none">
             <label class="field-label">Action name</label><input id="workshop-action-name" class="room-input" type="text" maxlength="63"/>
-            <button id="workshop-action-rename" class="room-button">Save name</button><button id="workshop-action-hide" class="room-button">Hide action in editor</button>
+            <button id="workshop-action-rename" class="room-button">Apply name</button><button id="workshop-action-hide" class="room-button">Hide action in editor</button>
           </div>
           <label class="workshop-hitbox-check"><input id="workshop-show-hidden-actions" type="checkbox"/> Show hidden actions</label><div id="workshop-action-list"></div>
           <div id="workshop-linked-resources">

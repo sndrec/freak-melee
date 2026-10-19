@@ -66,6 +66,7 @@ struct ModelSession {
     std::vector<Change> changes;
     size_t change_cursor = 0;
     NativeFighterCoreAssetState saved_assets;
+    std::vector<uint8_t> saved_authoring;
     char import_path[260] = {};
     NativeGltfScan import_scan = {};
     bool import_selected[NATIVE_GLTF_MAX_PRIMITIVES] = {};

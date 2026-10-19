@@ -782,8 +782,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
                             session->project, action,
                             !nativeFighterAuthoring_Hidden(session->project,
                                                            action));
-        ok = ok && nativeFighterAuthoring_Save(session->project_path,
-                                               session->project);
         if (ok) {
             const char* current = nativeFighterAuthoring_Name(
                 session->project, NativeAuthoring_Action, action);
@@ -814,8 +812,8 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
                      ? "Show action in editor"
                      : "Hide action in editor");
         set_text("workshop-editor-status",
-                 ok ? "Action name and editor visibility saved."
-                    : "Could not save the action label.");
+                 ok ? "Action name and editor visibility applied. Save to keep them."
+                    : "Could not apply the action label.");
         return true;
     }
 

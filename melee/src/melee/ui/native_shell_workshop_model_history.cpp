@@ -158,7 +158,6 @@ bool nativeShellWorkshopModel_Undo(bool redo)
     if (change.labels_saved) {
         std::free(active->project->authoring);
         active->project->authoring = names;
-        nativeFighterAuthoring_Save(active->path, active->project);
     }
     // Restore only reference bytes changed by this model operation. Preserve
     // unrelated action, attribute and clip edits made in the other workspaces.

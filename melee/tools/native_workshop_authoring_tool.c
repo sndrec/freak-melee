@@ -95,7 +95,7 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
                 plan.matches[i].primitive,plan.matches[i].joint,plan.matches[i].mesh,
                 binding,plan.matches[i].scale,!strcmp(args[6],"replace-materials")};
             ok=nativeFighterGltf_ApplyBatch(&p,args[3],requests,plan.count,error,sizeof(error)) &&
-                nativeFighterProject_SaveCostume(args[1],&p) && nativeFighterAuthoring_Save(args[1],&p);
+                nativeFighterProject_SaveAssets(args[1],&p,error,sizeof(error));
         }
     }
     if (create && count == 5 && number(args[2], &a) && number(args[4], &b)) {
@@ -121,13 +121,13 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
         }
         ok = category < 4 &&
              nativeFighterAuthoring_SetName(&p, category, a, args[4]) &&
-             nativeFighterAuthoring_Save(args[1], &p);
+             nativeFighterProject_SaveAssets(args[1], &p,error,sizeof(error));
     }
     if (hidden && count == 4 && number(args[2], &a) && number(args[3], &b) &&
         b < 2)
     {
         ok = nativeFighterAuthoring_SetHidden(&p, a, b != 0) &&
-             nativeFighterAuthoring_Save(args[1], &p);
+             nativeFighterProject_SaveAssets(args[1], &p,error,sizeof(error));
     }
     if (sequences && count == 3 && number(args[2], &a)) {
         NativeFighterModelEditor* model = calloc(1, sizeof(*model));
@@ -172,8 +172,7 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
             ok =
                 nativeFighterGltf_ApplyBatch(&p, args[2], requests, scan.count,
                                              error, sizeof(error)) &&
-                nativeFighterProject_SaveCostume(args[1], &p) &&
-                nativeFighterAuthoring_Save(args[1], &p);
+                nativeFighterProject_SaveAssets(args[1], &p,error,sizeof(error));
         }
     }
 done:

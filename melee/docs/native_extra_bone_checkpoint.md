@@ -615,6 +615,11 @@ Tool SHA-256: `1f9fa312503787b69c1b60eeca7180b5125637511ae7073e83af031c7b4733f7`
 
 ## Coordinated core-asset saving
 
+This section records the original four-file save milestone. The current save
+also includes editor metadata and source links; see the
+[reimport checkpoint](native_gltf_reimport_checkpoint.md#coordinated-editor-metadata-saving)
+for the five-file transaction and its verification.
+
 The Workshop Save button now calls `nativeFighterProject_SaveAssets` once per
 edited family member. This publishes `fighter.dat`, `animation.dat`,
 `costume.dat` and `assets.fma` together. It imports the complete candidate and

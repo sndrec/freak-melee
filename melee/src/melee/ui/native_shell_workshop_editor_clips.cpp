@@ -65,7 +65,6 @@ namespace WorkshopEditor {
                 session->project, NativeAuthoring_ActionGroup, target,
                 std::to_string(action_group).c_str());
         }
-        nativeFighterAuthoring_Save(session->project_path, session->project);
         record_structural_edit(true, before.data(), before.size(),
                                fighter.data(), fighter.size());
         session->animation_dirty = session->action_dirty = true;

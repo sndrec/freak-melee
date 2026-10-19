@@ -34,8 +34,9 @@ bool nativeFighterAuthoring_Hidden(const NativeFighterProject*,
 bool nativeFighterAuthoring_SetHidden(NativeFighterProject*, unsigned action,
                                       bool);
 bool nativeFighterAuthoring_Load(const char* path, NativeFighterProject*);
-bool nativeFighterAuthoring_Save(const char* path,
-                                 const NativeFighterProject*);
+// Encoded storage belongs to the caller. Decode publishes only complete valid data.
+bool nativeFighterAuthoring_Encode(const NativeFighterProject*,uint8_t** bytes,size_t* size);
+bool nativeFighterAuthoring_Decode(const uint8_t* bytes,size_t size,NativeFighterProject*);
 #ifdef __cplusplus
 }
 #endif

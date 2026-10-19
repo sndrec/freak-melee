@@ -3,8 +3,8 @@
 Imports now record their source file and mesh identity in the editable project.
 The matching backend can find those meshes in a new export even when its mesh
 or material-slot arrays are reordered. The backend can preserve painted weights
-and edited materials while replacing geometry. Its Workshop controls and
-coordinated metadata/asset saving remain open.
+and edited materials while replacing geometry. Source links save with the
+matching assets. The Reimport controls remain open.
 
 ## Source identity
 
@@ -85,7 +85,6 @@ transitions and adds no match-tick work.
 - Connect selected-mesh and whole-source reimport to the existing import flow,
   with matched destinations and clear failure messages.
 - Expose the backend's independent material and weight choices in that flow.
-- Save source links coherently with their geometry.
 - Verify painted weights, edited/shared materials, new source geometry,
   Undo/Redo, save/reopen, and Test Character together in the native client.
 
@@ -128,3 +127,44 @@ Verification:
 Game SHA-256: `517615b657e7294e52fb7f089b1813996c19430eabf7ca85b57edf5fc979135d`.
 Tool SHA-256: `1f91b79150a415d87a72c0f41b40495d68953ad6f000ff9260a0fc354da15773`.
 Test SHA-256: `7032fbc1a57ac74605a5c9898ee9e561e05803e69be993bc2a2ee368c0aa48ee`.
+
+## Coordinated editor metadata saving
+
+Workshop Save now stages `workshop_names.txt` together with the four core
+assets and all five predecessor files. Failed replacements restore the matching
+geometry, rig facts, names and source links. `project-assets-undo` restores that
+complete set. A source-only change participates in the same transaction, while
+a no-change save retains the existing predecessor. An absent metadata file is
+represented by an empty predecessor.
+
+Names, hidden-action choices, clip labels and import metadata now stay in memory
+until Save. Model's dirty check includes metadata, so a source-only edit counts
+as an unsaved change. The name buttons say **Apply name**. Undo/Redo changes the
+working draft; Save publishes it. Command-line imports and label operations use
+the coordinated save directly.
+
+Metadata encoding produces a complete private byte buffer. Decoding publishes
+only after every row is valid. Bad later rows, embedded zero bytes, oversized
+rows and invalid source records leave the existing metadata owner unchanged.
+The former independent metadata-file writer has been removed.
+
+Current backend verification:
+
+- `.local/native-project-assets-metadata-1/receipt.json`: **679 checks** pass,
+  including all ten locked current/predecessor destinations, source-only edits,
+  empty predecessors, malformed metadata and complete save Undo/Redo.
+- `.local/native-gltf-coordinated-save-1/receipt.json`: **409 native checks** and
+  saved reimport cases pass through the coordinated save path.
+- `.local/native-source-skin-coordinated-save-1/passed.json`: all nine source-skin
+  import/reimport cases and 16 atomic rejection cases pass.
+- `.local/native-model-coordinated-metadata-1/receipt.json`: native Model painting,
+  animation preview, rest compensation, Save/Undo/Redo, reopen and practice pass.
+- `.local/native-gltf-coordinated-save-ui-2/receipt.json`: source-only import
+  changes stay unsaved until Save, Undo/Redo and reopen pass, and repeated import
+  completes without adding history. The review checks the selected dropdown
+  value and requires the import dialog to close after success. This replaces
+  the earlier no-op check, which could mistake a failed import for a no-op.
+
+Game SHA-256: `6babab80370a08af53e949b3efcb57c5b823a74d7525751fecaaf442edc5ff78`.
+Tool SHA-256: `ae532c497e725a2c68b996afe094b5dd64f68fbda52793d859836134e197a7b4`.
+Save-test SHA-256: `1518e86ac8af6a7c3af2d6c37c70ba08c5d34972e8cc518569d5c4080e69b146`.

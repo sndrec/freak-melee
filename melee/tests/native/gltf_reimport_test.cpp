@@ -73,7 +73,7 @@ int main(int argc,char** argv)
     std::memset(source.identity+9,'Q',200);source.identity[209]=0;
     source.transform[1]=1.40129846e-45f;
     CHECK(nativeFighterMeshSource_Set(&project,&source));
-    CHECK(nativeFighterAuthoring_Save(argv[1],&project));
+    CHECK(nativeFighterProject_SaveAssets(argv[1],&project,error,sizeof(error)));
     NativeFighterProject loaded={};CHECK(nativeFighterAuthoring_Load(argv[1],&loaded));
     const auto* roundtrip=nativeFighterMeshSource_Get(&loaded,offsets[0]);CHECK(roundtrip);
     CHECK(roundtrip->mesh==source.mesh && roundtrip->vertices==source.vertices && roundtrip->corners==source.corners);

@@ -1,12 +1,7 @@
 #include "native_fighter_authoring.h"
 #ifdef MELEE_NATIVE
-#include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
-static const char* const categories[] = { "bone", "mesh", "material", "action",
-                                          "action-group" };
 static char* name_at(NativeFighterAuthoring* names, unsigned category,
                      unsigned key, bool create)
 {
@@ -113,106 +108,5 @@ bool nativeFighterAuthoring_SetHidden(NativeFighterProject* p, unsigned action,
     }
     p->authoring->hidden_actions[action] = hidden;
     return true;
-}
-bool nativeFighterAuthoring_Load(const char* path, NativeFighterProject* p)
-{
-    char filename[600];
-    if (snprintf(filename, sizeof(filename), "%s/workshop_names.txt", path) >=
-        (int) sizeof(filename))
-    {
-        return false;
-    }
-    FILE* file = fopen(filename, "rb");
-    if (!file) {
-        return errno == ENOENT;
-    }
-    char line[4096];
-    bool ok = true;
-    while (ok && fgets(line, sizeof(line), file)) {
-        line[strcspn(line, "\r\n")] = 0;
-        if (!*line) {
-            continue;
-        }
-        char* tab = strchr(line, '\t');
-        if (!tab) {
-            ok = false;
-            break;
-        }
-        *tab++ = 0;
-        if (!strcmp(line, "mesh-source")) {
-            ok = nativeFighterMeshSource_Parse(p, tab);
-            continue;
-        }
-        char* end;
-        unsigned long index = strtoul(tab, &end, 10);
-        if (end == tab || index > UINT32_MAX) {
-            ok = false;
-            break;
-        }
-        if (!strcmp(line, "hidden")) {
-            ok = *end == 0 && nativeFighterAuthoring_SetHidden(p, index, true);
-            continue;
-        }
-        unsigned c = 0;
-        while (c < NativeAuthoring_CategoryCount &&
-               strcmp(line, categories[c]))
-        {
-            ++c;
-        }
-        ok = c < NativeAuthoring_CategoryCount && *end == '\t' &&
-             nativeFighterAuthoring_SetName(p, c, index, end + 1);
-    }
-    ok = ok && !ferror(file);
-    fclose(file);
-    return ok;
-}
-bool nativeFighterAuthoring_Save(const char* path,
-                                 const NativeFighterProject* p)
-{
-    if (!p) {
-        return false;
-    }
-    char filename[600], temporary[608];
-    if (snprintf(filename, sizeof(filename), "%s/workshop_names.txt", path) >=
-        (int) sizeof(filename))
-    {
-        return false;
-    }
-    snprintf(temporary, sizeof(temporary), "%s.new", filename);
-    FILE* file = fopen(temporary, "wb");
-    if (!file) {
-        return false;
-    }
-    bool ok = true;
-    for (unsigned i = 0; p->authoring && i < 4096; ++i) {
-        if (p->authoring->labels[i].used && *p->authoring->labels[i].name) {
-            if (fprintf(file, "%s\t%u\t%s\n",
-                        categories[p->authoring->labels[i].category],
-                        p->authoring->labels[i].key,
-                        p->authoring->labels[i].name) < 0)
-            {
-                ok = false;
-            }
-        }
-    }
-    for (unsigned i = 0; p->authoring && i < 1024; ++i) {
-        if (p->authoring->hidden_actions[i] &&
-            fprintf(file, "hidden\t%u\n", i) < 0)
-        {
-            ok = false;
-        }
-    }
-    if(ok) ok=nativeFighterMeshSource_Write(p,file);
-    if (fclose(file)) {
-        ok = false;
-    }
-    if (ok) {
-        ok = MoveFileExA(temporary, filename,
-                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-    }
-    if (!ok) {
-        DeleteFileA(temporary);
-    }
-    return ok;
 }
 #endif
