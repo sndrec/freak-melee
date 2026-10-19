@@ -1,20 +1,22 @@
 #include "native_fighter_costume_compact.h"
 #include "native_asset_dat.h"
+#include "native_mesh_vertex_ids.h"
 extern "C" {
 #include <melee/ft/ftcostume_assets.h>
 }
 #include <cstdio>
 #include <limits>
+#include <unordered_set>
 
 namespace {
-struct Span { u32 begin, end, destination; bool pinned; };
-struct Root { u32 offset; HSD_DatImportType type; };
+struct Span { u32 begin, end, destination; bool pinned; u32 type; };
+struct Root { u32 offset; HSD_DatImportType type; u32 index; };
 void source_span(void* context, u32 offset, size_t size, u32 type)
 {
     auto* spans = static_cast<std::vector<Span>*>(context);
     const bool pinned = type == DAT_JOINT || type == DAT_DOBJ || type == DAT_MOBJ ||
                         type == DAT_TOBJ || type == DAT_TEXANIM;
-    spans->push_back({ offset, (u32)(offset + size), 0, pinned });
+    spans->push_back({ offset, (u32)(offset + size), 0, pinned, type });
 }
 bool ends(const char* text, const char* suffix)
 {
@@ -97,19 +99,30 @@ bool nativeFighterCostume_Compact(const NativeFighterProject* project, std::vect
     if (HSD_DatOpen(&dat, bytes->data(), bytes->size()) != HSD_DAT_OK) return false;
     if (dat.extern_count) return unsupported("The costume has external symbol chains.");
     std::vector<Root> roots;
+    u32 identity_index = UINT32_MAX;
     for (u32 i = 0; i < dat.root_count; ++i) {
         u32 offset; const char* name;
         if (!HSD_DatSymbol(&dat, false, i, &offset, &name)) return false;
+        if (std::strcmp(name, NATIVE_MESH_VERTEX_IDS_ROOT) == 0) { identity_index = i; continue; }
         const auto type = root_type(*project, name);
         if (!type) {
             char reason[160]; std::snprintf(reason, sizeof(reason), "Unknown costume root: %.128s", name);
             return unsupported(reason);
         }
-        roots.push_back({ offset, type });
+        roots.push_back({ offset, type, i });
     }
     if (roots.empty()) return false;
     std::vector<Span> spans;
     if (!trace(dat, roots, &spans, error, error_size)) return false;
+    std::vector<NativeMeshVertexIdRow> vertex_ids;
+    if (!nativeMeshVertexIds_Read(dat, &vertex_ids)) {
+        if (error && error_size) std::snprintf(error, error_size, "Invalid mesh vertex identities.");
+        return false;
+    }
+    std::unordered_set<u32> live_polygons;
+    for (const auto& span : spans) if (span.type == DAT_POBJ) live_polygons.insert(span.begin);
+    vertex_ids.erase(std::remove_if(vertex_ids.begin(), vertex_ids.end(),
+        [&](const auto& row) { return !live_polygons.count(row.polygon); }), vertex_ids.end());
     std::sort(spans.begin(), spans.end(), [](const auto& a, const auto& b) {
         return a.begin == b.begin ? a.end < b.end : a.begin < b.begin;
     });
@@ -179,6 +192,21 @@ bool nativeFighterCostume_Compact(const NativeFighterProject* project, std::vect
         NativeAssetDat::be32(data.data() + new_slot, new_target);
         relocations.push_back(new_slot);
     }
+    u32 identity_header = 0;
+    if (identity_index != UINT32_MAX) {
+        for (auto& row : vertex_ids) {
+            u32 destination;
+            if (!mapped(groups, row.polygon, 24, &destination)) return false;
+            row.polygon = (uint32_t)destination;
+        }
+        NativeAssetDat extension;
+        extension.data.swap(data);
+        identity_header = extension.allocate(8);
+        if (identity_header == UINT32_MAX || !nativeMeshVertexIds_Store(extension, identity_header, vertex_ids)) return false;
+        stats.live += extension.data.size()-extent;
+        extension.data.swap(data);
+        relocations.insert(relocations.end(), extension.relocations.begin(), extension.relocations.end());
+    }
     std::sort(relocations.begin(), relocations.end());
     const size_t tail_start = 32 + dat.data_size + size_t(dat.relocation_count) * 4;
     const size_t tail_size = bytes->size()-tail_start;
@@ -198,11 +226,13 @@ bool nativeFighterCostume_Compact(const NativeFighterProject* project, std::vect
         u32 offset;
         if (!mapped(groups, roots[i].offset, 1, &offset)) return false;
         roots[i].offset = offset;
-        NativeAssetDat::be32(tail+i*8, offset);
+        NativeAssetDat::be32(tail+roots[i].index*8, offset);
     }
+    if (identity_index != UINT32_MAX) NativeAssetDat::be32(tail+identity_index*8, identity_header);
     HSD_Dat verified;
     if (HSD_DatOpen(&verified, result.data(), result.size()) != HSD_DAT_OK ||
-        !trace(verified, roots, nullptr, error, error_size)) return false;
+        !trace(verified, roots, nullptr, error, error_size) ||
+        !nativeMeshVertexIds_Read(verified, &vertex_ids)) return false;
     stats.supported = true; stats.after = result.size();
     stats.groups = (unsigned)groups.size(); stats.relocations = (unsigned)relocations.size();
     if (output) for (const auto& group : groups)

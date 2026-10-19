@@ -1,5 +1,7 @@
 #include <melee/ft/native_fighter_skin_mesh.h>
 #include <melee/ft/native_asset_dat.h>
+#include <melee/ft/native_fighter_costume_compact.h>
+#include <melee/ft/native_mesh_vertex_ids.h>
 extern "C" {
 #include <sysdolphin/baselib/dat_import.h>
 #include <sysdolphin/baselib/dobj.h>
@@ -231,6 +233,102 @@ void rejection()
     check(!nativeFighterSkin_Paint(&project,0,3,&center,1,1,.25f,false,&affected,error,sizeof(error)));
     check(!affected && project.costume_dat==pointer && f.file==original);
 }
+
+void large_mesh(bool helper)
+{
+    Fixture f=fixture(helper?2:0,-1,3,false,helper,false);
+    NativeFighterProject project={};
+    std::snprintf(project.facts.costume_joint,sizeof(project.facts.costume_joint),"rig");
+    auto publish=[&](const std::vector<u8>& bytes) {
+        auto* owned=(u8*)std::malloc(bytes.size());check(owned);
+        std::memcpy(owned,bytes.data(),bytes.size());std::free(project.costume_dat);
+        project.costume_dat=owned;project.costume_size=bytes.size();
+    };
+    publish(f.file);
+    auto model=std::make_unique<NativeFighterModelEditor>();check(nativeFighterModel_Open(model.get(),&project));
+    NativeSkinMesh skin;char error[256]={};check(nativeSkinMesh_Read(*model,0,&skin,error,sizeof(error)));
+    const NativeSkinVertex prototype=skin.vertices[0];
+    const NativeSkinCorner corner=skin.parts[0].corners[0];
+    constexpr unsigned vertices=70002;
+    skin.vertices.resize(vertices,prototype);skin.parts.resize(1);
+    auto& part=skin.parts[0];part.corners.clear();part.triangles.clear();skin.corner_vertices.clear();
+    for(unsigned i=0;i<vertices;++i) {
+        skin.vertices[i].position[0]=i*.01f;skin.vertices[i].position[1]=(i%5)*.01f;skin.vertices[i].position[2]=0;
+        auto current=corner;current.vertex=i;part.corners.push_back(current);part.triangles.push_back(i);
+    }
+    // Coincident independent vertices remain distinct; shared vertices across
+    // sections remain one vertex. The final triangle spans far-apart indices.
+    std::memcpy(skin.vertices[vertices-1].position,skin.vertices[vertices-2].position,sizeof(prototype.position));
+    for(unsigned id:{0u,65536u,vertices-1}) {
+        auto current=corner;current.vertex=id;part.triangles.push_back((unsigned)part.corners.size());part.corners.push_back(current);
+    }
+    NativeAssetDat dat;check(dat.open(project.costume_dat,project.costume_size));
+    check(nativeSkinMesh_Write(dat,*model,0,skin));std::vector<u8> bytes;check(dat.finish(&bytes));
+    if(helper) {
+        check(NativeAssetDat::read32(bytes.data()+12)==2);
+        const size_t roots=32+NativeAssetDat::read32(bytes.data()+4)+size_t(NativeAssetDat::read32(bytes.data()+8))*4;
+        for(unsigned i=0;i<8;++i)std::swap(bytes[roots+i],bytes[roots+8+i]);
+    }
+    NativeCostumeCompaction stats;
+    check(nativeFighterCostume_Compact(&project,&bytes,&stats,error,sizeof(error)));check(stats.supported);
+    publish(bytes);check(nativeFighterModel_Open(model.get(),&project));
+    NativeSkinMesh reloaded;check(nativeSkinMesh_Read(*model,0,&reloaded,error,sizeof(error)));
+    check(reloaded.vertices.size()==vertices && reloaded.parts.size()==2 && reloaded.corner_vertices.size()==vertices+3);
+    for(unsigned i=0;i<vertices;++i) {
+        check(!std::memcmp(reloaded.vertices[i].position,skin.vertices[i].position,sizeof(prototype.position)));
+        check(nativeSkinWeights_Equal(&reloaded.vertices[i].skin,&prototype.skin));
+    }
+    check(reloaded.corner_vertices[vertices]==0 && reloaded.corner_vertices[vertices+1]==65536 &&
+        reloaded.corner_vertices[vertices+2]==vertices-1);
+    const size_t initial_size=project.costume_size;
+    std::vector<NativeMeshVertexIdRow> rows;check(nativeMeshVertexIds_Read(model->dat,&rows));check(rows.size()==2);
+    if(helper) {
+        const std::vector<u8> previous(project.costume_dat,project.costume_dat+project.costume_size);
+        const u32 old_polygon=rows[0].polygon;
+        check(nativeFighterModel_SetJoint(model.get(),2,2,0,2.5f));
+        check(nativeFighterModel_CompensateRest(model.get(),previous.data(),previous.size(),2));
+        check(nativeMeshVertexIds_Read(model->dat,&rows));check(rows.size()==2 && rows[0].polygon!=old_polygon);
+        check(nativeSkinMesh_Read(*model,0,&reloaded,error,sizeof(error)));
+        check(reloaded.vertices.size()==vertices && reloaded.corner_vertices[vertices]==0);
+    }
+    NativeSkinBrushPoint center;std::memcpy(center.position,reloaded.vertices[0].position,sizeof(center.position));
+    for(unsigned stroke=0;stroke<4;++stroke) {
+        unsigned affected=0;
+        check(nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.1f,false,&affected,error,sizeof(error)));
+        check(affected==1 && nativeFighterModel_Open(model.get(),&project));
+        check(nativeSkinMesh_Read(*model,0,&reloaded,error,sizeof(error)));
+        check(reloaded.vertices.size()==vertices && reloaded.corner_vertices[vertices]==0 &&
+            reloaded.corner_vertices[vertices+1]==65536);
+        check(std::fabs(nativeSkinWeights_Get(&reloaded.vertices[0].skin,3)-.1f*(stroke+1))<.000001f);
+        check(nativeMeshVertexIds_Read(model->dat,&rows));check(rows.size()==2);
+        check(project.costume_size<initial_size+8192);
+    }
+    // Corrupt the identity root's table reference. Neither reading nor
+    // compaction may publish a partial repair of malformed authoring data.
+    bytes.assign(project.costume_dat,project.costume_dat+project.costume_size);
+    u32 header;check(HSD_DatFindRoot(&model->dat,NATIVE_MESH_VERTEX_IDS_ROOT,&header));
+    NativeAssetDat::be32(bytes.data()+32+header+4,(uint32_t)model->dat.data_size);
+    HSD_Dat invalid;check(HSD_DatOpen(&invalid,bytes.data(),bytes.size())==HSD_DAT_OK);
+    check(!nativeMeshVertexIds_Read(invalid,&rows));const auto corrupt=bytes;
+    check(!nativeFighterCostume_Compact(&project,&bytes,nullptr,error,sizeof(error)) && bytes==corrupt);
+    // Retiring a draw section also retires its ID array. A subsequently small
+    // rewrite can use ordinary shared position indices and drop the IDs.
+    NativeAssetDat removed;check(removed.open(project.costume_dat,project.costume_size));
+    const u32 head=word(*model,model->meshes[0].offset+12);
+    removed.link(model->meshes[0].offset+12,word(*model,head+4));check(removed.finish(&bytes));
+    check(nativeFighterCostume_Compact(&project,&bytes,&stats,error,sizeof(error)) && stats.supported);
+    publish(bytes);check(nativeFighterModel_Open(model.get(),&project));
+    check(nativeMeshVertexIds_Read(model->dat,&rows));check(rows.size()==1);
+    check(nativeSkinMesh_Read(*model,0,&reloaded,error,sizeof(error)) && reloaded.vertices.size()==4471);
+    std::memcpy(center.position,reloaded.vertices[0].position,sizeof(center.position));unsigned affected=0;
+    check(nativeFighterSkin_Paint(&project,0,3,&center,1,.001f,.1f,false,&affected,error,sizeof(error)));
+    check(affected==1 && nativeFighterModel_Open(model.get(),&project));
+    check(nativeMeshVertexIds_Read(model->dat,&rows));check(rows.empty());
+    check(nativeSkinMesh_Read(*model,0,&reloaded,error,sizeof(error)) && reloaded.vertices.size()==4471);
+    check(project.costume_size<initial_size/4);
+    std::printf("large mesh helper=%u vertices=%u corners=%zu bytes=%zu\n",helper,vertices,reloaded.corner_vertices.size(),project.costume_size);
+    std::free(project.costume_dat);++cases;
+}
 }
 int main()
 {
@@ -243,6 +341,7 @@ int main()
             run(2,-1,indexing,nbt,true,false);
         }
         rejection();
+        large_mesh(false);large_mesh(true);
         std::printf("PASS: %u rigid skin cases, %u checks; max position=%g normal=%g\n",cases,checks,max_position_error,max_normal_error);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"FAIL: %s\n",error.what());return 1;}
