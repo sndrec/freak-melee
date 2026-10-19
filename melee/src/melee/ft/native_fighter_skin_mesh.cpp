@@ -226,12 +226,11 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
             !attributes(dat, descriptors, &part.attributes) ||
             !reference(dat, polygon + 16, &display)) return fail();
         bool single[10] = {};
+        int rigid_bone=-1;
         if (type == POBJ_ENVELOPE) {
             if (!reference(dat, polygon + 20, &table) ||
                 !bindings(model, table, &part.bindings, single)) return fail();
         } else {
-            u32 value;
-            if (!HSD_DatReadU32(&dat, polygon + 20, &value) || value) return fail();
             int bone = (int)owner;
             while (bone >= 0 && !(model.joints[bone].flags & 3)) bone = model.joints[bone].parent;
             Mtx inverse;
@@ -243,6 +242,20 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
             NativeSkinWeights rigid = {}; rigid.count = 1;
             rigid.joints[0] = (u16)bone; rigid.weights[0] = 1;
             part.bindings.push_back(rigid);
+            rigid_bone=bone;
+            u32 secondary;const char* external;
+            const auto reference_kind=HSD_DatResolve(&dat,polygon+20,&secondary,&external);
+            if(reference_kind==HSD_DAT_REF_LOCAL) {
+                const int other=joint_index(model,secondary);
+                if(other<0)return fail();
+                // A helper owner contributes an animated model-node transform.
+                // Its own two rigid slots can share the nearest skeleton bone;
+                // a distinct second joint needs a separate coordinate domain.
+                if(!root && !(model.joints[owner].flags & JOBJ_SKELETON) && other!=(int)owner)
+                    return fail();
+                rigid.joints[0]=(u16)(other==(int)owner?bone:other);
+                part.bindings.push_back(rigid);
+            } else if(reference_kind!=HSD_DAT_REF_NULL)return fail();
         }
         Mtx conversion[10], normal_conversion[10];
         for (unsigned slot = 0; slot < part.bindings.size(); ++slot) {
@@ -253,6 +266,17 @@ bool nativeSkinMesh_Read(const NativeFighterModelEditor& model, unsigned mesh,
                     !C_MTXInverse(inverse, conversion[slot])) return fail();
                 for (unsigned r = 0; r < 3; ++r) for (unsigned c = 0; c < 3; ++c)
                     normal_conversion[slot][r][c] = inverse[c][r];
+            } else if(type==POBJ_SKIN && (int)part.bindings[slot].joints[0]!=rigid_bone) {
+                // HSD's non-root envelope domain is inverse(owner bind).
+                // Put the secondary joint's local vertices in that domain.
+                Mtx owner_inverse,other_inverse,other_bind,normal_inverse;
+                if(!nativeSkinMesh_InverseBind(model,owner,owner_inverse) ||
+                   !nativeSkinMesh_InverseBind(model,part.bindings[slot].joints[0],other_inverse) ||
+                   !C_MTXInverse(other_inverse,other_bind))return fail();
+                C_MTXConcat(owner_inverse,other_bind,conversion[slot]);
+                if(!C_MTXInverse(conversion[slot],normal_inverse))return fail();
+                for(unsigned r=0;r<3;++r)for(unsigned c=0;c<3;++c)
+                    normal_conversion[slot][r][c]=normal_inverse[c][r];
             }
         }
         const size_t bytes = size_t(half(header + 14)) * 32;

@@ -118,15 +118,7 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
             const unsigned from = weights.count == 1 ? 0 : i == 0 ? first : i <= first ? i - 1 : i;
             const unsigned bone = weights.joints[from];
             const u32 offset = model.joints[bone].offset;
-            // Root/helper attachments can previously have had no need for an
-            // inverse bind. Their envelope model-node domain uses identity.
-            if (!NativeAssetDat::read32(dat.data.data() + offset + 56)) {
-                if (!(model.joints[bone].flags & JOBJ_SKELETON_ROOT)) return false;
-                const u32 identity = dat.allocate(48);
-                if (identity == UINT32_MAX) return false;
-                for (unsigned axis = 0; axis < 3; ++axis) real(dat, identity + (axis * 4 + axis) * 4, 1);
-                dat.link(offset + 56, identity);
-            }
+            if(!nativeSkinMesh_EnsureInverseBind(dat,model,bone))return false;
             dat.link_local(entries + i * 8, offset);
             real(dat, entries + i * 8 + 4, weights.count == 1 ? .5f : weights.weights[from]);
         }
@@ -141,6 +133,22 @@ bool write_chunk(NativeAssetDat& dat, const NativeFighterModelEditor& model,
     dat.link(*polygon + 16, commands); dat.link(*polygon + 20, table);
     return true;
 }
+}
+bool nativeSkinMesh_EnsureInverseBind(NativeAssetDat& dat,const NativeFighterModelEditor& model,unsigned bone)
+{
+    if(bone>=model.joint_count)return false;
+    const u32 slot=model.joints[bone].offset+56;
+    u32 target;const char* external;
+    const auto kind=HSD_DatResolve(&model.dat,slot,&target,&external);
+    if(kind==HSD_DAT_REF_LOCAL) {
+        Mtx inverse;return nativeSkinMesh_InverseBind(model,bone,inverse);
+    }
+    if(kind!=HSD_DAT_REF_NULL || !(model.joints[bone].flags&JOBJ_SKELETON_ROOT))return false;
+    if(NativeAssetDat::read32(dat.data.data()+slot))return true;
+    const u32 identity=dat.allocate(48);
+    if(identity==UINT32_MAX)return false;
+    for(unsigned axis=0;axis<3;++axis)real(dat,identity+(axis*4+axis)*4,1);
+    dat.link(slot,identity);return true;
 }
 bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& model,
                  unsigned mesh, const NativeSkinMesh& skin)

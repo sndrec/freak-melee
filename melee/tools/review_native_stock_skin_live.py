@@ -1,4 +1,4 @@
-"""Paint an existing stock draft through a hidden, muted Workshop client.
+"""Paint an editable stock or imported mesh through a hidden, muted Workshop client.
 
 The supplied profile is copied. The chosen vertex's saved weight and complete
 Undo/Redo assets are checked; screenshots include the complete Workshop UI.
@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 import subprocess
 import time
 
@@ -20,12 +21,13 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--project', required=True, help='Project directory below Freak Melee')
     parser.add_argument('--mesh', type=int, default=0)
+    parser.add_argument('--reimport', type=Path, help='Reimport this source after painting and verify retained weights and pose')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     receipt = dict(status='RUNNING', mesh=args.mesh, screenshots=[])
     client = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
-                    output/'client', 'Stock Skin Review', window_size=(1440, 810),
+                    output/'client', 'Stock Skin Review', window_size=(1440, 900),
                     control=args.control.resolve())
     try:
         draft = client.data/args.project
@@ -70,13 +72,19 @@ def main():
                         tool('project-model-vertices', draft, args.mesh))}
         def save():
             client.click('workshop-save-top')
+            assert 'Draft saved.' in client.inspect('workshop-save-status'), 'Draft Save did not complete'
             return costume.read_bytes()
         client.click('nav-5'); client.click('edit-fighter')
         client.element('workshop-editor-header'); ready()
         client.click('workshop-mode-model')
-        client.click('workshop-model-context-meshes')
-        client.click(f'workshop-model-mesh-{args.mesh}')
         client.click('workshop-model-context-skinning')
+        selector='workshop-model-skin-mesh'
+        client.click(selector)
+        selected=int(re.search(r'\[ui-inspect-value\] '+selector+r':.* value=(\d+) text=',client.inspect(selector))[1])
+        delta=args.mesh-selected
+        for _ in range(abs(delta)):client.command('ui-key','down' if delta>0 else 'up')
+        client.command('ui-key','enter')
+        assert re.search(r'\[ui-inspect-value\] '+selector+r':.* value='+str(args.mesh)+r' text=',client.inspect(selector))
         client.click('workshop-model-bones')
         points = surface()
         assert len(points) > 1, points
@@ -85,10 +93,12 @@ def main():
         chosen = max(points, key=lambda i: min((points[i][0]-p[0])**2 + (points[i][1]-p[1])**2
                                               for j, p in points.items() if j != i))
         before = weights()
-        joints = re.findall(r'joint (\d+) parent -?\d+ offset 0x[\da-fA-F]+ flags 0x([\da-fA-F]+)',
+        joints = re.findall(r'joint (\d+) parent -?\d+ offset 0x([\da-fA-F]+) flags 0x([\da-fA-F]+)',
                             tool('project-model-joints', draft))
-        target = next(int(index) for index, flags in joints
-                      if int(flags, 16)&1 and before[chosen].get(int(index), 0) < .8)
+        data=costume.read_bytes()[32:]
+        target = next(int(index) for index, offset, flags in joints
+                      if int(flags, 16)&1 and struct.unpack_from('>I',data,int(offset,16)+56)[0] and
+                      before[chosen].get(int(index), 0) < .8)
         client.click(f'workshop-model-joint-{target}')
         points = surface()
         receipt.update(vertex=chosen, joint=target, original_sha256=hashlib.sha256(original).hexdigest())
@@ -116,6 +126,25 @@ def main():
         receipt['screenshots'].append(str(client.screenshot()))
         client.click('workshop-undo'); assert save() == original
         client.click('workshop-redo'); assert save() == painted
+        if args.reimport:
+            prior_weights=weights();prior_points=surface()
+            client.click('workshop-model-context-meshes')
+            client.click('workshop-model-reimport')
+            client.enter('workshop-model-import-path',str(args.reimport.resolve()))
+            client.click('workshop-model-import-load')
+            client.click('workshop-model-import-next');client.click('workshop-model-import-next')
+            assert re.search(r'\[ui-inspect-value\] workshop-model-import-binding:.* value=keep text=',
+                             client.inspect('workshop-model-import-binding'))
+            client.click('workshop-model-import-next')
+            assert 'visible=0' in client.inspect('workshop-model-import-overlay'),client.inspect('workshop-model-import-note')
+            ready();save();assert weights()==prior_weights
+            client.click('workshop-model-context-skinning')
+            following=surface()
+            assert prior_points.keys()==following.keys()
+            reimport_displacement=max(max(abs(prior_points[i][a]-following[i][a]) for a in range(2)) for i in prior_points)
+            assert reimport_displacement<1e-5, reimport_displacement
+            receipt.update(reimport_weights_preserved=True,reimport_screen_displacement=reimport_displacement)
+            receipt['screenshots'].append(str(client.screenshot()))
         receipt.update(status='PASS', painted_sha256=hashlib.sha256(painted).hexdigest(),
                        weight_before=before[chosen].get(target, 0), weight_after=after[chosen][target])
         print('PASS: native stock brush, saved weight, exact Undo/Redo')
