@@ -504,6 +504,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_shell_css_original.cpp
     src/melee/ui/native_shell_costumes.cpp
     src/melee/ui/native_chat.c
+    src/melee/ui/native_social_presence.c
     src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_room_cache.c
     src/melee/ui/native_shell_profiles.cpp
@@ -816,6 +817,12 @@ if(MELEE_BUILD_TESTS)
     target_include_directories(native_chat_wire_test PRIVATE src)
     target_compile_definitions(native_chat_wire_test PRIVATE _CRT_SECURE_NO_WARNINGS)
     add_test(NAME native_chat_wire COMMAND native_chat_wire_test)
+    add_executable(native_social_presence_test tests/native/social_presence_test.c
+        src/melee/ui/native_social_presence.c)
+    target_include_directories(native_social_presence_test PRIVATE src)
+    target_compile_definitions(native_social_presence_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(native_social_presence_test PRIVATE -UNDEBUG)
+    add_test(NAME native_social_presence COMMAND native_social_presence_test)
     add_executable(native_turn_credentials_test
         tests/native/turn_credentials_test.c
         src/melee/gm/native_turn_credentials.c)

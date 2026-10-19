@@ -23,6 +23,7 @@ typedef struct NativeChatView {
     uint32_t count;
     uint16_t online;
     uint16_t player_count;
+    bool presence_ready;
     NativeChatState state;
     NativeChatDelivery delivery;
 } NativeChatView;

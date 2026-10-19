@@ -249,8 +249,9 @@ The hub replaces the default sidebars. The Workshop landing page presents the
 personal roster and authoring commands. Its Edit fighter action opens the
 existing detailed editor. Simple Settings pages use the game's menu presentation;
 advanced authoring workspaces keep their dedicated interfaces. Chat and room
-controls remain accessible during gameplay; review that presentation separately
-from the hub layout.
+controls remain accessible during gameplay; the user explicitly deferred
+match-time chat to a collaborative design pass on 2026-10-19. Keep the current
+CSS/practice flow until that presentation is agreed.
 
 Implement the new simple menus through the game renderer, with appropriate
 fonts and graphics. Keep the existing 4:3 gameplay projection.

@@ -442,6 +442,7 @@ void nativeChat_Update(void)
         if (packet->type == 0xff) {
             view.state = NativeChat_Reconnecting;
             view.online = view.player_count = 0;
+            view.presence_ready = false;
             incoming_presence = false;
             announced_name[0] = 0;
             if (view.delivery == NativeChatDelivery_Sending) {
@@ -471,6 +472,7 @@ void nativeChat_Update(void)
                 memcpy(view.players, incoming_players,
                        sizeof(incoming_players[0]) * incoming_count);
                 view.online = view.player_count = (uint16_t) incoming_count;
+                view.presence_ready = true;
             }
             incoming_presence = false;
         } else if (packet->type == 0x81) {
@@ -500,6 +502,7 @@ void nativeChat_Update(void)
         // is usable while the worker reconnects and fetches recent history.
         view.state = NativeChat_Reconnecting;
         view.online = view.player_count = 0;
+        view.presence_ready = false;
         incoming_presence = false;
         announced_name[0] = 0;
         if (view.delivery == NativeChatDelivery_Sending) {
@@ -611,6 +614,7 @@ void nativeChat_Stop(void)
     network.thread = network.stop = network.wake = NULL;
     view.state = NativeChat_Offline;
     view.online = view.player_count = 0;
+    view.presence_ready = false;
     incoming_presence = false;
     announced_name[0] = 0;
 }

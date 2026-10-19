@@ -72,6 +72,9 @@ def main():
             client.click('nav-3')
             wait(client, 'hub-social', r'signed-in=1 busy=0 loaded=1.*friends=1')
         a, b = clients
+        wait(a, 'hub-social', rf'\[hub-friend\] handle={re.escape(args.b_handle)} relationship=friend presence=Online')
+        screenshots.append(str(a.screenshot()))
+        checks.append('Friends shows a verified account online while both clients are connected')
         a.click('nav-2')
         people = wait_chat_people(a, [args.a_handle, args.b_handle])
         assert f'account={args.a_handle}' in people and f'account={args.b_handle}' in people, people
@@ -143,6 +146,10 @@ def main():
         assert f'account={args.b_handle}' not in people, people
         screenshots.append(str(b.screenshot()))
         checks.append('Signing out leaves the lobby and reconnects global chat as an unverified guest')
+        a.click('nav-3')
+        wait(a, 'hub-social', rf'\[hub-friend\] handle={re.escape(args.b_handle)} relationship=friend presence=Offline')
+        screenshots.append(str(a.screenshot()))
+        checks.append('The friend becomes offline after sign-out even though their guest client remains connected')
 
         (output / 'receipt.json').write_text(json.dumps({'checks': checks, 'screenshots': screenshots,
             'exe_sha256': hashlib.sha256(args.exe.read_bytes()).hexdigest(),

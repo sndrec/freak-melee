@@ -8,6 +8,11 @@ verified-presence review: `.local/account-key-hosted-1/receipt.json`. See the [a
 
 ## Using the hub
 
+Accepted contacts show **Online**, **Offline**, or **Checking...** in Friends
+and on their profile. Checking means the player list is loading or reconnecting.
+A verified member of your current lobby also counts as online. Status follows
+the account ID, so a guest with the same display name is a separate person.
+
 Sign in through **Settings > Online account**. In **Friends**, enter an account
 name and choose **Find account**. The profile shows that player's display name
 and bio. You can send a friend request, accept an incoming request, remove a
@@ -185,3 +190,27 @@ Evidence: `.local/create-invite-social-1/receipt.json` and
 was visually reviewed. This is two clients on one PC using a local service;
 physical multi-PC acceptance and network-failure injection remain separate.
 The earlier account-key hosted receipt still describes that earlier build.
+
+
+## Friend presence check, 2026-10-19
+
+Friends and player profiles now use the complete global player snapshot and
+verified members of the current lobby. The chat view records whether a complete
+snapshot has arrived. Initial connection, account changes, disconnect and
+reconnection clear that flag. An incomplete list produces Checking rather than
+an assumed Offline result. Identity matching uses permanent account IDs; one
+account remains online while any matching connection is present.
+
+Four native contracts pass, including the new presence contract covering
+incomplete snapshots, reconnects, matching guest names, multiple account
+connections and lobby presence: `.local/social-presence-contracts.log`.
+The local social review passes four integration checks, five social UI checks
+and seven invitation/presence UI checks. The final pair of Friends screenshots
+shows Online before sign-out and Offline while that same client remains in
+chat as a guest. Evidence: `.local/social-presence-review-1/receipt.json` and
+`.local/social-presence-review-1/invitations/receipt.json` (ten PNGs). The
+reviewed executable SHA-256 is
+`a87d902000f2d0370355e6d0030cf8fab24aa574770d2ce3fe01bb845efc3455`.
+Both status screenshots were visually reviewed. The service protocol and
+artwork are unchanged. This is local two-client evidence; physical multi-PC
+and injected connection-failure acceptance remain separate.
