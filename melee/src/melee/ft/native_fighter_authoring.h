@@ -1,6 +1,7 @@
 #ifndef NATIVE_FIGHTER_AUTHORING_H
 #define NATIVE_FIGHTER_AUTHORING_H
 #include "native_fighter_project.h"
+#include "native_fighter_mesh_source.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -20,6 +21,7 @@ typedef struct NativeFighterAuthoring {
         char name[64];
     } labels[4096];
     bool hidden_actions[1024];
+    NativeFighterMeshSource sources[NATIVE_MESH_SOURCE_CAPACITY];
 } NativeFighterAuthoring;
 const char* nativeFighterAuthoring_Name(const NativeFighterProject*,
                                         unsigned category, unsigned index);

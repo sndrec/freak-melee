@@ -112,6 +112,7 @@ def main():
 
     def save(client):
         client.click('workshop-save-top')
+        assert 'Draft saved.' in client.inspect('workshop-save-status'), 'Draft Save did not complete'
         return (client.data/'projects/model-workflow/costume.dat').read_bytes()
 
     client = launch('editing')

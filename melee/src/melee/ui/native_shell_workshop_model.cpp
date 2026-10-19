@@ -1597,8 +1597,8 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
                  "Could not convert this mesh to Melee model data.");
             return true;
         }
-        record_asset(before,fighter);
-        record_label_change(before_labels, true);
+        const bool asset_changed=record_asset(before,fighter);
+        record_label_change(before_labels, asset_changed);
         nativeFighterAuthoring_Save(active->path, active->project);
         reopen_model();
         for (unsigned i = 0; i < active->model.mesh_count; ++i)

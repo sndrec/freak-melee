@@ -27,12 +27,23 @@ typedef struct NativeGltfPrimitiveInfo {
     bool has_uv;
     bool has_skin;
     bool has_texture;
+    // Stable across source array reordering. Empty for unnamed/ambiguous parts.
+    char identity[256];
 } NativeGltfPrimitiveInfo;
 
 typedef struct NativeGltfScan {
     NativeGltfPrimitiveInfo primitives[NATIVE_GLTF_MAX_PRIMITIVES];
     unsigned count;
 } NativeGltfScan;
+
+typedef struct NativeGltfReimportPlan {
+    unsigned count;
+    struct { unsigned primitive, mesh; } matches[NATIVE_GLTF_MAX_PRIMITIVES];
+} NativeGltfReimportPlan;
+// Match the selected imported mesh, or all meshes imported from its source,
+// against a newly exported file. Missing/ambiguous identities publish no plan.
+bool nativeFighterGltf_PlanReimport(const NativeFighterProject*,unsigned mesh,
+    const char* path,bool whole_source,NativeGltfReimportPlan*,char* error,size_t error_size);
 
 // Parses glTF 2.0/GLB at an explicit import transition. The source file and
 // its external buffers are never needed after Apply copies data into the DAT.
