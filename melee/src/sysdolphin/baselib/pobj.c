@@ -288,7 +288,7 @@ static HSD_ShapeSet* loadShapeSetDesc(HSD_ShapeSetDesc* sdesc)
 
 static s32 PObjLoad(HSD_PObj* pobj, HSD_PObjDesc* desc)
 {
-    pobj->next = HSD_PObjLoadDesc(desc->next);
+    // The factory has already linked the initialized tail.
     pobj->verts = desc->verts;
     pobj->flags = desc->flags;
     pobj->n_display = desc->n_display;
@@ -317,7 +317,8 @@ static s32 PObjLoad(HSD_PObj* pobj, HSD_PObjDesc* desc)
 
 HSD_PObj* HSD_PObjLoadDesc(HSD_PObjDesc* pobjdesc)
 {
-    if (pobjdesc != NULL) {
+    HSD_PObj* pending = NULL;
+    for (; pobjdesc != NULL; pobjdesc = pobjdesc->next) {
         HSD_PObj* pobj;
         HSD_ClassInfo* info;
 
@@ -329,11 +330,23 @@ HSD_PObj* HSD_PObjLoadDesc(HSD_PObjDesc* pobjdesc)
             pobj = hsdNew(info);
             HSD_ASSERT(605, pobj);
         }
-        HSD_POBJ_METHOD(pobj)->load(pobj, pobjdesc);
-        return pobj;
-    } else {
-        return NULL;
+        // Preserve the original forward allocation / reverse load order.
+        // Before initialization, verts holds this object's source descriptor;
+        // the temporary reverse list needs no recursion or scratch allocation.
+        pobj->verts = (HSD_VtxDescList*) pobjdesc;
+        pobj->next = pending;
+        pending = pobj;
     }
+    HSD_PObj* head = NULL;
+    while (pending) {
+        HSD_PObj* pobj = pending;
+        HSD_PObjDesc* desc = (HSD_PObjDesc*) pobj->verts;
+        pending = pobj->next;
+        pobj->next = head;
+        HSD_POBJ_METHOD(pobj)->load(pobj, desc);
+        head = pobj;
+    }
+    return head;
 }
 
 void HSD_PObjRemove(HSD_PObj* pobj)

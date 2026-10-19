@@ -51,10 +51,9 @@ Current receipts:
 These are backend and runtime-query checks; no new live visual acceptance is
 claimed for the large fixtures.
 
-## Remaining import work
+## Source import
 
-The GLB/glTF importer still admits at most 65,535 source vertices. Its geometry
-encoder needs the same draw-section partitioning and ID emission before large
-source meshes can enter through the import dialog. Source-skin admission and
-saved source-correspondence counts need to be extended with it. This checkpoint
-does not claim that large GLB import or live visual acceptance is complete.
+The [GLB/glTF importer](native_large_gltf_checkpoint.md) now emits the same
+local arrays and vertex IDs. It admits up to one million source vertices and
+corners per mesh, including source skin weights and saved correspondence for
+reimport. That checkpoint records its separate import and runtime checks.

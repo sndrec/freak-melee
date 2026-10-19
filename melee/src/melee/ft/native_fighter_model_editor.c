@@ -110,7 +110,8 @@ static bool add_meshes(NativeFighterModelEditor* editor, u32 first,
             !add_material(editor, material, &mesh->material)) return false;
         u32 polygon;
         if (reference(&editor->dat, offset + 12, &polygon)) {
-            for (unsigned i = 0; i < 4096 && polygon != 0; ++i) {
+            for (;;) {
+                if (mesh->polygon_count == NATIVE_MODEL_MAX_POLYGONS) return false;
                 if (HSD_DatBytes(&editor->dat, polygon, 24) == NULL)
                     return false;
                 ++mesh->polygon_count;
@@ -310,7 +311,7 @@ unsigned nativeFighterModel_EnvelopeGroups(const NativeFighterModelEditor* edito
     if (!reference(&editor->dat, editor->meshes[mesh].offset + 12,
                    &polygon)) return 0;
     unsigned count = 0;
-    for (unsigned p = 0; p < 4096 && polygon != 0; ++p) {
+    for (unsigned p = 0; p < editor->meshes[mesh].polygon_count; ++p) {
         u16 flags = 0;
         if (!HSD_DatReadU16(&editor->dat, polygon + 12, &flags)) break;
         if ((flags & 0x3000) == POBJ_ENVELOPE) {

@@ -84,6 +84,7 @@ s32 HSD_ObjAllocAddFree(HSD_ObjAllocData* data, u32 num)
 #ifdef MELEE_NATIVE
         HSD_ASSERTREPORT(0,nativeHsdArena.lifetime || nativeHsdArena_BeginHeap(),
             "HSD object backing was not initialized.\n");
+        if(!nativeHsdArena_Ensure(pool_size,(size_t)data->align+1))return 0;
         pool_start=nativeMatchArena_Allocate(&nativeHsdArena,pool_size,(size_t)data->align+1);
 #else
         pool_start = HSD_MemAlloc(pool_size);
@@ -153,7 +154,18 @@ void* HSD_ObjAlloc(HSD_ObjAllocData* data)
         }
     }
     if (data->free == 0) {
-        HSD_ObjAllocAddFree(data, 1);
+        u32 count = 1;
+#ifdef MELEE_NATIVE
+        // Pack ordinary construction slots into bounded blocks. Large models
+        // otherwise consume one snapshot-directory entry per envelope list.
+        // Explicit limits and sealed match heaps retain single-slot growth.
+        if (!nativeHsdArena.sealed && !data->num_limit_flag && !data->heap_limit_flag) {
+            count = 4096 / data->size;
+            if (count > 32) count = 32;
+            if (!count) count = 1;
+        }
+#endif
+        HSD_ObjAllocAddFree(data, count);
         if (data->free == 0) {
             return NULL;
         }

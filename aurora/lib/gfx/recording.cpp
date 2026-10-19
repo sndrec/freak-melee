@@ -1135,7 +1135,10 @@ Range push_storage(const uint8_t* data, size_t length) {
   if (!check_recording("push_storage")) {
     return {};
   }
-  return push(current_frame_packet().storage, data, length, resources().limits.minStorageBufferOffsetAlignment);
+  // The static bind group binds this entire buffer at offset zero. These
+  // ranges are byte addresses read by WGSL's raw word fetches, not separately
+  // bound storage buffers, so only the backing u32 alignment is required.
+  return push(current_frame_packet().storage, data, length, alignof(uint32_t));
 }
 
 Range push_texture_data(const uint8_t* data, u32 bytesPerRow, u32 rowsPerImage) {

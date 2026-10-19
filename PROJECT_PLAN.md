@@ -247,15 +247,20 @@ import, materials, rigging and skinning, not mesh modeling.
   now passes 52 matrix cases, the retail batch and a native mouse/Save/Undo/Redo/
   reimport workflow. Two-slot rigid meshes retain root/deform-bone domains.
   Morph painting, unusual helper model-node and independent texture-matrix
-  bindings and larger meshes remain open.
+  bindings remain open.
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above
-  2,048 records. Compaction follows the same capacity policy. Match-time pool
-  capacities are unchanged.
+  2,048 records. Compaction follows the same capacity policy. Match-time
+  fighter/item capacities are unchanged. HSD scene storage can commit more
+  pages during construction for larger imported models.
   [Painting across large draw sections](melee/docs/native_large_skin_checkpoint.md)
   now uses local position arrays and saved vertex identities. Large native
   meshes retain shared vertices through painting, rest compensation and
-  compaction. Extending GLB/glTF source admission and its encoder remains open.
+  compaction. [Large GLB/glTF import](melee/docs/native_large_gltf_checkpoint.md)
+  now admits up to one million source vertices/corners, partitions geometry
+  into ordinary draw sections and retains source correspondence through Save,
+  painting and reimport. Dense skin construction also uses iterative polygon
+  loading and bounded, stable HSD storage growth.
   [Costume compaction](melee/docs/native_costume_compaction_checkpoint.md) now
   reclaims dead geometry/texture storage while preserving editor identities;
   128 consecutive brush edits stay bounded, all retail costumes pass, and both

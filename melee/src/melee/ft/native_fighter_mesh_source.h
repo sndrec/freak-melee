@@ -1,7 +1,11 @@
 #pragma once
 #include "native_fighter_project.h"
 
-enum { NATIVE_MESH_SOURCE_CAPACITY=1024 };
+enum {
+    NATIVE_MESH_SOURCE_CAPACITY=1024,
+    NATIVE_MESH_SOURCE_MAX_VERTICES=1000000,
+    NATIVE_MESH_SOURCE_MAX_CORNERS=1000000,
+};
 typedef struct NativeFighterMeshSource {
     uint32_t mesh, vertices, corners;
     uint64_t topology;
