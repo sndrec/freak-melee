@@ -32,6 +32,8 @@ bool nativeLobbySession_Start(NativeLobbySession* session,
 void nativeLobbySession_Shutdown(NativeLobbySession* session);
 bool nativeLobbySession_Pump(NativeLobbySession* session);
 bool nativeLobbySession_FinishMatch(NativeLobbySession* session);
+// The room owner publishes the active roster. A fighting owner enters setup;
+// a spectating owner stays in Waiting and can continue practicing or watching.
 bool nativeLobbySession_BeginMatch(NativeLobbySession* session,
                                    const NativeLobbyMatch* selection,
                                    uint8_t artificial_delay_frames);

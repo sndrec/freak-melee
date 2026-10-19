@@ -183,10 +183,28 @@ bool nativeLobbySession_BeginMatch(NativeLobbySession* session,
     }
     NativeLobbyMatch match = *selection;
     if (!nativeLobbyTopology_AssignMatchPeers(
-            &match, presence, session->room.connection.local_build) ||
-        !nativeNetplayRoom_ConfigureMatch(&session->room, &match,
-                                          artificial_delay_frames))
+            &match, presence, session->room.connection.local_build))
     {
+        return false;
+    }
+    bool local_in_match = false;
+    for (uint32_t peer = 0; peer < match.peer_count; ++peer) {
+        local_in_match |= strcmp(match.peers[peer].peer_id,
+                                 session->room.connection.local_peer_id) == 0;
+    }
+    if (!local_in_match) {
+        // The lobby owner can organize a match while continuing local practice.
+        // Active peers adopt this proposal through the ordinary lobby pump.
+        uint8_t bytes[NATIVE_LOBBY_MATCH_MAX_WIRE_BYTES];
+        size_t size = nativeLobbyMatch_Encode(&match, bytes, sizeof(bytes));
+        if (session->room.publish_request_epoch == presence->match_epoch || !size ||
+            !nativeSignalingClient_SetMatch(&session->room.connection.signaling,
+                                             bytes, size)) return false;
+        session->room.publish_request_epoch = presence->match_epoch;
+        return true;
+    }
+    if (!nativeNetplayRoom_ConfigureMatch(&session->room, &match,
+                                          artificial_delay_frames)) {
         return false;
     }
     session->state = NativeLobbySessionState_Starting;

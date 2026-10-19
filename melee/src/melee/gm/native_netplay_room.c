@@ -318,6 +318,7 @@ bool nativeNetplayRoom_Connect(NativeNetplayRoom* room,
         return false;
     }
     room->active = true;
+    room->publish_request_epoch = UINT64_MAX;
     return true;
 }
 
