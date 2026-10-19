@@ -6,6 +6,7 @@ import { AccountError, accountJson, accountHandle, secret, secretHash, secretVal
   text, readAccountBody, credentialResponse, CHALLENGE_MS, SESSION_MS, RECENT_AUTH_MS,
   MAX_PASSKEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
 import type { SocialProfile } from "./social-protocol";
+import type { ConnectionAccount } from "./connection-account";
 
 interface AccountRow extends Record<string, SqlStorageValue> {
   user_id: string; display_name: string; bio: string; recovery_hash: string; epoch: number;
@@ -52,13 +53,25 @@ export class Account extends DurableObject<CloudflareBindings> {
     return { id: account.user_id, handle, name: account.display_name, bio: account.bio };
   }
   lookupProfile(): SocialProfile | null { return this.account() ? this.profile() : null; }
+  async openConnection(authorization: string): Promise<ConnectionAccount | null> {
+    try {
+      const session = await this.authorize(authorization);
+      return { profile: this.profile(), session: session.hash, epoch: session.epoch, expires: session.expires };
+    } catch { return null; }
+  }
+  checkConnection(connection: ConnectionAccount): SocialProfile | null {
+    const account = this.account();
+    const session = this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions WHERE hash=?", connection.session).toArray()[0];
+    return account && session && session.expires > Date.now() && session.epoch === account.epoch &&
+      connection.epoch === account.epoch && connection.profile.id === account.user_id ? this.profile() : null;
+  }
   private clean(): void {
     const now = Date.now();
     this.ctx.storage.sql.exec("DELETE FROM challenges WHERE expires<=?", now);
     this.ctx.storage.sql.exec("DELETE FROM sessions WHERE expires<=?", now);
   }
-  private async authorize(request: Request, recent = false): Promise<SessionRow> {
-    const header = request.headers.get("Authorization") ?? "";
+  private async authorize(authorization: string, recent = false): Promise<SessionRow> {
+    const header = authorization;
     if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(header)) throw new AccountError(401, "Please sign in.");
     const hash = await secretHash(header.slice(7));
     const session = this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions WHERE hash=?", hash).toArray()[0];
@@ -87,7 +100,7 @@ export class Account extends DurableObject<CloudflareBindings> {
     if (kind === "register") {
       if (account) throw new AccountError(409, "That account name is already taken.");
     } else if (!account) throw new AccountError(404, "Account not found.");
-    if (kind === "add" || kind === "reauth") session = await this.authorize(request, kind === "add");
+    if (kind === "add" || kind === "reauth") session = await this.authorize(request.headers.get("Authorization") ?? "", kind === "add");
     if (kind === "recover") {
       recoveryHash = await secretHash(secretValue(body.recovery_code));
       if (!account || !equalHash(recoveryHash, account.recovery_hash)) throw new AccountError(401, "Recovery code was not accepted.");
@@ -132,7 +145,7 @@ export class Account extends DurableObject<CloudflareBindings> {
   }
 
   private async finishRegistration(request: Request, kind: "register" | "add" | "recover", body: JsonObject): Promise<Response> {
-    const session = kind === "add" ? await this.authorize(request, true) : undefined;
+    const session = kind === "add" ? await this.authorize(request.headers.get("Authorization") ?? "", true) : undefined;
     const challenge = this.takeChallenge(body.attempt, kind);
     if (session && session.hash !== challenge.session_hash) throw new AccountError(401, "Use the sign-in that started this request.");
     let verification;
@@ -174,7 +187,7 @@ export class Account extends DurableObject<CloudflareBindings> {
   }
 
   private async finishAuthentication(request: Request, kind: "login" | "reauth", body: JsonObject): Promise<Response> {
-    const session = kind === "reauth" ? await this.authorize(request) : undefined;
+    const session = kind === "reauth" ? await this.authorize(request.headers.get("Authorization") ?? "") : undefined;
     const challenge = this.takeChallenge(body.attempt, kind);
     if (session && session.hash !== challenge.session_hash) throw new AccountError(401, "Use the sign-in that started this request.");
     const response = credentialResponse(body, false);
@@ -205,7 +218,7 @@ export class Account extends DurableObject<CloudflareBindings> {
 
   private async manage(request: Request, route: string, body: JsonObject): Promise<Response> {
     const sensitive = route === "recovery/rotate" || route === "passkeys/remove" || route === "sessions/revoke-all";
-    const session = await this.authorize(request, sensitive);
+    const session = await this.authorize(request.headers.get("Authorization") ?? "", sensitive);
     if (route === "me") return accountJson({ profile: this.profile(), expires: session.expires,
       passkeys: this.keys().map(key => ({ id: key.id, name: key.label, created: key.created })),
       sessions: this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions ORDER BY verified DESC").toArray()
@@ -249,7 +262,7 @@ export class Account extends DurableObject<CloudflareBindings> {
       if (request.method !== "POST") throw new AccountError(405, "Method not allowed.");
       const body = await readAccountBody(request);
       if (path.startsWith("social/")) {
-        const session = await this.authorize(request);
+        const session = await this.authorize(request.headers.get("Authorization") ?? "");
         const profile = this.profile();
         const result = await this.env.SOCIAL.getByName(profile.id).dispatch(profile, path.slice(7), body);
         this.stillAuthorized(session, session.epoch);

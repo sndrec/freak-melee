@@ -1,4 +1,5 @@
 #include "native_signaling_client.h"
+#include "native_account_transport.h"
 
 #ifdef MELEE_NATIVE
 
@@ -285,17 +286,25 @@ static DWORD open_connection(const NativeSignalingClient* client,
     connection.request = WinHttpOpenRequest(
         connection.connection, L"GET", object, NULL, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+    wchar_t headers[192] = { 0 };
+    if (!client->directory) nativeAccountTransport_Headers(url, headers, 192);
+    DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+    DWORD disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
     if (connection.request == NULL ||
+        !WinHttpSetOption(connection.request, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects)) ||
+        !WinHttpSetOption(connection.request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled)) ||
         !WinHttpSetOption(connection.request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
                           NULL, 0) ||
-        !WinHttpSendRequest(connection.request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        !WinHttpSendRequest(connection.request, headers, (DWORD) -1,
                             WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
         !WinHttpReceiveResponse(connection.request, NULL))
     {
         DWORD error = GetLastError();
+        SecureZeroMemory(headers, sizeof(headers));
         close_connection(&connection);
         return error;
     }
+    SecureZeroMemory(headers, sizeof(headers));
     DWORD status = 0;
     DWORD status_size = sizeof(status);
     if (!WinHttpQueryHeaders(

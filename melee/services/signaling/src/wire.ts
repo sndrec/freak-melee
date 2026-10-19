@@ -1,4 +1,4 @@
-import { MAX_SELECTION_BYTES, RotationPolicy, validSeatMasks } from "./protocol";
+import { MAX_SELECTION_BYTES, RotationPolicy, validSeatMasks, isAccountIdentity } from "./protocol";
 import type { Participant, RoomSnapshot } from "./protocol";
 import type { QuickState } from "./quick-play";
 import type { LobbyEntry } from "./lobby-directory";
@@ -666,6 +666,8 @@ function writeParticipant(writer: Writer, participant: Participant): void {
   writer.u64(participant.joinOrder);
   for (const rank of participant.waitingRanks) writer.u8(rank);
   writer.bytes16(participant.selection);
+  writer.string8(participant.accountId);
+  writer.string8(participant.accountHandle);
 }
 
 function readParticipant(reader: Reader): Participant {
@@ -681,8 +683,9 @@ function readParticipant(reader: Reader): Participant {
     reader.u8(), reader.u8(), reader.u8(), reader.u8(),
   ];
   const selection = reader.bytes16();
+  const accountId = reader.string8(), accountHandle = reader.string8();
   if (
-    !validSeatMasks(localPlayers, activeMask, waitingMask) ||
+    !validSeatMasks(localPlayers, activeMask, waitingMask) || !isAccountIdentity(accountId, accountHandle) ||
     ready > 1 ||
     selection.byteLength > MAX_SELECTION_BYTES ||
     (ready === 1 && activeMask === 0) ||
@@ -693,6 +696,8 @@ function readParticipant(reader: Reader): Participant {
   }
   const participant: Participant = {
     peerId,
+    accountId,
+    accountHandle,
     name,
     build,
     localPlayers,

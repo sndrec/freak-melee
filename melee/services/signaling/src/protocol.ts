@@ -14,6 +14,8 @@ export const enum RotationPolicy {
 
 export interface Participant {
   peerId: string;
+  accountId: string;
+  accountHandle: string;
   name: string;
   build: string;
   localPlayers: number;
@@ -25,7 +27,8 @@ export interface Participant {
   waitingRanks: [number, number, number, number];
 }
 
-export interface ConnectionAttachment extends Omit<Participant, "waitingRanks"> {
+export interface ConnectionAttachment extends Omit<Participant, "waitingRanks" | "accountId" | "accountHandle"> {
+  account?: import("./connection-account").ConnectionAccount;
   connectionId: string;
   chatSubscribed?: boolean;
   chatLastPost?: number;
@@ -51,6 +54,9 @@ export interface RoomSnapshot {
 
 export function isPeerId(value: string): boolean {
   return /^[A-Za-z0-9_-]{8,64}$/.test(value);
+}
+export function isAccountIdentity(id: string, handle: string): boolean {
+  return (!id && !handle) || (/^[A-Za-z0-9_-]{43}$/.test(id) && /^[a-z0-9_]{3,24}$/.test(handle));
 }
 
 export function isRoomId(value: string): boolean {
@@ -98,6 +104,8 @@ export function parseBoundedInteger(
 export function publicParticipant(attachment: ConnectionAttachment): Participant {
   return {
     peerId: attachment.peerId,
+    accountId: attachment.account?.profile.id ?? "",
+    accountHandle: attachment.account?.profile.handle ?? "",
     name: attachment.name,
     build: attachment.build,
     localPlayers: attachment.localPlayers,

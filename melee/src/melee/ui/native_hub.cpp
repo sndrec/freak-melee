@@ -206,7 +206,7 @@ namespace {
         hub.visible = !hub.returning_from_tool;
     }
     void queue(HubAction action, int value = 0, const char* peer = nullptr,
-               const char* name = nullptr)
+               const char* name = nullptr, const char* account = nullptr)
     {
         if (hub.pending_action || nativeMenuScene_Active()) {
             return;
@@ -217,6 +217,7 @@ namespace {
                       peer ? peer : "");
         std::snprintf(hub.pending_name, sizeof(hub.pending_name), "%s",
                       name ? name : "");
+        std::snprintf(hub.pending_account, sizeof(hub.pending_account), "%s", account ? account : "");
     }
     void click(unsigned port = 255)
     {
@@ -231,7 +232,7 @@ namespace {
                     } else if ((r.action == HubAction::ConfirmStage ||
                                 r.action == HubAction::WithdrawStage) &&
                                port < 4 && unsigned(value)/256 != port) return;
-                    queue(r.action, value, r.peer, r.peer_name);
+                    queue(r.action, value, r.peer, r.peer_name, r.account);
                 }
                 return;
             }
@@ -374,17 +375,18 @@ bool nativeHub_Hover(float x, float y, float w, float h)
 }
 void nativeHub_Region(const char* id, float x, float y, float w, float h,
                       HubAction action, int value, bool enabled,
-                      const char* peer, const char* name)
+                      const char* peer, const char* name, const char* account)
 {
     if (hub.passive_page || nativeMenuScene_Active()) return;
     if (hub.region_count == sizeof(hub.regions) / sizeof(hub.regions[0])) {
         return;
     }
     HubRegion& r = hub.regions[hub.region_count++];
-    r = { x, y, w, h, action, value, {}, {}, {}, enabled };
+    r = { x, y, w, h, action, value, {}, {}, {}, {}, enabled };
     std::snprintf(r.id, sizeof(r.id), "%s", id);
     std::snprintf(r.peer, sizeof(r.peer), "%s", peer ? peer : "");
     std::snprintf(r.peer_name, sizeof(r.peer_name), "%s", name ? name : "");
+    std::snprintf(r.account, sizeof(r.account), "%s", account ? account : "");
 }
 void nativeHub_Panel(float x, float y, float w, float h)
 {
@@ -393,12 +395,12 @@ void nativeHub_Panel(float x, float y, float w, float h)
 void nativeHub_Button(const char* id, const char* label, float x, float y,
                       float w, float h, HubAction action, int value,
                       bool selected, bool enabled, const char* peer,
-                      const char* name)
+                      const char* name, const char* account)
 {
     bool hover = nativeHub_Hover(x, y, w, h) && enabled;
     bool active = enabled && (selected || hover);
     nativeMenuSkin_Button(label, x, y, w, h, std::min(13.0f, h * .4f), active, enabled);
-    nativeHub_Region(id, x, y, w, h, action, value, enabled, peer, name);
+    nativeHub_Region(id, x, y, w, h, action, value, enabled, peer, name, account);
 }
 void nativeHub_ChangePage(NativeHubPage page, bool backwards)
 {
@@ -922,10 +924,6 @@ void nativeHub_Activate(HubAction action, int value)
         scroll = std::clamp(scroll + value, 0, 64 * 34);
         break;
     }
-    case HubAction::Invite:
-        nativeHub_Notice(
-            "Lobby invitations are being connected to account identity.");
-        break;
     default:
         break;
     }
@@ -1386,6 +1384,16 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "hub-lobbies")) { nativeHubLobbies_Inspect(); return; }
     if (!std::strcmp(id, "hub-account")) { nativeHubAccount_Inspect(); return; }
     if (!std::strcmp(id, "hub-social")) { nativeHubSocial_Inspect(); return; }
+    if (!std::strcmp(id, "hub-people")) {
+        const auto* chat = nativeChat_View(); const auto* room = nativeOnlineSession_Presence();
+        std::fprintf(stderr, "[hub-inspect] hub-people chat-state=%u chat-count=%u room-count=%u\n",
+            unsigned(chat->state), chat->player_count, room ? room->participant_count : 0);
+        for (unsigned i = 0; i < chat->player_count; ++i)
+            std::fprintf(stderr, "[hub-person] chat=%u peer=%s account=%s\n", i, chat->players[i].peer, chat->players[i].account_handle);
+        for (unsigned i = 0; room && i < room->participant_count; ++i)
+            std::fprintf(stderr, "[hub-person] room=%u peer=%s account=%s\n", i, room->participants[i].peer_id, room->participants[i].account_handle);
+        return;
+    }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
@@ -1429,11 +1437,11 @@ extern "C" void nativeHub_Inspect(const char* id)
             top = std::min(top, v); bottom = std::max(bottom, v);
         }
         std::fprintf(stderr,
-                     "[hub-inspect] %s origin=%.1f,%.1f size=%.1f,%.1f enabled=%d value=%d\n",
+                     "[hub-inspect] %s origin=%.1f,%.1f size=%.1f,%.1f enabled=%d value=%d account=%s\n",
                      r.id, left * 640 * scale + (size.x - 640 * scale) * .5f,
                      top * 480 * scale + (size.y - 480 * scale) * .5f,
                      (right-left) * 640 * scale, (bottom-top) * 480 * scale,
-                     r.enabled, r.value);
+                     r.enabled, r.value, r.account);
         if (!all_regions) return;
     }
     if (all_regions) return;

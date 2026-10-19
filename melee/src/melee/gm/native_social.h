@@ -4,7 +4,8 @@
 struct NativeSocialProfile { char id[44], handle[25], name[33], bio[257]; };
 struct NativeSocialMail {
     char id[44], peer[44], handle[25], name[33], title[65], kind[17], status[16];
-    uint64_t created;
+    char room[13];
+    uint64_t created, expires;
     unsigned folder;
     bool unread;
 };
@@ -17,5 +18,5 @@ struct NativeSocialView {
     NativeSocialProfile profile;
     NativeSocialMail messages[8], opened;
     NativeSocialFriend friends[8];
-    char body[2049], last_sent_nonce[44];
+    char body[2049], last_sent_nonce[44], join_id[44], join_room[13];
 };

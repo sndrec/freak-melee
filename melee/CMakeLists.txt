@@ -482,6 +482,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_account.cpp
     src/melee/gm/native_account_json.cpp
     src/melee/gm/native_account_social.cpp
+    src/melee/gm/native_account_transport.cpp
     src/melee/gm/native_account_passkey.cpp
     src/melee/gm/native_account_store.cpp
     src/melee/ui/native_hub_catalog.cpp
@@ -800,6 +801,7 @@ if(MELEE_BUILD_TESTS)
     target_include_directories(native_room_chat_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_room_chat_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(native_room_chat_test PRIVATE winhttp)
+    target_sources(native_room_chat_test PRIVATE src/melee/gm/native_account_transport.cpp)
     add_test(NAME native_room_chat COMMAND native_room_chat_test)
     add_executable(native_utf8_test tests/native/utf8_test.c)
     target_include_directories(native_utf8_test PRIVATE src)
@@ -1007,6 +1009,7 @@ if(MELEE_BUILD_TESTS)
         src/melee/gm/native_account.cpp src/melee/gm/native_account_json.cpp
         src/melee/gm/native_account_passkey.cpp src/melee/gm/native_account_store.cpp)
     target_sources(native_account_test PRIVATE src/melee/gm/native_account_social.cpp)
+    target_sources(native_account_test PRIVATE src/melee/gm/native_account_transport.cpp)
     target_include_directories(native_account_test PRIVATE src)
     target_compile_definitions(native_account_test PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_options(native_account_test PRIVATE -UNDEBUG)
@@ -2079,11 +2082,13 @@ target_include_directories(native_signaling_probe PRIVATE src extern/dolphin/inc
 target_compile_definitions(native_signaling_probe PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(native_signaling_probe PRIVATE winhttp)
+target_sources(native_signaling_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 add_executable(native_chat_probe tools/native_chat_probe.c
     src/melee/ui/native_chat.c src/melee/ui/native_chat_wire.c)
 target_include_directories(native_chat_probe PRIVATE src)
 target_compile_definitions(native_chat_probe PRIVATE _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(native_chat_probe PRIVATE winhttp)
+target_sources(native_chat_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 
 add_executable(native_connection_probe
     tools/native_connection_probe.c
@@ -2128,6 +2133,7 @@ add_executable(native_content_channel_probe
 target_include_directories(native_content_channel_probe PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_content_channel_probe PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(native_content_channel_probe PRIVATE LibJuice::LibJuice winhttp bcrypt)
+target_sources(native_content_channel_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 
 add_executable(melee_native_control tools/native_control.c
     src/melee/db/dbnativecontrol_protocol.c)

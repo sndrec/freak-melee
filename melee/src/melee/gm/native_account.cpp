@@ -1,4 +1,5 @@
 #include "native_account_internal.h"
+#include "native_account_transport.h"
 #include <commdlg.h>
 #include <cstring>
 #include <cstdio>
@@ -12,6 +13,7 @@ namespace {
         AcquireSRWLockExclusive(&w.lock);
         view.revision = w.view.revision + 1;
         w.view = view;
+        if (!view.signed_in || !nativeAccountTransport_Publish(w.secrets.origin, w.secrets.handle, w.secrets.token)) nativeAccountTransport_Clear();
         ReleaseSRWLockExclusive(&w.lock);
     }
     bool cancelled(NativeAccountWorker& w)
@@ -336,12 +338,13 @@ bool nativeAccount_Start(const char* root, const char* endpoint, void* window)
 }
 bool nativeAccount_Submit(const NativeAccountRequest& request)
 {
-    if (!worker || request.operation > NativeAccountOperation::BlockPlayer ||
+    if (!worker || request.operation > NativeAccountOperation::JoinInvitation ||
         !std::memchr(request.handle, 0, sizeof(request.handle)) || !std::memchr(request.name, 0, sizeof(request.name)) ||
         !std::memchr(request.bio, 0, sizeof(request.bio)) || !std::memchr(request.recovery, 0, sizeof(request.recovery)) ||
         !std::memchr(request.target, 0, sizeof(request.target)) ||
         !std::memchr(request.subject, 0, sizeof(request.subject)) || !std::memchr(request.text, 0, sizeof(request.text)) ||
-        !std::memchr(request.nonce, 0, sizeof(request.nonce)) || !std::memchr(request.action, 0, sizeof(request.action))) return false;
+        !std::memchr(request.nonce, 0, sizeof(request.nonce)) || !std::memchr(request.action, 0, sizeof(request.action)) ||
+        !std::memchr(request.room, 0, sizeof(request.room))) return false;
     auto& w = *worker;
     AcquireSRWLockExclusive(&w.lock);
     const bool ok = !w.stop && !w.view.busy && !w.queued;
@@ -379,10 +382,12 @@ void nativeAccount_Cancel()
 }
 void nativeAccount_Shutdown()
 {
+    nativeAccountTransport_Clear();
     if (!worker) return;
     nativeAccount_Cancel();
     AcquireSRWLockExclusive(&worker->lock); worker->stop = true; SetEvent(worker->wake); ReleaseSRWLockExclusive(&worker->lock);
     WaitForSingleObject(worker->thread, INFINITE);
+    nativeAccountTransport_Clear();
     CloseHandle(worker->thread); CloseHandle(worker->wake);
     WinHttpCloseHandle(worker->connection); WinHttpCloseHandle(worker->session);
     worker->passkeys.unload(); SecureZeroMemory(&worker->secrets, sizeof(worker->secrets));

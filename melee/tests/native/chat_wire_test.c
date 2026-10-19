@@ -16,19 +16,24 @@ int main(void)
     memcpy(bytes + 48, "A\xc3\xa9", 3);
     memcpy(bytes + 51, "<hi>", 4);
     NativeChatPacket packet;
-    assert(nativeChatWire_Decode(bytes, 55, &packet));
+    assert(nativeChatWire_Decode(bytes, 57, &packet));
     assert(packet.message.id == 7 && packet.message.nonce == 9);
     assert(strcmp(packet.message.name, "A\xc3\xa9") == 0);
     assert(strcmp(packet.message.text, "<hi>") == 0);
-    for (size_t size = 0; size < 55; ++size) {
+    for (size_t size = 0; size < 57; ++size) {
         assert(!nativeChatWire_Decode(bytes, size, &packet));
     }
-    assert(!nativeChatWire_Decode(bytes, 56, &packet));
+    assert(!nativeChatWire_Decode(bytes, 58, &packet));
     bytes[49] = 0xc0;
-    assert(!nativeChatWire_Decode(bytes, 55, &packet));
+    assert(!nativeChatWire_Decode(bytes, 57, &packet));
     bytes[49] = 0xc3;
+    bytes[55] = 43; bytes[56] = 8;
+    memset(bytes + 57, 'A', 43); memcpy(bytes + 100, "twilight", 8);
+    assert(nativeChatWire_Decode(bytes, 108, &packet));
+    assert(!strcmp(packet.message.account_handle, "twilight") && strlen(packet.message.account_id) == 43);
+    bytes[55] = bytes[56] = 0;
     bytes[13] = 'z';
-    assert(!nativeChatWire_Decode(bytes, 55, &packet));
+    assert(!nativeChatWire_Decode(bytes, 57, &packet));
 
     size_t size =
         nativeChatWire_Post(0x01020304, "A", "hi", bytes, sizeof(bytes));
@@ -64,11 +69,20 @@ int main(void)
     memset(bytes + 1, 'b', 32);
     bytes[33] = 3;
     memcpy(bytes + 34, "A\xc3\xa9", 3);
-    assert(nativeChatWire_Decode(bytes, 37, &packet));
+    assert(nativeChatWire_Decode(bytes, 39, &packet));
     assert(!strcmp(packet.player.name, "A\xc3\xa9"));
-    assert(!nativeChatWire_Decode(bytes, 36, &packet));
+    assert(!nativeChatWire_Decode(bytes, 38, &packet));
+    bytes[37] = 43; bytes[38] = 8;
+    memset(bytes + 39, 'A', 43); memcpy(bytes + 82, "twilight", 8);
+    assert(nativeChatWire_Decode(bytes, 90, &packet));
+    assert(strlen(packet.player.account_id) == 43 && !strcmp(packet.player.account_handle, "twilight"));
+    bytes[85] = 0;
+    assert(!nativeChatWire_Decode(bytes, 90, &packet));
+    bytes[85] = 'l'; bytes[39] = '+';
+    assert(!nativeChatWire_Decode(bytes, 90, &packet));
+    memset(bytes + 37, 0, sizeof(bytes) - 37);
     bytes[1] = 'z';
-    assert(!nativeChatWire_Decode(bytes, 37, &packet));
+    assert(!nativeChatWire_Decode(bytes, 39, &packet));
     const uint8_t identity[] = { 3, 3, 'A', 0xc3, 0xa9 };
     assert(nativeChatWire_Identify("A\xc3\xa9", bytes, sizeof(bytes)) ==
            sizeof(identity));

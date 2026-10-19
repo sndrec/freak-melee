@@ -1,6 +1,7 @@
 import { isRoomId } from "./protocol";
 import { turnCredentialsResponse } from "./turn";
 import { accountHandle, accountJson } from "./account-protocol";
+import { authenticatedConnection } from "./connection-account";
 
 export { Room } from "./room";
 export { GlobalChat } from "./chat";
@@ -41,7 +42,9 @@ export default {
       }
 
       if (url.pathname === "/chat/connect") {
-        return env.GLOBAL_CHAT.getByName("friends").fetch(request);
+        const authenticated = await authenticatedConnection(request, env);
+        if (authenticated instanceof Response) return authenticated;
+        return env.GLOBAL_CHAT.getByName("friends").fetch(authenticated);
       }
       if (url.pathname === "/v1/lobbies/connect") {
         return env.LOBBY_DIRECTORY.getByName("public").fetch(request);
@@ -62,7 +65,9 @@ export default {
         return jsonError("Invalid room ID", 400);
       }
 
-      return env.ROOMS.getByName(roomId).fetch(request);
+      const authenticated = await authenticatedConnection(request, env);
+      if (authenticated instanceof Response) return authenticated;
+      return env.ROOMS.getByName(roomId).fetch(authenticated);
     } catch (error) {
       console.error(
         JSON.stringify({

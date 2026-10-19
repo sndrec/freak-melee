@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { LobbyEntry } from "./lobby-directory";
+import { connectionAccount, currentConnectionAccount } from "./connection-account";
 import { encodeListing } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers } from "./lobby-stage";
 import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
@@ -102,6 +103,7 @@ function waitingOrderForChange(
 }
 
 export class Room extends DurableObject<CloudflareBindings> {
+  private accountMessages = new Map<string, Promise<void>>();
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -136,6 +138,7 @@ export class Room extends DurableObject<CloudflareBindings> {
           peer TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL,
           UNIQUE(connection, nonce)
         );
+        CREATE TABLE IF NOT EXISTS room_accounts (peer TEXT PRIMARY KEY, account_id TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS room_counter (
           id INTEGER PRIMARY KEY CHECK (id = 1),
           revision INTEGER NOT NULL,
@@ -178,7 +181,8 @@ export class Room extends DurableObject<CloudflareBindings> {
 
     const url = new URL(request.url);
     const peerId = url.searchParams.get("peer") ?? "";
-    const name = url.searchParams.get("name") ?? "";
+    const account = connectionAccount(request);
+    const name = account?.profile.name ?? url.searchParams.get("name") ?? "";
     const build = url.searchParams.get("build") ?? "";
     const localPlayers = parseBoundedInteger(url.searchParams.get("players"), 0, 4);
     const activeQuery = url.searchParams.get("active");
@@ -193,6 +197,9 @@ export class Room extends DurableObject<CloudflareBindings> {
       return Response.json({ error: "Invalid room participant" }, { status: 400 });
     }
 
+    const binding = this.ctx.storage.sql.exec<{ account_id: string }>("SELECT account_id FROM room_accounts WHERE peer=?", peerId).toArray()[0];
+    if (binding && binding.account_id !== account?.profile.id)
+      return new Response("This connection belongs to another account", { status: 403 });
     const admission = this.quickMatch();
     if (admission) {
       const allocation = JSON.parse(admission.allocation) as QuickAllocation;
@@ -262,6 +269,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       `)
       .one();
     const attachment: ConnectionAttachment = {
+      account,
       connectionId: crypto.randomUUID(),
       peerId,
       name,
@@ -281,6 +289,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
+    if (account) this.ctx.storage.sql.exec("INSERT OR IGNORE INTO room_accounts VALUES (?,?)", peerId, account.profile.id);
     server.serializeAttachment(attachment);
     this.ctx.acceptWebSocket(server, [`peer:${peerId}`]);
     for (const oldSocket of previousConnections) {
@@ -303,88 +312,115 @@ export class Room extends DurableObject<CloudflareBindings> {
   }
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message === "string" || message.byteLength > MAX_MESSAGE_BYTES) {
-      this.error(socket, "Messages must use the bounded binary room protocol");
-      return;
+    const initial = this.attachment(socket);
+    let release: (() => void) | undefined;
+    let lane: Promise<void> | undefined;
+    if (initial?.account) {
+      const previous = this.accountMessages.get(initial.connectionId);
+      lane = new Promise<void>(resolve => { release = resolve; });
+      this.accountMessages.set(initial.connectionId, lane);
+      if (previous) await previous;
     }
-
-    let parsed: ClientMessage;
     try {
-      parsed = decodeClientMessage(message);
-    } catch {
-      const bytes = new Uint8Array(message);
-      if (bytes[5] === ClientMessageType.PostChat || bytes[5] === ClientMessageType.RequestChat) {
-        this.send(socket, encodeChatRejected(0, "Malformed chat message."));
+      if (socket.readyState !== WebSocket.OPEN) return;
+      const identity = this.attachment(socket);
+      if (identity?.account) {
+        const profile = await currentConnectionAccount(identity.account, this.env);
+        if (!profile) { socket.close(1008, "Account sign-in expired"); return; }
+        if (socket.readyState !== WebSocket.OPEN) return;
+        identity.account.profile = profile;
+        if (identity.name !== profile.name) {
+          identity.name = profile.name;
+          socket.serializeAttachment(identity);
+          this.broadcastPresence(this.nextRevision());
+        }
+      }
+      if (typeof message === "string" || message.byteLength > MAX_MESSAGE_BYTES) {
+        this.error(socket, "Messages must use the bounded binary room protocol");
         return;
       }
-      if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.UnreadyQuick) {
-        this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
-      }
-      this.error(socket, "Malformed room message");
-      return;
-    }
 
-    switch (parsed.type) {
-    case ClientMessageType.SetListing:
-      this.setListing(socket, parsed.title, parsed.listed);
-      return;
-    case ClientMessageType.UnreadyQuick:
-      await this.unreadyQuick(socket, parsed.completedEpoch);
-      return;
-    case ClientMessageType.ReportQuick:
-      await this.reportQuick(socket, parsed.epoch, parsed.winner);
-      return;
-    case ClientMessageType.VoteQuickStage:
-      await this.voteQuickStage(socket, parsed.epoch, parsed.seat, parsed.stage);
-      return;
-    case ClientMessageType.PrepareQuick:
-      await this.prepareQuick(socket, parsed);
-      return;
-    case ClientMessageType.ConfigureQuick:
-      this.configureQuickParty(socket, parsed.mode);
-      return;
-    case ClientMessageType.QueueQuick:
-      try { await this.queueQuick(socket, parsed.searching); }
-      catch (error) {
-        this.invalidateQuickSearch();
-        console.error(JSON.stringify({ message: "quick play search failed", error: String(error) }));
-        this.send(socket, encodeQuickRejected("Quick Play is unavailable. Please try again."));
+      let parsed: ClientMessage;
+      try {
+        parsed = decodeClientMessage(message);
+      } catch {
+        const bytes = new Uint8Array(message);
+        if (bytes[5] === ClientMessageType.PostChat || bytes[5] === ClientMessageType.RequestChat) {
+          this.send(socket, encodeChatRejected(0, "Malformed chat message."));
+          return;
+        }
+        if (bytes[5] >= ClientMessageType.ConfigureQuick && bytes[5] <= ClientMessageType.UnreadyQuick) {
+          this.send(socket, encodeQuickRejected("Malformed Quick Play command.")); return;
+        }
+        this.error(socket, "Malformed room message");
+        return;
       }
-      return;
-    case ClientMessageType.RequestQuick:
-      this.sendQuick(socket);
-      return;
-    case ClientMessageType.PostChat:
-      this.postChat(socket, parsed.nonce, parsed.text);
-      return;
-    case ClientMessageType.RequestChat:
-      this.chatHistory(socket);
-      return;
-    case ClientMessageType.Update:
-      this.updateParticipant(socket, parsed);
-      await this.refreshQuickCountdown();
-      return;
-    case ClientMessageType.Signal:
-      this.forwardSignal(socket, parsed);
-      return;
-    case ClientMessageType.RequestPresence:
-      this.send(socket, encodePresence(this.snapshot(this.currentRevision()), MAX_MESSAGE_BYTES));
-      return;
-    case ClientMessageType.SetMatch:
-      this.setMatch(socket, parsed.payload);
-      return;
-    case ClientMessageType.AssignSeats:
-      this.assignSeats(socket, parsed);
-      return;
-    case ClientMessageType.SetRotation:
-      this.setRotation(socket, parsed.policy);
-      return;
-    case ClientMessageType.ReportMatch:
-      this.reportMatch(socket, parsed);
-      return;
-    case ClientMessageType.PickLobbyStage:
-      this.pickLobbyStage(socket, parsed);
-      return;
+
+      switch (parsed.type) {
+      case ClientMessageType.SetListing:
+        this.setListing(socket, parsed.title, parsed.listed);
+        return;
+      case ClientMessageType.UnreadyQuick:
+        await this.unreadyQuick(socket, parsed.completedEpoch);
+        return;
+      case ClientMessageType.ReportQuick:
+        await this.reportQuick(socket, parsed.epoch, parsed.winner);
+        return;
+      case ClientMessageType.VoteQuickStage:
+        await this.voteQuickStage(socket, parsed.epoch, parsed.seat, parsed.stage);
+        return;
+      case ClientMessageType.PrepareQuick:
+        await this.prepareQuick(socket, parsed);
+        return;
+      case ClientMessageType.ConfigureQuick:
+        this.configureQuickParty(socket, parsed.mode);
+        return;
+      case ClientMessageType.QueueQuick:
+        try { await this.queueQuick(socket, parsed.searching); }
+        catch (error) {
+          this.invalidateQuickSearch();
+          console.error(JSON.stringify({ message: "quick play search failed", error: String(error) }));
+          this.send(socket, encodeQuickRejected("Quick Play is unavailable. Please try again."));
+        }
+        return;
+      case ClientMessageType.RequestQuick:
+        this.sendQuick(socket);
+        return;
+      case ClientMessageType.PostChat:
+        this.postChat(socket, parsed.nonce, parsed.text);
+        return;
+      case ClientMessageType.RequestChat:
+        this.chatHistory(socket);
+        return;
+      case ClientMessageType.Update:
+        this.updateParticipant(socket, parsed);
+        await this.refreshQuickCountdown();
+        return;
+      case ClientMessageType.Signal:
+        this.forwardSignal(socket, parsed);
+        return;
+      case ClientMessageType.RequestPresence:
+        this.send(socket, encodePresence(this.snapshot(this.currentRevision()), MAX_MESSAGE_BYTES));
+        return;
+      case ClientMessageType.SetMatch:
+        this.setMatch(socket, parsed.payload);
+        return;
+      case ClientMessageType.AssignSeats:
+        this.assignSeats(socket, parsed);
+        return;
+      case ClientMessageType.SetRotation:
+        this.setRotation(socket, parsed.policy);
+        return;
+      case ClientMessageType.ReportMatch:
+        this.reportMatch(socket, parsed);
+        return;
+      case ClientMessageType.PickLobbyStage:
+        this.pickLobbyStage(socket, parsed);
+        return;
+      }
+    } finally {
+      release?.();
+      if (initial && this.accountMessages.get(initial.connectionId) === lane) this.accountMessages.delete(initial.connectionId);
     }
   }
 
@@ -392,6 +428,18 @@ export class Room extends DurableObject<CloudflareBindings> {
     this.removeParticipant(socket);
     await this.refreshQuickCountdown();
     socket.close(1000, "Lobby connection closed");
+  }
+  async invitationFor(accountId: string): Promise<{ room: string; title: string; expires: number } | null> {
+    const room = this.ctx.id.name, party = this.quickParty();
+    if (!room || this.quickMatch() || (party?.mode && (party.mode !== 2 || party.state !== 0 ||
+        this.snapshot(this.currentRevision()).participants.reduce((sum, peer) => sum + peer.localPlayers, 0) >= 2))) return null;
+    for (const socket of this.ctx.getWebSockets()) {
+      const peer = this.attachment(socket);
+      if (socket.readyState !== WebSocket.OPEN || peer?.account?.profile.id !== accountId) continue;
+      if (await currentConnectionAccount(peer.account, this.env) && socket.readyState === WebSocket.OPEN)
+        return { room, title: this.listing()?.title ?? (party?.mode ? "Doubles party" : "Lobby"), expires: Date.now() + 15 * 60_000 };
+    }
+    return null;
   }
 
   async webSocketError(socket: WebSocket): Promise<void> {
@@ -822,7 +870,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       socket.close(1011, "Missing participant state");
       return;
     }
-    const name = message.name === undefined ? current.name : message.name;
+    const name = current.account?.profile.name ?? (message.name === undefined ? current.name : message.name);
     const activeMask = message.activeMask === undefined
       ? current.activeMask : message.activeMask;
     const waitingMask = message.waitingMask === undefined

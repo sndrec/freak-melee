@@ -10,14 +10,16 @@ enum {
     NATIVE_CHAT_HISTORY = 64,
     NATIVE_CHAT_NAME_BYTES = 32,
     NATIVE_CHAT_TEXT_BYTES = 512,
-    NATIVE_CHAT_PACKET_BYTES = 592,
+    NATIVE_CHAT_PACKET_BYTES = 661,
     NATIVE_CHAT_PLAYERS = 128,
 };
 typedef struct NativeChatPlayer {
+    char account_id[44], account_handle[25];
     char peer[33];
     char name[NATIVE_CHAT_NAME_BYTES + 1];
 } NativeChatPlayer;
 typedef struct NativeChatMessage {
+    char account_id[44], account_handle[25];
     uint64_t id;
     uint32_t nonce;
     char peer[33];

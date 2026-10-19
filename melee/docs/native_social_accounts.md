@@ -1,9 +1,8 @@
 # Friends and letters
 
-Updated: 2026-10-19. Persistent friends and letters use the passkey account
-service. The service has not been deployed. Chat and lobby connections still
-use their existing temporary identities; linking those to accounts and sending
-verified lobby invitations remain open.
+Updated: 2026-10-19. Friends, letters and verified player-list entries use the
+passkey account service. Lobby invitations arrive in the recipient's Inbox.
+The updated service currently runs locally for verification and awaits deployment.
 
 ## Using the hub
 
@@ -12,6 +11,19 @@ name and choose **Find account**. The profile shows that player's display name
 and bio. You can send a friend request, accept an incoming request, remove a
 friend, write a letter, or block/unblock the player. Display names can differ
 from account names.
+
+Signed-in players appear as **@account_name** in the global and lobby player
+lists. Choose one to open their account profile. Guests appear by their display
+name and have a guest profile. Signing out leaves your current lobby and
+reconnects global chat as a guest. If you sign in after joining a lobby as a
+guest, leave and rejoin that lobby to use your account there.
+
+To invite a friend, join a lobby while signed in, open their profile and choose
+**Invite to lobby**. The invitation remains in their Inbox while they are
+offline. Open it and choose **Join lobby** to leave your current lobby and join
+the sender. Invitations last fifteen minutes. Joining checks that the sender
+is still in that lobby and the friendship is active. Invitations also support
+an idle doubles party with space for a teammate.
 
 **Inbox** holds letters and friend requests. Opening a letter marks it read.
 Friend-request letters offer Accept and Decline. Reply opens a draft addressed
@@ -52,6 +64,20 @@ session must authorize each mailbox operation. The service obtains the sender
 from the authenticated account, and resolves the recipient's account name to
 their permanent ID. Requests cannot choose another sender or another mailbox.
 Account recovery preserves the ID and therefore the mailbox and friendships.
+
+Chat and lobby connections authenticate with the same session. The service
+sets each connection's account ID, account name and display name, and checks
+that the session is still active before handling each command. Revocation
+closes the connection on its next command. Public presence and chat history
+contain the account's public identity. Credentials stay in the native HTTP
+transport and are sent only to the configured account service's HTTPS origin
+(or localhost during development). Redirects are disabled for these requests.
+
+Each invitation records its lobby and expiry in the mailbox. The service checks
+the sender's verified lobby membership and friendship before creating it, then
+checks both again when the recipient chooses Join lobby. Retrying an invitation
+uses the same delivery record. The native client switches lobbies only after
+that check succeeds.
 
 The mailbox stores Inbox, Sent, read state, blocked players and pending
 deliveries in SQLite. Sending commits the outgoing letter and a delivery job
@@ -103,6 +129,26 @@ queued phase-0 packet before its unready request had been processed. The test
 now waits for the authoritative unready state before checking its effects.
 The 75-test result above includes that correction; gameplay code is unchanged.
 
-Real Windows passkey ceremonies, production deployment, authenticated chat/lobby
-identities and invitations remain open. Physical multi-PC acceptance remains
-with the user.
+The account-connection extension passes 79 service tests in ten files. Four
+additional cases cover verified presence and history, forged identity and name
+rejection, hibernation, session revocation, peer ownership, offline invitations,
+retries, expiry, blocking, friendship and live lobby membership. Type checking
+passes. Four native contracts cover account storage and credential-origin
+checks, chat/signaling identity parsing, and room chat.
+
+Evidence: `.local/identity-all-tests-final.log`,
+`.local/identity-typecheck-final.log`, `.local/identity-native-contracts.log`.
+The full native social review passes again, followed by four invitation UI
+checks and five new PNGs. Two hidden, muted clients open verified global/lobby
+profiles, send an invitation, receive it in Inbox, switch from another lobby
+through Join lobby, and sign out back to guest chat.
+
+Evidence: `.local/native-identity-review-1/receipt.json` and
+`.local/native-identity-review-1/invitations/receipt.json`. Reviewed client hash:
+`89c00669cd39f0ae0afaddb578d1f4df8c2c29787c8724297c53195aa2a3497d`.
+These changes preserve the stock artwork and asset generators.
+
+Real Windows passkey ceremonies and production deployment remain open.
+Signing in after joining a lobby as a guest currently requires leaving and
+rejoining that lobby to attach the account. Physical multi-PC acceptance
+remains with the user.

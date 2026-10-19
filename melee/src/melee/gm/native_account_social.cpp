@@ -3,6 +3,14 @@
 #include <cstdio>
 
 namespace {
+    bool room_code(const char* value)
+    {
+        const size_t size = std::strlen(value);
+        if (size < 6 || size > 12) return false;
+        for (size_t i = 0; i < size; ++i)
+            if (!(value[i] >= 'A' && value[i] <= 'Z') && !(value[i] >= '0' && value[i] <= '9')) return false;
+        return true;
+    }
     bool lookup(NativeAccountWorker& w, const char* name, NativeAccountView& view)
     {
         view.social.profile = {}; view.social.profile_blocked = false;
@@ -34,7 +42,7 @@ namespace {
     bool mail(yyjson_val* item, NativeSocialMail& result)
     {
         unsigned unread;
-        auto* created = yyjson_obj_get(item, "created");
+        auto* created = yyjson_obj_get(item, "created"), *expires = yyjson_obj_get(item, "expires");
         char canonical[25];
         bool ok = nativeAccount_String(yyjson_obj_get(item, "id"), result.id, sizeof(result.id)) && nativeAccount_Secret(result.id) &&
             nativeAccount_String(yyjson_obj_get(item, "peer"), result.peer, sizeof(result.peer)) && nativeAccount_Secret(result.peer) &&
@@ -43,11 +51,14 @@ namespace {
             nativeAccount_String(yyjson_obj_get(item, "name"), result.name, sizeof(result.name)) &&
             nativeAccount_String(yyjson_obj_get(item, "title"), result.title, sizeof(result.title)) &&
             nativeAccount_String(yyjson_obj_get(item, "kind"), result.kind, sizeof(result.kind)) &&
-            (!std::strcmp(result.kind, "letter") || !std::strcmp(result.kind, "friend_request")) &&
+            (!std::strcmp(result.kind, "letter") || !std::strcmp(result.kind, "friend_request") || !std::strcmp(result.kind, "room_invite")) &&
             nativeAccount_String(yyjson_obj_get(item, "status"), result.status, sizeof(result.status)) &&
             number(item, "folder", result.folder, 1) && number(item, "unread", unread, 1) &&
-            yyjson_is_uint(created) && yyjson_get_uint(created) <= 9007199254740991ULL;
-        if (ok) { result.created = yyjson_get_uint(created); result.unread = unread != 0; }
+            yyjson_is_uint(created) && yyjson_get_uint(created) <= 9007199254740991ULL &&
+            yyjson_is_uint(expires) && yyjson_get_uint(expires) <= 9007199254740991ULL &&
+            nativeAccount_String(yyjson_obj_get(item, "room"), result.room, sizeof(result.room)) &&
+            (!std::strcmp(result.kind, "room_invite") ? room_code(result.room) && yyjson_get_uint(expires) > 0 : !*result.room && !yyjson_get_uint(expires));
+        if (ok) { result.created = yyjson_get_uint(created); result.expires = yyjson_get_uint(expires); result.unread = unread != 0; }
         return ok;
     }
     bool refresh(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
@@ -105,6 +116,15 @@ bool nativeAccount_RunSocial(NativeAccountWorker& w, const NativeAccountRequest&
         yyjson_mut_obj_add_str(w.json.output, body, "body", request.text);
         yyjson_mut_obj_add_str(w.json.output, body, "nonce", request.nonce);
         route = "social/send"; break;
+    case NativeAccountOperation::SendInvitation:
+        yyjson_mut_obj_add_str(w.json.output, body, "to", request.handle);
+        yyjson_mut_obj_add_str(w.json.output, body, "room", request.room);
+        yyjson_mut_obj_add_str(w.json.output, body, "nonce", request.nonce);
+        route = "social/invite"; break;
+    case NativeAccountOperation::JoinInvitation:
+        view.social.join_id[0] = view.social.join_room[0] = 0;
+        yyjson_mut_obj_add_str(w.json.output, body, "id", request.target);
+        route = "social/join-invite"; break;
     case NativeAccountOperation::ReadLetter: case NativeAccountOperation::DeleteLetter:
         yyjson_mut_obj_add_str(w.json.output, body, "id", request.target);
         route = operation == NativeAccountOperation::ReadLetter ? "social/read" : "social/delete"; break;
@@ -129,16 +149,26 @@ bool nativeAccount_RunSocial(NativeAccountWorker& w, const NativeAccountRequest&
         }
         view.social.opened = opened; ++view.social.revision;
     }
-    if (operation == NativeAccountOperation::SendLetter) {
+    if (operation == NativeAccountOperation::JoinInvitation) {
+        char room[13];
+        if (!nativeAccount_String(yyjson_obj_get(root, "room"), room, sizeof(room)) || !room_code(room)) {
+            std::snprintf(view.status, sizeof(view.status), "This invitation could not be checked."); return true;
+        }
+        std::snprintf(view.social.join_id, sizeof(view.social.join_id), "%s", request.target);
+        std::snprintf(view.social.join_room, sizeof(view.social.join_room), "%s", room); ++view.social.revision;
+        std::snprintf(view.status, sizeof(view.status), "Lobby invitation checked."); return true;
+    }
+    if (operation == NativeAccountOperation::SendLetter || operation == NativeAccountOperation::SendInvitation) {
         char id[44];
         if (!nativeAccount_String(yyjson_obj_get(root, "id"), id, sizeof(id)) || !nativeAccount_Secret(id)) {
-            std::snprintf(view.status, sizeof(view.status), "Delivery is unconfirmed. Retry this letter to check it."); return true;
+            std::snprintf(view.status, sizeof(view.status), "Delivery is unconfirmed. Retry to check it."); return true;
         }
         std::memcpy(view.social.last_sent_nonce, request.nonce, sizeof(request.nonce));
     }
     if (!refresh(w, request, view)) return true;
     if ((operation == NativeAccountOperation::ChangeFriend || operation == NativeAccountOperation::BlockPlayer) && !lookup(w, request.handle, view)) return true;
     std::snprintf(view.status, sizeof(view.status), operation == NativeAccountOperation::SendLetter ? "Letter saved in Sent. Queued letters will retry automatically." :
+        operation == NativeAccountOperation::SendInvitation ? "Lobby invitation sent." :
         operation == NativeAccountOperation::ChangeFriend ? "Friend request updated." : operation == NativeAccountOperation::DeleteLetter ? "Letter deleted." :
         operation == NativeAccountOperation::BlockPlayer ? (request.blocked ? "Player blocked." : "Player unblocked.") : "Letter opened.");
     return true;

@@ -4,6 +4,7 @@ export interface SocialProfile { id: string; handle: string; name: string; bio: 
 export interface SocialMailSummary {
   id: string; folder: number; kind: string; peer: string; handle: string; name: string;
   title: string; created: number; unread: number; status: string;
+  room: string; expires: number;
 }
 export interface SocialFriendEntry { peer: string; handle: string; name: string; state: string; revision: number }
 export interface SocialResult {
@@ -12,6 +13,7 @@ export interface SocialResult {
   messages?: SocialMailSummary[]; friends?: SocialFriendEntry[];
   message?: SocialMailSummary & { body: string };
   profile?: SocialProfile; blocked?: boolean; relationship?: string;
+  room?: string;
 }
 export type FriendState = "none" | "incoming" | "outgoing" | "friend";
 export interface FriendUpdate {
@@ -21,6 +23,7 @@ export interface FriendUpdate {
 export interface MailDelivery {
   id: string; sender: SocialProfile; recipient: SocialProfile;
   title: string; body: string; created: number;
+  invitation?: { room: string; expires: number };
 }
 export const SOCIAL_PAGE = 8, SOCIAL_FRIENDS = 256, SOCIAL_MAIL = 2048;
 export const DELIVERY_MS = 7 * 24 * 60 * 60_000;
