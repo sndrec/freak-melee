@@ -20,7 +20,10 @@ typedef enum NativeHubPage {
     NativeHubPage_RoomChat,
     NativeHubPage_QuickStage,
     NativeHubPage_CreateLobby,
-    NativeHubPage_Account
+    NativeHubPage_Account,
+    NativeHubPage_Letter,
+    NativeHubPage_ComposeLetter,
+    NativeHubPage_SocialProfile
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

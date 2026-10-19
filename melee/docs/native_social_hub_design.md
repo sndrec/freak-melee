@@ -372,7 +372,10 @@ sharing uses the connected lobby's content transfer, validation, cache and
 installation paths. The local passkey account service now supplies persistent
 identity, recovery and device-session management. Native account screens,
 Windows passkey/HTTP handling and DPAPI session storage are implemented.
-Windows security-prompt acceptance and social-identity integration remain open.
+Persistent friends and the email-style Inbox/Sent pages now use those account
+sessions. Their delivery rules and evidence are in the
+[friends and letters guide](native_social_accounts.md). Windows security-prompt
+acceptance, authenticated chat/lobby identity and invitations remain open.
 
 The user prefers account creation and sign-in inside Freak Melee and asks us
 to minimize sensitive information held by the service. Use native Windows

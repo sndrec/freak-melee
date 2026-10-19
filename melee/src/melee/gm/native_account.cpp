@@ -5,31 +5,16 @@
 #include <new>
 
 namespace {
-    struct AccountWorker {
-        SRWLOCK lock = SRWLOCK_INIT;
-        HANDLE wake = nullptr, thread = nullptr;
-        bool stop = false, queued = false, cancelled = false;
-        HWND window = nullptr;
-        NativeAccountEndpoint endpoint{};
-        NativeAccountSecrets secrets{};
-        NativeAccountPasskeys passkeys;
-        NativeAccountRequest request{};
-        NativeAccountView view{};
-        wchar_t path[1024]{};
-        HINTERNET session = nullptr, connection = nullptr;
-        NativeAccountJson json;
-        char send[NativeAccountJsonLimit + 1], receive[NativeAccountJsonLimit + 1];
-    };
-    AccountWorker* worker;
+    NativeAccountWorker* worker;
 
-    void publish(AccountWorker& w, NativeAccountView& view)
+    void publish(NativeAccountWorker& w, NativeAccountView& view)
     {
         AcquireSRWLockExclusive(&w.lock);
         view.revision = w.view.revision + 1;
         w.view = view;
         ReleaseSRWLockExclusive(&w.lock);
     }
-    bool cancelled(AccountWorker& w)
+    bool cancelled(NativeAccountWorker& w)
     {
         AcquireSRWLockShared(&w.lock);
         bool value = w.cancelled || w.stop;
@@ -37,8 +22,9 @@ namespace {
         return value;
     }
     // All WinHTTP handles and buffers belong to this worker. No menu-frame I/O.
-    yyjson_val* http(AccountWorker& w, const char* handle, const char* route,
-        bool post, bool authorized, NativeAccountView& view, unsigned* status_out = nullptr)
+}
+yyjson_val* nativeAccount_Http(NativeAccountWorker& w, const char* handle, const char* route,
+        bool post, bool authorized, NativeAccountView& view, unsigned* status_out)
     {
         if (status_out) *status_out = 0;
         if (cancelled(w)) return nullptr;
@@ -77,23 +63,26 @@ namespace {
         auto* root = w.json.read(w.receive, received);
         if (!root) { std::snprintf(view.status, sizeof(view.status), "The account service returned an invalid response."); return nullptr; }
         if (status < 200 || status >= 300) {
+            if (authorized && status == 401) { view.signed_in = false; view.social = {}; }
             if (!nativeAccount_String(yyjson_obj_get(root, "error"), view.status, sizeof(view.status)))
                 std::snprintf(view.status, sizeof(view.status), "The account service could not complete this request.");
             return nullptr;
         }
         return root;
     }
+namespace {
     bool profile(yyjson_val* root, NativeAccountView& view)
     {
-        auto* value = yyjson_obj_get(root, "profile");
-        char canonical[25];
-        return nativeAccount_String(yyjson_obj_get(value, "id"), view.id, sizeof(view.id)) && nativeAccount_Secret(view.id) &&
-            nativeAccount_String(yyjson_obj_get(value, "handle"), view.handle, sizeof(view.handle)) &&
-            nativeAccount_Handle(view.handle, canonical) && !std::strcmp(canonical, view.handle) &&
-            nativeAccount_String(yyjson_obj_get(value, "name"), view.name, sizeof(view.name)) && *view.name &&
-            nativeAccount_String(yyjson_obj_get(value, "bio"), view.bio, sizeof(view.bio), true);
+        NativeSocialProfile profile{};
+        if (!nativeAccount_ReadProfile(root, profile)) return false;
+        std::memcpy(view.id, profile.id, sizeof(view.id));
+        std::memcpy(view.handle, profile.handle, sizeof(view.handle));
+        std::memcpy(view.name, profile.name, sizeof(view.name));
+        std::memcpy(view.bio, profile.bio, sizeof(view.bio));
+        return true;
     }
-    bool persist(AccountWorker& w, NativeAccountView& view)
+
+    bool persist(NativeAccountWorker& w, NativeAccountView& view)
     {
         view.saved = nativeAccount_Store(w.path, w.secrets);
         view.recovery_pending = *w.secrets.recovery != 0;
@@ -101,14 +90,14 @@ namespace {
             "Signed in, but this PC could not save your session. Save your recovery code before closing.");
         return view.saved;
     }
-    bool me(AccountWorker& w, NativeAccountView& view)
+    bool me(NativeAccountWorker& w, NativeAccountView& view)
     {
         if (!*w.secrets.token) return false;
         unsigned status;
-        auto* root = http(w, w.secrets.handle, "me", false, true, view, &status);
+        auto* root = nativeAccount_Http(w, w.secrets.handle, "me", false, true, view, &status);
         if (!root) {
             if (status == 401) {
-                view.signed_in = false; view.key_count = view.session_count = 0;
+                view.signed_in = false; view.social = {}; view.key_count = view.session_count = 0;
                 // Preserve an unexported recovery code even if the session expired.
                 if (!*w.secrets.recovery) {
                     nativeAccount_Delete(w.path);
@@ -145,7 +134,7 @@ namespace {
         view = updated;
         return true;
     }
-    bool ceremony(AccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
+    bool ceremony(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
     {
         const auto operation = request.operation;
         const bool registration = operation == NativeAccountOperation::Register || operation == NativeAccountOperation::Recover ||
@@ -166,7 +155,7 @@ namespace {
         if (operation == NativeAccountOperation::Recover) yyjson_mut_obj_add_str(w.json.output, body, "recovery_code", request.recovery);
         if (!w.json.write(w.send, sizeof(w.send))) return false;
         std::snprintf(route, sizeof(route), "%s/options", kind);
-        auto* response = http(w, handle, route, true, authorized, view);
+        auto* response = nativeAccount_Http(w, handle, route, true, authorized, view);
         if (!response) return false;
         if (!nativeAccount_String(yyjson_obj_get(response, "attempt"), attempt, sizeof(attempt)) || !nativeAccount_Secret(attempt)) {
             std::snprintf(view.status, sizeof(view.status), "The account service returned an invalid sign-in attempt."); return false;
@@ -180,7 +169,7 @@ namespace {
             // Prompt dismissal never consumes the account's recovery code.
             char error[192]; std::memcpy(error, view.status, sizeof(error));
             body = w.json.object(); yyjson_mut_obj_add_str(w.json.output, body, "attempt", attempt);
-            if (!cancelled(w) && w.json.write(w.send, sizeof(w.send))) http(w, handle, "cancel", true, false, view);
+            if (!cancelled(w) && w.json.write(w.send, sizeof(w.send))) nativeAccount_Http(w, handle, "cancel", true, false, view);
             std::snprintf(view.status, sizeof(view.status), "%s", *error ? error : "Sign-in cancelled.");
             return false;
         }
@@ -195,7 +184,7 @@ namespace {
         std::snprintf(view.status, sizeof(view.status), "Completing sign-in...");
         publish(w, view);
         std::snprintf(route, sizeof(route), "%s/finish", kind);
-        response = http(w, handle, route, true, authorized, view);
+        response = nativeAccount_Http(w, handle, route, true, authorized, view);
         if (!response) return false;
         if (!authorized) {
             NativeAccountSecrets secrets{};
@@ -218,8 +207,9 @@ namespace {
             view.recovery_pending ? "Signed in. Save your recovery code somewhere safe." : "Signed in.");
         return true;
     }
-    void run(AccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
+    void run(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
     {
+        if (nativeAccount_RunSocial(w, request, view)) return;
         const auto operation = request.operation;
         if (*w.secrets.recovery && (operation == NativeAccountOperation::Logout || operation == NativeAccountOperation::RevokeAll ||
             operation == NativeAccountOperation::Register || operation == NativeAccountOperation::Recover)) {
@@ -256,12 +246,12 @@ namespace {
         default: return;
         }
         if (!w.json.write(w.send, sizeof(w.send))) return;
-        auto* response = http(w, w.secrets.handle, route, true, true, view);
+        auto* response = nativeAccount_Http(w, w.secrets.handle, route, true, true, view);
         const bool remote = response != nullptr;
         if (operation == NativeAccountOperation::Logout || (remote && operation == NativeAccountOperation::RevokeAll)) {
             bool removed = nativeAccount_Delete(w.path);
             AcquireSRWLockExclusive(&w.lock); SecureZeroMemory(&w.secrets, sizeof(w.secrets)); ReleaseSRWLockExclusive(&w.lock);
-            view.signed_in = view.saved = view.recovery_pending = false; view.key_count = view.session_count = 0;
+            view.signed_in = view.saved = view.recovery_pending = false; view.social = {}; view.key_count = view.session_count = 0;
             std::snprintf(view.status, sizeof(view.status), !removed ? "Signed out. The old session file could not be removed." :
                 remote ? "Signed out." : "Signed out on this PC. Could not revoke the session online."); return;
         }
@@ -279,7 +269,7 @@ namespace {
     }
     DWORD WINAPI thread_main(void* data)
     {
-        auto& w = *static_cast<AccountWorker*>(data);
+        auto& w = *static_cast<NativeAccountWorker*>(data);
         for (;;) {
             WaitForSingleObject(w.wake, INFINITE);
             AcquireSRWLockExclusive(&w.lock);
@@ -306,7 +296,7 @@ namespace {
 bool nativeAccount_Start(const char* root, const char* endpoint, void* window)
 {
     if (worker) return true;
-    auto* w = new (std::nothrow) AccountWorker;
+    auto* w = new (std::nothrow) NativeAccountWorker;
     if (!w) return false;
     wchar_t directory[900];
     bool ok = nativeAccount_Endpoint(endpoint, w->endpoint) &&
@@ -346,10 +336,12 @@ bool nativeAccount_Start(const char* root, const char* endpoint, void* window)
 }
 bool nativeAccount_Submit(const NativeAccountRequest& request)
 {
-    if (!worker || request.operation > NativeAccountOperation::AcknowledgeRecovery ||
+    if (!worker || request.operation > NativeAccountOperation::BlockPlayer ||
         !std::memchr(request.handle, 0, sizeof(request.handle)) || !std::memchr(request.name, 0, sizeof(request.name)) ||
         !std::memchr(request.bio, 0, sizeof(request.bio)) || !std::memchr(request.recovery, 0, sizeof(request.recovery)) ||
-        !std::memchr(request.target, 0, sizeof(request.target))) return false;
+        !std::memchr(request.target, 0, sizeof(request.target)) ||
+        !std::memchr(request.subject, 0, sizeof(request.subject)) || !std::memchr(request.text, 0, sizeof(request.text)) ||
+        !std::memchr(request.nonce, 0, sizeof(request.nonce)) || !std::memchr(request.action, 0, sizeof(request.action))) return false;
     auto& w = *worker;
     AcquireSRWLockExclusive(&w.lock);
     const bool ok = !w.stop && !w.view.busy && !w.queued;

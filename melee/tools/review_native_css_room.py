@@ -119,7 +119,7 @@ class Client:
             with self.stderr.open('r', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|hub-lobbies|hub-account|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback)\]', text):
+            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|hub-lobbies|hub-account|hub-social|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback)\]', text):
                 return text
             if self.process.poll() is not None:
                 raise RuntimeError(f'Client exited {self.process.returncode}')
@@ -148,7 +148,18 @@ class Client:
     def enter(self, name, text):
         self.click(name)
         self.command('ui-key', 'a', 'ctrl')
-        self.command('ui-text', text)
+        # The native control protocol carries 127 UTF-8 bytes per text event.
+        # Keep code points intact, as ordinary SDL text events do.
+        chunk = ''
+        for character in text:
+            if len((chunk + character).encode('utf-8')) > 127:
+                self.command('ui-text', chunk)
+                chunk = ''
+            chunk += character
+        if chunk:
+            self.command('ui-text', chunk)
+        elif not text:
+            self.command('ui-key', 'backspace')
         time.sleep(.15)
 
     def wait_cards(self, count, timeout=25):

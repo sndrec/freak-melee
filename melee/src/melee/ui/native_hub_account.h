@@ -1,5 +1,7 @@
 #pragma once
 #include "native_hub_internal.h"
+#include <melee/gm/native_account.h>
+const NativeAccountView& nativeHubAccount_View();
 void nativeHubAccount_Tick();
 void nativeHubAccount_Render();
 const char* nativeHubAccount_Status();

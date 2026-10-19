@@ -58,3 +58,23 @@ bool nativeAccount_PasskeyOptions(yyjson_val* response, const NativeAccountEndpo
 bool nativeAccount_Passkey(NativeAccountPasskeys& api, HWND window,
     yyjson_val* response, const NativeAccountEndpoint& endpoint, bool registration,
     NativeAccountJson& json, yyjson_mut_val* body, char (&error)[192]);
+
+struct NativeAccountWorker {
+    SRWLOCK lock = SRWLOCK_INIT;
+    HANDLE wake = nullptr, thread = nullptr;
+    bool stop = false, queued = false, cancelled = false;
+    HWND window = nullptr;
+    NativeAccountEndpoint endpoint{};
+    NativeAccountSecrets secrets{};
+    NativeAccountPasskeys passkeys;
+    NativeAccountRequest request{};
+    NativeAccountView view{};
+    wchar_t path[1024]{};
+    HINTERNET session = nullptr, connection = nullptr;
+    NativeAccountJson json;
+    char send[NativeAccountJsonLimit + 1], receive[NativeAccountJsonLimit + 1];
+};
+yyjson_val* nativeAccount_Http(NativeAccountWorker& worker, const char* handle, const char* route,
+    bool post, bool authorized, NativeAccountView& view, unsigned* status_out = nullptr);
+bool nativeAccount_ReadProfile(yyjson_val* root, NativeSocialProfile& profile);
+bool nativeAccount_RunSocial(NativeAccountWorker& worker, const NativeAccountRequest& request, NativeAccountView& view);

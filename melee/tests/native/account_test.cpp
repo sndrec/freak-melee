@@ -46,9 +46,22 @@ static int client(const char* root, const char* endpoint, bool seed)
         if (name) assert(nativeAccount_String(name, request.name, sizeof(request.name)));
         if (bio) assert(nativeAccount_String(bio, request.bio, sizeof(request.bio), true));
         if (target) assert(nativeAccount_String(target, request.target, sizeof(request.target)));
+        auto* handle = yyjson_obj_get(object, "handle"), *subject = yyjson_obj_get(object, "subject"), *text = yyjson_obj_get(object, "text");
+        auto* nonce = yyjson_obj_get(object, "nonce"), *action = yyjson_obj_get(object, "action");
+        if (handle) assert(nativeAccount_String(handle, request.handle, sizeof(request.handle)));
+        if (subject) assert(nativeAccount_String(subject, request.subject, sizeof(request.subject)));
+        if (text) assert(nativeAccount_String(text, request.text, sizeof(request.text), true));
+        if (nonce) assert(nativeAccount_String(nonce, request.nonce, sizeof(request.nonce)));
+        if (action) assert(nativeAccount_String(action, request.action, sizeof(request.action)));
+        request.folder = unsigned(yyjson_get_uint(yyjson_obj_get(object, "folder")));
+        request.offset = unsigned(yyjson_get_uint(yyjson_obj_get(object, "offset")));
+        request.friends_offset = unsigned(yyjson_get_uint(yyjson_obj_get(object, "friends_offset")));
+        request.blocked = yyjson_get_bool(yyjson_obj_get(object, "blocked"));
         assert(nativeAccount_Submit(request)); wait(view);
-        std::printf("done signed-in=%u saved=%u pending=%u keys=%u sessions=%u name=%s bio=%s status=%s\n",
-            view.signed_in, view.saved, view.recovery_pending, view.key_count, view.session_count, view.name, view.bio, view.status);
+        std::printf("done signed-in=%u saved=%u pending=%u keys=%u sessions=%u name=%s bio=%s status=%s social-loaded=%u mail=%u total=%u unread=%u friends=%u opened=%u lookup=%s relationship=%s\n",
+            view.signed_in, view.saved, view.recovery_pending, view.key_count, view.session_count, view.name, view.bio, view.status,
+            view.social.loaded, view.social.count, view.social.total, view.social.unread, view.social.friends_total,
+            *view.social.opened.id != 0, view.social.profile.handle, view.social.relationship);
         std::fflush(stdout);
     }
     nativeAccount_Shutdown();

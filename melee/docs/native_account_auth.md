@@ -166,8 +166,10 @@ The screenshots show service errors in the shared stock footer and retain the
 original ribbon artwork. Seven release-payload tests also pass with the
 yyjson license included: `.local/native-account-release-payload.log`.
 
-Remaining work includes real Windows passkey creation, sign-in and recovery
-acceptance, authenticated social presence, friends, the offline inbox,
+Persistent friends and the offline inbox now use the account identity and
+session. The [friends and letters guide](native_social_accounts.md) covers the
+native pages, delivery rules and evidence. Remaining work includes real Windows
+passkey creation, sign-in and recovery acceptance, authenticated social presence,
 invitations and deployment. The account client does not complete the hub milestone.
 
 References: [SimpleWebAuthn Server](https://simplewebauthn.dev/docs/packages/server),

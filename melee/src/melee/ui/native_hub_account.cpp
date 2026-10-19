@@ -188,6 +188,7 @@ void nativeHubAccount_Inspect()
     std::fprintf(stderr, "[hub-account] started=%d available=%d busy=%d signed-in=%d saved=%d recovery-pending=%d mode=%u keys=%u devices=%u\n",
         started, account.available, account.busy, account.signed_in, account.saved, account.recovery_pending, mode, account.key_count, account.session_count);
 }
+const NativeAccountView& nativeHubAccount_View() { return account; }
 void nativeHubAccount_Shutdown()
 {
     nativeAccount_Shutdown(); account = {}; started = attempted = false; window = nullptr; mode = offset = profile_revision = 0;

@@ -32,6 +32,14 @@
       {
         "name": "ACCOUNTS",
         "class_name": "Account"
+      },
+      {
+        "name": "SOCIAL",
+        "class_name": "SocialMailbox"
+      },
+      {
+        "name": "FRIENDSHIPS",
+        "class_name": "SocialFriendship"
       }
     ]
   },
@@ -61,6 +69,10 @@
     {
       "tag": "accounts",
       "new_sqlite_classes": ["Account"]
+    },
+    {
+      "tag": "social-mailboxes",
+      "new_sqlite_classes": ["SocialMailbox", "SocialFriendship"]
     }
   ],
   "observability": {

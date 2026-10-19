@@ -1,7 +1,27 @@
 #include "native_account_internal.h"
 #include <wincrypt.h>
+#include <bcrypt.h>
 #include <cstring>
 #include <cstdio>
+
+bool nativeAccount_NewNonce(char (&nonce)[44])
+{
+    BYTE bytes[32];
+    const bool ok = BCryptGenRandom(nullptr, bytes, sizeof(bytes), BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0 &&
+        nativeAccount_Base64Encode(bytes, sizeof(bytes), nonce, sizeof(nonce));
+    SecureZeroMemory(bytes, sizeof(bytes));
+    return ok;
+}
+bool nativeAccount_ReadProfile(yyjson_val* root, NativeSocialProfile& profile)
+{
+    auto* value = yyjson_obj_get(root, "profile");
+    char canonical[25];
+    return nativeAccount_String(yyjson_obj_get(value, "id"), profile.id, sizeof(profile.id)) && nativeAccount_Secret(profile.id) &&
+        nativeAccount_String(yyjson_obj_get(value, "handle"), profile.handle, sizeof(profile.handle)) &&
+        nativeAccount_Handle(profile.handle, canonical) && !std::strcmp(canonical, profile.handle) &&
+        nativeAccount_String(yyjson_obj_get(value, "name"), profile.name, sizeof(profile.name)) && *profile.name &&
+        nativeAccount_String(yyjson_obj_get(value, "bio"), profile.bio, sizeof(profile.bio), true);
+}
 
 NativeAccountJson::~NativeAccountJson()
 {

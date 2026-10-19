@@ -15,6 +15,12 @@ describe("Quick Play ready countdown", () => {
       await prepare(game);
       const before = await revision(game);
       game.clients[0].socket.send(encodeUnreadyQuick(0));
+      // phase 0 may still be queued from match setup. Wait for the actual
+      // unready state before checking its consequences in storage.
+      await expect.poll(async () => runInDurableObject(game.room, (_instance, state) => {
+        const peer = state.getWebSockets(`peer:${game.clients[0].peerId}`)[0].deserializeAttachment() as import("../src/protocol").ConnectionAttachment;
+        return peer.selection[6];
+      })).toBe(0);
       await phase(game.clients[1], 0);
       await runInDurableObject(game.room, async (_instance, state) => {
         const peer = state.getWebSockets(`peer:${game.clients[0].peerId}`)[0].deserializeAttachment() as import("../src/protocol").ConnectionAttachment;
