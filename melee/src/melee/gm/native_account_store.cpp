@@ -42,8 +42,8 @@ bool nativeAccount_Load(const wchar_t* path, const char* origin, NativeAccountSe
         char canonical[25];
         ok = std::memchr(loaded.origin, 0, sizeof(loaded.origin)) && !std::strcmp(loaded.origin, origin) &&
             std::memchr(loaded.handle, 0, sizeof(loaded.handle)) && nativeAccount_Handle(loaded.handle, canonical) &&
-            !std::strcmp(canonical, loaded.handle) && loaded.token[43] == 0 && nativeAccount_Secret(loaded.token) &&
-            loaded.recovery[43] == 0 && (!*loaded.recovery || nativeAccount_Secret(loaded.recovery));
+            !std::strcmp(canonical, loaded.handle) && loaded.token[43] == 0 && (!*loaded.token || nativeAccount_Secret(loaded.token)) &&
+            loaded.seed[43] == 0 && nativeAccount_Secret(loaded.seed) && loaded.recovery[43] == 0 && (!*loaded.recovery || nativeAccount_Secret(loaded.recovery));
     }
     if (ok) secrets = loaded;
     SecureZeroMemory(&loaded, sizeof(loaded));

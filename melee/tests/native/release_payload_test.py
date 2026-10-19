@@ -54,6 +54,7 @@ class ReleasePayload(unittest.TestCase):
         with zipfile.ZipFile(self.output/manifest['archive']) as archive:
             names = archive.namelist()
             self.assertIn('native_content_tool.exe', names)
+            self.assertIn('licenses/monocypher.txt', names)
             self.assertEqual(names.count('SDL3.dll'), 1)
             self.assertNotIn('native_fighter_test_fixture.dll', names)
             self.assertNotIn('ui/retired.fms', names)

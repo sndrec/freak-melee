@@ -38,33 +38,40 @@ their own builds; their old "remaining" lists are not the current backlog.
 - The native Lobbies page now has named listed/unlisted lobbies, live seat
   counts, browsing and joining by row. The host can change listing visibility.
   The [browser checkpoint](melee/docs/native_lobby_browser_checkpoint.md) records
-  local verification. Account creation/sign-in should stay inside the program;
-  Windows passkey handling and the native account screens are implemented;
-  real Windows approval still needs interactive acceptance.
-  Real passkey acceptance and service deployment remain open.
-- The account service now implements passkey registration/sign-in, recovery,
-  key management and device-session revocation with persistent account IDs.
-  The [account contract](melee/docs/native_account_auth.md) records storage,
-  API behavior and test scope. Native HTTP/passkey handling, DPAPI session
-  storage, recovery export and account management screens are implemented.
-  Native contract checks and eight real local account-service checks pass.
-  Windows passkey ceremony acceptance remains open; the service has not been
-  deployed.
+  local verification.
+- Account sign-in uses an automatically generated Ed25519 account key. The user
+  rejected Windows security-key prompts and approved local sign-in, portable
+  key-file export/import and recovery codes. The native client saves the key
+  before registration/recovery finishes, retains it on intentional sign-out,
+  and can issue independently revocable keys for additional PCs. The service
+  stores public keys and hashed session/recovery secrets. See the
+  [account contract](melee/docs/native_account_auth.md) for details.
+  The new service suite passes 68 tests; six real native/service checks cover
+  key generation, interoperability, restart, import/export, revocation and recovery.
+  The native build, six account-screen checks and hosted two-client invitation
+  review pass. Earlier Windows passkey acceptance is superseded by this design.
+  Standard file-picker interaction and presentation remain for user review.
+- The private signaling service now includes account keys, social pages,
+  lobby browsing and Quick Play: deployment
+  `c59460c2-3719-49ab-9093-2db550ed5bf4` at the existing private endpoint.
+  The account-key native path is verified against that hosted service.
 - Persistent friends and offline letters now have account-owned mailboxes,
   shared friendship records, read/delete state, blocking and durable delivery
   retries. The native Friends, profile, composer, Inbox and Sent pages use the
   existing menu components. The [social account guide](melee/docs/native_social_accounts.md)
-  records behavior and verification. The 75-test service suite and two signed-in,
-  hidden/muted native clients pass the recorded friend and letter flows.
+  records behavior and verification. Existing friend/letter checks and the
+  current 68-test service suite cover persistent social behavior.
 - Chat and lobby sockets now carry verified account identities. Player-list
   clicks open account profiles; friends can send offline lobby invitations,
   and joining checks live membership, friendship and expiry. Sign-out leaves
-  the lobby and reconnects global chat as a guest. The 79-test service suite,
-  four native contracts and two hidden/muted clients pass the recorded flows:
-  `.local/native-identity-review-1/receipt.json`. Real Windows approval,
-  deployment and the user's presentation/input review remain open. Signing in
-  after entering a lobby as a guest currently requires leaving and rejoining
-  that lobby to attach the account.
+  the lobby and reconnects global chat as a guest. Four native contracts and
+  two hidden/muted clients pass the account-key hosted path, including four
+  invitation UI checks and seven PNGs:
+  `.local/account-key-hosted-1/receipt.json`. Six account-screen checks cover
+  in-game creation and recovery entry: `.local/account-key-ui-1/receipt.json`.
+  Standard file-picker interaction and the user's presentation/input review
+  remain open. Signing in after entering a lobby as a guest currently requires
+  leaving and rejoining that lobby to attach the account.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the
@@ -92,7 +99,7 @@ their own builds; their old "remaining" lists are not the current backlog.
   loser stage votes and same-opponent rematches now pass service and native
   automation checks. The native six-stage page now supports losing-player picks
   and teammate confirmation, including shared-PC and separate-client doubles.
-  Service deployment and the user's visual review remain open. Late countdown
+  The user's visual review remains open. Late countdown
   cancellation now waits for a service decision, and native
   opponent-exit checks recover to the original party and search again.
   Signaling-loss checks now finish the P2P match and enter a second match after
@@ -151,7 +158,7 @@ dependencies. Native GLB/glTF import uses permissively licensed cgltf.
 | Fighter scripting | Direct typed frontend, bytecode VM, generic engine bindings, owned parameters/state, articles/effects, callbacks and lifetimes. All 26 supported forms prepare, excluding Kirby. | Specific untested behavior/lifetime branches and interactive clone workflows; do not restart wholesale translation. |
 | Rollback | Admitted mutable arenas and external roots, confirmed checkpoints, input history and GPU-free reconstruction; interpreted owner state and audio/effect reconciliation are retained. | Broader scene/fighter coverage and eventual multi-PC acceptance. Further optimization is deferred. |
 | Workshop | Action, Scripting, Animation and Model workspaces, draft ownership, source validation, frozen preview, practice testing and packaging. | Model gaps and collaborative usability acceptance below. |
-| Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Listed/unlisted lobby browsing, passkey accounts, verified player profiles, friends, offline letters and lobby invitations have local native evidence. Fixed-rule Quick Play and rematches have local native evidence. | Real Windows passkey approval, deployment, contextual typography and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
+| Rooms/social | Native hub and authored page transitions, first-run personal roster and cloning, participant CSS cards, ready practice, host start, global/lobby chat, player directories, shared-PC inputs, spectator/rotation foundations, fighter delivery and early remote portraits. Listed/unlisted lobby browsing, account-key sign-in, verified player profiles, friends, offline letters and lobby invitations have local native evidence. Fixed-rule Quick Play and rematches have local native evidence. | File-picker and presentation/input acceptance, contextual typography and collaborative presentation acceptance. Physical multi-PC testing remains deferred to the user. |
 | Friend release | Complete Workshop payload, fresh-source build, clean extracted-install authoring, setup/update ZIPs, isolated user data, update activation and rollback with data preserved. | Current content tests, friend-PC acceptance and presentation polish. |
 
 ### Fighter evidence

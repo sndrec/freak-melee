@@ -1,7 +1,6 @@
 import { env, exports } from "cloudflare:workers";
 import { expect } from "vitest";
-import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/server";
-import { authenticator } from "./account-authenticator";
+import { accountKey, type KeyChallenge } from "./account-key";
 import type { SocialProfile, SocialResult } from "../src/social-protocol";
 
 export async function player() {
@@ -13,11 +12,9 @@ export async function player() {
       body: body === undefined ? undefined : JSON.stringify(body),
     }), env);
   }
-  const device = await authenticator();
-  const start = await (await request("register/options", { name: handle })).json<{
-    attempt: string; origin: string; options: PublicKeyCredentialCreationOptionsJSON }>();
-  const response = await request("register/finish", { attempt: start.attempt,
-    credential: await device.register(start.options, start.origin) });
+  const key = accountKey();
+  const start = await (await request("register/options", { name: handle, public_key: key.publicKey })).json<KeyChallenge>();
+  const response = await request("register/finish", key.proof(handle, start));
   expect(response.status).toBe(200);
   const grant = await response.json<{ profile: SocialProfile; token: string }>();
   const mailbox = env.SOCIAL.getByName(grant.profile.id);
@@ -26,5 +23,5 @@ export async function player() {
     const response = await social("state", { folder }); expect(response.status).toBe(200);
     return response.json<SocialResult>();
   }
-  return { handle, request, grant, social, state, mailbox };
+  return { handle, request, grant, social, state, mailbox, key };
 }

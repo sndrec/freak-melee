@@ -75,7 +75,7 @@ enum class HubAction {
     NewLobby, FieldLobbyTitle, ToggleListing, CreateNamedLobby,
     RefreshLobbies, BrowseLobbies, JoinListedLobby, ChangeListing,
     Account, AccountMode, AccountSubmit, FieldAccountHandle, FieldAccountRecovery,
-    AccountApprove, AccountAddKey, AccountRemoveKey, AccountRevokeSession,
+    AccountExportKey, AccountImportKey, AccountAddKey, AccountRemoveKey, AccountRevokeSession,
     AccountRevokeAll, AccountRotateRecovery, AccountSaveRecovery, AccountLogout,
     AccountRefresh, AccountCancel, AccountConfirm,
     SocialLookup, FieldSocialHandle, FieldLetterTo, FieldLetterSubject,

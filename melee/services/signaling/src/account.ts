@@ -1,10 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
-import { generateRegistrationOptions, generateAuthenticationOptions,
-  verifyRegistrationResponse, verifyAuthenticationResponse } from "@simplewebauthn/server";
-import { isoBase64URL } from "@simplewebauthn/server/helpers";
+import { verifyAccountKey } from "./account-key";
 import { AccountError, accountJson, accountHandle, secret, secretHash, secretValue, equalHash,
-  text, readAccountBody, credentialResponse, CHALLENGE_MS, SESSION_MS, RECENT_AUTH_MS,
-  MAX_PASSKEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
+  text, readAccountBody, CHALLENGE_MS, SESSION_MS, RECENT_AUTH_MS,
+  MAX_ACCOUNT_KEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
 import type { SocialProfile } from "./social-protocol";
 import type { ConnectionAccount } from "./connection-account";
 
@@ -12,14 +10,14 @@ interface AccountRow extends Record<string, SqlStorageValue> {
   user_id: string; display_name: string; bio: string; recovery_hash: string; epoch: number;
 }
 interface KeyRow extends Record<string, SqlStorageValue> {
-  id: string; public_key: ArrayBuffer; counter: number; label: string; created: number;
+  id: string; label: string; created: number;
 }
 interface SessionRow extends Record<string, SqlStorageValue> {
-  hash: string; expires: number; verified: number; label: string; epoch: number;
+  hash: string; expires: number; verified: number; label: string; epoch: number; key_id: string;
 }
 interface ChallengeRow extends Record<string, SqlStorageValue> {
   id: string; kind: Ceremony; challenge: string; user_id: string; display_name: string;
-  expires: number; epoch: number; session_hash: string; recovery_hash: string;
+  expires: number; epoch: number; session_hash: string; recovery_hash: string; key_id: string; key_label: string;
 }
 
 export class Account extends DurableObject<CloudflareBindings> {
@@ -29,23 +27,30 @@ export class Account extends DurableObject<CloudflareBindings> {
       CREATE TABLE IF NOT EXISTS account (
         id INTEGER PRIMARY KEY CHECK(id=1), user_id TEXT NOT NULL, display_name TEXT NOT NULL,
         bio TEXT NOT NULL, recovery_hash TEXT NOT NULL, epoch INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS passkeys (
-        id TEXT PRIMARY KEY, public_key BLOB NOT NULL, counter INTEGER NOT NULL,
-        label TEXT NOT NULL, created INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS account_keys (
+        id TEXT PRIMARY KEY, label TEXT NOT NULL, created INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (
         hash TEXT PRIMARY KEY, expires INTEGER NOT NULL, verified INTEGER NOT NULL,
-        label TEXT NOT NULL, epoch INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS challenges (
+        label TEXT NOT NULL, epoch INTEGER NOT NULL, key_id TEXT NOT NULL DEFAULT '');
+      CREATE TABLE IF NOT EXISTS key_challenges (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, challenge TEXT NOT NULL, user_id TEXT NOT NULL,
         display_name TEXT NOT NULL, expires INTEGER NOT NULL, epoch INTEGER NOT NULL,
-        session_hash TEXT NOT NULL, recovery_hash TEXT NOT NULL);
+        session_hash TEXT NOT NULL, recovery_hash TEXT NOT NULL, key_id TEXT NOT NULL, key_label TEXT NOT NULL);
     `);
+    const columns = this.ctx.storage.sql.exec<{ name: string }>("PRAGMA table_info(sessions)").toArray();
+    if (!columns.some(column => column.name === "key_id"))
+      this.ctx.storage.sql.exec("ALTER TABLE sessions ADD COLUMN key_id TEXT NOT NULL DEFAULT ''");
+    // Retain account IDs, mail and friendships; retire the abandoned WebAuthn credentials.
+    this.ctx.storage.sql.exec("DROP TABLE IF EXISTS passkeys; DROP TABLE IF EXISTS challenges;");
   }
 
   private account(): AccountRow | null {
     return this.ctx.storage.sql.exec<AccountRow>("SELECT * FROM account WHERE id=1").toArray()[0] ?? null;
   }
-  private keys(): KeyRow[] { return this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM passkeys ORDER BY created, id").toArray(); }
+  private keys(): KeyRow[] { return this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM account_keys ORDER BY created, id").toArray(); }
+  private key(id: string): KeyRow | null {
+    return this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM account_keys WHERE id=?", id).toArray()[0] ?? null;
+  }
   private profile() {
     const account = this.account();
     const handle = this.ctx.id.name;
@@ -63,12 +68,12 @@ export class Account extends DurableObject<CloudflareBindings> {
     const account = this.account();
     const session = this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions WHERE hash=?", connection.session).toArray()[0];
     return account && session && session.expires > Date.now() && session.epoch === account.epoch &&
-      connection.epoch === account.epoch && connection.profile.id === account.user_id ? this.profile() : null;
+      connection.epoch === account.epoch && connection.profile.id === account.user_id && this.key(session.key_id) ? this.profile() : null;
   }
   private clean(): void {
     const now = Date.now();
-    this.ctx.storage.sql.exec("DELETE FROM challenges WHERE expires<=?", now);
-    this.ctx.storage.sql.exec("DELETE FROM sessions WHERE expires<=?", now);
+    this.ctx.storage.sql.exec("DELETE FROM key_challenges WHERE expires<=?", now);
+    this.ctx.storage.sql.exec("DELETE FROM sessions WHERE expires<=? OR key_id NOT IN (SELECT id FROM account_keys)", now);
   }
   private async authorize(authorization: string, recent = false): Promise<SessionRow> {
     const header = authorization;
@@ -76,20 +81,20 @@ export class Account extends DurableObject<CloudflareBindings> {
     const hash = await secretHash(header.slice(7));
     const session = this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions WHERE hash=?", hash).toArray()[0];
     const account = this.account();
-    if (!session || !account || session.expires <= Date.now() || session.epoch !== account.epoch)
+    if (!session || !account || session.expires <= Date.now() || session.epoch !== account.epoch || !this.key(session.key_id))
       throw new AccountError(401, "Please sign in again.");
     if (recent && session.verified < Date.now() - RECENT_AUTH_MS)
-      throw new AccountError(403, "Approve your passkey again before changing account security.");
+      throw new AccountError(403, "Verify your account key before changing account security.");
     return session;
   }
   private stillAuthorized(session: SessionRow, epoch: number): void {
     const active = this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions WHERE hash=?", session.hash).toArray()[0];
-    if (!active || active.expires <= Date.now() || active.epoch !== epoch || this.account()?.epoch !== epoch)
+    if (!active || active.expires <= Date.now() || active.epoch !== epoch || this.account()?.epoch !== epoch || !this.key(active.key_id))
       throw new AccountError(401, "Your sign-in changed. Please try again.");
   }
   private takeChallenge(id: unknown, kind: Ceremony): ChallengeRow {
     const rows = this.ctx.storage.sql.exec<ChallengeRow>(
-      "DELETE FROM challenges WHERE id=? AND kind=? AND expires>? RETURNING *", secretValue(id), kind, Date.now()).toArray();
+      "DELETE FROM key_challenges WHERE id=? AND kind=? AND expires>? RETURNING *", secretValue(id), kind, Date.now()).toArray();
     if (!rows.length) throw new AccountError(400, "That sign-in attempt expired or was already used. Try again.");
     return rows[0];
   }
@@ -105,60 +110,46 @@ export class Account extends DurableObject<CloudflareBindings> {
       recoveryHash = await secretHash(secretValue(body.recovery_code));
       if (!account || !equalHash(recoveryHash, account.recovery_hash)) throw new AccountError(401, "Recovery code was not accepted.");
     }
-    const pending = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM challenges").one().count;
+    const pending = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM key_challenges").one().count;
     if (pending >= 16) throw new AccountError(429, "Too many unfinished sign-in attempts. Please wait a moment.");
     const userId = account?.user_id ?? secret();
     const displayName = kind === "register" ? text(body.name ?? this.ctx.id.name, 32) : account!.display_name;
     if (!displayName) throw new AccountError(400, "Enter a display name.");
-    const register = kind === "register" || kind === "add" || kind === "recover";
+    const publicKey = secretValue(body.public_key);
     const keys = this.keys();
-    if (kind === "add" && keys.length >= MAX_PASSKEYS) throw new AccountError(409, "Remove a passkey before adding another.");
-    const options = register ? await generateRegistrationOptions({
-      rpName: "Freak Melee", rpID: this.env.AUTH_RP_ID, userName: this.ctx.id.name!,
-      userID: isoBase64URL.toBuffer(userId), userDisplayName: displayName, timeout: CHALLENGE_MS,
-      attestationType: "none", supportedAlgorithmIDs: [-7, -257],
-      authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
-      excludeCredentials: kind === "recover" ? [] : keys.map(key => ({ id: key.id })),
-    }) : await generateAuthenticationOptions({ rpID: this.env.AUTH_RP_ID, timeout: CHALLENGE_MS,
-      userVerification: "required", allowCredentials: keys.map(key => ({ id: key.id })) });
+    if (kind === "add" && keys.length >= MAX_ACCOUNT_KEYS) throw new AccountError(409, "Remove an account key before adding another.");
+    if ((kind === "login" || kind === "reauth") && !this.key(publicKey))
+      throw new AccountError(401, "This account key was not accepted.");
     if (kind === "register" ? this.account() !== null : this.account()?.epoch !== account!.epoch)
       throw new AccountError(409, "The account changed. Please try again.");
     if (session) this.stillAuthorized(session, account!.epoch);
-    if (this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM challenges").one().count >= 16)
+    if (this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM key_challenges").one().count >= 16)
       throw new AccountError(429, "Too many unfinished sign-in attempts. Please wait a moment.");
-    const id = secret();
-    this.ctx.storage.sql.exec("INSERT INTO challenges VALUES (?,?,?,?,?,?,?,?,?)", id, kind,
-      options.challenge, userId, displayName, Date.now() + CHALLENGE_MS, account?.epoch ?? 0,
-      session?.hash ?? "", recoveryHash);
-    return accountJson({ attempt: id, options, origin: this.env.AUTH_ORIGIN });
+    const id = secret(), challenge = secret(), keyLabel = text(body.key_name ?? "Account key", 64) || "Account key";
+    this.ctx.storage.sql.exec("INSERT INTO key_challenges VALUES (?,?,?,?,?,?,?,?,?,?,?)", id, kind,
+      challenge, userId, displayName, Date.now() + CHALLENGE_MS, account?.epoch ?? 0,
+      session?.hash ?? "", recoveryHash, publicKey, keyLabel);
+    return accountJson({ attempt: id, challenge, user_id: userId, public_key: publicKey,
+      purpose: kind, origin: this.env.AUTH_ORIGIN });
   }
 
   private async sessionValues(label: unknown) {
     const token = secret(), recoveryCode = secret();
     return { token, hash: await secretHash(token), recoveryCode, recoveryHash: await secretHash(recoveryCode),
-      expires: Date.now() + SESSION_MS, label: text(label ?? "Windows PC", 64) };
+      expires: Date.now() + SESSION_MS, label: text(label ?? "PC", 64) };
   }
-  private insertSession(values: { hash: string; expires: number; label: string }, epoch: number): void {
+  private insertSession(values: { hash: string; expires: number; label: string }, epoch: number, key: string): void {
     this.ctx.storage.sql.exec(`DELETE FROM sessions WHERE hash IN
       (SELECT hash FROM sessions ORDER BY verified DESC, hash LIMIT -1 OFFSET ?)`, MAX_SESSIONS - 1);
-    this.ctx.storage.sql.exec("INSERT INTO sessions VALUES (?,?,?,?,?)", values.hash, values.expires, Date.now(), values.label, epoch);
+    this.ctx.storage.sql.exec("INSERT INTO sessions VALUES (?,?,?,?,?,?)", values.hash, values.expires, Date.now(), values.label, epoch, key);
   }
 
   private async finishRegistration(request: Request, kind: "register" | "add" | "recover", body: JsonObject): Promise<Response> {
     const session = kind === "add" ? await this.authorize(request.headers.get("Authorization") ?? "", true) : undefined;
     const challenge = this.takeChallenge(body.attempt, kind);
     if (session && session.hash !== challenge.session_hash) throw new AccountError(401, "Use the sign-in that started this request.");
-    let verification;
-    try {
-      verification = await verifyRegistrationResponse({ response: credentialResponse(body, true),
-        expectedChallenge: challenge.challenge, expectedOrigin: this.env.AUTH_ORIGIN,
-        expectedRPID: this.env.AUTH_RP_ID, requireUserPresence: true,
-        requireUserVerification: true, supportedAlgorithmIDs: [-7, -257] });
-    } catch { throw new AccountError(400, "Passkey registration was not accepted. Please try again."); }
-    if (!verification.verified || !verification.registrationInfo) throw new AccountError(400, "Passkey registration failed.");
-    const credential = verification.registrationInfo.credential;
+    this.verifyProof(challenge, body);
     const values = await this.sessionValues(body.device);
-    const keyLabel = text(body.passkey_name ?? "Passkey", 64) || "Passkey";
     this.ctx.storage.transactionSync(() => {
       const account = this.account();
       if (kind === "register") {
@@ -169,18 +160,16 @@ export class Account extends DurableObject<CloudflareBindings> {
         if (!account || account.epoch !== challenge.epoch) throw new AccountError(409, "The account changed. Please try again.");
         if (kind === "recover") {
           if (!equalHash(account.recovery_hash, challenge.recovery_hash)) throw new AccountError(401, "Recovery code was already used.");
-          this.ctx.storage.sql.exec("DELETE FROM passkeys; DELETE FROM sessions; DELETE FROM challenges;");
+          this.ctx.storage.sql.exec("DELETE FROM account_keys; DELETE FROM sessions; DELETE FROM key_challenges;");
           this.ctx.storage.sql.exec("UPDATE account SET epoch=epoch+1, recovery_hash=? WHERE id=1", values.recoveryHash);
         } else {
           this.stillAuthorized(session!, challenge.epoch);
-          if (this.keys().length >= MAX_PASSKEYS) throw new AccountError(409, "The account already has eight passkeys.");
+          if (this.keys().length >= MAX_ACCOUNT_KEYS) throw new AccountError(409, "The account already has eight account keys.");
         }
       }
-      if (this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM passkeys WHERE id=?", credential.id).toArray().length)
-        throw new AccountError(409, "That passkey is already registered.");
-      this.ctx.storage.sql.exec("INSERT INTO passkeys VALUES (?,?,?,?,?)", credential.id,
-        credential.publicKey, credential.counter, keyLabel, Date.now());
-      if (kind !== "add") this.insertSession(values, this.account()!.epoch);
+      if (this.key(challenge.key_id)) throw new AccountError(409, "That account key is already registered.");
+      this.ctx.storage.sql.exec("INSERT INTO account_keys VALUES (?,?,?)", challenge.key_id, challenge.key_label, Date.now());
+      if (kind !== "add") this.insertSession(values, this.account()!.epoch, challenge.key_id);
     });
     return accountJson(kind === "add" ? { profile: this.profile() } : { profile: this.profile(),
       token: values.token, expires: values.expires, recovery_code: values.recoveryCode });
@@ -190,37 +179,31 @@ export class Account extends DurableObject<CloudflareBindings> {
     const session = kind === "reauth" ? await this.authorize(request.headers.get("Authorization") ?? "") : undefined;
     const challenge = this.takeChallenge(body.attempt, kind);
     if (session && session.hash !== challenge.session_hash) throw new AccountError(401, "Use the sign-in that started this request.");
-    const response = credentialResponse(body, false);
-    if (response.response.userHandle && response.response.userHandle !== challenge.user_id)
-      throw new AccountError(401, "This passkey belongs to another account.");
-    const key = this.ctx.storage.sql.exec<KeyRow>("SELECT * FROM passkeys WHERE id=?", response.id).toArray()[0];
-    if (!key) throw new AccountError(401, "Passkey was not accepted.");
-    let verification;
-    try {
-      verification = await verifyAuthenticationResponse({ response, expectedChallenge: challenge.challenge,
-        expectedOrigin: this.env.AUTH_ORIGIN, expectedRPID: this.env.AUTH_RP_ID, requireUserVerification: true,
-        credential: { id: key.id, publicKey: new Uint8Array(key.public_key), counter: key.counter } });
-    } catch { throw new AccountError(401, "Passkey sign-in was not accepted. Please try again."); }
-    if (!verification.verified) throw new AccountError(401, "Passkey sign-in failed.");
+    this.verifyProof(challenge, body);
+    if (!this.key(challenge.key_id)) throw new AccountError(401, "This account key was not accepted.");
     const values = await this.sessionValues(body.device);
     this.ctx.storage.transactionSync(() => {
       if (this.account()?.epoch !== challenge.epoch) throw new AccountError(401, "The account changed. Please sign in again.");
-      const updated = this.ctx.storage.sql.exec<{ id: string }>(
-        "UPDATE passkeys SET counter=? WHERE id=? AND counter=? RETURNING id", verification.authenticationInfo.newCounter, key.id, key.counter).toArray();
-      if (!updated.length) throw new AccountError(401, "Passkey changed. Please try signing in again.");
+      if (!this.key(challenge.key_id)) throw new AccountError(401, "This account key was removed. Import a current key to sign in.");
       if (session) {
         this.stillAuthorized(session, challenge.epoch);
         this.ctx.storage.sql.exec("UPDATE sessions SET verified=? WHERE hash=?", Date.now(), session.hash);
-      } else this.insertSession(values, challenge.epoch);
+      } else this.insertSession(values, challenge.epoch, challenge.key_id);
     });
     return accountJson(session ? { profile: this.profile() } : { profile: this.profile(), token: values.token, expires: values.expires });
   }
 
+  private verifyProof(challenge: ChallengeRow, body: JsonObject): void {
+    if (!verifyAccountKey({ origin: this.env.AUTH_ORIGIN, handle: this.ctx.id.name!, userId: challenge.user_id,
+      purpose: challenge.kind, publicKey: challenge.key_id, attempt: String(body.attempt), challenge: challenge.challenge }, body.signature))
+      throw new AccountError(401, "Account-key proof was not accepted. Please try again.");
+  }
+
   private async manage(request: Request, route: string, body: JsonObject): Promise<Response> {
-    const sensitive = route === "recovery/rotate" || route === "passkeys/remove" || route === "sessions/revoke-all";
+    const sensitive = route === "recovery/rotate" || route === "keys/remove" || route === "sessions/revoke-all";
     const session = await this.authorize(request.headers.get("Authorization") ?? "", sensitive);
     if (route === "me") return accountJson({ profile: this.profile(), expires: session.expires,
-      passkeys: this.keys().map(key => ({ id: key.id, name: key.label, created: key.created })),
+      keys: this.keys().map(key => ({ id: key.id, name: key.label, created: key.created })),
       sessions: this.ctx.storage.sql.exec<SessionRow>("SELECT * FROM sessions ORDER BY verified DESC").toArray()
         .map(active => ({ id: active.hash, name: active.label, expires: active.expires, current: active.hash === session.hash })) });
     if (route === "profile") {
@@ -230,15 +213,17 @@ export class Account extends DurableObject<CloudflareBindings> {
     } else if (route === "logout") this.ctx.storage.sql.exec("DELETE FROM sessions WHERE hash=?", session.hash);
     else if (route === "sessions/revoke") this.ctx.storage.sql.exec("DELETE FROM sessions WHERE hash=?", secretValue(body.id));
     else if (route === "sessions/revoke-all") this.ctx.storage.sql.exec(
-      "UPDATE account SET epoch=epoch+1 WHERE id=1; DELETE FROM sessions; DELETE FROM challenges;");
-    else if (route === "passkeys/remove") {
-      if (this.keys().length <= 1) throw new AccountError(409, "Keep at least one passkey. Add a replacement first.");
-      this.ctx.storage.sql.exec("DELETE FROM passkeys WHERE id=?", text(body.id, 1400));
+      "UPDATE account SET epoch=epoch+1 WHERE id=1; DELETE FROM sessions; DELETE FROM key_challenges;");
+    else if (route === "keys/remove") {
+      if (this.keys().length <= 1) throw new AccountError(409, "Keep at least one account key. Add a replacement first.");
+      const id = secretValue(body.id);
+      this.ctx.storage.sql.exec("DELETE FROM account_keys WHERE id=?", id);
+      this.ctx.storage.sql.exec("DELETE FROM sessions WHERE key_id=?", id);
     } else if (route === "recovery/rotate") {
       const code = secret(), hash = await secretHash(code);
       this.stillAuthorized(session, session.epoch);
       this.ctx.storage.sql.exec("UPDATE account SET recovery_hash=? WHERE id=1", hash);
-      this.ctx.storage.sql.exec("DELETE FROM challenges WHERE kind='recover'");
+      this.ctx.storage.sql.exec("DELETE FROM key_challenges WHERE kind='recover'");
       return accountJson({ recovery_code: code });
     } else throw new AccountError(404, "Not found.");
     return accountJson({ ok: true });
@@ -250,7 +235,7 @@ export class Account extends DurableObject<CloudflareBindings> {
       if (!this.ctx.id.name || !accountHandle(this.ctx.id.name)) throw new AccountError(400, "Invalid account name.");
       const origin = new URL(this.env.AUTH_ORIGIN);
       const local = origin.protocol === "http:" && origin.hostname === "localhost";
-      if (origin.origin !== this.env.AUTH_ORIGIN || origin.hostname !== this.env.AUTH_RP_ID ||
+      if (origin.origin !== this.env.AUTH_ORIGIN ||
           (origin.protocol !== "https:" && !local))
         throw new AccountError(503, "Account sign-in is not configured for this service.");
       this.clean();
@@ -271,7 +256,7 @@ export class Account extends DurableObject<CloudflareBindings> {
         return accountJson(result);
       }
       if (path === "cancel") {
-        this.ctx.storage.sql.exec("DELETE FROM challenges WHERE id=?", secretValue(body.attempt));
+        this.ctx.storage.sql.exec("DELETE FROM key_challenges WHERE id=?", secretValue(body.attempt));
         return accountJson({ ok: true });
       }
       const ceremony = /^(register|login|add|recover|reauth)\/(options|finish)$/.exec(path);

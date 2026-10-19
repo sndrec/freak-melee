@@ -1,12 +1,12 @@
 // Full native social review with real service-issued sessions, isolated profiles,
-// and hidden/muted game windows. No Windows passkey prompt or public messages.
+// and hidden/muted game windows. No OS authentication prompts or public messages.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdir, open, writeFile, cp } from 'node:fs/promises';
+import { mkdir, open, writeFile, cp, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
-import { authenticator } from '../../services/signaling/test/account-authenticator.ts';
+import { accountKey } from '../../services/signaling/test/account-key.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const output = resolve(process.argv[2]);
@@ -19,7 +19,7 @@ await mkdir(output, { recursive: false });
 const log = await open(resolve(output, 'service.log'), 'w');
 const service = spawn(process.execPath, [resolve(serviceRoot, 'node_modules/wrangler/bin/wrangler.js'),
   'dev', '--local', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', resolve(output, 'service-state'),
-  '--var', `AUTH_ORIGIN:${endpoint}`, '--var', 'AUTH_RP_ID:localhost'],
+  '--var', `AUTH_ORIGIN:${endpoint}`],
   { cwd: serviceRoot, windowsHide: true, stdio: ['ignore', log.fd, log.fd] });
 await writeFile(resolve(output, 'service-pid.txt'), String(service.pid));
 const clients = [], checks = [];
@@ -36,12 +36,12 @@ async function call(player, route, body, token = player?.grant.token) {
 async function player(handle, name, directory) {
   const person = { handle, profile: resolve(output, directory) };
   await cp(fixture, person.profile, { recursive: true });
-  const device = await authenticator();
-  person.registration = await call(person, 'register/options', { name }, null);
-  person.grant = await call(person, 'register/finish', { attempt: person.registration.attempt,
-    credential: await device.register(person.registration.options, person.registration.origin) }, null);
-  person.authentication = await call(person, 'login/options', {}, null);
-  const child = spawn(cli, ['--client', resolve(person.profile, 'Freak Melee/content'), endpoint],
+  const device = accountKey();
+  person.registration = await call(person, 'register/options', { name, public_key: device.publicKey }, null);
+  person.grant = await call(person, 'register/finish', device.proof(handle, person.registration), null);
+  const keyfile = resolve(output, `${handle}.fmakey`);
+  await writeFile(keyfile, JSON.stringify({ application: 'Freak Melee account key', service: endpoint, account: handle, seed: device.seed() }));
+  const child = spawn(cli, ['--service', resolve(person.profile, 'Freak Melee/content'), endpoint],
     { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
   clients.push(child);
   const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
@@ -55,9 +55,10 @@ async function player(handle, name, directory) {
       assert(!result.done, `native client exited: ${error}`); return result.value;
     } finally { clearTimeout(timer); }
   }
-  child.stdin.write(JSON.stringify({ handle, token: person.grant.token,
-    registration: person.registration, authentication: person.authentication }) + '\n');
-  assert.match(await line(), /ready signed-in=1/);
+  assert.match(await line(), /ready signed-in=0/);
+  child.stdin.write(JSON.stringify({ operation: 'ImportKey', path: keyfile }) + '\n');
+  assert.match(await line(), /done signed-in=1/);
+  await rm(keyfile);
   person.send = async body => { child.stdin.write(JSON.stringify(body) + '\n'); return line(); };
   person.close = async () => {
     child.stdin.end(); const code = await new Promise(resolve => child.once('exit', resolve));
@@ -73,20 +74,20 @@ try {
   }
   const a = await player('social_native_a', 'Twilight', 'profile-a');
   const b = await player('social_native_b', 'Guest', 'profile-b');
-  assert.match(await a.send({ operation: 13 }), /social-loaded=1 mail=0 total=0 unread=0 friends=0/);
-  assert.match(await a.send({ operation: 14, handle: b.handle }), /lookup=social_native_b relationship=none/);
-  assert.match(await a.send({ operation: 18, handle: b.handle, action: 'request' }), /friends=1.*relationship=outgoing/);
-  assert.match(await b.send({ operation: 13 }), /mail=1 total=1 unread=1 friends=1/);
-  assert.match(await b.send({ operation: 18, handle: a.handle, action: 'accept' }), /relationship=friend/);
+  assert.match(await a.send({ operation: 'RefreshSocial' }), /social-loaded=1 mail=0 total=0 unread=0 friends=0/);
+  assert.match(await a.send({ operation: 'LookupProfile', handle: b.handle }), /lookup=social_native_b relationship=none/);
+  assert.match(await a.send({ operation: 'ChangeFriend', handle: b.handle, action: 'request' }), /friends=1.*relationship=outgoing/);
+  assert.match(await b.send({ operation: 'RefreshSocial' }), /mail=1 total=1 unread=1 friends=1/);
+  assert.match(await b.send({ operation: 'ChangeFriend', handle: a.handle, action: 'accept' }), /relationship=friend/);
   checks.push('Native friend requests, account lookup and acceptance share persistent account identities');
   const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-  const letter = { operation: 15, handle: b.handle, subject: 'From the native worker', text: 'Hello from the native worker.\nA second line.', nonce, folder: 1 };
+  const letter = { operation: 'SendLetter', handle: b.handle, subject: 'From the native worker', text: 'Hello from the native worker.\nA second line.', nonce, folder: 1 };
   assert.match(await a.send(letter), /social-loaded=1 mail=1 total=1/);
   const state = await call(b, 'social/state', {});
   const mail = state.messages.find(message => message.title === letter.subject);
   assert(mail);
-  assert.match(await b.send({ operation: 16, target: mail.id }), /opened=1/);
-  assert.match(await b.send({ operation: 17, target: mail.id }), /total=1/);
+  assert.match(await b.send({ operation: 'ReadLetter', target: mail.id }), /opened=1/);
+  assert.match(await b.send({ operation: 'DeleteLetter', target: mail.id }), /total=1/);
   await a.send(letter);
   assert.equal((await call(b, 'social/state', {})).total, 1);
   checks.push('Native letter send/read/delete and retry preserve exactly one delivery');
@@ -123,7 +124,7 @@ try {
   assert.equal(invitationCode, 0, 'native invitation review failed; inspect invitations.log');
   checks.push('Verified global/lobby profiles, lobby invitations, joining and account sign-out pass in two native clients');
   await writeFile(resolve(output, 'receipt.json'), JSON.stringify({ checks, limitations: [
-    'Software authenticator sessions exercise normal saved-session validation; real Windows Hello remains unverified.',
+    'Ed25519 key import and native signatures exercise the normal saved-session path.',
     'The service remains local to this review; no production deployment or multi-PC acceptance.'
   ] }, null, 2));
   console.log(`${checks.length} native social integration checks passed`);

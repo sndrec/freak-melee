@@ -1,8 +1,5 @@
-"""Review account pages without opening a Windows security prompt.
-
-Uses an isolated profile, hidden/muted client and the local service state from
-tests/native/account_client_service.mjs. That fixture has an existing account,
-so duplicate registration and unknown-user login stop before a passkey prompt.
+"""Review account-key screens with an isolated, hidden/muted native client.
+Uses the local service state from tests/native/account_client_service.mjs.
 """
 import argparse
 import hashlib
@@ -32,8 +29,7 @@ def main():
     with (output / 'service.log').open('w') as log:
         service = subprocess.Popen(['node', str(service_root / 'node_modules/wrangler/bin/wrangler.js'),
             'dev', '--local', '--ip', '127.0.0.1', '--port', str(args.port),
-            '--persist-to', str(args.service_state.resolve()), '--var', 'AUTH_ORIGIN:' + endpoint,
-            '--var', 'AUTH_RP_ID:localhost'], cwd=service_root, stdout=log, stderr=log,
+            '--persist-to', str(args.service_state.resolve()), '--var', 'AUTH_ORIGIN:' + endpoint], cwd=service_root, stdout=log, stderr=log,
             creationflags=subprocess.CREATE_NO_WINDOW)
         (output / 'service-pid.txt').write_text(str(service.pid))
         try:
@@ -55,21 +51,19 @@ def main():
             assert re.search(r'started=1 available=1 busy=0 signed-in=0', state), state
             client.element('account-login-mode')
             screenshots.append(str(client.screenshot()))
-            checks.append('Settings opens the stock-styled account page with Windows passkey support available')
+            checks.append('Settings opens the stock-styled account page with account-key import and creation available')
             client.click('account-create-mode')
-            client.enter('account-handle', 'native_test')
+            client.enter('account-handle', 'native_key_test')
             client.click('account-submit')
             client.element('account-submit')
             assert 'signed-in=0' in client.inspect('hub-account')
             screenshots.append(str(client.screenshot()))
-            checks.append('Duplicate registration is rejected by the real service before opening Windows Hello')
+            checks.append('Duplicate registration is rejected by the real service without changing the local saved key')
             client.click('account-login-mode')
-            client.enter('account-handle', 'missing_user')
-            client.click('account-submit')
-            client.element('account-submit')
-            screenshots.append(str(client.screenshot()))
-            checks.append('Unknown account sign-in returns to the editable sign-in page')
+            client.element('account-import')
+            checks.append('Signed-out users can import a portable key file; sign-in requires a saved key')
             client.click('account-recover-mode')
+            client.enter('account-handle', 'native_key_test')
             client.enter('account-recovery', 'RECOVERY_FIELD_MASK_TEST')
             screenshots.append(str(client.screenshot()))
             client.inspect('hub-fonts')
@@ -83,10 +77,19 @@ def main():
             client.click('settings-account')
             client.element('account-login-mode')
             checks.append('Leaving and reopening the account page clears its recovery input and returns to sign-in')
+            client.click('account-create-mode')
+            client.enter('account-handle', 'account_ui_test')
+            client.enter('account-name', 'Twilight UI')
+            client.click('account-submit')
+            client.element('account-save-recovery')
+            state = client.inspect('hub-account')
+            assert 'signed-in=1' in state and 'recovery-pending=1' in state, state
+            screenshots.append(str(client.screenshot()))
+            checks.append('Creating an account directly in game generates a key and opens the recovery-code reminder without an OS prompt')
             receipt = {'checks': checks, 'screenshots': screenshots,
                 'exe_sha256': hashlib.sha256(args.exe.read_bytes()).hexdigest(),
-                'limitations': ['No real Windows Hello creation/sign-in or save-file dialog acceptance.',
-                    'Authenticated friends, inbox and presence remain separate work.']}
+                'limitations': ['File picker interaction remains a manual acceptance check.',
+                    'Social presence and delivery are reviewed by the separate two-client suite.']}
             (output / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
         finally:
             if client: client.stop()

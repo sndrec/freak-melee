@@ -7,10 +7,9 @@ continues over the native client's UDP data plane and does not depend on this
 service after peers establish a direct or relayed route.
 
 Repository builds do not deploy the service automatically. The private deployment
-is `https://freak-melee-signaling.sndrec32exe.workers.dev`. The 2026-10-17 room-chat
-checkpoint is deployment `47e0897b-fb0e-42b3-8873-694ab6764d3e`. It accepts the
-native client's protocol v5 seat assignments, owner overrides, match rotation,
-opaque content controls and subscribed lobby chat.
+is `https://freak-melee-signaling.sndrec32exe.workers.dev`. The 2026-10-19
+account-key/social deployment is `c59460c2-3719-49ab-9093-2db550ed5bf4`. Native room protocol v5 includes seat
+assignments, owner overrides, match rotation, content controls and lobby chat.
 
 `/chat/connect?peer=<32 hex digits>` serves the separate global conversation.
 Its WebSocket carries recent chat history and the connected-player directory.
@@ -18,13 +17,13 @@ Lobby chat uses each room's existing WebSocket and retains messages while that
 room remains occupied. See [chat](../../docs/native_chat.md) for controls,
 delivery semantics and current test evidence.
 
-The local account service provides persistent identities, passkey registration
-and sign-in, recovery codes and device-session management. Its cryptographic
-checks use SimpleWebAuthn Server. Native account screens, Windows WebAuthn handling
-and protected session storage are implemented; real Windows approval remains open.
-See the [account contract](../../docs/native_account_auth.md)
-for the API, stored information and verification scope. Accounts, the lobby
-browser and the current Quick Play changes have not been deployed.
+The account service provides persistent identities, generated Ed25519 keys,
+portable account-key files, recovery codes and device-session management.
+The service verifies signed challenges using built-in Node crypto. The native
+client generates/signs keys with Monocypher and protects its local record.
+See the [account contract](../../docs/native_account_auth.md) for controls,
+protocol, storage and verification scope. The old Windows WebAuthn flow has
+been removed at the user's request.
 
 The local service also implements friends, offline letters, verified chat/lobby
 profiles and expiring lobby invitations. Its account socket upgrade uses
@@ -34,7 +33,10 @@ Update the service and client together: the new presence records require both
 ends of the updated wire format. Local native checks set both
 `FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
 localhost service. The [social guide](../../docs/native_social_accounts.md)
-records the 79-test service result and two-client native verification.
+records social behavior and native verification. The account-key suite now
+passes 68 service tests in ten files. Two hidden/muted native clients also pass
+the hosted account-key/profile/invitation/join/sign-out review:
+`.local/account-key-hosted-1/receipt.json`.
 
 Local checks:
 
@@ -96,9 +98,9 @@ letters, digits, `_`, or `-`. A later connection with the same peer ID replaces
 the earlier socket, which provides a simple reconnect path. Each bit in the
 optional masks identifies a local player seat (bit 0 is seat 0); omitted masks
 fill available fighter spots up to four and place overflow seats in waiting.
-Seats in neither mask spectate. The room code is
-the current access boundary; account authentication is outside the private
-friends scope.
+Seats in neither mask spectate. The room code controls lobby admission.
+Signed-in sockets also carry a verified account identity for profiles and
+invitations; local guests can join without an account.
 
 The server sends:
 
@@ -205,8 +207,8 @@ search through the room WebSocket. Whole parties are reserved together, so a
 shared-PC pair or two teammates on separate PCs retain their team assignment.
 Each assigned PC receives its own match-room admission token.
 
-This change has local type/test and deploy-dry-run evidence. The new Durable
-Object class has not been deployed. Native queue controls, assigned-room handoff,
+The Quick Play Durable Object is deployed. Local type/test and native
+checks cover the following behavior. Native queue controls, assigned-room handoff,
 ready practice, B-to-unready and the three-second countdown now reach live
 singles and shared-PC doubles matches in local checks. PCs prepare against the
 current roster revision with matching content digests. The service persists the

@@ -1,26 +1,9 @@
 # Signaling service dependencies
 
-The service uses `@simplewebauthn/server` 14.0.3 under the MIT license.
-Its cryptographic verification runs in the account Durable Object.
-The package lock records its dependencies and their licenses.
+The service uses the Cloudflare Workers runtime and its built-in Node crypto
+module for Ed25519 signature verification. The package lock records the
+licenses of development tools and their dependencies.
 
-## SimpleWebAuthn Server
-
-MIT License
-
-Copyright (c) 2020 Matthew Miller
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-associated documentation files (the "Software"), to deal in the Software without restriction,
-including without limitation the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial
-portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
-OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+The native client uses Monocypher 4.0.2 with its standard Ed25519 module.
+Its BSD-2-Clause / CC0 license is included in `melee/licenses/monocypher.txt`
+and prepared native releases.

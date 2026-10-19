@@ -4,7 +4,6 @@
 #define NOMINMAX
 #include <windows.h>
 #include <winhttp.h>
-#include <webauthn.h>
 #include <yyjson.h>
 #include <stddef.h>
 #include <cwchar>
@@ -28,7 +27,8 @@ struct NativeAccountJson {
     bool write(char* bytes, size_t capacity);
 };
 struct NativeAccountSecrets {
-    char origin[512], handle[25], token[44], recovery[44];
+    char origin[512], handle[25], token[44], recovery[44], seed[44];
+    bool signed_out;
 };
 bool nativeAccount_Endpoint(const char* url, NativeAccountEndpoint& result);
 bool nativeAccount_Handle(const char* input, char (&output)[25]);
@@ -39,34 +39,20 @@ bool nativeAccount_Base64Decode(const char* text, void* output, size_t capacity,
 bool nativeAccount_Store(const wchar_t* path, const NativeAccountSecrets& secrets);
 bool nativeAccount_Load(const wchar_t* path, const char* origin, NativeAccountSecrets& secrets);
 bool nativeAccount_Delete(const wchar_t* path);
-
-struct NativeAccountPasskeys {
-    HMODULE library = nullptr;
-    decltype(&WebAuthNGetApiVersionNumber) version = nullptr;
-    decltype(&WebAuthNGetCancellationId) cancellation_id = nullptr;
-    decltype(&WebAuthNCancelCurrentOperation) cancel = nullptr;
-    decltype(&WebAuthNAuthenticatorMakeCredential) create = nullptr;
-    decltype(&WebAuthNAuthenticatorGetAssertion) get = nullptr;
-    decltype(&WebAuthNFreeCredentialAttestation) free_attestation = nullptr;
-    decltype(&WebAuthNFreeAssertion) free_assertion = nullptr;
-    GUID cancellation{};
-    bool load();
-    void unload();
-};
-// Validates trusted origin/RP/options before showing any security prompt.
-bool nativeAccount_PasskeyOptions(yyjson_val* response, const NativeAccountEndpoint& endpoint, bool registration);
-bool nativeAccount_Passkey(NativeAccountPasskeys& api, HWND window,
-    yyjson_val* response, const NativeAccountEndpoint& endpoint, bool registration,
-    NativeAccountJson& json, yyjson_mut_val* body, char (&error)[192]);
+bool nativeAccount_GenerateKey(char (&encoded)[44]);
+bool nativeAccount_KeyPublic(const char* encoded, char (&output)[44]);
+bool nativeAccount_KeyProof(yyjson_val* response, const NativeAccountEndpoint& endpoint,
+    const char* handle, const char* purpose, const char* encoded, NativeAccountJson& json,
+    yyjson_mut_val* body, char (&error)[192]);
+bool nativeAccount_ReadKeyFile(const char* path, const char* origin, NativeAccountSecrets& result, NativeAccountJson& json);
+bool nativeAccount_WriteKeyFile(const char* path, const NativeAccountSecrets& identity, NativeAccountJson& json);
 
 struct NativeAccountWorker {
     SRWLOCK lock = SRWLOCK_INIT;
     HANDLE wake = nullptr, thread = nullptr;
     bool stop = false, queued = false, cancelled = false;
-    HWND window = nullptr;
     NativeAccountEndpoint endpoint{};
     NativeAccountSecrets secrets{};
-    NativeAccountPasskeys passkeys;
     NativeAccountRequest request{};
     NativeAccountView view{};
     wchar_t path[1024]{};
@@ -78,3 +64,11 @@ yyjson_val* nativeAccount_Http(NativeAccountWorker& worker, const char* handle, 
     bool post, bool authorized, NativeAccountView& view, unsigned* status_out = nullptr);
 bool nativeAccount_ReadProfile(yyjson_val* root, NativeSocialProfile& profile);
 bool nativeAccount_RunSocial(NativeAccountWorker& worker, const NativeAccountRequest& request, NativeAccountView& view);
+
+void nativeAccount_Publish(NativeAccountWorker& worker, NativeAccountView& view);
+bool nativeAccount_Cancelled(NativeAccountWorker& worker);
+bool nativeAccount_SetProfile(yyjson_val* root, NativeAccountView& view);
+bool nativeAccount_Persist(NativeAccountWorker& worker, NativeAccountView& view);
+bool nativeAccount_Refresh(NativeAccountWorker& worker, NativeAccountView& view);
+bool nativeAccount_Login(NativeAccountWorker& worker, const NativeAccountRequest& request, NativeAccountView& view);
+void nativeAccount_RunFile(NativeAccountWorker& worker, const NativeAccountRequest& request, NativeAccountView& view);

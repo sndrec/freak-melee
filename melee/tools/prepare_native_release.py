@@ -79,6 +79,7 @@ def main() -> None:
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
     payload.append((scripts.parent / "licenses/yyjson.txt", "licenses/yyjson.txt"))
+    payload.append((scripts.parent / "licenses/monocypher.txt", "licenses/monocypher.txt"))
 
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
