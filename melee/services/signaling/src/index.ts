@@ -1,10 +1,12 @@
 import { isRoomId } from "./protocol";
 import { turnCredentialsResponse } from "./turn";
+import { accountHandle, accountJson } from "./account-protocol";
 
 export { Room } from "./room";
 export { GlobalChat } from "./chat";
 export { QuickPlayQueue } from "./quick-queue";
 export { LobbyDirectory } from "./lobby-directory";
+export { Account } from "./account";
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
@@ -16,6 +18,19 @@ export default {
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ service: "freak-melee-signaling", status: "ok" });
+      }
+      const account = /^\/v1\/accounts\/([^/]+)\/(.+)$/.exec(url.pathname);
+      if (account) {
+        if (url.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+          return accountJson({ error: "Account requests require HTTPS." }, 403);
+        const handle = accountHandle(account[1]);
+        if (!handle) return accountJson({ error: "Use 3 to 24 letters, numbers or underscores for your account name." }, 400);
+        if (request.method !== "GET" && request.method !== "POST") return accountJson({ error: "Method not allowed." }, 405);
+        // Authentication attempts share a generous per-network limit. Neither
+        // addresses nor raw credentials are written into account records.
+        const limit = await env.ACCOUNT_LIMIT.limit({ key: `account:${request.headers.get("CF-Connecting-IP") ?? "local"}` });
+        if (!limit.success) return accountJson({ error: "Too many account requests. Please wait a minute." }, 429);
+        return env.ACCOUNTS.getByName(handle).fetch(request);
       }
       if (url.pathname === "/v1/turn-credentials") {
         return request.method === "GET"

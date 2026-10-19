@@ -18,6 +18,13 @@ Lobby chat uses each room's existing WebSocket and retains messages while that
 room remains occupied. See [chat](../../docs/native_chat.md) for controls,
 delivery semantics and current test evidence.
 
+The local account service provides persistent identities, passkey registration
+and sign-in, recovery codes and device-session management. Its cryptographic
+checks use SimpleWebAuthn Server. Native account screens and Windows WebAuthn
+integration remain open. See the [account contract](../../docs/native_account_auth.md)
+for the API, stored information and verification scope. Accounts, the lobby
+browser and the current Quick Play changes have not been deployed.
+
 Local checks:
 
 ```powershell
