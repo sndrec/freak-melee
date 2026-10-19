@@ -75,8 +75,9 @@ namespace {
             std::snprintf(request.room, sizeof(request.room), "%s", invitation_room);
             std::snprintf(request.nonce, sizeof(request.nonce), "%s", invitation_nonce);
         }
-        nativeHub_ChangePage(hub.page);
         const bool ok = nativeAccount_Submit(request);
+        if (ok && operation == NativeAccountOperation::SendLetter)
+            nativeHub_ChangePage(hub.page);
         if (!ok) nativeHub_Notice("An account request is still running. Please wait.");
         SDL_memset(&request, 0, sizeof(request));
         return ok;
@@ -136,6 +137,17 @@ void nativeHubSocial_Tick()
                 nativeHub_ChangePage(NativeHubPage_Lobbies);
             } else nativeHub_Notice("Could not join the lobby. Please try again.");
         } else nativeHub_Notice(checked ? "Return to character select or practice to join this lobby." : account.status);
+    }
+    const auto& social = account.social;
+    if (!account.busy && social.loaded) {
+        if (social.folder == folder && social.offset == offset && offset && offset >= social.total) {
+            offset = social.total ? ((social.total - 1) / 8) * 8 : 0;
+            wanted = true;
+        }
+        if (social.friends_offset == friends_offset && friends_offset && friends_offset >= social.friends_total) {
+            friends_offset = social.friends_total ? ((social.friends_total - 1) / 8) * 8 : 0;
+            wanted = true;
+        }
     }
     if (account.signed_in && !account.busy && hub.visible && nativeHubSocial_Page(hub.page) &&
         hub.page != NativeHubPage_ComposeLetter && hub.page != NativeHubPage_SocialProfile && (wanted || SDL_GetTicks() - refreshed >= 10000)) {
@@ -222,7 +234,7 @@ void nativeHubSocial_Render(NativeHubPage page)
     }
     nativeHub_Panel(175, 152, 430, 226);
     const bool friends = page == NativeHubPage_Friends;
-    if (!social.loaded || (!friends && (social.folder != folder || social.offset != offset))) {
+    if (!social.loaded || (friends ? social.friends_offset != friends_offset : social.folder != folder || social.offset != offset)) {
         nativeMenuPaint_Text(account.busy ? "Loading..." : "Refresh to load this page.", 194, 178, 370, 11, muted);
     } else {
         unsigned count = friends ? social.friend_count : social.count;
@@ -249,7 +261,8 @@ void nativeHubSocial_Render(NativeHubPage page)
             194, 183, 370, 11, muted);
     }
     unsigned position = friends ? friends_offset : offset, total = friends ? social.friends_total : social.total;
-    char count[96]; std::snprintf(count, sizeof(count), "%u %s%s", total, friends ? "contacts" : "letters", friends || !social.unread ? "" : " | unread mail");
+    char count[96]; std::snprintf(count, sizeof(count), "%u %s%s", total,
+        friends ? (total == 1 ? "contact" : "contacts") : (total == 1 ? "letter" : "letters"), friends || !social.unread ? "" : " | unread mail");
     nativeMenuPaint_Text(count, 181, 389, 255, 9, muted);
     nativeHub_Button("social-refresh", "Refresh", 431, 384, 82, 22, HubAction::SocialRefresh, 0, false, enabled);
     nativeHub_Button("social-prev", "<", 523, 384, 35, 22, friends ? HubAction::FriendPage : HubAction::MailPage, -8, false, enabled && position > 0);
@@ -334,10 +347,11 @@ void nativeHubSocial_Scroll(int amount)
 void nativeHubSocial_Inspect()
 {
     const auto& account = nativeHubAccount_View(); const auto& social = account.social;
-    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d profile-handle=%s kind=%s invite-pending=%d create-invite=%s create-queued=%d\n",
+    std::fprintf(stderr, "[hub-social] signed-in=%d busy=%d loaded=%d folder=%u offset=%u count=%u total=%u unread=%u friends=%u opened=%d profile=%d profile-handle=%s kind=%s invite-pending=%d create-invite=%s create-queued=%d friends-offset=%u friend-count=%u revision=%u\n",
         account.signed_in, account.busy, social.loaded, social.folder, social.offset, social.count, social.total, social.unread, social.friends_total,
         *opened && !std::strcmp(opened, social.opened.id), *social.profile.id != 0,
-        social.profile.handle, social.opened.kind, *invitation_nonce != 0, hub.lobby_invite_to, hub.lobby_invite_queued);
+        social.profile.handle, social.opened.kind, *invitation_nonce != 0, hub.lobby_invite_to, hub.lobby_invite_queued,
+        social.friends_offset, social.friend_count, social.revision);
     for (unsigned i = 0; i < social.friend_count; ++i)
         std::fprintf(stderr, "[hub-friend] handle=%s relationship=%s presence=%s\n", social.friends[i].handle,
             social.friends[i].state, presence_label(social.friends[i].id));

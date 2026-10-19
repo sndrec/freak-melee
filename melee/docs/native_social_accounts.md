@@ -65,6 +65,10 @@ day. Friend lists include up to 256 accepted or pending contacts. The native
 pages show eight entries at a time. Friends and letters belong to the signed-in
 account; local guests retain their own match seats.
 
+Lists refresh while open. You can keep typing an account name during a refresh.
+If removing a contact or deleting a letter empties the last page, the list
+returns to its last populated page.
+
 Fighter sharing uses the lobby's existing package-transfer flow. Letters carry
 correspondence. Global and lobby chats retain their separate conversations.
 
@@ -214,3 +218,34 @@ reviewed executable SHA-256 is
 Both status screenshots were visually reviewed. The service protocol and
 artwork are unchanged. This is local two-client evidence; physical multi-PC
 and injected connection-failure acceptance remain separate.
+
+## Social editing and pagination check, 2026-10-19
+
+Background refresh keeps the active text field and caret. Explicit letter
+submission still ends editing. Friends waits for the requested page before
+showing rows. When a removal empties the last page of contacts or letters, the
+client requests the last populated page. Counts use singular labels for one
+entry; the shared refresh status names both friends and letters.
+
+The native build and four contracts pass:
+`.local/social-usability-build.log`, `.local/social-usability-contracts.log`.
+Five social UI checks and seven invitation/presence checks pass in
+`.local/social-usability-review-2/ui/receipt.json` and
+`.local/social-usability-review-2/invitations/receipt.json`.
+Four additional checks pass in `.local/social-usability-paging-3/receipt.json`:
+sign-in with the saved key after revocation, uninterrupted typing across a
+completed background refresh, removing the sole contact on page two, and
+deleting the sole letter on page two. The latter two returned to eight visible
+entries on page one. Their PNGs and the singular-count screenshot were reviewed.
+All three receipts identify executable SHA-256
+`e357944e925886dcff0e762f19a76df2de07c852ea0d5f607dee9130f0a1af4c`.
+
+The first combined attempt reached the account request-rate limit between
+phases. The fixture now paces setup requests and separates native review phases
+by a rate-limit window. The second attempt passed social and invitation checks,
+then its paging setup reused the session revoked by the sign-out check. The
+paging review now signs in through the normal account menu using its retained
+key; only that phase was rerun against the same local service state. The full
+driver has not been rerun after this fixture correction. Test-owned clients and
+the local service are stopped. Service behavior, protocol and artwork are
+unchanged; hosted and physical multi-PC acceptance remain separate.

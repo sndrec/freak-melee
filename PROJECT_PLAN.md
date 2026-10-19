@@ -83,6 +83,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   player snapshots and current lobby membership. Four native contracts and
   seven local invitation/presence UI checks pass, including sign-out to a guest
   with the same displayed name: `.local/social-presence-review-1/receipt.json`.
+- Background social refresh preserves account-name typing. Removing the last
+  contact or letter on a later page returns to the last populated page. The
+  current build passes four contracts, five social UI checks, seven invitation/
+  presence checks and four editing/pagination checks. Evidence and fixture
+  limitations are in the [social account guide](melee/docs/native_social_accounts.md).
 - Access to chat during a real match remains deferred to a collaborative design
   pass at the user's request. Preserve the current CSS/practice chat flow.
 - The user approved native integration and delegated routine decisions while

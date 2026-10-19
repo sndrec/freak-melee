@@ -103,7 +103,7 @@ def main():
             assert text not in log and 'Reply from the second account.' not in log
         (output / 'receipt.json').write_text(json.dumps({'checks': checks, 'screenshots': screenshots,
             'exe_sha256': hashlib.sha256(args.exe.read_bytes()).hexdigest(),
-            'limitations': ['This review covers social pages; Windows Hello, deployment and live connection identities have separate acceptance.']}, indent=2) + '\n')
+            'limitations': ['This review covers social pages on one PC; account-key file-picker, hosted-service and physical multi-PC acceptance have separate checks.']}, indent=2) + '\n')
     finally:
         for client in clients: client.stop()
     print(f'{len(checks)} native social UI checks passed; {len(screenshots)} screenshots in {output}')
