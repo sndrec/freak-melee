@@ -201,32 +201,17 @@ import, materials, rigging and skinning, not mesh modeling.
   relative bind poses are checked before import; authored floating-point weights
   survive save/reopen and render in the native client. See the
   [source-skin checkpoint](melee/docs/native_source_skin_checkpoint.md).
-- [ ] Add/edit extra bones while updating owned rig facts, hierarchy, animation,
-  skin/attachment references and gameplay bone roles coherently.
-  [Animation-node remapping](melee/docs/native_extra_bone_checkpoint.md) now
-  preserves retained track payloads across insertion/reordering/removal in all
-  33 retail animation banks (6,245 clips). The Workshop now saves its matching
-  fighter/animation/costume/facts as one validated operation, with complete-asset
-  Undo/Redo; locked-file failure checks and the native Model workflow pass.
-  Script bone references now use stable per-fighter IDs, resolved at script
-  boundaries. Compiler/VM checks cover reordered IDs, target queries and hitbox
-  creation; native core-asset saving preserves the owned ID table.
-  Rig-aware bank rewriting now derives per-clip maps from animation family and
-  omission masks and rebases both descriptor tables. Insertion/removal/reordering
-  checks pass for all 26 supported stock fighter definitions.
-  Physical fighter references now remap model parts, hurtboxes, dynamics,
-  collision/IK/effect fields and reachable subactions, with imported-data checks
-  across all 26 definitions. The complete hierarchy transaction and structural
-  editor Undo acceptance remain open. The in-memory transaction now passes
-  add/reparent/remove, skin-reference and reservation checks on all 26 supported
-  stock definitions plus Glim. Owned hitbox flags preserve legacy clear-command lifetimes and remove
-  the following-command dependency. Metal visibility now follows retained mesh
-  identities through draw-order changes, including tables shared with costumes.
-  Alternate poses now own stable bone-ID maps, prepared when assets load; Sheik
-  passes the hierarchy path too. Model controls and structural history still
-  need to be connected and verified in the native UI. The complete-asset restore
-  backend now guards later edits and replaces all four assets after admission;
-  Action/Animation/Model history entries also guard their rig revision.
+- [x] Add/edit extra bones while updating owned rig facts, hierarchy, animation,
+  skin/attachment references and gameplay bone roles coherently. Skeleton/Edit
+  now exposes Add child, Change parent and Remove for authored extra bones.
+  Stable bone IDs retain script references, and the coordinated transaction
+  updates animation banks, physical references, metal visibility and alternate
+  poses. Backend checks cover all 26 supported stock fighter definitions plus
+  Glim. Native UI checks cover complete-asset, byte-exact Undo/Redo, retained
+  temporary poses through reordering, painting onto an added bone, creating its
+  animation channels, Save/reopen without the source GLB, and Test Character.
+  Later data changes guard structural Undo; Action/Animation history guards its
+  rig revision. See the [extra-bone checkpoint](melee/docs/native_extra_bone_checkpoint.md).
 - [x] Finish rest-edit acceptance for rigid attachments and skinned polygons.
   Compensation now handles HSD single-bone envelopes and shared vertex data;
   648 geometry cases pass. Native Save/Undo/Redo and practice checks pass, but
