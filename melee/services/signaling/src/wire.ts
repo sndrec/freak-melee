@@ -1,6 +1,7 @@
 import { MAX_SELECTION_BYTES, RotationPolicy, validSeatMasks } from "./protocol";
 import type { Participant, RoomSnapshot } from "./protocol";
 import type { QuickState } from "./quick-play";
+import type { LobbyEntry } from "./lobby-directory";
 
 const MAGIC = 0x464d5331;
 const VERSION = 5;
@@ -24,6 +25,8 @@ export const enum ClientMessageType {
   VoteQuickStage = 15,
   UnreadyQuick = 16,
   PickLobbyStage = 17,
+  SetListing = 18,
+  RequestLobbies = 19,
 }
 
 export const enum ServerMessageType {
@@ -37,6 +40,8 @@ export const enum ServerMessageType {
   ChatRejected = 0x88,
   QuickState = 0x89,
   QuickRejected = 0x8a,
+  Lobbies = 0x8b,
+  Listing = 0x8c,
   Error = 0xff,
 }
 
@@ -58,6 +63,8 @@ export interface RoomChatEntry {
 }
 
 export type ClientMessage =
+  | { type: ClientMessageType.SetListing; title: string; listed: boolean }
+  | { type: ClientMessageType.RequestLobbies; offset: number }
   | {
       type: ClientMessageType.Update;
       name?: string;
@@ -85,6 +92,8 @@ export type ClientMessage =
   | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean; loserPort: number };
 
 export type ServerMessage =
+  | { type: ServerMessageType.Lobbies; offset: number; total: number; entries: LobbyEntry[] }
+  | { type: ServerMessageType.Listing; title: string; listed: boolean }
   | {
       type: ServerMessageType.Welcome;
       connectionId: string;
@@ -266,6 +275,15 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.SetListing) {
+    const title = reader.string8(), listed = reader.u8(); reader.finish();
+    if (new TextEncoder().encode(title).length > 64 || !title.trim() || /[\x00-\x1f\x7f]/.test(title) || listed > 1)
+      throw new Error("Invalid lobby listing");
+    return { type, title, listed: listed === 1 };
+  }
+  if (type === ClientMessageType.RequestLobbies) {
+    const offset = reader.u16(); reader.finish(); return { type, offset };
+  }
   if (type === ClientMessageType.UnreadyQuick) {
     const completedEpoch = reader.u64(); reader.finish();
     return { type, completedEpoch };
@@ -387,6 +405,20 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
 
 export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ServerMessageType.Listing) {
+    const title = reader.string8(), listed = reader.u8(); reader.finish();
+    if (listed > 1) throw new Error("Invalid listing state");
+    return { type, title, listed: listed === 1 };
+  }
+  if (type === ServerMessageType.Lobbies) {
+    const offset = reader.u16(), total = reader.u16(), count = reader.u8();
+    if (count > 8 || offset + count > total) throw new Error("Invalid lobby page");
+    const entries: LobbyEntry[] = [];
+    for (let i = 0; i < count; ++i) entries.push({ code: reader.string8(), title: reader.string8(),
+      host: reader.string8(), build: "", fighting: reader.u8(), waiting: reader.u8(),
+      spectating: reader.u8(), participants: reader.u8(), playing: reader.u8() !== 0 });
+    reader.finish(); return { type, offset, total, entries };
+  }
   if (type === ServerMessageType.QuickState) {
     const quick = { mode: reader.u8(), state: reader.u8(), generation: reader.u64(),
       matchRoom: reader.string8(), admission: reader.string8(), team: reader.u8(), stage: reader.u8(),
@@ -719,6 +751,29 @@ export function encodeQueueQuick(searching: boolean): ArrayBuffer {
 }
 export function encodeRequestQuick(): ArrayBuffer {
   return new Writer(ClientMessageType.RequestQuick, 8).finish();
+}
+
+export function encodeSetListing(title: string, listed: boolean): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.SetListing, 80);
+  writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
+}
+export function encodeRequestLobbies(offset: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.RequestLobbies, 10);
+  writer.u16(offset); return writer.finish();
+}
+export function encodeListing(title: string, listed: boolean): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.Listing, 80);
+  writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
+}
+export function encodeLobbyDirectory(offset: number, total: number, entries: LobbyEntry[]): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.Lobbies, 2048);
+  writer.u16(offset); writer.u16(total); writer.u8(entries.length);
+  for (const entry of entries) {
+    writer.string8(entry.code); writer.string8(entry.title); writer.string8(entry.host);
+    writer.u8(entry.fighting); writer.u8(entry.waiting); writer.u8(entry.spectating);
+    writer.u8(entry.participants); writer.u8(entry.playing ? 1 : 0);
+  }
+  return writer.finish();
 }
 export function encodeQuickState(quick: QuickState): ArrayBuffer {
   const writer = new Writer(ServerMessageType.QuickState, 128);

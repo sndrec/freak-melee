@@ -1,4 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
+import type { LobbyEntry } from "./lobby-directory";
+import { encodeListing } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers } from "./lobby-stage";
 import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
 import { quickPorts, quickStageVotes, agreedQuickStage, type QuickPort, type QuickStageVote } from "./quick-round";
@@ -159,6 +161,9 @@ export class Room extends DurableObject<CloudflareBindings> {
           loser_seat INTEGER NOT NULL, stage INTEGER NOT NULL
         );
         INSERT OR IGNORE INTO room_stage VALUES (1,'',255,255);
+        CREATE TABLE IF NOT EXISTS room_listing (
+          id INTEGER PRIMARY KEY CHECK(id=1), title TEXT NOT NULL, listed INTEGER NOT NULL
+        );
       `);
     });
     this.ctx.setWebSocketAutoResponse(
@@ -291,6 +296,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       MAX_MESSAGE_BYTES,
     ));
     this.broadcastPresence(counters.revision);
+    this.sendListing(server);
     await this.refreshQuickCountdown();
     if (quick?.mode || admission) this.sendQuick(server);
     return new Response(null, { status: 101, webSocket: client });
@@ -319,6 +325,9 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
 
     switch (parsed.type) {
+    case ClientMessageType.SetListing:
+      this.setListing(socket, parsed.title, parsed.listed);
+      return;
     case ClientMessageType.UnreadyQuick:
       await this.unreadyQuick(socket, parsed.completedEpoch);
       return;
@@ -1181,6 +1190,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
     if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN)) {
       this.ctx.storage.sql.exec("DELETE FROM room_chat");
+      this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
       this.ctx.storage.sql.exec("UPDATE room_stage SET loser_peer='', loser_seat=255, stage=255 WHERE id=1");
     }
     this.broadcastPresence(this.nextRevision(), socket);
@@ -1254,6 +1264,42 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.send(socket, snapshot);
       }
     }
+    if (this.listing()) this.advertise(revision, excluded);
+  }
+
+  private listing(): { title: string; listed: number } | null {
+    return this.ctx.storage.sql.exec<{ title: string; listed: number }>(
+      "SELECT title, listed FROM room_listing WHERE id=1").toArray()[0] ?? null;
+  }
+  private sendListing(socket: WebSocket): void {
+    const listing = this.listing();
+    if (listing) this.send(socket, encodeListing(listing.title, !!listing.listed));
+  }
+  private setListing(socket: WebSocket, title: string, listed: boolean): void {
+    const peer = this.attachment(socket), room = this.snapshot(this.currentRevision());
+    if (!peer || peer.peerId !== room.ownerPeerId || this.quickParty()?.mode || this.quickMatch()) {
+      this.error(socket, "Only a regular lobby's host can change its listing"); return;
+    }
+    this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_listing VALUES (1,?,?)", title.trim(), listed ? 1 : 0);
+    for (const connected of this.ctx.getWebSockets()) if (connected.readyState === WebSocket.OPEN) this.sendListing(connected);
+    this.advertise(this.nextRevision());
+  }
+  private advertise(revision: number, excluded?: WebSocket): void {
+    const code = this.ctx.id.name;
+    if (!code) return;
+    const listed = !!this.listing()?.listed && !this.quickParty()?.mode && !this.quickMatch() &&
+      this.snapshot(revision, excluded).participants.length !== 0;
+    this.ctx.waitUntil(this.env.LOBBY_DIRECTORY.getByName("public").advertise(code, revision, listed));
+  }
+  directoryEntry(): LobbyEntry | null {
+    const listing = this.listing();
+    const people = this.snapshot(this.currentRevision()).participants;
+    if (!listing?.listed || !people.length || this.quickParty()?.mode || this.quickMatch()) return null;
+    return { code: this.ctx.id.name ?? "", title: listing.title, host: people[0].name, build: people[0].build,
+      fighting: people.reduce((n,p) => n + countActive(p.activeMask), 0),
+      waiting: people.reduce((n,p) => n + countActive(p.waitingMask), 0),
+      spectating: people.reduce((n,p) => n + p.localPlayers - countActive(p.activeMask | p.waitingMask) + (p.localPlayers === 0 ? 1 : 0), 0),
+      participants: people.length, playing: this.currentMatch().payload !== null };
   }
 
   private error(socket: WebSocket, message: string): void {

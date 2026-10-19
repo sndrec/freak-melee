@@ -213,6 +213,10 @@ static bool process_signaling(NativeNetplayConnection* connection)
                                  : event.detail);
             return false;
         }
+        if (event.message.type == NativeSignalingServerMessage_Listing) {
+            connection->listing = event.message.data.listing;
+            continue;
+        }
         if (connection->topology_locked &&
             event.message.type == NativeSignalingServerMessage_Presence)
         {

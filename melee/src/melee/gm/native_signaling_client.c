@@ -183,7 +183,8 @@ static bool build_url(const NativeSignalingClient* client, wchar_t* wide_url,
         return false;
     }
     size_t endpoint_length = strlen(client->endpoint);
-    int written = snprintf(
+    int written = client->directory ? snprintf(url, sizeof(url), "%.*s/v1/lobbies/connect?build=%s",
+        (int) (endpoint_length - (client->endpoint[endpoint_length - 1] == '/')), client->endpoint, build) : snprintf(
         url, sizeof(url),
         "%.*s/v1/rooms/%s/connect?peer=%s&name=%s&build=%s&players=%u%s%s",
         (int) (endpoint_length - (client->endpoint[endpoint_length - 1] == '/')),
@@ -484,11 +485,9 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     if (client == NULL || config == NULL || client->thread_handle != 0 ||
         !copy_bounded(client->endpoint, sizeof(client->endpoint),
                       config->endpoint) ||
-        !valid_room_id(config->room_id) || !valid_peer_id(config->peer_id) ||
-        !copy_bounded(client->room_id, sizeof(client->room_id),
-                      config->room_id) ||
-        !copy_bounded(client->peer_id, sizeof(client->peer_id),
-                      config->peer_id) ||
+        (!config->directory && (!valid_room_id(config->room_id) || !valid_peer_id(config->peer_id))) ||
+        (!config->directory && (!copy_bounded(client->room_id, sizeof(client->room_id), config->room_id) ||
+                               !copy_bounded(client->peer_id, sizeof(client->peer_id), config->peer_id))) ||
         !copy_bounded(client->name, sizeof(client->name), config->name) ||
         !copy_bounded(client->build, sizeof(client->build), config->build) ||
         config->local_players > 4)
@@ -508,6 +507,8 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     memset(&client->events, 0, sizeof(client->events));
     memset(&client->chat, 0, sizeof(client->chat));
     client->local_players = config->local_players;
+    client->directory = config->directory;
+    if (client->directory) client->room_id[0] = client->peer_id[0] = 0;
     atomic_store_explicit(&client->stop_requested, false, memory_order_relaxed);
     atomic_store_explicit(&client->worker_error, ERROR_SUCCESS,
                           memory_order_relaxed);
@@ -578,6 +579,22 @@ bool nativeSignalingClient_QueueSignal(NativeSignalingClient* client,
     return queued;
 }
 
+bool nativeSignalingClient_RequestLobbies(NativeSignalingClient* client, uint16_t offset)
+{
+    uint8_t bytes[10];
+    size_t size = nativeSignalingWire_EncodeLobbies(offset, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed)
+{
+    uint8_t bytes[80];
+    size_t size = nativeSignalingWire_EncodeListing(title, listed, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
 bool nativeSignalingClient_RequestPresence(NativeSignalingClient* client)
 {
     uint8_t bytes[8];

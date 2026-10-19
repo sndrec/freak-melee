@@ -26,6 +26,8 @@ enum {
     CLIENT_VOTE_QUICK_STAGE = 15,
     CLIENT_UNREADY_QUICK = 16,
     CLIENT_PICK_LOBBY_STAGE = 17,
+    CLIENT_SET_LISTING = 18,
+    CLIENT_REQUEST_LOBBIES = 19,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -36,6 +38,8 @@ enum {
     SERVER_CHAT_REJECTED = 0x88,
     SERVER_QUICK_STATE = 0x89,
     SERVER_QUICK_REJECTED = 0x8A,
+    SERVER_LOBBIES = 0x8B,
+    SERVER_LISTING = 0x8C,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -419,6 +423,22 @@ size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,
         writer_u8(&writer, stage) ? writer_finish(&writer) : 0;
 }
 
+size_t nativeSignalingWire_EncodeListing(const char* title, bool listed,
+                                         uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    size_t length = title ? strnlen(title, 65) : 0;
+    return length && length <= 64 &&
+        nativeUtf8_IsVisibleText((const uint8_t*) title, length) &&
+        writer_begin(&writer, output, capacity, CLIENT_SET_LISTING) &&
+        writer_string8(&writer, title, 64) && writer_u8(&writer, listed) ? writer_finish(&writer) : 0;
+}
+size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer, output, capacity, CLIENT_REQUEST_LOBBIES) &&
+        writer_u16(&writer, offset) ? writer_finish(&writer) : 0;
+}
 size_t nativeSignalingWire_EncodeRequestPresence(uint8_t* output,
                                                  size_t output_capacity)
 {
@@ -567,6 +587,29 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_LISTING:
+        output->type = NativeSignalingServerMessage_Listing;
+        return reader_string8(&reader, output->data.listing.title, sizeof(output->data.listing.title)) &&
+            reader_u8(&reader, &output->data.listing.listed) && output->data.listing.listed <= 1 && reader_finished(&reader);
+    case SERVER_LOBBIES: {
+        output->type = NativeSignalingServerMessage_Lobbies;
+        NativeLobbyDirectory* page = &output->data.directory;
+        if (!reader_u16(&reader, &page->offset) || !reader_u16(&reader, &page->total) ||
+            !reader_u8(&reader, &page->count) || page->count > 8 ||
+            page->offset + page->count > page->total) return false;
+        for (unsigned i = 0; i < page->count; ++i) {
+            NativeLobbyEntry* entry = &page->entries[i];
+            if (!reader_string8(&reader, entry->code, sizeof(entry->code)) ||
+                !reader_string8(&reader, entry->title, sizeof(entry->title)) ||
+                !reader_string8(&reader, entry->host, sizeof(entry->host)) ||
+                !reader_u8(&reader, &entry->fighting) || entry->fighting > 4 ||
+                !reader_u8(&reader, &entry->waiting) ||
+                !reader_u8(&reader, &entry->spectating) ||
+                !reader_u8(&reader, &entry->participants) || entry->participants > 32 ||
+                !reader_u8(&reader, &entry->playing) || entry->playing > 1) return false;
+        }
+        return reader_finished(&reader);
+    }
     case SERVER_QUICK_STATE: {
         NativeQuickAssignment* quick = &output->data.quick;
         output->type = NativeSignalingServerMessage_QuickState;

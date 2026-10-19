@@ -45,6 +45,14 @@ static struct NativeQuickSession {
 } quick;
 
 static const char online_build[] = "freak-melee-native-dev-quick-return";
+const char* nativeOnlineSession_Build(void) { return online_build; }
+const NativeLobbyListing* nativeOnlineSession_Listing(void) {
+    return online.active ? &online.lobby.room.connection.listing : NULL;
+}
+bool nativeOnlineSession_SetListing(const char* title, bool listed) {
+    return online.active && nativeOnlineSession_IsOwner() && !quick.assignment.mode &&
+        nativeSignalingClient_SetListing(&online.lobby.room.connection.signaling, title, listed);
+}
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 static bool valid_room_code(const char* room_code)

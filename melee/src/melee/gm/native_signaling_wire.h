@@ -7,6 +7,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     NATIVE_SIGNALING_MAX_MESSAGE_BYTES = 16 * 1024,
     NATIVE_SIGNALING_MAX_PARTICIPANTS = 32,
@@ -31,7 +35,23 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_Chat,
     NativeSignalingServerMessage_QuickState,
     NativeSignalingServerMessage_QuickRejected,
+    NativeSignalingServerMessage_Lobbies,
+    NativeSignalingServerMessage_Listing,
 } NativeSignalingServerMessageType;
+
+typedef struct NativeLobbyListing {
+    char title[65];
+    uint8_t listed;
+} NativeLobbyListing;
+typedef struct NativeLobbyEntry {
+    char code[13], title[65], host[33];
+    uint8_t fighting, waiting, spectating, participants, playing;
+} NativeLobbyEntry;
+typedef struct NativeLobbyDirectory {
+    NativeLobbyEntry entries[8];
+    uint16_t offset, total;
+    uint8_t count;
+} NativeLobbyDirectory;
 
 typedef enum NativeRoomRotationPolicy {
     NativeRoomRotation_Manual,
@@ -127,9 +147,16 @@ typedef struct NativeSignalingServerMessage {
         NativeSignalingSignal signal;
         NativeRoomChatEvent chat;
         NativeQuickAssignment quick;
+        NativeLobbyListing listing;
+        NativeLobbyDirectory directory;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
+
+size_t nativeSignalingWire_EncodeListing(const char* title, bool listed,
+                                         uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output,
+                                        size_t capacity);
 
 typedef struct NativeSignalingUpdate {
     const char* name;
@@ -201,5 +228,8 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                                       size_t message_size,
                                       NativeSignalingServerMessage* output);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 #endif

@@ -19,6 +19,10 @@
       {
         "name": "GLOBAL_CHAT",
         "class_name": "GlobalChat"
+      },
+      {
+        "name": "LOBBY_DIRECTORY",
+        "class_name": "LobbyDirectory"
       }
     ]
   },
@@ -40,6 +44,10 @@
       "new_sqlite_classes": [
         "QuickPlayQueue"
       ]
+    },
+    {
+      "tag": "lobby-directory",
+      "new_sqlite_classes": ["LobbyDirectory"]
     }
   ],
   "observability": {

@@ -9,6 +9,10 @@
 
 #include "native_signaling_wire.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     NATIVE_SIGNALING_COMMAND_CAPACITY = 16,
     NATIVE_SIGNALING_EVENT_CAPACITY = 16,
@@ -25,6 +29,7 @@ typedef struct NativeSignalingClientConfig {
     const char* build;
     const char* admission;
     uint8_t local_players;
+    bool directory;
 } NativeSignalingClientConfig;
 
 typedef enum NativeSignalingClientEventType {
@@ -80,6 +85,7 @@ typedef struct NativeSignalingClient {
     char build[NATIVE_SIGNALING_MAX_BUILD_BYTES + 1];
     char admission[33];
     uint8_t local_players;
+    bool directory;
 } NativeSignalingClient;
 
 // The caller owns this transition-lifetime storage and zero-initializes it.
@@ -93,6 +99,8 @@ bool nativeSignalingClient_QueueSignal(NativeSignalingClient* client,
                                        const uint8_t* payload,
                                        uint16_t payload_size);
 bool nativeSignalingClient_RequestPresence(NativeSignalingClient* client);
+bool nativeSignalingClient_RequestLobbies(NativeSignalingClient* client, uint16_t offset);
+bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed);
 bool nativeSignalingClient_SetMatch(NativeSignalingClient* client,
                                     const uint8_t* payload,
                                     uint16_t payload_size);
@@ -129,5 +137,8 @@ bool nativeSignalingClient_Poll(NativeSignalingClient* client,
                                 NativeSignalingClientEvent* event);
 bool nativeSignalingClient_IsRunning(const NativeSignalingClient* client);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 #endif

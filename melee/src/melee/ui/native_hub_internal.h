@@ -73,7 +73,9 @@ enum class HubAction {
     PickStage,
     ConfirmStage,
     WithdrawStage,
-    LeaveQuick
+    LeaveQuick,
+    NewLobby, FieldLobbyTitle, ToggleListing, CreateNamedLobby,
+    RefreshLobbies, BrowseLobbies, JoinListedLobby, ChangeListing
 };
 struct HubRegion {
     float x, y, w, h;
@@ -92,6 +94,8 @@ struct HubState {
     char notice[256], name[33] = "Player", public_name[33] = "Player",
                       bio[257], code[13], chat[513], room_chat[513], title[64];
     char viewed_name[33], viewed_peer[65], recipient[65], recipient_name[33];
+    char lobby_title[65];
+    bool lobby_listed = true, pending_listing;
     NativeContentId gift_id;
     char gift_title[64];
     char* field;
