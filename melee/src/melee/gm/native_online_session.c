@@ -13,6 +13,7 @@
 #include "native_services.h"
 #include "native_stock_content.h"
 #include "native_home.h"
+#include "native_match_selection.h"
 #include "gm_1601.h"
 #include "gmresult.h"
 #include "types.h"
@@ -632,6 +633,8 @@ void nativeOnlineSession_Inspect(void)
             p ? (unsigned long long)p->match_epoch : 0,
             p ? p->match_size : 0, p ? p->rotation_policy : 0,
             p ? p->participant_count : 0);
+    if (p) fprintf(stderr, "[room-stage] peer=%s seat=%u stage=%u physical=%d\n",
+        p->stage_peer_id, p->stage_seat, p->stage, nativeOnlineSession_StagePort());
     for (unsigned i = 0; p && i < p->participant_count; ++i) {
         const NativeSignalingParticipant* member = &p->participants[i];
         NativeLobbySelection selection = {0};
@@ -721,6 +724,25 @@ bool nativeOnlineSession_IsOwner(void)
            strcmp(presence->owner_peer_id, online.peer_id) == 0;
 }
 
+int nativeOnlineSession_StagePort(void)
+{
+    const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+    if (!p || quick.assignment.mode || p->stage_seat >= online.local_players ||
+        strcmp(p->stage_peer_id, online.peer_id) != 0) return -1;
+    return nativeHome_PhysicalPortForLocalPlayer(p->stage_seat);
+}
+
+bool nativeOnlineSession_PickStage(uint8_t stage)
+{
+    const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+    uint8_t decoded;
+    return p && online.lobby.state == NativeLobbySessionState_Waiting &&
+        nativeOnlineSession_StagePort() >= 0 && p->stage == UINT8_MAX &&
+        nativeStockContent_StageFromId(nativeStockContent_StageId(stage), &decoded) &&
+        decoded == stage && nativeSignalingClient_PickLobbyStage(
+            &online.lobby.room.connection.signaling, p->match_epoch, p->stage_seat, stage);
+}
+
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy)
 {
     return online.active && !quick.assignment.mode && nativeOnlineSession_IsOwner() &&
@@ -789,7 +811,7 @@ bool nativeOnlineSession_ReportMatch(const MatchEnd* result)
     return nativeSignalingClient_ReportMatch(
         &online.lobby.room.connection.signaling,
         online.lobby.room.agreed_match_epoch, winner_peer_id,
-        winner_seat, eligible);
+        winner_seat, eligible, nativeMatchSelection_LoserPort(match, result));
 }
 
 NativeNetplayRoom* nativeOnlineSession_ClaimMatchRoom(void)

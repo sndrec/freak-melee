@@ -6,13 +6,13 @@
 
 #include <melee/gm/gmvsmelee.h>
 #include <melee/gm/native_home.h>
-#include <melee/gm/native_match_selection.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/types.h>
 
 static struct NativeOnlineSssState {
     bool active;
     bool match_submitted;
+    bool stage_submitted;
 } online_sss;
 
 void nativeOnlineSss_Prepare(SSSData* sss)
@@ -72,26 +72,18 @@ NativeOnlineSssAction nativeOnlineSss_Pump(SSSData* sss,
         return NativeOnlineSssAction_Failed;
     }
 
-    if (!nativeOnlineSession_IsOwner()) {
-        return NativeOnlineSssAction_Wait;
-    }
-    if (!stage_selected) {
-        return NativeOnlineSssAction_OwnerInput;
-    }
-    if (!online_sss.match_submitted) {
-        NativeLobbyMatch match;
-        NativeContentId costume_packages[4];
-        NativeContentId fighter_packages[4];
-        bool owner_requested;
-        if (!nativeHome_RoomRosterReady(&owner_requested, costume_packages,
-                                        fighter_packages) ||
-            !owner_requested ||
-            !nativeMatchSelection_Build(&match, &sss->vs, stage,
-                                        costume_packages, fighter_packages) ||
-            !nativeOnlineSession_BeginMatch(&match))
-        {
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    if (!presence) return NativeOnlineSssAction_Wait;
+    if (presence->stage == UINT8_MAX) {
+        if (nativeOnlineSession_StagePort() < 0 || online_sss.stage_submitted)
+            return NativeOnlineSssAction_Wait;
+        if (!stage_selected) return NativeOnlineSssAction_PlayerInput;
+        if (!nativeOnlineSession_PickStage(stage))
             return NativeOnlineSssAction_Failed;
-        }
+        online_sss.stage_submitted = true;
+    } else if (nativeOnlineSession_IsOwner() && !online_sss.match_submitted) {
+        if (!nativeHome_PublishRoomMatch(presence->stage))
+            return NativeOnlineSssAction_Failed;
         online_sss.match_submitted = true;
     }
     return NativeOnlineSssAction_Wait;

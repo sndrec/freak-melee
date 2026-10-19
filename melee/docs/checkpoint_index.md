@@ -23,6 +23,7 @@ it does not relabel old results as final-source acceptance.
 - [Morph-target painting and native asset history (2026-10-19)](native_morph_paint_checkpoint.md)
 - [Weighted morph runtime and rest edits (2026-10-19)](native_morph_skin_checkpoint.md)
 - [Spectating-host match publication (2026-10-19)](native_spectator_owner_checkpoint.md)
+- [Player-created lobby stage selection (2026-10-19)](native_lobby_stage_checkpoint.md)
 - [Outfit dependency acceptance (2026-10-17)](native_costume_dependency_checkpoint.md)
 - [Coordinated custom outfits and CSS selection (2026-10-17)](native_family_outfit_checkpoint.md)
 - [Outfit delivery with missing parent fighters (2026-10-17)](native_outfit_gift_checkpoint.md)

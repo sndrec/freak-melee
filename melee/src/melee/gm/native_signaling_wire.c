@@ -25,6 +25,7 @@ enum {
     CLIENT_REPORT_QUICK = 14,
     CLIENT_VOTE_QUICK_STAGE = 15,
     CLIENT_UNREADY_QUICK = 16,
+    CLIENT_PICK_LOBBY_STAGE = 17,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -385,23 +386,37 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
                                              const char* winner_peer_id,
                                              uint8_t winner_seat,
                                              bool eligible,
+                                             uint8_t loser_port,
                                              uint8_t* output,
                                              size_t output_capacity)
 {
     WireWriter writer;
     if (output_capacity > NATIVE_SIGNALING_MAX_MESSAGE_BYTES ||
         (eligible && winner_seat >= 4) ||
+        (loser_port >= 4 && loser_port != UINT8_MAX) ||
         !writer_begin(&writer, output, output_capacity,
                       CLIENT_REPORT_MATCH) ||
         !writer_u64(&writer, epoch) ||
         !writer_string8(&writer, winner_peer_id,
                         NATIVE_SIGNALING_MAX_PEER_ID_BYTES) ||
         !writer_u8(&writer, winner_seat) ||
-        !writer_u8(&writer, eligible ? 1 : 0))
+        !writer_u8(&writer, eligible ? 1 : 0) ||
+        !writer_u8(&writer, loser_port))
     {
         return 0;
     }
     return writer_finish(&writer);
+}
+
+size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,
+                                                uint8_t stage,
+                                                uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return seat < 4 && stage != UINT8_MAX &&
+        writer_begin(&writer, output, capacity, CLIENT_PICK_LOBBY_STAGE) &&
+        writer_u64(&writer, epoch) && writer_u8(&writer, seat) &&
+        writer_u8(&writer, stage) ? writer_finish(&writer) : 0;
 }
 
 size_t nativeSignalingWire_EncodeRequestPresence(uint8_t* output,
@@ -649,6 +664,12 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                               &presence->match_size) &&
                reader_u8(&reader, &presence->rotation_policy) &&
                presence->rotation_policy <= NativeRoomRotation_WinnerOut &&
+               reader_string8(&reader, presence->stage_peer_id,
+                              sizeof(presence->stage_peer_id)) &&
+               reader_u8(&reader, &presence->stage_seat) &&
+               (presence->stage_seat < 4 ||
+                (presence->stage_seat == UINT8_MAX && !presence->stage_peer_id[0])) &&
+               reader_u8(&reader, &presence->stage) &&
                reader_finished(&reader);
     }
     case SERVER_SIGNAL:

@@ -13,6 +13,7 @@ import {
   encodeSetMatch,
   encodeSetRotation,
   encodeReportMatch,
+  encodePickLobbyStage,
   encodeSignalRequest,
   encodeUpdate,
 } from "../src/wire";
@@ -122,6 +123,63 @@ async function connect(
 }
 
 describe("signaling worker", () => {
+  it("hands lobby stage choice to the previous loser, with active-seat fallback", async () => {
+    const sockets: WebSocket[] = [];
+    async function join(peer: string, players: number) {
+      const pending = sockets.map(nextMessage);
+      const socket = await connect("STAGE77", peer, peer,
+        players ? "active" : "spectator", players);
+      await nextMessage(socket); await nextMessage(socket); await Promise.all(pending);
+      sockets.push(socket);
+      return socket;
+    }
+    async function broadcast(sender: WebSocket, bytes: ArrayBuffer) {
+      const pending = sockets.map(nextMessage);
+      sender.send(bytes);
+      const messages = await Promise.all(pending);
+      if (messages[0].type !== ServerMessageType.Presence) throw new Error("presence expected");
+      return messages[0].snapshot;
+    }
+    async function rejected(sender: WebSocket, bytes: ArrayBuffer) {
+      const pending = nextMessage(sender); sender.send(bytes);
+      expect(await pending).toMatchObject({ type: ServerMessageType.Error });
+    }
+    const host = await join("stage_host", 0);
+    const first = await join("stage_first", 2);
+    const second = await join("stage_second", 2);
+    const start = new Uint8Array([0x46,0x4d,0x53,0x4c,1,0,2]);
+    let room = await broadcast(host, encodeUpdate({ selection: start }, MAX_MESSAGE_BYTES));
+    expect([room.stagePeerId,room.stageSeat,room.stage]).toEqual(["stage_first",0,255]);
+    await rejected(host, encodePickLobbyStage(room.matchEpoch,0,32,MAX_MESSAGE_BYTES));
+    await rejected(first, encodePickLobbyStage(room.matchEpoch,1,32,MAX_MESSAGE_BYTES));
+    for (const invalidStage of [0,21,26,33])
+      await rejected(first, encodePickLobbyStage(room.matchEpoch,0,invalidStage,MAX_MESSAGE_BYTES));
+    room = await broadcast(first, encodePickLobbyStage(room.matchEpoch,0,32,MAX_MESSAGE_BYTES));
+    expect(room.stage).toBe(32);
+    room = await broadcast(host, encodeSetMatch(new Uint8Array([1]), MAX_MESSAGE_BYTES));
+    const completedEpoch = room.matchEpoch;
+    room = await broadcast(second, encodeReportMatch(completedEpoch,"",255,false,3,MAX_MESSAGE_BYTES));
+    expect([room.stagePeerId,room.stageSeat,room.stage]).toEqual(["stage_second",1,255]);
+    await evictDurableObject(env.ROOMS.getByName("STAGE77"));
+    const persisted = nextMessage(host); host.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
+    expect(await persisted).toMatchObject({ snapshot: { stagePeerId:"stage_second", stageSeat:1 } });
+    // The second player on a shared PC owns the next pick, not its first pad.
+    await rejected(second, encodePickLobbyStage(room.matchEpoch,0,31,MAX_MESSAGE_BYTES));
+    room = await broadcast(second, encodePickLobbyStage(room.matchEpoch,1,31,MAX_MESSAGE_BYTES));
+    expect(room.stage).toBe(31);
+    const obsoleteEpoch = room.matchEpoch;
+    room = await broadcast(second, encodeUpdate({ activeMask:1, waitingMask:0 },MAX_MESSAGE_BYTES));
+    expect([room.stagePeerId,room.stageSeat,room.stage]).toEqual(["stage_first",0,255]);
+    await rejected(first, encodePickLobbyStage(obsoleteEpoch,0,8,MAX_MESSAGE_BYTES));
+    room = await broadcast(first, encodeUpdate({ activeMask:0, waitingMask:0 },MAX_MESSAGE_BYTES));
+    expect([room.stagePeerId,room.stageSeat]).toEqual(["stage_second",0]);
+    // A late result cannot overwrite the chooser or clear a later proposal.
+    second.send(encodeReportMatch(completedEpoch,"",255,false,0,MAX_MESSAGE_BYTES));
+    const unchanged = nextMessage(second); second.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
+    expect(await unchanged).toMatchObject({ snapshot: { revision:room.revision, stagePeerId:"stage_second", stageSeat:0 } });
+    for (const socket of sockets) socket.close(1000,"test complete");
+  });
+
   it("rotates completed 1v1 seats in waiting order and ignores stale or canceled results", async () => {
     const sockets: WebSocket[] = [];
     async function join(peer: string, role: "active" | "waiting"): Promise<WebSocket> {
@@ -163,10 +221,10 @@ describe("signaling worker", () => {
     expect(await lockedPolicyError).toMatchObject({ type: ServerMessageType.Error });
     const waitingReportError = nextMessage(sockets[2]);
     sockets[2].send(encodeReportMatch(
-      firstEpoch, "rot_guest", 0, true, MAX_MESSAGE_BYTES));
+      firstEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
     expect(await waitingReportError).toMatchObject({ type: ServerMessageType.Error });
     room = await broadcast(guest, encodeReportMatch(
-      firstEpoch, "rot_guest", 0, true, MAX_MESSAGE_BYTES));
+      firstEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
     expect(room.match).toBeNull();
     expect(room.participants.map((participant) => [
       participant.peerId, participant.activeMask, participant.waitingRanks[0],
@@ -176,7 +234,7 @@ describe("signaling worker", () => {
     ]);
 
     const stalePresence = nextMessage(guest);
-    guest.send(encodeReportMatch(firstEpoch, "rot_guest", 0, true,
+    guest.send(encodeReportMatch(firstEpoch, "rot_guest", 0, true, 255,
       MAX_MESSAGE_BYTES));
     guest.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
     const stale = await stalePresence;
@@ -189,7 +247,7 @@ describe("signaling worker", () => {
     room = await broadcast(owner, encodeSetMatch(
       new Uint8Array([2]), MAX_MESSAGE_BYTES));
     room = await broadcast(guest, encodeReportMatch(
-      room.matchEpoch, "rot_guest", 0, true, MAX_MESSAGE_BYTES));
+      room.matchEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
     expect(room.participants.map((participant) => [
       participant.peerId, participant.activeMask, participant.waitingRanks[0],
     ])).toEqual([
@@ -200,7 +258,7 @@ describe("signaling worker", () => {
     room = await broadcast(owner, encodeSetMatch(
       new Uint8Array([3]), MAX_MESSAGE_BYTES));
     room = await broadcast(sockets[2], encodeReportMatch(
-      room.matchEpoch, "", 255, false, MAX_MESSAGE_BYTES));
+      room.matchEpoch, "", 255, false, 255, MAX_MESSAGE_BYTES));
     expect(room.match).toBeNull();
     expect(room.participants.map((participant) => participant.activeMask))
       .toEqual([0, 0, 1, 1]);
@@ -224,7 +282,7 @@ describe("signaling worker", () => {
     if (published.type !== ServerMessageType.Presence) throw new Error("presence expected");
     const rotated = nextMessage(owner);
     owner.send(encodeReportMatch(published.snapshot.matchEpoch,
-      "couch_peer", 0, true, MAX_MESSAGE_BYTES));
+      "couch_peer", 0, true, 255, MAX_MESSAGE_BYTES));
     const completed = await rotated;
     expect(completed.type).toBe(ServerMessageType.Presence);
     if (completed.type !== ServerMessageType.Presence) throw new Error("presence expected");
@@ -363,7 +421,8 @@ describe("signaling worker", () => {
     const secondSeesMatch = nextMessage(second);
     first.send(encodeSetMatch(proposal, MAX_MESSAGE_BYTES));
     await firstSeesMatch;
-    await secondSeesMatch;
+    const publishedMatch = await secondSeesMatch;
+    if (publishedMatch.type !== ServerMessageType.Presence) throw new Error("presence expected");
 
     const firstSeesReady = nextMessage(first);
     const secondSeesReady = nextMessage(second);
@@ -378,7 +437,7 @@ describe("signaling worker", () => {
     await firstSeesWaiting;
     expect(waitingChanged.type).toBe(ServerMessageType.Presence);
     if (waitingChanged.type !== ServerMessageType.Presence) throw new Error("presence expected");
-    expect(waitingChanged.snapshot.matchEpoch).toBe(1);
+    expect(waitingChanged.snapshot.matchEpoch).toBe(publishedMatch.snapshot.matchEpoch);
     expect(waitingChanged.snapshot.match).toEqual(proposal);
     expect(waitingChanged.snapshot.participants.find(
       (participant) => participant.peerId === "seat_second",
@@ -653,7 +712,7 @@ describe("signaling worker", () => {
     if (selectionPresence.type !== ServerMessageType.Presence) {
       throw new Error("presence expected");
     }
-    expect(selectionPresence.snapshot.matchEpoch).toBe(2);
+    expect(selectionPresence.snapshot.matchEpoch).toBe(cleared.snapshot.matchEpoch + 1);
     expect(selectionPresence.snapshot.match).toBeNull();
     expect(selectionPresence.snapshot.participants.find(
       (participant) => participant.peerId === "peer_guest",
@@ -669,7 +728,7 @@ describe("signaling worker", () => {
     if (replacementPresence.type !== ServerMessageType.Presence) {
       throw new Error("presence expected");
     }
-    expect(replacementPresence.snapshot.matchEpoch).toBe(3);
+    expect(replacementPresence.snapshot.matchEpoch).toBe(selectionPresence.snapshot.matchEpoch + 1);
     expect(replacementPresence.snapshot.match).toEqual(replacement);
     expect(replacementPresence.snapshot.participants.every(
       (participant) => !participant.ready,
@@ -690,7 +749,7 @@ describe("signaling worker", () => {
     if (restoredPresence.type !== ServerMessageType.Presence) {
       throw new Error("presence expected");
     }
-    expect(restoredPresence.snapshot.matchEpoch).toBe(3);
+    expect(restoredPresence.snapshot.matchEpoch).toBe(replacementPresence.snapshot.matchEpoch);
     expect(restoredPresence.snapshot.match).toEqual(replacement);
 
     const transferred = nextMessage(guest);
@@ -701,7 +760,7 @@ describe("signaling worker", () => {
       throw new Error("presence expected");
     }
     expect(transferredPresence.snapshot.ownerPeerId).toBe("peer_guest");
-    expect(transferredPresence.snapshot.matchEpoch).toBe(4);
+    expect(transferredPresence.snapshot.matchEpoch).toBe(replacementPresence.snapshot.matchEpoch + 1);
     expect(transferredPresence.snapshot.match).toBeNull();
     guest.close(1000, "test complete");
   });

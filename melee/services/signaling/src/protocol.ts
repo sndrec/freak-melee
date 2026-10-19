@@ -44,6 +44,9 @@ export interface RoomSnapshot {
   matchEpoch: number;
   match: Uint8Array | null;
   rotationPolicy: RotationPolicy;
+  stagePeerId: string;
+  stageSeat: number;
+  stage: number;
 }
 
 export function isPeerId(value: string): boolean {

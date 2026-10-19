@@ -106,7 +106,10 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
                                        const char* winner_peer_id,
                                        uint8_t winner_seat,
-                                       bool eligible);
+                                       bool eligible, uint8_t loser_port);
+bool nativeSignalingClient_PickLobbyStage(NativeSignalingClient* client,
+                                          uint64_t epoch, uint8_t seat,
+                                          uint8_t stage);
 bool nativeSignalingClient_RequestChat(NativeSignalingClient* client);
 bool nativeSignalingClient_ConfigureQuick(NativeSignalingClient* client, uint8_t mode);
 bool nativeSignalingClient_QueueQuick(NativeSignalingClient* client, bool searching);

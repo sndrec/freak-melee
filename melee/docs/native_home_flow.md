@@ -94,8 +94,12 @@ chord returns to CSS, restores the local choices, and clears readiness. The
 sidebar Start match button requires at least two local fighters offline. In a
 room it requires host ownership and every active participant's confirmed roster,
 with two to four fighters total. Spectators do not gate that readiness check.
-There is no automatic start or second CSS. The host chooses the stage; existing
-canonical setup/content agreement still precedes online simulation.
+There is no automatic start or second CSS. In player-created lobbies, the
+previous loser chooses the stage; teams use the lowest-index losing teammate.
+The lowest-index active player chooses when there is no eligible previous
+loser. Canonical setup/content agreement precedes online simulation. See the
+[stage-selection checkpoint](native_lobby_stage_checkpoint.md) for current
+implementation and verification.
 
 Room selections carry an explicit host start request. Cancelling stage select
 returns both participants to their own home CSS without leaving the waiting

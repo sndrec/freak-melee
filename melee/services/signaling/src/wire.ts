@@ -23,6 +23,7 @@ export const enum ClientMessageType {
   ReportQuick = 14,
   VoteQuickStage = 15,
   UnreadyQuick = 16,
+  PickLobbyStage = 17,
 }
 
 export const enum ServerMessageType {
@@ -80,7 +81,8 @@ export type ClientMessage =
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
   | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
   | { type: ClientMessageType.SetRotation; policy: RotationPolicy }
-  | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean };
+  | { type: ClientMessageType.PickLobbyStage; epoch: number; seat: number; stage: number }
+  | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean; loserPort: number };
 
 export type ServerMessage =
   | {
@@ -335,10 +337,17 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
     const winnerPeerId = reader.string8();
     const winnerSeat = reader.u8();
     const eligibleByte = reader.u8();
-    if (eligibleByte > 1) throw new Error("Invalid match report");
+    const loserPort = reader.u8();
+    if (eligibleByte > 1 || (loserPort > 3 && loserPort !== 255)) throw new Error("Invalid match report");
     reader.finish();
     return { type, epoch, winnerPeerId, winnerSeat,
-      eligible: eligibleByte === 1 };
+      eligible: eligibleByte === 1, loserPort };
+  }
+  if (type === ClientMessageType.PickLobbyStage) {
+    const epoch = reader.u64(), seat = reader.u8(), stage = reader.u8();
+    if (seat > 3 || stage === 255) throw new Error("Invalid stage choice");
+    reader.finish();
+    return { type, epoch, seat, stage };
   }
   if (type === ClientMessageType.Update) {
     const fields = reader.u8();
@@ -425,6 +434,7 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
     const matchEpoch = reader.u64();
     const match = reader.bytes16();
     const rotationPolicy = reader.u8();
+    const stagePeerId = reader.string8(), stageSeat = reader.u8(), stage = reader.u8();
     if (rotationPolicy > RotationPolicy.WinnerOut) {
       throw new Error("Invalid rotation policy");
     }
@@ -439,6 +449,7 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
         matchEpoch,
         match: match.byteLength === 0 ? null : match,
         rotationPolicy,
+        stagePeerId, stageSeat, stage,
       },
     };
   }
@@ -542,13 +553,20 @@ export function encodeSetRotation(policy: RotationPolicy, maximumBytes: number):
 
 export function encodeReportMatch(
   epoch: number, winnerPeerId: string, winnerSeat: number,
-  eligible: boolean, maximumBytes: number,
+  eligible: boolean, loserPort: number, maximumBytes: number,
 ): ArrayBuffer {
   const writer = new Writer(ClientMessageType.ReportMatch, maximumBytes);
   writer.u64(epoch);
   writer.string8(winnerPeerId);
   writer.u8(winnerSeat);
   writer.u8(eligible ? 1 : 0);
+  writer.u8(loserPort);
+  return writer.finish();
+}
+
+export function encodePickLobbyStage(epoch: number, seat: number, stage: number, maximumBytes: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.PickLobbyStage, maximumBytes);
+  writer.u64(epoch); writer.u8(seat); writer.u8(stage);
   return writer.finish();
 }
 
@@ -576,6 +594,9 @@ export function encodePresence(snapshot: RoomSnapshot, maximumBytes: number): Ar
   writer.u64(snapshot.matchEpoch);
   writer.bytes16(snapshot.match ?? new Uint8Array());
   writer.u8(snapshot.rotationPolicy);
+  writer.string8(snapshot.stagePeerId);
+  writer.u8(snapshot.stageSeat);
+  writer.u8(snapshot.stage);
   return writer.finish();
 }
 

@@ -53,15 +53,20 @@ int main(void)
     assert(nativeLobbySelection_Encode(&original, bytes, sizeof(bytes)) == size);
     assert(nativeLobbySelection_Decode(&decoded, bytes, size));
     assert(decoded.confirmed && decoded.start_requested);
-    bytes[6] = 2; // Starting requires a confirmed character selection.
-    assert(!nativeLobbySelection_Decode(&decoded, bytes, size));
+    bytes[6] = 2; // A spectating host can request a start without being ready.
+    assert(nativeLobbySelection_Decode(&decoded, bytes, size));
     bytes[6] = 7; // Remaining flag bits are not assigned.
     assert(!nativeLobbySelection_Decode(&decoded, bytes, size));
     assert(nativeLobbySelection_Encode(&original, bytes, sizeof(bytes)) == size);
 
     NativeLobbySelection invalid = original;
     invalid.confirmed = false;
-    assert(!nativeLobbySelection_Validate(&invalid));
+    assert(nativeLobbySelection_Validate(&invalid));
+    NativeLobbySelection observer = { .start_requested = true };
+    assert(nativeLobbySelection_Encode(&observer, bytes, sizeof(bytes)) == 7);
+    assert(nativeLobbySelection_Decode(&decoded, bytes, 7));
+    assert(decoded.player_count == 0 && decoded.start_requested && !decoded.confirmed);
+    assert(nativeLobbySelection_Encode(&original, bytes, sizeof(bytes)) == size);
 
     original.start_requested = false;
     invalid = original;

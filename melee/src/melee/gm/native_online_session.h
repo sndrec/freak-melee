@@ -65,6 +65,8 @@ bool nativeOnlineSession_ChooseSeat(const char* peer_id, uint8_t seat,
 uint8_t nativeOnlineSession_LocalPlayers(void);
 uint8_t nativeOnlineSession_LocalActiveSeats(void);
 bool nativeOnlineSession_IsOwner(void);
+int nativeOnlineSession_StagePort(void);
+bool nativeOnlineSession_PickStage(uint8_t stage);
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy);
 struct MatchEnd;
 bool nativeOnlineSession_ReportMatch(const struct MatchEnd* result);

@@ -290,9 +290,10 @@ room now enables character select only when its active participants advertise
 at least two and no more than four fighters, instead of allowing a one-person
 room to enter an unexplained wait in character select.
 
-Stock stage select now completes that visible setup path. The current room
-owner retains ordinary stage control while guest stage input is neutralized.
-After the owner chooses, the client builds a canonical match from the combined
+The initial stock stage-select integration completed that visible setup path
+with the owner choosing. The later [lobby stage-selection flow](native_lobby_stage_checkpoint.md)
+assigns control to the previous loser or lowest-index active player, including
+when the owner spectates. After that player chooses, the owner builds a canonical match from the combined
 CSS roster, visible VS rules, item settings, and stable stock-stage identity.
 The online-session owner assigns the fresh session identity and room topology;
 every guest verifies and adopts those same bytes. Both clients remain on stage

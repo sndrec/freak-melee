@@ -118,12 +118,18 @@ static void test_client_encoding(void)
     assert(nativeSignalingWire_EncodeSetRotation(3, bytes, sizeof(bytes)) == 0);
 
     size = nativeSignalingWire_EncodeReportMatch(
-        42, "peer_two", 1, true, bytes, sizeof(bytes));
-    assert(size == 8 + 8 + 1 + 8 + 1 + 1);
+        42, "peer_two", 1, true, 0, bytes, sizeof(bytes));
+    assert(size == 8 + 8 + 1 + 8 + 1 + 1 + 1);
     assert(bytes[5] == 7 && bytes[15] == 42 && bytes[16] == 8);
-    assert(bytes[size - 2] == 1 && bytes[size - 1] == 1);
+    assert(bytes[size - 3] == 1 && bytes[size - 2] == 1 && bytes[size - 1] == 0);
     assert(nativeSignalingWire_EncodeReportMatch(
-               42, "peer_two", 4, true, bytes, sizeof(bytes)) == 0);
+               42, "peer_two", 4, true, 0, bytes, sizeof(bytes)) == 0);
+    assert(nativeSignalingWire_EncodeReportMatch(
+               42, "peer_two", 1, true, 4, bytes, sizeof(bytes)) == 0);
+    assert(nativeSignalingWire_EncodePickLobbyStage(0, 2, 32, bytes, sizeof(bytes)) == 18);
+    assert(bytes[5] == 17 && bytes[16] == 2 && bytes[17] == 32);
+    assert(!nativeSignalingWire_EncodePickLobbyStage(0, 4, 32, bytes, sizeof(bytes)));
+    assert(!nativeSignalingWire_EncodePickLobbyStage(0, 0, 255, bytes, sizeof(bytes)));
 }
 
 static void test_server_decoding(void)
@@ -176,6 +182,9 @@ static void test_server_decoding(void)
     memcpy(bytes + size, match, sizeof(match));
     size += sizeof(match);
     bytes[size++] = NativeRoomRotation_WinnerOut;
+    size = string8(bytes, size, "peer_one");
+    bytes[size++] = 0;
+    bytes[size++] = 32;
     finish(bytes, size);
 
     NativeSignalingServerMessage decoded;
@@ -200,6 +209,8 @@ static void test_server_decoding(void)
     assert(decoded.data.presence.match_epoch == 3);
     assert(decoded.data.presence.match_size == sizeof(match));
     assert(decoded.data.presence.rotation_policy == NativeRoomRotation_WinnerOut);
+    assert(strcmp(decoded.data.presence.stage_peer_id, "peer_one") == 0);
+    assert(decoded.data.presence.stage_seat == 0 && decoded.data.presence.stage == 32);
     assert(memcmp(decoded.data.presence.match, match, sizeof(match)) == 0);
 
     assert(!nativeSignalingWire_DecodeServer(bytes, size - 1, &decoded));

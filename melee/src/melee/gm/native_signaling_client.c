@@ -636,14 +636,27 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
                                        const char* winner_peer_id,
                                        uint8_t winner_seat,
-                                       bool eligible)
+                                       bool eligible, uint8_t loser_port)
 {
-    uint8_t bytes[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 19];
+    uint8_t bytes[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 20];
     size_t size = nativeSignalingWire_EncodeReportMatch(
-        epoch, winner_peer_id, winner_seat, eligible,
+        epoch, winner_peer_id, winner_seat, eligible, loser_port,
         bytes, sizeof(bytes));
     bool queued = client != NULL && size != 0 &&
                   nativeSignalingClient_IsRunning(client) &&
+                  command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_PickLobbyStage(NativeSignalingClient* client,
+                                          uint64_t epoch, uint8_t seat,
+                                          uint8_t stage)
+{
+    uint8_t bytes[18];
+    size_t size = nativeSignalingWire_EncodePickLobbyStage(epoch, seat, stage,
+                                                          bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
                   command_push(&client->commands, bytes, size);
     if (queued) SetEvent((HANDLE) client->wake_event);
     return queued;

@@ -263,7 +263,7 @@ int main(int argc, char** argv)
         }
         if (!report_queued && first.saw_match && second.saw_match) {
             report_queued = nativeSignalingClient_ReportMatch(
-                &second.client, second.match_epoch, "peer_two", 0, true);
+                &second.client, second.match_epoch, "peer_two", 0, true, 0);
             if (!report_queued) break;
         }
         if (first.connected && second.connected && first.welcomed &&

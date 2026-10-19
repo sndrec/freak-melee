@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { lobbyStageChooser, lobbyStagePlayers } from "./lobby-stage";
 import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
 import { quickPorts, quickStageVotes, agreedQuickStage, type QuickPort, type QuickStageVote } from "./quick-round";
 import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
@@ -68,6 +69,12 @@ interface RoomMatchRow extends Record<string, SqlStorageValue> {
 
 interface RoomPolicyRow extends Record<string, SqlStorageValue> {
   rotation: number;
+}
+
+interface RoomStageRow extends Record<string, SqlStorageValue> {
+  loser_peer: string;
+  loser_seat: number;
+  stage: number;
 }
 
 function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
@@ -147,6 +154,11 @@ export class Room extends DurableObject<CloudflareBindings> {
         );
         INSERT OR IGNORE INTO room_policy (id, rotation)
         VALUES (1, 0);
+        CREATE TABLE IF NOT EXISTS room_stage (
+          id INTEGER PRIMARY KEY CHECK(id=1), loser_peer TEXT NOT NULL,
+          loser_seat INTEGER NOT NULL, stage INTEGER NOT NULL
+        );
+        INSERT OR IGNORE INTO room_stage VALUES (1,'',255,255);
       `);
     });
     this.ctx.setWebSocketAutoResponse(
@@ -360,6 +372,9 @@ export class Room extends DurableObject<CloudflareBindings> {
       return;
     case ClientMessageType.ReportMatch:
       this.reportMatch(socket, parsed);
+      return;
+    case ClientMessageType.PickLobbyStage:
+      this.pickLobbyStage(socket, parsed);
       return;
     }
   }
@@ -841,9 +856,10 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.error(socket, "Active players are locked for this match");
       return;
     }
-    if (topologyChanged || activeSelectionChanged) {
-      this.clearReady();
-    }
+    // A spectating owner can cancel/restart stage selection too.
+    if (match.payload === null && (topologyChanged || activeSelectionChanged ||
+        (selectionChanged && current.peerId === this.snapshot(this.currentRevision()).ownerPeerId)))
+      this.invalidateMatch();
     const revision = this.nextRevision();
     socket.serializeAttachment({
       ...current,
@@ -897,7 +913,9 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.error(socket, "Only four players can fight at once");
       return;
     }
-    if (activeChanged) this.clearReady();
+    if (activeChanged) {
+      this.invalidateMatch();
+    }
     const revision = this.nextRevision();
     target.serializeAttachment({
       ...current,
@@ -928,6 +946,8 @@ export class Room extends DurableObject<CloudflareBindings> {
     const stored = payload.byteLength === 0
       ? null
       : payload.slice().buffer;
+    if (stored === null)
+      this.ctx.storage.sql.exec("UPDATE room_stage SET stage=255 WHERE id=1");
     this.ctx.storage.sql.exec(
       "UPDATE room_match SET epoch = epoch + 1, payload = ? WHERE id = 1",
       stored,
@@ -953,6 +973,29 @@ export class Room extends DurableObject<CloudflareBindings> {
     this.ctx.storage.sql.exec(
       "UPDATE room_policy SET rotation = ? WHERE id = 1", policy,
     );
+    this.broadcastPresence(this.nextRevision());
+  }
+
+  private pickLobbyStage(socket: WebSocket,
+    message: Extract<ClientMessage, { type: ClientMessageType.PickLobbyStage }>): void {
+    const sender = this.attachment(socket);
+    const room = this.snapshot(this.currentRevision());
+    const owner = room.participants.find((person) => person.peerId === room.ownerPeerId);
+    const selection = owner?.selection;
+    const requested = selection && selection.length >= 7 &&
+      new DataView(selection.buffer, selection.byteOffset).getUint32(0) === 0x464d534c &&
+      selection[4] === 1 && (selection[6] & 2) !== 0;
+    if (this.quickParty()?.mode || this.quickMatch() || sender === null ||
+        !requested || room.match !== null || room.matchEpoch !== message.epoch ||
+        // The same retail-versus range accepted by nativeStockContent_StageFromId.
+        message.stage < 2 || message.stage > 32 || message.stage === 21 || message.stage === 26 ||
+        room.stagePeerId !== sender.peerId || room.stageSeat !== message.seat) {
+      this.error(socket, "Only the selected active player may choose this stage");
+      return;
+    }
+    // First accepted choice wins until the roster/start request changes.
+    if (room.stage !== 255) return;
+    this.ctx.storage.sql.exec("UPDATE room_stage SET stage=? WHERE id=1", message.stage);
     this.broadcastPresence(this.nextRevision());
   }
 
@@ -1006,6 +1049,16 @@ export class Room extends DurableObject<CloudflareBindings> {
       outgoing = policy === RotationPolicy.WinnerOut ? winner :
         active.find((entry) => entry !== winner) ?? null;
     }
+
+    const loser = lobbyStagePlayers(this.snapshot(this.currentRevision()).participants)[message.loserPort];
+    if (message.loserPort !== 255 && !loser) {
+      this.error(socket, "Loser is not a fighting player");
+      return;
+    }
+    this.ctx.storage.sql.exec(
+      "UPDATE room_stage SET loser_peer=?, loser_seat=?, stage=255 WHERE id=1",
+      loser?.peerId ?? "", loser?.seat ?? 255,
+    );
 
     this.ctx.storage.sql.exec(
       "UPDATE room_match SET epoch = epoch + 1, payload = NULL WHERE id = 1",
@@ -1113,6 +1166,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       "UPDATE room_match SET epoch = epoch + 1, payload = NULL WHERE id = 1",
     );
     this.clearReady(excluded);
+    this.ctx.storage.sql.exec("UPDATE room_stage SET stage=255 WHERE id=1");
   }
 
   private removeParticipant(socket: WebSocket): void {
@@ -1125,8 +1179,10 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (!replacement && departing?.activeMask !== 0 && !this.quickMatch()) {
       this.invalidateMatch(socket);
     }
-    if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN))
+    if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN)) {
       this.ctx.storage.sql.exec("DELETE FROM room_chat");
+      this.ctx.storage.sql.exec("UPDATE room_stage SET loser_peer='', loser_seat=255, stage=255 WHERE id=1");
+    }
     this.broadcastPresence(this.nextRevision(), socket);
   }
 
@@ -1174,6 +1230,9 @@ export class Room extends DurableObject<CloudflareBindings> {
       waiting[index].participant.waitingRanks[waiting[index].seat] = index + 1;
     }
     const match = this.currentMatch();
+    const stage = this.ctx.storage.sql.exec<RoomStageRow>(
+      "SELECT loser_peer, loser_seat, stage FROM room_stage WHERE id=1").one();
+    const chooser = lobbyStageChooser(participants, { peerId: stage.loser_peer, seat: stage.loser_seat });
     return {
       type: "presence",
       revision,
@@ -1182,6 +1241,9 @@ export class Room extends DurableObject<CloudflareBindings> {
       matchEpoch: match.epoch,
       match: match.payload,
       rotationPolicy: this.rotationPolicy(),
+      stagePeerId: chooser?.peerId ?? "",
+      stageSeat: chooser?.seat ?? 255,
+      stage: stage.stage,
     };
   }
 
