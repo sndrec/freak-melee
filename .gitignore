@@ -28,6 +28,10 @@
 .env.*
 !.env.example
 
+# Private account exports belong to the player.
+*.fmakey
+Freak Melee recovery code*.txt
+
 # Preserved local donor/reference material omitted from the native source snapshot.
 /aurora/.github/
 /aurora/assets/
