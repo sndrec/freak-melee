@@ -1580,7 +1580,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
             if (active->import_selected[i]) {
                 requests[count++] = { i, active->import_joint,
                                       active->import_replacement,
-                                      active->import_binding };
+                                      active->import_binding, active->import_scale, false };
             }
         }
         if (!count || (count > 1 && active->import_replacement != UINT_MAX)) {
@@ -1591,7 +1591,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         }
         if (!nativeFighterGltf_ApplyBatch(
                 active->project, active->import_path, requests, count,
-                active->import_scale, error, sizeof(error)))
+                error, sizeof(error)))
         {
             text("workshop-model-import-note", error[0] ? error :
                  "Could not convert this mesh to Melee model data.");

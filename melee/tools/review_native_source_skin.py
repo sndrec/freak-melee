@@ -229,6 +229,10 @@ def main():
             assert actual.keys()==expected.keys(),(label,actual,expected)
             assert all(abs(actual[j]-expected[j])<3e-7 for j in expected),(label,actual,expected)
         command('project-model-vertices',project,mesh)
+        retained=copy.deepcopy(weights)
+        command('project-model-import',project,source,0,0,mesh,options.get('unit',1),'keep')
+        _,preserved,_,_,_=raw_mesh(project/'costume.dat',offsets,mesh,expected_positions=placed,tolerance=.0001)
+        assert preserved==retained,(label,'reimport changed source weights',retained,preserved)
         results.append(dict(case=label,status='PASS',mesh=mesh,influences=len(expected)))
     negatives=['unmapped','unnamed','duplicate-bone','hierarchy','bind-mismatch',
                'singular-bind','perspective-bind','invalid-index','negative-weight',
@@ -305,7 +309,7 @@ def main():
         finally:client.stop()
     (output/'passed.json').write_text(json.dumps(dict(status='PASS',cases=results,
         tool_sha256=hashlib.sha256(tool.read_bytes()).hexdigest(),project_files=hashes(project)),indent=2)+'\n')
-    print(f'PASS: {len(positives)} source-skin imports and {len(negatives)} atomic rejection cases')
+    print(f'PASS: {len(positives)} source-skin imports/weight-preserving reimports and {len(negatives)} atomic rejection cases')
 
 
 if __name__=='__main__':main()

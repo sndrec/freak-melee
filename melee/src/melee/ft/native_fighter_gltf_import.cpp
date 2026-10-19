@@ -7,6 +7,7 @@
 #include "native_fighter_model_references.h"
 #include "native_fighter_gltf_skin.h"
 #include "native_fighter_gltf_identity.h"
+#include "native_fighter_gltf_preserve.h"
 #include "native_fighter_skin_mesh.h"
 
 #ifdef MELEE_NATIVE
@@ -768,6 +769,44 @@ bool encode_texture(const char* source_path, const cgltf_texture* texture,
         dat, tobj, error, error_size);
 }
 
+bool encode_material(const char* path,const cgltf_primitive* primitive,NativeAssetDat* dat,
+    uint32_t* output,char* error,size_t error_size)
+{
+    const uint32_t material=dat->allocate(20),mobj=dat->allocate(24);
+    if(material==UINT32_MAX || mobj==UINT32_MAX) return false;
+    const cgltf_material* source_material = primitive->material;
+    const cgltf_texture* texture = source_material &&
+        source_material->has_pbr_metallic_roughness
+        ? source_material->pbr_metallic_roughness.base_color_texture.texture
+        : nullptr;
+    if (texture && !attribute(primitive,
+                              cgltf_attribute_type_texcoord)) {
+        fail(error, error_size, "Textured mesh needs TEXCOORD_0 UVs.");
+        return false;
+    }
+    const float* rgba = source_material &&
+        source_material->has_pbr_metallic_roughness
+        ? source_material->pbr_metallic_roughness.base_color_factor
+        : nullptr;
+    for (unsigned c = 0; c < 4; ++c) {
+        dat->data[material + c] = c == 3 ? 255 : 96;
+        dat->data[material + 4 + c] = rgba
+            ? (uint8_t) std::clamp(std::lround(rgba[c] * 255), 0l, 255l)
+            : 255;
+        dat->data[material + 8 + c] = c == 3 ? 255 : 0;
+    }
+    befloat(dat->data.data() + material + 12, rgba ? rgba[3] : 1.0f);
+    befloat(dat->data.data() + material + 16, 0.0f);
+    uint32_t tobj = 0;
+    if (texture && !encode_texture(path, texture, dat, &tobj,
+                                    error, error_size)) return false;
+    dat->word(mobj + 4, RENDER_CONSTANT |
+                       (tobj ? RENDER_TEX0 : 0));
+    if (tobj) dat->link(mobj + 8, tobj);
+    dat->link(mobj + 12, material);
+    *output=mobj;return true;
+}
+
 bool validate_costume(const std::vector<uint8_t>& bytes,
                       const char* root, char* error, size_t error_size)
 {
@@ -832,14 +871,14 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
 static bool apply_primitive(NativeFighterProject* project, const char* path,
                             cgltf_data* source_data, unsigned primitive_id,
                             unsigned joint, unsigned replacement_mesh,
-                            float scale, NativeGltfBindingMode binding,
+                            float scale, NativeGltfBindingMode binding, bool replace_material,
                             char* error, size_t error_size)
 {
     if (!project || !std::isfinite(scale) || scale <= 0 || scale > 1000 ||
         (binding != NATIVE_GLTF_BIND_RIGID &&
          binding != NATIVE_GLTF_BIND_AUTOMATIC &&
          binding != NATIVE_GLTF_BIND_TRANSFER &&
-         binding != NATIVE_GLTF_BIND_SOURCE)) {
+         binding != NATIVE_GLTF_BIND_SOURCE && binding != NATIVE_GLTF_BIND_KEEP)) {
         fail(error, error_size, "Choose a positive model scale.");
         return false;
     }
@@ -854,7 +893,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         fail(error, error_size, "Choose a valid fighter joint.");
         return false;
     }
-    if (binding != NATIVE_GLTF_BIND_RIGID) {
+    if (binding != NATIVE_GLTF_BIND_RIGID && binding != NATIVE_GLTF_BIND_KEEP) {
         while (joint < existing.joint_count &&
                !(existing.joints[joint].flags & JOBJ_SKELETON_ROOT)) {
             const int parent = existing.joints[joint].parent;
@@ -869,7 +908,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         fail(error, error_size, "Choose a valid compatible fighter joint or mesh.");
         return false;
     }
-    if (replacement_mesh != UINT_MAX &&
+    if (replacement_mesh != UINT_MAX && !replace_material &&
         existing.meshes[replacement_mesh].material < existing.material_count &&
         (existing.materials[existing.meshes[replacement_mesh].material]
              .render_mode & RENDER_TEX0) &&
@@ -883,11 +922,21 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         return false;
     }
     SkinBinding skin;
-    if (binding != NATIVE_GLTF_BIND_RIGID &&
-        !prepare_skin(existing, joint, &skin, error, error_size)) return false;
     NativeSkinMesh old_skin;
     TransferSkin transfer;
     NativeGltfSourceSkin authored;
+    NativeFighterMeshSource previous_source={};
+    bool kept_rigid=false;
+    if(binding==NATIVE_GLTF_BIND_KEEP) {
+        if(replacement_mesh==UINT_MAX) {fail(error,error_size,"Choose an imported mesh to preserve.");return false;}
+        const auto* source=nativeFighterMeshSource_Get(project,(uint32_t)existing.meshes[replacement_mesh].offset);
+        if(!source) {fail(error,error_size,"This mesh has no source correspondence. Choose a binding explicitly.");return false;}
+        previous_source=*source;joint=existing.meshes[replacement_mesh].joint;
+        if(!nativeFighterGltf_Preserve(existing,replacement_mesh,primitive.node,primitive.mesh,
+            previous_source,scale,&authored,&kept_rigid,error,error_size)) return false;
+    }
+    const bool skinned=binding!=NATIVE_GLTF_BIND_RIGID && !(binding==NATIVE_GLTF_BIND_KEEP && kept_rigid);
+    if (skinned && !prepare_skin(existing, joint, &skin, error, error_size)) return false;
     if (binding == NATIVE_GLTF_BIND_SOURCE &&
         !nativeFighterGltf_ReadSkin(existing,joint,primitive.node,primitive.mesh,
                                     scale,&authored,error,error_size)) return false;
@@ -902,17 +951,22 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
     }
     uint32_t polygon;
     NativeFighterMeshSource metadata={};metadata.used=true;
-    metadata.binding=(unsigned)binding;metadata.scale=scale;
+    metadata.binding=binding==NATIVE_GLTF_BIND_KEEP?previous_source.binding:(unsigned)binding;metadata.scale=scale;
     nativeGltfIdentity(source_data,primitive.owner,primitive.mesh,metadata.identity);
     if(metadata.identity[0] && !nativeGltfSourcePath(path,metadata.path)) {
         fail(error,error_size,"Could not record this model's source path.");return false;
     }
     if (!encode_geometry(primitive, &dat, scale,
                          existing.joints[joint].offset, existing,
-                         binding == NATIVE_GLTF_BIND_RIGID ? nullptr : &skin,
+                         skinned ? &skin : nullptr,
                          binding == NATIVE_GLTF_BIND_TRANSFER ? &transfer : nullptr,
-                         binding == NATIVE_GLTF_BIND_SOURCE ? &authored : nullptr,
+                         binding == NATIVE_GLTF_BIND_SOURCE || (binding==NATIVE_GLTF_BIND_KEEP && !kept_rigid) ? &authored : nullptr,
                          &polygon, &metadata, error, error_size)) return false;
+    if(binding==NATIVE_GLTF_BIND_KEEP && !kept_rigid) {
+        metadata.uses_bind_shape=previous_source.uses_bind_shape;
+        if(!metadata.uses_bind_shape)
+            for(unsigned axis=0;axis<3;++axis) metadata.transform[12+axis]/=scale;
+    }
     if (replacement_mesh != UINT_MAX) {
         const NativeModelMesh& destination = existing.meshes[replacement_mesh];
         metadata.mesh=(uint32_t)destination.offset;
@@ -942,46 +996,12 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
         }
         dat.link(destination.offset + 12, polygon);
     } else {
-        const uint32_t material = dat.allocate(20);
-        const uint32_t mobj = dat.allocate(24);
         const uint32_t dobj = dat.allocate(16);
         metadata.mesh=dobj;
-        if (material == UINT32_MAX || mobj == UINT32_MAX ||
-            dobj == UINT32_MAX) return false;
-        const cgltf_material* source_material = primitive.mesh->material;
-        const cgltf_texture* texture = source_material &&
-            source_material->has_pbr_metallic_roughness
-            ? source_material->pbr_metallic_roughness.base_color_texture.texture
-            : nullptr;
-        if (texture && !attribute(primitive.mesh,
-                                  cgltf_attribute_type_texcoord)) {
-            fail(error, error_size, "Textured mesh needs TEXCOORD_0 UVs.");
-            return false;
-        }
-        const float* rgba = source_material &&
-            source_material->has_pbr_metallic_roughness
-            ? source_material->pbr_metallic_roughness.base_color_factor
-            : nullptr;
-        for (unsigned c = 0; c < 4; ++c) {
-            dat.data[material + c] = c == 3 ? 255 : 96;
-            dat.data[material + 4 + c] = rgba
-                ? (uint8_t) std::clamp(std::lround(rgba[c] * 255), 0l, 255l)
-                : 255;
-            dat.data[material + 8 + c] = c == 3 ? 255 : 0;
-        }
-        befloat(dat.data.data() + material + 12, rgba ? rgba[3] : 1.0f);
-        befloat(dat.data.data() + material + 16, 0.0f);
-        uint32_t tobj = 0;
-        if (texture && !encode_texture(path, texture, &dat, &tobj,
-                                        error, error_size)) return false;
-        dat.word(mobj + 4, RENDER_CONSTANT |
-                           (tobj ? RENDER_TEX0 : 0));
-        if (tobj) dat.link(mobj + 8, tobj);
-        dat.link(mobj + 12, material);
+        if (dobj == UINT32_MAX) return false;
         const uint32_t joint_slot = existing.joints[joint].offset + 16;
         const uint32_t previous = read32(dat.data.data() + joint_slot);
         if (previous) dat.link(dobj + 4, previous);
-        dat.link(dobj + 8, mobj);
         dat.link(dobj + 12, polygon);
         dat.link(joint_slot, dobj);
         // JObj loading trusts the descriptor's draw-pass bits. A mesh added
@@ -994,6 +1014,17 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
              parent = existing.joints[parent].parent) {
             const uint32_t flags = existing.joints[parent].offset + 4;
             dat.word(flags, read32(dat.data.data() + flags) | JOBJ_ROOT_OPA);
+        }
+    }
+    if(replacement_mesh==UINT_MAX || replace_material) {
+        uint32_t mobj;
+        if(!encode_material(path,primitive.mesh,&dat,&mobj,error,error_size)) return false;
+        dat.link(metadata.mesh+8,mobj);
+        if(primitive.mesh->material && primitive.mesh->material->name) {
+            char name[64];std::snprintf(name,sizeof(name),"%s",primitive.mesh->material->name);
+            if(!nativeFighterAuthoring_SetName(project,NativeAuthoring_Material,mobj,name)) {
+                fail(error,error_size,"Could not name the imported material.");return false;
+            }
         }
     }
     if (replacement_mesh == UINT_MAX) {
@@ -1060,7 +1091,7 @@ static bool apply_primitive(NativeFighterProject* project, const char* path,
 bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
                                   const char* path,
                                   const NativeGltfImportRequest* requests,
-                                  unsigned count, float scale, char* error,
+                                  unsigned count, char* error,
                                   size_t error_size)
 {
     if (!project || !requests || !count || count > NATIVE_GLTF_MAX_PRIMITIVES)
@@ -1120,7 +1151,7 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
         ok =
             apply_primitive(&staging, path, source.data, requests[i].primitive,
                             requests[i].joint, replacement,
-                            scale, requests[i].binding, error, error_size);
+                            requests[i].scale, requests[i].binding, requests[i].replace_material, error, error_size);
     }
     if(ok) {
         NativeAssetDat costume;

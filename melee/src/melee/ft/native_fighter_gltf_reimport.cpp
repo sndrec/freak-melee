@@ -34,7 +34,7 @@ bool nativeFighterGltf_PlanReimport(const NativeFighterProject* project,unsigned
             return false;
         }
         if(candidate.count==NATIVE_GLTF_MAX_PRIMITIVES) return fail("This source has too many imported mesh instances for one reimport.");
-        candidate.matches[candidate.count++]={found,mesh};
+        candidate.matches[candidate.count++]={found,mesh,model->meshes[mesh].joint,source->scale};
     }
     if(!candidate.count) return fail("No imported meshes match this source.");
     *output=candidate;if(error&&capacity)error[0]=0;return true;

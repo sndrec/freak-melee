@@ -15,11 +15,11 @@ import struct
 import subprocess
 from pathlib import Path
 
-from review_native_skin_weights import make_glb
+from review_native_skin_weights import make_glb, raw_mesh, POSITIONS
 
 
 def fixture(path, *, reverse=False, slots=False, missing=False, duplicate=False,
-            extra=False, bad_normals=False, rename_material=False):
+            extra=False, bad_normals=False, rename_material=False, deformed=False, topology=False, mirrored=False):
     base = path.with_suffix('.base.glb')
     make_glb(base)
     data = base.read_bytes()
@@ -27,9 +27,19 @@ def fixture(path, *, reverse=False, slots=False, missing=False, duplicate=False,
     document = json.loads(data[20:20+length])
     binary = data[28+length:]
     base.unlink()
+    if deformed:
+        binary=bytearray(binary)
+        for vertex in range(4):
+            x,y=struct.unpack_from('<2f',binary,vertex*12)
+            struct.pack_into('<2f',binary,vertex*12,x+1.25,y+2)
+        binary=bytes(binary)
+    if topology:
+        binary=binary[:96]+struct.pack('<6H',0,1,3,1,2,3)+binary[108:]
     primitive = document['meshes'][0]['primitives'][0]
     document['materials'] = [dict(name='Red' if rename_material else 'Hull'), dict(name='Blue' if rename_material else 'Trim')]
     parts = [dict(copy.deepcopy(primitive), material=i) for i in range(2)]
+    if deformed:
+        document['materials'][0]['pbrMetallicRoughness']=dict(baseColorFactor=[.2,.4,.6,1])
     if bad_normals:
         del parts[1]['attributes']['NORMAL']
     if slots:
@@ -43,6 +53,9 @@ def fixture(path, *, reverse=False, slots=False, missing=False, duplicate=False,
             meshes.append(dict(name='Accessory', primitives=[copy.deepcopy(parts[0])]))
         document['meshes'] = list(reversed(meshes)) if reverse else meshes
     document['nodes'] = [dict(mesh=i, translation=[i*3, 0, 0]) for i in range(len(document['meshes']))]
+    if mirrored:
+        for node in document['nodes']:
+            node['scale']=[-1,1,1]
     document['scenes'] = [dict(nodes=list(range(len(document['nodes']))))]
     encoded = json.dumps(document).encode()
     encoded += b' '*(-len(encoded)%4)
@@ -68,7 +81,9 @@ def main():
                           ('missing', dict(missing=True)), ('duplicate', dict(duplicate=True)),
                           ('extra', dict(extra=True)), ('bad', dict(bad_normals=True)),
                           ('material', dict(rename_material=True)), ('slots', dict(slots=True)),
-                          ('slots-reversed', dict(slots=True, reverse=True))]:
+                          ('slots-reversed', dict(slots=True, reverse=True)),
+                          ('deformed', dict(deformed=True)), ('topology', dict(topology=True)),
+                          ('mirrored', dict(mirrored=True)), ('mirrored-deformed', dict(mirrored=True, deformed=True))]:
         paths[name] = output/(name+'.glb')
         fixture(paths[name], **options)
     env = dict(os.environ, LOCALAPPDATA=str(output/'appdata'))
@@ -99,7 +114,8 @@ def main():
     try:
         native_draft = output/'native-project'
         shutil.copytree(args.draft.resolve(), native_draft)
-        native = run(args.test, [native_draft, paths['original100%'], paths['bad']])
+        native = run(args.test, [native_draft, paths['original100%'], paths['bad'], paths['deformed'],
+                                paths['topology'], paths['mirrored'], paths['mirrored-deformed']])
         receipt['native_checks'] = int(re.search(r'PASS (\d+)', native)[1])
         receipt['cases'].append('Native in-memory import rollback, frozen replacement identities and metadata codec')
         tool('project-reimport-plan', draft, 0, paths['original100%'], 'one', success=False)
@@ -135,6 +151,27 @@ def main():
         coat_trim = found['mesh:4:Coat;slot:4:Trim']
         assert plan(coat_hull, 'slots-reversed') == {(1, coat_hull), (0, coat_trim)}
         receipt['cases'].append('Named material slots survive primitive reordering and stay scoped to their source document')
+        hull=sources()['mesh:4:Hull']
+        joints=re.findall(r'joint (\d+) parent -?\d+ offset 0x([0-9A-Fa-f]+) flags 0x([0-9A-Fa-f]+)',
+                          tool('project-model-joints',draft))
+        offsets=[int(at,16) for _,at,_ in joints]
+        raw=(draft/'costume.dat').read_bytes()[32:]
+        bone=next(int(index) for index,at,flags in joints if int(flags,16)&1 and
+                  struct.unpack_from('>I',raw,int(at,16)+56)[0])
+        tool('project-model-paint',draft,hull,bone,*POSITIONS[0],.5,.375,'add')
+        _,painted,_,_,_=raw_mesh(draft/'costume.dat',offsets,hull)
+        tool('project-reimport',draft,hull,paths['deformed'],'whole','keep','keep-materials')
+        placed=[(x+1.25,y+2,z) for x,y,z in POSITIONS]
+        _,preserved,_,_,_=raw_mesh(draft/'costume.dat',offsets,hull,expected_positions=placed)
+        assert preserved==painted
+        tool('project-reimport',draft,hull,paths['deformed'],'one','keep','replace-materials')
+        _,preserved,_,_,_=raw_mesh(draft/'costume.dat',offsets,hull,expected_positions=placed)
+        assert preserved==painted
+        before=snapshot()
+        tool('project-reimport',draft,hull,paths['topology'],'whole','keep','keep-materials',success=False)
+        assert snapshot()==before
+        tool('project-reimport',draft,hull,paths['topology'],'whole','transfer','keep-materials')
+        receipt['cases'].append('Saved whole-source reimport preserves painted weights, replaces materials independently and requires a choice for changed topology')
         # Reject corrupt metadata at project admission, leaving saved files intact.
         names = (draft/'workshop_names.txt').read_bytes()
         try:

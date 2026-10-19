@@ -229,7 +229,9 @@ import, materials, rigging and skinning, not mesh modeling.
   now retain document/mesh/material-slot identities through export reordering
   and editor renaming. Native transaction and metadata checks pass, as does
   source-only import Undo/Redo and reopen in the native client. Weight-preserving
-  apply, independent material replacement and the Reimport controls remain open.
+  apply, independent material replacement and per-mesh scales pass 409 native
+  checks and saved-project cases. Reimport controls, coordinated metadata/asset
+  saving and the combined native workflow remain open.
 - [ ] Extend painting across the supported editable mesh set and remove storage
   limits that prevent useful authored models; do not introduce tick allocation.
   Imported meshes now retain up to 16 floating-point influences through painting
