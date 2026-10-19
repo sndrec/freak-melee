@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import type { LobbyEntry } from "./lobby-directory";
-import { connectionAccount, currentConnectionAccount } from "./connection-account";
+import { connectionAccount, currentConnectionAccount, type ConnectionAccount } from "./connection-account";
+import { equalHash } from "./account-protocol";
 import { encodeListing } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers } from "./lobby-stage";
 import { buildQuickMatch, quickRosterComplete, lockedChoices, QUICK_COUNTDOWN_MS } from "./quick-match";
@@ -221,6 +222,16 @@ export class Room extends DurableObject<CloudflareBindings> {
         return new Response("Quick Play party is unavailable or full", { status: 409 });
     }
     const previousConnections = this.ctx.getWebSockets(`peer:${peerId}`);
+    // A public peer ID cannot prove ownership of an active guest connection.
+    // Guests sign in through attachAccount using their private Welcome ID.
+    const reconnectId = request.headers.get("X-Freak-Connection") ?? "";
+    if (previousConnections.some((socket) => {
+      const previous = this.attachment(socket);
+      return socket.readyState === WebSocket.OPEN && !previous?.account &&
+        (!previous || reconnectId.length !== previous.connectionId.length ||
+          !equalHash(reconnectId, previous.connectionId));
+    }))
+      return new Response("This guest connection is already active", { status: 409 });
     if (
       previousConnections.length === 0 &&
       this.ctx.getWebSockets().length >= MAX_PARTICIPANTS
@@ -309,6 +320,29 @@ export class Room extends DurableObject<CloudflareBindings> {
     await this.refreshQuickCountdown();
     if (quick?.mode || admission) this.sendQuick(server);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async attachAccount(connectionId: string, account: ConnectionAccount): Promise<boolean> {
+    const profile = await currentConnectionAccount(account, this.env);
+    if (!profile) return false;
+    // The random connection ID is delivered only in this socket's Welcome.
+    // A public peer ID or another member's presence record cannot claim it.
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const current = this.attachment(socket);
+      if (!current || current.connectionId.length !== connectionId.length || !equalHash(current.connectionId, connectionId)) continue;
+      const binding = this.ctx.storage.sql.exec<{ account_id: string }>(
+        "SELECT account_id FROM room_accounts WHERE peer=?", current.peerId).toArray()[0];
+      if ((current.account && current.account.profile.id !== profile.id) ||
+          (binding && binding.account_id !== profile.id)) return false;
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO room_accounts VALUES (?,?)", current.peerId, profile.id);
+      current.account = { ...account, profile };
+      current.name = profile.name;
+      socket.serializeAttachment(current);
+      this.broadcastPresence(this.nextRevision());
+      return true;
+    }
+    return false;
   }
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {

@@ -7,7 +7,7 @@ enum class NativeAccountOperation {
     Refresh, Register, Login, Recover, Approve, AddKey, SaveProfile,
     Logout, RevokeSession, RevokeAll, RemoveKey, RotateRecovery,
     RefreshSocial, LookupProfile, SendLetter, ReadLetter,
-    DeleteLetter, ChangeFriend, BlockPlayer, SendInvitation, JoinInvitation, ImportKey, ExportKey, ExportRecovery
+    DeleteLetter, ChangeFriend, BlockPlayer, SendInvitation, JoinInvitation, ImportKey, ExportKey, ExportRecovery, AttachLobby, Count
 };
 struct NativeAccountRequest {
     NativeAccountOperation operation;

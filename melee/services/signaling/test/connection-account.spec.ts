@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { player } from "./account-client";
 import { QuickClient } from "./quick-client";
 import { encodeChatIdentity, encodeChatPost } from "../src/chat";
-import { encodeRequestPresence, encodeUpdate, ServerMessageType } from "../src/wire";
+import { encodeRequestPresence, encodeSetMatch, encodeUpdate, ServerMessageType } from "../src/wire";
 import { secret, secretHash } from "../src/account-protocol";
 import type { SocialResult } from "../src/social-protocol";
 
@@ -21,9 +21,10 @@ async function room(account: Account | undefined, code: string, peer = peerId())
   const response = await request(`/v1/rooms/${code}/connect?peer=${peer}&name=Spoofed&build=identity-test&players=1`, account);
   expect(response.status).toBe(101);
   const client = new QuickClient(response.webSocket!);
-  client.peerId = (await client.next(ServerMessageType.Welcome)).peerId;
+  const welcome = await client.next(ServerMessageType.Welcome);
+  client.peerId = welcome.peerId;
   const presence = (await client.next(ServerMessageType.Presence)).snapshot;
-  return { client, presence, peer };
+  return { client, presence, peer, connection: welcome.connectionId };
 }
 class ChatPackets {
   private packets: Uint8Array[] = [];
@@ -73,6 +74,70 @@ async function friends(a: Account, b: Account) {
 }
 
 describe("verified connection identities and invitations", () => {
+  it("keeps an active guest connection when another client presents its public peer ID", async () => {
+    const a = await player(), code = roomId(), guest = await room(undefined, code);
+    try {
+      const path = `/v1/rooms/${code}/connect?peer=${guest.peer}&name=Other&players=1&build=identity-test`;
+      expect((await request(path)).status).toBe(409);
+      expect((await request(path, a)).status).toBe(409);
+      guest.client.socket.send(encodeRequestPresence(8192));
+      expect((await guest.client.next(ServerMessageType.Presence)).snapshot).toEqual(guest.presence);
+      expect(guest.client.socket.readyState).toBe(WebSocket.OPEN);
+      await guest.client.close();
+      const returning = await room(undefined, code, guest.peer);
+      await returning.client.close();
+    } finally { if (guest.client.socket.readyState === WebSocket.OPEN) await guest.client.close(); }
+  });
+  it("attaches a signed-in account to the existing guest connection without changing lobby ownership or readiness", async () => {
+    const code = roomId(), guest = await room(undefined, code), observer = await room(undefined, code);
+    const a = await player();
+    try {
+      guest.client.socket.send(encodeUpdate({ selection: new Uint8Array([1, 2, 3]), activeMask: 1 }, 8192));
+      let before = guest.presence;
+      do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; }
+      while (!before.participants.find(p => p.peerId === guest.peer)?.selection.length);
+      guest.client.socket.send(encodeSetMatch(new Uint8Array([0x46, 0x4d, 0x4c, 0x01]), 8192));
+      do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; } while (!before.match.length);
+      guest.client.socket.send(encodeUpdate({ ready: true }, 8192));
+      do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; }
+      while (!before.participants.find(p => p.peerId === guest.peer)?.ready);
+      expect(before.participants).toHaveLength(2);
+      await ok(a.request("lobby/attach", { room: code, connection: guest.connection }, a.grant.token));
+      const after = (await guest.client.next(ServerMessageType.Presence)).snapshot;
+      expect(after.ownerPeerId).toBe(before.ownerPeerId);
+      expect(after.participants).toHaveLength(2);
+      expect(after.participants.find(p => p.peerId === guest.peer)).toEqual({
+        ...before.participants.find(p => p.peerId === guest.peer),
+        accountId: a.grant.profile.id, accountHandle: a.handle, name: a.grant.profile.name,
+      });
+      expect(after.matchEpoch).toBe(before.matchEpoch);
+      expect(after.match).toEqual(before.match);
+      expect(guest.client.socket.readyState).toBe(WebSocket.OPEN);
+      await evictDurableObject(env.ROOMS.getByName(code));
+      guest.client.socket.send(encodeRequestPresence(8192));
+      const restored = (await guest.client.next(ServerMessageType.Presence)).snapshot;
+      expect(restored.participants.find(p => p.peerId === guest.peer)?.accountId).toBe(a.grant.profile.id);
+      await ok(a.request("lobby/attach", { room: code, connection: guest.connection }, a.grant.token));
+    } finally {
+      await guest.client.close(); await observer.client.close();
+    }
+  });
+  it("rejects public peer IDs, missing credentials, stale connections and attempts to replace an attached account", async () => {
+    const a = await player(), b = await player(), code = roomId(), guest = await room(undefined, code);
+    try {
+      const body = { room: code, connection: guest.connection };
+      expect((await a.request("lobby/attach", body)).status).toBe(401);
+      expect((await a.request("lobby/attach", { ...body, connection: guest.peer }, a.grant.token)).status).toBe(400);
+      expect((await a.request("lobby/attach", { ...body, connection: crypto.randomUUID() }, a.grant.token)).status).toBe(409);
+      expect((await a.request("lobby/attach", { ...body, room: "INVALID!" }, a.grant.token)).status).toBe(400);
+      await ok(a.request("lobby/attach", { ...body, profile: b.grant.profile }, a.grant.token));
+      expect((await b.request("lobby/attach", body, b.grant.token)).status).toBe(409);
+      await guest.client.close();
+      expect((await a.request("lobby/attach", body, a.grant.token)).status).toBe(409);
+      await ok(a.request("logout", {}, a.grant.token));
+      expect((await a.request("lobby/attach", body, a.grant.token)).status).toBe(401);
+    } finally { if (guest.client.socket.readyState === WebSocket.OPEN) await guest.client.close(); }
+  });
   it("strips forged internal identities and rejects invalid or mismatched credentials", async () => {
     const a = await player(), b = await player();
     for (const path of [`/chat/connect?peer=${peerId()}`, `/v1/rooms/${roomId()}/connect?peer=${peerId()}&players=1&build=test`]) {

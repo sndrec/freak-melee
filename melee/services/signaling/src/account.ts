@@ -5,6 +5,7 @@ import { AccountError, accountJson, accountHandle, secret, secretHash, secretVal
   MAX_ACCOUNT_KEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
 import type { SocialProfile } from "./social-protocol";
 import type { ConnectionAccount } from "./connection-account";
+import { isRoomId } from "./protocol";
 
 interface AccountRow extends Record<string, SqlStorageValue> {
   user_id: string; display_name: string; bio: string; recovery_hash: string; epoch: number;
@@ -246,6 +247,18 @@ export class Account extends DurableObject<CloudflareBindings> {
       }
       if (request.method !== "POST") throw new AccountError(405, "Method not allowed.");
       const body = await readAccountBody(request);
+      if (path === "lobby/attach") {
+        const session = await this.authorize(request.headers.get("Authorization") ?? "");
+        if (typeof body.room !== "string" || !isRoomId(body.room) ||
+            typeof body.connection !== "string" ||
+            !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(body.connection))
+          throw new AccountError(400, "The lobby connection could not be identified.");
+        const account = { profile: this.profile(), session: session.hash, epoch: session.epoch, expires: session.expires };
+        const attached = await this.env.ROOMS.getByName(body.room).attachAccount(body.connection, account);
+        this.stillAuthorized(session, session.epoch);
+        if (!attached) throw new AccountError(409, "That lobby connection is no longer available for this account.");
+        return accountJson({ ok: true });
+      }
       if (path.startsWith("social/")) {
         const session = await this.authorize(request.headers.get("Authorization") ?? "");
         const profile = this.profile();

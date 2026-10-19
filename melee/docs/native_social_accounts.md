@@ -22,8 +22,8 @@ from account names.
 Signed-in players appear as **@account_name** in the global and lobby player
 lists. Choose one to open their account profile. Guests appear by their display
 name and have a guest profile. Signing out leaves your current lobby and
-reconnects global chat as a guest. If you sign in after joining a lobby as a
-guest, leave and rejoin that lobby to use your account there.
+reconnects global chat as a guest. Signing in while in a guest lobby connects
+your account to that lobby and keeps your host position and player seats.
 
 To invite a friend, open their profile and choose **Invite to lobby**. If you
 have no lobby, choose **Create & invite** instead. Enter the lobby name, listing
@@ -172,9 +172,8 @@ Windows security-prompt acceptance was replaced by the approved account-key
 flow. The social implementation and account-key replacement are deployed; current
 account-key game-screen and hosted-path checks pass. Standard file-picker
 interaction and user presentation/input review remain open.
-Signing in after joining a lobby as a guest currently requires leaving and
-rejoining that lobby to attach the account. Physical multi-PC acceptance
-remains with the user.
+The later guest-lobby sign-in check below supersedes this build's manual
+leave/rejoin requirement. Physical multi-PC acceptance remains with the user.
 
 
 ## Create and invite check, 2026-10-19
@@ -265,3 +264,44 @@ The final native build passes: `.local/hub-keyboard-build-final.log`.
 This small follow-up has source/build verification; the earlier UI receipts
 describe the preceding executable. Keyboard interaction acceptance remains for
 the user's next hub review. No game clients were launched for this follow-up.
+
+## Guest-lobby sign-in, 2026-10-19
+
+Signing in while already in a guest lobby now connects the account to the
+existing socket. Host position, local seats, selection, readiness and match
+metadata stay intact. The client submits the account request through its
+existing worker. The service verifies the session and the private connection ID
+from Welcome, stores the identity on that socket and updates both player lists.
+Signing out continues to leave the lobby.
+
+The service also protects active guest connections from replacement using only
+a public peer ID. A guest replacement supplies the private Welcome ID in
+`X-Freak-Connection`; signed-in replacement continues to require the same account.
+
+The native build and four contracts pass. Type checking and all 71 service
+tests pass, including preserved readiness/match data, hibernation, stale or
+revoked credentials, account replacement and Quick Play connection replacement.
+Four hidden/muted native UI checks cover a two-player guest-hosted lobby,
+sign-in without changing ownership or seats, sending an invitation from that
+lobby, and leaving on sign-out. Its account and invitation PNGs were reviewed.
+Enter confirms the lobby form and account lookup in this check.
+
+Evidence: `.local/lobby-account-attach-build-diagnostics.log`,
+`.local/lobby-account-attach-contracts-final.log`,
+`.local/lobby-account-attach-typecheck-final-3.log`,
+`.local/lobby-account-attach-tests-final-3.log` and
+`.local/lobby-account-attach-ui-4/receipt.json`. Reviewed executable SHA-256:
+`a0915b8b54a994d8ff6d11b44e7cc05a24d43c1572c54b478bc87724ec8824ae`.
+Earlier attempts exposed the missing account-operation submission range; the
+new operation-count sentinel fixes it. A subsequent attempt failed during
+local service development; the final run above passed against a stable service.
+
+Private deployment `8e1f76a3-9a77-4ade-8efe-7eee190a196a` includes this route.
+Three hosted integration checks pass in
+`.local/lobby-account-attach-hosted-1/receipt.json`: native account-key/session
+interoperability, two WebSocket clients receiving the preserved lobby identity,
+and rejection/idempotency checks. This hosted run uses the native account CLI
+and WebSocket clients; the game-screen check uses the local service. Test
+sessions were revoked and their temporary key files removed. These are checks
+on one PC. User visual review, adapter capture, and physical multi-PC testing
+remain deferred. Match-time chat awaits collaborative design.

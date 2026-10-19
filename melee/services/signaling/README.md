@@ -8,7 +8,7 @@ service after peers establish a direct or relayed route.
 
 Repository builds do not deploy the service automatically. The private deployment
 is `https://freak-melee-signaling.sndrec32exe.workers.dev`. The 2026-10-19
-account-key/social deployment is `c59460c2-3719-49ab-9093-2db550ed5bf4`. Native room protocol v5 includes seat
+account-key/social/guest-lobby deployment is `8e1f76a3-9a77-4ade-8efe-7eee190a196a`. Native room protocol v5 includes seat
 assignments, owner overrides, match rotation, content controls and lobby chat.
 
 `/chat/connect?peer=<32 hex digits>` serves the separate global conversation.
@@ -29,12 +29,16 @@ The local service also implements friends, offline letters, verified chat/lobby
 profiles and expiring lobby invitations. Its account socket upgrade uses
 `Authorization: Bearer <session>` and `X-Freak-Account: <account_name>`.
 The service supplies public account metadata in presence and chat records.
+Signing in from a guest lobby uses authenticated `POST /v1/accounts/<name>/lobby/attach`
+with its room code and private Welcome connection ID. The service preserves the
+live socket and lobby state. Replacing an active guest socket requires its private
+Welcome ID in `X-Freak-Connection`; a public peer ID alone is insufficient.
 Update the service and client together: the new presence records require both
 ends of the updated wire format. Local native checks set both
 `FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
 localhost service. The [social guide](../../docs/native_social_accounts.md)
 records social behavior and native verification. The account-key suite now
-passes 68 service tests in ten files. Two hidden/muted native clients also pass
+passes 71 service tests in ten files. Two hidden/muted native clients also pass
 the hosted account-key/profile/invitation/join/sign-out review:
 `.local/account-key-hosted-1/receipt.json`.
 

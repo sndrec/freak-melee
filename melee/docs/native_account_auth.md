@@ -106,9 +106,18 @@ Paths begin with `/v1/accounts/<account-name>/`. Protected requests use
 | `profile` | GET / POST | Read a public profile / edit your profile. |
 | `me` | GET | Read your profile, keys and sessions. |
 | `logout` | POST | End the current session. |
+| `lobby/attach` | POST | Connect your account to your current guest lobby. |
 | `sessions/revoke`, `sessions/revoke-all` | POST | End a selected session / all sessions. |
 | `keys/remove` | POST | Remove a key and its sessions. |
 | `recovery/rotate` | POST | Generate a replacement recovery code. |
+
+`lobby/attach` takes `room` and `connection`, the private random ID delivered
+in that socket's Welcome. The service verifies the session and the live socket,
+then updates its account identity while retaining lobby ownership, seats,
+readiness, selection and match metadata. It rejects a different account trying
+to replace an existing binding. Public peer IDs remain display/routing IDs.
+An active guest socket can only be replaced with its private Welcome ID in
+`X-Freak-Connection`; signed-in replacements require the same account.
 
 Options requests supply `public_key` (32 bytes, canonical Base64url), with
 `name` for registration, `key_name` for new keys, or `recovery_code` for recovery.

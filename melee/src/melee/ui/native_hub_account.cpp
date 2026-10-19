@@ -13,6 +13,7 @@ namespace {
     bool started, attempted, leave_lobby;
     void* window;
     unsigned mode, offset, profile_revision;
+    uint64_t attach_retry;
     HubAction confirmation = HubAction::None;
     int confirm_index;
     constexpr uint32_t gold = 0xD9B754FF, muted = 0xB9ADBDFF;
@@ -74,6 +75,25 @@ void nativeHubAccount_Tick()
             nativeHub_Notice("You left the lobby because your account signed out.");
         }
         leave_lobby = false;
+    }
+    if (account.signed_in && !account.busy && !leave_lobby && SDL_GetTicks() >= attach_retry &&
+        nativeOnlineMenu_IsAvailable() && nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {
+        const auto* presence = nativeOnlineSession_Presence();
+        const char* peer = nativeOnlineSession_LocalPeerId();
+        const char* connection = nativeOnlineSession_ConnectionId();
+        const char* room = nativeOnlineSession_RoomCode();
+        if (presence && peer && connection && room && std::strlen(connection) == 36) {
+            for (unsigned i = 0; i < presence->participant_count; ++i) {
+                const auto& member = presence->participants[i];
+                if (std::strcmp(peer, member.peer_id) || !std::strcmp(account.id, member.account_id)) continue;
+                NativeAccountRequest request{}; request.operation = NativeAccountOperation::AttachLobby;
+                std::snprintf(request.room, sizeof(request.room), "%s", room);
+                std::snprintf(request.target, sizeof(request.target), "%s", connection);
+                if (nativeAccount_Submit(request)) attach_retry = SDL_GetTicks() + 5000;
+                SDL_memset(&request, 0, sizeof(request));
+                break;
+            }
+        }
     }
     if (!changed) return;
     if (!*hub.account_handle && *account.handle) std::snprintf(hub.account_handle, sizeof(hub.account_handle), "%s", account.handle);
@@ -207,12 +227,15 @@ void nativeHubAccount_Leave()
 }
 void nativeHubAccount_Inspect()
 {
-    std::fprintf(stderr, "[hub-account] started=%d available=%d busy=%d signed-in=%d saved=%d recovery-pending=%d mode=%u keys=%u devices=%u\n",
-        started, account.available, account.busy, account.signed_in, account.saved, account.recovery_pending, mode, account.key_count, account.session_count);
+    const char* connection = nativeOnlineSession_ConnectionId();
+    std::fprintf(stderr, "[hub-account] started=%d available=%d busy=%d signed-in=%d saved=%d recovery-pending=%d mode=%u keys=%u devices=%u lobby-proof-ready=%d lobby-available=%d attach-retry=%d\n",
+        started, account.available, account.busy, account.signed_in, account.saved, account.recovery_pending, mode, account.key_count, account.session_count,
+        connection && std::strlen(connection) == 36, nativeOnlineMenu_IsAvailable(), SDL_GetTicks() < attach_retry);
 }
 const NativeAccountView& nativeHubAccount_View() { return account; }
 void nativeHubAccount_Shutdown()
 {
     nativeAccount_Shutdown(); account = {}; started = attempted = leave_lobby = false; window = nullptr; mode = offset = profile_revision = 0;
+    attach_retry = 0;
     nativeHubAccount_Leave();
 }

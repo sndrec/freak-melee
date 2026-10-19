@@ -55,6 +55,8 @@ typedef struct NativeNetplayConnection {
     char turn_username[NATIVE_NETPLAY_CONNECTION_CREDENTIAL_BYTES];
     char turn_password[NATIVE_NETPLAY_CONNECTION_CREDENTIAL_BYTES];
     char local_peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    // Private Welcome identifier; account attachment never uses public peer IDs.
+    char connection_id[NATIVE_SIGNALING_MAX_CONNECTION_ID_BYTES + 1];
     char local_build[NATIVE_SIGNALING_MAX_BUILD_BYTES + 1];
     char failure[NATIVE_NETPLAY_CONNECTION_FAILURE_BYTES];
     uint64_t presence_revision;

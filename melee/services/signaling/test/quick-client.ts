@@ -5,6 +5,7 @@ import type { QuickState } from "../src/quick-play";
 const worker = exports.default as unknown as Fetcher;
 export class QuickClient {
   peerId = "";
+  connectionId = "";
   presenceRevision = 0;
   private messages: ServerMessage[] = [];
   private receiving = Promise.resolve();
@@ -62,16 +63,20 @@ export class QuickClient {
   }
 }
 export async function quickConnect(room: string, peer: string, players = 1,
-  build = "quick-test", admission?: string): Promise<Response> {
+  build = "quick-test", admission?: string, connection?: string): Promise<Response> {
   const query = new URLSearchParams({ peer, name: peer, build, players: String(players) });
   if (admission) query.set("admission", admission);
-  return worker.fetch(`https://test/v1/rooms/${room}/connect?${query}`, { headers: {Upgrade: "websocket"} });
+  return worker.fetch(`https://test/v1/rooms/${room}/connect?${query}`, { headers: {
+    Upgrade: "websocket", ...(connection ? { "X-Freak-Connection": connection } : {}),
+  } });
 }
-export async function quickJoin(room: string, peer: string, players = 1, build = "quick-test", admission?: string): Promise<QuickClient> {
-  const response = await quickConnect(room, peer, players, build, admission);
+export async function quickJoin(room: string, peer: string, players = 1, build = "quick-test", admission?: string, connection?: string): Promise<QuickClient> {
+  const response = await quickConnect(room, peer, players, build, admission, connection);
   if (response.status !== 101 || !response.webSocket) throw new Error(`Quick join failed ${response.status}: ${await response.text()}`);
   const client = new QuickClient(response.webSocket);
-  client.peerId = (await client.next(ServerMessageType.Welcome)).peerId;
+  const welcome = await client.next(ServerMessageType.Welcome);
+  client.peerId = welcome.peerId;
+  client.connectionId = welcome.connectionId;
   await client.next(ServerMessageType.Presence);
   return client;
 }
