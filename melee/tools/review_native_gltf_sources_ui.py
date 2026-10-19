@@ -97,11 +97,8 @@ def main():
         c.click('workshop-model-import-target')
         selected = re.search(r'\[ui-inspect-value\] workshop-model-import-target:.* value=(\S+) text=',
                              c.inspect('workshop-model-import-target'))[1]
-        if selected == 'add':
-            c.command('ui-key', 'down')
-        else:
-            for _ in range(int(selected)):
-                c.command('ui-key', 'up')
+        assert selected == 'add', 'A new import retained an earlier replacement destination'
+        c.command('ui-key', 'down')
         c.command('ui-key', 'enter')
         assert re.search(r'\[ui-inspect-value\] workshop-model-import-target:.* value=0 text=',
                          c.inspect('workshop-model-import-target'))

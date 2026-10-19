@@ -223,7 +223,7 @@ import, materials, rigging and skinning, not mesh modeling.
   scale. The combined 1,008-case geometry suite and both native Model workflows
   pass; both viewport comparisons have zero changed pixels. See the
   [rest-edit checkpoint](melee/docs/native_model_rest_checkpoint.md).
-- [ ] Reimport by source identity, retaining project-owned materials and weights
+- [x] Reimport by source identity, retaining project-owned materials and weights
   unless the author explicitly replaces them.
   [Source tracking and matching](melee/docs/native_gltf_reimport_checkpoint.md)
   now retain document/mesh/material-slot identities through export reordering
@@ -231,8 +231,11 @@ import, materials, rigging and skinning, not mesh modeling.
   source-only import Undo/Redo and reopen in the native client. Weight-preserving
   apply, independent material replacement and per-mesh scales pass 409 native
   checks and saved-project cases. Source links and assets now save together,
-  including failure recovery and metadata-only history. Reimport controls and
-  the combined native reimport workflow remain open.
+  including failure recovery and metadata-only history. The existing import
+  dialog now handles selected/whole-source reimport with per-mesh scales and
+  separate material/binding choices. Native checks pass painted/shared data,
+  topology rejection/transfer, byte-exact Undo/Redo, reopen without the source,
+  and Test Character. See the checkpoint for receipts and limits.
 - [ ] Extend painting across the supported editable mesh set and remove storage
   limits that prevent useful authored models; do not introduce tick allocation.
   Imported meshes now retain up to 16 floating-point influences through painting

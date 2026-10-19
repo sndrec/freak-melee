@@ -27,7 +27,8 @@ scale and binding, then **Import selected meshes**.
 Adding meshes imports the selection together. If any selected mesh cannot be
 imported, the draft stays as it was. Undo removes the whole imported selection.
 Replacing existing geometry requires selecting one source mesh and one
-destination mesh. The destination keeps its material.
+destination mesh. Choose whether to keep its edited material or replace it with
+the source material.
 Existing expressions and mesh visibility stay attached to their original meshes.
 Undoing a move or attribute edit preserves the costume's current assignments.
 
@@ -36,6 +37,27 @@ or bone and use its **Name** field to give it a useful name. **Apply name** chan
 the label in the editor. **Save** keeps names and hidden-action choices together
 with the edited model and animations. Undo restores the previous edit. Names
 and hidden-action choices are local editing preferences.
+
+## Reimport an edited model
+
+Select an imported mesh in **Model → Meshes**, then choose **Reimport source…**
+in its inspector. Choose the new export and either **Selected mesh** or **All
+meshes from this file**. Keep source mesh names and material-slot names unique
+so the Workshop can match them to your existing meshes.
+
+The Placement step shows each matched destination and its scale. **Keep edited
+materials** retains the materials you changed here. **Replace with source
+materials** imports the new export's materials for those meshes. Other meshes
+sharing an old material keep it.
+
+Binding starts with **Keep current painted weights**. This carries your weights
+over when the source vertex and triangle order is unchanged. For changed
+geometry topology, choose **Transfer painted weights from replaced mesh**, or
+choose source weights or generated weights to make a new binding.
+
+**Reimport matched meshes** updates the working draft. **Save** keeps the result;
+Undo restores the previous geometry, materials and source links. The saved
+fighter can be edited and played without the source GLB or glTF file.
 
 ## Replace expression images
 

@@ -244,6 +244,14 @@ void render_inspector()
                   "Edit material ↗</button></div><div class='workshop-model-inspector-section'>"
                   "<div class='eyebrow'>BINDING</div><p>Uses the compatible fighter "
                   "joint hierarchy. Edit bone weights in Skinning.</p></div>";
+        if(const auto* source=nativeFighterMeshSource_Get(active->project,(uint32_t)mesh.offset)) {
+            std::string filename=source->path;
+            const auto slash=filename.find_last_of("/\\");
+            if(slash!=std::string::npos)filename.erase(0,slash+1);
+            markup += "<div class='workshop-model-inspector-section'><div class='eyebrow'>SOURCE</div><p title='" +
+                escape(source->path) + "'>"+escape(filename)+"</p><button id='workshop-model-reimport' class='room-button'>"
+                "Reimport source…</button></div>";
+        }
     } else if (active->context == Context::Materials && active->selected_material >= 0 &&
                active->selected_material < active->model.material_count) {
         const NativeModelMaterial& mat = active->model.materials[active->selected_material];
@@ -487,120 +495,6 @@ void build_clips()
         std::to_string(active->selected_clip >= 0 ?
             (int) std::max(1.0f, std::ceil(active->clip_frames[active->selected_clip])) : 1));
     set_frame(0);
-}
-
-void render_import()
-{
-    for (unsigned i = 0; i < 3; ++i)
-        element(("workshop-model-step-" + std::to_string(i)).c_str())
-            ->SetClass("selected", active->import_step == i);
-    std::string body;
-    if (active->import_step == 0) {
-        body = "<div class='eyebrow'>SOURCE FILE</div><p>" +
-               escape(active->import_path[0] ? active->import_path : "Choose a .glb or .gltf file") +
-               "</p><input id='workshop-model-import-path' class='room-input' "
-               "type='text' value='" + escape(active->import_path) + "' "
-               "placeholder='Path to GLB or glTF'/>"
-               "<button id='workshop-model-import-browse' class='room-button'>Browse...</button>"
-               "<button id='workshop-model-import-load' class='room-button'>Load file</button>";
-        if (active->import_scan.count) {
-            body +=
-                "<div class='eyebrow'>MESHES</div><button "
-                "id='workshop-import-select-all'>Select all</button><button "
-                "id='workshop-import-select-none'>Select none</button>";
-            for (unsigned i = 0; i < active->import_scan.count; ++i) {
-                const NativeGltfPrimitiveInfo& info =
-                    active->import_scan.primitives[i];
-                body += "<button id='workshop-model-import-mesh-" +
-                        std::to_string(i) +
-                        "' class='workshop-model-import-row" +
-                        (active->import_selected[i] ? " selected" : "") +
-                        "'><span>" + escape(info.name) + "</span><small>" +
-                        std::to_string(info.vertices) + " vertices · " +
-                        std::to_string(info.triangles) + " triangles" +
-                        (info.has_skin ? " · skinned" : "") +
-                        (info.has_texture ? " · textured" : "") +
-                        "</small></button>";
-            }
-        }
-    } else if (active->import_step == 1) {
-        body = "<div class='eyebrow'>PLACEMENT</div>"
-               "<p>glTF and Melee both use Y as up. Source skin uses its bind "
-               "data for placement. Other binding modes use the mesh node's placement.</p>"
-               "<label>Scale from glTF units to Melee units</label>"
-               "<input id='workshop-model-import-scale' class='room-input' "
-               "type='text' value='" + decimal(active->import_scale) + "' />"
-               "<label>Destination</label><select id='workshop-model-import-target' "
-               "class='room-input'><option value='add'" +
-               std::string(active->import_replacement == UINT_MAX ? " selected" : "") +
-               ">Add a new mesh</option>";
-        for (unsigned i = 0; i < active->model.mesh_count; ++i)
-            body += "<option value='" + std::to_string(i) + "'" +
-                    (active->import_replacement == i ? " selected" : "") +
-                    ">Replace " + escape(active->model.meshes[i].name) + "</option>";
-        body += "</select><p>Replacing a mesh keeps its existing Melee "
-                "material. Adding one imports the base-color texture and "
-                "tint, when present.</p>";
-    } else {
-        body = "<div class='eyebrow'>BINDING</div>"
-               "<p>The cloned fighter's compatible Melee skeleton remains "
-               "in place. Source weights match named bones and compatible "
-               "bind poses. Generated weights use nearby deform bones. "
-               "The joint choice below applies to rigid binding.</p>"
-               "<label>Binding</label><select id='workshop-model-import-binding' "
-               "class='room-input'><option value='auto'" +
-               std::string(active->import_binding == NATIVE_GLTF_BIND_AUTOMATIC
-                   ? " selected" : "") +
-               ">Generate weights from compatible rig</option>";
-        body += "<option value='source'" +
-                std::string(active->import_binding == NATIVE_GLTF_BIND_SOURCE
-                    ? " selected" : "") +
-                ">Keep source weights (compatible rig)</option>";
-        if (active->import_replacement != UINT_MAX)
-            body += "<option value='transfer'" +
-                std::string(active->import_binding == NATIVE_GLTF_BIND_TRANSFER
-                    ? " selected" : "") +
-                ">Transfer painted weights from replaced mesh</option>";
-        body +=
-               "<option value='rigid'" +
-               std::string(active->import_binding == NATIVE_GLTF_BIND_RIGID
-                   ? " selected" : "") +
-               ">Rigid attachment</option></select>"
-               "<label>Joint for rigid attachment</label><select "
-               "id='workshop-model-import-joint' class='room-input'>";
-        for (unsigned i = 0; i < active->model.joint_count; ++i)
-            body += "<option value='" + std::to_string(i) + "'" +
-                    (active->import_joint == i ? " selected" : "") + ">" +
-                    escape(active->model.joints[i].name) + "</option>";
-        body += "</select><p class='workshop-model-import-warning'>";
-        unsigned selected_count = 0;
-        bool skin = false, texture = false;
-        for (unsigned i = 0; i < active->import_scan.count; ++i) {
-            if (active->import_selected[i]) {
-                ++selected_count;
-                skin |= active->import_scan.primitives[i].has_skin;
-                texture |= active->import_scan.primitives[i].has_texture;
-            }
-        }
-        body += std::to_string(selected_count) + " selected meshes. ";
-        if (skin) {
-            body +=
-                "Keep source weights preserves the authored skin; Generate creates a new binding from nearby fighter bones. ";
-        }
-        if (texture) {
-            body += active->import_replacement == UINT_MAX
-                        ? "Base-color images and tints are imported. "
-                        : "The destination material is retained. ";
-        }
-        body += "The fighter's existing geometry and rig stay intact "
-                "unless you chose Replace.</p>";
-    }
-    element("workshop-model-import-body")->SetInnerRML(body);
-    element("workshop-model-import-back")->SetProperty("display",
-        active->import_step ? "block" : "none");
-    text("workshop-model-import-next",
-         active->import_step == 2 ? "Import selected meshes" : "Continue");
-    text("workshop-model-import-note", "Native glTF 2.0 import · compatible rig");
 }
 
 void reopen_model(const RigView* restored)
@@ -1190,16 +1084,7 @@ void nativeShellWorkshopModel_Show(bool show)
 bool nativeShellWorkshopModel_Click(const char* id, bool shift)
 {
     if (rig_click(id)) return true;
-    if (!std::strcmp(id, "workshop-import-select-all") ||
-        !std::strcmp(id, "workshop-import-select-none"))
-    {
-        std::fill(std::begin(active->import_selected),
-                  std::end(active->import_selected),
-                  !std::strcmp(id, "workshop-import-select-all"));
-        render_import();
-        return true;
-    }
-
+    if (import_click(id)) return true;
     if (!std::strcmp(id, "workshop-model-texture-image-apply")) {
         std::string value = static_cast<Rml::ElementFormControlSelect*>(
                                 element("workshop-model-texture-image"))
@@ -1437,188 +1322,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
             playing = false;
             text("workshop-model-play", "Play");
         }
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import") == 0) {
-        active->import_visible = true;
-        element("workshop-model-import-overlay")->SetProperty("display", "block");
-        active->import_step = 0;
-        active->import_binding = NATIVE_GLTF_BIND_AUTOMATIC;
-        for (unsigned i = 0; i < active->model.joint_count; ++i) {
-            const char* role = nativeHome_WorkshopBoneRole(i);
-            if (role && std::strcmp(role, "HipN") == 0) {
-                active->import_joint = i;
-                break;
-            }
-        }
-        render_import();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import-close") == 0) {
-        active->import_visible = false;
-        element("workshop-model-import-overlay")->SetProperty("display", "none");
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import-browse") == 0) {
-        OPENFILENAMEA picker = {};
-        picker.lStructSize = sizeof(picker);
-        picker.hwndOwner = GetActiveWindow();
-        picker.lpstrFilter = "glTF models (*.glb;*.gltf)\0*.glb;*.gltf\0"
-                             "All files (*.*)\0*.*\0\0";
-        picker.lpstrFile = active->import_path;
-        picker.nMaxFile = sizeof(active->import_path);
-        picker.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
-                       OFN_NOCHANGEDIR;
-        if (GetOpenFileNameA(&picker)) {
-            char error[192] = {};
-            NativeGltfScan scan = {};
-            if (nativeFighterGltf_Scan(active->import_path, &scan,
-                                       error, sizeof(error))) {
-                active->import_scan = scan;
-                std::fill(std::begin(active->import_selected),
-                          std::end(active->import_selected), true);
-                render_import();
-            } else {
-                active->import_scan = {};
-                text("workshop-model-import-note", error);
-            }
-        }
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import-load") == 0) {
-        const std::string path = input("workshop-model-import-path")->GetValue();
-        if (path.empty() || path.size() >= sizeof(active->import_path)) {
-            text("workshop-model-import-note", "Enter a valid model path.");
-            return true;
-        }
-        char error[192] = {};
-        NativeGltfScan scan = {};
-        if (!nativeFighterGltf_Scan(path.c_str(), &scan,
-                                    error, sizeof(error))) {
-            text("workshop-model-import-note", error);
-            return true;
-        }
-        std::memcpy(active->import_path, path.c_str(), path.size() + 1);
-        active->import_scan = scan;
-        std::fill(std::begin(active->import_selected),
-                  std::end(active->import_selected), true);
-        render_import();
-        return true;
-    }
-    if (index(id, "workshop-model-import-mesh-", &chosen)) {
-        if (chosen < active->import_scan.count) {
-            active->import_selected[chosen] = !active->import_selected[chosen];
-            render_import();
-        }
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import-back") == 0) {
-        if (active->import_step) --active->import_step;
-        render_import();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-model-import-next") == 0) {
-        if (!active->import_scan.count) {
-            text("workshop-model-import-note", "Choose a glTF/GLB mesh first.");
-            return true;
-        }
-        if (active->import_step == 1) {
-            float parsed;
-            if (!parse_float("workshop-model-import-scale", &parsed) ||
-                parsed <= 0 || parsed > 1000) {
-                text("workshop-model-import-note", "Scale must be 0–1000.");
-                return true;
-            }
-            active->import_scale = parsed;
-            const std::string target = static_cast<
-                Rml::ElementFormControlSelect*>(
-                    element("workshop-model-import-target"))->GetValue();
-            active->import_replacement = target == "add" ? UINT_MAX :
-                                 (unsigned) std::strtoul(target.c_str(),
-                                                         nullptr, 10);
-            if (active->import_replacement < active->model.mesh_count)
-                active->import_joint = active->model.meshes[active->import_replacement].joint;
-        }
-        if (active->import_step < 2) {
-            if (active->import_step == 1) {
-                bool selected = false, all_skinned = true;
-                for (unsigned i = 0; i < active->import_scan.count; ++i)
-                    if (active->import_selected[i]) {
-                        selected = true;
-                        all_skinned &= active->import_scan.primitives[i].has_skin;
-                    }
-                active->import_binding = selected && all_skinned
-                    ? NATIVE_GLTF_BIND_SOURCE : NATIVE_GLTF_BIND_AUTOMATIC;
-            }
-            ++active->import_step;
-            render_import();
-            return true;
-        }
-        active->import_joint = (unsigned) std::strtoul(static_cast<
-            Rml::ElementFormControlSelect*>(
-                element("workshop-model-import-joint"))->GetValue().c_str(),
-                nullptr, 10);
-        const std::string binding_value = static_cast<
-            Rml::ElementFormControlSelect*>(
-                element("workshop-model-import-binding"))->GetValue();
-        active->import_binding = binding_value == "transfer"
-            ? NATIVE_GLTF_BIND_TRANSFER : binding_value == "auto"
-            ? NATIVE_GLTF_BIND_AUTOMATIC : binding_value == "source"
-            ? NATIVE_GLTF_BIND_SOURCE : NATIVE_GLTF_BIND_RIGID;
-        char error[192] = {};
-        std::vector<uint32_t> previous_mesh_offsets;
-        previous_mesh_offsets.reserve(active->model.mesh_count);
-        for (unsigned i = 0; i < active->model.mesh_count; ++i)
-            previous_mesh_offsets.push_back(active->model.meshes[i].offset);
-        const uint32_t destination_offset = active->import_replacement < active->model.mesh_count
-            ? active->model.meshes[active->import_replacement].offset : 0;
-        const std::vector<uint8_t> before(active->project->costume_dat,
-            active->project->costume_dat + active->project->costume_size);
-        const std::vector<uint8_t> fighter(active->project->fighter_dat,active->project->fighter_dat+active->project->fighter_size);
-        auto before_labels = label_snapshot();
-        NativeGltfImportRequest requests[NATIVE_GLTF_MAX_PRIMITIVES];
-        unsigned count = 0;
-        for (unsigned i = 0; i < active->import_scan.count; ++i) {
-            if (active->import_selected[i]) {
-                requests[count++] = { i, active->import_joint,
-                                      active->import_replacement,
-                                      active->import_binding, active->import_scale, false };
-            }
-        }
-        if (!count || (count > 1 && active->import_replacement != UINT_MAX)) {
-            text("workshop-model-import-note",
-                 "Select one mesh to replace an existing mesh, or choose Add "
-                 "for a multiple-mesh import.");
-            return true;
-        }
-        if (!nativeFighterGltf_ApplyBatch(
-                active->project, active->import_path, requests, count,
-                error, sizeof(error)))
-        {
-            text("workshop-model-import-note", error[0] ? error :
-                 "Could not convert this mesh to Melee model data.");
-            return true;
-        }
-        const bool asset_changed=record_asset(before,fighter);
-        record_label_change(before_labels, asset_changed);
-        reopen_model();
-        for (unsigned i = 0; i < active->model.mesh_count; ++i)
-            if (destination_offset
-                    ? active->model.meshes[i].offset == destination_offset
-                    : std::find(previous_mesh_offsets.begin(),
-                                previous_mesh_offsets.end(),
-                                active->model.meshes[i].offset) ==
-                          previous_mesh_offsets.end()) {
-                active->selected_mesh = (int) i;
-                active->selected_material = active->model.meshes[i].material;
-                render();
-                break;
-            }
-        active->import_visible = false;
-        element("workshop-model-import-overlay")->SetProperty("display", "none");
-        const bool preview = nativeShellWorkshop_RefreshPreview();
-        status(preview ? "Mesh imported; refreshing the live model preview."
-                       : "Mesh imported. Test Character to reload the model.");
         return true;
     }
     if (std::strcmp(id, "workshop-model-front") == 0 ||

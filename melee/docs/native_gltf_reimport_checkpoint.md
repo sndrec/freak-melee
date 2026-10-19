@@ -4,7 +4,8 @@ Imports now record their source file and mesh identity in the editable project.
 The matching backend can find those meshes in a new export even when its mesh
 or material-slot arrays are reordered. The backend can preserve painted weights
 and edited materials while replacing geometry. Source links save with the
-matching assets. The Reimport controls remain open.
+matching assets. The Model workspace exposes selected-mesh and whole-source
+reimport through the existing three-step import dialog.
 
 ## Source identity
 
@@ -80,15 +81,24 @@ Both reviews copy their input drafts and verify the originals' four-file
 hashes. Import parsing, metadata and matching work happens at authoring
 transitions and adds no match-tick work.
 
-## Remaining work
+## Native interface
 
-- Connect selected-mesh and whole-source reimport to the existing import flow,
-  with matched destinations and clear failure messages.
-- Expose the backend's independent material and weight choices in that flow.
-- Verify painted weights, edited/shared materials, new source geometry,
-  Undo/Redo, save/reopen, and Test Character together in the native client.
+An imported mesh's inspector shows its source filename and **Reimport source…**.
+The full local path is available in the filename's tooltip. The dialog offers
+selected-mesh and whole-source scope, shows named matches, retains a scale for
+each destination, and separates material choice from binding choice. Missing
+or ambiguous matches keep the operation on the source step with an error.
 
-The Model plan item stays unchecked until this complete workflow passes.
+Reimport defaults to current painted weights and edited materials. A manual
+replacement of a source-linked mesh also defaults to current weights. New
+meshes use compatible source skin or generated weights. Changed skinned topology
+requires explicit transfer or a new binding. Reimport keeps each destination's
+attachment bone. Matching uses the source file's mesh and material-slot names;
+editor display names are independent of them.
+
+The implementation lives in `native_shell_workshop_model_import.cpp`; the main
+Model file directly calls its dialog renderer and input handler. Both files are
+under 2,000 lines.
 
 ## Weight and material preservation backend
 
@@ -107,7 +117,8 @@ retains an old track only when the destination still uses the same MObj.
 
 `native_content_tool project-reimport` exposes selected/whole-source matching,
 binding choice and material choice for saved-project checks. The normal Workshop
-import caller uses the revised batch API; its Reimport interface is still open.
+import caller uses the revised batch API. The native interface described above
+now exposes those backend choices.
 
 Verification:
 
@@ -168,3 +179,47 @@ Current backend verification:
 Game SHA-256: `6babab80370a08af53e949b3efcb57c5b823a74d7525751fecaaf442edc5ff78`.
 Tool SHA-256: `ae532c497e725a2c68b996afe094b5dd64f68fbda52793d859836134e197a7b4`.
 Save-test SHA-256: `1518e86ac8af6a7c3af2d6c37c70ba08c5d34972e8cc518569d5c4080e69b146`.
+
+## Combined native reimport acceptance
+
+`tools/review_native_gltf_reimport_ui.py` prepares two imported meshes at
+different scales, paints a vertex, and gives both meshes an edited shared
+material. It drives the real hidden, muted Workshop and inspects the saved DAT:
+
+- Missing whole-source matches fail before changing the draft.
+- Whole-source reimport replaces geometry while retaining the painted float
+  weights, both scales and the edited shared material.
+- Undo/Redo and Save restore the exact five-file states.
+- Selected-mesh material replacement retains weights and leaves the other
+  shared-material user unchanged.
+- Changed topology rejects current-weight preservation. Explicit transfer
+  succeeds through the same dialog.
+- Reopen without any source GLB retains the saved assets. Test Character and
+  return to editing succeed.
+
+Receipts `.local/native-gltf-reimport-ui-1/receipt.json` and
+`.local/native-gltf-reimport-ui-2/receipt.json` pass. The second records the
+Placement and Binding dialogs for visual review. Ordinary import, source-only
+Undo/Redo, successful no-op import and reopen also pass after the code move:
+`.local/native-gltf-import-regression-ui-1/receipt.json`.
+
+These checks use copied drafts and verify that the source draft stays unchanged.
+Current-weight correspondence uses source vertex/index order; it requires
+explicit transfer when that order changes. Source skins still require a
+compatible fighter rig. Reimport adds no match-tick work.
+
+Final reviewed executable:
+
+- `.local/native-gltf-reimport-ui-final/receipt.json`: complete workflow passes,
+  with Placement/Binding screenshots and a visible practice frame.
+- `.local/native-gltf-import-regression-ui-final/receipt.json`: ordinary Import
+  starts at Add, source-only Undo/Redo passes, and repeated no-op import completes
+  successfully. Ordinary Import initializes its destination to Add each time.
+- Final backend batch: `.local/native-project-assets-reimport-final/receipt.json`,
+  `.local/native-gltf-backend-reimport-final/receipt.json` and
+  `.local/native-source-skin-reimport-final/passed.json` pass the 679 save checks,
+  409 native reimport checks, saved reimport cases, nine source-skin cases and
+  16 atomic rejection cases on the final build outputs.
+
+Game SHA-256: `b07c2c2fd3a8886e4c9c2fc71cd186bf284aeb079556ea1172713d97ea8476f9`.
+Tool SHA-256: `3506647e73e62c1974c0223c57e56723d02a808a4ae246765a76a085cfb62e59`.
