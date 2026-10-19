@@ -28,12 +28,14 @@ bool targets(const HSD_ShapeSetDesc& shape, bool normal, Mtx conversion,
     const size_t floats = size_t(total) * count * components;
     if (floats > FT_COSTUME_IMPORT_MAX_ARENA_SIZE / sizeof(float)) return false;
     values->resize(floats);
+    const auto* descriptor=normal?shape.normal_desc:shape.vertex_desc;
+    const unsigned index_bytes=shape.flags&SHAPESET_INDEX32?4:descriptor->attr_type==GX_INDEX16?2:1;
     for (unsigned target = 0; target < total; ++target) {
         for (unsigned vertex = 0; vertex < count; ++vertex) {
             float decoded[9];
             HSD_ShapeSetReadVector(normal ? shape.normal_desc : shape.vertex_desc,
                 normal ? shape.normal_idx_list[target] : shape.vertex_idx_list[target],
-                vertex, components, decoded);
+                index_bytes, vertex, components, decoded);
             for (unsigned c = 0; c < components; c += 3) {
                 Vec3 point, output;
                 std::memcpy(&point, decoded + c, sizeof(point));

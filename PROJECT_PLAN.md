@@ -262,8 +262,9 @@ import, materials, rigging and skinning, not mesh modeling.
   export reordering. Native painting, history, rest and snapshot checks pass.
   [Larger morph meshes](melee/docs/native_morph_capacity_checkpoint.md) now use
   the full 65,536-entry logical index range, including NBT triples, without
-  enlarging rollback state. Whole-target physical-index limits and additional
-  tangent/UV/color channels remain open in the
+  enlarging rollback state. [32-bit target indices](melee/docs/native_morph_wide_indices_checkpoint.md)
+  now let full-sized expressions exceed the former shared physical-index range.
+  Per-controller logical limits and additional tangent/UV/color channels remain open in the
   [authoring design](melee/docs/native_morph_skin_design.md).
   [Custom costume import storage](melee/docs/native_costume_capacity_checkpoint.md)
   now grows during asset construction instead of rejecting every graph above

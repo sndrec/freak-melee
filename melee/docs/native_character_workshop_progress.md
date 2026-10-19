@@ -61,6 +61,8 @@ Rest edits retain an imported mesh's coordinate correction through saved source
 reimport and Model history; see the [rest/reimport checkpoint](native_gltf_rest_checkpoint.md).
 The shared morph capacity now covers 65,536 logical position/normal entries
 without enlarging rollback state; see the [capacity checkpoint](native_morph_capacity_checkpoint.md).
+Physical target tables now support several full-sized expressions with
+[32-bit indices](native_morph_wide_indices_checkpoint.md).
 
 Frozen editing uses a character-centered void preview with axes and camera
 controls, without match HUD. Test Character restarts normal grid practice with
@@ -89,7 +91,7 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
 ## Required implementation gaps
 
 1. Remaining unusual helper-node and independent texture-matrix binding domains.
-2. Morph physical-index capacity and additional tangent/UV/color target channels.
+2. Morph logical capacity and additional tangent/UV/color target channels.
 3. Remaining room/release acceptance in the project plan. Coordinated outfits now
    pass [current room matches](native_outfit_match_checkpoint.md), including four
    Ice Climbers slots across two PCs. Source-only single/paired fighter delivery and independent

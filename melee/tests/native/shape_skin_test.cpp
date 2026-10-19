@@ -484,7 +484,7 @@ void multiple_controllers(unsigned normals,bool additive)
 
 void full_index_domain(unsigned normals,bool additive)
 {
-    const auto f=fixture(0,normals,additive);NativeSkinMesh original;rewritten(f,&original);
+    const auto f=fixture(1,normals,additive);NativeSkinMesh original;rewritten(f,&original);
     NativeSkinMesh skin;NativeSkinPart part=original.parts[0];
     const unsigned count=HSD_MAX_SHAPE_VERTICES,components=normals==2?9:3;
     part.corners.clear();part.triangles.clear();part.morph.position_count=count;
@@ -492,13 +492,14 @@ void full_index_domain(unsigned normals,bool additive)
     part.morph.positions.resize(size_t(3)*count*3);part.morph.normals.resize(size_t(3)*count*components);
     for(unsigned i=0;i<count;++i) {
         NativeSkinVertex vertex={};vertex.position[0]=float(i)/1024;vertex.position[1]=float(i%31);
-        vertex.skin.count=1;vertex.skin.joints[0]=0;vertex.skin.weights[0]=1;
+        vertex.skin.count=1;vertex.skin.joints[0]=1;vertex.skin.weights[0]=1;
         skin.vertices.push_back(vertex);part.morph.vertices.push_back(i);
         for(unsigned target=0;target<3;++target) {
             for(unsigned axis=0;axis<3;++axis)
-                part.morph.positions[(size_t(target)*count+i)*3+axis]=additive&&target?0:vertex.position[axis];
+                part.morph.positions[(size_t(target)*count+i)*3+axis]=(additive&&target?0:vertex.position[axis])+
+                    (target?float(target)*10+float(i)/65536+float(axis)*.125f:0);
             for(unsigned c=0;c<components;++c)
-                part.morph.normals[(size_t(target)*count+i)*components+c]=additive&&target?0:float(i!=0&&c%3==c/3);
+                part.morph.normals[(size_t(target)*count+i)*components+c]=float(target)*10+float(i)/65536+float(c)*.125f;
         }
     }
     // Two GX primitives/private batches, including logical index 65535.
@@ -513,21 +514,71 @@ void full_index_domain(unsigned normals,bool additive)
     NativeAssetDat edit;check(edit.open(f.file.data(),f.file.size()));uint32_t polygon;
     check(nativeSkinMesh_Encode(edit,*model,skin,&polygon));edit.link(model->meshes[0].offset+12,polygon);
     std::vector<u8> file;check(edit.finish(&file));
+    for(unsigned fault=0;fault<2;++fault) {
+        NativeAssetDat bad;check(bad.open(file.data(),file.size()));
+        const u32 shape=NativeAssetDat::read32(bad.data.data()+polygon+20);
+        if(fault==0) {
+            const u32 table=NativeAssetDat::read32(bad.data.data()+shape+12);
+            const u32 indices=NativeAssetDat::read32(bad.data.data()+table+8);
+            bad.word(indices+(count-1)*4,UINT32_MAX);
+        } else {
+            const u32 descriptor=NativeAssetDat::read32(bad.data.data()+shape+8);
+            bad.word(descriptor+4,GX_INDEX8);
+        }
+        std::vector<u8> malformed;check(bad.finish(&malformed));const auto before=malformed;
+        Imported rejected;rejected.arena.resize(4*1024*1024);check(!rejected.open(malformed));
+        check(rejected.loader.status!=HSD_DAT_OK&&malformed==before);
+    }
+    project.costume_dat=file.data();project.costume_size=file.size();check(nativeFighterModel_Open(model.get(),&project));
+    NativeSkinMesh decoded;char error[256]={};check(nativeSkinMesh_Read(*model,0,&decoded,error,sizeof(error)));
+    check(decoded.parts[0].morph.positions==skin.parts[0].morph.positions);
+    check(decoded.parts[0].morph.normals==skin.parts[0].morph.normals);
     Imported imported;imported.arena.resize(4*1024*1024);check(imported.open(file));
-    HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root&&root->u.dobj);
-    auto* shape=root->u.dobj->pobj->u.shape_set;
+    HSD_JObj* root=HSD_JObjLoadJoint(imported.root);check(root);
+    auto* owner=(HSD_JObj*)HSD_IDGetData((uintptr_t)imported.joint(f.bones[1]),nullptr);check(owner&&owner->u.dobj);
+    auto* shape=owner->u.dobj->pobj->u.shape_set;
     check(shape->nb_vertex_index==count&&shape->nb_normal_index==count&&shape->skin&&shape->skin->next);
+    check(shape->flags&SHAPESET_INDEX32);
+    check(NativeAssetDat::read32(shape->vertex_idx_list[2]+(count-1)*4)>UINT16_MAX);
+    check(NativeAssetDat::read32(shape->normal_idx_list[2]+(count-1)*4)>UINT16_MAX);
     if(additive){shape->blend.bp[0]=.3f;shape->blend.bp[1]=.7f;}else shape->blend.bl=1.5f;
     std::vector<std::array<float,3>> positions(count),lighting(size_t(count)*(normals==2?3:1));
     check(HSD_ShapeSetEvaluate(shape,reinterpret_cast<float(*)[3]>(positions.data()),reinterpret_cast<float(*)[3]>(lighting.data())));
-    for(unsigned i=0;i<count;++i)for(unsigned axis=0;axis<3;++axis)near(positions[i][axis],skin.vertices[i].position[axis]);
+    auto blended=[&](bool normal,unsigned i,unsigned c) {
+        const unsigned width=normal?components:3;const auto& source=normal?skin.parts[0].morph.normals:skin.parts[0].morph.positions;
+        const float a=source[i*width+c],b=source[(size_t(count)+i)*width+c],d=source[(size_t(count)*2+i)*width+c];
+        return additive?a+b*.3f+d*.7f:(b+d)*.5f;
+    };
+    for(unsigned i=0;i<count;++i)for(unsigned axis=0;axis<3;++axis)near(positions[i][axis],blended(false,i,axis));
     for(unsigned i=0;i<count;++i)for(unsigned c=0;c<components;++c)
-        near(lighting[size_t(i)*(normals==2?3:1)+c/3][c%3],float(i!=0&&c%3==c/3));
-    nativeModelView_Begin(1,true);nativeModelView_Mesh(0,root,root->u.dobj,false,false,nullptr);
+        near(lighting[size_t(i)*(normals==2?3:1)+c/3][c%3],blended(true,i,c));
+    nativeModelView_Begin(1,true);nativeModelView_Mesh(0,owner,owner->u.dobj,false,false,nullptr);
     std::vector<Vec3> corners(count+2);check(nativeModelView_CornerPositions(0,corners.data(),(unsigned)corners.size()));
     for(unsigned i=0;i<corners.size();++i)for(unsigned axis=0;axis<3;++axis)
-        near(((float*)&corners[i])[axis],skin.vertices[i%count].position[axis]);
+        near(((float*)&corners[i])[axis],blended(false,i%count,axis));
     nativeModelView_Clear();HSD_JObjRemoveAll(root);++cases;
+    // Rest compensation must read and rewrite physical indices above 65535.
+    project.costume_dat=(u8*)std::malloc(file.size());check(project.costume_dat);
+    std::memcpy(project.costume_dat,file.data(),file.size());
+    check(nativeFighterModel_Open(model.get(),&project));check(nativeFighterModel_SetJoint(model.get(),1,0,2,.35f));
+    check(nativeFighterModel_CompensateRest(model.get(),file.data(),file.size(),1));
+    std::vector<u8> rested(project.costume_dat,project.costume_dat+project.costume_size);
+    Imported restored;restored.arena.resize(4*1024*1024);check(restored.open(rested));
+    root=HSD_JObjLoadJoint(restored.root);check(root);
+    owner=(HSD_JObj*)HSD_IDGetData((uintptr_t)restored.joint(f.bones[1]),nullptr);check(owner&&owner->u.dobj);
+    shape=owner->u.dobj->pobj->u.shape_set;check(shape->flags&SHAPESET_INDEX32);
+    if(additive){shape->blend.bp[0]=.3f;shape->blend.bp[1]=.7f;}else shape->blend.bl=1.5f;
+    nativeModelView_Begin(1,true);nativeModelView_Mesh(0,owner,owner->u.dobj,false,false,nullptr);
+    check(nativeModelView_CornerPositions(0,corners.data(),(unsigned)corners.size()));
+    for(unsigned i=0;i<corners.size();++i)for(unsigned axis=0;axis<3;++axis)
+        near(((float*)&corners[i])[axis],blended(false,i%count,axis));
+    check(HSD_ShapeSetEvaluate(shape,reinterpret_cast<float(*)[3]>(positions.data()),reinterpret_cast<float(*)[3]>(lighting.data())));
+    for(unsigned i=0;i<count;++i)for(unsigned v=0;v<(normals==2?3u:1u);++v) {
+        Vec3 expected={blended(true,i,v*3),blended(true,i,v*3+1),blended(true,i,v*3+2)},actual;
+        C_MTXMultVecSR(owner->mtx,(Vec3*)lighting[size_t(i)*(normals==2?3:1)+v].data(),&actual);
+        near(actual.x,expected.x);near(actual.y,expected.y);near(actual.z,expected.z);
+    }
+    nativeModelView_Clear();HSD_JObjRemoveAll(root);std::free(project.costume_dat);++cases;
 }
 }
 int main()

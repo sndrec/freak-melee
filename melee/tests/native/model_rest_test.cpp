@@ -339,7 +339,8 @@ std::vector<double> shape_geometry(const NativeFighterModelEditor& e) {
             u32 descriptor=word(shape+8+attr*12),table=word(shape+12+attr*12);
             unsigned vectors=word(descriptor)==25?3:1;
             auto sample=[&](unsigned target,unsigned index,unsigned component){
-                u32 list=word(table+target*4);unsigned source=word(descriptor+4)==2?e.dat.data[list+index]:half(list+index*2);
+                u32 list=word(table+target*4);unsigned source=(half(shape)&SHAPESET_INDEX32)?word(list+index*4):
+                    word(descriptor+4)==2?e.dat.data[list+index]:half(list+index*2);
                 return value(descriptor,source,component);};
             for(unsigned i=0;i<count;++i)for(unsigned part=0;part<vectors;++part){
                 double v[3];for(unsigned axis=0;axis<3;++axis){unsigned component=part*3+axis;

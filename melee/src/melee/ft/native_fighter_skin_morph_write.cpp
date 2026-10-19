@@ -19,10 +19,11 @@ bool target_arrays(NativeAssetDat& dat, const std::vector<float>& source,
                      u32* descriptor, u32* table, uint32_t* array)
 {
     if (!components) { *descriptor = *table = *array = 0; return source.empty(); }
-    if (source.size() != size_t(targets)*old_count*components || logical.size() > size_t(UINT16_MAX)+1) return false;
+    if (source.size() != size_t(targets)*old_count*components || logical.size() > size_t(UINT16_MAX)+1 ||
+        source.size()>NATIVE_CONTENT_MAX_PACKAGE_BYTES/sizeof(float)) return false;
     std::vector<float> physical;
-    std::vector<u16> indices;
-    std::map<std::array<u32, 9>, u16> lookup;
+    std::vector<uint32_t> indices;
+    std::map<std::array<u32, 9>, uint32_t> lookup;
     for (unsigned target = 0; target < targets; ++target) {
         for (unsigned from : logical) {
             if (from >= old_count) return false;
@@ -39,11 +40,10 @@ bool target_arrays(NativeAssetDat& dat, const std::vector<float>& source,
             // index tables without merging logical morph vertices.
             if (target == 0 || found == lookup.end()) {
                 index = (unsigned)(physical.size()/components);
-                if (index > UINT16_MAX) return false;
                 physical.insert(physical.end(), point, point+components);
-                lookup.emplace(key, (u16)index);
+                lookup.emplace(key, index);
             } else index = found->second;
-            indices.push_back((u16)index);
+            indices.push_back(index);
         }
     }
     *descriptor = dat.allocate(48); *table = dat.allocate(size_t(targets)*4);
@@ -55,11 +55,11 @@ bool target_arrays(NativeAssetDat& dat, const std::vector<float>& source,
     dat.link(*descriptor+20, *array); dat.word(*descriptor+24, GX_VA_NULL);
     for (unsigned i = 0; i < physical.size(); ++i) real(dat, *array+i*4, physical[i]);
     for (unsigned target = 0; target < targets; ++target) {
-        const u32 row = dat.allocate(logical.size()*2);
+        const u32 row = dat.allocate(logical.size()*4);
         if (row == UINT32_MAX) return false;
         dat.link(*table+target*4, row);
         for (unsigned i = 0; i < logical.size(); ++i)
-            dat.half(row+i*2, indices[size_t(target)*logical.size()+i]);
+            dat.word(row+i*4, indices[size_t(target)*logical.size()+i]);
     }
     return true;
 }
@@ -146,7 +146,7 @@ bool nativeSkinMorph_Encode(NativeAssetDat& dat, const NativeFighterModelEditor&
             }
         }
     }
-    dat.half(out->shape, (morph.flags&~SHAPESET_PROPERTIES) | SHAPESET_SKIN | (properties?SHAPESET_PROPERTIES:0));
+    dat.half(out->shape, (morph.flags&~SHAPESET_PROPERTIES) | SHAPESET_SKIN | SHAPESET_INDEX32 | (properties?SHAPESET_PROPERTIES:0));
     dat.half(out->shape+2, morph.shape_count);
     dat.word(out->shape+4, morph.position_count); dat.word(out->shape+16, (u32)normals.size());
     for (unsigned a = 0; a < 2; ++a) {
