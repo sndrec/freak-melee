@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <monocypher-ed25519.h>
 
 static void wait(NativeAccountView& view)
 {
@@ -14,35 +15,28 @@ static void wait(NativeAccountView& view)
         assert(GetTickCount64() < deadline);
     } while (view.busy || !view.revision);
 }
-// Integration driver: a real service-issued grant arrives through stdin, never
-// command-line arguments or logs. It exercises the normal saved-session path.
-static int client(const char* root, const char* endpoint, bool seed)
+// Drives the real native key generation, signatures, HTTP and protected store.
+static int client(const char* root, const char* endpoint)
 {
     auto json = std::make_unique<NativeAccountJson>();
     char line[8192];
-    NativeAccountEndpoint service{}; assert(nativeAccount_Endpoint(endpoint, service));
-    if (seed) {
-        assert(std::fgets(line, sizeof(line), stdin));
-        auto* grant = json->read(line, std::strlen(line)); assert(grant);
-        assert(nativeAccount_PasskeyOptions(yyjson_obj_get(grant, "registration"), service, true));
-        assert(nativeAccount_PasskeyOptions(yyjson_obj_get(grant, "authentication"), service, false));
-        NativeAccountSecrets secrets{};
-        std::snprintf(secrets.origin, sizeof(secrets.origin), "%s", service.origin);
-        assert(nativeAccount_String(yyjson_obj_get(grant, "handle"), secrets.handle, sizeof(secrets.handle)));
-        assert(nativeAccount_String(yyjson_obj_get(grant, "token"), secrets.token, sizeof(secrets.token)));
-        wchar_t path[1024], folder[900];
-        assert(MultiByteToWideChar(CP_UTF8, 0, root, -1, folder, 900));
-        assert(swprintf_s(path, L"%s/account-session.bin", folder) > 0);
-        assert(nativeAccount_Store(path, secrets));
-        SecureZeroMemory(&secrets, sizeof(secrets)); SecureZeroMemory(line, sizeof(line));
-    }
-    assert(nativeAccount_Start(root, endpoint, nullptr));
+    assert(nativeAccount_Start(root, endpoint));
     NativeAccountView view{}; wait(view);
     std::printf("ready signed-in=%u pending=%u keys=%u sessions=%u\n", view.signed_in, view.recovery_pending, view.key_count, view.session_count); std::fflush(stdout);
     while (std::fgets(line, sizeof(line), stdin)) {
         auto* object = json->read(line, std::strlen(line)); assert(object);
         NativeAccountRequest request{};
-        request.operation = NativeAccountOperation(yyjson_get_uint(yyjson_obj_get(object, "operation")));
+        const char* names[] = {"Refresh", "Register", "Login", "Recover", "Approve", "AddKey", "SaveProfile",
+            "Logout", "RevokeSession", "RevokeAll", "RemoveKey", "RotateRecovery", "RefreshSocial", "LookupProfile",
+            "SendLetter", "ReadLetter", "DeleteLetter", "ChangeFriend", "BlockPlayer", "SendInvitation", "JoinInvitation",
+            "ImportKey", "ExportKey", "ExportRecovery"};
+        unsigned operation = 0;
+        for (; operation < sizeof(names) / sizeof(names[0]); ++operation)
+            if (yyjson_equals_str(yyjson_obj_get(object, "operation"), names[operation])) break;
+        assert(operation < sizeof(names) / sizeof(names[0])); request.operation = NativeAccountOperation(operation);
+        auto* path = yyjson_obj_get(object, "path"), *recovery = yyjson_obj_get(object, "recovery");
+        if (path) assert(nativeAccount_String(path, request.path, sizeof(request.path)));
+        if (recovery) assert(nativeAccount_String(recovery, request.recovery, sizeof(request.recovery)));
         auto* name = yyjson_obj_get(object, "name"), *bio = yyjson_obj_get(object, "bio"), *target = yyjson_obj_get(object, "target");
         if (name) assert(nativeAccount_String(name, request.name, sizeof(request.name)));
         if (bio) assert(nativeAccount_String(bio, request.bio, sizeof(request.bio), true));
@@ -61,10 +55,10 @@ static int client(const char* root, const char* endpoint, bool seed)
         request.friends_offset = unsigned(yyjson_get_uint(yyjson_obj_get(object, "friends_offset")));
         request.blocked = yyjson_get_bool(yyjson_obj_get(object, "blocked"));
         assert(nativeAccount_Submit(request)); wait(view);
-        std::printf("done signed-in=%u saved=%u pending=%u keys=%u sessions=%u name=%s bio=%s status=%s social-loaded=%u mail=%u total=%u unread=%u friends=%u opened=%u lookup=%s relationship=%s\n",
+        std::printf("done signed-in=%u saved=%u pending=%u keys=%u sessions=%u name=%s bio=%s status=%s social-loaded=%u mail=%u total=%u unread=%u friends=%u opened=%u lookup=%s relationship=%s handle=%s key0=%s\n",
             view.signed_in, view.saved, view.recovery_pending, view.key_count, view.session_count, view.name, view.bio, view.status,
             view.social.loaded, view.social.count, view.social.total, view.social.unread, view.social.friends_total,
-            *view.social.opened.id != 0, view.social.profile.handle, view.social.relationship);
+            *view.social.opened.id != 0, view.social.profile.handle, view.social.relationship, view.handle, view.key_count ? view.keys[0].id : "");
         std::fflush(stdout);
     }
     nativeAccount_Shutdown();
@@ -72,7 +66,7 @@ static int client(const char* root, const char* endpoint, bool seed)
 }
 int main(int argc, char** argv)
 {
-    if (argc == 4 && (!std::strcmp(argv[1], "--client") || !std::strcmp(argv[1], "--resume"))) return client(argv[2], argv[3], !std::strcmp(argv[1], "--client"));
+    if (argc == 4 && !std::strcmp(argv[1], "--service")) return client(argv[2], argv[3]);
     NativeAccountEndpoint endpoint{};
     assert(nativeAccount_Endpoint("https://EXAMPLE.com:443/", endpoint));
     assert(!std::strcmp(endpoint.origin, "https://example.com"));
@@ -91,11 +85,24 @@ int main(int argc, char** argv)
     assert(nativeAccount_Base64Decode(encoded, decoded, sizeof(decoded), length) && length == sizeof(bytes) && !memcmp(bytes, decoded, sizeof(bytes)));
     for (const char* value : {"a", "AA=", "AA+", "AA/", "AA\n", "AB"}) assert(!nativeAccount_Base64Decode(value, decoded, sizeof(decoded), length));
     auto json = std::make_unique<NativeAccountJson>();
-    char options[] = R"({"origin":"https://example.com","options":{"rpId":"example.com","challenge":"AAAAAAAAAAAAAAAAAAAAAA","allowCredentials":[{"id":"AAAA","type":"public-key"}],"userVerification":"required"}})";
-    auto* value = json->read(options, strlen(options));
-    assert(value && nativeAccount_PasskeyOptions(value, endpoint, false));
-    assert(nativeAccount_Endpoint("https://other.example.com", endpoint));
-    assert(!nativeAccount_PasskeyOptions(value, endpoint, false));
+    // RFC 8032 test vector 1, checked independently of the service implementation.
+    auto unhex = [](const char* text, BYTE* output, unsigned size) {
+        assert(std::strlen(text) == size * 2);
+        for (unsigned i = 0; i < size; ++i) { unsigned value; assert(std::sscanf(text + i * 2, "%2x", &value) == 1); output[i] = BYTE(value); }
+    };
+    BYTE seed[32], secret_key[64], public_key[32], expected[64], signature[64];
+    unhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60", seed, 32);
+    crypto_ed25519_key_pair(secret_key, public_key, seed);
+    unhex("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", expected, 32);
+    assert(!std::memcmp(public_key, expected, 32));
+    crypto_ed25519_sign(signature, secret_key, nullptr, 0);
+    unhex("e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b", expected, 64);
+    assert(!std::memcmp(signature, expected, 64) && crypto_ed25519_check(signature, public_key, nullptr, 0) == 0);
+    crypto_wipe(secret_key, sizeof(secret_key));
+    char generated[44], derived[44];
+    assert(nativeAccount_GenerateKey(generated) && nativeAccount_KeyPublic(generated, derived));
+    assert(std::strcmp(generated, derived));
+    yyjson_val* value;
     char invalid[] = R"({"a":"\u0000"})";
     value = json->read(invalid, strlen(invalid));
     assert(value && !nativeAccount_String(yyjson_obj_get(value, "a"), encoded, sizeof(encoded)));
@@ -106,6 +113,7 @@ int main(int argc, char** argv)
     std::snprintf(original.handle, sizeof(original.handle), "twilight");
     assert(nativeAccount_Base64Encode(bytes, 32, original.token, sizeof(original.token)));
     assert(nativeAccount_Base64Encode(bytes + 32, 32, original.recovery, sizeof(original.recovery)));
+    std::memcpy(original.seed, generated, sizeof(generated));
     nativeAccountTransport_Clear();
     const auto generation = nativeAccountTransport_Generation();
     assert(nativeAccountTransport_Publish(original.origin, original.handle, original.token));
@@ -139,9 +147,17 @@ int main(int argc, char** argv)
     assert(WriteFile(file, encrypted, count, &length, nullptr)); CloseHandle(file);
     assert(!nativeAccount_Load(path, original.origin, loaded));
     assert(nativeAccount_Delete(path));
-    NativeAccountPasskeys passkeys;
-    bool available = passkeys.load();
-    std::printf("account contracts passed; Windows passkey API available=%u (no prompt opened)\n", available);
-    passkeys.unload();
+    char portable[1024]; assert(WideCharToMultiByte(CP_UTF8, 0, path, -1, portable, sizeof(portable), nullptr, nullptr));
+    assert(nativeAccount_WriteKeyFile(portable, original, *json));
+    loaded = {};
+    assert(nativeAccount_ReadKeyFile(portable, original.origin, loaded, *json));
+    assert(!std::strcmp(loaded.seed, original.seed) && !std::strcmp(loaded.handle, original.handle) && !*loaded.token && !*loaded.recovery);
+    assert(!nativeAccount_ReadKeyFile(portable, "https://other.example.com", loaded, *json));
+    assert(nativeAccount_Delete(path));
+    original.token[0] = 0; original.signed_out = true;
+    assert(nativeAccount_Store(path, original) && nativeAccount_Load(path, original.origin, loaded));
+    assert(loaded.signed_out && !*loaded.token && !std::strcmp(loaded.seed, original.seed));
+    assert(nativeAccount_Delete(path));
+    std::printf("account contracts passed: RFC 8032, portable key file, protected sign-in, endpoint isolation\n");
     return 0;
 }

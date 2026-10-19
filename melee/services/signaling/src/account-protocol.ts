@@ -1,10 +1,9 @@
-import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
+import { Buffer } from "node:buffer";
 
 export const CHALLENGE_MS = 120_000;
 export const SESSION_MS = 30 * 24 * 60 * 60_000;
 export const RECENT_AUTH_MS = 5 * 60_000;
-export const MAX_PASSKEYS = 8;
+export const MAX_ACCOUNT_KEYS = 8;
 export const MAX_SESSIONS = 16;
 export type Ceremony = "register" | "login" | "add" | "recover" | "reauth";
 export type JsonObject = Record<string, unknown>;
@@ -21,16 +20,16 @@ export function accountHandle(value: string): string | null {
   return /^[A-Za-z0-9_]{3,24}$/.test(value) ? value.toLowerCase() : null;
 }
 export function secret(): string {
-  return isoBase64URL.fromBuffer(crypto.getRandomValues(new Uint8Array(32)));
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
 }
 export function secretValue(value: unknown): string {
   if (typeof value !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(value) ||
-      isoBase64URL.fromBuffer(isoBase64URL.toBuffer(value)) !== value)
+      Buffer.from(value, "base64url").toString("base64url") !== value)
     throw new AccountError(400, "Invalid sign-in code.");
   return value;
 }
 export async function secretHash(value: string): Promise<string> {
-  return isoBase64URL.fromBuffer(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
+  return Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))).toString("base64url");
 }
 export function equalHash(left: string, right: string): boolean {
   return crypto.subtle.timingSafeEqual(new TextEncoder().encode(left), new TextEncoder().encode(right));
@@ -63,37 +62,4 @@ export async function readAccountBody(request: Request): Promise<JsonObject> {
     if (error instanceof AccountError) throw error;
     throw new AccountError(400, "Invalid JSON request.");
   } finally { reader.releaseLock(); }
-}
-
-export function credentialResponse(body: JsonObject, register: true): RegistrationResponseJSON;
-export function credentialResponse(body: JsonObject, register: false): AuthenticationResponseJSON;
-export function credentialResponse(body: JsonObject, register: boolean): RegistrationResponseJSON | AuthenticationResponseJSON {
-  const value = body.credential;
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new AccountError(400, "Missing passkey response.");
-  const credential = value as JsonObject, response = credential.response as JsonObject | undefined;
-  if (credential.type !== "public-key" || typeof credential.id !== "string" ||
-      !/^[A-Za-z0-9_-]{1,1400}$/.test(credential.id) || credential.rawId !== credential.id ||
-      !response || typeof response !== "object" || Array.isArray(response) ||
-      typeof response.clientDataJSON !== "string" || response.clientDataJSON.length > 8192 ||
-      (register ? typeof response.attestationObject !== "string" || response.attestationObject.length > 32768
-        : typeof response.authenticatorData !== "string" || response.authenticatorData.length > 8192 ||
-          typeof response.signature !== "string" || response.signature.length > 4096))
-    throw new AccountError(400, "Invalid passkey response.");
-  try {
-    const client: unknown = JSON.parse(isoBase64URL.toUTF8String(response.clientDataJSON));
-    if (!client || typeof client !== "object" || ("crossOrigin" in client && client.crossOrigin !== false)) throw new Error();
-  } catch { throw new AccountError(400, "Invalid passkey client data."); }
-  // Cryptographic, format, RP, origin and challenge validation is performed
-  // by SimpleWebAuthn immediately after this bounded transport check.
-  const common = { id: credential.id, rawId: credential.id, type: "public-key" as const,
-    clientExtensionResults: {} };
-  if (register) return { ...common, response: {
-    clientDataJSON: response.clientDataJSON, attestationObject: String(response.attestationObject),
-  } };
-  if (response.userHandle !== undefined && response.userHandle !== null && typeof response.userHandle !== "string")
-    throw new AccountError(400, "Invalid passkey user handle.");
-  return { ...common, response: { clientDataJSON: response.clientDataJSON,
-    authenticatorData: String(response.authenticatorData), signature: String(response.signature),
-    userHandle: typeof response.userHandle === "string" ? response.userHandle : undefined,
-  } };
 }

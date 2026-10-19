@@ -1,8 +1,10 @@
 # Friends and letters
 
 Updated: 2026-10-19. Friends, letters and verified player-list entries use the
-passkey account service. Lobby invitations arrive in the recipient's Inbox.
-The updated service currently runs locally for verification and awaits deployment.
+account-key service. Lobby invitations arrive in the recipient's Inbox.
+The social service and approved account-key replacement are deployed.
+Two updated hidden/muted native clients pass the hosted invitation and
+verified-presence review: `.local/account-key-hosted-1/receipt.json`. See the [account guide](native_account_auth.md).
 
 ## Using the hub
 
@@ -99,6 +101,9 @@ no stock artwork or asset-generation rules.
 
 ## Verification
 
+The following receipts predate the account-key replacement. Current key-file
+verification is recorded in the [account guide](native_account_auth.md).
+
 The service suite has 75 passing tests in nine files, including seven social
 tests. They cover offline delivery, read/delete persistence, mailbox ownership,
 forged-sender rejection, session revocation, duplicate sends, reciprocal friend
@@ -148,7 +153,10 @@ Evidence: `.local/native-identity-review-1/receipt.json` and
 `89c00669cd39f0ae0afaddb578d1f4df8c2c29787c8724297c53195aa2a3497d`.
 These changes preserve the stock artwork and asset generators.
 
-Real Windows passkey ceremonies and production deployment remain open.
+Windows security-prompt acceptance was replaced by the approved account-key
+flow. The social implementation and account-key replacement are deployed; current
+account-key game-screen and hosted-path checks pass. Standard file-picker
+interaction and user presentation/input review remain open.
 Signing in after joining a lobby as a guest currently requires leaving and
 rejoining that lobby to attach the account. Physical multi-PC acceptance
 remains with the user.

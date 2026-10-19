@@ -15,6 +15,7 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     for name in ['a-handle', 'b-handle', 'endpoint']:
         parser.add_argument('--' + name, required=True)
+    parser.add_argument('--unlisted', action='store_true', help='Keep review lobbies out of the public directory')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -48,8 +49,20 @@ def main():
         client.click('nav-1')
         client.click('create-lobby')
         client.enter('lobby-title', title)
+        if args.unlisted:
+            client.click('list-lobby')
         client.click('confirm-create-lobby')
         client.wait_cards(1)
+
+    def wait_chat_people(client, present, absent=None):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            state = client.inspect('hub-people')
+            chat = '\n'.join(line for line in state.splitlines() if '[hub-person] chat=' in line)
+            if 'chat-state=1' in state and all(f'account={handle}' in chat for handle in present) and (not absent or f'account={absent}' not in chat):
+                return state
+            time.sleep(.2)
+        raise RuntimeError('Expected review accounts did not reach the global player list')
 
     try:
         for profile, name in [(args.profile_a, 'Twilight'), (args.profile_b, 'Guest')]:
@@ -60,7 +73,7 @@ def main():
             wait(client, 'hub-social', r'signed-in=1 busy=0 loaded=1.*friends=1')
         a, b = clients
         a.click('nav-2')
-        people = wait(a, 'hub-people', r'chat-state=1 chat-count=2')
+        people = wait_chat_people(a, [args.a_handle, args.b_handle])
         assert f'account={args.a_handle}' in people and f'account={args.b_handle}' in people, people
         click_account(a, args.b_handle)
         wait(a, 'hub-social', rf'busy=0.*profile-handle={re.escape(args.b_handle)}\b')
@@ -104,20 +117,26 @@ def main():
 
         b.click('nav-6')
         b.click('settings-account')
+        b.element('account-export')
+        screenshots.append(str(b.screenshot()))
+        b.click('account-keys')
+        b.element('account-overview')
+        screenshots.append(str(b.screenshot()))
+        b.click('account-overview')
         b.click('account-logout')
         b.click('account-confirm')
         wait(b, 'hub-account', r'busy=0 signed-in=0')
         a.click('nav-1')
         wait(a, 'hub-people', r'room-count=1')
         b.click('nav-2')
-        people = wait(b, 'hub-people', r'chat-state=1 chat-count=2')
+        people = wait_chat_people(b, [args.a_handle], absent=args.b_handle)
         assert f'account={args.b_handle}' not in people, people
         screenshots.append(str(b.screenshot()))
         checks.append('Signing out leaves the lobby and reconnects global chat as an unverified guest')
 
         (output / 'receipt.json').write_text(json.dumps({'checks': checks, 'screenshots': screenshots,
             'exe_sha256': hashlib.sha256(args.exe.read_bytes()).hexdigest(),
-            'limitations': ['Uses software-authenticator sessions; Windows Hello and production deployment remain unverified.']}, indent=2) + '\n')
+            'limitations': ['Uses imported account keys and real native signatures; two clients share one PC.']}, indent=2) + '\n')
     finally:
         for client in clients:
             client.stop()

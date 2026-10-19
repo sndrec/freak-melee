@@ -38,7 +38,7 @@ namespace {
         case HubAction::AccountRevokeAll: submit(NativeAccountOperation::RevokeAll); break;
         case HubAction::AccountRotateRecovery: submit(NativeAccountOperation::RotateRecovery); break;
         case HubAction::AccountRemoveKey:
-            if (index >= 0 && unsigned(index) < account.key_count) submit(NativeAccountOperation::RemovePasskey, account.keys[index].id);
+            if (index >= 0 && unsigned(index) < account.key_count) submit(NativeAccountOperation::RemoveKey, account.keys[index].id);
             break;
         case HubAction::AccountRevokeSession:
             if (index >= 0 && unsigned(index) < account.session_count) submit(NativeAccountOperation::RevokeSession, account.sessions[index].id);
@@ -56,7 +56,7 @@ void nativeHubAccount_Tick()
         if (windows && count) window = SDL_GetPointerProperty(SDL_GetWindowProperties(windows[0]), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
         SDL_free(windows);
         const char* endpoint = std::getenv("FREAK_MELEE_SERVICE_ENDPOINT");
-        started = root && nativeAccount_Start(root, endpoint && *endpoint ? endpoint : NATIVE_SERVICE_ENDPOINT, window);
+        started = root && nativeAccount_Start(root, endpoint && *endpoint ? endpoint : NATIVE_SERVICE_ENDPOINT);
         if (!started) {
             std::snprintf(account.status, sizeof(account.status), "Account sign-in could not start. Check the service address and storage folder.");
             return;
@@ -65,7 +65,9 @@ void nativeHubAccount_Tick()
     const bool was_signed_in = account.signed_in;
     char previous[44]; std::snprintf(previous, sizeof(previous), "%s", account.id);
     const bool changed = nativeAccount_Poll(account);
-    if (was_signed_in && (!account.signed_in || std::strcmp(previous, account.id))) leave_lobby = true;
+    if (was_signed_in && (!account.signed_in || std::strcmp(previous, account.id))) {
+        leave_lobby = true; mode = offset = 0; confirmation = HubAction::None;
+    }
     if (leave_lobby && !account.busy && nativeOnlineMenu_IsAvailable()) {
         if (nativeOnlineSession_State() != NativeLobbySessionState_Disconnected) {
             nativeOnlineSession_Stop(); hub.pending_listing = false;
@@ -89,13 +91,13 @@ void nativeHubAccount_Render()
     nativeHub_Panel(175, 116, 430, 286);
     nativeMenuPaint_Text(account.signed_in ? account.name : "Your online account", 194, 133, 370, 17, gold, NativeMenuFont_MenuOption);
     char handle[64]; std::snprintf(handle, sizeof(handle), "@%s", account.handle);
-    nativeMenuPaint_Text(account.signed_in ? handle : "Sign in here using a Windows passkey prompt.", 194, 155, 370, 9, muted);
+    nativeMenuPaint_Text(account.signed_in ? handle : "Your account key signs you in automatically on this PC.", 194, 155, 370, 9, muted);
     if (account.busy) {
-        nativeMenuPaint_Text("Waiting for the account service or passkey approval...", 194, 196, 370, 11, muted);
+        nativeMenuPaint_Text("Contacting the account service...", 194, 196, 370, 11, muted);
         if (account.cancellable) nativeHub_Button("account-cancel", "Cancel", 194, 236, 170, 31, HubAction::AccountCancel);
     } else if (account.recovery_pending) {
         nativeMenuPaint_Text("Save your recovery code", 194, 186, 370, 16, gold);
-        nativeMenuPaint_Text("Use it to regain access if you lose your passkeys.", 194, 216, 370, 10, muted);
+        nativeMenuPaint_Text("Use it to regain access if you lose your account keys.", 194, 216, 370, 10, muted);
         nativeMenuPaint_Text("Keep the file private and somewhere safe.", 194, 237, 370, 10, muted);
         nativeHub_Button("account-save-recovery", "Save recovery code...", 194, 272, 390, 34, HubAction::AccountSaveRecovery, 0, true);
         nativeMenuPaint_Text("The code stays protected on this PC until you save it.", 194, 324, 370, 9, muted);
@@ -103,11 +105,11 @@ void nativeHubAccount_Render()
         const char* title = confirmation == HubAction::AccountLogout ? "Sign out on this PC?" :
             confirmation == HubAction::AccountRevokeAll ? "Sign out on every device?" :
             confirmation == HubAction::AccountRotateRecovery ? "Replace your recovery code?" :
-            confirmation == HubAction::AccountRemoveKey ? "Remove this passkey?" : "Sign out this device?";
+            confirmation == HubAction::AccountRemoveKey ? "Remove this account key?" : "Sign out this device?";
         nativeMenuPaint_Text(title, 194, 192, 370, 15, gold);
         nativeMenuPaint_Text(confirmation == HubAction::AccountRotateRecovery ? "Your previous recovery code will expire." :
             confirmation == HubAction::AccountLogout || confirmation == HubAction::AccountRevokeAll ? "You will also leave your current lobby." :
-            confirmation == HubAction::AccountRemoveKey ? "You will need another passkey to sign in." : "You can sign in again with a passkey.",
+            confirmation == HubAction::AccountRemoveKey ? "You will need another account key to sign in." : "You can sign in again with an account key.",
             194, 225, 370, 10, muted);
         nativeHub_Button("account-confirm", "Confirm", 194, 280, 187, 32, HubAction::AccountConfirm, 1, true);
         nativeHub_Button("account-keep", "Cancel", 395, 280, 189, 32, HubAction::AccountConfirm, 0);
@@ -115,26 +117,31 @@ void nativeHubAccount_Render()
         nativeHub_Button("account-login-mode", "Sign in", 194, 179, 120, 26, HubAction::AccountMode, 0, mode == 0);
         nativeHub_Button("account-create-mode", "Create account", 322, 179, 135, 26, HubAction::AccountMode, 1, mode == 1);
         nativeHub_Button("account-recover-mode", "Recover", 465, 179, 119, 26, HubAction::AccountMode, 2, mode == 2);
-        nativeMenuPaint_Text("Account name", 194, 220, 370, 10, gold);
-        nativeHub_Field("account-handle", hub.account_handle, 194, 237, 390, 27, HubAction::FieldAccountHandle);
-        if (mode == 1) {
-            nativeMenuPaint_Text("Display name", 194, 277, 370, 10, gold);
-            nativeHub_Field("account-name", hub.name, 194, 293, 390, 27, HubAction::FieldName);
-        } else if (mode == 2) {
-            nativeMenuPaint_Text("Recovery code", 194, 277, 370, 10, gold);
-            nativeHub_Field("account-recovery", hub.account_recovery, 194, 293, 390, 27, HubAction::FieldAccountRecovery, true);
-        } else nativeMenuPaint_Text("3-24 letters, numbers or underscores.", 194, 280, 370, 9, muted);
-        nativeHub_Button("account-submit", mode == 1 ? "Create account" : mode == 2 ? "Recover with a new passkey" : "Sign in with a passkey",
-            194, 346, 390, 32, HubAction::AccountSubmit, 0, true, started && account.available && *hub.account_handle);
+        if (mode == 0) {
+            char saved[80]; std::snprintf(saved, sizeof(saved), "Saved account: @%s", account.handle);
+            nativeMenuPaint_Text(account.has_key ? saved : "Have an account on another PC?", 194, 226, 370, 12, gold);
+            nativeHub_Button("account-import", "Import account-key file...", 194, 255, 390, 30, HubAction::AccountImportKey);
+            if (account.has_key) nativeHub_Button("account-export", "Export saved account key...", 194, 296, 390, 28, HubAction::AccountExportKey);
+        } else {
+            nativeMenuPaint_Text("Account name", 194, 220, 370, 10, gold);
+            nativeHub_Field("account-handle", hub.account_handle, 194, 237, 390, 27, HubAction::FieldAccountHandle);
+            nativeMenuPaint_Text(mode == 1 ? "Display name" : "Recovery code", 194, 277, 370, 10, gold);
+            if (mode == 1) nativeHub_Field("account-name", hub.name, 194, 293, 390, 27, HubAction::FieldName);
+            else nativeHub_Field("account-recovery", hub.account_recovery, 194, 293, 390, 27, HubAction::FieldAccountRecovery, true);
+        }
+        nativeHub_Button("account-submit", mode == 1 ? "Create account" : mode == 2 ? "Recover account" : "Sign in",
+            194, 346, 390, 32, HubAction::AccountSubmit, 0, true,
+            started && account.available && (mode == 0 ? account.has_key : *hub.account_handle != 0));
     } else if (mode == 4 || mode == 5) {
         nativeHub_Button("account-overview", "< Account", 194, 178, 125, 25, HubAction::AccountMode, 0);
         const unsigned total = mode == 4 ? account.key_count : account.session_count;
-        nativeMenuPaint_Text(mode == 4 ? "Passkeys" : "Signed-in devices", 337, 185, 240, 11, gold);
+        nativeMenuPaint_Text(mode == 4 ? "Account keys" : "Signed-in devices", 337, 185, 240, 11, gold);
         for (unsigned i = offset; i < total && i < offset + 5; ++i) {
             char id[32], label[90];
             std::snprintf(id, sizeof(id), "account-entry-%u", i);
-            std::snprintf(label, sizeof(label), "%s%s", mode == 4 ? account.keys[i].name : account.sessions[i].name,
-                mode == 5 && account.sessions[i].current ? " (this PC)" : "");
+            std::snprintf(label, sizeof(label), "%s [%.7s]%s", mode == 4 ? account.keys[i].name : account.sessions[i].name,
+                mode == 4 ? account.keys[i].id : account.sessions[i].id,
+                (mode == 4 ? account.keys[i].current : account.sessions[i].current) ? " (current)" : "");
             float y = 219 + (i - offset) * 28;
             nativeMenuPaint_Text(label, 194, y + 6, 275, 10, muted);
             nativeHub_Button(id, mode == 4 ? "Remove" : "Sign out", 492, y, 92, 24,
@@ -143,9 +150,9 @@ void nativeHubAccount_Render()
         nativeHub_Button("account-prev", "<", 504, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 14 : 15, false, offset > 0);
         nativeHub_Button("account-next", ">", 549, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 24 : 25, false, offset + 5 < total);
     } else {
-        nativeHub_Button("account-approve", "Approve security changes", 194, 181, 390, 30, HubAction::AccountApprove, 0, true);
-        nativeHub_Button("account-add-key", "Add passkey", 194, 221, 187, 29, HubAction::AccountAddKey);
-        nativeHub_Button("account-keys", "Manage passkeys", 395, 221, 189, 29, HubAction::AccountMode, 4);
+        nativeHub_Button("account-export", "Export account-key file...", 194, 181, 390, 30, HubAction::AccountExportKey, 0, true);
+        nativeHub_Button("account-add-key", "New key for another PC", 194, 221, 187, 29, HubAction::AccountAddKey);
+        nativeHub_Button("account-keys", "Manage keys", 395, 221, 189, 29, HubAction::AccountMode, 4);
         nativeHub_Button("account-devices", "Signed-in devices", 194, 260, 187, 29, HubAction::AccountMode, 5);
         nativeHub_Button("account-all-out", "Sign out all devices", 395, 260, 189, 29, HubAction::AccountRevokeAll);
         nativeHub_Button("account-rotate", "New recovery code", 194, 299, 187, 29, HubAction::AccountRotateRecovery);
@@ -177,12 +184,13 @@ bool nativeHubAccount_Activate(HubAction action, int value)
     case HubAction::SaveProfile:
         if (!account.signed_in) return false;
         submit(NativeAccountOperation::SaveProfile); return true;
-    case HubAction::AccountApprove: submit(NativeAccountOperation::Approve); return true;
-    case HubAction::AccountAddKey: submit(NativeAccountOperation::AddPasskey); return true;
+    case HubAction::AccountExportKey: nativeAccount_ChooseFile(NativeAccountOperation::ExportKey, window); return true;
+    case HubAction::AccountImportKey: nativeAccount_ChooseFile(NativeAccountOperation::ImportKey, window); return true;
+    case HubAction::AccountAddKey: nativeAccount_ChooseFile(NativeAccountOperation::AddKey, window); return true;
     case HubAction::AccountRefresh: submit(NativeAccountOperation::Refresh); return true;
     case HubAction::AccountCancel: nativeAccount_Cancel(); return true;
     case HubAction::AccountSaveRecovery:
-        nativeHub_Notice(nativeAccount_SaveRecovery(window) ? "Recovery code saved." : "Recovery code has not been saved. Try again when ready."); return true;
+        nativeAccount_ChooseFile(NativeAccountOperation::ExportRecovery, window); return true;
     case HubAction::AccountLogout: case HubAction::AccountRevokeAll: case HubAction::AccountRotateRecovery:
     case HubAction::AccountRemoveKey: case HubAction::AccountRevokeSession:
         confirmation = action; confirm_index = value; return true;

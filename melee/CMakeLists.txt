@@ -482,8 +482,10 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_account.cpp
     src/melee/gm/native_account_json.cpp
     src/melee/gm/native_account_social.cpp
+    src/melee/gm/native_account_login.cpp
+    src/melee/gm/native_account_key.cpp
+    src/melee/gm/native_account_key_file.cpp
     src/melee/gm/native_account_transport.cpp
-    src/melee/gm/native_account_passkey.cpp
     src/melee/gm/native_account_store.cpp
     src/melee/ui/native_hub_catalog.cpp
     src/melee/mn/native_menu_paint.c
@@ -1004,16 +1006,28 @@ FetchContent_Declare(yyjson
     GIT_REPOSITORY https://github.com/ibireme/yyjson.git
     GIT_TAG 7871d321ff4cd8068c1f777c97975dc2fb640ab3)
 FetchContent_MakeAvailable(yyjson)
+FetchContent_Declare(monocypher
+    GIT_REPOSITORY https://github.com/LoupVaillant/Monocypher.git
+    GIT_TAG 0d85f98c9d9b0227e42cf795cb527dff372b40a4)
+FetchContent_MakeAvailable(monocypher)
+add_library(melee_account_crypto STATIC
+    ${monocypher_SOURCE_DIR}/src/monocypher.c
+    ${monocypher_SOURCE_DIR}/src/optional/monocypher-ed25519.c)
+target_include_directories(melee_account_crypto PUBLIC
+    ${monocypher_SOURCE_DIR}/src ${monocypher_SOURCE_DIR}/src/optional)
 if(MELEE_BUILD_TESTS)
     add_executable(native_account_test tests/native/account_test.cpp
         src/melee/gm/native_account.cpp src/melee/gm/native_account_json.cpp
-        src/melee/gm/native_account_passkey.cpp src/melee/gm/native_account_store.cpp)
+        src/melee/gm/native_account_store.cpp)
     target_sources(native_account_test PRIVATE src/melee/gm/native_account_social.cpp)
     target_sources(native_account_test PRIVATE src/melee/gm/native_account_transport.cpp)
     target_include_directories(native_account_test PRIVATE src)
     target_compile_definitions(native_account_test PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_options(native_account_test PRIVATE -UNDEBUG)
-    target_link_libraries(native_account_test PRIVATE yyjson winhttp crypt32 comdlg32 bcrypt)
+    target_sources(native_account_test PRIVATE src/melee/gm/native_account_login.cpp)
+    target_sources(native_account_test PRIVATE src/melee/gm/native_account_key.cpp)
+    target_sources(native_account_test PRIVATE src/melee/gm/native_account_key_file.cpp)
+    target_link_libraries(native_account_test PRIVATE yyjson melee_account_crypto winhttp crypt32 comdlg32 bcrypt)
     add_test(NAME native_account COMMAND native_account_test)
 endif()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)
@@ -2054,9 +2068,9 @@ add_test(NAME native_fighter_installed_clone_roundtrip COMMAND
 
 # The client follows the original game entry point and scene state machine.
 # Build it by default so source changes also refresh the playable client.
-target_link_libraries(melee_game PRIVATE yyjson aurora_main aurora_core
+target_link_libraries(melee_game PRIVATE yyjson melee_account_crypto aurora_main aurora_core
     LibJuice::LibJuice)
-target_link_libraries(melee_runtime PUBLIC LibJuice::LibJuice yyjson ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
+target_link_libraries(melee_runtime PUBLIC LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
 add_executable(melee_native src/melee/gm/gmmain.c)
 target_include_directories(melee_native PRIVATE src extern/dolphin/include)
 target_compile_definitions(melee_native PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)

@@ -1,176 +1,162 @@
-# Accounts and passkey sign-in
+# Online accounts and account-key files
 
-Updated: 2026-10-19. The account service and native account client are
-implemented. Real Windows passkey approval and recovery still need interactive
-acceptance. The service has not been deployed.
+Updated: 2026-10-19. The user approved generated account keys after rejecting
+Windows security prompts. Account creation, sign-in, key files and recovery
+are implemented in the native client and deployed service. Native screen and
+hosted-path checks pass; the standard file picker remains for user acceptance.
 
-## Account identity
+## Create an account
 
-An account has a unique name containing 3–24 letters, numbers or underscores.
-Names are case-insensitive. The display name and bio can be changed separately.
-The service assigns a permanent random account ID when registration succeeds.
-Recovery preserves that ID, so friends and correspondence can remain attached
-to the same person.
+Open **Settings > Online account > Create account**. Choose an account name and
+display name. Freak Melee generates an account key and saves it on this PC.
+Future launches sign in automatically. Account names contain 3-24 letters,
+numbers or underscores and are case-insensitive. You can edit your display
+name and bio later.
 
-One account signs in to each client. Local guests remain separate match seats.
-The existing room connection IDs and match ports retain their own purposes.
-Connecting accounts to room and chat identity is part of the remaining work.
+Save the generated recovery code when prompted. It lets you recover your
+account if you lose your key. The reminder remains until you save the code.
 
-## Passkeys and recovery
+One account signs in to the client. Local guests still have separate match
+seats. Friends, letters and lobby invitations belong to the signed-in account.
+Signing out leaves your current lobby and reconnects global chat as a guest.
 
-Registration creates a passkey. Subsequent sign-ins prove possession of its
-private key and require the authenticator's user-verification step. The
-Windows client uses the native WebAuthn API and a Windows security prompt.
-The account screens stay in Freak Melee; a browser window is not required.
+## Use an account on another PC
 
-Registration also returns a generated recovery code. The client must show it
-with a way to save it. The service keeps its hash and cannot retrieve the code
-later. A recently approved sign-in can generate a replacement recovery code.
+**Export account-key file...** saves a portable `.fmakey` file. Choose
+**Sign in > Import account-key file...** on the other PC. Keep the file private:
+anyone who has it can sign in to your account.
 
-Recovery uses the code to register a replacement passkey. It revokes the old
-passkeys and device sessions and generates a new recovery code. Both account
-identity and profile are preserved. Cancelling the registration prompt leaves
-the existing recovery code usable. Finishing recovery consumes that code.
+**New key for another PC** creates a separate key file for the same account.
+Import that file on the other PC. Separate keys let you revoke one device's
+key without replacing the key on your main PC. The file is saved before its
+public key is registered, so a lost response cannot lose the new private key.
+If registration fails, the file may need to be regenerated from this menu.
 
-Accounts support up to eight passkeys and sixteen signed-in devices. Account
-security changes require passkey approval within the last five minutes. A
-player can revoke one device, sign out of every device, and remove an old
-passkey after adding its replacement. Device sessions expire after thirty days.
+**Manage keys** lists registered keys and marks the current key. Removing a
+key also signs out every session using it. Keep at least one registered key.
+**Signed-in devices** lets you end an individual session. **Sign out all
+devices** ends every session; the keys remain usable for a new sign-in.
+Signing out on this PC retains its saved key and stays signed out after restart
+until you choose **Sign in**.
 
-## Stored information
+## Recover an account
 
-The service stores the account ID, account name, display name, bio, passkey
-credential IDs and public keys, signature counters, device labels, expiry times,
-and hashes of session tokens and recovery codes. Private passkey material stays
-with the authenticator. This flow does not collect passwords or email addresses.
+Choose **Recover**, enter the account name and saved recovery code. Freak Melee
+generates a replacement key, revokes the old keys and sessions, and issues a new
+recovery code. Your account ID, profile, friends and letters stay attached to
+the same account. Save the replacement code; the old code expires after recovery.
 
-Registration and sign-in challenges expire after two minutes and can be used
-once. At most sixteen attempts can be pending for an account. Account requests
-have a per-network rate limit. JSON bodies are bounded to 64 KiB. Public account
-requests require HTTPS; loopback HTTP is available for local development.
-Responses use `Cache-Control: no-store`. Credentials and tokens are excluded
-from error logs. The native client protects its saved token with Windows DPAPI
-for the signed-in Windows user. It sends the token in an authorization header.
+**New recovery code** replaces the existing code while signed in. Generated
+codes stay protected on this PC until exported. Account views and diagnostics
+contain public account information, never private keys, tokens or recovery codes.
 
-## Native account screens
+## Authentication and storage
 
-Open **Settings > Online account** to create an account, sign in or recover an
-account. Enter your account name and approve the Windows passkey prompt.
-The account page then offers profile editing, passkey management, signed-in
-devices, recovery-code replacement and sign-out. Approve security changes with
-your passkey before adding/removing keys or changing recovery settings.
+The client generates a random 32-byte seed with the operating system's random
+number generator. Monocypher 4.0.2's optional standard Ed25519 module derives
+its key pair and signs one-use service challenges. The service stores the
+public key and verifies signatures using the runtime's Node crypto module.
+User-chosen passwords and OS authenticator enrollment are absent from this flow.
 
-Creating or recovering an account opens a recovery-code reminder. **Save recovery
-code...** saves a private text file at a location you choose. Until that succeeds,
-the code stays protected in the local session file and the account page keeps
-the reminder. Signing out requires saving that pending code first.
-Recovery-code entry is masked. Generated codes and session tokens are absent
-from ordinary account views, screenshots and diagnostics.
+The service stores permanent random account IDs, handles, display names, bios,
+public keys and labels, session expiry/verification times, and hashes of session
+tokens and recovery codes. A database copy alone does not contain account
+private keys. A stolen key file grants account access; a compromised client or
+service remains a security risk.
 
-The native client uses one I/O worker with fixed JSON buffers. HTTP and passkey
-approval run outside the game tick. The account worker and session data stay
-outside rollback state. Requests use the configured service origin, validate
-the returned passkey origin/RP, retain normal TLS checks and reject redirects.
-Development HTTP is restricted to `localhost`; use that same origin and RP in
-the local service configuration. A cancelled prompt leaves the recovery code
-usable. Once a finish request begins, the client collects and protects its
-result because the server may already have committed the account change.
+Each account has a SQLite-backed Durable Object. Up to eight keys and sixteen
+sessions are supported. Sessions expire after thirty days. Challenges last two
+minutes, work once and are bound to the service origin, account handle, permanent
+ID, purpose, proposed public key, random attempt ID and random challenge.
+Pending attempts are capped at sixteen. Account requests have a per-network
+rate limit, bounded 64 KiB JSON bodies and `Cache-Control: no-store` responses.
+Transactions and account epochs protect creation, recovery and concurrent
+changes. Sensitive operations require recent key verification, performed
+automatically by the client using its local key.
 
-The session file is `account-session.bin` in the content folder. It contains
-DPAPI-protected account/session data and is bound to the configured service
-origin. Account state remains separate from fighter packages and local seats.
-The client uses yyjson 0.12.0, pinned in CMake, for bounded JSON parsing. Its MIT
-license is included in prepared releases.
+The Windows client stores its seed, session token and pending recovery code in
+`content/account-session.bin`, protected for the Windows user with DPAPI.
+This protection is transparent and opens no Windows security prompt. The
+portable file contains the application marker, service origin, account name
+and seed as JSON; it is independent of Windows secret storage. A future Linux
+client can use the same authentication protocol and exported file with its own
+local secret storage.
 
-## Service endpoints
+The client validates the configured service origin, keeps normal HTTPS
+certificate checks and rejects redirects. Local development permits HTTP only
+on `localhost`. Account HTTP, signatures and file I/O run on a dedicated worker
+outside the game tick and rollback state. JSON pools and secret temporaries are
+cleared after requests. Registration and recovery save the new key locally
+before sending the final proof, so an interrupted response can be followed by
+sign-in with that key.
 
-Paths begin with `/v1/accounts/<account-name>/`. POST requests use JSON.
-Protected requests use `Authorization: Bearer <session-token>`.
+## Service protocol
+
+Paths begin with `/v1/accounts/<account-name>/`. Protected requests use
+`Authorization: Bearer <session-token>`. POST requests use JSON.
 
 | Path | Method | Purpose |
 | --- | --- | --- |
-| `register/options`, `register/finish` | POST | Create an account and its first passkey. |
-| `login/options`, `login/finish` | POST | Sign in on a device. |
-| `reauth/options`, `reauth/finish` | POST | Approve account security changes with an existing passkey. |
-| `add/options`, `add/finish` | POST | Register another passkey while signed in. |
-| `recover/options`, `recover/finish` | POST | Replace lost passkeys using a recovery code. |
-| `cancel` | POST | Discard the supplied pending attempt after cancelling a prompt. |
-| `profile` | GET | Read the public display name and bio. |
-| `profile` | POST | Update your display name and bio. |
-| `me` | GET | Read your profile, passkeys and signed-in devices. |
-| `logout` | POST | End the current device session. |
-| `sessions/revoke` | POST | End a selected device session. |
-| `sessions/revoke-all` | POST | End every device session and pending sign-in attempt. |
-| `passkeys/remove` | POST | Remove a passkey while retaining at least one. |
+| `register/options`, `register/finish` | POST | Create an account with its first key. |
+| `login/options`, `login/finish` | POST | Sign in using a registered key. |
+| `reauth/options`, `reauth/finish` | POST | Verify a key before security changes. |
+| `add/options`, `add/finish` | POST | Register an additional key. |
+| `recover/options`, `recover/finish` | POST | Replace lost keys using a recovery code. |
+| `cancel` | POST | Discard a pending attempt. |
+| `profile` | GET / POST | Read a public profile / edit your profile. |
+| `me` | GET | Read your profile, keys and sessions. |
+| `logout` | POST | End the current session. |
+| `sessions/revoke`, `sessions/revoke-all` | POST | End a selected session / all sessions. |
+| `keys/remove` | POST | Remove a key and its sessions. |
 | `recovery/rotate` | POST | Generate a replacement recovery code. |
 
-Options return an `attempt`, WebAuthn `options` and the configured `origin`.
-Finish requests include the attempt and a WebAuthn `credential`. Successful
-registration, recovery and login return a session token and expiry. Registration
-and recovery also return the new recovery code. Tokens and codes are secrets;
-the client must not include them in diagnostics or screenshots.
+Options requests supply `public_key` (32 bytes, canonical Base64url), with
+`name` for registration, `key_name` for new keys, or `recovery_code` for recovery.
+Responses contain `attempt`, `challenge`, `user_id`, `public_key`, `purpose`
+and `origin`. Finish requests supply `attempt` and `signature` (64 bytes,
+canonical Base64url). Login, registration and recovery return a token and
+expiry; registration and recovery also return a recovery code.
 
-The configured origin and RP ID are deployment settings, not values supplied
-by a client or inferred from its HTTP Host header. The Windows client must check
-that the RP matches the trusted account service before invoking WebAuthn.
+Signed UTF-8 bytes are the following eight newline-separated fields, with no
+trailing newline: `Freak Melee account key`, configured origin, canonical
+account handle, permanent user ID, purpose, public key, attempt, challenge.
+The origin comes from trusted configuration. The client checks that the origin,
+purpose and public key match the request before signing.
 
-## Implementation and evidence
+## Verification
 
-Each account has its own SQLite-backed Durable Object. SimpleWebAuthn Server
-14.0.3 verifies the WebAuthn responses. Registration requests ES256 and RS256,
-user presence and user verification. Authentication verifies signatures, the
-challenge, origin, RP ID, user handle and signature counter. Synchronous storage
-transactions protect account creation and recovery; epoch and counter checks
-also reject changes made while cryptographic verification was running.
+The service suite passes 68 tests in ten files. It exercises real Ed25519 proofs,
+invalid signatures and field binding, replay/expiry, concurrent registration,
+recovery, key/session limits, revocation, social delivery and account presence.
+Evidence: `.local/account-key-typecheck.log`, `.local/account-key-tests.log`
+and `.local/account-key-deploy-dry.log`.
 
-The service tests use a software authenticator that produces actual P-256
-signatures and CBOR attestation data. They exercise the production verifier,
-without a test-only authentication bypass. They cover persistent identity,
-hibernation, invalid proofs, replay, simultaneous registration, challenge and
-session expiry, parallel attempt limits, recovery, key management and device
-revocation. These tests do not establish Windows Hello integration or the
-usability of the eventual account screens.
+The native contract checks RFC 8032's first test vector, portable key-file
+round-trip and service binding, strict Base64url, protected-storage tamper
+rejection and origin-limited token transport. Six integration checks exercise
+native key generation, independent Node/native signatures, import/export,
+automatic restart, intentional sign-out, device-key revocation and recovery
+against the local service: `.local/account-key-integration-final/receipt.json`.
+These checks use the production client paths without a verifier bypass.
 
-Evidence is in `.local/hub-account-typecheck-final.log`,
-`.local/hub-account-all-tests-final.log`, `.local/hub-account-audit-final.json`
-and `.local/hub-account-deploy-dry.log`. The dependency update also resolves the
-previous development-tool advisories; the recorded audit covers production and
-development dependencies. A dry run checks packaging and does not deploy it.
-The final suite has 68 passing service tests. Two hidden, muted native clients
-also pass the existing lobby flow against this service and updated development
-runtime: `.local/native-lobby-browser-account-service-1/receipt.json`. Its
-screenshots retain the stock ribbon artwork. This is a hub regression check,
-not a native account sign-in check.
+The service is deployed at the existing private endpoint as version
+`c59460c2-3719-49ab-9093-2db550ed5bf4` (`.local/account-key-deploy.log`).
+Six native account-screen checks and six PNGs cover Settings navigation,
+sign-in/import controls, duplicate registration, masked recovery entry and
+successful in-game key generation: `.local/account-key-ui-1/receipt.json`.
+Two hidden, muted clients pass hosted registration/native import and the
+verified-profile/invitation/join/sign-out flow:
+`.local/account-key-hosted-1/receipt.json` and its `ui/receipt.json`.
+Seven hosted UI PNGs include the key-file overview and current-key listing.
+The reviewed executable SHA-256 is
+`fffdeba53009dd75b633cb081bcc31058ed79973885ab4bb77ab84a5e8116608`.
+Four native contracts and seven release-payload checks also pass. Task-owned
+clients were closed, hosted test sessions revoked and test key files removed.
 
-The native contract test checks URL policy, account-name normalization, strict
-Base64 decoding, origin/RP validation and DPAPI round-trip, service binding and
-tamper rejection. It confirms Windows WebAuthn API availability without opening
-a prompt. `.local/native-account-contracts-verified.log` records its result.
+The file worker paths are tested; interaction with the normal OS file picker
+remains a user acceptance check. Multi-PC testing also remains with the user.
+Earlier Windows WebAuthn receipts describe the replaced architecture.
+The [friends and letters guide](native_social_accounts.md) covers social behavior.
 
-`tests/native/account_client_service.mjs` exercises the native worker against
-the real local account service with software-authenticator proofs. Eight checks
-cover saved-session validation, profile changes and rejected edits, device and
-passkey revocation, last-key protection, recovery-code persistence across
-restart, acknowledgement and sign-out. Evidence is in
-`.local/native-account-options-verified/receipt.json`. The test also validates
-the service's real registration and authentication options against the native
-passkey policy before supplying the saved session. It feeds
-service-issued sessions through stdin and protects them using the normal store.
-It does not substitute a verifier or add a production authentication bypass.
-
-The hidden, muted native UI check passed five checks and recorded six PNGs in
-`.local/native-account-ui-1/receipt.json`. It covers the Settings entry point,
-duplicate account creation, unknown-account sign-in, masked recovery input and
-diagnostics, invalid recovery-code entry and returning to the account page.
-The screenshots show service errors in the shared stock footer and retain the
-original ribbon artwork. Seven release-payload tests also pass with the
-yyjson license included: `.local/native-account-release-payload.log`.
-
-Persistent friends and the offline inbox now use the account identity and
-session. The [friends and letters guide](native_social_accounts.md) covers the
-native pages, verified chat/lobby profiles, invitations, delivery rules and
-evidence. Remaining work includes real Windows passkey creation, sign-in and
-recovery acceptance, deployment and the user's hub presentation/input review.
-
-References: [SimpleWebAuthn Server](https://simplewebauthn.dev/docs/packages/server),
-[Windows WebAuthn APIs](https://learn.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/webauthn-apis).
+References: [Monocypher Ed25519](https://monocypher.org/manual/optional/ed25519),
+[RFC 8032 test vectors](https://www.rfc-editor.org/rfc/rfc8032#section-7.1).
