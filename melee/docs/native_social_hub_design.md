@@ -371,7 +371,8 @@ Offline delivery stores letters, friend requests and invitations. Fighter
 sharing uses the connected lobby's content transfer, validation, cache and
 installation paths. The local passkey account service now supplies persistent
 identity, recovery and device-session management. Native account screens,
-protected credential storage and social-identity integration remain open.
+Windows passkey/HTTP handling and DPAPI session storage are implemented.
+Windows security-prompt acceptance and social-identity integration remain open.
 
 The user prefers account creation and sign-in inside Freak Melee and asks us
 to minimize sensitive information held by the service. Use native Windows

@@ -75,7 +75,11 @@ enum class HubAction {
     WithdrawStage,
     LeaveQuick,
     NewLobby, FieldLobbyTitle, ToggleListing, CreateNamedLobby,
-    RefreshLobbies, BrowseLobbies, JoinListedLobby, ChangeListing
+    RefreshLobbies, BrowseLobbies, JoinListedLobby, ChangeListing,
+    Account, AccountMode, AccountSubmit, FieldAccountHandle, FieldAccountRecovery,
+    AccountApprove, AccountAddKey, AccountRemoveKey, AccountRevokeSession,
+    AccountRevokeAll, AccountRotateRecovery, AccountSaveRecovery, AccountLogout,
+    AccountRefresh, AccountCancel, AccountConfirm
 };
 struct HubRegion {
     float x, y, w, h;
@@ -95,6 +99,7 @@ struct HubState {
                       bio[257], code[13], chat[513], room_chat[513], title[64];
     char viewed_name[33], viewed_peer[65], recipient[65], recipient_name[33];
     char lobby_title[65];
+    char account_handle[25], account_recovery[44];
     bool lobby_listed = true, pending_listing;
     NativeContentId gift_id;
     char gift_title[64];
@@ -126,7 +131,7 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
                       bool gold = false, bool enabled = true,
                       const char* peer = nullptr, const char* name = nullptr);
 void nativeHub_Field(const char* id, const char* value, float x, float y,
-                     float w, float h, HubAction action);
+                     float w, float h, HubAction action, bool secret = false);
 void nativeHub_Panel(float x, float y, float w, float h);
 void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);
 void nativeHub_RenderPage(NativeHubPage page);

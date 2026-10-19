@@ -78,6 +78,7 @@ def main() -> None:
     scripts = Path(__file__).resolve().parent
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
+    payload.append((scripts.parent / "licenses/yyjson.txt", "licenses/yyjson.txt"))
 
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)

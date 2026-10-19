@@ -1,8 +1,8 @@
 # Accounts and passkey sign-in
 
-Updated: 2026-10-19. This describes the account service foundation. The native
-account screens and Windows passkey calls still need implementation. The
-service has not been deployed.
+Updated: 2026-10-19. The account service and native account client are
+implemented. Real Windows passkey approval and recovery still need interactive
+acceptance. The service has not been deployed.
 
 ## Account identity
 
@@ -19,7 +19,7 @@ Connecting accounts to room and chat identity is part of the remaining work.
 ## Passkeys and recovery
 
 Registration creates a passkey. Subsequent sign-ins prove possession of its
-private key and require the authenticator's user-verification step. The planned
+private key and require the authenticator's user-verification step. The
 Windows client uses the native WebAuthn API and a Windows security prompt.
 The account screens stay in Freak Melee; a browser window is not required.
 
@@ -49,8 +49,38 @@ once. At most sixteen attempts can be pending for an account. Account requests
 have a per-network rate limit. JSON bodies are bounded to 64 KiB. Public account
 requests require HTTPS; loopback HTTP is available for local development.
 Responses use `Cache-Control: no-store`. Credentials and tokens are excluded
-from error logs. The native client must protect its saved token using Windows
-credential protection and send it in an authorization header, never a URL.
+from error logs. The native client protects its saved token with Windows DPAPI
+for the signed-in Windows user. It sends the token in an authorization header.
+
+## Native account screens
+
+Open **Settings > Online account** to create an account, sign in or recover an
+account. Enter your account name and approve the Windows passkey prompt.
+The account page then offers profile editing, passkey management, signed-in
+devices, recovery-code replacement and sign-out. Approve security changes with
+your passkey before adding/removing keys or changing recovery settings.
+
+Creating or recovering an account opens a recovery-code reminder. **Save recovery
+code...** saves a private text file at a location you choose. Until that succeeds,
+the code stays protected in the local session file and the account page keeps
+the reminder. Signing out requires saving that pending code first.
+Recovery-code entry is masked. Generated codes and session tokens are absent
+from ordinary account views, screenshots and diagnostics.
+
+The native client uses one I/O worker with fixed JSON buffers. HTTP and passkey
+approval run outside the game tick. The account worker and session data stay
+outside rollback state. Requests use the configured service origin, validate
+the returned passkey origin/RP, retain normal TLS checks and reject redirects.
+Development HTTP is restricted to `localhost`; use that same origin and RP in
+the local service configuration. A cancelled prompt leaves the recovery code
+usable. Once a finish request begins, the client collects and protects its
+result because the server may already have committed the account change.
+
+The session file is `account-session.bin` in the content folder. It contains
+DPAPI-protected account/session data and is bound to the configured service
+origin. Account state remains separate from fighter packages and local seats.
+The client uses yyjson 0.12.0, pinned in CMake, for bounded JSON parsing. Its MIT
+license is included in prepared releases.
 
 ## Service endpoints
 
@@ -112,10 +142,33 @@ runtime: `.local/native-lobby-browser-account-service-1/receipt.json`. Its
 screenshots retain the stock ribbon artwork. This is a hub regression check,
 not a native account sign-in check.
 
-Remaining work includes native HTTP/passkey handling, protected token storage,
-account/recovery screens, authenticated social presence, friends, the offline
-inbox, invitations, native acceptance and deployment. Continue the hub work;
-the account service foundation does not complete the hub milestone.
+The native contract test checks URL policy, account-name normalization, strict
+Base64 decoding, origin/RP validation and DPAPI round-trip, service binding and
+tamper rejection. It confirms Windows WebAuthn API availability without opening
+a prompt. `.local/native-account-contracts-verified.log` records its result.
+
+`tests/native/account_client_service.mjs` exercises the native worker against
+the real local account service with software-authenticator proofs. Eight checks
+cover saved-session validation, profile changes and rejected edits, device and
+passkey revocation, last-key protection, recovery-code persistence across
+restart, acknowledgement and sign-out. Evidence is in
+`.local/native-account-options-verified/receipt.json`. The test also validates
+the service's real registration and authentication options against the native
+passkey policy before supplying the saved session. It feeds
+service-issued sessions through stdin and protects them using the normal store.
+It does not substitute a verifier or add a production authentication bypass.
+
+The hidden, muted native UI check passed five checks and recorded six PNGs in
+`.local/native-account-ui-1/receipt.json`. It covers the Settings entry point,
+duplicate account creation, unknown-account sign-in, masked recovery input and
+diagnostics, invalid recovery-code entry and returning to the account page.
+The screenshots show service errors in the shared stock footer and retain the
+original ribbon artwork. Seven release-payload tests also pass with the
+yyjson license included: `.local/native-account-release-payload.log`.
+
+Remaining work includes real Windows passkey creation, sign-in and recovery
+acceptance, authenticated social presence, friends, the offline inbox,
+invitations and deployment. The account client does not complete the hub milestone.
 
 References: [SimpleWebAuthn Server](https://simplewebauthn.dev/docs/packages/server),
 [Windows WebAuthn APIs](https://learn.microsoft.com/en-us/windows/security/identity-protection/hello-for-business/webauthn-apis).

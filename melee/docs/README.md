@@ -23,7 +23,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
 | Social interface and remaining work | [Social hub, roster and offline inbox](native_social_hub_design.md) |
 | Browse and create lobbies | [Native lobby browser checkpoint](native_lobby_browser_checkpoint.md) |
-| Account identity and sign-in | [Passkey service and remaining native work](native_account_auth.md) |
+| Account identity and sign-in | [Passkey service, native client and acceptance](native_account_auth.md) |
 | Stock menu integration | [Scene assets, flexible ribbons and panel borders](native_menu_assets_checkpoint.md) |
 | Native CSS cards and sharing | [Participant ordering, mouse input and delivery checkpoint](native_css_cards_checkpoint.md) |
 | Quick Play progress | [Queue and match launch](native_quick_play_checkpoint.md), [results and rematches](native_quick_rematch_checkpoint.md), [cancellation and party return](native_quick_return_checkpoint.md) |

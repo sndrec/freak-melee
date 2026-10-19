@@ -476,6 +476,11 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub.cpp
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_lobbies.cpp
+    src/melee/ui/native_hub_account.cpp
+    src/melee/gm/native_account.cpp
+    src/melee/gm/native_account_json.cpp
+    src/melee/gm/native_account_passkey.cpp
+    src/melee/gm/native_account_store.cpp
     src/melee/ui/native_hub_catalog.cpp
     src/melee/mn/native_menu_paint.c
     src/melee/mn/native_menu_font.c
@@ -990,6 +995,20 @@ add_custom_target(melee_platform DEPENDS aurora_core aurora_os aurora_gx
 # and consent checks. Pin the implementation exactly so packet timing and
 # callback behavior cannot drift between client builds.
 include(FetchContent)
+FetchContent_Declare(yyjson
+    GIT_REPOSITORY https://github.com/ibireme/yyjson.git
+    GIT_TAG 7871d321ff4cd8068c1f777c97975dc2fb640ab3)
+FetchContent_MakeAvailable(yyjson)
+if(MELEE_BUILD_TESTS)
+    add_executable(native_account_test tests/native/account_test.cpp
+        src/melee/gm/native_account.cpp src/melee/gm/native_account_json.cpp
+        src/melee/gm/native_account_passkey.cpp src/melee/gm/native_account_store.cpp)
+    target_include_directories(native_account_test PRIVATE src)
+    target_compile_definitions(native_account_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(native_account_test PRIVATE -UNDEBUG)
+    target_link_libraries(native_account_test PRIVATE yyjson winhttp crypt32 comdlg32)
+    add_test(NAME native_account COMMAND native_account_test)
+endif()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)
 set(NO_SERVER ON CACHE BOOL "Disable libjuice's standalone TURN server" FORCE)
 set(NO_TESTS ON CACHE BOOL "Disable libjuice's upstream tests" FORCE)
@@ -2028,9 +2047,9 @@ add_test(NAME native_fighter_installed_clone_roundtrip COMMAND
 
 # The client follows the original game entry point and scene state machine.
 # Build it by default so source changes also refresh the playable client.
-target_link_libraries(melee_game PRIVATE aurora_main aurora_core
+target_link_libraries(melee_game PRIVATE yyjson aurora_main aurora_core
     LibJuice::LibJuice)
-target_link_libraries(melee_runtime PUBLIC LibJuice::LibJuice ws2_32 winhttp bcrypt comdlg32 windowscodecs ole32)
+target_link_libraries(melee_runtime PUBLIC LibJuice::LibJuice yyjson ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
 add_executable(melee_native src/melee/gm/gmmain.c)
 target_include_directories(melee_native PRIVATE src extern/dolphin/include)
 target_compile_definitions(melee_native PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)

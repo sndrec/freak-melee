@@ -3,6 +3,7 @@
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
+#include "native_hub_account.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -42,7 +43,7 @@ namespace {
     const char* page_names[] = { "Quick Play",  "Lobbies", "Chatroom",
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
-                                 "Send fighter", "Lobby chat", "Stage select", "Create lobby" };
+                                 "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -276,7 +277,9 @@ namespace {
         unsigned length = unsigned(std::strlen(field));
         hub.caret = std::min(hub.caret, length);
         if (key == SDLK_RETURN) {
-            if (field == hub.chat) {
+            if (hub.page == NativeHubPage_Account) {
+                queue(HubAction::AccountSubmit);
+            } else if (field == hub.chat) {
                 queue(HubAction::SendChat);
             } else if (field == hub.room_chat) {
                 queue(HubAction::SendRoomChat);
@@ -310,7 +313,7 @@ namespace {
         if ((key == SDLK_C || key == SDLK_X) && (modifiers & SDL_KMOD_CTRL) &&
             hub.select_all)
         {
-            SDL_SetClipboardText(field);
+            if (field != hub.account_recovery) SDL_SetClipboardText(field);
             if (key == SDLK_X) {
                 field[0] = 0;
                 hub.caret = 0;
@@ -380,9 +383,14 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
     nativeHub_Region(id, x, y, w, h, action, value, enabled, peer, name);
 }
 void nativeHub_Field(const char* id, const char* value, float x, float y,
-                     float w, float h, HubAction action)
+                     float w, float h, HubAction action, bool secret)
 {
     bool focused = hub.field == value;
+    char masked[513];
+    if (secret) {
+        const size_t length = std::min(std::strlen(value), sizeof(masked) - 1);
+        std::memset(masked, '*', length); masked[length] = 0; value = masked;
+    }
     nativeMenuPaint_Round(x + 1, y + 1, w - 2, h - 2, 4, 0x050408F0);
     nativeMenuSkin_Frame(x, y, w, h, focused ? 0xFFE451FF : 0x87818DFF);
     if (focused && hub.select_all) {
@@ -409,6 +417,7 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
 void nativeHub_ChangePage(NativeHubPage page, bool backwards)
 {
     if (hub.page != page) {
+        if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
         hub.motion_from = hub.page;
         BOOL animations = TRUE;
         SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0);
@@ -496,6 +505,7 @@ void nativeHub_Activate(HubAction action, int value)
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
     if (nativeHubQuickStage_Activate(action,value)) return;
     if (nativeHubLobbies_Activate(action,value)) return;
+    if (nativeHubAccount_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
             unsigned(action) - unsigned(HubAction::QuickPlay)));
@@ -518,6 +528,8 @@ void nativeHub_Activate(HubAction action, int value)
         } else if (hub.page == NativeHubPage_QuickStage) {
             hub.dismissed = true;
             hub.visible = false;
+        } else if (hub.page == NativeHubPage_Account) {
+            nativeHub_ChangePage(NativeHubPage_Settings, true);
         } else if (hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) {
             nativeHub_ChangePage(NativeHubPage_Lobbies, true);
         } else if (hub.opened_from_play && hub.page <= NativeHubPage_Settings) {
@@ -533,6 +545,7 @@ void nativeHub_Activate(HubAction action, int value)
         }
         break;
     case HubAction::Close:
+        if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
         hub.dismissed = true;
         hub.visible = false;
         text_focus(nullptr, 0);
@@ -670,6 +683,12 @@ void nativeHub_Activate(HubAction action, int value)
     }
     case HubAction::FieldName:
         text_focus(hub.name, sizeof(hub.name));
+        break;
+    case HubAction::FieldAccountHandle:
+        text_focus(hub.account_handle, sizeof(hub.account_handle));
+        break;
+    case HubAction::FieldAccountRecovery:
+        text_focus(hub.account_recovery, sizeof(hub.account_recovery));
         break;
     case HubAction::FieldBio:
         text_focus(hub.bio, sizeof(hub.bio));
@@ -992,6 +1011,7 @@ extern "C" void nativeHub_Tick(void)
     }
     hub.visible = hub.initialized && (selection || practice) && !tool && !hub.dismissed;
     nativeHubLobbies_Tick();
+    nativeHubAccount_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
@@ -1152,6 +1172,7 @@ extern "C" void nativeHub_Draw(void)
     } else nativeHub_RenderPage(hub.page);
     nativeHub_Panel(38, 408, 565, 32);
     const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
+                       : hub.page == NativeHubPage_Account ? nativeHubAccount_Status()
                        : unsigned(hub.page) < 7
                            ? descriptions[unsigned(hub.page)]
                            : "";
@@ -1336,7 +1357,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_QuickStage) {
+        page > NativeHubPage_Account) {
         return;
     }
     hub.opened_from_play = true;
@@ -1346,7 +1367,8 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 extern "C" void nativeHub_Inspect(const char* id)
 {
     if (!std::strcmp(id, "hub-lobbies")) { nativeHubLobbies_Inspect(); return; }
-    if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field ? hub.field : hub.name); return; }
+    if (!std::strcmp(id, "hub-account")) { nativeHubAccount_Inspect(); return; }
+    if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
         float u = -1, v = -1;
@@ -1414,6 +1436,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativeMenuScene_Unload();
     nativePlayMenu_Shutdown();
     nativeHubLobbies_Shutdown();
+    nativeHubAccount_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();
         nativeMenuSkin_Release();
