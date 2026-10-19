@@ -12,6 +12,7 @@ extern "C" {
 #include <cstdlib>
 #include <memory>
 #include <iterator>
+#include <unordered_set>
 
 extern "C" bool nativeFighterModel_RestMatrices(const NativeFighterModelEditor* model,
                                                  Mtx* world, Vec3* scales)
@@ -500,10 +501,11 @@ bool compensate_meshes(NativeAssetDat& dat, const NativeFighterModelEditor& edit
         if (!reference(&editor.dat, entry.offset + 12, &polygon)) continue;
         struct Polygon { u32 source; Mtx adjustment[10]; unsigned slots; bool compensate; };
         std::vector<Polygon> chain;
+        std::unordered_set<u32> visited;
         bool affected = false;
         while (polygon) {
-            if (chain.size() == 4096 || !HSD_DatBytes(&editor.dat, polygon, 24)) return false;
-            for (auto& p : chain) if (p.source == polygon) return false;
+            if (chain.size() == NATIVE_MODEL_MAX_POLYGONS || !HSD_DatBytes(&editor.dat, polygon, 24) ||
+                !visited.insert(polygon).second) return false;
             u16 flags; HSD_DatReadU16(&editor.dat, polygon + 12, &flags);
             Polygon p = {}; p.source = polygon; p.slots = 2;
             unsigned joints[2] = { entry.joint, entry.joint };

@@ -24,7 +24,11 @@ and clears all graph pointers into the discarded allocation. The original DAT
 stays unchanged throughout loading and compaction failure.
 
 All growth takes place during asset construction or an authoring transaction.
-Match-time fighter, item and snapshot pools keep their existing capacities.
+Fighter and item pools keep their existing capacities. The subsequent
+[large-model work](native_large_gltf_checkpoint.md) lets the separate HSD scene
+arena commit more pages during construction. Snapshots copy its initialized
+prefix. A model with more runtime objects therefore adds real snapshot state;
+the unused address reservation is excluded.
 
 ## Verification
 
@@ -60,8 +64,8 @@ checks; this change adds no new Workshop controls or live visual acceptance.
 
 ## Remaining model limits
 
-This removes the fixed import-workspace rejection. Large-mesh authoring still
-needs [draw-section partitioning and stable vertex identities](native_large_skin_checkpoint.md)
-through the GLB/glTF importer. The native weight writer now has that support.
+This removes the fixed import-workspace rejection. Both the native weight
+writer and [GLB/glTF importer](native_large_gltf_checkpoint.md) now use
+[draw-section partitioning and stable vertex identities](native_large_skin_checkpoint.md).
 Morph painting and the unusual binding domains listed in the Model plan remain
 open.

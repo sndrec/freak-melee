@@ -45,7 +45,10 @@ static gfx::Range upload_array(AttrArray& array) {
   const auto address = reinterpret_cast<std::uintptr_t>(array.data);
   std::size_t slot =
       ((address >> 4) ^ (static_cast<std::size_t>(array.size) * 0x9e3779b1U)) & (kArrayUploadCapacity - 1);
-  for (std::size_t probe = 0; probe < kArrayUploadCapacity; ++probe) {
+  const std::size_t firstSlot = slot;
+  // Dense skins can have more unique arrays than this fixed cache holds.
+  // Bound lookup work; an eviction only causes a later redundant upload.
+  for (std::size_t probe = 0; probe < 16; ++probe) {
     auto& uploaded = sArrayUploads[slot];
     if (uploaded.generation != sArrayUploadGeneration) {
       array.cachedRange = gfx::push_storage(static_cast<const uint8_t*>(array.data), array.size);
@@ -59,6 +62,7 @@ static gfx::Range upload_array(AttrArray& array) {
   }
 
   array.cachedRange = gfx::push_storage(static_cast<const uint8_t*>(array.data), array.size);
+  sArrayUploads[firstSlot] = {array.data, array.size, array.cachedRange, sArrayUploadGeneration};
   return array.cachedRange;
 }
 

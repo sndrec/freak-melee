@@ -188,6 +188,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         for (unsigned axis = 0; axis < 3; ++axis)
             real(dat, positions + i * 12 + axis * 4, skin.vertices[i].position[axis]);
     u32 previous = 0;
+    unsigned sections = 0;
     for (const auto& part : skin.parts) {
         size_t stride = 1;
         for (const auto& attr : part.attributes)
@@ -199,6 +200,7 @@ bool nativeSkinMesh_Write(NativeAssetDat& dat, const NativeFighterModelEditor& m
         Chunk chunk;
         auto flush = [&]() {
             if (chunk.corners.empty()) return true;
+            if (++sections > NATIVE_MODEL_MAX_POLYGONS) return false;
             u32 emitted;
             if (!write_chunk(dat, model, part, chunk, skin, positions, local_positions, &vertex_ids, &emitted)) return false;
             dat.link(previous ? previous + 4 : model.meshes[mesh].offset + 12, emitted);

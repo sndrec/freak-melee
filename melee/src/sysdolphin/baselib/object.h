@@ -8,7 +8,11 @@
 #include <sysdolphin/baselib/class.h>
 #include <sysdolphin/baselib/debug.h>
 
+#ifdef MELEE_NATIVE
+#define HSD_OBJ_NOREF ((u32) - 1)
+#else
 #define HSD_OBJ_NOREF ((u16) - 1)
+#endif
 
 #define HSD_OBJ(o) ((HSD_Obj*) o)
 #define HSD_OBJECT_INFO(o) (o.parent.parent)
@@ -59,8 +63,14 @@ typedef enum _HSD_TypeMask {
 
 struct HSD_Obj {
     struct _HSD_Class parent;
+#ifdef MELEE_NATIVE
+    // Imported skins can reference one joint from more than 65,535 envelopes.
+    u32 ref_count;
+    u32 ref_count_individual;
+#else
     u16 ref_count;
     u16 ref_count_individual;
+#endif
 };
 
 typedef struct _HSD_ObjInfo {

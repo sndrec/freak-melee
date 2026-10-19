@@ -123,6 +123,7 @@ HSD_MemoryEntry* GetMemoryEntry(s32 idx)
             HSD_ASSERT(0, class_block_count < NATIVE_CLASS_SNAPSHOT_BLOCKS);
 #endif
 #ifdef MELEE_NATIVE
+            if(!nativeHsdArena_Ensure(new_nb*sizeof(*memory_list),32))return NULL;
             memory_list = nativeMatchArena_Allocate(&nativeHsdArena,
                 new_nb * sizeof(*memory_list),32);
 #else
@@ -150,6 +151,7 @@ HSD_MemoryEntry* GetMemoryEntry(s32 idx)
             HSD_ASSERT(0, class_block_count < NATIVE_CLASS_SNAPSHOT_BLOCKS);
 #endif
 #ifdef MELEE_NATIVE
+            if(!nativeHsdArena_Ensure(sizeof(*memory_list)*new_nb,32))return NULL;
             new_list = nativeMatchArena_Allocate(&nativeHsdArena,sizeof(*memory_list)*new_nb,32);
 #else
             new_list = HSD_MemAlloc(sizeof(*memory_list) * new_nb);
@@ -185,6 +187,7 @@ HSD_MemoryEntry* GetMemoryEntry(s32 idx)
             HSD_ASSERT(0, class_block_count < NATIVE_CLASS_SNAPSHOT_BLOCKS);
 #endif
 #ifdef MELEE_NATIVE
+            if(!nativeHsdArena_Ensure(sizeof(HSD_MemoryEntry),32))return NULL;
             entry = nativeMatchArena_Allocate(&nativeHsdArena,sizeof(HSD_MemoryEntry),32);
 #else
             entry = HSD_MemAlloc(sizeof(HSD_MemoryEntry));
@@ -284,6 +287,7 @@ void* hsdAllocMemPiece(s32 size)
     HSD_ASSERT(0, class_block_count < NATIVE_CLASS_SNAPSHOT_BLOCKS);
 #endif
 #ifdef MELEE_NATIVE
+    if(!nativeHsdArena_Ensure(nb_memory_list*32,32))return NULL;
     temp_r3 = nativeMatchArena_Allocate(&nativeHsdArena,nb_memory_list*32,32);
 #else
     temp_r3 = HSD_MemAlloc(nb_memory_list * 32);

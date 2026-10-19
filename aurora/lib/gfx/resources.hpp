@@ -4,7 +4,7 @@
 
 namespace aurora::gfx {
 inline constexpr bool UseTextureBuffer = true;
-inline constexpr uint64_t UniformBufferSize = 25165824; // 24 MiB
+inline constexpr uint64_t UniformBufferSize = 33554432; // 32 MiB; dense imported skins across scene passes
 inline constexpr uint64_t VertexBufferSize = 5242880;   // 5 MiB
 inline constexpr uint64_t IndexBufferSize = 2097152;    // 2 MiB
 inline constexpr uint64_t StorageBufferSize = 8388608;  // 8 MiB

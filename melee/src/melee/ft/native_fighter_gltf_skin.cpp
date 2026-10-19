@@ -1,4 +1,5 @@
 #include "native_fighter_gltf_skin.h"
+#include "native_fighter_mesh_source.h"
 #include "native_fighter_authoring.h"
 
 extern "C" {
@@ -166,8 +167,8 @@ bool nativeFighterGltf_ReadSkin(const NativeFighterModelEditor& model,
     for (cgltf_size i = 0; i < primitive->attributes_count; ++i)
         if (primitive->attributes[i].type == cgltf_attribute_type_position && primitive->attributes[i].index == 0)
             positions = primitive->attributes[i].data;
-    if (!positions || !positions->count || positions->count > UINT16_MAX)
-        return problem(error,size,"Source skin import needs 1 to 65535 mesh vertices.");
+    if (!positions || !positions->count || positions->count > NATIVE_MESH_SOURCE_MAX_VERTICES)
+        return problem(error,size,"Source skin import needs 1 to 1000000 mesh vertices.");
     std::vector<Joint> mapping;
     std::vector<AttributeSet> sets;
     if (!map_joints(model,owner,skin,mapping,error,size) ||

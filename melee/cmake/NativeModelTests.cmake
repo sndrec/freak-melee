@@ -104,3 +104,18 @@ target_compile_definitions(native_gltf_reimport_test PRIVATE MELEE_NATIVE=1)
 target_link_libraries(native_gltf_reimport_test PRIVATE melee_runtime aurora_os
     aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
 aurora_copy_runtime_dlls(native_gltf_reimport_test)
+
+add_executable(native_large_gltf_test tests/native/large_gltf_test.cpp)
+target_include_directories(native_large_gltf_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_large_gltf_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_large_gltf_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_large_gltf_test)
+
+add_executable(native_polygon_chain_test tests/native/polygon_chain_test.c)
+target_include_directories(native_polygon_chain_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_polygon_chain_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_polygon_chain_test PRIVATE melee_runtime aurora_os
+    aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_polygon_chain_test)
+add_test(NAME native_polygon_chain COMMAND native_polygon_chain_test)

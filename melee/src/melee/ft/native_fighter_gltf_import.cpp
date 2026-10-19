@@ -9,6 +9,7 @@
 #include "native_fighter_gltf_identity.h"
 #include "native_fighter_gltf_preserve.h"
 #include "native_fighter_skin_mesh.h"
+#include "native_mesh_vertex_ids.h"
 
 #ifdef MELEE_NATIVE
 
@@ -41,6 +42,7 @@ extern "C" {
 #include <new>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace {
 
@@ -294,33 +296,69 @@ NativeSkinWeights automatic_palette(const SkinBinding& skin, const float p[3])
     return palette;
 }
 
-struct SkinChunk {
-    std::vector<uint16_t> indices;
+struct GeometryChunk {
+    std::vector<uint32_t> indices;
     std::vector<uint8_t> palette_index;
     std::vector<NativeSkinWeights> palettes;
 };
 
-bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
-                      uint32_t descriptors,
-                      const NativeFighterModelEditor& model, bool uv,
+bool write_geometry_chunk(NativeAssetDat* dat, const GeometryChunk& chunk,
+                      uint32_t positions, uint32_t normals, uint32_t uvs,
+                      unsigned vertices, const NativeFighterModelEditor& model,
+                      bool uv, bool skinned, uint32_t joint,
+                      std::vector<NativeMeshVertexIdRow>* vertex_ids,
                       uint32_t* polygon)
 {
+    std::vector<uint16_t> indices;
+    indices.reserve(chunk.indices.size());
+    const bool local = vertices > 65536;
+    if (local) {
+        std::unordered_map<uint32_t,uint16_t> lookup;
+        lookup.reserve(chunk.indices.size());
+        std::vector<uint32_t> source_vertices;
+        for (uint32_t index : chunk.indices) {
+            auto [entry,added] = lookup.emplace(index,(uint16_t)source_vertices.size());
+            if (added) source_vertices.push_back(index);
+            indices.push_back(entry->second);
+        }
+        const unsigned count = (unsigned)source_vertices.size();
+        const uint32_t local_positions = dat->allocate(size_t(count)*12,32);
+        const uint32_t local_normals = dat->allocate(size_t(count)*12,32);
+        const uint32_t local_uvs = uv ? dat->allocate(size_t(count)*8,32) : 0;
+        if (local_positions == UINT32_MAX || local_normals == UINT32_MAX || local_uvs == UINT32_MAX) return false;
+        for (unsigned i = 0; i < count; ++i) {
+            std::memcpy(dat->data.data()+local_positions+i*12,dat->data.data()+positions+source_vertices[i]*12,12);
+            std::memcpy(dat->data.data()+local_normals+i*12,dat->data.data()+normals+source_vertices[i]*12,12);
+            if (uv) std::memcpy(dat->data.data()+local_uvs+i*8,dat->data.data()+uvs+source_vertices[i]*8,8);
+        }
+        positions=local_positions;normals=local_normals;uvs=local_uvs;
+    } else for (uint32_t index : chunk.indices) indices.push_back((uint16_t)index);
+    const uint32_t descriptors = dat->allocate(((skinned?1u:0u)+(uv?4u:3u))*24);
+    if (descriptors == UINT32_MAX) return false;
+    unsigned descriptor = 0;
+    if (skinned) {
+        dat->word(descriptors,GX_VA_PNMTXIDX);dat->word(descriptors+4,GX_DIRECT);++descriptor;
+    }
+    if (!encode_attribute(dat,descriptors+descriptor++*24,positions,vertices,3,GX_VA_POS,GX_POS_XYZ) ||
+        !encode_attribute(dat,descriptors+descriptor++*24,normals,vertices,3,GX_VA_NRM,GX_NRM_XYZ)) return false;
+    if (uv && !encode_attribute(dat,descriptors+descriptor++*24,uvs,vertices,2,GX_VA_TEX0,GX_TEX_ST)) return false;
+    dat->word(descriptors+descriptor*24,GX_VA_NULL);
     std::vector<uint8_t> display;
     display.reserve(3 + chunk.indices.size() * (uv ? 7 : 5));
     display.push_back(0x90); // GX_TRIANGLES / VAT 0.
     display.push_back((uint8_t) (chunk.indices.size() >> 8));
     display.push_back((uint8_t) chunk.indices.size());
     for (size_t i = 0; i < chunk.indices.size(); ++i) {
-        display.push_back((uint8_t) (chunk.palette_index[i] * 3));
+        if (skinned) display.push_back((uint8_t) (chunk.palette_index[i] * 3));
         for (unsigned attr = 0; attr < (uv ? 3u : 2u); ++attr) {
-            display.push_back((uint8_t) (chunk.indices[i] >> 8));
-            display.push_back((uint8_t) chunk.indices[i]);
+            display.push_back((uint8_t) (indices[i] >> 8));
+            display.push_back((uint8_t) indices[i]);
         }
     }
     display.resize((display.size() + 31) & ~size_t(31), 0);
     if (display.size() / 32 > UINT16_MAX) return false;
     const uint32_t commands = dat->allocate(display.size(), 32);
-    const uint32_t table = dat->allocate((chunk.palettes.size() + 1) * 4);
+    const uint32_t table = skinned ? dat->allocate((chunk.palettes.size() + 1) * 4) : 0;
     *polygon = dat->allocate(24);
     if (commands == UINT32_MAX || table == UINT32_MAX ||
         *polygon == UINT32_MAX) return false;
@@ -350,10 +388,11 @@ bool write_skin_chunk(NativeAssetDat* dat, const SkinChunk& chunk,
         }
     }
     dat->link(*polygon + 8, descriptors);
-    dat->half(*polygon + 12, POBJ_ENVELOPE);
+    dat->half(*polygon + 12, skinned ? POBJ_ENVELOPE : POBJ_SKIN);
     dat->half(*polygon + 14, (uint16_t) (display.size() / 32));
     dat->link(*polygon + 16, commands);
-    dat->link(*polygon + 20, table);
+    dat->link_local(*polygon + 20, skinned ? table : joint);
+    if (local) vertex_ids->push_back({*polygon,chunk.indices});
     return true;
 }
 
@@ -448,14 +487,14 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
     if (mesh->type != cgltf_primitive_type_triangles || !position || !normal ||
         position->count != normal->count ||
         (uv && uv->count != position->count) ||
-        position->count == 0 || position->count > UINT16_MAX) {
+        position->count == 0 || position->count > NATIVE_MESH_SOURCE_MAX_VERTICES) {
         fail(error, error_size,
-             "Import needs a triangle mesh with up to 65535 vertices and normals.");
+             "Import needs a triangle mesh with normals and at most 1000000 vertices.");
         return false;
     }
     const cgltf_size indices = mesh->indices ? mesh->indices->count :
                                  position->count;
-    if (indices == 0 || indices % 3 || indices > 1000000) {
+    if (indices == 0 || indices % 3 || indices > NATIVE_MESH_SOURCE_MAX_CORNERS) {
         fail(error, error_size, "Mesh indices must contain triangles.");
         return false;
     }
@@ -532,122 +571,54 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
         if (uv) for (unsigned axis = 0; axis < 2; ++axis)
             befloat(dat->data.data() + uvs + i * 8 + axis * 4, tex[axis]);
     }
-    if (skin) {
-        const uint32_t descriptors = dat->allocate((uv ? 5u : 4u) * 24);
-        if (descriptors == UINT32_MAX) return false;
-        dat->word(descriptors, GX_VA_PNMTXIDX);
-        dat->word(descriptors + 4, GX_DIRECT);
-        if (!encode_attribute(dat, descriptors + 24, positions, vertices,
-                              3, GX_VA_POS, GX_POS_XYZ) ||
-            !encode_attribute(dat, descriptors + 48, normals, vertices,
-                              3, GX_VA_NRM, GX_NRM_XYZ)) return false;
-        if (uv && !encode_attribute(dat, descriptors + 72, uvs, vertices,
-                                    2, GX_VA_TEX0, GX_TEX_ST)) return false;
-        dat->word(descriptors + (uv ? 96 : 72), GX_VA_NULL);
-        SkinChunk chunk;
-        uint32_t previous = 0;
-        *polygon = 0;
-        for (cgltf_size start = 0; start < indices; start += 3) {
-            uint16_t triangle[3];
-            for (unsigned c = 0; c < 3; ++c) {
-                const unsigned flipped = determinant < 0.0f
-                    ? (c == 1 ? 2 : c == 2 ? 1 : 0) : c;
-                const cgltf_size index = mesh->indices
-                    ? cgltf_accessor_read_index(mesh->indices, start + flipped)
-                    : start + flipped;
-                if (index >= vertices) {
-                    fail(error, error_size, "Mesh has an out-of-range index.");
-                    return false;
-                }
-                triangle[c] = (uint16_t) index;
-            }
-            unsigned additional = 0;
-            for (unsigned c = 0; c < 3; ++c) {
-                bool found = false;
-                for (const NativeSkinWeights& p : chunk.palettes)
-                    if (nativeSkinWeights_Equal(&p, &vertex_palette[triangle[c]])) found = true;
-                for (unsigned earlier = 0; earlier < c; ++earlier)
-                    if (nativeSkinWeights_Equal(&vertex_palette[triangle[earlier]],
-                                               &vertex_palette[triangle[c]])) found = true;
-                if (!found) ++additional;
-            }
-            if (!chunk.indices.empty() &&
-                (chunk.palettes.size() + additional > 10 ||
-                 chunk.indices.size() + 3 > 65532)) {
-                uint32_t emitted;
-                if (!write_skin_chunk(dat, chunk, descriptors, model, uv,
-                                      &emitted)) return false;
-                if (previous) dat->link(previous + 4, emitted);
-                else *polygon = emitted;
-                previous = emitted;
-                chunk = {};
-            }
-            for (unsigned c = 0; c < 3; ++c) {
-                const NativeSkinWeights& palette = vertex_palette[triangle[c]];
-                unsigned id = 0;
-                for (; id < chunk.palettes.size(); ++id)
-                    if (nativeSkinWeights_Equal(&chunk.palettes[id], &palette)) break;
-                if (id == chunk.palettes.size()) chunk.palettes.push_back(palette);
-                chunk.indices.push_back(triangle[c]);
-                chunk.palette_index.push_back((uint8_t) id);
-            }
+    std::vector<NativeMeshVertexIdRow> vertex_ids;
+    if (vertices > 65536 && !nativeMeshVertexIds_Read(dat->original,&vertex_ids)) return false;
+    GeometryChunk chunk;
+    uint32_t previous = 0;
+    unsigned sections = 0;
+    *polygon = 0;
+    auto flush = [&]() {
+        if (chunk.indices.empty()) return true;
+        if (++sections > NATIVE_MODEL_MAX_POLYGONS) {
+            fail(error,error_size,"This mesh needs too many draw sections.");return false;
         }
-        if (!chunk.indices.empty()) {
-            uint32_t emitted;
-            if (!write_skin_chunk(dat, chunk, descriptors, model, uv,
-                                  &emitted)) return false;
-            if (previous) dat->link(previous + 4, emitted);
-            else *polygon = emitted;
+        uint32_t emitted;
+        if (!write_geometry_chunk(dat,chunk,positions,normals,uvs,vertices,model,uv!=nullptr,
+                                  skin!=nullptr,joint_offset,&vertex_ids,&emitted)) return false;
+        if (previous) dat->link(previous+4,emitted);
+        else *polygon=emitted;
+        previous=emitted;chunk={};return true;
+    };
+    for (cgltf_size start = 0; start < indices; start += 3) {
+        uint32_t triangle[3];
+        for (unsigned c = 0; c < 3; ++c) {
+            const unsigned flipped = determinant < 0 ? (c==1?2:c==2?1:0) : c;
+            const cgltf_size index = mesh->indices ? cgltf_accessor_read_index(mesh->indices,start+flipped) : start+flipped;
+            if (index >= vertices) {fail(error,error_size,"Mesh has an out-of-range index.");return false;}
+            triangle[c]=(uint32_t)index;
         }
-        return *polygon != 0;
-    }
-    std::vector<uint8_t> display;
-    for (cgltf_size start = 0; start < indices; ) {
-        const cgltf_size count = std::min<cgltf_size>(indices - start, 65532);
-        display.push_back(0x90); // GX_TRIANGLES / VAT 0.
-        display.push_back((uint8_t) (count >> 8));
-        display.push_back((uint8_t) count);
-        for (cgltf_size i = 0; i < count; ++i) {
-            const cgltf_size source_index = start +
-                (determinant < 0.0f ? i / 3 * 3 +
-                    (i % 3 == 1 ? 2 : i % 3 == 2 ? 1 : 0) : i);
-            const cgltf_size index = mesh->indices
-                ? cgltf_accessor_read_index(mesh->indices, source_index)
-                : source_index;
-            if (index >= vertices) {
-                fail(error, error_size, "Mesh has an out-of-range index.");
-                return false;
-            }
-            for (unsigned a = 0; a < (uv ? 3u : 2u); ++a) {
-                display.push_back((uint8_t) (index >> 8));
-                display.push_back((uint8_t) index);
-            }
+        unsigned additional=0;
+        if (skin) for (unsigned c=0;c<3;++c) {
+            bool found=false;
+            for (const auto& weights:chunk.palettes)
+                if (nativeSkinWeights_Equal(&weights,&vertex_palette[triangle[c]])) found=true;
+            for (unsigned earlier=0;earlier<c;++earlier)
+                if (nativeSkinWeights_Equal(&vertex_palette[triangle[earlier]],&vertex_palette[triangle[c]])) found=true;
+            additional+=!found;
         }
-        start += count;
+        if ((chunk.palettes.size()+additional>10 || chunk.indices.size()+3>65532) && !flush()) return false;
+        for (unsigned c=0;c<3;++c) {
+            if (skin) {
+                const auto& weights=vertex_palette[triangle[c]];
+                unsigned slot=0;
+                while (slot<chunk.palettes.size() && !nativeSkinWeights_Equal(&chunk.palettes[slot],&weights)) ++slot;
+                if (slot==chunk.palettes.size()) chunk.palettes.push_back(weights);
+                chunk.palette_index.push_back((uint8_t)slot);
+            }
+            chunk.indices.push_back(triangle[c]);
+        }
     }
-    display.resize((display.size() + 31) & ~size_t(31), 0);
-    if (display.size() / 32 > UINT16_MAX) {
-        fail(error, error_size, "Mesh display list exceeds the Melee limit.");
-        return false;
-    }
-    const uint32_t commands = dat->allocate(display.size(), 32);
-    const uint32_t descriptors = dat->allocate((uv ? 4u : 3u) * 24);
-    *polygon = dat->allocate(24);
-    if (commands == UINT32_MAX || descriptors == UINT32_MAX ||
-        *polygon == UINT32_MAX) return false;
-    std::memcpy(dat->data.data() + commands, display.data(), display.size());
-    if (!encode_attribute(dat, descriptors, positions, vertices, 3, 9, 1) ||
-        !encode_attribute(dat, descriptors + 24, normals, vertices, 3, 10, 0))
-        return false;
-    if (uv && !encode_attribute(dat, descriptors + 48, uvs, vertices, 2, 13, 1))
-        return false;
-    dat->word(descriptors + (uv ? 72 : 48), 0xFF); // GX_VA_NULL
-    dat->link(*polygon + 8, descriptors);
-    dat->half(*polygon + 12, 0); // POBJ_SKIN
-    dat->half(*polygon + 14, (uint16_t) (display.size() / 32));
-    dat->link(*polygon + 16, commands);
-    dat->link(*polygon + 20, joint_offset);
-    return true;
+    return flush() && *polygon && (vertices<=65536 || nativeMeshVertexIds_Write(*dat,vertex_ids));
 }
 
 bool load_image_bytes(const char* source_path, const cgltf_image* image,

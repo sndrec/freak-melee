@@ -16,7 +16,7 @@ static bool text_valid(const char* text,size_t capacity)
 static bool valid(const NativeFighterMeshSource* source)
 {
     if(!source || !source->used || !source->mesh || !source->vertices ||
-       source->vertices>65535 || !source->corners || source->corners>1000000 ||
+       source->vertices>NATIVE_MESH_SOURCE_MAX_VERTICES || !source->corners || source->corners>NATIVE_MESH_SOURCE_MAX_CORNERS ||
        source->corners%3 || source->binding>3 || !isfinite(source->scale) ||
        source->scale<=0 || source->scale>1000 ||
        !text_valid(source->path,sizeof(source->path)) ||
@@ -92,8 +92,8 @@ bool nativeFighterMeshSource_Parse(NativeFighterProject* project,char* row)
     }
     NativeFighterMeshSource source={0};uint64_t value;
     if(!integer(fields[0],UINT32_MAX,10,&value)) return false;source.mesh=(uint32_t)value;
-    if(!integer(fields[1],65535,10,&value)) return false;source.vertices=(uint32_t)value;
-    if(!integer(fields[2],1000000,10,&value)) return false;source.corners=(uint32_t)value;
+    if(!integer(fields[1],NATIVE_MESH_SOURCE_MAX_VERTICES,10,&value)) return false;source.vertices=(uint32_t)value;
+    if(!integer(fields[2],NATIVE_MESH_SOURCE_MAX_CORNERS,10,&value)) return false;source.corners=(uint32_t)value;
     if(!integer(fields[3],UINT64_MAX,16,&value)) return false;source.topology=value;
     if(!integer(fields[4],3,10,&value)) return false;source.binding=(unsigned)value;
     if(!integer(fields[5],1,10,&value)) return false;source.mirrored=value!=0;
