@@ -1936,16 +1936,6 @@ void nativeHome_Tick(void)
         home.start_requested = home.selection.start_requested = false;
         gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
     }
-    if (nativeHome_IsPractice() && nativeOnlineSession_QuickCountdownMs()) {
-        for (unsigned seat = 0; seat < home.physical_count; ++seat) {
-            int port = home.physical_ports[seat];
-            if (port >= 0 && port < 4 && (HSD_PadCopyStatus[port].trigger & HSD_PAD_B)) {
-                HSD_PadCopyStatus[port].trigger &= ~HSD_PAD_B;
-                nativeHome_ReturnToSelection();
-                break;
-            }
-        }
-    }
     if (nativeHome_IsSelection() && home.preview_restart &&
         home.css != NULL) {
         unsigned port = home.preview_port;

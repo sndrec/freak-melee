@@ -2,10 +2,13 @@
 #include <sysdolphin/baselib/controller.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 enum { PERIOD = 1000000000 / 60 };
 static unsigned samples, queued, card_polls, snapshot_polls;
-static unsigned game_updates, copy_updates;
+static unsigned game_updates;
+static u32 held_buttons[4];
+HSD_PadStatus HSD_PadGameStatus[4], HSD_PadCopyStatus[4];
 
 static void require(bool condition, const char* message)
 {
@@ -20,8 +23,30 @@ static void require(bool condition, const char* message)
 void HSD_PadRenewRawStatus(bool check) { ++samples; ++queued; }
 u8 HSD_PadGetRawQueueCount(void) { return queued; }
 void HSD_PadRenewMasterStatus(void) { require(queued > 0, "empty queue"); --queued; }
-void HSD_PadRenewGameStatus(void) { ++game_updates; }
-void HSD_PadRenewCopyStatus(void) { ++copy_updates; }
+void HSD_PadRenewGameStatus(void)
+{
+    ++game_updates;
+    for (unsigned port = 0; port < 4; ++port) {
+        HSD_PadStatus* pad = &HSD_PadGameStatus[port];
+        pad->last_button = pad->button;
+        pad->button = held_buttons[port];
+        pad->trigger = pad->button & ~pad->last_button;
+        pad->release = pad->last_button & ~pad->button;
+        pad->repeat = pad->trigger;
+        pad->stickX = (s8)(port * 7);
+        pad->extension = port << 8;
+    }
+}
+// Kept as the former call boundary so the regression also runs on the old
+// scheduler. It reproduces the controller's comparison with the working copy.
+void HSD_PadRenewCopyStatus(void)
+{
+    for (unsigned port = 0; port < 4; ++port) {
+        u32 previous = HSD_PadCopyStatus[port].button;
+        HSD_PadCopyStatus[port] = HSD_PadGameStatus[port];
+        HSD_PadCopyStatus[port].trigger = held_buttons[port] & ~previous;
+    }
+}
 void HSD_DevComPoll(void) {}
 void HSD_AudioOutputPoll(void) {}
 void lb_8001C600(void) { ++card_polls; }
@@ -39,7 +64,10 @@ static void initialize(void) {}
 static void reset(void)
 {
     samples = queued = card_polls = snapshot_polls = 0;
-    game_updates = copy_updates = 0;
+    game_updates = 0;
+    memset(held_buttons, 0, sizeof(held_buttons));
+    memset(HSD_PadGameStatus, 0, sizeof(HSD_PadGameStatus));
+    memset(HSD_PadCopyStatus, 0, sizeof(HSD_PadCopyStatus));
     lb_80019AAC(initialize);
 }
 
@@ -53,6 +81,24 @@ static void step(u64 now)
 int main(void)
 {
     reset();
+    for (unsigned tick = 0; tick < 90; ++tick) {
+        for (unsigned port = 0; port < 4; ++port)
+            held_buttons[port] = tick < 30 || tick >= 60 ? HSD_PAD_A << port : 0;
+        step((u64)tick * PERIOD);
+        for (unsigned port = 0; port < 4; ++port) {
+            require(HSD_PadCopyStatus[port].trigger ==
+                        (tick == 0 || tick == 60 ? HSD_PAD_A << port : 0),
+                    "consumed or remapped input manufactured a new press");
+            require(!memcmp(&HSD_PadCopyStatus[port], &HSD_PadGameStatus[port], sizeof(HSD_PadStatus)),
+                    "menu sample differs from the current physical sample");
+        }
+        // Full UI capture and Results port remapping both alter the working
+        // copy. Neither should change the next physical sample's edges.
+        if (tick % 2) memset(HSD_PadCopyStatus, 0, sizeof(HSD_PadCopyStatus));
+        else for (unsigned port = 0; port < 4; ++port)
+            HSD_PadCopyStatus[port] = HSD_PadGameStatus[(port + 1) % 4];
+    }
+    reset();
     require(lbInput_VirtualClockNowNs() == PERIOD,
             "first virtual input tick");
     require(lbInput_VirtualClockNowNs() == 2 * PERIOD,
@@ -65,7 +111,7 @@ int main(void)
         require(lbInput_Poll((u64) i * PERIOD + PERIOD - 1) == 0,
                 "sample appeared before its deadline");
     }
-    require(samples == 600 && game_updates == 600 && copy_updates == 600,
+    require(samples == 600 && game_updates == 600,
             "normal-speed update count");
     require(card_polls == 0 && snapshot_polls == 0,
             "native card services remained active");
@@ -119,7 +165,7 @@ int main(void)
         require(lb_80019A30(0) == (i % 2 == 1), "half-speed phase");
         require(lb_80019A30(1), "half-speed base channel");
     }
-    require(game_updates == 60 && copy_updates == 60, "half-speed update count");
+    require(game_updates == 60, "half-speed update count");
 
     reset();
     lbInput_SetGameSpeed(2.0f);

@@ -1046,12 +1046,17 @@ extern "C" void nativeHub_Tick(void)
                      : "Fighter received. Use Edit CSS to add its portrait.");
     }
     if (selection && !tool && hub.dismissed) {
-        bool held = false;
+        bool held = false, pressed = false;
         for (unsigned port = 0; port < 4; ++port) {
             held |= !HSD_PadCopyStatus[port].err &&
                     (HSD_PadCopyStatus[port].button & PAD_BUTTON_B) != 0;
+            pressed |= !HSD_PadCopyStatus[port].err &&
+                       (HSD_PadCopyStatus[port].trigger & PAD_BUTTON_B) != 0;
         }
-        hub.back_frames = held ? hub.back_frames + 1 : 0;
+        // B used to close the hub must be released before it can start the
+        // hold-to-return gesture on CSS.
+        hub.back_frames = held && (pressed || hub.back_frames)
+            ? hub.back_frames + 1 : 0;
         if (hub.back_frames >= 30) {
             hub.back_frames = 0;
             show();
@@ -1106,17 +1111,15 @@ extern "C" void nativeHub_Tick(void)
             hub.pointer_y =
                 std::clamp(hub.pointer_y - y * scale, 4.0f, 470.0f);
         }
-        if (pad.trigger & PAD_BUTTON_A) {
-            click(port);
-        }
         if (pad.trigger & PAD_BUTTON_B) {
             if (hub.field) {
                 text_focus(nullptr, 0);
             } else {
                 queue(HubAction::Back);
             }
-        }
-        if (pad.trigger & PAD_BUTTON_START && hub.page == NativeHubPage_Lobbies) {
+        } else if (pad.trigger & PAD_BUTTON_A) {
+            click(port);
+        } else if (pad.trigger & PAD_BUTTON_START && hub.page == NativeHubPage_Lobbies) {
             queue(HubAction::Practice);
         }
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
@@ -1363,7 +1366,14 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         nativeHub_EnterText(event->text.text);
     }
     if (event->type == SDL_EVENT_KEY_DOWN) {
-        key(event->key.key, event->key.mod);
+        const bool action_key = event->key.key == SDLK_ESCAPE ||
+            event->key.key == SDLK_RETURN ||
+            (!hub.field && event->key.key == SDLK_SPACE);
+        const bool multiline_return = event->key.key == SDLK_RETURN &&
+            ((hub.field == hub.letter_body && !(event->key.mod & SDL_KMOD_CTRL)) ||
+             (hub.field == hub.bio && (event->key.mod & SDL_KMOD_SHIFT)));
+        if (!event->key.repeat || !action_key || multiline_return)
+            key(event->key.key, event->key.mod);
     }
     if (event->type == SDL_EVENT_MOUSE_WHEEL && hub.visible && hub.page == NativeHubPage_Letter) {
         nativeHubSocial_Scroll(-int(event->wheel.y) * 3);
@@ -1397,6 +1407,12 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strcmp(id, "hub-input")) {
+        std::fprintf(stderr, "[hub-inspect] hub-input page=%u visible=%d listed=%d players=%d field=%d back-frames=%u\n",
+            unsigned(hub.page), hub.visible, hub.lobby_listed, hub.local_players,
+            hub.field != nullptr, hub.back_frames);
+        return;
+    }
     if (!std::strcmp(id, "hub-lobbies")) { nativeHubLobbies_Inspect(); return; }
     if (!std::strcmp(id, "hub-account")) { nativeHubAccount_Inspect(); return; }
     if (!std::strcmp(id, "hub-social")) { nativeHubSocial_Inspect(); return; }
