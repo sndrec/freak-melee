@@ -1,6 +1,6 @@
 # Freak Melee: current project plan
 
-Updated: 2026-10-19. This is the current product contract and work list.
+Updated: 2026-10-20. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
@@ -93,6 +93,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   limitations are in the [social account guide](melee/docs/native_social_accounts.md).
 - Access to chat during a real match remains deferred to a collaborative design
   pass at the user's request. Preserve the current CSS/practice chat flow.
+- The [menu input audit](melee/docs/native_menu_input_checkpoint.md) fixes held
+  controller presses repeating after UI consumption, CSS edge reuse, B-hold
+  return after closing the hub, keyboard activation/back repeat, and stale
+  Quick Play countdown input. Three contracts and seven hidden/muted native UI
+  checks pass. Physical adapter calibration remains separate and deferred.
 - The user approved native integration and delegated routine decisions while
   away. Keep unresolved product and account-service decisions for their return.
   Track verified native behavior separately from the browser mockup. Keep the

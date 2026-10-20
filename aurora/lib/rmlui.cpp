@@ -468,6 +468,19 @@ void handle_event(SDL_Event& event) noexcept {
   case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
     sync_context_metrics(presentation_dimensions_from_window_size(window::get_window_size()));
     return;
+  case SDL_EVENT_KEY_DOWN:
+    if (event.key.repeat) {
+      const auto* focused = g_context->GetFocusElement();
+      const bool text = focused && (focused->GetTagName() == "input" || focused->GetTagName() == "textarea");
+      const bool newline = focused && focused->GetTagName() == "textarea" && !(event.key.mod & SDL_KMOD_CTRL);
+      // Repeated editing/navigation remains useful. Activation and Back each
+      // belong to the original press, even if it opened a different panel.
+      if (event.key.key == SDLK_ESCAPE ||
+          ((event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) && !newline) ||
+          (event.key.key == SDLK_SPACE && !text))
+        return;
+    }
+    break;
   default:
     break;
   }

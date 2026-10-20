@@ -1,6 +1,6 @@
 # Freak Melee documentation
 
-Updated: 2026-10-19. Start with the current guides below. Dated checkpoint and
+Updated: 2026-10-20. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
 sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
 owns priorities and remaining acceptance. Optimization is currently deferred.
@@ -22,6 +22,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Home/practice and controls | [Home flow](native_home_flow.md), [profile UI](native_profiles_ui.md) |
 | Rooms and content | [Room players](native_room_players.md), [netplay](native_netplay.md), [content packages](native_content_packages.md), [chat](native_chat.md) |
 | Social interface and remaining work | [Social hub, roster and offline inbox](native_social_hub_design.md) |
+| Menu button presses and consumption | [Controller and keyboard input audit](native_menu_input_checkpoint.md) |
 | Browse and create lobbies | [Native lobby browser checkpoint](native_lobby_browser_checkpoint.md) |
 | Account identity and sign-in | [Account keys, recovery and native sign-in](native_account_auth.md) |
 | Friends and letters | [Persistent mailboxes and native social pages](native_social_accounts.md) |

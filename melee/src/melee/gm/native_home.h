@@ -122,6 +122,7 @@ void nativeHome_EnterPractice(StartMeleeData* start);
 void nativeHome_ExitPractice(void);
 void nativeHome_EnterResults(void);
 void nativeHome_ApplyResultsInput(void);
+void nativeHome_HandleInput(void);
 void nativeHome_Tick(void);
 
 #ifdef __cplusplus

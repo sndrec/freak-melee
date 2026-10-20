@@ -2564,6 +2564,11 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
         if (nativeHome_IsSelection() &&
             mnCharSel_803F0E8C[cursor->x4].data->state == 0 &&
             nativeCssInteraction_Hand(cursor, &trigger)) {
+            // Cookie, outfit and toolbar actions own these edges. Other CSS
+            // objects must not use them again during this tick.
+            u32 consumed = trigger & (HSD_PAD_A | HSD_PAD_B | HSD_PAD_XY);
+            HSD_PadCopyStatus[cursor->x4].trigger &= ~consumed;
+            HSD_PadCopyStatus[cursor->x4].repeat &= ~consumed;
             goto update_display;
         }
 #endif

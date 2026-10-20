@@ -143,7 +143,11 @@ void lb_80019900(void)
     }
     if (lb_80019A30(0)) {
         HSD_PadRenewGameStatus();
-        HSD_PadRenewCopyStatus();
+        // GameStatus owns physical button history. CopyStatus is the working
+        // sample that menus may consume or remap during this tick. Recomputing
+        // edges from that consumed copy turns a held button into new presses.
+        memcpy(HSD_PadCopyStatus, HSD_PadGameStatus,
+               sizeof(HSD_PadCopyStatus));
     }
 }
 
