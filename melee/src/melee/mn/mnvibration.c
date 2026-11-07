@@ -37,28 +37,7 @@ char* GetNameText(u8 slot);
 int GetNameCount(void);
 void lbCardGame_UpdatePowerTime(void);
 
-typedef struct MnVibrationDataLayout {
-    AnimLoopSettings intro_anim;
-    AnimLoopSettings main_anim;
-    AnimLoopSettings cursor_anim;
-    Vec3 name_pos;
-    char user_data_error[0x18];
-    char file_name[0x10];
-    char user_data_name[0xC];
-    char convi_top_joint[0x18];
-    char convi_top_animjoint[0x1C];
-    char convi_top_matanim_joint[0x20];
-    char convi_top_shapeanim_joint[0x24];
-    char ctlvi_top_joint[0x18];
-    char ctlvi_top_animjoint[0x1C];
-    char ctlvi_top_matanim_joint[0x20];
-    char ctlvi_top_shapeanim_joint[0x24];
-    char onoffvi_top_joint[0x1C];
-    char onoffvi_top_animjoint[0x20];
-    char onoffvi_top_matanim_joint[0x24];
-    char onoffvi_top_shapeanim_joint[0x24];
-    char cursorvi_top_joint[0x20];
-} MnVibrationDataLayout;
+
 
 // Local inline JObj functions using the weak HSD_JObjSetMtxDirty pattern
 static inline f32 mnVibration_JObjGetTranslationX(HSD_JObj* jobj)
@@ -132,7 +111,7 @@ AnimLoopSettings mnVibration_803EECE0 = { 0.0f, 20.0f, -0.1f };
 AnimLoopSettings mnVibration_803EECEC = { 50.0f, 70.0f, -0.1f };
 AnimLoopSettings mnVibration_803EECF8 = { 0.0f, 14.0f, -0.1f };
 Vec3 mnVibration_803EED04 = { -0.4f, 0.5f, 0.0f };
-// These strings are accessed through MnVibrationDataLayout.
+// Original archive symbols, referenced directly rather than through linker layout.
 #ifdef MUST_MATCH
 #pragma push
 #pragma force_active on
@@ -185,11 +164,7 @@ typedef struct MnVibrationData {
     /* 0x94 */ HSD_GObj* cursor_gobj;
 } MnVibrationData;
 
-// The asset blocks are also addressed as a contiguous array in Init.
-static MnVibrationJointAssets mnVibration_804A0868;
-static MnVibrationJointAssets mnVibration_804A0878;
-static MnVibrationJointAssets mnVibration_804A0888;
-static MnVibrationJointAssets mnVibration_804A0898;
+static MnVibrationJointAssets vibration_assets[4];
 
 /// --- Function Implementation ---
 
@@ -637,24 +612,22 @@ void mnVibration_UpdatePortPanel(HSD_JObj* arg0, u8 arg1, u8 arg2)
     HSD_JObj* sp14;
     HSD_JObj* sp10;
     u8 temp_ret;
-    MnVibrationDataLayout* floats =
-        (MnVibrationDataLayout*) &mnVibration_803EECE0;
 
     lb_80011E24(arg0, &sp14, 1, -1);
     if (arg2 != 0) {
         HSD_JObjReqAnimAll(sp14, (f32) arg1);
         HSD_JObjAnimAll(sp14);
         if (GetRumbleSettingOfPort((s32) arg1) != 0) {
-            HSD_JObjReqAnimAll(sp14, floats->cursor_anim.end_frame);
+            HSD_JObjReqAnimAll(sp14, mnVibration_803EECF8.end_frame);
         } else {
-            HSD_JObjReqAnimAll(sp14, floats->cursor_anim.start_frame);
+            HSD_JObjReqAnimAll(sp14, mnVibration_803EECF8.start_frame);
         }
         mn_8022F3D8(sp14, 0xFF, MOBJ_MASK);
         HSD_JObjAnimAll(sp14);
     } else {
         HSD_JObjReqAnimAll(sp14, 20.0f);
         HSD_JObjAnimAll(sp14);
-        HSD_JObjReqAnimAll(sp14, floats->cursor_anim.end_frame);
+        HSD_JObjReqAnimAll(sp14, mnVibration_803EECF8.end_frame);
         mn_8022F3D8(sp14, 0xFF, MOBJ_MASK);
         HSD_JObjAnimAll(sp14);
     }
@@ -680,7 +653,7 @@ void mnVibration_UpdatePortPanel(HSD_JObj* arg0, u8 arg1, u8 arg2)
 void mnVibration_CreatePortPanels(HSD_GObj* arg0)
 {
     MnVibrationData* data;
-    MnVibrationJointAssets* assets = &mnVibration_804A0878;
+    MnVibrationJointAssets* assets = &vibration_assets[1];
     HSD_JObj* jobj0;
     HSD_JObj* jobj1;
     f32 base_x;
@@ -729,7 +702,7 @@ void mnVibration_CreateNameRow(HSD_GObj* arg0, u8 arg1, u8 arg2)
     f32 pos_y;
     f32 pos_z;
 
-    assets = &mnVibration_804A0888;
+    assets = &vibration_assets[2];
     data = arg0->user_data;
     name_flag = mnVibration_GetNameRumble((s32) arg1);
     jobj17 = data->jobjs[17];
@@ -1013,7 +986,7 @@ void mnVibration_IntroProc(HSD_GObj* arg0)
     } else if (mnVibration_804DC060 == frame) {
         if (GetNameCount() != 0) {
             mnVibration_RefreshNameRows(arg0);
-            assets = &mnVibration_804A0868;
+            assets = &vibration_assets[0];
             data2 = arg0->user_data;
             cursor_gobj = GObj_Create(6U, 7U, 0x80U);
             data2->cursor_gobj = cursor_gobj;
@@ -1084,12 +1057,10 @@ void mnVibration_CreateScreen(s32 arg0)
     HSD_Text* text;
     s32 i;
     MnVibrationData* data;
-    MnVibrationDataLayout* layout =
-        (MnVibrationDataLayout*) &mnVibration_803EECE0;
 
     (void) arg0;
     PAD_STACK(24);
-    assets = &mnVibration_804A0898;
+    assets = &vibration_assets[3];
     gobj = GObj_Create(6, 7, 0x80);
     mnVibration_804D6C28 = gobj;
     jobj = HSD_JObjLoadJoint(assets->joint);
@@ -1100,8 +1071,8 @@ void mnVibration_CreateScreen(s32 arg0)
     HSD_JObjReqAnimAll(jobj, 0.0f);
     data = HSD_MemAlloc(sizeof(MnVibrationData));
     if (data == NULL) {
-        OSReport(layout->user_data_error);
-        __assert(layout->file_name, 0x3A7, layout->user_data_name);
+        OSReport(mnVibration_803EED10);
+        __assert(mnVibration_803EED28, 0x3A7, mnVibration_803EED38);
     }
     data->x0[0] = 0;
     data->x0[1] = 0;
@@ -1148,29 +1119,27 @@ void mnVibration_Init(int arg0)
     HSD_GObj* gobj;
     HSD_GObjProc* proc;
     MnVibrationJointAssets* assets;
-    MnVibrationDataLayout* strings;
 
-    strings = (MnVibrationDataLayout*) &mnVibration_803EECE0;
-    assets = (&mnVibration_804A0868);
+    assets = (&vibration_assets[0]);
     mn_804D6BC8.cooldown = 5;
     mn_804A04F0.prev_menu = mn_804A04F0.cur_menu;
     mn_804A04F0.cur_menu = 19;
     mn_804A04F0.hovered_selection = 0;
 
 
-    assets[3].joint = mnAssets_Get(&main_menu_assets, strings->convi_top_joint);
-    assets[3].animjoint = mnAssets_Get(&main_menu_assets, strings->convi_top_animjoint);
-    assets[3].matanim = mnAssets_Get(&main_menu_assets, strings->convi_top_matanim_joint);
-    assets[3].shapeanim = mnAssets_Get(&main_menu_assets, strings->convi_top_shapeanim_joint);
-    assets[1].joint = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_joint);
-    assets[1].animjoint = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_animjoint);
-    assets[1].matanim = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_matanim_joint);
-    assets[1].shapeanim = mnAssets_Get(&main_menu_assets, strings->ctlvi_top_shapeanim_joint);
-    assets[2].joint = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_joint);
-    assets[2].animjoint = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_animjoint);
-    assets[2].matanim = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_matanim_joint);
-    assets[2].shapeanim = mnAssets_Get(&main_menu_assets, strings->onoffvi_top_shapeanim_joint);
-    assets[0].joint = mnAssets_Get(&main_menu_assets, strings->cursorvi_top_joint);
+    assets[3].joint = mnAssets_Get(&main_menu_assets, mnVibration_803EED44);
+    assets[3].animjoint = mnAssets_Get(&main_menu_assets, mnVibration_803EED5C);
+    assets[3].matanim = mnAssets_Get(&main_menu_assets, mnVibration_803EED78);
+    assets[3].shapeanim = mnAssets_Get(&main_menu_assets, mnVibration_803EED98);
+    assets[1].joint = mnAssets_Get(&main_menu_assets, mnVibration_803EEDBC);
+    assets[1].animjoint = mnAssets_Get(&main_menu_assets, mnVibration_803EEDD4);
+    assets[1].matanim = mnAssets_Get(&main_menu_assets, mnVibration_803EEDF0);
+    assets[1].shapeanim = mnAssets_Get(&main_menu_assets, mnVibration_803EEE10);
+    assets[2].joint = mnAssets_Get(&main_menu_assets, mnVibration_803EEE34);
+    assets[2].animjoint = mnAssets_Get(&main_menu_assets, mnVibration_803EEE50);
+    assets[2].matanim = mnAssets_Get(&main_menu_assets, mnVibration_803EEE70);
+    assets[2].shapeanim = mnAssets_Get(&main_menu_assets, mnVibration_803EEE94);
+    assets[0].joint = mnAssets_Get(&main_menu_assets, mnVibration_803EEEB8);
 
     mnVibration_CreateScreen(arg0);
 

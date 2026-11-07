@@ -8,7 +8,7 @@
 #include <windows.h>
 
 enum {
-    PROFILE_BODY_SIZE = 150,
+    PROFILE_BODY_SIZE = 187,
     PROFILE_FILE_SIZE = PROFILE_BODY_SIZE + 4,
 };
 
@@ -81,6 +81,10 @@ void nativeProfile_Default(NativeProfile* profile, const char* name)
         profile->actions[action].count =
             action == NativeProfileAction_ShortHop ? 0 : 1;
     }
+    for (unsigned axis = 0; axis < NativeProfileAxis_Count; ++axis) {
+        profile->calibration.minimum[axis] = axis < 4 ? -32767 : 0;
+        profile->calibration.maximum[axis] = 32767;
+    }
 }
 
 bool nativeProfile_Validate(const NativeProfile* profile)
@@ -95,6 +99,14 @@ bool nativeProfile_Validate(const NativeProfile* profile)
         profile->calibration.right_trigger_activation > 32767)
     {
         return false;
+    }
+    if (profile->calibration.measured) {
+        for (unsigned axis = 0; axis < NativeProfileAxis_Count; ++axis) {
+            const NativeProfileCalibration* c = &profile->calibration;
+            if ((int)c->maximum[axis] - c->center[axis] < 4096 ||
+                (axis < 4 && (int)c->center[axis] - c->minimum[axis] < 4096))
+                return false;
+        }
     }
     for (uint32_t action = 0; action < NativeProfileAction_Count; ++action) {
         const NativeProfileActionBindings* bindings =
@@ -161,6 +173,12 @@ static bool encode_profile(const NativeProfile* profile,
         output[at++] = (uint8_t) binding->direction;
         output[at++] = binding->assigned ? 1 : 0;
     }
+    output[at++] = profile->calibration.measured;
+    for (unsigned axis = 0; axis < NativeProfileAxis_Count; ++axis) {
+        write_u16(output + at, (uint16_t)profile->calibration.center[axis]); at += 2;
+        write_u16(output + at, (uint16_t)profile->calibration.minimum[axis]); at += 2;
+        write_u16(output + at, (uint16_t)profile->calibration.maximum[axis]); at += 2;
+    }
     if (at != PROFILE_BODY_SIZE) {
         return false;
     }
@@ -211,6 +229,13 @@ static bool decode_profile(NativeProfile* profile,
         at += 2;
         binding->direction = (int8_t) input[at++];
         binding->assigned = input[at++] != 0;
+    }
+    if (input[at] > 1) return false;
+    decoded.calibration.measured = input[at++] != 0;
+    for (unsigned axis = 0; axis < NativeProfileAxis_Count; ++axis) {
+        decoded.calibration.center[axis] = (int16_t)read_u16(input + at); at += 2;
+        decoded.calibration.minimum[axis] = (int16_t)read_u16(input + at); at += 2;
+        decoded.calibration.maximum[axis] = (int16_t)read_u16(input + at); at += 2;
     }
     if (at != PROFILE_BODY_SIZE || !nativeProfile_Validate(&decoded)) {
         return false;

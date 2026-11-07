@@ -137,6 +137,20 @@ int main(int argc, char** argv)
     shield = read(replacement, 0, 0, true);
     require(shield.triggerLeft == 0 && !(shield.button & PAD_TRIGGER_L),
             "releasing digital Shield restores the raw released trigger");
+    require(SDL_SetJoystickVirtualAxis(replacement.joystick, SDL_GAMEPAD_AXIS_LEFTY, 12000), "sample mapped vertical axis");
+    SDL_UpdateGamepads();
+    require(PADGetMappedAxisState(0, 1) == -12000, "logical calibration Y points up before filtering");
+    profile.calibration.measured = true;
+    for (unsigned axis = 0; axis < 6; ++axis) {
+        profile.calibration.center[axis] = 0;
+        profile.calibration.minimum[axis] = axis < 4 ? -24000 : 0;
+        profile.calibration.maximum[axis] = 24000;
+    }
+    require(nativeProfileInput_Assign(0, &profile), "apply measured profile through actual SDL provider");
+    auto measured = read(replacement, 0, 12000, true);
+    require(measured.stickX == 39 && measured.stickY == -39, "raw mapped axes share the calibrated 80-unit scale");
+    measured = read(replacement, 0, 24000, true);
+    require(measured.stickX == 80, "full measured travel reaches full Melee input");
     nativeProfileInput_ClearAll();
     detach(first);
     detach(replacement);

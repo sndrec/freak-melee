@@ -1,6 +1,6 @@
 # Freak Melee documentation
 
-Updated: 2026-10-20. Start with the current guides below. Dated checkpoint and
+Updated: 2026-11-07. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
 sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
 owns priorities and remaining acceptance. Optimization is currently deferred.
@@ -10,6 +10,8 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Need | Read |
 | --- | --- |
 | Build and launch | [Windows native build](native_build.md) |
+| Set up a new player | [First startup](native_first_startup.md) |
+| Inspect original menu scenery | [Menu references](native_menu_references.md) |
 | Current scope / what's next | [Project plan](../../PROJECT_PLAN.md) |
 | This PC's tooling | [Local tooling](../../TOOLING.md) |
 | Workshop capabilities and gaps | [Current Workshop status](native_character_workshop_progress.md) |

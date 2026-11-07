@@ -45,6 +45,10 @@ int main(void)
     saved.tap_jump = false;
     saved.c_stick = NativeProfileCStick_Tilt;
     saved.calibration.main_stick_dead_zone = 4321;
+    saved.calibration.measured = true;
+    saved.calibration.center[0] = 123;
+    saved.calibration.minimum[0] = -25000;
+    saved.calibration.maximum[0] = 26000;
     saved.actions[NativeProfileAction_Jump].count = 2;
     saved.actions[NativeProfileAction_Jump].bindings[0] =
         (NativeProfileBinding){
@@ -76,6 +80,8 @@ int main(void)
     require(strcmp(loaded.name, "Alice") == 0 && !loaded.tap_jump &&
                 loaded.c_stick == NativeProfileCStick_Tilt &&
                 loaded.calibration.main_stick_dead_zone == 4321 &&
+                loaded.calibration.measured && loaded.calibration.center[0] == 123 &&
+                loaded.calibration.minimum[0] == -25000 && loaded.calibration.maximum[0] == 26000 &&
                 loaded.actions[NativeProfileAction_Jump].count == 2 &&
                 loaded.actions[NativeProfileAction_Jump]
                         .bindings[1]

@@ -68,6 +68,11 @@ typedef struct NativeProfileCalibration {
     uint16_t right_trigger_activation;
     bool use_dead_zones;
     bool emulate_digital_triggers;
+    bool measured;
+    // Logical axes: main X/Y, C X/Y (positive Y is up), then L/R.
+    int16_t center[NativeProfileAxis_Count];
+    int16_t minimum[NativeProfileAxis_Count];
+    int16_t maximum[NativeProfileAxis_Count];
 } NativeProfileCalibration;
 
 typedef struct NativeProfile {

@@ -526,6 +526,7 @@ namespace {
             } else if (id.starts_with("axisdefault-")) {
                 stop_capture();
                 draft.axes[id.back() - '0'] = {};
+                draft.calibration.measured = false;
                 render_bindings();
             } else if (id.starts_with("axis-")) {
                 begin_capture(-1, id.back() - '0', false);
@@ -630,6 +631,7 @@ void nativeShellProfiles_Update()
         }
         draft.axes[captureAxis] = { int16_t(axis.nativeAxis),
                                     int8_t(axis.sign), true };
+        draft.calibration.measured = false;
     } else {
         if (button < 0 && axis.nativeAxis < 0) {
             return;

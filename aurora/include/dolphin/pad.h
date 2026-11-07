@@ -224,6 +224,7 @@ s32 PADGetNativeButtonPressed(u32 port);
 BOOL PADGetNativeButtonState(u32 port, s32 button);
 /* Returns one standardized physical axis in SDL's signed 16-bit range. */
 s16 PADGetNativeAxisState(u32 port, s32 axis);
+s16 PADGetMappedAxisState(u32 port, u32 axis);
 /* Returns the first native axis which is currently pulled halfway or more */
 PADSignedNativeAxis PADGetNativeAxisPulled(u32 port);
 void PADRestoreDefaultMapping(u32 port);

@@ -81,7 +81,8 @@ enum class HubAction {
     SocialLookup, FieldSocialHandle, FieldLetterTo, FieldLetterSubject,
     FieldLetterBody, ComposeLetter, SendLetter, OpenLetter, DeleteLetter, ReplyLetter,
     MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock,
-    OpenAccount, SendInvitation, JoinInvitation
+    OpenAccount, SendInvitation, JoinInvitation,
+    Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry
 };
 struct HubRegion {
     float x, y, w, h;
@@ -146,3 +147,4 @@ void nativeHub_Panel(float x, float y, float w, float h);
 void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);
 void nativeHub_RenderPage(NativeHubPage page);
 void nativeHub_Activate(HubAction action, int value);
+bool nativeHub_SaveProfile();

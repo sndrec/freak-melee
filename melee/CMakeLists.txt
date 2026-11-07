@@ -433,6 +433,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_online_session.c
     src/melee/gm/native_profile.c
     src/melee/gm/native_profile_input.c
+    src/melee/gm/native_controller_calibration.c
     src/melee/gm/native_replay.c
     src/melee/gm/native_replay_state.c
     src/melee/gm/native_replay_resources.c
@@ -474,6 +475,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/mn/native_online_menu.c
     src/melee/mn/native_online_sss.c
     src/melee/ui/native_hub.cpp
+    src/melee/ui/native_hub_startup.cpp
+    src/melee/ui/native_hub_startup_view.cpp
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_lobbies.cpp
     src/melee/ui/native_hub_account.cpp
@@ -492,6 +495,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/mn/native_menu_font.c
     src/melee/mn/native_menu_skin.c
     src/melee/mn/native_menu_scene.c
+    src/melee/mn/native_menu_reference.c
     src/melee/ui/native_hub_hand.c
     src/melee/ui/native_play_menu.cpp
     src/melee/mn/native_css_interaction.c
@@ -941,7 +945,7 @@ if(MELEE_BUILD_TESTS)
     add_executable(native_profile_input_test
         tests/native/profile_input_test.c
         src/melee/gm/native_profile.c
-        src/melee/gm/native_profile_input.c)
+        src/melee/gm/native_profile_input.c src/melee/gm/native_controller_calibration.c)
     target_include_directories(native_profile_input_test PRIVATE
         src extern/dolphin/include)
     target_compile_definitions(native_profile_input_test PRIVATE
@@ -1115,7 +1119,8 @@ if(MELEE_BUILD_TESTS)
     aurora_copy_runtime_dlls(native_aram_transfer_test)
     add_test(NAME native_aram_transfer COMMAND native_aram_transfer_test)
     add_executable(native_profile_pad_test tests/native/profile_pad_test.cpp
-        src/melee/gm/native_profile.c src/melee/gm/native_profile_input.c)
+        src/melee/gm/native_profile.c src/melee/gm/native_profile_input.c
+        src/melee/gm/native_controller_calibration.c)
     target_include_directories(native_profile_pad_test PRIVATE src
         "${MELEE_AURORA_SOURCE}/lib")
     target_compile_definitions(native_profile_pad_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
