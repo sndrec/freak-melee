@@ -480,6 +480,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_lobbies.cpp
     src/melee/ui/native_hub_account.cpp
+    src/melee/ui/native_hub_notice.cpp
     src/melee/ui/native_hub_text.cpp
     src/melee/ui/native_hub_social.cpp
     src/melee/gm/native_account.cpp

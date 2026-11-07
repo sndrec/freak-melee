@@ -130,16 +130,34 @@ int main(void)
     nativeControllerCalibration_Reset(&capture);
     const int16_t center[6] = { 400, -300, 200, 100, 500, 300 };
     int16_t raw[6]; memcpy(raw, center, sizeof(raw));
-    for (unsigned i = 0; i < 60; ++i) nativeControllerCalibration_Sample(&capture, raw, true);
+    for (unsigned i = 0; i < 60; ++i) nativeControllerCalibration_Sample(&capture, raw, true, NULL);
     require(!nativeControllerCalibration_Finish(&capture, &measured.calibration), "reject an unmoved controller");
     for (unsigned axis = 0; axis < 6; ++axis) {
         raw[axis] = center[axis] + 24000;
-        nativeControllerCalibration_Sample(&capture, raw, false);
-        if (axis < 4) { raw[axis] = center[axis] - 20000; nativeControllerCalibration_Sample(&capture, raw, false); }
+        nativeControllerCalibration_Sample(&capture, raw, false, NULL);
+        if (axis < 4) { raw[axis] = center[axis] - 20000; nativeControllerCalibration_Sample(&capture, raw, false, NULL); }
         raw[axis] = center[axis];
     }
     require(nativeControllerCalibration_Finish(&capture, &measured.calibration), "accept a complete stable capture");
     require(nativeProfile_Validate(&measured), "measured ranges form a valid saved profile");
+    NativeControllerCalibration clicks = capture;
+    NativeProfileCalibration click_result = measured.calibration;
+    int8_t digital[2] = { 0, -1 }; // Real click on L; ordinary analog travel on R.
+    memcpy(raw, center, sizeof(raw));
+    nativeControllerCalibration_Sample(&clicks, raw, false, digital);
+    require(!nativeControllerCalibration_Finish(&clicks, &click_result), "a click-capable trigger requires its click");
+    raw[4] = center[4] + 18000;
+    nativeControllerCalibration_Sample(&clicks, raw, false, digital);
+    digital[0] = 1; raw[4] = 32767;
+    nativeControllerCalibration_Sample(&clicks, raw, false, digital);
+    nativeControllerCalibration_Sample(&clicks, raw, false, digital);
+    digital[0] = 0; raw[4] = 30000;
+    nativeControllerCalibration_Sample(&clicks, raw, false, digital);
+    require(nativeControllerCalibration_Finish(&clicks, &click_result) &&
+                click_result.maximum[4] == center[4] + 18000 && click_result.maximum[5] == center[5] + 24000,
+            "pre-click maximum survives held digital travel and release; no-click triggers retain full travel");
+    require(nativeControllerCalibration_Normalize(&click_result, 4, center[4] + 18000) == 32767,
+            "analog travel reaches full scale immediately before the physical click");
     for (unsigned axis = 0; axis < 6; ++axis) {
         require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis]) == 0, "measured rest is exactly neutral");
         require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis] + 12000) == 16383, "half measured travel remains half travel");

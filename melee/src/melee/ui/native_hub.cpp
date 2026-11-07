@@ -4,6 +4,7 @@
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
 #include "native_hub_account.h"
+#include "native_hub_notice.h"
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_shell_workshop.h"
@@ -272,6 +273,7 @@ namespace {
     }
     void key(SDL_Keycode key, SDL_Keymod modifiers)
     {
+        if (nativeHubNotice_BlocksInput()) { nativeHubNotice_Dismiss(); return; }
         if (key == SDLK_ESCAPE) {
             if (hub.field) {
                 text_focus(nullptr, 0);
@@ -1094,6 +1096,14 @@ extern "C" void nativeHub_Tick(void)
     if (!hub.visible) {
         return;
     }
+    if (nativeHubNotice_BlocksInput()) {
+        nativeMenuScene_Tick(false);
+        hub.pending_action = 0;
+        for (unsigned port = 0; port < 4; ++port)
+            if (!HSD_PadCopyStatus[port].err && HSD_PadCopyStatus[port].trigger)
+                nativeHubNotice_Dismiss();
+        return;
+    }
     if (hub.pending_action) {
         auto action = static_cast<HubAction>(hub.pending_action);
         int value = hub.pending_value;
@@ -1218,6 +1228,7 @@ extern "C" void nativeHub_Draw(void)
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
     nativeMenuPaint_Begin(canvas);
     nativePlayMenu_DrawCountdown();
+    nativeHubNotice_Draw();
     nativeMenuPaint_End();
     nativeMenuScene_End();
 }
@@ -1240,6 +1251,7 @@ extern "C" void nativeHub_MovePointer(int x, int y)
 }
 extern "C" void nativeHub_ClickAt(int x, int y, int button)
 {
+    if (nativeHubNotice_BlocksInput()) { nativeHubNotice_Dismiss(); return; }
     nativeHub_MovePointer(x, y);
     if (button == 0) {
         click();
@@ -1249,6 +1261,7 @@ extern "C" void nativeHub_ClickAt(int x, int y, int button)
 }
 extern "C" void nativeHub_EnterText(const char* text)
 {
+    if (nativeHubNotice_BlocksInput()) return;
     if (!hub.field || !text) {
         return;
     }
@@ -1329,6 +1342,11 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
         mouse_pressed = false;
         hub.pressed = false;
+    }
+    if (hub.visible && nativeHubNotice_BlocksInput()) {
+        if ((event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat) ||
+            event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) nativeHubNotice_Dismiss();
+        return;
     }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F1 &&
         !event->key.repeat && !nativeHubStartup.active && hub.initialized &&
@@ -1483,6 +1501,7 @@ extern "C" void nativeHub_Inspect(const char* id)
                 chat->messages[i].name, chat->messages[i].text);
         return;
     }
+    if (!std::strcmp(id, "hub-notice")) { nativeHubNotice_Inspect(); return; }
     const bool all_regions = !std::strcmp(id, "hub-regions");
     for (unsigned i = 0; i < hub.region_count; ++i) {
         const auto& r = hub.regions[i];
@@ -1526,6 +1545,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativePlayMenu_Shutdown();
     nativeHubLobbies_Shutdown();
     nativeHubAccount_Shutdown();
+    nativeHubNotice_Clear();
     nativeHubSocial_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();

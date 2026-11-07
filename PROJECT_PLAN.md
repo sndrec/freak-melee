@@ -15,7 +15,7 @@ their own builds; their old "remaining" lists are not the current backlog.
   capture and usability acceptance remain open.
   The user chose the original animated tournament setup backdrop after comparing
   [native scenery captures](melee/docs/native_menu_references.md). Startup uses
-  centered controls and open space, aiming for the quiet feel of Smash 64's menus.
+  sparse pages and varied layouts, aiming for the quiet feel of Smash 64's menus.
   The user completed a first pass. Implement the [startup revision list](melee/docs/native_first_startup_revision.md):
   simpler and more varied pages, account notices, measured controller feedback,
   pre-click trigger limits, a 3D starter carousel, portrait capture and direct

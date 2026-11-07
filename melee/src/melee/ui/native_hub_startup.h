@@ -13,6 +13,7 @@ struct NativeHubStartupState {
     NativeProfile profile, previous_profile;
     char profile_id[65], error[192];
     int16_t raw[6];
+    int8_t trigger_click[2]; // -1 means no independent digital button.
     int controller_index;
     unsigned port;
     uint64_t started_at;

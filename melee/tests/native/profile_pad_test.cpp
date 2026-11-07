@@ -93,6 +93,17 @@ int main(int argc, char** argv)
     require(calibrated.substickX == 3000 / 256 &&
                 (calibrated.button & PAD_TRIGGER_L) && !(calibrated.button & PAD_TRIGGER_R),
             "the port's C-stick and separate trigger thresholds reach PADRead");
+    require(PADGetMappedButtonState(0, PAD_TRIGGER_L) == -1,
+            "an emulated PAD trigger is not a physical click");
+    PADSetButtonMapping(0, {SDL_GAMEPAD_BUTTON_MISC3, PAD_TRIGGER_L});
+    require(PADGetMappedButtonState(0, PAD_TRIGGER_L) == 0,
+            "an independent mapped trigger click reports released");
+    require(SDL_SetJoystickVirtualButton(first.joystick, SDL_GAMEPAD_BUTTON_MISC3, true), "press independent trigger click");
+    SDL_UpdateGamepads();
+    require(PADGetMappedButtonState(0, PAD_TRIGGER_L) == 1,
+            "physical trigger click is available before analog processing");
+    require(SDL_SetJoystickVirtualButton(first.joystick, SDL_GAMEPAD_BUTTON_MISC3, false), "release independent trigger click");
+    PADSetButtonMapping(0, {PAD_NATIVE_BUTTON_INVALID, PAD_TRIGGER_L});
 
     profile.calibration.main_stick_dead_zone = 6000;
     require(nativeProfileInput_Assign(0, &profile), "replace the assigned calibration");

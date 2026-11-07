@@ -12,7 +12,8 @@ void nativeControllerCalibration_Reset(NativeControllerCalibration* capture)
     }
 }
 void nativeControllerCalibration_Sample(NativeControllerCalibration* capture,
-                                         const int16_t raw[6], bool resting)
+                                         const int16_t raw[6], bool resting,
+                                         const int8_t trigger_click[2])
 {
     for (unsigned axis = 0; axis < 6; ++axis) {
         if (raw[axis] < capture->low[axis]) capture->low[axis] = raw[axis];
@@ -21,6 +22,21 @@ void nativeControllerCalibration_Sample(NativeControllerCalibration* capture,
             if (raw[axis] < capture->rest_low[axis]) capture->rest_low[axis] = raw[axis];
             if (raw[axis] > capture->rest_high[axis]) capture->rest_high[axis] = raw[axis];
         }
+    }
+    // A real digital click is supplied separately from synthesized PAD buttons.
+    // Capture only its rising edge; full click travel and release cannot widen it.
+    for (unsigned i = 0; !resting && trigger_click && i < 2; ++i) {
+        bool pressed = trigger_click[i] > 0;
+        capture->trigger_click_supported[i] = trigger_click[i] >= 0;
+        if (pressed && !capture->trigger_pressed[i] && capture->trigger_sampled[i] &&
+            !capture->trigger_captured[i] &&
+            capture->trigger_previous[i] - capture->rest_high[4 + i] >= 8192) {
+            capture->trigger_maximum[i] = capture->trigger_previous[i];
+            capture->trigger_captured[i] = true;
+        }
+        capture->trigger_previous[i] = raw[4 + i];
+        capture->trigger_sampled[i] = true;
+        capture->trigger_pressed[i] = pressed;
     }
     if (resting) ++capture->samples;
     else if (capture->samples) {
@@ -47,6 +63,10 @@ bool nativeControllerCalibration_Finish(const NativeControllerCalibration* captu
         c.center[axis] = (int16_t)((low + high) / 2);
         c.minimum[axis] = capture->low[axis];
         c.maximum[axis] = capture->high[axis];
+        if (axis >= 4 && capture->trigger_click_supported[axis - 4]) {
+            if (!capture->trigger_captured[axis - 4]) return false;
+            c.maximum[axis] = capture->trigger_maximum[axis - 4];
+        }
         int negative = c.center[axis] - c.minimum[axis];
         int positive = c.maximum[axis] - c.center[axis];
         // Reject incomplete sweeps rather than amplifying noise into full travel.

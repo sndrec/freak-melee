@@ -62,6 +62,17 @@ namespace {
     {
         return PADGetIndexForPort(nativeHubStartup.port) >= 0;
     }
+    void trigger_clicks()
+    {
+        auto& s = nativeHubStartup;
+        s.trigger_click[0] = s.trigger_click[1] = -1;
+        for (unsigned trigger = 0; trigger < 2; ++trigger) {
+            const auto& axis = s.profile.axes[4 + trigger];
+            // A trigger remapped to a different analog source has no associated click.
+            if (axis.assigned && (axis.native_axis != int(4 + trigger) || axis.direction != 1)) continue;
+            s.trigger_click[trigger] = int8_t(PADGetMappedButtonState(s.port, trigger ? PAD_TRIGGER_R : PAD_TRIGGER_L));
+        }
+    }
     void start_rest()
     {
         auto& s = nativeHubStartup;
@@ -147,6 +158,7 @@ void nativeHubStartup_Tick()
     }
     for (unsigned axis = 0; axis < 6; ++axis) s.raw[axis] = nativeProfileInput_RawAxis(s.port, &s.profile, axis);
     if (device < 0) return;
+    trigger_clicks();
     if (s.step == NativeStartup_Rest) {
         // Restart the still interval if any axis moves: the last second must
         // describe a stable released controller, not an average of motion.
@@ -155,9 +167,10 @@ void nativeHubStartup_Tick()
             moving |= s.raw[axis] < int(s.capture.rest_low[axis]) - 1500 ||
                       s.raw[axis] > int(s.capture.rest_high[axis]) + 1500;
         if (moving) { nativeControllerCalibration_Reset(&s.capture); s.started_at = SDL_GetTicks(); }
-        nativeControllerCalibration_Sample(&s.capture, s.raw, true);
+        nativeControllerCalibration_Sample(&s.capture, s.raw, true, nullptr);
     } else if (s.step == NativeStartup_Sticks || s.step == NativeStartup_Triggers)
-        nativeControllerCalibration_Sample(&s.capture, s.raw, false);
+        nativeControllerCalibration_Sample(&s.capture, s.raw, false,
+            s.step == NativeStartup_Triggers ? s.trigger_click : nullptr);
 }
 bool nativeHubStartup_Activate(HubAction action, int value)
 {
@@ -181,6 +194,15 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         return true;
     }
     if (action == HubAction::StartupRetry) { start_rest(); return true; }
+    if (action == HubAction::StartupTriggerMaximum) {
+        if (s.step != NativeStartup_Test || value < 0 || value > 3) return true;
+        unsigned axis = 4 + unsigned(value) / 2;
+        int maximum = s.profile.calibration.maximum[axis] + (value & 1 ? 512 : -512);
+        s.profile.calibration.maximum[axis] = int16_t(std::clamp(maximum,
+            int(s.profile.calibration.center[axis]) + 8192, 32767));
+        nativeProfileInput_Assign(s.port, &s.profile);
+        return true;
+    }
     if (action == HubAction::StartupSkipController) {
         restore_controls(); s.calibrated = false;
         enter(NativeStartup_Clone); return true;
@@ -218,7 +240,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
             std::snprintf(s.error, sizeof(s.error), "Release both triggers before continuing."); break;
         }
         if (!nativeControllerCalibration_Finish(&s.capture, &s.profile.calibration)) {
-            std::snprintf(s.error, sizeof(s.error), "Press both triggers fully. If a stick was moving at rest, start over."); break;
+            std::snprintf(s.error, sizeof(s.error), "Squeeze both triggers slowly through the click. Without a click, use full travel."); break;
         }
         s.previous_assigned = nativeProfileInput_Assigned(s.port) != nullptr;
         if (s.previous_assigned) s.previous_profile = *nativeProfileInput_Assigned(s.port);
