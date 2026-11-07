@@ -1,5 +1,6 @@
 #include "native_hub_account.h"
 #include "native_hub_startup.h"
+#include "native_hub_notice.h"
 #include <melee/gm/native_account.h>
 #include <melee/gm/native_services.h>
 #include <melee/gm/native_online_session.h>
@@ -12,6 +13,8 @@
 namespace {
     NativeAccountView account;
     bool started, attempted, leave_lobby;
+    bool awaiting_sign_in;
+    NativeAccountOperation sign_in_operation;
     void* window;
     unsigned mode, offset, profile_revision;
     uint64_t attach_retry;
@@ -28,7 +31,14 @@ namespace {
         std::snprintf(request.bio, sizeof(request.bio), "%s", hub.bio);
         std::snprintf(request.recovery, sizeof(request.recovery), "%s", hub.account_recovery);
         if (target) std::snprintf(request.target, sizeof(request.target), "%s", target);
-        if (nativeAccount_Submit(request)) nativeHub_ChangePage(hub.page);
+        if (nativeAccount_Submit(request)) {
+            if (operation == NativeAccountOperation::Register || operation == NativeAccountOperation::Login ||
+                operation == NativeAccountOperation::Recover) {
+                awaiting_sign_in = true;
+                sign_in_operation = operation;
+            }
+            nativeHub_ChangePage(hub.page);
+        }
         else nativeHub_Notice("An account request is already running. Please wait.");
         SDL_memset(hub.account_recovery, 0, sizeof(hub.account_recovery));
         SDL_memset(&request, 0, sizeof(request));
@@ -97,6 +107,13 @@ void nativeHubAccount_Tick()
         }
     }
     if (!changed) return;
+    if (awaiting_sign_in && !account.busy) {
+        awaiting_sign_in = false;
+        if (!account.signed_in) nativeHubNotice_Show(
+            sign_in_operation == NativeAccountOperation::Register ? "Could not create account" :
+            sign_in_operation == NativeAccountOperation::Recover ? "Could not recover account" : "Could not sign in",
+            account.status);
+    }
     if (!*hub.account_handle && *account.handle) std::snprintf(hub.account_handle, sizeof(hub.account_handle), "%s", account.handle);
     if (account.signed_in && !account.busy && account.profile_revision != profile_revision) {
         profile_revision = account.profile_revision;
@@ -219,7 +236,7 @@ bool nativeHubAccount_Activate(HubAction action, int value)
     case HubAction::AccountImportKey: nativeAccount_ChooseFile(NativeAccountOperation::ImportKey, window); return true;
     case HubAction::AccountAddKey: nativeAccount_ChooseFile(NativeAccountOperation::AddKey, window); return true;
     case HubAction::AccountRefresh: submit(NativeAccountOperation::Refresh); return true;
-    case HubAction::AccountCancel: nativeAccount_Cancel(); return true;
+    case HubAction::AccountCancel: awaiting_sign_in = false; nativeAccount_Cancel(); return true;
     case HubAction::AccountSaveRecovery:
         nativeAccount_ChooseFile(NativeAccountOperation::ExportRecovery, window); return true;
     case HubAction::AccountLogout: case HubAction::AccountRevokeAll: case HubAction::AccountRotateRecovery:
@@ -246,7 +263,7 @@ void nativeHubAccount_Inspect()
 const NativeAccountView& nativeHubAccount_View() { return account; }
 void nativeHubAccount_Shutdown()
 {
-    nativeAccount_Shutdown(); account = {}; started = attempted = leave_lobby = false; window = nullptr; mode = offset = profile_revision = 0;
+    nativeAccount_Shutdown(); account = {}; started = attempted = leave_lobby = awaiting_sign_in = false; window = nullptr; mode = offset = profile_revision = 0;
     attach_retry = 0;
     nativeHubAccount_Leave();
 }

@@ -1612,6 +1612,19 @@ s16 PADGetMappedAxisState(const u32 port, const u32 axis) {
                            int(_get_axis_value(controller, negative[axis]))) / 2);
 }
 
+s32 PADGetMappedButtonState(const u32 port, const u32 button) {
+  auto* controller = aurora::input::get_controller_for_player(port);
+  if (!controller) return -1;
+  EnsureMappingLoaded(controller);
+  s32 state = -1;
+  for (const auto& mapping : controller->m_buttonMapping) {
+    if (mapping.padButton != button || mapping.nativeButton == PAD_NATIVE_BUTTON_INVALID) continue;
+    if (SDL_GetGamepadButton(controller->m_controller, static_cast<SDL_GamepadButton>(mapping.nativeButton))) return 1;
+    state = 0;
+  }
+  return state;
+}
+
 int32_t PADGetNativeButtonPressed(const u32 port) {
   const auto* controller = aurora::input::get_controller_for_player(port);
   if (controller == nullptr) {

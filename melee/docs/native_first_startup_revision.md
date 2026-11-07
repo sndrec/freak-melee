@@ -14,7 +14,8 @@ completed setup account page, and the controller button says Select controller.
 The calibration capture stores a 32-direction outline for each stick. The
 calibration page draws those outlines; the review page displays scaled axis
 values and raw samples. Measurement pages suppress hand motion and menu tilt.
-The pre-click trigger capture and adjustment controls remain to implement.
+Pre-click trigger capture and adjustment controls are implemented in the next
+batch described below; the physical adapter pass remains open.
 
 A render-order error caused stock portraits to reappear even when the saved
 layout contained only a custom tile. The CSS now applies its visibility mask
@@ -27,7 +28,39 @@ tests pass in `.local/startup-review-batch-1-contracts.log`. The four-check
 setup walkthrough passes in `.local/startup-review-batch-1-ui/receipt.json`;
 welcome, profile and returned CSS captures were inspected. The walkthrough
 skips physical calibration and does not create an online account. Account
-error popups, trigger click limits and the new starter flow remain open.
+error popups and trigger click limits are covered by the next batch. The new
+starter flow remains open.
+
+## Account notices and trigger limits
+
+Failed account creation, sign-in and recovery show the service's error message
+in a reusable modal notice. The notice slides in from the right and uses the
+unchanged stock main-menu panel border and caption lettering. Any new button
+press dismisses it, while the underlying page keeps its state. This reuses
+existing stock artwork; it does not alter a raster texture or claim to execute
+the original unlock-notice scene.
+
+Trigger capture reads independent mapped physical buttons directly from SDL.
+Generated analog-threshold presses are excluded. A click-capable trigger stores
+the last sample before its first valid click; holding it fully in and releasing
+it cannot widen that limit. A trigger without an independent click uses its
+full measured travel. The review page displays raw input, normalized percentage
+and analog maximum, with minus/plus controls to adjust each maximum.
+
+Build: `.local/startup-review-notice-trigger-build-4.log`. Five focused
+input/profile tests pass in `.local/startup-review-notice-trigger-contracts.log`,
+including the real SDL provider's distinction between a physical click and an
+emulated trigger press. The capture test checks held-click travel, release and
+the full-travel fallback. The native notice walkthrough records its screenshot
+and three checks in `.local/startup-review-notice-trigger-final-ui/receipt.json`:
+an HTTP 409 error appears, holding B dismisses once, and a click over Continue
+does not pass through the notice. It uses an isolated localhost HTTP fixture
+and no existing account data. Physical pre-click capture and adjustment still
+need the user's controller test.
+
+The first-fighter carousel, camera portrait capture, tile placement, default
+roster shortcut and CSS control placement are still to implement. The intro
+remains a separate storyboard discussion after the playable flow.
 
 ## Screens and messages
 

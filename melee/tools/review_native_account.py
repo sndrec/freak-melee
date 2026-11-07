@@ -26,6 +26,17 @@ def main():
     endpoint = f'http://localhost:{args.port}'
     checks, screenshots = [], []
     client = None
+    def dismiss_notice():
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            if 'count=1' in client.inspect('hub-notice'):
+                time.sleep(.4)
+                screenshots.append(str(client.screenshot()))
+                client.command('ui-key', 'enter'); time.sleep(.25)
+                assert 'count=0' in client.inspect('hub-notice')
+                return
+            time.sleep(.1)
+        raise RuntimeError('Account failure notice did not appear')
     with (output / 'service.log').open('w') as log:
         service = subprocess.Popen(['node', str(service_root / 'node_modules/wrangler/bin/wrangler.js'),
             'dev', '--local', '--ip', '127.0.0.1', '--port', str(args.port),
@@ -55,6 +66,7 @@ def main():
             client.click('account-create-mode')
             client.enter('account-handle', 'native_key_test')
             client.click('account-submit')
+            dismiss_notice()
             client.element('account-submit')
             assert 'signed-in=0' in client.inspect('hub-account')
             screenshots.append(str(client.screenshot()))
@@ -69,6 +81,7 @@ def main():
             client.inspect('hub-fonts')
             assert 'RECOVERY_FIELD_MASK_TEST' not in client.stderr.read_text(errors='replace')
             client.click('account-submit')
+            dismiss_notice()
             client.element('account-submit')
             screenshots.append(str(client.screenshot()))
             checks.append('Recovery input is masked and excluded from font diagnostics; invalid codes are rejected')
