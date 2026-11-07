@@ -14,6 +14,7 @@
 #include <melee/lb/lbspdisplay.h>
 #include <melee/mn/types.h>
 #include <sysdolphin/baselib/cobj.h>
+#include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/random.h>
 
@@ -294,7 +295,8 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                             "editing disabled for this run.\n");
             editable = false;
         }
-        layout = defaults;
+        if (nativeMatchLaunch_RetailMenu()) layout = defaults;
+        else memset(&layout, 0, sizeof(layout));
     }
     saved_layout = layout;
     apply_layout();
@@ -325,6 +327,15 @@ void nativeCssOriginal_Tick(void)
         if (portrait_joints[i].masked) HSD_JObjSetFlags(joint, JOBJ_HIDDEN);
     }
     visibility_masked = true;
+}
+
+void nativeCssOriginal_Draw(HSD_GObj* object, int pass)
+{
+    // Cursor and animation procs both change visibility. Apply the layout at
+    // the render boundary after those procs, rather than depending on their
+    // order. The next animation pass restores each joint's authored flags.
+    if (pass == 0) nativeCssOriginal_Tick();
+    HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
 }
 
 void nativeCssOriginal_Exit(void)

@@ -14,7 +14,7 @@ namespace {
     void next(const char* label, bool enabled = true)
     {
         bool single = nativeHubStartup.step == NativeStartup_Welcome || nativeHubStartup.step == NativeStartup_Done;
-        nativeHub_Button("setup-next", label, single ? 220 : 314, 402, 200, 28, HubAction::StartupNext, 0, true, enabled);
+        nativeHub_Button("setup-next", label, single ? 412 : 314, single ? 370 : 391, single ? 190 : 220, 40, HubAction::StartupNext, 0, true, enabled);
     }
     void stick(float x, float y, unsigned first)
     {
@@ -26,8 +26,34 @@ namespace {
         nativeMenuPaint_Round(x, y, 102, 102, 51, 0x080910D8);
         nativeMenuPaint_Rect(x + 50, y + 4, 1, 94, 0x766E7FFF);
         nativeMenuPaint_Rect(x + 4, y + 50, 94, 1, 0x766E7FFF);
+        for (unsigned bin = 0; bin < 32; ++bin) {
+            unsigned next = (bin + 1) % 32;
+            const float* gate = s.capture.stick_gate[first / 2];
+            if (gate[bin] <= 0) continue;
+            float points[4];
+            const unsigned bins[] = { bin, next };
+            for (unsigned end = 0; end < 2; ++end) {
+                float angle = -3.14159265f + (bins[end] + .5f) * (6.2831853f / 32);
+                float gx = cosf(angle) * gate[bins[end]], gy = sinf(angle) * gate[bins[end]];
+                if (test) {
+                    gx = nativeControllerCalibration_Normalize(&s.profile.calibration, first, int(gx + s.profile.calibration.center[first]));
+                    gy = nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, int(gy + s.profile.calibration.center[first + 1]));
+                }
+                points[end * 2] = x + 51 + gx * 44 / 32767;
+                points[end * 2 + 1] = y + 51 - gy * 44 / 32767;
+            }
+            if (gate[next] > 0) nativeMenuPaint_Line(points[0], points[1], points[2], points[3], 1, 0xE5C361CC);
+            nativeMenuPaint_Round(points[0] - 1, points[1] - 1, 2, 2, 1, gold);
+        }
         nativeMenuPaint_Round(x + 47 + vx * 44 / 32767, y + 47 - vy * 44 / 32767, 8, 8, 4, gold);
         nativeMenuPaint_Text(first == 0 ? "Main stick" : "C-stick", x, y + 108, 102, 10, muted, NativeMenuFont_Notice, true);
+        if (test) {
+            char values[80];
+            std::snprintf(values, sizeof(values), "X %+.1f   Y %+.1f", vx * 80 / 32767, vy * 80 / 32767);
+            nativeMenuPaint_Text(values, x - 10, y + 124, 122, 9, gold, NativeMenuFont_Notice, true);
+            std::snprintf(values, sizeof(values), "Raw %d, %d", s.raw[first], s.raw[first + 1]);
+            nativeMenuPaint_Text(values, x - 10, y + 138, 122, 8, muted, NativeMenuFont_Notice, true);
+        }
         if (s.step == NativeStartup_Sticks) {
             char progress[64]; unsigned directions = 0;
             for (unsigned axis = first; axis < first + 2; ++axis) {
@@ -61,41 +87,38 @@ void nativeHubStartup_RenderFrame()
     const auto& s = nativeHubStartup;
     const unsigned group = s.step == NativeStartup_Welcome ? 0 : s.step <= NativeStartup_Account ? 1
         : s.step <= NativeStartup_Test ? 2 : 3;
-    nativeMenuPaint_Text("FIRST STARTUP", 204, 51, 232, 11, muted, NativeMenuFont_MenuOption, true);
+    const float header_x = s.step == NativeStartup_Welcome ? 410 : 40;
+    nativeMenuPaint_Text("FIRST STARTUP", header_x, 45, 190, 14, muted, NativeMenuFont_MenuOption, true);
     for (unsigned i = 0; i < 4; ++i)
-        nativeMenuPaint_Round(295 + i * 15, 74, 5, 5, 2.5f, i == group ? gold : 0x655E7AFF);
+        nativeMenuPaint_Round(header_x + 65 + i * 18, 73, 5, 5, 2.5f, i == group ? gold : 0x655E7AFF);
     if (s.step != NativeStartup_Welcome && s.step != NativeStartup_Done)
         nativeHub_Button("setup-back", "< Back", 124, 402, 90, 28, HubAction::StartupBack);
     if (s.step == NativeStartup_Account) {
-        line("Optional: keep friends, letters and invitations with an online account.", 98, 8, muted);
         const auto& account = nativeHubAccount_View();
         nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
-            314, 402, 200, 28, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
+            314, 391, 220, 40, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
     }
     if (s.step == NativeStartup_Clone && nativeHubStartup_HasFighter())
         nativeHub_Button("setup-next", "Use my roster", 314, 402, 200, 28, HubAction::StartupNext);
-    const char* status = s.error[0] ? s.error :
-        SDL_GetTicks() < hub.notice_until ? hub.notice : "A Choose   B Back";
-    line(status, 449, 9, s.error[0] ? 0xFFAE92FF : muted);
+    if (s.step != NativeStartup_Welcome) {
+        const char* status = s.error[0] ? s.error : SDL_GetTicks() < hub.notice_until ? hub.notice : "";
+        line(status, 449, 9, s.error[0] ? 0xFFAE92FF : muted);
+    }
 }
 void nativeHubStartup_Render()
 {
     const auto& s = nativeHubStartup;
     switch (s.step) {
     case NativeStartup_Welcome:
-        line("Welcome to Freak Melee", 138, 22, gold);
-        line("Set up your profile and controller.", 185);
-        line("Then pick a fighter to start your own roster.", 208);
-        line("Your fighter is yours to edit in the Workshop.", 244);
-        line("Use the hand to choose buttons. Type with your keyboard.", 285, 9, muted);
-        next("Let's get started");
+        nativeMenuPaint_Text("Freak Melee", 55, 160, 540, 62, gold, NativeMenuFont_MenuCaption, false);
+        next("Continue");
         break;
     case NativeStartup_Profile:
-        line("What should we call you?", 134, 18, gold);
-        line("Display name", 178, 10, muted, false);
-        nativeHub_Field("setup-name", hub.name, 124, 197, 390, 29, HubAction::FieldName);
-        line("Bio (optional)", 244, 10, muted, false);
-        nativeHub_Field("setup-bio", hub.bio, 124, 262, 390, 50, HubAction::FieldBio);
+        nativeMenuPaint_Text("Your profile", 55, 117, 500, 36, gold, NativeMenuFont_MenuCaption, false);
+        nativeMenuPaint_Text("Display name", 60, 208, 225, 16, muted, NativeMenuFont_MenuOption, false);
+        nativeHub_Field("setup-name", hub.name, 60, 235, 225, 38, HubAction::FieldName, false, "Player");
+        nativeMenuPaint_Text("Bio", 350, 253, 230, 19, muted, NativeMenuFont_MenuOption, false);
+        nativeHub_Field("setup-bio", hub.bio, 350, 285, 230, 78, HubAction::FieldBio);
         next("Continue", hub.name[0] && std::strspn(hub.name, " \t\r\n") != std::strlen(hub.name));
         break;
     case NativeStartup_Controller: {
@@ -109,7 +132,7 @@ void nativeHubStartup_Render()
             nativeHub_Button(id, label, 124, 199 + port * 32, 390, 26, HubAction::StartupPort, port, port == s.port);
         }
         nativeHub_Button("setup-skip-controller", "Set up later", 124, 369, 165, 28, HubAction::StartupSkipController);
-        next("Calibrate controller", PADGetIndexForPort(s.port) >= 0);
+        next("Select controller", PADGetIndexForPort(s.port) >= 0);
         break;
     }
     case NativeStartup_Rest:
@@ -142,8 +165,8 @@ void nativeHubStartup_Render()
     case NativeStartup_Test:
         line("Try your controller", 132, 18, gold);
         line("Small movements should be precise. Rest should be still.", 166, 10);
-        stick(167, 192, 0); stick(372, 192, 2);
-        triggers(323);
+        stick(167, 180, 0); stick(372, 180, 2);
+        triggers(340);
         nativeHub_Button("setup-retry", "Calibrate again", 124, 369, 165, 28, HubAction::StartupRetry);
         next("Save & continue");
         break;

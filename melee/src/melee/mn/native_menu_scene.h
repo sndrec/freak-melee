@@ -8,7 +8,7 @@ extern "C" {
 // before CSS/practice retires its scene heap.
 void nativeMenuScene_Load(void);
 void nativeMenuScene_Inspect(void);
-void nativeMenuScene_Tick(void);
+void nativeMenuScene_Tick(bool allow_input);
 bool nativeMenuScene_Begin(const char* caption, bool decorated);
 void nativeMenuScene_End(void);
 void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,

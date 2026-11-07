@@ -8,10 +8,12 @@ Startup uses the original animated tournament setup backdrop, selected by the
 user from [native scenery captures](native_menu_references.md). Each step has
 centered controls, compact progress markers and open space around it. The
 artwork is loaded from the ISO and retains its original animation loop.
+The [current revision list](native_first_startup_revision.md) tracks the user's
+latest feedback and the remaining carousel, portrait and placement work.
 
 ## The sequence
 
-1. Welcome explains the profile, controller and first-fighter steps.
+1. The opening screen shows Freak Melee, the startup indicator and Continue.
 2. Enter a display name and an optional bio.
 3. Create/import an online account, or choose **Continue as guest**. Guests can
    play online and use chat. Accounts keep friends, letters and invitations.
@@ -40,6 +42,10 @@ The profile stores a resting center and positive/negative travel for each
 stick axis, plus released/full trigger travel. It measures rest noise to choose
 small stick dead zones. Live meters show the input during capture; the test
 page shows the normalized result and applies it to hand movement.
+During measurements, stick motion updates only the input displays; hand
+movement and menu tilt are suppressed. The displays trace measured stick
+outlines and the review page includes scaled and raw axis values. Trigger
+maximums still use full travel while the agreed pre-click capture is built.
 
 Measured default and remapped axes share the same conversion. Full stick travel
 maps to Melee's 80-unit input and full analog trigger travel to 140. The game

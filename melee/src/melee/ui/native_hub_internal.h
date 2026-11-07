@@ -139,7 +139,8 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
                       const char* peer = nullptr, const char* name = nullptr,
                       const char* account = nullptr);
 void nativeHub_Field(const char* id, const char* value, float x, float y,
-                     float w, float h, HubAction action, bool secret = false);
+                     float w, float h, HubAction action, bool secret = false,
+                     const char* placeholder = nullptr);
 unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,
     float size, uint32_t color, unsigned first_line = 0);
 unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, float width);

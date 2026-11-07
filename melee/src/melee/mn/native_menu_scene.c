@@ -289,8 +289,9 @@ void nativeMenuScene_Start(bool backwards)
     scene.playing = true;
 }
 
-void nativeMenuScene_Tick(void)
+void nativeMenuScene_Tick(bool allow_input)
 {
+    scene.camera_data.input_disabled = !allow_input;
     if (scene.camera) mnCamera_Tick(scene.camera);
 }
 

@@ -17,6 +17,7 @@ void nativeMenuPaint_Gradient(float x, float y, float w, float h,
 void nativeMenuPaint_Round(float x, float y, float w, float h, float radius,
                            uint32_t color);
 void nativeMenuPaint_Quad(const float xy[8], uint32_t color);
+void nativeMenuPaint_Line(float x0, float y0, float x1, float y1, float width, uint32_t color);
 #ifdef __cplusplus
 void nativeMenuPaint_Text(const char* text, float x, float y, float w, float h,
                           uint32_t color = 0xEEE9EDFF,

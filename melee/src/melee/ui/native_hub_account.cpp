@@ -111,9 +111,17 @@ void nativeHubAccount_Render()
 {
     const float x = nativeHubStartup.active ? -70 : 0;
     if (!nativeHubStartup.active) nativeHub_Panel(175, 116, 430, 286);
-    nativeMenuPaint_Text(account.signed_in ? account.name : "Your online account", x + 194, 133, 370, 17, gold, NativeMenuFont_MenuOption);
+    nativeMenuPaint_Text(account.signed_in ? account.name : nativeHubStartup.active ? "Online account" : "Your online account",
+        nativeHubStartup.active ? 65 : 194, nativeHubStartup.active ? 111 : 133,
+        nativeHubStartup.active ? 510 : 370, nativeHubStartup.active ? 33 : 17, gold,
+        nativeHubStartup.active ? NativeMenuFont_MenuCaption : NativeMenuFont_MenuOption);
     char handle[64]; std::snprintf(handle, sizeof(handle), "@%s", account.handle);
-    nativeMenuPaint_Text(account.signed_in ? handle : "Your account key signs you in automatically on this PC.", x + 194, 155, 370, 9, muted);
+    if (!nativeHubStartup.active || account.signed_in)
+        nativeMenuPaint_Text(account.signed_in ? handle : "Your account key signs you in automatically on this PC.", x + 194, 155, 370, 9, muted);
+    if (nativeHubStartup.active && account.signed_in && !account.recovery_pending && !account.busy) {
+        nativeMenuPaint_Text("Signed in", 344, 285, 200, 20, gold, NativeMenuFont_MenuCaption);
+        return;
+    }
     if (account.busy) {
         nativeMenuPaint_Text("Contacting the account service...", x + 194, 196, 370, 11, muted);
         if (account.cancellable) nativeHub_Button("account-cancel", "Cancel", x + 194, 236, 170, 31, HubAction::AccountCancel);
@@ -136,9 +144,10 @@ void nativeHubAccount_Render()
         nativeHub_Button("account-confirm", "Confirm", x + 194, 280, 187, 32, HubAction::AccountConfirm, 1, true);
         nativeHub_Button("account-keep", "Cancel", x + 395, 280, 189, 32, HubAction::AccountConfirm, 0);
     } else if (!account.signed_in) {
-        nativeHub_Button("account-login-mode", "Sign in", x + 194, 179, 120, 26, HubAction::AccountMode, 0, mode == 0);
-        nativeHub_Button("account-create-mode", "Create account", x + 322, 179, 135, 26, HubAction::AccountMode, 1, mode == 1);
-        nativeHub_Button("account-recover-mode", "Recover", x + 465, 179, 119, 26, HubAction::AccountMode, 2, mode == 2);
+        float tab_height = nativeHubStartup.active ? 36 : 26;
+        nativeHub_Button("account-login-mode", "Sign in", x + 194, 179, 120, tab_height, HubAction::AccountMode, 0, mode == 0);
+        nativeHub_Button("account-create-mode", "Create account", x + 322, 179, 135, tab_height, HubAction::AccountMode, 1, mode == 1);
+        nativeHub_Button("account-recover-mode", "Recover", x + 465, 179, 119, tab_height, HubAction::AccountMode, 2, mode == 2);
         if (mode == 0) {
             char saved[80]; std::snprintf(saved, sizeof(saved), "Saved account: @%s", account.handle);
             nativeMenuPaint_Text(account.has_key ? saved : "Have an account on another PC?", x + 194, 226, 370, 12, gold);

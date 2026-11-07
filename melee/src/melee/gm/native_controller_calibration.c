@@ -1,6 +1,7 @@
 #include "native_controller_calibration.h"
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 void nativeControllerCalibration_Reset(NativeControllerCalibration* capture)
 {
@@ -22,6 +23,16 @@ void nativeControllerCalibration_Sample(NativeControllerCalibration* capture,
         }
     }
     if (resting) ++capture->samples;
+    else if (capture->samples) {
+        for (unsigned stick = 0; stick < 2; ++stick) {
+            unsigned axis = stick * 2;
+            float x = raw[axis] - ((int)capture->rest_low[axis] + capture->rest_high[axis]) * .5f;
+            float y = raw[axis + 1] - ((int)capture->rest_low[axis + 1] + capture->rest_high[axis + 1]) * .5f;
+            unsigned bin = (unsigned)((atan2f(y, x) + 3.14159265f) * (32.f / 6.2831853f)) % 32;
+            float distance = sqrtf(x*x + y*y);
+            if (distance > capture->stick_gate[stick][bin]) capture->stick_gate[stick][bin] = distance;
+        }
+    }
 }
 bool nativeControllerCalibration_Finish(const NativeControllerCalibration* capture,
                                          NativeProfileCalibration* result)

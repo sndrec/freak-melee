@@ -4,6 +4,7 @@
 typedef struct NativeControllerCalibration {
     int16_t low[6], high[6], rest_low[6], rest_high[6];
     unsigned samples;
+    float stick_gate[2][32];
 } NativeControllerCalibration;
 
 #ifdef __cplusplus

@@ -417,7 +417,7 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
 {
     bool hover = nativeHub_Hover(x, y, w, h) && enabled;
     bool active = enabled && (selected || hover);
-    nativeMenuSkin_Button(label, x, y, w, h, std::min(13.0f, h * .4f), active, enabled);
+    nativeMenuSkin_Button(label, x, y, w, h, std::min(nativeHubStartup.active ? 20.0f : 13.0f, h * .4f), active, enabled);
     nativeHub_Region(id, x, y, w, h, action, value, enabled, peer, name, account);
 }
 void nativeHub_ChangePage(NativeHubPage page, bool backwards)
@@ -1103,7 +1103,9 @@ extern "C" void nativeHub_Tick(void)
     if (!hub.visible) {
         return;
     }
-    nativeMenuScene_Tick();
+    const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
+                           nativeHubStartup.step <= NativeStartup_Triggers;
+    nativeMenuScene_Tick(!measuring);
     if (pointer_mouse && !nativeMenuScene_Unproject(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
         hub.pointer_x = hub.pointer_y = -100;
     // The hub consumes the same already-normalized sample as original menus.
@@ -1119,7 +1121,7 @@ extern "C" void nativeHub_Tick(void)
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
-        if (magnitude >= 200) {
+        if (!measuring && magnitude >= 200) {
             pointer_mouse = false;
             float scale = (magnitude - 200) / std::sqrt(magnitude) * .0016f;
             hub.pointer_x =

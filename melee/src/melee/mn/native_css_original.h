@@ -17,6 +17,7 @@ void nativeCssOriginal_RestoreBounds(CSSIcon* icons);
 void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
                              HSD_CObj* camera);
 void nativeCssOriginal_Tick(void);
+void nativeCssOriginal_Draw(HSD_GObj* object, int pass);
 void nativeCssOriginal_BeginAnimation(void);
 void nativeCssOriginal_HidePlayerCards(bool hidden);
 void nativeCssOriginal_Exit(void);

@@ -109,7 +109,10 @@ void nativeHubStartup_Initialize(bool has_profile)
         }
         return;
     }
-    if (!has_profile && !nativeHubFighterCount) nativeHubStartup_Begin();
+    if (!has_profile && !nativeHubFighterCount) {
+        hub.name[0] = hub.bio[0] = 0;
+        nativeHubStartup_Begin();
+    }
 }
 void nativeHubStartup_Begin()
 {
