@@ -365,7 +365,7 @@ static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index)
     return result;
 }
 
-bool nativeMenuScene_Begin(const char* caption)
+bool nativeMenuScene_Begin(const char* caption, bool decorated)
 {
     if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return false;
     scene.previous_camera = HSD_CObjGetCurrent();
@@ -377,6 +377,7 @@ bool nativeMenuScene_Begin(const char* caption)
     HSD_LObjSetupInit(camera);
     HSD_CObjEraseScreen(camera, 1, 1, 1);
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
+    if (!decorated) return true;
     const Uint64 tick = SDL_GetTicksNS() / 16666667;
     if (tick != scene.animated_tick) {
         HSD_JObjAnimAll(scene.backdrop[0]->hsd_obj);

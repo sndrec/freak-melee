@@ -1,4 +1,4 @@
-#include "native_menu_reference.h"
+#include "native_menu_scenery.h"
 #include "native_menu_paint.h"
 #include <melee/lb/lbfile.h>
 #include <sysdolphin/baselib/dat_import.h>
@@ -8,6 +8,7 @@
 #include <sysdolphin/baselib/gobjplink.h>
 #include <sysdolphin/baselib/gobjuserdata.h>
 #include <sysdolphin/baselib/memory.h>
+#include <SDL3/SDL_timer.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -25,6 +26,8 @@ static struct {
     HSD_Fog* fog;
     unsigned live, object_count, light_count, model_count;
     bool active;
+    Uint64 started;
+    unsigned loop_frames;
 } reference;
 
 static void forget(void* slot)
@@ -39,7 +42,7 @@ static void forget(void* slot)
     memset(&reference, 0, sizeof(reference));
 }
 
-void nativeMenuReference_Unload(void)
+void nativeMenuScenery_Unload(void)
 {
     // The same callbacks handle ordinary scene teardown.
     unsigned count = reference.object_count;
@@ -150,9 +153,9 @@ static void load(const char* filename)
         reference.arena, IMPORT_BYTES, 8192) == HSD_DAT_OK);
 }
 
-void nativeMenuReference_Select(const char* preset)
+void nativeMenuScenery_Load(const char* preset)
 {
-    nativeMenuReference_Unload();
+    nativeMenuScenery_Unload();
     if (!strcmp(preset, "off")) return;
     if (!strncmp(preset, "gallery-image-", 14)) {
         unsigned i = preset[14] - '0';
@@ -199,12 +202,14 @@ void nativeMenuReference_Select(const char* preset)
         fprintf(stderr, "[menu-reference] Unknown preset %s\n", preset);
         return;
     }
+    reference.started = SDL_GetTicksNS();
+    reference.loop_frames = !strcmp(preset, "tournament-background") ? 801 : 0;
     reference.active = true;
     fprintf(stderr, "[hub-inspect] menu-reference %s models=%u lights=%u records=%lu\n",
         preset, reference.model_count, reference.light_count, reference.import.record_count);
 }
 
-bool nativeMenuReference_Draw(void)
+bool nativeMenuScenery_Draw(void)
 {
     if (!reference.active) return false;
     HSD_CObj* previous = HSD_CObjGetCurrent();
@@ -219,6 +224,9 @@ bool nativeMenuReference_Draw(void)
         Mtx view;
         HSD_CObjGetViewingMtx(reference.camera, view);
         for (unsigned i = 0; i < reference.model_count; ++i) {
+            // The retail tournament callback explicitly requests frames 0..800.
+            if (reference.loop_frames) HSD_JObjReqAnimAll(reference.models[i],
+                (SDL_GetTicksNS() - reference.started) / 16666667 % reference.loop_frames);
             HSD_JObjAnimAll(reference.models[i]);
             HSD_JObjDispAll(reference.models[i], view, HSD_TRSP_ALL, 0);
         }

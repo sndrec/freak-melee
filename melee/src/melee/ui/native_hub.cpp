@@ -21,7 +21,7 @@
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_menu_scene.h>
-#include <melee/mn/native_menu_reference.h>
+#include <melee/mn/native_menu_scenery.h>
 #include <melee/mn/native_menu_skin.h>
 #include <dolphin/gx.h>
 extern "C" {
@@ -59,6 +59,7 @@ namespace {
     bool hand_cursor_hidden;
     bool mouse_pressed;
     bool pointer_mouse;
+    bool scenery_preview;
     float mouse_u = -1, mouse_v = -1;
 
     void update_pointer_cursor()
@@ -594,7 +595,7 @@ void nativeHub_Activate(HubAction action, int value)
                 static_cast<FighterKind>(hub.template_kind), hub.title, path))
         {
             reload_catalog();
-            nativeHub_ChangePage(NativeHubPage_Workshop);
+            if (!nativeHubStartup.active) nativeHub_ChangePage(NativeHubPage_Workshop);
             for (unsigned i = 0; i < nativeHubFighterCount; ++i) {
                 if (!std::strcmp(path, nativeHubFighters[i].draft)) {
                     hub.selected = int(i);
@@ -1147,7 +1148,7 @@ extern "C" void nativeHub_Tick(void)
 }
 extern "C" void nativeHub_Draw(void)
 {
-    if (nativeMenuReference_Draw()) { hub.region_count = 0; return; }
+    if (scenery_preview && nativeMenuScenery_Draw()) { hub.region_count = 0; return; }
     if (!hub.visible) {
         nativePlayMenu_DrawPractice();
         return;
@@ -1160,7 +1161,8 @@ extern "C" void nativeHub_Draw(void)
     const char* caption = nativeHubStartup.active ? "First startup" : hub.page == NativeHubPage_Profile
         ? (hub.profile_self ? hub.name : hub.viewed_name)
         : page_names[unsigned(hub.page)];
-    if (!nativeMenuScene_Begin(caption)) return;
+    if (!nativeMenuScene_Begin(caption, !nativeHubStartup.active)) return;
+    if (nativeHubStartup.active) nativeMenuScenery_Draw();
     Mtx canvas; Mtx44 projection;
     nativeMenuScene_View(false, false, canvas, projection);
     GXSetProjection(projection, GX_PERSPECTIVE);
@@ -1171,7 +1173,6 @@ extern "C" void nativeHub_Draw(void)
     if (!nativeHubStartup.active && (hub.opened_from_play || nativeHome_IsPractice()))
         nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
                          352, 21, 132, 19, HubAction::Close);
-    if (nativeHubStartup.active) nativeHubStartup_RenderSteps();
     for (unsigned i = 0; !nativeHubStartup.active && i < 7; ++i) {
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
@@ -1202,16 +1203,16 @@ extern "C" void nativeHub_Draw(void)
         hub.passive_page = false;
         nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
-    nativeHub_Panel(38, 408, 565, 32);
-    const char* hint = nativeHubStartup.active && nativeHubStartup.error[0] ? nativeHubStartup.error :
-        SDL_GetTicks() < hub.notice_until ? hub.notice : nativeHubStartup.active ? "Set up your profile, controller and first fighter."
-                       : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
-                       : unsigned(hub.page) < 7
-                           ? descriptions[unsigned(hub.page)]
-                           : "";
-    nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
-    nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
-                        NativeMenuFont_Notice, true);
+    if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
+    else {
+        nativeHub_Panel(38, 408, 565, 32);
+        const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
+            : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
+            : unsigned(hub.page) < 7 ? descriptions[unsigned(hub.page)] : "";
+        nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
+        nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
+                            NativeMenuFont_Notice, true);
+    }
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
     nativeMenuPaint_Begin(canvas);
     nativePlayMenu_DrawCountdown();
@@ -1429,7 +1430,11 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
-    if (!std::strncmp(id, "menu-reference:", 15)) { nativeMenuReference_Select(id + 15); return; }
+    if (!std::strncmp(id, "menu-reference:", 15)) {
+        scenery_preview = std::strcmp(id + 15, "off") != 0;
+        nativeMenuScenery_Load(id + 15);
+        return;
+    }
     if (!std::strcmp(id, "startup")) { nativeHubStartup_Inspect(); return; }
     if (!std::strcmp(id, "hub-input")) {
         std::fprintf(stderr, "[hub-inspect] hub-input page=%u visible=%d listed=%d players=%d field=%d back-frames=%u\n",

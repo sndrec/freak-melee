@@ -172,8 +172,13 @@ namespace {
     }
     void clone_page()
     {
-        description("Your copy owns its moves, scripts, animations and model.");
-        nativeHub_Panel(175, 115, 430, 228);
+        const float offset = nativeHubStartup.active ? -70 : 0;
+        if (nativeHubStartup.active)
+            nativeMenuPaint_Text("Choose your first fighter", 105, 98, 430, 18, gold, NativeMenuFont_MenuOption, true);
+        else {
+            description("Your copy owns its moves, scripts, animations and model.");
+            nativeHub_Panel(175, 115, 430, 228);
+        }
         unsigned number = 0;
         for (int k = Ft_Kind_Mario; k < Ft_Kind_StockCount; ++k) {
             auto kind = static_cast<FighterKind>(k);
@@ -184,16 +189,16 @@ namespace {
             {
                 continue;
             }
-            float x = 186 + (number % 3) * 137, y = 126 + (number / 3) * 24;
+            float x = offset + 186 + (number % 3) * 137, y = 126 + (number / 3) * 24;
             nativeHub_Button("template", name, x, y, 128, 20,
                              HubAction::StockTemplate, k,
                              k == hub.template_kind);
             ++number;
         }
-        nativeMenuPaint_Text("Name your fighter", 180, 355, 200, 9, muted);
-        nativeHub_Field("clone-name", hub.title, 175, 372, 266, 26,
+        nativeMenuPaint_Text("Name your fighter", offset + 180, 355, 200, 9, muted);
+        nativeHub_Field("clone-name", hub.title, offset + 175, 372, 266, 26,
                         HubAction::FieldTitle);
-        nativeHub_Button("create-clone", "Clone fighter", 452, 372, 153, 26,
+        nativeHub_Button("create-clone", "Clone fighter", offset + 452, 372, 153, 26,
                          HubAction::CreateClone, 0, true, *hub.title);
     }
     void quick_play()

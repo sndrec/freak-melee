@@ -9,17 +9,21 @@
 
 namespace {
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
-    void line(const char* text, float y, float size = 11, uint32_t color = 0xEEE9EDFF)
-    { nativeMenuPaint_Text(text, 194, y, 390, size, color); }
+    void line(const char* text, float y, float size = 11, uint32_t color = 0xEEE9EDFF, bool centered = true)
+    { nativeMenuPaint_Text(text, 124, y, 390, size, color, NativeMenuFont_Notice, centered); }
     void next(const char* label, bool enabled = true)
-    { nativeHub_Button("setup-next", label, 384, 369, 200, 28, HubAction::StartupNext, 0, true, enabled); }
+    {
+        bool single = nativeHubStartup.step == NativeStartup_Welcome || nativeHubStartup.step == NativeStartup_Done;
+        nativeHub_Button("setup-next", label, single ? 220 : 314, 402, 200, 28, HubAction::StartupNext, 0, true, enabled);
+    }
     void stick(float x, float y, unsigned first)
     {
         const auto& s = nativeHubStartup;
         bool test = s.step == NativeStartup_Test;
         float vx = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first, s.raw[first]) : s.raw[first];
         float vy = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, s.raw[first + 1]) : s.raw[first + 1];
-        nativeMenuPaint_Round(x, y, 102, 102, 8, 0x080910FF);
+        nativeMenuPaint_Round(x - 1, y - 1, 104, 104, 52, 0x9A90AE66);
+        nativeMenuPaint_Round(x, y, 102, 102, 51, 0x080910D8);
         nativeMenuPaint_Rect(x + 50, y + 4, 1, 94, 0x766E7FFF);
         nativeMenuPaint_Rect(x + 4, y + 50, 94, 1, 0x766E7FFF);
         nativeMenuPaint_Round(x + 47 + vx * 44 / 32767, y + 47 - vy * 44 / 32767, 8, 8, 4, gold);
@@ -39,7 +43,7 @@ namespace {
     {
         const auto& s = nativeHubStartup;
         for (unsigned i = 0; i < 2; ++i) {
-            float x = 207 + i * 197;
+            float x = 137 + i * 197;
             int value = s.step == NativeStartup_Test
                 ? nativeControllerCalibration_Normalize(&s.profile.calibration, 4 + i, s.raw[4 + i]) : s.raw[4 + i];
             nativeMenuPaint_Text(i ? "R" : "L", x, y, 20, 11, gold);
@@ -52,32 +56,31 @@ namespace {
         }
     }
 }
-void nativeHubStartup_RenderSteps()
+void nativeHubStartup_RenderFrame()
 {
     const auto& s = nativeHubStartup;
     const unsigned group = s.step == NativeStartup_Welcome ? 0 : s.step <= NativeStartup_Account ? 1
         : s.step <= NativeStartup_Test ? 2 : 3;
-    const char* names[] = { "Welcome", "Your profile", "Controller", "First fighter" };
-    for (unsigned i = 0; i < 4; ++i) {
-        char label[40]; std::snprintf(label, sizeof(label), "%u  %s", i + 1, names[i]);
-        nativeMenuPaint_Text(label, 34, 112 + i * 43, 124, 11, i == group ? gold : muted, NativeMenuFont_MenuOption);
-    }
-    if (s.step != NativeStartup_Welcome)
-        nativeHub_Button("setup-back", "< Back", 35, 313, 123, 28, HubAction::StartupBack);
+    nativeMenuPaint_Text("FIRST STARTUP", 204, 51, 232, 11, muted, NativeMenuFont_MenuOption, true);
+    for (unsigned i = 0; i < 4; ++i)
+        nativeMenuPaint_Round(295 + i * 15, 74, 5, 5, 2.5f, i == group ? gold : 0x655E7AFF);
+    if (s.step != NativeStartup_Welcome && s.step != NativeStartup_Done)
+        nativeHub_Button("setup-back", "< Back", 124, 402, 90, 28, HubAction::StartupBack);
     if (s.step == NativeStartup_Account) {
-        nativeMenuPaint_Text("Optional: keep friends, letters and invitations with an online account.",
-            175, 94, 430, 8, muted);
+        line("Optional: keep friends, letters and invitations with an online account.", 98, 8, muted);
         const auto& account = nativeHubAccount_View();
         nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
-            35, 355, 123, 33, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
+            314, 402, 200, 28, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
     }
     if (s.step == NativeStartup_Clone && nativeHubStartup_HasFighter())
-        nativeHub_Button("setup-next", "Use my roster", 35, 355, 123, 33, HubAction::StartupNext);
+        nativeHub_Button("setup-next", "Use my roster", 314, 402, 200, 28, HubAction::StartupNext);
+    const char* status = s.error[0] ? s.error :
+        SDL_GetTicks() < hub.notice_until ? hub.notice : "A Choose   B Back";
+    line(status, 449, 9, s.error[0] ? 0xFFAE92FF : muted);
 }
 void nativeHubStartup_Render()
 {
     const auto& s = nativeHubStartup;
-    nativeHub_Panel(175, 112, 430, 290);
     switch (s.step) {
     case NativeStartup_Welcome:
         line("Welcome to Freak Melee", 138, 22, gold);
@@ -89,10 +92,10 @@ void nativeHubStartup_Render()
         break;
     case NativeStartup_Profile:
         line("What should we call you?", 134, 18, gold);
-        line("Display name", 178, 10, muted);
-        nativeHub_Field("setup-name", hub.name, 194, 197, 390, 29, HubAction::FieldName);
-        line("Bio (optional)", 244, 10, muted);
-        nativeHub_Field("setup-bio", hub.bio, 194, 262, 390, 50, HubAction::FieldBio);
+        line("Display name", 178, 10, muted, false);
+        nativeHub_Field("setup-name", hub.name, 124, 197, 390, 29, HubAction::FieldName);
+        line("Bio (optional)", 244, 10, muted, false);
+        nativeHub_Field("setup-bio", hub.bio, 124, 262, 390, 50, HubAction::FieldBio);
         next("Continue", hub.name[0] && std::strspn(hub.name, " \t\r\n") != std::strlen(hub.name));
         break;
     case NativeStartup_Controller: {
@@ -103,23 +106,23 @@ void nativeHubStartup_Render()
             const bool connected = PADGetIndexForPort(port) >= 0;
             std::snprintf(id, sizeof(id), "setup-port-%u", port);
             std::snprintf(label, sizeof(label), "%u  %s", port + 1, connected ? PADGetName(port) : "No controller");
-            nativeHub_Button(id, label, 194, 199 + port * 32, 390, 26, HubAction::StartupPort, port, port == s.port);
+            nativeHub_Button(id, label, 124, 199 + port * 32, 390, 26, HubAction::StartupPort, port, port == s.port);
         }
-        nativeHub_Button("setup-skip-controller", "Set up later", 194, 369, 165, 28, HubAction::StartupSkipController);
+        nativeHub_Button("setup-skip-controller", "Set up later", 124, 369, 165, 28, HubAction::StartupSkipController);
         next("Calibrate controller", PADGetIndexForPort(s.port) >= 0);
         break;
     }
     case NativeStartup_Rest:
         line("Let go of the sticks and triggers", 134, 17, gold);
         line("Keep the controller still for a moment.", 171, 10);
-        stick(225, 204, 0); stick(430, 204, 2);
+        stick(167, 204, 0); stick(372, 204, 2);
         line(s.capture.samples >= 60 ? "Center captured. Continue when ready." : "Measuring the resting position...", 346, 10);
         next("Continue", PADGetIndexForPort(s.port) >= 0 && s.capture.samples >= 60 && SDL_GetTicks() - s.started_at >= 1000);
         break;
     case NativeStartup_Sticks: {
         line("Move both sticks around their edges", 134, 17, gold);
         line("Visit up, down, left and right on each stick.", 171, 10);
-        stick(225, 202, 0); stick(430, 202, 2);
+        stick(167, 202, 0); stick(372, 202, 2);
         bool complete = true;
         for (unsigned axis = 0; axis < 4; ++axis) {
             int center = (int(s.capture.rest_low[axis]) + s.capture.rest_high[axis]) / 2;
@@ -133,15 +136,15 @@ void nativeHubStartup_Render()
         line("Release each trigger after pressing it.", 177, 10);
         triggers(237);
         line("Both trigger meters should fill as you press.", 300, 10, muted);
-        nativeHub_Button("setup-retry", "Start over", 194, 369, 165, 28, HubAction::StartupRetry);
+        nativeHub_Button("setup-retry", "Start over", 124, 369, 165, 28, HubAction::StartupRetry);
         next("Try calibration", s.capture.high[4] - s.capture.rest_high[4] >= 8192 && s.capture.high[5] - s.capture.rest_high[5] >= 8192);
         break;
     case NativeStartup_Test:
         line("Try your controller", 132, 18, gold);
         line("Small movements should be precise. Rest should be still.", 166, 10);
-        stick(225, 192, 0); stick(430, 192, 2);
+        stick(167, 192, 0); stick(372, 192, 2);
         triggers(323);
-        nativeHub_Button("setup-retry", "Calibrate again", 194, 369, 165, 28, HubAction::StartupRetry);
+        nativeHub_Button("setup-retry", "Calibrate again", 124, 369, 165, 28, HubAction::StartupRetry);
         next("Save & continue");
         break;
     case NativeStartup_Done:
@@ -153,5 +156,4 @@ void nativeHubStartup_Render()
         break;
     default: break;
     }
-    if (s.error[0]) nativeMenuPaint_Text(s.error, 194, 349, 390, 9, 0xFFAE92FF);
 }

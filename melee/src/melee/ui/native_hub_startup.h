@@ -26,5 +26,5 @@ bool nativeHubStartup_Activate(HubAction action, int value);
 void nativeHubStartup_Cloned();
 bool nativeHubStartup_HasFighter();
 void nativeHubStartup_Render();
-void nativeHubStartup_RenderSteps();
+void nativeHubStartup_RenderFrame();
 void nativeHubStartup_Inspect();

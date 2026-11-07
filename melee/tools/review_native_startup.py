@@ -48,6 +48,8 @@ def main():
         assert (client.data / 'content/hub-profile.txt').read_text().splitlines()[:2] == ['Startup review', 'A new player.']
         checks.append('Restart resumes controller setup and keeps the saved profile info')
         client.click('setup-skip-controller'); startup(8)
+        client.click('setup-back'); startup(3)
+        client.click('setup-skip-controller'); startup(8)
         client.element('create-clone'); screens.append(str(client.screenshot()))
         client.enter('clone-name', 'First Mario'); client.click('create-clone')
         startup(9, timeout=120); screens.append(str(client.screenshot()))
