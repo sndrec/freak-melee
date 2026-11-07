@@ -1584,6 +1584,7 @@ HSD_GObj* mn_8022BE34(void)
     gobj->gxlink_prios = 0x7F;
     MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
     camera_data->rest = MenMain_cam;
+    camera_data->input_disabled = false;
     GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
     HSD_GObj_SetupProc(gobj, mnCamera_Tick, 0);
     return gobj;
@@ -1602,6 +1603,7 @@ static inline HSD_GObj* mn_8022BE34_OnEnter(Vec3* pos)
     gobj->gxlink_prios = 0x7F;
     MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
     camera_data->rest = MenMain_cam;
+    camera_data->input_disabled = false;
     GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
     HSD_GObj_SetupProc(gobj, mnCamera_Tick, 0);
     return gobj;
@@ -1621,6 +1623,7 @@ void mn_8022BEDC(HSD_GObj* gobj)
     temp_r3->gxlink_prios = 0x80;
     MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
     camera_data->rest = MenMain_cam;
+    camera_data->input_disabled = false;
     GObj_InitUserData(temp_r3, 0, HSD_Free, camera_data);
     HSD_GObj_SetupProc(temp_r3, mnCamera_Tick, 0);
     mn_804D6BB4 = HSD_SisLib_803A611C(0, temp_r3, 7, 8, 0x80, 7, 0x80, 0);

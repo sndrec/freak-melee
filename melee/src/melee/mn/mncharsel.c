@@ -1955,7 +1955,6 @@ void fn_8025F0E0(HSD_GObj* gobj)
     HSD_JObjAnimAll(jobj);
 #ifdef MELEE_NATIVE
     nativeCssCards_Update();
-    nativeCssOriginal_Tick();
 #endif
     PAD_STACK(28);
 }
@@ -4372,6 +4371,7 @@ s32 mnCharSel_802640A0(void)
     gobj->gxlink_prios = 0x1F;
     MnCamera* camera_data = HSD_MemAlloc(sizeof(*camera_data));
     camera_data->rest = css_data_table->cam;
+    camera_data->input_disabled = false;
     GObj_InitUserData(gobj, 0, HSD_Free, camera_data);
     HSD_GObj_SetupProc(gobj, mnCamera_Tick, 5);
     ctx = HSD_SisLib_803A611C(0, gobj, 7, 8, 0x80, 1, 0x80, 0);
@@ -4421,7 +4421,11 @@ s32 mnCharSel_802640A0(void)
         HSD_GObjObject_80390A70(mnCharSel_804D6CBC, obj_kind,
                                 mnCharSel_804D6CC0);
     }
+#ifdef MELEE_NATIVE
+    GObj_SetupGXLink(mnCharSel_804D6CBC, nativeCssOriginal_Draw, 1, 0x80);
+#else
     GObj_SetupGXLink(mnCharSel_804D6CBC, HSD_GObj_JObjCallback, 1, 0x80);
+#endif
     HSD_GObj_SetupProc(mnCharSel_804D6CBC, fn_8025F0E0, 4);
     HSD_JObjReqAnimAll(mnCharSel_804D6CC0, 0.0f);
     HSD_JObjAnimAll(mnCharSel_804D6CC0);

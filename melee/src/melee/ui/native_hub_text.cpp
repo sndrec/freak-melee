@@ -75,7 +75,7 @@ unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, f
     return end;
 }
 void nativeHub_Field(const char* id, const char* value, float x, float y,
-    float w, float h, HubAction action, bool secret)
+    float w, float h, HubAction action, bool secret, const char* placeholder)
 {
     const bool focused = hub.field == value, multiline = h >= 40;
     char masked[2049];
@@ -99,7 +99,7 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
         first_line = caret_line >= visible ? caret_line - visible + 1 : 0;
         nativeHub_TextBlock(value, x + 7, y + 7, w - 14, h - 14, 10, 0xF2ECEDFF, first_line);
     } else {
-        nativeMenuPaint_Text(*value ? value : (action == HubAction::FieldChat || action == HubAction::FieldRoomChat) ? "Write a message..." :
+        nativeMenuPaint_Text(*value ? value : placeholder ? (focused ? "" : placeholder) : (action == HubAction::FieldChat || action == HubAction::FieldRoomChat) ? "Write a message..." :
             action == HubAction::FieldCode ? "Lobby code" : "", x + 7, y + 7, w - 14, 10, *value ? 0xF2ECEDFF : 0x81778EFF);
         caret_end = hub.caret;
     }

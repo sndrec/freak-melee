@@ -85,6 +85,15 @@ void nativeMenuPaint_Rect(float x, float y, float w, float h, uint32_t rgba)
     float xy[] = { x, y, x + w, y, x + w, y + h, x, y + h };
     nativeMenuPaint_Quad(xy, rgba);
 }
+void nativeMenuPaint_Line(float x0, float y0, float x1, float y1, float width, uint32_t rgba)
+{
+    float dx = x1 - x0, dy = y1 - y0;
+    float length = sqrtf(dx*dx + dy*dy);
+    if (length < .0001f || width <= 0) return;
+    float nx = -dy * width * .5f / length, ny = dx * width * .5f / length;
+    float xy[] = { x0+nx, y0+ny, x1+nx, y1+ny, x1-nx, y1-ny, x0-nx, y0-ny };
+    nativeMenuPaint_Quad(xy, rgba);
+}
 void nativeMenuPaint_Gradient(float x, float y, float w, float h,
                               uint32_t top, uint32_t bottom)
 {

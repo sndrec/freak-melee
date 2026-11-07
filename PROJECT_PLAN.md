@@ -16,8 +16,12 @@ their own builds; their old "remaining" lists are not the current backlog.
   The user chose the original animated tournament setup backdrop after comparing
   [native scenery captures](melee/docs/native_menu_references.md). Startup uses
   centered controls and open space, aiming for the quiet feel of Smash 64's menus.
-  The native walkthrough passes and the revised screens have been inspected;
-  the next step is the user's visual/usability and physical calibration pass.
+  The user completed a first pass. Implement the [startup revision list](melee/docs/native_first_startup_revision.md):
+  simpler and more varied pages, account notices, measured controller feedback,
+  pre-click trigger limits, a 3D starter carousel, portrait capture and direct
+  CSS placement. The default-roster shortcut creates editable clones, excluding
+  Kirby for now. Build the playable flow first; storyboard the intro together
+  afterwards. Pause again when the revision is ready for the user's test.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

@@ -11,7 +11,7 @@ void mnCamera_Tick(HSD_GObj* object)
     HSD_CObj* camera = object->hsd_obj;
     const MnCamera* data = object->user_data;
     float x = 0, y = 0, pitch = 0, yaw = 0;
-    for (unsigned port = 0; port < 4; ++port) {
+    for (unsigned port = 0; !data->input_disabled && port < 4; ++port) {
         x = HSD_PadCopyStatus[port].nml_subStickX;
         y = HSD_PadCopyStatus[port].nml_subStickY;
         if (!(x > -.4f && x < .4f && y > -.4f && y < .4f)) break;
