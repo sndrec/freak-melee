@@ -9,7 +9,7 @@ extern "C" {
 void nativeMenuScene_Load(void);
 void nativeMenuScene_Inspect(void);
 void nativeMenuScene_Tick(void);
-bool nativeMenuScene_Begin(const char* caption);
+bool nativeMenuScene_Begin(const char* caption, bool decorated);
 void nativeMenuScene_End(void);
 void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
                                 float height, bool selected, const char* label);

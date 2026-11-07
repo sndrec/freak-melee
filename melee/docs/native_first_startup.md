@@ -4,10 +4,10 @@ Updated: 2026-11-07. The guided setup uses the in-game Melee menu scene and hand
 It starts automatically for a fresh installation. Existing players can open
 **Settings > First startup**. Existing fighters and account keys stay available.
 
-The initial layout uses the hub's menu frame. The user requested a simpler,
-quieter design with more empty space and a distinct background. The
-[original menu scenery](native_menu_references.md) is available in the native
-renderer for that discussion; the revised design remains open.
+Startup uses the original animated tournament setup backdrop, selected by the
+user from [native scenery captures](native_menu_references.md). Each step has
+centered controls, compact progress markers and open space around it. The
+artwork is loaded from the ISO and retains its original animation loop.
 
 ## The sequence
 
@@ -30,6 +30,9 @@ Controller setup can be deferred with **Set up later**. Keyboard text editing
 and mouse clicks work throughout. B goes back; setup keeps progress across
 restarts. An interrupted calibration restarts at controller selection. A
 disconnected or replaced controller also returns to that page.
+Back from the first-fighter page returns to controller selection, including
+when calibration was skipped. Selecting an unassigned port starts with default
+bindings; an assigned port keeps its existing bindings.
 
 ## Calibration
 
@@ -65,9 +68,20 @@ independent Mario, finishes on CSS, and reopens setup from Settings after a
 completed restart. Seven PNGs were captured; welcome, optional account and
 controller selection were visually inspected.
 
-That UI run skips hardware calibration. Physical capture and the user's design
-and usability pass remain open. Later small changes clarify the optional
-account page, prevent an unfinished draft from satisfying the starter step,
-and let the first A press claim the controller before activating a button.
-These changes receive a final build before the user's test. No service or
-artwork changes are needed.
+The tournament-background revision builds in
+`.local/startup-quiet-build-1.log` and `.local/startup-quiet-build-2.log`.
+Its walkthrough passes in `.local/startup-quiet-ui-1/receipt.json`, including
+Back after skipping calibration, restart/resume, cloning and the return to CSS.
+The second build puts the fixed header/footer above page transitions and
+removes an intermediate Workshop transition after cloning during setup.
+Five settled screenshots from that build are in
+`.local/startup-quiet-final-captures/images.json`: welcome, profile, optional
+account, account creation form and controller selection. The welcome, profile
+and account creation screens were visually inspected. No account was created
+by that capture run.
+
+The UI runs skip hardware calibration. Physical capture and the user's design
+and usability pass remain open. The prepared
+`.local/startup-playtest/Launch Startup Test.cmd` opens the current native build
+with a separate empty user-data folder for that review. It leaves the existing
+installation's roster, profiles and account files in place.

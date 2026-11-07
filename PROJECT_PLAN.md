@@ -13,9 +13,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   Melee menus. Guest online play stays available. Setup finishes on CSS. Pause
   the goal when the sequence is ready for the user's hands-on pass; physical
   capture and usability acceptance remain open.
-  The user wants a quieter, more spacious startup screen with the lonely feel
-  of Smash 64's menus. Compare the [original menu scenery](melee/docs/native_menu_references.md)
-  in the native renderer before choosing its background and revising the layout.
+  The user chose the original animated tournament setup backdrop after comparing
+  [native scenery captures](melee/docs/native_menu_references.md). Startup uses
+  centered controls and open space, aiming for the quiet feel of Smash 64's menus.
+  The native walkthrough passes and the revised screens have been inspected;
+  the next step is the user's visual/usability and physical calibration pass.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

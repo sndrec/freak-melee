@@ -4,6 +4,7 @@
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
+#include <melee/mn/native_menu_scenery.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
@@ -125,6 +126,7 @@ void nativeHubStartup_Begin()
         nativeProfile_Default(&s.profile, hub.name);
     }
     hub.visible = true; hub.dismissed = false;
+    nativeMenuScenery_Load("tournament-background");
     enter(NativeStartup_Welcome);
 }
 void nativeHubStartup_Tick()
@@ -160,6 +162,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     if (action == HubAction::Startup) { nativeHubStartup_Begin(); return true; }
     if (!s.active) return false;
     if (action == HubAction::Back || action == HubAction::StartupBack) {
+        if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
         if (s.step == NativeStartup_Test) restore_controls();
         if (s.step > NativeStartup_Welcome) enter(NativeStartupStep(unsigned(s.step) - 1), true);
         return true;
@@ -170,6 +173,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         s.controller_claimed = true;
         const NativeProfile* assigned = nativeProfileInput_Assigned(s.port);
         if (assigned) s.profile = *assigned;
+        else nativeProfile_Default(&s.profile, hub.name);
         s.controller_index = PADGetIndexForPort(s.port);
         return true;
     }
@@ -234,6 +238,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         s.completed = true;
         if (!save_progress()) { s.completed = false; std::snprintf(s.error, sizeof(s.error), "Could not save setup completion. Try again."); break; }
         s.active = false; s.completed = true;
+        nativeMenuScenery_Unload();
         hub.dismissed = true; hub.visible = false;
         break;
     }

@@ -2,7 +2,8 @@
 
 Updated: 2026-11-07. The native client can display the original ISO's menu
 models, cameras, lights, animations and gallery background images for design
-reference. This inspection mode draws the scenery without the hub controls.
+reference. The same scenery renderer supplies startup's selected tournament
+background. Inspection mode draws the scenery without the hub controls.
 It leaves the artwork unchanged.
 
 With a native client running, send `ui-inspect menu-reference:<name>` through
@@ -40,5 +41,6 @@ Sound menus were captured in `.local/retail-options-reference-1`.
 
 These captures establish which original artwork is available for the startup
 design. They do not establish that the full trophy or tournament modes are
-ported: those flows still use unconverted archive loaders. The final startup
-background and simplified layout await the user's choice.
+ported: those flows still use unconverted archive loaders. The user selected
+the animated tournament setup background for startup. The revised wizard's
+visual and hardware-calibration acceptance remain open.
