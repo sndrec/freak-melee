@@ -1,4 +1,5 @@
 #include "native_profile_input.h"
+#include "native_controller_calibration.h"
 
 #ifdef MELEE_NATIVE
 
@@ -107,10 +108,44 @@ static uint8_t scaled_trigger_axis(int16_t raw, int8_t direction)
     return (uint8_t) (value / 128);
 }
 
+int16_t nativeProfileInput_RawAxis(unsigned port, const NativeProfile* profile, unsigned axis)
+{
+    if (port >= 4 || axis >= NativeProfileAxis_Count || !profile) return 0;
+    const NativeProfileAxisBinding* binding = &profile->axes[axis];
+    if (!binding->assigned) return PADGetMappedAxisState(port, axis);
+    int value = PADGetNativeAxisState(port, binding->native_axis) * binding->direction;
+    return (int16_t)(value > 32767 ? 32767 : value < -32767 ? -32767 : value);
+}
+
 static void apply_axis(uint32_t port, PADStatus* pad, NativeProfileAxis axis)
 {
     const NativeProfile* profile = &slots[port].profile;
     const NativeProfileAxisBinding* binding = &profile->axes[axis];
+    if (profile->calibration.measured) {
+        const NativeProfileCalibration* c = &profile->calibration;
+        int value = nativeControllerCalibration_Normalize(c, axis,
+            nativeProfileInput_RawAxis(port, profile, axis));
+        if (axis < 4) {
+            unsigned zone = axis < 2 ? c->main_stick_dead_zone : c->c_stick_dead_zone;
+            if (c->use_dead_zones && abs(value) <= (int)zone) value = 0;
+            // Melee's clamp and scale use 80 units at full stick travel.
+            int8_t converted = (int8_t)(value * 80 / 32767);
+            switch (axis) {
+            case NativeProfileAxis_MoveX: pad->stickX = converted; break;
+            case NativeProfileAxis_MoveY: pad->stickY = converted; break;
+            case NativeProfileAxis_CStickX: pad->substickX = converted; break;
+            default: pad->substickY = converted; break;
+            }
+        } else {
+            const unsigned mask = axis == 4 ? PAD_TRIGGER_L : PAD_TRIGGER_R;
+            const unsigned activation = axis == 4 ? c->left_trigger_activation : c->right_trigger_activation;
+            uint8_t converted = (uint8_t)(value * 140 / 32767);
+            if (c->emulate_digital_triggers && (unsigned)value >= activation) pad->button |= mask;
+            if (axis == 4) pad->triggerLeft = converted;
+            else pad->triggerRight = converted;
+        }
+        return;
+    }
     if (!binding->assigned) {
         return;
     }

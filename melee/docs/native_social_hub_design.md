@@ -481,12 +481,12 @@ The audit found the following source-level mismatches:
   by a squared-magnitude response and a 0.0002 position multiplier. Preserve
   that menu response after correcting the input conversion.
 
-The native correction remains to be implemented and checked with the actual
-controller. Capture center, small deflections, cardinal extremes and diagonals;
-then normalize once, remove unintended extra filtering, and apply the same
-conversion to default and remapped axes. Preserve explicit user calibration and
-the original gameplay's thresholds. The browser response change does not fix
-the native game.
+The [first-startup wizard](native_first_startup.md) now measures center, full
+travel and trigger ranges and applies one normalization path to measured default
+and remapped axes. The real SDL provider checks pass. Unmeasured profiles keep
+their prior conversion; the browser response change does not fix that path.
+The user's physical capture and precision/diagonal review remain open. Preserve
+explicit user calibration and the original gameplay's thresholds.
 
 ## Mockup and implementation order
 

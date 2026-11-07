@@ -1,12 +1,21 @@
 # Freak Melee: current project plan
 
-Updated: 2026-10-20. This is the current product contract and work list.
+Updated: 2026-11-07. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
 
 ## Current direction
 
+- Current task: build and review the [first-startup sequence](melee/docs/native_first_startup.md).
+  Profile info, optional account sign-in, guided controller center/range/trigger
+  calibration, a live test and the first vanilla fighter clone use the native
+  Melee menus. Guest online play stays available. Setup finishes on CSS. Pause
+  the goal when the sequence is ready for the user's hands-on pass; physical
+  capture and usability acceptance remain open.
+  The user wants a quieter, more spacious startup screen with the lonely feel
+  of Smash 64's menus. Compare the [original menu scenery](melee/docs/native_menu_references.md)
+  in the native renderer before choosing its background and revising the layout.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

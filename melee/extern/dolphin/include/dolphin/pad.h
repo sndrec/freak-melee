@@ -117,6 +117,8 @@ const char* PADGetName(u32 port);
 s32 PADGetIndexForPort(u32 port);
 BOOL PADGetNativeButtonState(u32 port, s32 button);
 s16 PADGetNativeAxisState(u32 port, s32 axis);
+// Logical raw main X/Y, C X/Y (Y up), L/R before filtering.
+s16 PADGetMappedAxisState(u32 port, u32 axis);
 typedef enum PADAxisSign {
     AXIS_SIGN_NEGATIVE = -1,
     AXIS_SIGN_POSITIVE = 1,

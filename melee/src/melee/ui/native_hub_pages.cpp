@@ -3,6 +3,7 @@
 #include "native_hub_lobbies.h"
 #include "native_hub_account.h"
 #include "native_hub_social.h"
+#include "native_hub_startup.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -366,8 +367,10 @@ namespace {
                          HubAction::Rules, 0, false, nativeHome_IsSelection());
         nativeHub_Button("settings-costumes", "Costumes", 391, 310, 194, 31,
                          HubAction::Costumes, 0, false, nativeHome_IsSelection());
-        nativeHub_Button("settings-packages", "Installed packages", 193, 347, 392, 21,
+        nativeHub_Button("settings-packages", "Installed packages", 193, 347, 187, 21,
                          HubAction::Packages, 0, false, nativeHome_IsSelection());
+        nativeHub_Button("settings-startup", "First startup", 391, 347, 194, 21,
+                         HubAction::Startup, 0, false, nativeHome_IsSelection());
         nativeMenuPaint_Text("Display name", 194, 196, 360, 10, gold);
         nativeHub_Field("display-name", hub.name, 193, 216, 392, 27,
                         HubAction::FieldName);
@@ -458,6 +461,9 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_Startup:
+        nativeHubStartup_Render();
+        break;
     case NativeHubPage_Workshop:
         collection();
         break;

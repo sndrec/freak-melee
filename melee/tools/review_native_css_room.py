@@ -16,7 +16,7 @@ import time
 
 class Client:
     def __init__(self, exe, iso, profile, folder, name, missing_first=False, live_chat=False,
-                 window_size=None, control=None, without_drafts=False, launch_args=(), chat_endpoint=None):
+                 window_size=None, control=None, without_drafts=False, launch_args=(), chat_endpoint=None, write_profile=True):
         self.folder = folder
         folder.mkdir(parents=True)
         appdata = folder / 'appdata'
@@ -41,7 +41,9 @@ class Client:
                 digest = ((digest ^ byte)*16777619) & 0xffffffff
             layout_path.write_bytes(body + struct.pack('<I', digest))
             self.missing = missing
-        (appdata / 'Freak Melee/content/hub-profile.txt').write_text(name + '\n\n')
+        if write_profile:
+            (appdata / 'Freak Melee/content').mkdir(parents=True, exist_ok=True)
+            (appdata / 'Freak Melee/content/hub-profile.txt').write_text(name + '\n\n')
         self.stderr = folder / 'stderr.log'
         self.control = control if control else exe.with_name('melee_native_control.exe')
         self.identity = 'css-room-' + secrets.token_hex(6)

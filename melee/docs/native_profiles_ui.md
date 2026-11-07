@@ -1,5 +1,11 @@
 # Player profiles in Options
 
+New players can use [First startup](native_first_startup.md) for guided
+center/range/trigger calibration. It saves an ordinary controller profile and
+remembers that setup profile's port for subsequent launches. The older manual
+settings and explicit per-session profile assignments described below remain
+available in Controls.
+
 Options opens a full-window panel that slides in from the left. Back in the
 upper-left corner returns to Melee and the gameplay sidebars. The settings
 screen is authored in `assets/ui/freak_shell.rml` and `freak_profiles.rcss`;

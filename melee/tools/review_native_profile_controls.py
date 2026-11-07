@@ -59,7 +59,7 @@ def review_ui(args, output, receipt):
         matches=[p for p in files if p.read_bytes()[4:36].split(b'\0')[0]==b'Native controls review']
         assert len(matches)==1,files
         profile=matches[0];saved=profile.read_bytes()
-        assert len(saved)==154 and saved[36:38]==bytes((0,1))
+        assert len(saved)==191 and saved[36:38]==bytes((0,1))
         assert struct.unpack_from('<4H',saved,40)==(8000,8000,31150,31150)
         receipt['ui']['saved_profile']=profile.name
         receipt['ui']['gameplay_screenshot']=str(first.screenshot())

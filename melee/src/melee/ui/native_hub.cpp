@@ -5,6 +5,7 @@
 #include "native_hub_lobbies.h"
 #include "native_hub_account.h"
 #include "native_hub_social.h"
+#include "native_hub_startup.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -20,6 +21,7 @@
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_menu_scene.h>
+#include <melee/mn/native_menu_reference.h>
 #include <melee/mn/native_menu_skin.h>
 #include <dolphin/gx.h>
 extern "C" {
@@ -45,7 +47,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile" };
+                                 "Letter", "Write a letter", "Player profile", "First startup" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -114,50 +116,54 @@ namespace {
             }
         }
     }
-    bool save_profile()
-    {
-        if (!*hub.name || strpbrk(hub.name, "\r\n\t")) {
-            return false;
-        }
-        char root_buffer[512], path[560], temporary[568];
-        const char* root = nativeHubCatalog_Root(root_buffer);
-        if (!root || !SDL_CreateDirectory(root)) {
-            return false;
-        }
-        std::snprintf(path, sizeof(path), "%s/hub-profile.txt", root);
-        std::snprintf(temporary, sizeof(temporary), "%s.tmp", path);
-        FILE* file = std::fopen(temporary, "wb");
-        if (!file) {
-            return false;
-        }
-        bool ok = std::fprintf(file, "%s\n%s\n", hub.name, hub.bio) > 0;
-        ok = std::fclose(file) == 0 && ok;
-        ok = ok &&
-             MoveFileExA(temporary, path,
-                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-        if (ok) {
-            std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
-                          hub.name);
-        }
-        return ok;
+}
+bool nativeHub_SaveProfile()
+{
+    if (!*hub.name || strpbrk(hub.name, "\r\n\t") || std::strspn(hub.name, " ") == std::strlen(hub.name)) {
+        return false;
     }
-    void load_profile()
+    char root_buffer[512], path[560], temporary[568];
+    const char* root = nativeHubCatalog_Root(root_buffer);
+    if (!root || !SDL_CreateDirectory(root)) {
+        return false;
+    }
+    std::snprintf(path, sizeof(path), "%s/hub-profile.txt", root);
+    std::snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    FILE* file = std::fopen(temporary, "wb");
+    if (!file) {
+        return false;
+    }
+    bool ok = std::fprintf(file, "%s\n%s\n", hub.name, hub.bio) > 0;
+    ok = std::fclose(file) == 0 && ok;
+    ok = ok &&
+         MoveFileExA(temporary, path,
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+    if (ok) {
+        std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
+                      hub.name);
+    }
+    return ok;
+}
+namespace {
+    bool load_profile()
     {
         char root_buffer[512], path[560];
         const char* root = nativeHubCatalog_Root(root_buffer);
         if (!root) {
-            return;
+            return false;
         }
         std::snprintf(path, sizeof(path), "%s/hub-profile.txt", root);
         FILE* file = std::fopen(path, "rb");
         if (!file) {
-            return;
+            return false;
         }
         char name[35]{}, bio[257]{};
+        bool loaded = false;
         if (std::fgets(name, sizeof(name), file) && std::strchr(name, '\n')) {
             name[std::strcspn(name, "\r\n")] = 0;
             if (*name && std::strlen(name) < sizeof(hub.name)) {
                 std::snprintf(hub.name, sizeof(hub.name), "%s", name);
+                loaded = true;
             }
             size_t bytes = std::fread(bio, 1, sizeof(bio) - 1, file);
             if (bytes) {
@@ -167,6 +173,7 @@ namespace {
             }
         }
         std::fclose(file);
+        return loaded;
     }
     void reload_catalog()
     {
@@ -290,6 +297,8 @@ namespace {
                 nativeHub_EnterText("\n");
             } else if (field == hub.social_handle) {
                 action = HubAction::SocialLookup;
+            } else if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Profile) {
+                action = HubAction::StartupNext;
             } else if (field == hub.letter_to) {
                 text_focus(hub.letter_subject, sizeof(hub.letter_subject));
             } else if (field == hub.letter_subject) {
@@ -501,6 +510,7 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
 void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
+    if (nativeHubStartup_Activate(action, value)) return;
     if (nativeHubQuickStage_Activate(action,value)) return;
     if (nativeHubLobbies_Activate(action,value)) return;
     if (nativeHubAccount_Activate(action,value)) return;
@@ -592,6 +602,7 @@ void nativeHub_Activate(HubAction action, int value)
             }
             nativeHub_Notice("Fighter added to your roster. Edit it or head "
                              "into practice.");
+            nativeHubStartup_Cloned();
         } else {
             reload_catalog();
             nativeHub_Notice("Could not finish cloning. Any completed draft "
@@ -720,7 +731,7 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::SaveProfile:
         text_focus(nullptr, 0);
-        nativeHub_Notice(save_profile() ? "Profile saved on this PC."
+        nativeHub_Notice(nativeHub_SaveProfile() ? "Profile saved on this PC."
                                         : "Could not save the profile.");
         break;
     case HubAction::SendChat:
@@ -967,7 +978,7 @@ extern "C" void nativeHub_Tick(void)
     hub.consumes_input |= tool &&
         !(nativeShellWorkshop_IsOpen() && nativeShellWorkshop_IsTesting());
     if (!hub.initialized && selection) {
-        load_profile();
+        const bool has_profile = load_profile();
         std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
                       hub.name);
         reload_catalog();
@@ -988,6 +999,7 @@ extern "C" void nativeHub_Tick(void)
         }
         hub.initialized = true;
         show();
+        nativeHubStartup_Initialize(has_profile);
     }
     if (hub.returning_from_tool && !tool && selection) {
         hub.returning_from_tool = false;
@@ -1020,6 +1032,7 @@ extern "C" void nativeHub_Tick(void)
     nativeHubLobbies_Tick();
     nativeHubAccount_Tick();
     nativeHubSocial_Tick();
+    nativeHubStartup_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
@@ -1100,6 +1113,8 @@ extern "C" void nativeHub_Tick(void)
         if (pad.err) {
             continue;
         }
+        if (nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
+            nativeHubStartup.step <= NativeStartup_Test && port != nativeHubStartup.port) continue;
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
@@ -1111,7 +1126,11 @@ extern "C" void nativeHub_Tick(void)
             hub.pointer_y =
                 std::clamp(hub.pointer_y - y * scale, 4.0f, 470.0f);
         }
-        if (pad.trigger & PAD_BUTTON_B) {
+        if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Controller &&
+            (pad.trigger & PAD_BUTTON_A) &&
+            (!nativeHubStartup.controller_claimed || nativeHubStartup.port != port)) {
+            nativeHubStartup_Activate(HubAction::StartupPort, port);
+        } else if (pad.trigger & PAD_BUTTON_B) {
             if (hub.field) {
                 text_focus(nullptr, 0);
             } else {
@@ -1123,11 +1142,12 @@ extern "C" void nativeHub_Tick(void)
             queue(HubAction::Practice);
         }
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
-        if (hub.page != NativeHubPage_QuickStage) break;
+        if (hub.page != NativeHubPage_QuickStage && !nativeHubStartup.active) break;
     }
 }
 extern "C" void nativeHub_Draw(void)
 {
+    if (nativeMenuReference_Draw()) { hub.region_count = 0; return; }
     if (!hub.visible) {
         nativePlayMenu_DrawPractice();
         return;
@@ -1137,7 +1157,7 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuSkin_Acquire();
         hub.fonts = true;
     }
-    const char* caption = hub.page == NativeHubPage_Profile
+    const char* caption = nativeHubStartup.active ? "First startup" : hub.page == NativeHubPage_Profile
         ? (hub.profile_self ? hub.name : hub.viewed_name)
         : page_names[unsigned(hub.page)];
     if (!nativeMenuScene_Begin(caption)) return;
@@ -1146,12 +1166,13 @@ extern "C" void nativeHub_Draw(void)
     GXSetProjection(projection, GX_PERSPECTIVE);
     nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
-    nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
+    if (!nativeHubStartup.active) nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
                      HubAction::Profile);
-    if (hub.opened_from_play || nativeHome_IsPractice())
+    if (!nativeHubStartup.active && (hub.opened_from_play || nativeHome_IsPractice()))
         nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
                          352, 21, 132, 19, HubAction::Close);
-    for (unsigned i = 0; i < 7; ++i) {
+    if (nativeHubStartup.active) nativeHubStartup_RenderSteps();
+    for (unsigned i = 0; !nativeHubStartup.active && i < 7; ++i) {
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
             ((hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) && i == NativeHubPage_Lobbies);
@@ -1182,7 +1203,8 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
     nativeHub_Panel(38, 408, 565, 32);
-    const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
+    const char* hint = nativeHubStartup.active && nativeHubStartup.error[0] ? nativeHubStartup.error :
+        SDL_GetTicks() < hub.notice_until ? hub.notice : nativeHubStartup.active ? "Set up your profile, controller and first fighter."
                        : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
                        : unsigned(hub.page) < 7
                            ? descriptions[unsigned(hub.page)]
@@ -1306,7 +1328,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         hub.pressed = false;
     }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F1 &&
-        !event->key.repeat && hub.initialized &&
+        !event->key.repeat && !nativeHubStartup.active && hub.initialized &&
         (nativeHome_IsSelection() || nativeHome_IsPractice()) &&
         !nativeShellWorkshop_IsOpen() && !nativeShellProfiles_IsOpen() &&
         !nativeShellRules_IsOpen() && !nativeShellCssOriginal_IsEditing() &&
@@ -1398,7 +1420,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_SocialProfile) {
+        page > NativeHubPage_Startup || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;
@@ -1407,6 +1429,8 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strncmp(id, "menu-reference:", 15)) { nativeMenuReference_Select(id + 15); return; }
+    if (!std::strcmp(id, "startup")) { nativeHubStartup_Inspect(); return; }
     if (!std::strcmp(id, "hub-input")) {
         std::fprintf(stderr, "[hub-inspect] hub-input page=%u visible=%d listed=%d players=%d field=%d back-frames=%u\n",
             unsigned(hub.page), hub.visible, hub.lobby_listed, hub.local_players,

@@ -4,6 +4,7 @@
 
 #include <melee/gm/native_profile_input.h>
 #include <sysdolphin/baselib/controller.h>
+#include <melee/gm/native_controller_calibration.h>
 
 static bool native_buttons[PAD_MAX_CONTROLLERS][32];
 static int16_t native_axes[PAD_MAX_CONTROLLERS][8];
@@ -23,6 +24,10 @@ s16 PADGetNativeAxisState(u32 port, s32 axis)
     return port < PAD_MAX_CONTROLLERS && axis >= 0 && axis < 8
                ? native_axes[port][axis]
                : 0;
+}
+s16 PADGetMappedAxisState(u32 port, u32 axis)
+{
+    return PADGetNativeAxisState(port, (s32)axis);
 }
 
 void PADSetPortDeadZones(u32 port, const PADDeadZones* calibration)
@@ -119,6 +124,43 @@ static void combined_shield(void)
 
 int main(void)
 {
+    NativeControllerCalibration capture;
+    NativeProfile measured;
+    nativeProfile_Default(&measured, "Measured controller");
+    nativeControllerCalibration_Reset(&capture);
+    const int16_t center[6] = { 400, -300, 200, 100, 500, 300 };
+    int16_t raw[6]; memcpy(raw, center, sizeof(raw));
+    for (unsigned i = 0; i < 60; ++i) nativeControllerCalibration_Sample(&capture, raw, true);
+    require(!nativeControllerCalibration_Finish(&capture, &measured.calibration), "reject an unmoved controller");
+    for (unsigned axis = 0; axis < 6; ++axis) {
+        raw[axis] = center[axis] + 24000;
+        nativeControllerCalibration_Sample(&capture, raw, false);
+        if (axis < 4) { raw[axis] = center[axis] - 20000; nativeControllerCalibration_Sample(&capture, raw, false); }
+        raw[axis] = center[axis];
+    }
+    require(nativeControllerCalibration_Finish(&capture, &measured.calibration), "accept a complete stable capture");
+    require(nativeProfile_Validate(&measured), "measured ranges form a valid saved profile");
+    for (unsigned axis = 0; axis < 6; ++axis) {
+        require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis]) == 0, "measured rest is exactly neutral");
+        require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis] + 12000) == 16383, "half measured travel remains half travel");
+        require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis] + 25000) == 32767, "overtravel clamps");
+    }
+    require(nativeProfileInput_Assign(0, &measured), "apply measured calibration to default axes");
+    for (unsigned axis = 0; axis < 6; ++axis) native_axes[0][axis] = center[axis];
+    PADStatus calibrated[4] = { 0 };
+    nativeProfileInput_Apply(calibrated);
+    require(!calibrated[0].stickX && !calibrated[0].stickY && !calibrated[0].triggerLeft, "default axes use measured rest before conversion");
+    native_axes[0][0] += 12000; native_axes[0][1] -= 10000;
+    native_axes[0][4] += 24000;
+    nativeProfileInput_Apply(calibrated);
+    require(calibrated[0].stickX == 39 && calibrated[0].stickY == -39 && calibrated[0].triggerLeft == 140,
+            "measured axes map to Melee stick and trigger scales");
+    measured.axes[NativeProfileAxis_MoveX] = (NativeProfileAxisBinding){ 7, -1, true };
+    require(nativeProfileInput_Assign(0, &measured), "apply a calibrated remapped axis");
+    native_axes[0][7] = -(center[0] + 24000);
+    nativeProfileInput_Apply(calibrated);
+    require(calibrated[0].stickX == 80, "remapped and default axes share measured normalization");
+    nativeProfileInput_ClearAll(); memset(native_axes, 0, sizeof(native_axes));
     require(HSD_PadProfileTapJumpEnabled(0) &&
                 !HSD_PadProfileTapJumpEnabled(
                     HSD_PAD_PROFILE_TAP_JUMP_DISABLED) &&

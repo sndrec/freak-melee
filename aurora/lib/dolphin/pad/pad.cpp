@@ -1601,6 +1601,17 @@ const char* PADGetNativeAxisName(PADSignedNativeAxis axis) {
   return SDL_GetGamepadStringForAxis(static_cast<SDL_GamepadAxis>(axis.nativeAxis));
 }
 
+s16 PADGetMappedAxisState(const u32 port, const u32 axis) {
+  auto* controller = aurora::input::get_controller_for_player(port);
+  if (!controller || axis >= 6) return 0;
+  EnsureMappingLoaded(controller);
+  if (axis >= 4) return std::max<Sint16>(0, _get_axis_value(controller, axis == 4 ? PAD_AXIS_TRIGGER_L : PAD_AXIS_TRIGGER_R));
+  static constexpr PADAxis positive[] = {PAD_AXIS_LEFT_X_POS, PAD_AXIS_LEFT_Y_POS, PAD_AXIS_RIGHT_X_POS, PAD_AXIS_RIGHT_Y_POS};
+  static constexpr PADAxis negative[] = {PAD_AXIS_LEFT_X_NEG, PAD_AXIS_LEFT_Y_NEG, PAD_AXIS_RIGHT_X_NEG, PAD_AXIS_RIGHT_Y_NEG};
+  return static_cast<s16>((int(_get_axis_value(controller, positive[axis])) -
+                           int(_get_axis_value(controller, negative[axis]))) / 2);
+}
+
 int32_t PADGetNativeButtonPressed(const u32 port) {
   const auto* controller = aurora::input::get_controller_for_player(port);
   if (controller == nullptr) {
