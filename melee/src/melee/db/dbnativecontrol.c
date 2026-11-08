@@ -20,6 +20,9 @@
 #include <melee/ui/native_shell.h>
 #include <sysdolphin/baselib/debug.h>
 #include <dolphin/pad.h>
+#include <aurora/aurora.h>
+#include <melee/gm/native_studio.h>
+#include <sysdolphin/baselib/audio_capture.h>
 
 typedef struct DbNativePadState {
     u32 remaining_frames;
@@ -36,6 +39,24 @@ static void apply_message(const DbNativeControlMessage* message)
     }
     if (message->command == DB_NATIVE_CONTROL_SCREENSHOT) {
         db_RequestScreenshot();
+        return;
+    }
+    if (message->command == DB_NATIVE_CONTROL_VIDEO_START || message->command == DB_NATIVE_CONTROL_VIDEO_STOP) {
+        bool accepted=false;
+        if (message->command==DB_NATIVE_CONTROL_VIDEO_STOP) accepted=aurora_request_video_capture(NULL);
+        else if (memchr(message->text,0,sizeof(message->text))) accepted=aurora_request_video_capture(message->text);
+        OSReport("[native-control] Video request accepted=%u\n",accepted);
+        return;
+    }
+    if (message->command==DB_NATIVE_CONTROL_STUDIO) {
+        if (memchr(message->text,0,sizeof(message->text))) nativeStudio_Command(message->text);
+        return;
+    }
+    if (message->command==DB_NATIVE_CONTROL_AUDIO_START || message->command==DB_NATIVE_CONTROL_AUDIO_STOP) {
+        bool accepted=false;
+        if (message->command==DB_NATIVE_CONTROL_AUDIO_STOP) accepted=HSD_AudioCaptureSetFile(NULL);
+        else if (memchr(message->text,0,sizeof(message->text))) accepted=HSD_AudioCaptureSetFile(message->text);
+        OSReport("[native-control] Audio request accepted=%u\n",accepted);
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_ROOM_ROTATION) {

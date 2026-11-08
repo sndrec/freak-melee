@@ -45,6 +45,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   pose/costume captures and seventeen caption cards. Caption styling references frames decoded directly from the original
   How to Play movie. Gameplay demonstrations, custom outfits and the appearance
   filter sequence remain production work after the user's storyboard review.
+  The user has now authorized the [finished FMV draft](melee/docs/native_intro_production.md):
+  film real editing and gameplay, use appropriate credited costume mods and
+  original fighter tweaks, retain the supplied captions, and vary the cuts and
+  timing freely. Add reusable recording/authoring controls where needed. Pause
+  the goal once the film is ready for nuanced critique.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

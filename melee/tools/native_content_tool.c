@@ -16,6 +16,7 @@
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_fighter_module.h>
 #include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_template.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_gltf_import.h>
@@ -69,6 +70,7 @@ static void usage(void)
         "  clone-stock ISO Mario|DrMario|Ganon|\"Captain Falcon\"|Luigi|Jigglypuff|Fox|Falco|Marth|Roy|\"Donkey Kong\"|Bowser|Pikachu|Pichu|Samus|Link|\"Young Link\"|Mewtwo|Yoshi|Ness|Peach|\"Game & Watch\"|Zelda|Sheik|Popo|Nana PROJECT_DIRECTORY TITLE\n"
         "  clone-installed PACKAGE_ID PROJECT_DIRECTORY TITLE\n"
         "  inspect-project PROJECT_DIRECTORY\n"
+        "  project-stock-template PROJECT_DIRECTORY\n"
         "  project-assets-undo PROJECT_DIRECTORY\n"
         "  project-model-scan SOURCE.glb\n"
         "  project-model-sources PROJECT_DIRECTORY\n"
@@ -2039,6 +2041,11 @@ int main(int argc, char** argv)
     if (arguments == 5 && strcmp(argv[index], "clone-stock") == 0) {
         return clone_stock(argv[index + 1], argv[index + 2],
                            argv[index + 3], argv[index + 4]);
+    }
+    if (arguments==2 && strcmp(argv[index],"project-stock-template")==0) {
+        bool ok=nativeFighterTemplate_Apply(argv[index+1]);
+        if (!ok) fputs("Could not apply the editable stock template to an empty draft.\n",stderr);
+        return ok?0:1;
     }
     if (arguments == 4 && strcmp(argv[index], "import-cpu") == 0) {
         return nativeFighterCpuTool_Import(argv[index + 1], argv[index + 2],

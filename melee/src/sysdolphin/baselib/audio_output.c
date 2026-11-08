@@ -1,5 +1,6 @@
 #include "audio_output.h"
 #include "audio_frame.h"
+#include "audio_capture.h"
 #include "synth.h"
 #include "debug.h"
 
@@ -63,6 +64,7 @@ void HSD_AudioOutputPoll(void)
         }
         s16 samples[HSD_AUDIO_FRAME_SAMPLES * 2];
         HSD_AudioRenderFrame(ARGetStorageAddress(), ARGetSize(), samples);
+        HSD_AudioCaptureWrite(samples,HSD_AUDIO_FRAME_SAMPLES);
         HSD_SynthCallback();
         bool submitted = SDL_PutAudioStreamData(output_stream, samples, sizeof(samples));
         HSD_ASSERTREPORT(0, submitted, "Audio submission failed: %s", SDL_GetError());
@@ -72,6 +74,7 @@ void HSD_AudioOutputPoll(void)
 
 void HSD_AudioOutputShutdown(void)
 {
+    HSD_AudioCaptureSetFile(NULL);
     if (output_stream) {
         SDL_DestroyAudioStream(output_stream);
         output_stream = NULL;
