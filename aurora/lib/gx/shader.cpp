@@ -568,7 +568,24 @@ std::string vtx_attr(const ShaderConfig& config, GXAttr attr) {
     if (attr == GX_VA_CLR0 || attr == GX_VA_CLR1) {
       return "vec4f(0.0, 0.0, 0.0, 0.0)"s;
     }
-    UNLIKELY FATAL("unmapped vtx attr {}", underlying(attr));
+    for (unsigned i = 0; i < config.attrs.size(); ++i) {
+      const auto& input = config.attrs[i];
+      if (input.attrType != GX_NONE)
+        Log.error("shader input {}: type={} count={} component={} stride={}",
+                  i, input.attrType, input.cnt, input.compType, input.stride);
+    }
+    for (unsigned i = 0; i < config.tevStageCount; ++i) {
+      const auto& stage = config.tevStages[i];
+      Log.error("shader TEV {}: coord={} map={} indirect={} matrix={}", i,
+                underlying(stage.texCoordId), underlying(stage.texMapId),
+                stage.indTexStage, underlying(stage.indTexMtxId));
+    }
+    for (unsigned i = 0; i < config.tcgs.size(); ++i) {
+      const auto& tcg = config.tcgs[i];
+      Log.error("shader texgen {}: type={} source={}", i, underlying(tcg.type), underlying(tcg.src));
+    }
+    UNLIKELY FATAL("unmapped vtx attr {} (line mode={}, indirect stages={})",
+                   underlying(attr), unsigned(config.lineMode), config.numIndStages);
   }
   if (attr == GX_VA_POS) {
     return "in_pos"s;

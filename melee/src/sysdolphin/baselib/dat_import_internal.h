@@ -17,6 +17,7 @@ void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
 void HSD_DatDecodeModelRecord(HSD_DatImport* import,
                              const HSD_DatImportRecord* record);
 bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon);
+bool HSD_DatNormalizeVertexArrays(HSD_DatImport* import);
 u32 HSD_DatVertexElementBytes(const HSD_VtxDescList*);
 bool HSD_DatValidateShapeSkin(HSD_DatImport*, HSD_PObjDesc*);
 bool HSD_DatValidateEnvelopeMatrices(HSD_PObjDesc*);

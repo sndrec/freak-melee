@@ -54,7 +54,8 @@ bool nativeOnlineSession_ContentProgress(
     NativeNetplayContentProgress* progress);
 bool nativeOnlineSession_OfferGift(const char* peer_id,
                                    const NativeContentId* id);
-bool nativeOnlineSession_AcceptGift(void);
+// Queue acceptance of the currently offered delivery for the next session pump.
+bool nativeOnlineSession_RequestGiftAcceptance(void);
 void nativeOnlineSession_DeclineGift(void);
 bool nativeOnlineSession_GiftStatus(bool incoming,
                                     NativeNetplayGiftStatus* status);

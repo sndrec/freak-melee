@@ -956,7 +956,7 @@ void nativeHub_Activate(HubAction action, int value)
         }
         break;
     case HubAction::AcceptGift:
-        nativeHub_Notice(nativeOnlineSession_AcceptGift()
+        nativeHub_Notice(nativeOnlineSession_RequestGiftAcceptance()
                              ? "Receiving the fighter..."
                              : "Could not accept this delivery.");
         break;

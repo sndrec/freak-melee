@@ -30,6 +30,10 @@ static struct NativeOnlineProcessSession {
     bool launch_ready;
     bool match_claimed;
     bool watch_claimed;
+    bool accept_gift_requested;
+    uint32_t accept_gift_serial;
+    NativeContentId accept_gift_id;
+    char accept_gift_peer[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
 } online;
 
 static struct NativeQuickSession {
@@ -403,6 +407,15 @@ bool nativeOnlineSession_Pump(void)
     }
     bool pumped = nativeLobbySession_Pump(&online.lobby);
     if (!pumped && online.lobby.room.connection.quick.state != NativeQuickState_Aborted) return false;
+    if (online.accept_gift_requested) {
+        online.accept_gift_requested = false;
+        const NativeNetplayGift* gift = &online.lobby.room.incoming_gift;
+        if (online.lobby.state == NativeLobbySessionState_Waiting &&
+            gift->serial == online.accept_gift_serial &&
+            !memcmp(&gift->id, &online.accept_gift_id, sizeof(gift->id)) &&
+            !strcmp(gift->peer_id, online.accept_gift_peer))
+            nativeNetplayRoom_AcceptGift(&online.lobby.room);
+    }
     if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
     if (!pumped) return online.lobby.state != NativeLobbySessionState_Failed;
     if (online.lobby.state == NativeLobbySessionState_Ready &&
@@ -512,15 +525,25 @@ bool nativeOnlineSession_OfferGift(const char* peer_id,
            nativeNetplayRoom_OfferGift(&online.lobby.room, peer_id, id);
 }
 
-bool nativeOnlineSession_AcceptGift(void)
+bool nativeOnlineSession_RequestGiftAcceptance(void)
 {
-    return online.active &&
-           online.lobby.state == NativeLobbySessionState_Waiting &&
-           nativeNetplayRoom_AcceptGift(&online.lobby.room);
+    if (!online.active || online.lobby.state != NativeLobbySessionState_Waiting ||
+        online.accept_gift_requested ||
+        online.lobby.room.incoming_gift.state != NativeNetplayGift_Offered) return false;
+    // CSS buttons run inside a GObj callback. A cached fighter must be prepared
+    // and validated at the ordinary session pump, outside those callbacks,
+    // just like an asynchronously received fighter.
+    const NativeNetplayGift* gift = &online.lobby.room.incoming_gift;
+    online.accept_gift_requested = true;
+    online.accept_gift_serial = gift->serial;
+    online.accept_gift_id = gift->id;
+    memcpy(online.accept_gift_peer, gift->peer_id, sizeof(online.accept_gift_peer));
+    return true;
 }
 
 void nativeOnlineSession_DeclineGift(void)
 {
+    online.accept_gift_requested = false;
     if (online.active &&
         online.lobby.state == NativeLobbySessionState_Waiting) {
         nativeNetplayRoom_DeclineGift(&online.lobby.room);

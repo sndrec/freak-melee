@@ -262,5 +262,6 @@ void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType ty
             import->error_offset = record->offset;
         }
     }
+    if (import->status == HSD_DAT_OK && !HSD_DatNormalizeVertexArrays(import)) return NULL;
     return import->status == HSD_DAT_OK ? result : NULL;
 }
