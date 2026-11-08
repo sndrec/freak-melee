@@ -3,6 +3,7 @@
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
 #include "native_hub_startup_stamp.h"
+#include "native_hub_startup_triggers.h"
 #include <melee/gm/native_profile_input.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -23,29 +24,33 @@ namespace {
     {
         const auto& s = nativeHubStartup;
         bool test = s.step == NativeStartup_Test;
-        float vx = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first, s.raw[first]) : s.raw[first];
-        float vy = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, s.raw[first + 1]) : s.raw[first + 1];
+        const auto& c = s.capture;
+        float vx = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first, s.raw[first]) :
+            s.raw[first] - (c.samples ? (int(c.rest_low[first])+c.rest_high[first])*.5f : 0);
+        float vy = test ? nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, s.raw[first + 1]) :
+            s.raw[first+1] - (c.samples ? (int(c.rest_low[first+1])+c.rest_high[first+1])*.5f : 0);
         nativeMenuPaint_Round(x - 1, y - 1, 104, 104, 52, 0x9A90AE66);
         nativeMenuPaint_Round(x, y, 102, 102, 51, 0x080910D8);
         nativeMenuPaint_Rect(x + 50, y + 4, 1, 94, 0x766E7FFF);
         nativeMenuPaint_Rect(x + 4, y + 50, 94, 1, 0x766E7FFF);
-        for (unsigned bin = 0; bin < 32; ++bin) {
-            unsigned next = (bin + 1) % 32;
-            const float* gate = s.capture.stick_gate[first / 2];
-            if (gate[bin] <= 0) continue;
+        unsigned count = c.stick_gate_count[first/2];
+        for (unsigned point = 0; point < count; ++point) {
+            const auto* gate = c.stick_gate[first/2];
             float points[4];
-            const unsigned bins[] = { bin, next };
+            const unsigned indices[] = { point, (point+1)%count };
             for (unsigned end = 0; end < 2; ++end) {
-                float angle = -3.14159265f + (bins[end] + .5f) * (6.2831853f / 32);
-                float gx = cosf(angle) * gate[bins[end]], gy = sinf(angle) * gate[bins[end]];
+                float gx = gate[indices[end]].x, gy = gate[indices[end]].y;
                 if (test) {
-                    gx = nativeControllerCalibration_Normalize(&s.profile.calibration, first, int(gx + s.profile.calibration.center[first]));
-                    gy = nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, int(gy + s.profile.calibration.center[first + 1]));
+                    gx = nativeControllerCalibration_Normalize(&s.profile.calibration, first, int(gx));
+                    gy = nativeControllerCalibration_Normalize(&s.profile.calibration, first + 1, int(gy));
+                } else {
+                    gx -= (int(c.rest_low[first])+c.rest_high[first])*.5f;
+                    gy -= (int(c.rest_low[first+1])+c.rest_high[first+1])*.5f;
                 }
                 points[end * 2] = x + 51 + gx * 44 / 32767;
                 points[end * 2 + 1] = y + 51 - gy * 44 / 32767;
             }
-            if (gate[next] > 0) nativeMenuPaint_Line(points[0], points[1], points[2], points[3], 1, 0xE5C361CC);
+            if (count > 1) nativeMenuPaint_Line(points[0], points[1], points[2], points[3], 1, 0xE5C361CC);
             nativeMenuPaint_Round(points[0] - 1, points[1] - 1, 2, 2, 1, gold);
         }
         nativeMenuPaint_Round(x + 47 + vx * 44 / 32767, y + 47 - vy * 44 / 32767, 8, 8, 4, gold);
@@ -68,41 +73,7 @@ namespace {
             nativeMenuPaint_Text(progress, x, y + 123, 102, 9, gold, NativeMenuFont_Notice, true);
         }
     }
-    void triggers(float y)
-    {
-        const auto& s = nativeHubStartup;
-        for (unsigned i = 0; i < 2; ++i) {
-            float x = 137 + i * 197;
-            int value = s.step == NativeStartup_Test
-                ? nativeControllerCalibration_Normalize(&s.profile.calibration, 4 + i, s.raw[4 + i]) : s.raw[4 + i];
-            nativeMenuPaint_Text(i ? "R" : "L", x, y, 20, 11, gold);
-            nativeMenuPaint_Round(x + 22, y, 142, 13, 3, 0x080910FF);
-            nativeMenuPaint_Rect(x + 24, y + 2, std::clamp(value * 138.0f / 32767, 0.f, 138.f), 9, gold);
-            if (s.step == NativeStartup_Triggers) {
-                bool clicked = s.trigger_click[i] >= 0;
-                bool captured = clicked ? s.capture.trigger_captured[i] :
-                    s.capture.high[4 + i] - s.capture.rest_high[4 + i] >= 8192;
-                nativeMenuPaint_Text(captured ? clicked ? "Pre-click captured" : "Full travel captured" :
-                    clicked ? "Squeeze through click" : "Squeeze fully",
-                    x + 22, y + 17, 142, 9, captured ? gold : muted);
-                if (captured) {
-                    int maximum = clicked ? s.capture.trigger_maximum[i] : s.capture.high[4 + i];
-                    float mark = x + 24 + maximum * 138.f / 32767;
-                    nativeMenuPaint_Rect(mark, y - 2, 1, 17, 0xFFFFFFFF);
-                }
-            } else if (s.step == NativeStartup_Test) {
-                char values[96], id[40];
-                std::snprintf(values, sizeof(values), "%.1f%%  raw %d  max %d",
-                    value * 100.f / 32767, s.raw[4 + i], s.profile.calibration.maximum[4 + i]);
-                nativeMenuPaint_Text(values, x - 5, y + 18, 185, 9, muted, NativeMenuFont_Notice, true);
-                nativeMenuPaint_Text("Analog maximum", x - 5, y + 40, 125, 9, gold);
-                std::snprintf(id, sizeof(id), "setup-trigger-%u-minus", i);
-                nativeHub_Button(id, "-", x + 113, y + 34, 25, 23, HubAction::StartupTriggerMaximum, i * 2);
-                std::snprintf(id, sizeof(id), "setup-trigger-%u-plus", i);
-                nativeHub_Button(id, "+", x + 143, y + 34, 25, 23, HubAction::StartupTriggerMaximum, i * 2 + 1);
-            }
-        }
-    }
+
 }
 void nativeHubStartup_RenderFrame()
 {
@@ -179,19 +150,19 @@ void nativeHubStartup_Render()
         break;
     }
     case NativeStartup_Triggers:
-        line("Slowly squeeze L and R", 134, 22, gold);
-        line("Go through the click, then release. No click? Use full travel.", 177, 10);
-        triggers(237);
-        line("The white mark shows the captured analog maximum.", 300, 10, muted);
+        line("Set your trigger ranges", 134, 22, gold);
+        line("Squeeze, release, then drag Start and End with A or the mouse.", 177, 10);
+        nativeHubStartupTriggers_Render();
+        line("Start reads 0%. End reads 100%. Set End just before the click.", 359, 9, muted);
         nativeHub_Button("setup-retry", "Start over", 124, 369, 165, 28, HubAction::StartupRetry);
-        next("Try calibration", (s.trigger_click[0] >= 0 ? s.capture.trigger_captured[0] : s.capture.high[4] - s.capture.rest_high[4] >= 8192) &&
-            (s.trigger_click[1] >= 0 ? s.capture.trigger_captured[1] : s.capture.high[5] - s.capture.rest_high[5] >= 8192));
+        next("Try calibration", (s.capture.trigger_adjusted[0] || (s.trigger_click[0] >= 0 ? s.capture.trigger_captured[0] : s.capture.high[4] - s.capture.rest_high[4] >= 8192)) &&
+            (s.capture.trigger_adjusted[1] || (s.trigger_click[1] >= 0 ? s.capture.trigger_captured[1] : s.capture.high[5] - s.capture.rest_high[5] >= 8192)));
         break;
     case NativeStartup_Test:
         line("Try your controller", 132, 18, gold);
         line("Small movements should be precise. Rest should be still.", 166, 10);
         stick(167, 180, 0); stick(372, 180, 2);
-        triggers(328);
+        nativeHubStartupTriggers_Render();
         nativeHub_Button("setup-retry", "Calibrate again", 424, 94, 165, 28, HubAction::StartupRetry);
         next("Save & continue");
         break;

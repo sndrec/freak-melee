@@ -480,6 +480,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_startup_roster.cpp
     src/melee/ui/native_hub_startup_portrait.cpp
     src/melee/ui/native_hub_startup_stamp.cpp
+    src/melee/ui/native_hub_startup_triggers.cpp
+    src/melee/lb/native_disc_files.c
     src/melee/ui/native_hub_defaults.cpp
     src/melee/mn/native_menu_tile.c
     src/melee/ui/native_menu_portrait_capture.cpp

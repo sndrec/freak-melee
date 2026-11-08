@@ -4,11 +4,16 @@
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
 #include "native_hub_startup_stamp.h"
+#include "native_hub_startup_triggers.h"
 #include <melee/mn/native_css_original.h>
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
 #include <melee/mn/native_menu_scenery.h>
+extern "C" {
+#include <melee/lb/lbaudio_ax.h>
+#include <melee/gm/gmmain_lib.h>
+}
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
@@ -154,6 +159,7 @@ void nativeHubStartup_Begin()
     }
     hub.visible = true; hub.dismissed = false;
     nativeMenuScenery_Load("tournament-background");
+    lbAudioAx_PlayMusicFile("/audio/first_startup.hps");
     enter(NativeStartup_Welcome);
 }
 void nativeHubStartup_Tick()
@@ -234,13 +240,8 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         return true;
     }
     if (action == HubAction::StartupRetry) { start_rest(); return true; }
-    if (action == HubAction::StartupTriggerMaximum) {
-        if (s.step != NativeStartup_Test || value < 0 || value > 3) return true;
-        unsigned axis = 4 + unsigned(value) / 2;
-        int maximum = s.profile.calibration.maximum[axis] + (value & 1 ? 512 : -512);
-        s.profile.calibration.maximum[axis] = int16_t(std::clamp(maximum,
-            int(s.profile.calibration.center[axis]) + 8192, 32767));
-        nativeProfileInput_Assign(s.port, &s.profile);
+    if (action == HubAction::StartupTriggerRange) {
+        nativeHubStartupTriggers_Begin(value);
         return true;
     }
     if (action == HubAction::StartupSkipController) {
@@ -276,11 +277,13 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         break;
     case NativeStartup_Triggers:
         if (!connected()) break;
-        if (s.raw[4] > s.capture.rest_high[4] + 1000 || s.raw[5] > s.capture.rest_high[5] + 1000) {
-            std::snprintf(s.error, sizeof(s.error), "Release both triggers before continuing."); break;
-        }
         if (!nativeControllerCalibration_Finish(&s.capture, &s.profile.calibration)) {
-            std::snprintf(s.error, sizeof(s.error), "Squeeze both triggers slowly through the click. Without a click, use full travel."); break;
+            std::snprintf(s.error, sizeof(s.error), "Squeeze both triggers, or set their Start and End markers."); break;
+        }
+        if (nativeControllerCalibration_Normalize(&s.profile.calibration,4,s.raw[4]) > 0 ||
+            nativeControllerCalibration_Normalize(&s.profile.calibration,5,s.raw[5]) > 0 ||
+            s.trigger_click[0] > 0 || s.trigger_click[1] > 0) {
+            std::snprintf(s.error, sizeof(s.error), "Release the triggers. Move Start past each resting reading to make it 0%%."); break;
         }
         s.previous_assigned = nativeProfileInput_Assigned(s.port) != nullptr;
         if (s.previous_assigned) s.previous_profile = *nativeProfileInput_Assigned(s.port);
@@ -341,6 +344,7 @@ void nativeHubStartup_Finish()
     nativeHubStartupStamp_Unload(); nativeHubStartupRoster_Unload();
     s.active = false;
     nativeMenuScenery_Unload();
+    lbAudioAx_80023F28(gmMainLib_8015ECB0());
     hub.dismissed = true; hub.visible = false;
 }
 void nativeHubStartup_PortraitSaved(const char* portrait)
@@ -371,4 +375,10 @@ void nativeHubStartup_Inspect()
     const auto& s = nativeHubStartup;
     std::fprintf(stderr, "[hub-inspect] startup active=%d step=%u port=%u connected=%d samples=%u measured=%d completed=%d error=%s\n",
         s.active, unsigned(s.step), s.port, connected(), s.capture.samples, s.profile.calibration.measured, s.completed, s.error);
+    for (unsigned trigger=0; trigger<2; ++trigger) {
+        int16_t start,end; nativeControllerCalibration_TriggerRange(&s.capture,trigger,&start,&end);
+        std::fprintf(stderr,"[hub-inspect] trigger=%u raw=%d rest=%d..%d start=%d end=%d adjusted=%d click=%d\n",
+            trigger,s.raw[4+trigger],s.capture.rest_low[4+trigger],s.capture.rest_high[4+trigger],
+            start,end,s.capture.trigger_adjusted[trigger],s.trigger_click[trigger]);
+    }
 }

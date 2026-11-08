@@ -1,6 +1,6 @@
 # Freak Melee: current project plan
 
-Updated: 2026-11-07. This is the current product contract and work list.
+Updated: 2026-11-08. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
@@ -26,6 +26,10 @@ their own builds; their old "remaining" lists are not the current backlog.
   in the Workshop. It reuses its defaults on later runs and preserves edited
   versions separately. Hardware calibration and the user's usability review
   remain open.
+  Follow-up feedback replaces the sampled stick-outline approximation with
+  actual boundary points and adds manual trigger Start/End markers. The same
+  review launcher creates fresh user data on each run. The supplied mode-select
+  track plays through normal HPS music streaming during setup.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

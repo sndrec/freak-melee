@@ -26,6 +26,12 @@ foreach(_kind RANGE 0 26)
     list(APPEND _native_release_ui "ui/portraits/stock-${_kind}.png")
 endforeach()
 list(APPEND _native_release_ui "ui/skins/menu-panel.bin")
+list(APPEND _native_release_ui "ui/portraits/tile-frame.png")
+file(GLOB_RECURSE _native_disc_assets CONFIGURE_DEPENDS RELATIVE
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/disc" "${CMAKE_CURRENT_SOURCE_DIR}/assets/disc/*")
+foreach(_path IN LISTS _native_disc_assets)
+    list(APPEND _native_release_ui "disc/${_path}")
+endforeach()
 list(REMOVE_DUPLICATES _native_release_ui)
 list(SORT _native_release_ui)
 string(JOIN "\n" _native_release_ui_text ${_native_release_ui})
@@ -43,6 +49,8 @@ add_custom_target(melee_native_ui
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting" "$<TARGET_FILE_DIR:melee_native>/ui/docs"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui" "$<TARGET_FILE_DIR:melee_native>/ui"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/disc" "$<TARGET_FILE_DIR:melee_native>/disc"
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
         ${_native_template_sources} "$<TARGET_FILE_DIR:melee_native>/ui"
     VERBATIM)

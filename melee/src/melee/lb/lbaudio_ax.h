@@ -35,6 +35,7 @@ int lbAudioAx_80023968(int);
 int lbAudioAx_80023A44(int, int);
 int lbAudioAx_80023B24(int);
 int lbAudioAx_80023F28(int);
+int lbAudioAx_PlayMusicFile(const char* filename);
 void lbAudioAx_80024030(int);
 int lbAudioAx_800240B4(int);
 int lbAudioAx_8002411C(int);

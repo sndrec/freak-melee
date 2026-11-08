@@ -27,6 +27,7 @@ class ReleasePayload(unittest.TestCase):
         self.output = self.root/'prepared'
         self.build.mkdir()
         assets = ['ui/freak_shell.rml', 'ui/docs/index.md', 'ui/mario_full.fms', 'ui/skins/menu-panel.bin',
+                  'ui/portraits/tile-frame.png', 'disc/audio/first_startup.hps',
                   'ui/yoshi_wip.fms', *[f'ui/fonts/{name}.bin' for name in
                   ['menu-heading','result-name','result-winner','notice','css-tile','menu-option','menu-caption']]]
         for name in ['melee_native.exe','native_content_tool.exe','SDL3.dll',
@@ -54,6 +55,8 @@ class ReleasePayload(unittest.TestCase):
         with zipfile.ZipFile(self.output/manifest['archive']) as archive:
             names = archive.namelist()
             self.assertIn('native_content_tool.exe', names)
+            self.assertIn('disc/audio/first_startup.hps', names)
+            self.assertIn('ui/portraits/tile-frame.png', names)
             self.assertIn('licenses/monocypher.txt', names)
             self.assertEqual(names.count('SDL3.dll'), 1)
             self.assertNotIn('native_fighter_test_fixture.dll', names)

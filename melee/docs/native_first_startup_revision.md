@@ -1,6 +1,6 @@
 # Startup review: implementation and verification
 
-Updated: 2026-11-07. This list records the user's second wizard review.
+Updated: 2026-11-08. This list records the user's second wizard review and follow-up fixes.
 The playable revision is implemented and the native checks pass. This is the
 pause point for the user's hands-on pass. Commit locally; do not push. The
 cinematic remains a separate storyboard discussion.
@@ -221,12 +221,45 @@ text clears the portrait row and the two stock abbreviations fit one line.
 
 A fresh-data launcher is available at
 `.local/startup-revision-playtest/Launch Startup Review.cmd`. It uses the current
-native build and separate user data, preserving the existing test profile and
-roster. It starts muted. A later launch resumes that launcher's own setup data.
+native build and creates separate user data under `runs` on every launch,
+preserving earlier runs. The tracked launcher source is
+`melee/tools/launch_startup_review.cmd`. User-launched reviews play audio;
+automated native checks stay hidden and muted.
 
 Physical pre-click calibration, mouse-camera feel and visual/usability
 acceptance remain for the user's hands-on pass. The intro remains deferred to
 the joint storyboard discussion.
+
+## Follow-up: stick boundaries, manual trigger ranges and music
+
+The user found inaccurate stick outlines and released triggers reading above
+zero. The outline now keeps a bounded convex boundary of actual input samples,
+with the same measured center used for its live dot. It no longer projects
+samples onto the centers of angular buckets. Returning to the center leaves
+the outer boundary intact.
+
+Trigger capture has large bars with draggable Start and End markers. The
+measured release and pre-click values provide suggestions. Start defines zero;
+End defines full analog travel. Both endpoints remain adjustable during review
+and are saved in the controller profile. The hand and mouse both drag them.
+The release check uses those chosen thresholds. Trigger measurement updates
+only trigger ranges, so moving the hand preserves completed stick measurements.
+
+The supplied mode-select FLAC is converted to looping stereo HPS. The regular
+music stream plays it during setup and returns to menu music on completion.
+Native disc assets use Aurora's normal mounted-file interface; conversion
+tools are used only when authoring the file. See [native disc assets](native_disc_assets.md).
+
+Hardware feel and released-trigger readings still require the user's next pass.
+The build completes in `.local/startup-calibration-music-build-3.log`. Three
+focused input/provider/release tests pass in
+`.local/startup-calibration-contracts.log`, including actual octagonal corner
+coordinates, returning to center, manual trigger thresholds and separation of
+stick and trigger capture. The six-check native startup/resume/finish review
+passes in `.local/startup-calibration-music-ui-review/receipt.json`. It confirms
+the mounted music asset and completes the wizard with hidden, muted clients;
+it skips physical calibration and does not establish audible playback quality
+or hands-on marker dragging.
 
 ## Screens and messages
 

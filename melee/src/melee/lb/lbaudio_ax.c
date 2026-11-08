@@ -420,10 +420,10 @@ static inline const char* getHPSFile(int arg0)
     }
 }
 
-static inline int lbAudioAx_80023F28_helper1(const char* filename)
+int lbAudioAx_PlayMusicFile(const char* filename)
 {
     int result;
-    if (filename == NULL || filename[0] == '\0') {
+    if (filename == NULL || filename[0] == '\0' || strlen(filename) >= sizeof(cur_hps_stem)) {
         result = 1;
     } else if (strcmp(cur_hps_stem, filename) != 0) {
         lbAudioAx_800236DC();
@@ -446,7 +446,7 @@ int lbAudioAx_80023F28(int arg0)
     if (!(filename = getHPSFile(arg0))) {
         return true;
     }
-    return lbAudioAx_80023F28_helper1(filename);
+    return lbAudioAx_PlayMusicFile(filename);
 }
 
 void lbAudioAx_80024030(int arg0)

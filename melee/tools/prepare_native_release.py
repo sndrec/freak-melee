@@ -67,7 +67,7 @@ def main() -> None:
     if not ui_names or len(ui_names) != len(set(ui_names)):
         parser.error("build UI list is empty or contains duplicate paths")
     for name in ui_names:
-        if not name.startswith("ui/") or "\\" in name or ":" in name or \
+        if not name.startswith(("ui/", "disc/")) or "\\" in name or ":" in name or \
                 any(part in (".", "..", "") for part in name.split("/")):
             parser.error(f"invalid UI asset path: {name}")
         if not (build / name).is_file():

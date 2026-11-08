@@ -10,6 +10,7 @@
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
 #include "native_hub_startup_stamp.h"
+#include "native_hub_startup_triggers.h"
 #include "native_hub_defaults.h"
 #include "native_menu_portrait_capture.h"
 #include "native_shell_workshop.h"
@@ -1164,7 +1165,7 @@ extern "C" void nativeHub_Tick(void)
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
-        if (!measuring && magnitude >= 200) {
+        if ((!measuring || (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Triggers)) && magnitude >= 200) {
             pointer_mouse = false;
             float scale = (magnitude - 200) / std::sqrt(magnitude) * .0016f;
             hub.pointer_x =
@@ -1190,6 +1191,7 @@ extern "C" void nativeHub_Tick(void)
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
         if (hub.page != NativeHubPage_QuickStage && !nativeHubStartup.active) break;
     }
+    nativeHubStartupTriggers_Update();
     if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Placement) nativeHubStartupStamp_Move();
 }
 extern "C" void nativeHub_Draw(void)

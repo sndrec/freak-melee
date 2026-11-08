@@ -14,6 +14,7 @@
 #include "gmmain.h"
 #include "gmmain_lib.h"
 #include "native_match_launch.h"
+#include <melee/lb/native_disc_files.h>
 #include <melee/ft/native_script_fighter_launch.h>
 #include <melee/ft/native_script_fighter.h>
 #include <sysdolphin/baselib/audio_output.h>
@@ -156,6 +157,10 @@ int main(int argc, char** argv)
         .mem1Size = 128 * 1024 * 1024,
         .mem2Size = 16 * 1024 * 1024 };
     aurora_initialize(argc, argv, &config);
+    if (!nativeDiscFiles_Mount()) {
+        fprintf(stderr,"Could not mount native disc assets.\n");
+        aurora_dvd_close(); aurora_shutdown(); return 1;
+    }
     if (!nativeShell_Init()) {
         aurora_dvd_close();
         aurora_shutdown();
