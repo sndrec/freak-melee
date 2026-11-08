@@ -525,6 +525,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_shell_rules.cpp
     src/sysdolphin/baselib/audio_rollback.c
     src/sysdolphin/baselib/audio_output.c
+    src/sysdolphin/baselib/audio_capture.c
     src/sysdolphin/baselib/debug.c
     src/sysdolphin/baselib/devcom.c
     src/sysdolphin/baselib/perf.c

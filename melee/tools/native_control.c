@@ -17,6 +17,9 @@ static void usage(const char* executable)
     fprintf(stderr,
             "Usage:\n"
             "  %s [--id NAME] screenshot\n"
+            "  video-start <PPM stream path or named pipe> / video-stop\n"
+            "  audio-start <WAV path> / audio-stop\n"
+            "  studio <state|hud,0|pause,1|camera,ex,ey,ez,tx,ty,tz,fov|fall,port,x,y|pose,port,motion,frame,x,y,facing|reset>\n"
             "  %s [--id NAME] clear [port]\n"
             "  %s [--id NAME] tap <port> <input>... [frames=N]\n"
             "  %s [--id NAME] hold <port> <input>...\n"
@@ -180,6 +183,15 @@ int wmain(int argc, wchar_t** arguments)
     char** command = &argv[command_index];
     if (_stricmp(command[0], "screenshot") == 0 && command_args == 1) {
         message.command = DB_NATIVE_CONTROL_SCREENSHOT;
+    } else if ((_stricmp(command[0],"video-start")==0 || _stricmp(command[0],"audio-start")==0 || _stricmp(command[0],"studio")==0) && command_args==2) {
+        if (!command[1][0] || strlen(command[1])>=sizeof(message.text)) return 1;
+        message.command=_stricmp(command[0],"studio")==0?DB_NATIVE_CONTROL_STUDIO:
+            _stricmp(command[0],"audio-start")==0?DB_NATIVE_CONTROL_AUDIO_START:DB_NATIVE_CONTROL_VIDEO_START;
+        strcpy(message.text,command[1]);
+    } else if (_stricmp(command[0],"video-stop")==0 && command_args==1) {
+        message.command=DB_NATIVE_CONTROL_VIDEO_STOP;
+    } else if (_stricmp(command[0],"audio-stop")==0 && command_args==1) {
+        message.command=DB_NATIVE_CONTROL_AUDIO_STOP;
     } else if ((_stricmp(command[0], "ui-click") == 0 ||
                 _stricmp(command[0], "ui-move") == 0) &&
                (command_args == 3 || command_args == 4))

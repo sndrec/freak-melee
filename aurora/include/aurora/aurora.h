@@ -151,6 +151,9 @@ void aurora_set_present_margins(uint32_t left, uint32_t right, uint32_t top, uin
 // Returns false for an invalid path or while another capture is outstanding.
 // Acceptance is not completion; readback/write failures are reported to the log.
 bool aurora_request_screenshot(const char* path);
+// Record presented frames as a binary PPM stream. A named pipe can feed a video
+// encoder directly. NULL stops and flushes at the next presented frame.
+bool aurora_request_video_capture(const char* path);
 
 void aurora_set_log_level(AuroraLogLevel level);
 void aurora_set_pause_on_focus_lost(bool value);

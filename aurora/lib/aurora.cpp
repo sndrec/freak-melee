@@ -5,6 +5,7 @@
 #include "gfx/resources.hpp"
 #include "gfx/frame.hpp"
 #include "gfx/screenshot.hpp"
+#include "gfx/video_capture.hpp"
 #include "gfx/recording.hpp"
 #include "gfx/render_worker.hpp"
 #include "gx/command_processor.hpp"
@@ -222,6 +223,7 @@ void shutdown() noexcept {
 #ifdef AURORA_ENABLE_GX
   gx::fifo::shutdown();
   gfx::render_worker::synchronize();
+  gfx::video_capture::shutdown();
   frame_profile::report();
 #ifdef AURORA_ENABLE_RMLUI
   rmlui::shutdown();
@@ -297,6 +299,7 @@ void end_frame(bool present) noexcept {
   webgpu::Viewport rmlViewport{};
   bool rmlOverlay = false;
   gfx::screenshot::Path screenshotPath{};
+  gfx::video_capture::Command videoCapture;
   if (present) {
     const uint64_t imguiStarted = profiled ? SDL_GetTicksNS() : 0;
     imguiDrawData = imgui::freeze();
@@ -322,9 +325,10 @@ void end_frame(bool present) noexcept {
     }
 #endif
     screenshotPath = gfx::screenshot::take_request();
+    videoCapture = gfx::video_capture::take_request();
   }
   if (profiled) frame_profile::mark(frame_profile::Phase::Overlay);
-  gfx::end_frame([present, videoBlack = g_videoBlack, screenshotPath, rmlBindGroup = std::move(rmlBindGroup),
+  gfx::end_frame([present, videoBlack = g_videoBlack, screenshotPath, videoCapture, rmlBindGroup = std::move(rmlBindGroup),
                   rmlViewport, rmlOverlay, viewport,
                   imguiDrawData = std::move(imguiDrawData)](
                      wgpu::CommandEncoder& encoder, std::vector<gfx::AfterSubmitCallback> afterSubmitCallbacks) {
@@ -425,6 +429,9 @@ void end_frame(bool present) noexcept {
       gfx::screenshot::encode(encoder, screenshotPath, currentTexture,
                               webgpu::g_graphicsConfig.surfaceConfiguration.format,
                               windowExtent, afterSubmitCallbacks);
+      gfx::video_capture::encode(encoder, videoCapture, currentTexture,
+                                 webgpu::g_graphicsConfig.surfaceConfiguration.format,
+                                 windowExtent, afterSubmitCallbacks);
     }
     webgpu::gpu_prof::frame_end(encoder);
     const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
@@ -541,6 +548,13 @@ void aurora_set_present_margins(uint32_t left, uint32_t right, uint32_t top, uin
 bool aurora_request_screenshot(const char* path) {
 #ifdef AURORA_ENABLE_GX
   return aurora::gfx::screenshot::request(path);
+#else
+  return false;
+#endif
+}
+bool aurora_request_video_capture(const char* path) {
+#ifdef AURORA_ENABLE_GX
+  return aurora::gfx::video_capture::request(path);
 #else
   return false;
 #endif
