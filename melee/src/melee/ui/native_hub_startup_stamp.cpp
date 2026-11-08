@@ -51,20 +51,6 @@ bool nativeHubStartupStamp_Load()
     return ok;
 }
 
-void nativeHubStartupStamp_RenderName()
-{
-    constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
-    nativeMenuPaint_Text("Make your stamp", 292, 107, 310, 31, gold, NativeMenuFont_MenuCaption);
-    nativeMenuTile_Draw(pixels, width, height, nativeHubStartup.tile_name, 73, 178, 210, 210*56.f/64);
-    nativeMenuPaint_Text("Short tile name", 338, 210, 260, 19, muted, NativeMenuFont_MenuOption);
-    nativeHub_Field("setup-tile-name", nativeHubStartup.tile_name, 338, 245, 260, 38, HubAction::StartupTileName);
-    nativeMenuPaint_Text("Printed beneath the portrait on character select.", 338, 298, 260, 10, muted);
-    const char* name = nativeHubStartup.tile_name;
-    bool nonempty = *name && std::strspn(name, " \t\r\n") != std::strlen(name);
-    nativeHub_Button("setup-place-next", "Place on character select", 324, 415, 278, 39,
-        HubAction::StartupNext, 0, true, nonempty);
-}
-
 bool nativeHubStartupStamp_BeginPlacement()
 {
     const NativeCssLayout* layout = nativeCssOriginal_Layout();
@@ -83,9 +69,10 @@ bool nativeHubStartupStamp_BeginPlacement()
 
 void nativeHubStartupStamp_Move()
 {
-    if (!placing || !nativeHub_Hover(24, 94, 592, 292)) return;
-    float left = std::clamp(hub.pointer_x - tile.width * .32f, 24.f, 616 - tile.width * .64f);
-    float top = std::clamp(hub.pointer_y - tile.height * .24f, 94.f, 386 - tile.height * .48f);
+    if (!placing) return;
+    float l,t,r,b; nativeCssOriginal_TileArea(&l,&t,&r,&b);
+    float left = std::clamp(hub.pointer_x - tile.width * .32f, l, r - tile.width * .64f);
+    float top = std::clamp(hub.pointer_y - tile.height * .24f, t, b - tile.height * .48f);
     tile.x = uint16_t(std::lround(left / .64f));
     tile.y = uint16_t(std::lround(top / .48f));
     nativeCssOriginal_PreviewTile(index, &tile);
@@ -115,11 +102,11 @@ void nativeHubStartupStamp_DrawCss(Mtx view)
     C_MTXConcat(view, canvas, model);
     hub.region_count = 0;
     nativeMenuPaint_Begin(model);
-    nativeMenuSkin_Panel(28, 400, 584, 61, 0xC2BEC7FF, 0x09080EF5);
-    nativeMenuPaint_Text("Place your fighter", 42, 411, 350, 17, 0xE5C361FF, NativeMenuFont_MenuOption);
-    nativeMenuPaint_Text("Move the hand. Press A or click to drop the tile.", 42, 438, 430, 10, 0xEEE9EDFF);
-    nativeHub_Region("setup-place-area", 24, 94, 592, 292, HubAction::StartupPlaceTile);
-    nativeHub_Button("setup-back", "< Back", 499, 418, 98, 29, HubAction::StartupBack);
+    nativeMenuSkin_Panel(16,445,608,32,0xC2BEC7FF,0x09080EF5);
+    nativeMenuPaint_Text("Place your fighter. A or click to drop.",28,454,440,12,0xE5C361FF,NativeMenuFont_MenuOption);
+    float l,t,r,b; nativeCssOriginal_TileArea(&l,&t,&r,&b);
+    nativeHub_Region("setup-place-area",l,t,r-l,b-t,HubAction::StartupPlaceTile);
+    nativeHub_Button("setup-back","< Back",514,449,98,25,HubAction::StartupBack);
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, true, model);
     nativeMenuPaint_Begin(model);
     if (nativeHubStartup.error[0]) nativeMenuPaint_Text(nativeHubStartup.error, 42, 470, 550, 8, 0xFFAE92FF);
@@ -131,3 +118,4 @@ void nativeHubStartupStamp_Inspect()
     std::fprintf(stderr, "[hub-inspect] startup-stamp placing=%d index=%u xy=%u,%u size=%u,%u name=%s draft=%s\n",
         placing, index, tile.x, tile.y, tile.width, tile.height, nativeHubStartup.tile_name, nativeHubStartup.draft);
 }
+bool nativeHubStartupStamp_IsPlacing(void) { return placing; }

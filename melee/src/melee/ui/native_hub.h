@@ -24,7 +24,8 @@ typedef enum NativeHubPage {
     NativeHubPage_Letter,
     NativeHubPage_ComposeLetter,
     NativeHubPage_SocialProfile,
-    NativeHubPage_Startup
+    NativeHubPage_Startup,
+    NativeHubPage_Portrait
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

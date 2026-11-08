@@ -29,6 +29,11 @@ s16 PADGetMappedAxisState(u32 port, u32 axis)
 {
     return PADGetNativeAxisState(port, (s32)axis);
 }
+void PADReadRawAxes(u32 port,const s32 bindings[6],const s8 directions[6],s16 values[6])
+{
+    for (unsigned i=0;i<6;++i) values[i]=bindings[i]<0 ? PADGetMappedAxisState(port,i) :
+        PADGetNativeAxisState(port,bindings[i])*directions[i];
+}
 
 void PADSetPortDeadZones(u32 port, const PADDeadZones* calibration)
 {

@@ -1,7 +1,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_account.h"
 #include "native_hub_startup_roster.h"
-#include "native_hub_startup_portrait.h"
+#include "native_hub_portrait.h"
 #include "native_hub_startup_stamp.h"
 #include "native_hub_startup_triggers.h"
 #include <melee/gm/native_profile_input.h>
@@ -78,7 +78,7 @@ namespace {
 void nativeHubStartup_RenderFrame()
 {
     const auto& s = nativeHubStartup;
-    const unsigned group = s.step == NativeStartup_Welcome ? 0 : s.step <= NativeStartup_Account ? 1
+    const unsigned group = s.step == NativeStartup_Welcome ? 0 : s.step <= NativeStartup_Profile ? 1
         : s.step <= NativeStartup_Test ? 2 : 3;
     const float header_x = s.step == NativeStartup_Welcome ? 410 : 40;
     nativeMenuPaint_Text("FIRST STARTUP", header_x, 45, 190, 14, muted, NativeMenuFont_MenuOption, true);
@@ -87,10 +87,10 @@ void nativeHubStartup_RenderFrame()
     if (s.step != NativeStartup_Welcome && s.step != NativeStartup_Done)
         nativeHub_Button("setup-back", "< Back", s.step == NativeStartup_Clone ? 40 : 124,
             s.step >= NativeStartup_Clone ? 426 : 402, 90, 28, HubAction::StartupBack, 0, false,
-            s.step != NativeStartup_Portrait || !nativeHubStartupPortrait_Busy());
-    if (s.step == NativeStartup_Account) {
+            s.step != NativeStartup_Portrait || !nativeHubPortrait_Busy());
+    if (s.step == NativeStartup_Account && nativeHubAccount_StartupContinue()) {
         const auto& account = nativeHubAccount_View();
-        nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
+        nativeHub_Button("setup-next", "Continue",
             314, 391, 220, 40, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
     }
     if (s.step == NativeStartup_Clone && nativeHubStartup_HasRoster())
@@ -160,10 +160,11 @@ void nativeHubStartup_Render()
         break;
     case NativeStartup_Test:
         line("Try your controller", 132, 18, gold);
-        line("Small movements should be precise. Rest should be still.", 166, 10);
+        line(s.testing_input ? "Testing input. Press START to stop." : "Small movements should be precise. Rest should be still.", 166, 10);
         stick(167, 180, 0); stick(372, 180, 2);
         nativeHubStartupTriggers_Render();
         nativeHub_Button("setup-retry", "Calibrate again", 424, 94, 165, 28, HubAction::StartupRetry);
+        nativeHub_Button("setup-test",s.testing_input?"Stop test (START)":"Test",124,94,205,28,HubAction::StartupTest,0,s.testing_input);
         next("Save & continue");
         break;
     case NativeStartup_Done:
@@ -174,8 +175,7 @@ void nativeHubStartup_Render()
         next("Character select");
         break;
     case NativeStartup_ConfirmFighter: nativeHubStartupRoster_Confirm(); break;
-    case NativeStartup_Portrait: nativeHubStartupPortrait_Render(); break;
-    case NativeStartup_TileName: nativeHubStartupStamp_RenderName(); break;
+    case NativeStartup_Portrait: nativeHubPortrait_Render(); break;
     default: break;
     }
 }

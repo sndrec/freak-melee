@@ -24,6 +24,7 @@ foreach(_name IN ITEMS menu-heading result-name result-winner notice css-tile me
 endforeach()
 foreach(_kind RANGE 0 26)
     list(APPEND _native_release_ui "ui/portraits/stock-${_kind}.png")
+    list(APPEND _native_release_ui "ui/portraits/card-${_kind}.png")
 endforeach()
 list(APPEND _native_release_ui "ui/skins/menu-panel.bin")
 list(APPEND _native_release_ui "ui/portraits/tile-frame.png")

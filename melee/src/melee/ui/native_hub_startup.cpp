@@ -2,7 +2,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_account.h"
 #include "native_hub_startup_roster.h"
-#include "native_hub_startup_portrait.h"
+#include "native_hub_portrait.h"
 #include "native_hub_startup_stamp.h"
 #include "native_hub_startup_triggers.h"
 #include <melee/mn/native_css_original.h>
@@ -46,6 +46,24 @@ namespace {
         ok = std::fclose(output) == 0 && ok;
         return ok && MoveFileExA(temporary, file, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
     }
+    void save_stick_trace()
+    {
+        auto& s=nativeHubStartup;
+        char root[512],file[560]; const char* folder=nativeHubCatalog_Root(root);
+        if (!folder) return;
+        std::snprintf(file,sizeof(file),"%s/stick-capture.csv",folder);
+        FILE* output=std::fopen(file,"wb"); if (!output) return;
+        std::fprintf(output,"# rest_center,%d,%d,%d,%d\n",
+            (int(s.capture.rest_low[0])+s.capture.rest_high[0])/2,(int(s.capture.rest_low[1])+s.capture.rest_high[1])/2,
+            (int(s.capture.rest_low[2])+s.capture.rest_high[2])/2,(int(s.capture.rest_low[3])+s.capture.rest_high[3])/2);
+        std::fprintf(output,"sample,main_x,main_y,c_x,c_y\n");
+        unsigned first=s.stick_trace_count>2048?s.stick_trace_count-2048:0;
+        for (unsigned i=first;i<s.stick_trace_count;++i) {
+            const auto* v=s.stick_trace[i%2048];
+            std::fprintf(output,"%u,%d,%d,%d,%d\n",i,v[0],v[1],v[2],v[3]);
+        }
+        std::fclose(output);
+    }
     void restore_controls()
     {
         auto& s = nativeHubStartup;
@@ -54,17 +72,31 @@ namespace {
         else nativeProfileInput_Clear(s.port);
         s.applied = false;
     }
+    bool apply_controls()
+    {
+        auto& s=nativeHubStartup;
+        if (!s.applied) {
+            const auto* previous=nativeProfileInput_Assigned(s.port);
+            s.previous_assigned=previous!=nullptr;
+            if (previous) s.previous_profile=*previous;
+        }
+        if (!nativeProfileInput_Assign(s.port,&s.profile)) return false;
+        s.applied=true; return true;
+    }
     void enter(NativeStartupStep step, bool backwards = false)
     {
         auto& s = nativeHubStartup;
+        if (s.step==NativeStartup_Sticks && step!=NativeStartup_Sticks) save_stick_trace();
         if (s.step == NativeStartup_Placement && step != NativeStartup_Placement) nativeHubStartupStamp_CancelPlacement();
         if (step == NativeStartup_Clone || step == NativeStartup_Portrait || step == NativeStartup_Done)
             nativeHubStartupStamp_Unload();
         if (step == NativeStartup_Portrait && s.step > NativeStartup_Portrait) nativeHubStartupRoster_Begin();
         if (s.step >= NativeStartup_Clone && s.step <= NativeStartup_Portrait &&
             (step < NativeStartup_Clone || step > NativeStartup_Portrait)) nativeHubStartupRoster_Unload();
-        s.step = step; s.started_at = SDL_GetTicks(); s.error[0] = 0;
+        s.step = step; s.started_at = SDL_GetTicks(); s.error[0] = 0; s.testing_input=false;
+        if (step == NativeStartup_Account) nativeHubAccount_BeginStartup();
         if (step == NativeStartup_Controller) s.controller_claimed = false;
+        if (step == NativeStartup_Sticks) s.stick_trace_count=0;
         if (step == NativeStartup_Clone && !*hub.title) {
             hub.template_kind = Ft_Kind_Mario;
             std::snprintf(hub.title, sizeof(hub.title), "Mario");
@@ -72,7 +104,7 @@ namespace {
         nativeHub_ChangePage(step == NativeStartup_Account ? NativeHubPage_Account :
             step == NativeStartup_Clone ? NativeHubPage_Clone : NativeHubPage_Startup, backwards);
         if (step == NativeStartup_Clone) nativeHubStartupRoster_Begin();
-        if (step == NativeStartup_Portrait) nativeHubStartupPortrait_Begin();
+        if (step == NativeStartup_Portrait) nativeHubPortrait_Begin();
         if (!save_progress()) std::snprintf(s.error, sizeof(s.error), "Could not save setup progress. Check the user-data folder.");
     }
     bool connected()
@@ -164,7 +196,7 @@ void nativeHubStartup_Begin()
 }
 void nativeHubStartup_Tick()
 {
-    nativeHubStartupPortrait_Tick();
+    nativeHubPortrait_Tick();
     auto& s = nativeHubStartup;
     if (!s.active || s.step < NativeStartup_Controller || s.step > NativeStartup_Test) return;
     int device = PADGetIndexForPort(s.port);
@@ -176,7 +208,7 @@ void nativeHubStartup_Tick()
         }
         s.controller_index = device;
     }
-    for (unsigned axis = 0; axis < 6; ++axis) s.raw[axis] = nativeProfileInput_RawAxis(s.port, &s.profile, axis);
+    nativeProfileInput_RawAxes(s.port,&s.profile,s.raw);
     if (device < 0) return;
     trigger_clicks();
     if (s.step == NativeStartup_Rest) {
@@ -188,9 +220,14 @@ void nativeHubStartup_Tick()
                       s.raw[axis] > int(s.capture.rest_high[axis]) + 1500;
         if (moving) { nativeControllerCalibration_Reset(&s.capture); s.started_at = SDL_GetTicks(); }
         nativeControllerCalibration_Sample(&s.capture, s.raw, true, nullptr);
-    } else if (s.step == NativeStartup_Sticks || s.step == NativeStartup_Triggers)
+    } else if (s.step == NativeStartup_Sticks || s.step == NativeStartup_Triggers) {
         nativeControllerCalibration_Sample(&s.capture, s.raw, false,
             s.step == NativeStartup_Triggers ? s.trigger_click : nullptr);
+        if (s.step==NativeStartup_Sticks) {
+            std::memcpy(s.stick_trace[s.stick_trace_count%2048],s.raw,4*sizeof(int16_t));
+            ++s.stick_trace_count;
+        }
+    }
 }
 bool nativeHubStartup_Activate(HubAction action, int value)
 {
@@ -202,12 +239,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         std::snprintf(s.tile_name, sizeof(s.tile_name), "%s", hub.title);
         enter(NativeStartup_ConfirmFighter); return true;
     }
-    if (s.step == NativeStartup_Portrait) {
-        if (nativeHubStartupPortrait_Busy()) return true;
-        if (action == HubAction::StartupPortraitReset) { nativeHubStartupPortrait_Reset(); return true; }
-        if (action == HubAction::StartupPortraitSave) { nativeHubStartupPortrait_Save(); return true; }
-    }
-    if (s.step == NativeStartup_TileName && action == HubAction::StartupTileName) return false;
+    if (s.step == NativeStartup_Portrait && action == HubAction::PortraitTileName) return false;
     if (s.step == NativeStartup_Placement && action == HubAction::StartupPlaceTile) {
         if (!nativeHubStartupStamp_Place()) std::snprintf(s.error, sizeof(s.error), "Could not save this position. Try again.");
         else nativeHubStartup_Finish();
@@ -220,12 +252,13 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         nativeHubStartupRoster_Select(value); return true;
     }
     if (action == HubAction::Back || action == HubAction::StartupBack) {
+        if (s.step == NativeStartup_Account && nativeHubAccount_BackStartup()) return true;
+        if (s.step == NativeStartup_Profile) { enter(NativeStartup_Account,true); return true; }
+        if (s.step == NativeStartup_Controller && nativeHubAccount_View().signed_in) { enter(NativeStartup_Account,true); return true; }
         if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
         if (s.step == NativeStartup_ConfirmFighter) { enter(NativeStartup_Clone, true); return true; }
         if (s.step == NativeStartup_Portrait) { enter(NativeStartup_ConfirmFighter, true); return true; }
-        if (s.step == NativeStartup_TileName) { enter(NativeStartup_Portrait, true); return true; }
-        if (s.step == NativeStartup_Placement) { enter(NativeStartup_TileName, true); return true; }
-        if (s.step == NativeStartup_Test) restore_controls();
+        if (s.step == NativeStartup_Placement) { enter(NativeStartup_Portrait, true); return true; }
         if (s.step > NativeStartup_Welcome) enter(NativeStartupStep(unsigned(s.step) - 1), true);
         return true;
     }
@@ -240,6 +273,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         return true;
     }
     if (action == HubAction::StartupRetry) { start_rest(); return true; }
+    if (action == HubAction::StartupTest) { if (s.step==NativeStartup_Test) s.testing_input=!s.testing_input; return true; }
     if (action == HubAction::StartupTriggerRange) {
         nativeHubStartupTriggers_Begin(value);
         return true;
@@ -255,15 +289,22 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         return true;
     }
     switch (s.step) {
-    case NativeStartup_Welcome: enter(NativeStartup_Profile); break;
+    case NativeStartup_Welcome: enter(NativeStartup_Account); break;
     case NativeStartup_Profile:
-        if (nativeHub_SaveProfile()) enter(NativeStartup_Account);
+        if (nativeHub_SaveProfile()) enter(NativeStartup_Controller);
         else std::snprintf(s.error, sizeof(s.error), "Enter a display name and try saving again.");
         break;
     case NativeStartup_Account:
         if (!nativeHubAccount_View().busy && !nativeHubAccount_View().recovery_pending) {
-            if (nativeHub_SaveProfile()) enter(NativeStartup_Controller);
-            else std::snprintf(s.error, sizeof(s.error), "Could not save your profile. Try again.");
+            if (!nativeHubAccount_View().signed_in) enter(NativeStartup_Profile);
+            else {
+                const auto& account=nativeHubAccount_View();
+                std::snprintf(hub.name,sizeof(hub.name),"%s",account.name);
+                std::snprintf(hub.bio,sizeof(hub.bio),"%s",account.bio);
+                std::snprintf(hub.public_name,sizeof(hub.public_name),"%s",account.name);
+                if (nativeHub_SaveProfile()) enter(NativeStartup_Controller);
+                else std::snprintf(s.error, sizeof(s.error), "Could not save your profile. Try again.");
+            }
         }
         break;
     case NativeStartup_Controller:
@@ -273,7 +314,11 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         if (connected() && s.capture.samples >= 60 && SDL_GetTicks() - s.started_at >= 1000) enter(NativeStartup_Sticks);
         break;
     case NativeStartup_Sticks:
-        if (connected() && stick_complete()) enter(NativeStartup_Triggers);
+        if (connected() && stick_complete()) {
+            NativeControllerCalibration sticks=s.capture;
+            for (unsigned i=0;i<2;++i) nativeControllerCalibration_SetTriggerRange(&sticks,i,0,32767);
+            if (nativeControllerCalibration_Finish(&sticks,&s.profile.calibration) && apply_controls()) enter(NativeStartup_Triggers);
+        }
         break;
     case NativeStartup_Triggers:
         if (!connected()) break;
@@ -285,9 +330,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
             s.trigger_click[0] > 0 || s.trigger_click[1] > 0) {
             std::snprintf(s.error, sizeof(s.error), "Release the triggers. Move Start past each resting reading to make it 0%%."); break;
         }
-        s.previous_assigned = nativeProfileInput_Assigned(s.port) != nullptr;
-        if (s.previous_assigned) s.previous_profile = *nativeProfileInput_Assigned(s.port);
-        if (nativeProfileInput_Assign(s.port, &s.profile)) { s.applied = true; enter(NativeStartup_Test); }
+        if (apply_controls()) enter(NativeStartup_Test);
         break;
     case NativeStartup_Test:
         std::snprintf(s.profile.name, sizeof(s.profile.name), "%s", hub.name);
@@ -304,26 +347,6 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         break;
     case NativeStartup_ConfirmFighter: enter(NativeStartup_Portrait); break;
     case NativeStartup_Portrait: break;
-    case NativeStartup_TileName: {
-        if (!s.tile_name[0] || std::strspn(s.tile_name, " \t\r\n") == std::strlen(s.tile_name)) break;
-        if (!nativeFighterProject_SetTileName(s.draft, s.tile_name) || !nativeHubCatalog_PublishDraft(s.draft, NativeHubPublish::Install)) {
-            std::snprintf(s.error, sizeof(s.error), "Could not install your fighter. Your draft is saved in the Workshop."); break;
-        }
-        if (!nativeHubCatalog_Load()) {
-            std::snprintf(s.error, sizeof(s.error), "Could not load your installed fighter. Try again."); break;
-        }
-        bool found = false;
-        for (unsigned i = 0; i < nativeHubFighterCount; ++i)
-            if (nativeHubFighters[i].installed && !std::strcmp(s.draft, nativeHubFighters[i].draft)) {
-                hub.selected = int(i); s.fighter_id = nativeHubFighters[i].id;
-                found = true;
-            }
-        if (!found || !nativeHubStartupStamp_BeginPlacement()) {
-            std::snprintf(s.error, sizeof(s.error), "Could not open character select for placement. Try again."); break;
-        }
-        enter(NativeStartup_Placement);
-        break;
-    }
     case NativeStartup_Placement: break;
     case NativeStartup_Done:
         nativeHubStartup_Finish();
@@ -363,7 +386,18 @@ void nativeHubStartup_PortraitSaved(const char* portrait)
     if (!SDL_CopyFile(portrait, destination) || !nativeHubStartupStamp_Load()) {
         std::snprintf(s.error, sizeof(s.error), "Could not save your portrait. Your draft is saved in the Workshop."); return;
     }
-    enter(NativeStartup_TileName);
+    if (!nativeHubPortrait_StoreCamera(s.draft) || !nativeFighterProject_SetTileName(s.draft,s.tile_name) ||
+        !nativeHubCatalog_PublishDraft(s.draft,NativeHubPublish::Install) || !nativeHubCatalog_Load()) {
+        std::snprintf(s.error,sizeof(s.error),"Could not install your fighter. Your draft is saved in the Workshop."); return;
+    }
+    bool found=false;
+    for (unsigned i=0;i<nativeHubFighterCount;++i) if (nativeHubFighters[i].installed && !std::strcmp(s.draft,nativeHubFighters[i].draft)) {
+        hub.selected=int(i); s.fighter_id=nativeHubFighters[i].id; found=true;
+    }
+    if (!found || !nativeHubStartupStamp_BeginPlacement()) {
+        std::snprintf(s.error,sizeof(s.error),"Could not open character select for placement. Try again."); return;
+    }
+    enter(NativeStartup_Placement);
 }
 bool nativeHubStartup_HasRoster()
 {

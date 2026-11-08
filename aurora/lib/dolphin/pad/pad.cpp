@@ -1625,6 +1625,34 @@ s32 PADGetMappedButtonState(const u32 port, const u32 button) {
   return state;
 }
 
+void PADReadRawAxes(const u32 port, const s32 bindings[6], const s8 directions[6], s16 values[6]) {
+  std::fill_n(values,6,0);
+  auto* controller=aurora::input::get_controller_for_player(port);
+  if (!controller) return;
+  EnsureMappingLoaded(controller);
+  SDL_LockJoysticks();
+  Sint16 axes[SDL_GAMEPAD_AXIS_COUNT];
+  for (unsigned i=0;i<SDL_GAMEPAD_AXIS_COUNT;++i)
+    axes[i]=SDL_GetGamepadAxis(controller->m_controller,static_cast<SDL_GamepadAxis>(i));
+  auto mapped=[&](PADAxis axis) -> int {
+    const auto it=std::ranges::find_if(controller->m_axisMapping,[axis](const auto& item){return item.padAxis==axis;});
+    if (it==controller->m_axisMapping.end()) return 0;
+    if (it->nativeAxis.nativeAxis>=0 && it->nativeAxis.nativeAxis<SDL_GAMEPAD_AXIS_COUNT)
+      return std::min(int(axes[it->nativeAxis.nativeAxis])*it->nativeAxis.sign,32767);
+    return it->nativeButton>=0 && SDL_GetGamepadButton(controller->m_controller,static_cast<SDL_GamepadButton>(it->nativeButton)) ? 32767 : 0;
+  };
+  static constexpr PADAxis positive[]={PAD_AXIS_LEFT_X_POS,PAD_AXIS_LEFT_Y_POS,PAD_AXIS_RIGHT_X_POS,PAD_AXIS_RIGHT_Y_POS};
+  static constexpr PADAxis negative[]={PAD_AXIS_LEFT_X_NEG,PAD_AXIS_LEFT_Y_NEG,PAD_AXIS_RIGHT_X_NEG,PAD_AXIS_RIGHT_Y_NEG};
+  for (unsigned i=0;i<6;++i) {
+    int value=0;
+    if (bindings[i]>=0 && bindings[i]<SDL_GAMEPAD_AXIS_COUNT) value=int(axes[bindings[i]])*directions[i];
+    else if (bindings[i]<0) value=i<4 ? (mapped(positive[i])-mapped(negative[i]))/2 :
+      std::max(0,mapped(i==4?PAD_AXIS_TRIGGER_L:PAD_AXIS_TRIGGER_R));
+    values[i]=static_cast<s16>(std::clamp(value,-32767,32767));
+  }
+  SDL_UnlockJoysticks();
+}
+
 int32_t PADGetNativeButtonPressed(const u32 port) {
   const auto* controller = aurora::input::get_controller_for_player(port);
   if (controller == nullptr) {

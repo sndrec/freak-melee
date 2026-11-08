@@ -9,6 +9,8 @@ extern "C" {
 enum { NATIVE_MENU_FIGHTERS = 6 };
 // Standalone costume/idle animation previews. Load only at menu transitions.
 bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial_variants[11]);
+struct NativeFighterProject;
+bool nativeMenuFighter_LoadProject(unsigned slot, const struct NativeFighterProject* project);
 unsigned nativeMenuFighter_Generation(unsigned slot);
 // Optional flat-colour presentation, with the asset's declared outline meshes.
 void nativeMenuFighter_SetFlatStyle(unsigned slot, unsigned body, unsigned outline, float depth, float facing);

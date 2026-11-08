@@ -30,6 +30,16 @@ their own builds; their old "remaining" lists are not the current backlog.
   actual boundary points and adds manual trigger Start/End markers. The same
   review launcher creates fresh user data on each run. The supplied mode-select
   track plays through normal HPS music streaming during setup.
+  The next review revision puts account choices before guest profile entry,
+  applies measured sticks during trigger adjustment and adds an input-only
+  Test toggle. Portrait naming and framing share a page, with orthographic
+  lens zoom, unrestricted pan and a CSS-size preview. The Workshop edits tile
+  and player-card portraits separately; new clones retain the stock player-card
+  art. Placement shows the player cards and keeps the hand above the tile.
+  Combined native checks pass. Fast-swirl calibration still needs the user's
+  adapter pass; each attempt saves a raw capture for diagnosis. Begin the intro
+  storyboard and staged shot examples next, keeping unfinished appearance-filter
+  shots marked as planned until their actual feature exists.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

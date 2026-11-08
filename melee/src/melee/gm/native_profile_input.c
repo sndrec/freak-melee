@@ -116,6 +116,16 @@ int16_t nativeProfileInput_RawAxis(unsigned port, const NativeProfile* profile, 
     int value = PADGetNativeAxisState(port, binding->native_axis) * binding->direction;
     return (int16_t)(value > 32767 ? 32767 : value < -32767 ? -32767 : value);
 }
+void nativeProfileInput_RawAxes(unsigned port, const NativeProfile* profile, int16_t values[6])
+{
+    if (port>=4 || !profile) { memset(values,0,6*sizeof(*values)); return; }
+    s32 bindings[6]; s8 directions[6];
+    for (unsigned i=0;i<6;++i) {
+        bindings[i]=profile->axes[i].assigned?profile->axes[i].native_axis:-1;
+        directions[i]=profile->axes[i].direction;
+    }
+    PADReadRawAxes(port,bindings,directions,values);
+}
 
 static void apply_axis(uint32_t port, PADStatus* pad, NativeProfileAxis axis)
 {

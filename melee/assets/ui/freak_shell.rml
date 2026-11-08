@@ -470,6 +470,7 @@
           <label for="workshop-portrait-path" class="field-label">Portrait PNG</label>
           <input id="workshop-portrait-path" class="room-input" type="text" maxlength="511" placeholder="Choose a PNG, or use the saved one" />
           <button id="workshop-portrait-browse" class="room-button">Browse</button>
+          <button id="workshop-portrait-edit" class="room-button">Portrait &amp; CSS tile editor</button>
           <button id="workshop-preview" class="room-button">Preview in practice</button>
           <button id="workshop-install" class="room-button primary">Build &amp; install</button>
           <p id="workshop-install-status" class="workshop-status"></p>

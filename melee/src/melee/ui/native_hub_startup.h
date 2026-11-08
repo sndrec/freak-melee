@@ -3,10 +3,10 @@
 #include <melee/gm/native_controller_calibration.h>
 
 enum NativeStartupStep {
-    NativeStartup_Welcome, NativeStartup_Profile, NativeStartup_Account,
+    NativeStartup_Welcome, NativeStartup_Account, NativeStartup_Profile,
     NativeStartup_Controller, NativeStartup_Rest, NativeStartup_Sticks,
     NativeStartup_Triggers, NativeStartup_Test, NativeStartup_Clone,
-    NativeStartup_ConfirmFighter, NativeStartup_Portrait, NativeStartup_TileName,
+    NativeStartup_ConfirmFighter, NativeStartup_Portrait,
     NativeStartup_Placement, NativeStartup_Done
 };
 struct NativeHubStartupState {
@@ -19,8 +19,10 @@ struct NativeHubStartupState {
     int8_t trigger_click[2]; // -1 means no independent digital button.
     int controller_index;
     unsigned port;
+    unsigned stick_trace_count;
+    int16_t stick_trace[2048][4];
     uint64_t started_at;
-    bool active, previous_assigned, applied, calibrated, completed, controller_claimed;
+    bool active, previous_assigned, applied, calibrated, completed, controller_claimed, testing_input;
 };
 extern NativeHubStartupState nativeHubStartup;
 void nativeHubStartup_Initialize(bool has_profile);

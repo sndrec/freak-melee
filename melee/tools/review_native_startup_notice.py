@@ -60,8 +60,6 @@ def main():
         client = Client(args.exe.resolve(), args.iso.resolve(), empty, output / 'client', 'Notice review',
             window_size=(1280, 960), chat_endpoint='http://localhost:1', write_profile=False)
         client.click('setup-next')
-        client.enter('setup-name', 'Notice review')
-        client.click('setup-next')
         client.click('account-create-mode')
         client.enter('account-handle', 'taken_name')
         client.click('account-submit')
@@ -69,14 +67,17 @@ def main():
         # B dismisses the notice, not the wizard's account page.
         client.command('hold', 0, 'B'); time.sleep(.8)
         assert 'count=0' in client.inspect('hub-notice')
-        assert 'active=1 step=2' in client.inspect('startup')
+        assert 'active=1 step=1' in client.inspect('startup')
         client.command('hold', 0, 'sx=0'); time.sleep(.2)
         # Clicking Continue underneath the notice only dismisses it.
         client.click('account-submit'); notice()
-        client.click('setup-next')
+        client.click('account-overview')
         assert 'count=0' in client.inspect('hub-notice')
-        assert 'active=1 step=2' in client.inspect('startup')
+        assert 'active=1 step=1' in client.inspect('startup')
         # A second press after dismissal performs the requested navigation.
+        client.click('account-overview')
+        client.click('setup-next')
+        client.enter('setup-name', 'Notice review')
         client.click('setup-next')
         assert 'active=1 step=3' in client.inspect('startup')
         assert AccountConflict.registrations == 2

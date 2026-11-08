@@ -360,7 +360,7 @@ void nativeCssCards_Update(void)
     {
         memset(&cards.people, 0, sizeof(cards.people));
     }
-    nativeCssOriginal_HidePlayerCards(cards.people.online || nativeHub_IsVisible());
+    nativeCssOriginal_HidePlayerCards(cards.people.online || (nativeHub_IsVisible() && !nativeHubStartupStamp_IsPlacing()));
     static const unsigned colors[4] = { 2, 0, 8, 1 };
     for (unsigned i = 0; i < cards.people.count; ++i) {
         CardArt* art = &cards.art[i];
@@ -387,7 +387,7 @@ void nativeCssCards_Update(void)
             }
             nativeMenuPortrait_Load(&art->portrait,
                                     &person->choice.character_package_id,
-                                    person->choice.character_id);
+                                    person->choice.character_id,NativeMenuPortrait_PlayerCard);
         }
         unsigned appearance = person->kind;
         if (appearance != art->appearance) {
@@ -442,7 +442,7 @@ void nativeCssCards_Carry(unsigned port, const NativeContentId* package,
         art->id = id;
         nativeMenuPortrait_Free(&art->portrait);
         if (nonzero(&id)) {
-            nativeMenuPortrait_Load(&art->portrait, &id, 0);
+            nativeMenuPortrait_Load(&art->portrait, &id, 0,NativeMenuPortrait_Tile);
         }
     }
     art->x = x;

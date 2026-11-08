@@ -9,3 +9,6 @@ bool nativeHubAccount_Activate(HubAction action, int value);
 void nativeHubAccount_Leave();
 void nativeHubAccount_Inspect();
 void nativeHubAccount_Shutdown();
+void nativeHubAccount_BeginStartup();
+bool nativeHubAccount_BackStartup();
+bool nativeHubAccount_StartupContinue();

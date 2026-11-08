@@ -8,7 +8,7 @@
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
-#include "native_hub_startup_portrait.h"
+#include "native_hub_portrait.h"
 #include "native_hub_startup_stamp.h"
 #include "native_hub_startup_triggers.h"
 #include "native_hub_defaults.h"
@@ -55,7 +55,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -327,8 +327,10 @@ namespace {
                 nativeHub_EnterText("\n");
             } else if (field == hub.social_handle) {
                 action = HubAction::SocialLookup;
-            } else if (nativeHubStartup.active && (nativeHubStartup.step == NativeStartup_Profile || nativeHubStartup.step == NativeStartup_TileName)) {
+            } else if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Profile) {
                 action = HubAction::StartupNext;
+            } else if (field == nativeHubPortrait_TileName()) {
+                text_focus(nullptr,0);
             } else if (field == hub.letter_to) {
                 text_focus(hub.letter_subject, sizeof(hub.letter_subject));
             } else if (field == hub.letter_subject) {
@@ -540,6 +542,7 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
 void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
+    if (nativeHubPortrait_Activate(action,value)) return;
     if (nativeHubStartup_Activate(action, value)) return;
     if (nativeHubDefaults_Activate(action)) return;
     if (nativeHubQuickStage_Activate(action,value)) return;
@@ -760,8 +763,12 @@ void nativeHub_Activate(HubAction action, int value)
     case HubAction::FieldTitle:
         text_focus(hub.title, sizeof(hub.title));
         break;
-    case HubAction::StartupTileName:
-        text_focus(nativeHubStartup.tile_name, sizeof(nativeHubStartup.tile_name));
+    case HubAction::PortraitTileName:
+        text_focus(nativeHubPortrait_TileName(),64);
+        break;
+    case HubAction::EditPortrait:
+        if (hub.selected>=0 && unsigned(hub.selected)<nativeHubFighterCount && nativeHubFighters[hub.selected].draft[0])
+            nativeHubPortrait_Open(nativeHubFighters[hub.selected].draft,0,false);
         break;
     case HubAction::SaveProfile:
         text_focus(nullptr, 0);
@@ -1147,7 +1154,7 @@ extern "C" void nativeHub_Tick(void)
     }
     const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
                            nativeHubStartup.step <= NativeStartup_Triggers;
-    nativeMenuScene_Tick(!measuring && !nativeHubDefaults_IsOpen() &&
+    nativeMenuScene_Tick(!measuring && !nativeHubStartup.testing_input && !nativeHubPortrait_Editing() && !nativeHubDefaults_IsOpen() &&
         !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
     if (pointer_mouse && !screen_to_canvas(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
         hub.pointer_x = hub.pointer_y = -100;
@@ -1161,7 +1168,11 @@ extern "C" void nativeHub_Tick(void)
         }
         if (nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
             nativeHubStartup.step <= NativeStartup_Placement && port != nativeHubStartup.port) continue;
-        if (nativeHubStartupPortrait_Controller(pad)) continue;
+        if (nativeHubStartup.active && nativeHubStartup.testing_input) {
+            if (pad.trigger & PAD_BUTTON_START) nativeHubStartup_Activate(HubAction::StartupTest,0);
+            continue;
+        }
+        if (nativeHubPortrait_Controller(pad)) continue;
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
@@ -1208,22 +1219,22 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuTile_Acquire();
         hub.fonts = true;
     }
-    const char* caption = nativeHubStartup.active ? "First startup" : hub.page == NativeHubPage_Profile
+    const char* caption = nativeHubStartup.active ? "First startup" : nativeHubPortrait_Editing() ? "Portrait & CSS tile" : hub.page == NativeHubPage_Profile
         ? (hub.profile_self ? hub.name : hub.viewed_name)
         : page_names[unsigned(hub.page)];
-    if (!nativeMenuScene_Begin(caption, !nativeHubStartup.active)) return;
-    if (nativeHubStartup.active) nativeMenuScenery_Draw();
+    if (!nativeMenuScene_Begin(caption, !nativeHubStartup.active && !nativeHubPortrait_Editing())) return;
+    if (nativeHubStartup.active || nativeHubPortrait_Editing()) nativeMenuScenery_Draw();
     Mtx canvas; Mtx44 projection;
     nativeMenuScene_View(false, false, canvas, projection);
     GXSetProjection(projection, GX_PERSPECTIVE);
     nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
-    if (!nativeHubStartup.active) nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing()) nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
                      HubAction::Profile);
-    if (!nativeHubStartup.active)
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing())
         nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
                          352, 21, 132, 19, HubAction::Close);
-    for (unsigned i = 0; !nativeHubStartup.active && i < 7; ++i) {
+    for (unsigned i = 0; !nativeHubStartup.active && !nativeHubPortrait_Editing() && i < 7; ++i) {
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
             ((hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) && i == NativeHubPage_Lobbies);
@@ -1254,7 +1265,7 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
     if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
-    else {
+    else if (!nativeHubPortrait_Editing()) {
         nativeHub_Panel(38, 408, 565, 32);
         const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
             : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
@@ -1432,7 +1443,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
     if (event->type == SDL_EVENT_MOUSE_MOTION || event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
         nativeHub_MovePointer(int(event->type == SDL_EVENT_MOUSE_MOTION ? event->motion.x : event->button.x),
                               int(event->type == SDL_EVENT_MOUSE_MOTION ? event->motion.y : event->button.y));
-    if (nativeHubStartupPortrait_Event(event)) return;
+    if (nativeHubPortrait_Event(event)) return;
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
         nativeHub_MovePointer(int(event->motion.x), int(event->motion.y));
     }
@@ -1485,7 +1496,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_Startup || nativeHubStartup.active) {
+        page > NativeHubPage_Portrait || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;
@@ -1522,7 +1533,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
-    if (!std::strcmp(id, "startup-camera")) { nativeHubStartupPortrait_Inspect(); return; }
+    if (!std::strcmp(id, "startup-camera")) { nativeHubPortrait_Inspect(); return; }
     if (!std::strcmp(id, "startup-stamp")) { nativeHubStartupStamp_Inspect(); return; }
     if (!std::strcmp(id, "defaults")) { nativeHubDefaults_Inspect(); return; }
     if (!std::strcmp(id, "startup-portrait-save")) { nativeHubStartupRoster_Capture(); return; }

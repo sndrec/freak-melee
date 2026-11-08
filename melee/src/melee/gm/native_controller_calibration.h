@@ -32,6 +32,7 @@ int16_t nativeControllerCalibration_Normalize(const NativeProfileCalibration* ca
                                                unsigned axis, int raw);
 // Raw logical input before dead zones and saved center/range calibration.
 int16_t nativeProfileInput_RawAxis(unsigned port, const NativeProfile* profile, unsigned axis);
+void nativeProfileInput_RawAxes(unsigned port, const NativeProfile* profile, int16_t values[6]);
 #ifdef __cplusplus
 }
 #endif
