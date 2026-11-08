@@ -51,6 +51,7 @@ enum class HubAction {
     DeclineGift,
     Controls,
     SaveProfile,
+    ToggleCustomModels,
     FieldName,
     FieldBio,
     FieldCode,

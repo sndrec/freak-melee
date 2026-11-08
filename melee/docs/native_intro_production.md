@@ -24,8 +24,18 @@ static blocking is a reference for filming.
   music was stopped. Film clients can supply their sound effects to the edit.
 - Third-party costume assets downloaded into `.local/intro-production/assets`.
   Import them through the normal costume/owned-fighter paths before filming.
+- Settings now offers **Custom fighter models: Show / Neutral**. Neutral uses
+  posed hurtbox wireframes for source fighters and installed costumes during
+  play; the frozen Workshop editor retains the authored model. It preserves the
+  normal gameplay/render callbacks and reads the hurtbox/bone data for drawing.
+  A custom Mario becomes neutral and receives Jigglypuff's Sing in
+  `.local/intro-production/appearance-probe.mp4`. Its native captures were
+  inspected. A 400-sample comparison matches all 1280 gameplay trace lines with
+  the setting on/off, including 400 RNG and 800 fighter-state records; see
+  `.local/intro-production/filter-comparison/receipt.json`. This is one Mario
+  input sequence, rather than a complete roster audit.
 - Still required: edited fighter projects, Workshop recording, gameplay passes,
-  sharing footage, the real appearance filter, soundtrack/effects, final cut
+  sharing footage, finished filter/gag shots, soundtrack/effects, final cut
   and end-to-end visual/audio review.
 
 ## Asset credits
@@ -77,6 +87,9 @@ The CLI exposes `audio-start <WAV path>` and `audio-stop` separately.
   facing is -1 or 1. Motion IDs refer to the loaded fighter's state table.
 - `reset`: restore standard camera, HUD and running simulation.
 - `music,off`: stop the stage music while retaining voices and effects.
+- `music,STEM`: play a disc/native HPS asset from `/audio/STEM.hps`.
+- `appearance,0` / `appearance,1`: apply the same saved neutral/show setting
+  used by Settings.
 
 Ports are zero-based. These cues stage the actors; the game then runs their
 usual physics, collisions, animations and authored behavior.

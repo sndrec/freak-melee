@@ -9,6 +9,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
 #include "native_hub_portrait.h"
+#include <melee/gm/native_presentation.h>
 #include "native_hub_startup_stamp.h"
 #include "native_hub_startup_triggers.h"
 #include "native_hub_defaults.h"
@@ -556,6 +557,10 @@ void nativeHub_Activate(HubAction action, int value)
     }
     char path[512]{};
     switch (action) {
+    case HubAction::ToggleCustomModels:
+        if (!nativePresentation_SetCustomModels(!nativePresentation_CustomModels()))
+            nativeHub_Notice("Could not save the appearance setting.");
+        break;
     case HubAction::Profile:
         hub.profile_self = true;
         nativeHub_ChangePage(NativeHubPage_Profile);

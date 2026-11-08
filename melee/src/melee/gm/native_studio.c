@@ -1,5 +1,6 @@
 #include "native_studio.h"
 #include "native_match_launch.h"
+#include "native_presentation.h"
 #include "gm_1A45.h"
 #include <melee/pl/player.h>
 #include <melee/cm/camera.h>
@@ -31,6 +32,7 @@ void nativeStudio_Command(const char* text)
     unsigned value,port,motion; int end=0;
     float frame,x,y,facing;
     Vec3 eye,target; float fov;
+    char music[64];
     bool accepted=false;
     if (!strcmp(text,"state")) {
         for (unsigned p=0;p<4;++p) {
@@ -43,8 +45,13 @@ void nativeStudio_Command(const char* text)
         }
         return;
     }
-    if (!strcmp(text,"music,off")) {
+    if (sscanf(text,"appearance,%u%n",&value,&end)==1 && !text[end] && value<=1) {
+        accepted=nativePresentation_SetCustomModels(value!=0);
+    } else if (!strcmp(text,"music,off")) {
         lbAudioAx_800236DC(); accepted=true;
+    } else if (sscanf(text,"music,%63[A-Za-z0-9_-]%n",music,&end)==1 && !text[end]) {
+        char path[80]; snprintf(path,sizeof(path),"/audio/%s.hps",music);
+        lbAudioAx_PlayMusicFile(path); accepted=true;
     } else if (!strcmp(text,"reset")) {
         gm_ClearDbPauseFlag(0); Camera_SetModeToStandard(); ifAll_ShowHUD(); accepted=true;
     } else if (sscanf(text,"hud,%u%n",&value,&end)==1 && !text[end] && value<=1) {

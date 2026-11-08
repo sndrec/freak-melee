@@ -432,6 +432,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_netplay_udp.c
     src/melee/gm/native_online_session.c
     src/melee/gm/native_profile.c
+    src/melee/gm/native_presentation.c
     src/melee/gm/native_profile_input.c
     src/melee/gm/native_controller_calibration.c
     src/melee/gm/native_replay.c
