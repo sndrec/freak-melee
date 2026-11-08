@@ -58,9 +58,41 @@ does not pass through the notice. It uses an isolated localhost HTTP fixture
 and no existing account data. Physical pre-click capture and adjustment still
 need the user's controller test.
 
-The first-fighter carousel, camera portrait capture, tile placement, default
-roster shortcut and CSS control placement are still to implement. The intro
-remains a separate storyboard discussion after the playable flow.
+## Starter carousel: implementation in progress
+
+Startup now shows a three-position carousel with the stock costumes and idle
+animations. It offers 24 starter families, leaving Kirby out. Popo and Nana
+appear together; Zelda's clone still includes Sheik. The display names include
+Ganondorf, Dr. Mario, Ice Climbers and Mr. Game & Watch. The starter page has
+no naming field, and the extra editable-copy sentence has been removed.
+
+Menu previews own their imported costumes and idle tracks. They retain three
+nearby choices, retire replaced models and release all previews on leaving the
+page. The preview maps animation nodes around reserved bones, expands the
+idle's subactions for mesh visibility and starts with the stock costume-zero
+visibility values from each fighter's spawn setup. It executes no fighter
+gameplay callbacks. The flat-colour presentation accepts a palette and depth;
+Game & Watch's values match PlGw.dat's black body, white outline and 0.01 depth.
+The disc models and textures remain unchanged.
+
+The carousel selection currently feeds the existing clone-to-finish path.
+Camera portrait capture, shorthand stamp text, direct tile placement, the
+default-roster shortcut and final CSS control placement remain to implement.
+Preview framing and flat-character presentation still need visual acceptance.
+The intro remains a separate storyboard discussion after the playable flow.
+
+The 24-choice load/lifetime review is recorded in
+`.local/startup-carousel-review-4/receipt.json`, with a captured overview.
+All 24 choices load; Back releases the models and reopening rebuilds them.
+The four-check setup/resume/clone walkthrough also passes in
+`.local/startup-carousel-flow-review/receipt.json`. These checks establish
+loading and navigation. The captures still show that large heads and the
+paired Ice Climbers need better framing; do not treat the load checks as proof
+that every preview's presentation is finished.
+Build: `.local/startup-carousel-build-6.log`. The final flat-preview capture is
+`.local/startup-carousel-final/receipt.json`. Its body and outline share the
+source depth scale, and the outline leaves the depth buffer unchanged. Facing
+and precise framing remain part of the camera/portrait work.
 
 ## Screens and messages
 

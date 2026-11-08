@@ -4,6 +4,7 @@
 #include "native_hub_account.h"
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
+#include "native_hub_startup_roster.h"
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -473,7 +474,8 @@ void nativeHub_RenderPage(NativeHubPage page)
         collection();
         break;
     case NativeHubPage_Clone:
-        clone_page();
+        if (nativeHubStartup.active) nativeHubStartupRoster_Render();
+        else clone_page();
         break;
     case NativeHubPage_QuickPlay:
         quick_play();

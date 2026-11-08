@@ -7,6 +7,7 @@
 #include "native_hub_notice.h"
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
+#include "native_hub_startup_roster.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -1477,6 +1478,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
+    if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
         float u = -1, v = -1;
         nativeMenuScene_Project(hub.pointer_x, hub.pointer_y, &u, &v);
@@ -1545,6 +1547,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativePlayMenu_Shutdown();
     nativeHubLobbies_Shutdown();
     nativeHubAccount_Shutdown();
+    nativeHubStartupRoster_Unload();
     nativeHubNotice_Clear();
     nativeHubSocial_Shutdown();
     if (hub.fonts) {

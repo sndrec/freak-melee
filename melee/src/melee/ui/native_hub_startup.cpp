@@ -1,6 +1,7 @@
 #define _CRT_RAND_S
 #include "native_hub_startup.h"
 #include "native_hub_account.h"
+#include "native_hub_startup_roster.h"
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -48,6 +49,7 @@ namespace {
     void enter(NativeStartupStep step, bool backwards = false)
     {
         auto& s = nativeHubStartup;
+        if (s.step == NativeStartup_Clone && step != NativeStartup_Clone) nativeHubStartupRoster_Unload();
         s.step = step; s.started_at = SDL_GetTicks(); s.error[0] = 0;
         if (step == NativeStartup_Controller) s.controller_claimed = false;
         if (step == NativeStartup_Clone && !*hub.title) {
@@ -56,6 +58,7 @@ namespace {
         }
         nativeHub_ChangePage(step == NativeStartup_Account ? NativeHubPage_Account :
             step == NativeStartup_Clone ? NativeHubPage_Clone : NativeHubPage_Startup, backwards);
+        if (step == NativeStartup_Clone) nativeHubStartupRoster_Begin();
         if (!save_progress()) std::snprintf(s.error, sizeof(s.error), "Could not save setup progress. Check the user-data folder.");
     }
     bool connected()
@@ -177,6 +180,12 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     auto& s = nativeHubStartup;
     if (action == HubAction::Startup) { nativeHubStartup_Begin(); return true; }
     if (!s.active) return false;
+    if (s.step == NativeStartup_Clone && action == HubAction::StartupFighterMove) {
+        nativeHubStartupRoster_Move(value); return true;
+    }
+    if (s.step == NativeStartup_Clone && action == HubAction::StockTemplate) {
+        nativeHubStartupRoster_Select(value); return true;
+    }
     if (action == HubAction::Back || action == HubAction::StartupBack) {
         if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
         if (s.step == NativeStartup_Test) restore_controls();

@@ -111,17 +111,18 @@ void nativeHubStartup_RenderFrame()
     for (unsigned i = 0; i < 4; ++i)
         nativeMenuPaint_Round(header_x + 65 + i * 18, 73, 5, 5, 2.5f, i == group ? gold : 0x655E7AFF);
     if (s.step != NativeStartup_Welcome && s.step != NativeStartup_Done)
-        nativeHub_Button("setup-back", "< Back", 124, 402, 90, 28, HubAction::StartupBack);
+        nativeHub_Button("setup-back", "< Back", s.step == NativeStartup_Clone ? 40 : 124,
+            s.step == NativeStartup_Clone ? 426 : 402, 90, 28, HubAction::StartupBack);
     if (s.step == NativeStartup_Account) {
         const auto& account = nativeHubAccount_View();
         nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
             314, 391, 220, 40, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
     }
     if (s.step == NativeStartup_Clone && nativeHubStartup_HasFighter())
-        nativeHub_Button("setup-next", "Use my roster", 314, 402, 200, 28, HubAction::StartupNext);
+        nativeHub_Button("setup-next", "Use my roster", 154, 426, 170, 28, HubAction::StartupNext);
     if (s.step != NativeStartup_Welcome) {
         const char* status = s.error[0] ? s.error : SDL_GetTicks() < hub.notice_until ? hub.notice : "";
-        line(status, 449, 9, s.error[0] ? 0xFFAE92FF : muted);
+        line(status, s.step == NativeStartup_Clone ? 467 : 449, 9, s.error[0] ? 0xFFAE92FF : muted);
     }
 }
 void nativeHubStartup_Render()

@@ -51,7 +51,7 @@ def main():
         client.click('setup-back'); startup(3)
         client.click('setup-skip-controller'); startup(8)
         client.element('create-clone'); screens.append(str(client.screenshot()))
-        client.enter('clone-name', 'First Mario'); client.click('create-clone')
+        client.click('create-clone')
         startup(9, timeout=120); screens.append(str(client.screenshot()))
         assert len(list((client.data / 'content/installed').glob('*.fmi'))) == 1
         client.click('setup-next'); client.element('play-lobby')

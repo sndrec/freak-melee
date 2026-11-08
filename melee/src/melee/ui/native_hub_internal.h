@@ -83,7 +83,7 @@ enum class HubAction {
     MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock,
     OpenAccount, SendInvitation, JoinInvitation,
     Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry,
-    StartupTriggerMaximum
+    StartupTriggerMaximum, StartupFighterMove
 };
 struct HubRegion {
     float x, y, w, h;
