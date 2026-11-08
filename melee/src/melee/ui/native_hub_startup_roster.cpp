@@ -65,10 +65,10 @@ namespace {
             cache[slot].index = target;
             short variants[11];
             for (unsigned group = 0; group < 11; ++group) variants[group] = starters[target].visible_groups & (1u << group) ? 0 : -1;
-            cache[slot].loaded = nativeMenuFighter_Load(slot, starters[target].kind, variants);
+            cache[slot].loaded = nativeMenuFighter_Load(slot, starters[target].kind, 0, nullptr, variants);
             if (starters[target].kind == Ft_Kind_GameWatch && cache[slot].loaded)
                 nativeMenuFighter_SetFlatStyle(slot, 0x000000FF, 0xFFFFFF80, .01f, 1.57079633f);
-            cache[slot].companion = starters[target].kind == Ft_Kind_Popo && nativeMenuFighter_Load(slot + 3, Ft_Kind_Nana, variants);
+            cache[slot].companion = starters[target].kind == Ft_Kind_Popo && nativeMenuFighter_Load(slot + 3, Ft_Kind_Nana, 0, nullptr, variants);
         }
     }
 }

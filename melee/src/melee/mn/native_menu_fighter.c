@@ -29,10 +29,12 @@ typedef struct MenuFighter {
     HSD_GObj* owner;
     HSD_JObj* root;
     FtCostumeAssets costume;
-    struct Fighter_WaitAnimData idle;
+    struct Fighter_WaitAnimData motion;
     void *costume_bytes, *animation_bytes, *animation_arena;
     float low_y, height;
     FighterKind kind;
+    unsigned costume_id;
+    char animation[64];
     HSD_DObj* draws[256];
     HSD_JObj* draw_owners[256];
     u32 render_modes[256];
@@ -175,7 +177,7 @@ static bool visibility_timeline(MenuFighter* fighter, const NativeSourceAssetFac
     snprintf(project.fighter_root, sizeof(project.fighter_root), "%s", facts->fighter_root);
     NativeFighterActionOccurrence events[4096]; size_t count = 0; bool complete;
     if (!nativeFighterAction_Timeline(&project, action, events, 4096, &count, &complete)) return false;
-    FigaTree* tree = fighter->idle.x14;
+    FigaTree* tree = fighter->motion.x14;
     if (tree->frames <= 0 || tree->frames > 1024) return false;
     fighter->visibility_frames = (unsigned)ceilf(tree->frames);
     int selected[11]; for (unsigned i = 0; i < 11; ++i) selected[i] = fighter->initial_variants[i];
@@ -199,12 +201,14 @@ static bool visibility_timeline(MenuFighter* fighter, const NativeSourceAssetFac
     return true;
 }
 
-static bool bind_idle(MenuFighter* fighter, const NativeSourceAssetFacts* facts,
-                       const HSD_Dat* dat, u32 root, size_t animation_size, void* bytes, size_t size)
+static bool bind_animation(MenuFighter* fighter, const NativeSourceAssetFacts* facts,
+                       const HSD_Dat* dat, u32 root, size_t animation_size, void* bytes, size_t size,
+                       const char* animation)
 {
     u32 table, name, word, flags;
-    // Action descriptors are indexed independently of motion states. Select
-    // the named Wait1 entry rather than assuming its index or archive offset.
+    // Action descriptors are indexed independently of motion states.
+    char wanted[96];
+    snprintf(wanted,sizeof(wanted),"_ACTION_%s_figatree",animation ? animation : "Wait1");
     if (!pointer(dat, root + 12, &table)) return false;
     bool found = false; unsigned action = 0;
     for (unsigned i = 0; i < facts->actions; ++i) {
@@ -212,18 +216,18 @@ static bool bind_idle(MenuFighter* fighter, const NativeSourceAssetFacts* facts,
         if (!HSD_DatReadU32(dat, entry, &name)) return false;
         const char* label = name ? (const char*)HSD_DatBytes(dat, name, 1) : NULL;
         if (label && !memchr(label, 0, dat->data_size - name)) return false;
-        if (!label || (!strstr(label, "_ACTION_Wait1_figatree") && !strstr(label, "_ACTION_Wait_figatree"))) continue;
-        fighter->idle.x0 = (char*)label;
+        if (!label || (!strstr(label,wanted) && (animation || !strstr(label,"_ACTION_Wait_figatree")))) continue;
+        fighter->motion.x0 = (char*)label;
         if (!HSD_DatReadU32(dat, entry + 4, &word)) return false;
-        fighter->idle.x4 = word;
+        fighter->motion.x4 = word;
         if (!HSD_DatReadU32(dat, entry + 8, &word)) return false;
-        fighter->idle.x8 = word;
+        fighter->motion.x8 = word;
         if (!HSD_DatReadU32(dat, entry + 16, &flags)) return false;
         action = i; found = true; break;
     }
     if (!found) return false;
     fighter->animation_arena = malloc(FT_ANIMATION_IMPORT_ARENA_SIZE);
-    FtAnimationBankTable entry = { &fighter->idle, 1, false };
+    FtAnimationBankTable entry = { &fighter->motion, 1, false };
     FtAnimationBankStats stats;
     if (!fighter->animation_arena || !ftAnimationBank_Import(fighter->animation_bytes,
         animation_size, &entry, 1, fighter->animation_arena, FT_ANIMATION_IMPORT_ARENA_SIZE, &stats)) return false;
@@ -233,7 +237,7 @@ static bool bind_idle(MenuFighter* fighter, const NativeSourceAssetFacts* facts,
         !visibility_timeline(fighter, facts, dat, root, bytes, size, action)) return false;
     for (unsigned d = 0; d < fighter->draw_count; ++d)
         if (fighter->draws[d]->mobj) fighter->render_modes[d] = fighter->draws[d]->mobj->rendermode;
-    FigaTree* tree = fighter->idle.x14;
+    FigaTree* tree = fighter->motion.x14;
     FigaTrack* track = tree->tracks;
     unsigned animation_node = 0, costume_node = 0;
     u32 mask = (flags >> 9) & 0x1FFF;
@@ -275,11 +279,15 @@ static bool bind_idle(MenuFighter* fighter, const NativeSourceAssetFacts* facts,
     return isfinite(fighter->height) && fighter->height > .01f;
 }
 
-bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial_variants[11])
+bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, unsigned costume,
+                            const char* animation, const short initial_variants[11])
 {
-    if (slot >= NATIVE_MENU_FIGHTERS || !initial_variants) return false;
+    if (slot >= NATIVE_MENU_FIGHTERS || !initial_variants || kind < Ft_Kind_Mario || kind >= Ft_Kind_StockCount ||
+        costume>=CostumeListsForeachCharacter[kind].numCostumes || (animation && strlen(animation)>=64)) return false;
     MenuFighter* fighter = &fighters[slot];
-    if (fighter->root && fighter->kind == kind && !memcmp(fighter->initial_variants, initial_variants, sizeof(fighter->initial_variants))) return true;
+    if (fighter->root && fighter->kind == kind && fighter->costume_id==costume &&
+        !strcmp(fighter->animation,animation?animation:"") &&
+        !memcmp(fighter->initial_variants, initial_variants, sizeof(fighter->initial_variants))) return true;
     nativeMenuFighter_Unload(slot);
     // Nana's stock action bank is owned by Popo; her costume remains her own.
     FighterKind animation_kind = kind == Ft_Kind_Nana ? Ft_Kind_Popo : kind;
@@ -290,12 +298,14 @@ bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial
     const Fighter_CostumeStrings* names = ftData_803C2360[kind];
     void* bytes = NULL; size_t size = 0, costume_size = 0, animation_size = 0;
     fighter->kind = kind;
+    fighter->costume_id=costume;
+    snprintf(fighter->animation,sizeof(fighter->animation),"%s",animation?animation:"");
     memcpy(fighter->initial_variants, initial_variants, sizeof(fighter->initial_variants));
     fighter->owner = GObj_Create(0xFE11, 5, 0x80);
     GObj_InitUserData(fighter->owner, 0, forget, fighter);
-    bool ok = names && nativeDiscArchive_Read(names[0].dat_filename, &fighter->costume_bytes, &costume_size) &&
-        ftCostumeAssets_Load(fighter->costume_bytes, costume_size, names[0].joint_name,
-            names[0].matanim_joint_name, &fighter->costume) &&
+    bool ok = names && nativeDiscArchive_Read(names[costume].dat_filename, &fighter->costume_bytes, &costume_size) &&
+        ftCostumeAssets_Load(fighter->costume_bytes, costume_size, names[costume].joint_name,
+            names[costume].matanim_joint_name, &fighter->costume) &&
         nativeDiscArchive_Read(ftData_803C1F40[animation_kind].filename, &bytes, &size) &&
         nativeDiscArchive_Read(ftData_803C23E4[animation_kind], &fighter->animation_bytes, &animation_size);
     if (ok) {
@@ -305,9 +315,9 @@ bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial
         HSD_Dat dat; u32 root;
         ok = HSD_DatOpen(&dat, bytes, size) == HSD_DAT_OK &&
             HSD_DatFindRoot(&dat, facts->fighter_root, &root) &&
-            bind_idle(fighter, facts, &dat, root, animation_size, bytes, size);
+            bind_animation(fighter, facts, &dat, root, animation_size, bytes, size,animation);
         // The imported FigaTree retains its animation archive, not this label.
-        fighter->idle.x0 = NULL;
+        fighter->motion.x0 = NULL;
     }
     _aligned_free(bytes);
     if (!ok) {
@@ -348,9 +358,9 @@ bool nativeMenuFighter_LoadProject(unsigned slot, const NativeFighterProject* pr
         HSD_JObjAddAnimAll(fighter->root,NULL,fighter->costume.matanim_joint,NULL);
         HSD_Dat dat; u32 root;
         ok=HSD_DatOpen(&dat,project->fighter_dat,project->fighter_size)==HSD_DAT_OK &&
-            HSD_DatFindRoot(&dat,facts->fighter_root,&root) && bind_idle(fighter,facts,&dat,root,
-                project->animation_size,project->fighter_dat,project->fighter_size);
-        fighter->idle.x0=NULL;
+            HSD_DatFindRoot(&dat,facts->fighter_root,&root) && bind_animation(fighter,facts,&dat,root,
+                project->animation_size,project->fighter_dat,project->fighter_size,NULL);
+        fighter->motion.x0=NULL;
     }
     if (!ok) nativeMenuFighter_Unload(slot);
     else { ++generations[slot]; fighter->depth=1; load_lights(); }
@@ -368,8 +378,8 @@ void nativeMenuFighter_SetFlatStyle(unsigned slot, unsigned body, unsigned outli
 
 static void render_fighter(MenuFighter* fighter, Mtx view, float frame)
 {
-    FigaTree* idle = fighter->idle.x14;
-    HSD_JObjReqAnimAll(fighter->root, fmodf(fmaxf(0, frame), fmaxf(1, idle->frames)));
+    FigaTree* tree = fighter->motion.x14;
+    HSD_JObjReqAnimAll(fighter->root, fmodf(fmaxf(0, frame), fmaxf(1, tree->frames)));
     HSD_JObjAnimAll(fighter->root);
     HSD_LObjDeleteCurrentAll(NULL);
     for (HSD_LObj* light = lighting; light; light = light->next) HSD_LObjAddCurrent(light);
@@ -446,5 +456,5 @@ void nativeMenuFighter_Inspect(void)
 {
     for (unsigned i = 0; i < NATIVE_MENU_FIGHTERS; ++i) if (fighters[i].root)
         fprintf(stderr, "[hub-inspect] menu-fighter slot=%u kind=%u joints=%u frames=%.1f height=%.2f\n",
-            i, fighters[i].kind, (unsigned)fighters[i].costume.joint_count, ((FigaTree*)fighters[i].idle.x14)->frames, fighters[i].height);
+            i, fighters[i].kind, (unsigned)fighters[i].costume.joint_count, ((FigaTree*)fighters[i].motion.x14)->frames, fighters[i].height);
 }

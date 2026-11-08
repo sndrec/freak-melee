@@ -7,8 +7,10 @@
 extern "C" {
 #endif
 enum { NATIVE_MENU_FIGHTERS = 6 };
-// Standalone costume/idle animation previews. Load only at menu transitions.
-bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial_variants[11]);
+// Standalone costume/animation previews. NULL animation selects the idle.
+// Load only at menu or authoring transitions.
+bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, unsigned costume,
+                            const char* animation, const short initial_variants[11]);
 struct NativeFighterProject;
 bool nativeMenuFighter_LoadProject(unsigned slot, const struct NativeFighterProject* project);
 unsigned nativeMenuFighter_Generation(unsigned slot);

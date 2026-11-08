@@ -299,7 +299,7 @@ void nativeHubPortrait_Render()
     } else nativeMenuPaint_Text("Shown on the player's panel.",365,183,230,12,muted);
     nativeMenuPaint_Text("C-stick: orbit    X / Y: zoom",365,234,230,10,muted);
     nativeMenuPaint_Text("A + stick on portrait / D-pad: pan",365,253,230,10,muted);
-    nativeMenuPaint_Text("CSS size",486,307,105,10,muted);
+    nativeMenuPaint_Text(card_mode?"Card size":"CSS size",486,307,105,10,muted);
     nativeMenuPaint_Text("Middle-drag: orbit    Wheel: zoom",72,383,264,10,muted);
     nativeMenuPaint_Text("Shift + middle-drag: pan",72,402,264,10,muted);
     nativeHub_Button("setup-portrait-reset", "Reset view", 363, 368, 150, 26,

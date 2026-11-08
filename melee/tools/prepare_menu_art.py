@@ -18,7 +18,7 @@ def indexed_image(data, image, palette):
         return struct.unpack_from('>I', data, 32 + offset)[0]
     pixels, width, height, fmt = struct.unpack_from('>IHHI', data, 32 + image)
     if fmt != 9 or word(palette + 4) != 2 or width % 8 or height % 4:
-        raise ValueError('Unexpected CSS portrait format for ' + kind)
+        raise ValueError('Unexpected indexed menu image format')
     colors = []
     palette_pixels = word(palette)
     entries = struct.unpack_from('>H', data, 32 + palette + 12)[0]

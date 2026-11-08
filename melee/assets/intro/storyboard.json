@@ -1,0 +1,203 @@
+{
+  "title": "Be prepared for anything",
+  "size": [
+    960,
+    720
+  ],
+  "fps": 30,
+  "shots": [
+    {
+      "id": "your-fighter",
+      "seconds": 7,
+      "caption": "In Freak Melee, your characters belong to you!",
+      "direction": "Mario turns toward camera. The familiar fighter becomes your first editable clone.",
+      "actors": [
+        {
+          "kind": 0,
+          "animation": "Wait1",
+          "frame": 18,
+          "yaw": -0.45,
+          "x": 480,
+          "feet": 605,
+          "size": 408
+        }
+      ]
+    },
+    {
+      "id": "hitboxes",
+      "seconds": 6,
+      "caption": "Tweak the hitboxes...",
+      "direction": "Match cut from the real Action Editor to the edited attack. Show a modest range change before the later overpowered gag.",
+      "pending": "Record the actual edit and its gameplay result.",
+      "actors": [
+        {
+          "kind": 0,
+          "animation": "AttackS3S",
+          "frame": 9,
+          "yaw": -0.65,
+          "x": 480,
+          "feet": 600,
+          "size": 395
+        }
+      ]
+    },
+    {
+      "id": "animation",
+      "seconds": 6,
+      "caption": "...the animations...",
+      "direction": "Scrub an authored pose in Animation, then cut to that pose moving in-game. Keep the same view direction across the cut.",
+      "pending": "Author and record the changed animation.",
+      "actors": [
+        {
+          "kind": 0,
+          "animation": "AttackAirF",
+          "frame": 19,
+          "yaw": -0.5,
+          "x": 480,
+          "feet": 575,
+          "size": 382
+        }
+      ]
+    },
+    {
+      "id": "scripts",
+      "seconds": 7,
+      "caption": "...the code!",
+      "direction": "Show a few readable lines in Scripting. Cut to a visibly altered special, followed by the fighter landing in the same composition.",
+      "pending": "Choose a small scripted change and film its real result.",
+      "actors": [
+        {
+          "kind": 0,
+          "animation": "SpecialN",
+          "frame": 18,
+          "yaw": -0.45,
+          "x": 480,
+          "feet": 600,
+          "size": 374
+        }
+      ]
+    },
+    {
+      "id": "sharing",
+      "seconds": 7,
+      "caption": "Show off your one-of-a-kind fighters online.",
+      "direction": "Film the real tile-to-player delivery, then the received fighter appearing on the other player's CSS.",
+      "pending": "Capture a local two-client delivery with test accounts.",
+      "actors": [
+        {
+          "kind": 0,
+          "animation": "Wait1",
+          "frame": 18,
+          "yaw": -0.45,
+          "x": 315,
+          "feet": 585,
+          "size": 323
+        },
+        {
+          "kind": 22,
+          "animation": "Wait1",
+          "frame": 18,
+          "yaw": 0.45,
+          "x": 675,
+          "feet": 585,
+          "size": 323
+        }
+      ]
+    },
+    {
+      "id": "anything",
+      "seconds": 7,
+      "caption": "There aren't any limits. Against strangers, expect anything...",
+      "direction": "A low-percent victim is launched by one absurdly strong hit. Smash cut to a taunting Ganondorf behind a deliberately excessive CENSORED bar.",
+      "pending": "Author the gag clone and film the KO. The censored board uses a fully clothed stock model.",
+      "censor": true,
+      "actors": [
+        {
+          "kind": 25,
+          "animation": "AppealR",
+          "frame": 30,
+          "yaw": -0.5,
+          "x": 480,
+          "feet": 610,
+          "size": 400
+        }
+      ]
+    },
+    {
+      "id": "appearance-filter",
+      "seconds": 8,
+      "caption": "You can disable custom fighter appearances in Settings.",
+      "direction": "Mid-taunt, a puff of smoke replaces the censored fighter with a neutral hurtbox-shaped wireframe. Jigglypuff sings; the wireframe falls asleep.",
+      "pending": "Implement and verify the actual appearance filter before filming this setting. Wireframe design and sleep gag need staging.",
+      "actors": [
+        {
+          "kind": 15,
+          "animation": "SpecialHiL",
+          "frame": 24,
+          "yaw": -0.2,
+          "x": 260,
+          "feet": 600,
+          "size": 255
+        }
+      ],
+      "wireframe": true
+    },
+    {
+      "id": "outfits",
+      "seconds": 9,
+      "caption": "Keep the moves. Change the look. Swag up your fighters!",
+      "direction": "Four Falcos drop in one at a time, land on the beat, then taunt. Final film uses distinct outfits; stock colors establish spacing in this study.",
+      "pending": "Choose four actual outfit packages and record drop / landing / taunt transitions.",
+      "actors": [
+        {
+          "kind": 22,
+          "costume": 0,
+          "animation": "Appeal",
+          "frame": 30,
+          "yaw": -0.35,
+          "x": 180,
+          "feet": 595,
+          "size": 280
+        },
+        {
+          "kind": 22,
+          "costume": 1,
+          "animation": "Appeal",
+          "frame": 30,
+          "yaw": -0.35,
+          "x": 380,
+          "feet": 595,
+          "size": 280
+        },
+        {
+          "kind": 22,
+          "costume": 2,
+          "animation": "Appeal",
+          "frame": 30,
+          "yaw": -0.35,
+          "x": 580,
+          "feet": 595,
+          "size": 280
+        },
+        {
+          "kind": 22,
+          "costume": 3,
+          "animation": "Appeal",
+          "frame": 30,
+          "yaw": -0.35,
+          "x": 780,
+          "feet": 595,
+          "size": 280
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "seconds": 5,
+      "caption": "Be prepared for anything in Freak Melee!",
+      "direction": "Hold the lineup; resolve to the Freak Melee logo. Fade into the live first-fighter carousel.",
+      "actors": [],
+      "caption_y": 450
+    }
+  ]
+}
