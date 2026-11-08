@@ -27,6 +27,7 @@ static void usage(const char* executable)
             "  %s [--id NAME] ui-click <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1> [left|right|middle] [shift|ctrl|alt]...\n"
             "  ui-wheel <x> <y> <steps>\n"
+            "  ui-down / ui-up <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
             "  %s [--id NAME] ui-key <letter|left|right|up|down|home|end|pageup|pagedown|tab|space|escape|enter|backspace|delete> "
@@ -194,7 +195,9 @@ int wmain(int argc, wchar_t** arguments)
     } else if (_stricmp(command[0],"audio-stop")==0 && command_args==1) {
         message.command=DB_NATIVE_CONTROL_AUDIO_STOP;
     } else if ((_stricmp(command[0], "ui-click") == 0 ||
-                _stricmp(command[0], "ui-move") == 0) &&
+                _stricmp(command[0], "ui-move") == 0 ||
+                _stricmp(command[0], "ui-down") == 0 ||
+                _stricmp(command[0], "ui-up") == 0) &&
                (command_args == 3 || command_args == 4))
     {
         long x, y;
@@ -205,11 +208,13 @@ int wmain(int argc, wchar_t** arguments)
         }
         message.command = _stricmp(command[0], "ui-move") == 0
                               ? DB_NATIVE_CONTROL_UI_MOVE
+                              : _stricmp(command[0], "ui-down") == 0 ? DB_NATIVE_CONTROL_UI_DOWN
+                              : _stricmp(command[0], "ui-up") == 0 ? DB_NATIVE_CONTROL_UI_UP
                               : DB_NATIVE_CONTROL_UI_CLICK;
         message.ui_x = x;
         message.ui_y = y;
         if(command_args==4) {
-            if(_stricmp(command[0],"ui-click")!=0)return 1;
+            if(_stricmp(command[0],"ui-move")==0)return 1;
             if(_stricmp(command[3],"right")==0)message.buttons=1;
             else if(_stricmp(command[3],"middle")==0)message.buttons=2;
             else return 1;

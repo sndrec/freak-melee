@@ -73,7 +73,13 @@ def main():
         sender.screenshot(); receiver.screenshot()
         with NativeVideo(sender, root/'send-fighter.mp4'):
             time.sleep(1)
-            sender.command('ui-drag', *sender.pixel(tx,ty), *sender.pixel(7.6,-14))
+            start, end = sender.pixel(tx,ty), sender.pixel(7.6,-14)
+            sender.command('ui-down', *start)
+            for step in range(1, 37):
+                t=step/36; t=t*t*(3-2*t)
+                sender.command('ui-move', *[round(a+(b-a)*t) for a,b in zip(start,end)])
+                time.sleep(.04)
+            sender.command('ui-up', *end)
             sender.element('confirm-gift', timeout=10); time.sleep(1.4)
             sender.click('confirm-gift'); time.sleep(2)
             sender.screenshot()

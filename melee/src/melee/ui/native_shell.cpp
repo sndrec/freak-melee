@@ -457,6 +457,22 @@ extern "C" void nativeShell_ClickAt(int x, int y, int button)
     context->ProcessMouseButtonUp(button, 0);
 }
 
+extern "C" void nativeShell_PointerButtonAt(int x, int y, int button, bool down)
+{
+    if (nativeHub_IsVisible()) {
+        if (down) nativeHub_ClickAt(x, y, button);
+        return;
+    }
+    const auto event = down ? (button == 0 ? NativeCssPointer_Press : NativeCssPointer_Back)
+                            : NativeCssPointer_Release;
+    if (nativeShell_CssPointerEvent(x, y, event)) return;
+    if (!document) return;
+    Rml::Context* context = document->GetContext();
+    context->ProcessMouseMove(x, y, 0);
+    if (down) context->ProcessMouseButtonDown(button, 0);
+    else context->ProcessMouseButtonUp(button, 0);
+}
+
 extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
                                    int end_y, int button, unsigned modifiers)
 {

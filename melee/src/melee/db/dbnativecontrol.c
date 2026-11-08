@@ -96,6 +96,13 @@ static void apply_message(const DbNativeControlMessage* message)
         nativeShell_MovePointer(message->ui_x, message->ui_y);
         return;
     }
+    if (message->command == DB_NATIVE_CONTROL_UI_DOWN ||
+        message->command == DB_NATIVE_CONTROL_UI_UP) {
+        if (message->buttons <= 2)
+            nativeShell_PointerButtonAt(message->ui_x, message->ui_y,
+                message->buttons, message->command == DB_NATIVE_CONTROL_UI_DOWN);
+        return;
+    }
     if (message->command == DB_NATIVE_CONTROL_UI_KEY) {
         if (memchr(message->text, '\0', sizeof(message->text)))
             nativeShell_PressKey(message->text, message->buttons);
