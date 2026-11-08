@@ -129,17 +129,37 @@ int main(void)
     nativeProfile_Default(&measured, "Measured controller");
     nativeControllerCalibration_Reset(&capture);
     const int16_t center[6] = { 400, -300, 200, 100, 500, 300 };
+    const int8_t analog[2] = { -1, -1 };
     int16_t raw[6]; memcpy(raw, center, sizeof(raw));
     for (unsigned i = 0; i < 60; ++i) nativeControllerCalibration_Sample(&capture, raw, true, NULL);
     require(!nativeControllerCalibration_Finish(&capture, &measured.calibration), "reject an unmoved controller");
     for (unsigned axis = 0; axis < 6; ++axis) {
         raw[axis] = center[axis] + 24000;
-        nativeControllerCalibration_Sample(&capture, raw, false, NULL);
+        nativeControllerCalibration_Sample(&capture, raw, false, axis < 4 ? NULL : analog);
         if (axis < 4) { raw[axis] = center[axis] - 20000; nativeControllerCalibration_Sample(&capture, raw, false, NULL); }
         raw[axis] = center[axis];
     }
     require(nativeControllerCalibration_Finish(&capture, &measured.calibration), "accept a complete stable capture");
     require(nativeProfile_Validate(&measured), "measured ranges form a valid saved profile");
+    NativeControllerCalibration manual = capture;
+    require(nativeControllerCalibration_SetTriggerRange(&manual,0,3500,26000) &&
+                nativeControllerCalibration_Finish(&manual,&measured.calibration),
+            "manual Start and End override an inaccurate automatic release baseline");
+    require(nativeControllerCalibration_Normalize(&measured.calibration,4,3000) == 0 &&
+                nativeControllerCalibration_Normalize(&measured.calibration,4,3500) == 0 &&
+                nativeControllerCalibration_Normalize(&measured.calibration,4,14750) == 16383 &&
+                nativeControllerCalibration_Normalize(&measured.calibration,4,26000) == 32767,
+            "manual range gives zero below Start, linear travel and full scale at End");
+    require(!nativeControllerCalibration_SetTriggerRange(&manual,0,26000,3500),
+            "range endpoints cannot cross");
+    unsigned gate_count = manual.stick_gate_count[0];
+    int16_t stick_high = manual.high[0];
+    raw[0] = 32767; raw[4] = 27000;
+    nativeControllerCalibration_Sample(&manual,raw,false,analog);
+    require(manual.high[0] == stick_high && manual.stick_gate_count[0] == gate_count &&
+                manual.trigger_maximum[0] == 26000,
+            "moving the hand and sampling triggers keeps stick measurements and manual thresholds unchanged");
+    require(nativeControllerCalibration_Finish(&capture,&measured.calibration), "restore automatic capture for subsequent checks");
     NativeControllerCalibration clicks = capture;
     NativeProfileCalibration click_result = measured.calibration;
     int8_t digital[2] = { 0, -1 }; // Real click on L; ordinary analog travel on R.
@@ -160,7 +180,9 @@ int main(void)
             "analog travel reaches full scale immediately before the physical click");
     for (unsigned axis = 0; axis < 6; ++axis) {
         require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis]) == 0, "measured rest is exactly neutral");
-        require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis] + 12000) == 16383, "half measured travel remains half travel");
+        int start = measured.calibration.center[axis];
+        int span = measured.calibration.maximum[axis]-start;
+        require(nativeControllerCalibration_Normalize(&measured.calibration, axis, start + span/2) == 16383, "half measured travel remains half travel");
         require(nativeControllerCalibration_Normalize(&measured.calibration, axis, center[axis] + 25000) == 32767, "overtravel clamps");
     }
     require(nativeProfileInput_Assign(0, &measured), "apply measured calibration to default axes");
@@ -179,6 +201,26 @@ int main(void)
     nativeProfileInput_Apply(calibrated);
     require(calibrated[0].stickX == 80, "remapped and default axes share measured normalization");
     nativeProfileInput_ClearAll(); memset(native_axes, 0, sizeof(native_axes));
+    NativeControllerCalibration gate;
+    nativeControllerCalibration_Reset(&gate);
+    memcpy(raw,center,sizeof(raw));
+    for (unsigned i=0; i<60; ++i) nativeControllerCalibration_Sample(&gate,raw,true,NULL);
+    const int16_t rim[8][2] = { {24000,0},{17000,16000},{0,23000},{-17000,16000},
+        {-22000,0},{-17000,-16000},{0,-24000},{17000,-16000} };
+    for (unsigned i=0; i<8; ++i) {
+        raw[0] = center[0]+rim[i][0]; raw[1] = center[1]+rim[i][1];
+        nativeControllerCalibration_Sample(&gate,raw,false,NULL);
+    }
+    require(gate.stick_gate_count[0] == 8,"the physical octagonal gate retains its eight corners");
+    for (unsigned i=0; i<8; ++i) {
+        bool found=false;
+        for (unsigned j=0; j<gate.stick_gate_count[0]; ++j)
+            found |= gate.stick_gate[0][j].x == center[0]+rim[i][0] && gate.stick_gate[0][j].y == center[1]+rim[i][1];
+        require(found,"gate vertices are actual samples with no angular snapping");
+    }
+    memcpy(raw,center,sizeof(raw));
+    nativeControllerCalibration_Sample(&gate,raw,false,NULL);
+    require(gate.stick_gate_count[0] == 8,"releasing a stick cannot dent its measured boundary");
     require(HSD_PadProfileTapJumpEnabled(0) &&
                 !HSD_PadProfileTapJumpEnabled(
                     HSD_PAD_PROFILE_TAP_JUMP_DISABLED) &&

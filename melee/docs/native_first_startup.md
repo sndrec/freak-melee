@@ -1,6 +1,6 @@
 # First startup
 
-Updated: 2026-11-07. Guided setup helps a new player choose a name, calibrate a
+Updated: 2026-11-08. Guided setup helps a new player choose a name, calibrate a
 controller and make their first fighter. It opens automatically on a fresh
 installation. Existing players can open **Settings > First startup**.
 
@@ -26,14 +26,19 @@ continues to fighter selection.
 1. Release the sticks and triggers and hold the controller still.
 2. Move both sticks around their edges, visiting up, down, left and right.
 3. Slowly squeeze L and R through their digital clicks, then release them.
+   Drag each bar's Start and End markers with A and the Melee hand, or the mouse.
+   Start sets the released reading to 0%; End sets full analog travel to 100%.
+   Put End just before the digital click. The measured positions are suggestions.
 4. Try the result. The displays show measured stick outlines, raw input and
-   calibrated values. Adjust each trigger's analog maximum if needed.
+   calibrated values. The trigger markers remain adjustable here.
 5. Choose **Save & continue**. **Calibrate again** repeats the measurements.
 
-Sticks move only the calibration displays during measurement. The trigger limit
-is captured just before the digital click. Controllers without a separate
-digital click use full travel. Small movements should feel precise, and resting
-sticks should stay still.
+During stick measurement, sticks move only the calibration displays. The
+outlines trace the boundary of actual samples. On the trigger page, the main
+stick moves the hand so you can adjust the markers. Moving the hand keeps the
+completed stick measurements intact. Controllers without a separate digital
+click use full analog travel. Small movements should feel precise, and resting
+sticks and released triggers should read zero.
 
 Calibration is saved in a controller profile and applied to the selected port
 on later launches. Changing an axis binding clears the measured calibration so
@@ -74,6 +79,12 @@ Workshop. Repeating the shortcut reuses its defaults; edited fighters are kept
 as separate entries.
 
 ## Review
+
+Run `.local/startup-revision-playtest/Launch Startup Review.cmd` for a fresh
+setup each time. Every launch creates a separate folder under `runs`, keeping
+earlier data available. The tracked source is `melee/tools/launch_startup_review.cmd`.
+The wizard plays the supplied mode-select track through the regular music
+player and returns to menu music when setup finishes.
 
 The revision record lists the native walkthroughs and focused checks. Physical
 controller calibration, camera feel and the user's visual/usability review are

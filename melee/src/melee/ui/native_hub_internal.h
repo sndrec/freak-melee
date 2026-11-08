@@ -83,7 +83,7 @@ enum class HubAction {
     MailFolder, MailPage, FriendPage, SocialRefresh, SocialFriend, SocialBlock,
     OpenAccount, SendInvitation, JoinInvitation,
     Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry,
-    StartupTriggerMaximum, StartupFighterMove, StartupConfirmFighter,
+    StartupTriggerRange, StartupFighterMove, StartupConfirmFighter,
     StartupPortraitReset, StartupPortraitSave, StartupTileName, StartupPlaceTile,
     DefaultsOpen, DefaultsConfirm, DefaultsCancel
 };
