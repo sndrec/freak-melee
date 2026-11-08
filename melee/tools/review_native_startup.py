@@ -92,7 +92,7 @@ def main():
 
         client.click('setup-portrait-save')
         startup(11, timeout=120); screens.append(str(client.screenshot()))
-        assert len(list((client.data / 'content/installed').glob('*.fmi'))) == 1
+        assert not list((client.data / 'content/installed').glob('*.fmi'))
         from PIL import Image
         image_path = client.data / 'content/startup-portrait.png'
         with Image.open(image_path) as image:
@@ -100,7 +100,40 @@ def main():
             assert image.getchannel('A').getextrema() == (0, 255)
         portraits = list((client.data / 'projects').rglob('portrait.png'))
         assert any(p.read_bytes() == image_path.read_bytes() for p in portraits)
-        client.click('setup-next'); client.element('play-lobby')
+        client.enter('setup-tile-name', 'MARIO!'); screens.append(str(client.screenshot()))
+        client.click('setup-place-next'); startup(12)
+        client.element('setup-place-area'); screens.append(str(client.screenshot()))
+        assert len(list((client.data / 'content/installed').glob('*.fmi'))) == 1
+        layout_path = client.data / 'css-layout.bin'
+        import struct
+        def saved_count():
+            return struct.unpack_from('<H', layout_path.read_bytes(), 4)[0] if layout_path.exists() else 0
+        assert saved_count() == 0, 'A placement preview must not save the tile'
+        before_cancel = layout_path.read_bytes() if layout_path.exists() else None
+        client.click('setup-back'); startup(11)
+        assert (layout_path.read_bytes() if layout_path.exists() else None) == before_cancel, 'Cancelling placement must preserve the original layout'
+        client.click('setup-place-next'); startup(12)
+        area = client.inspect('setup-place-area')
+        m = re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', area)
+        ax, ay, aw, ah = map(float, m.groups())
+        target = round(ax + .72 * aw), round(ay + .38 * ah)
+        client.command('ui-move', *target); time.sleep(.2)
+        preview = client.inspect('startup-stamp')
+        xy = tuple(map(int, re.search(r'xy=(\d+),(\d+)', preview).groups()))
+        client.command('tap', 0, 'sx=40', 'frames=8'); time.sleep(.3)
+        moved = tuple(map(int, re.search(r'xy=(\d+),(\d+)', client.inspect('startup-stamp')).groups()))
+        assert moved[0] > xy[0], (xy, moved)
+        client.command('ui-move', *target); time.sleep(.2)
+        xy = tuple(map(int, re.search(r'xy=(\d+),(\d+)', client.inspect('startup-stamp')).groups()))
+        client.command('ui-click', *target); time.sleep(.3)
+        client.element('play-lobby')
+        assert (client.data / 'content/startup.txt').read_text().splitlines()[0].split()[2] == '1'
+        layout = layout_path.read_bytes()
+        assert struct.unpack_from('<H', layout, 4)[0] == 1
+        assert struct.unpack_from('<HH', layout, 46) == xy
+        manifests = [p.read_text() for p in (client.data / 'projects').glob('*/project.txt')]
+        assert len(manifests) == 1 and manifests[0].startswith('title=Mario\n') and 'tile_name=MARIO!\n' in manifests[0]
+        checks.append('The short tile name stays separate from the fighter title; mouse and stick move the actual CSS preview, Back cancels, and dropping saves one tile at the chosen coordinates')
         screens.append(str(client.screenshot()))
         checks.append('Cloning installs one independent fighter and finishes on character select')
         data = client.folder / 'appdata'; client.stop()

@@ -27,6 +27,8 @@ const NativeCssLayout* nativeCssOriginal_Layout(void);
 bool nativeCssOriginal_CanEdit(void);
 bool nativeCssOriginal_UpdateTile(unsigned index, const NativeCssTile* tile);
 bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile);
+// PreviewTile also accepts Layout()->count to append a tile without saving.
+bool nativeCssOriginal_CommitPreview(void);
 void nativeCssOriginal_CancelPreview(void);
 bool nativeCssOriginal_RemoveTile(unsigned index);
 bool nativeCssOriginal_AddStock(unsigned stock_index);

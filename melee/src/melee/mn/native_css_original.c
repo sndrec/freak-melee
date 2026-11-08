@@ -412,21 +412,32 @@ bool nativeCssOriginal_UpdateTile(unsigned index, const NativeCssTile* tile)
 
 bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile)
 {
-    if (!nativeCssOriginal_CanEdit()) {
+    if (!tile || !nativeCssOriginal_CanEdit()) {
         return false;
     }
     NativeCssLayout candidate = saved_layout;
-    if (!nativeCssLayout_Update(&candidate, index, tile)) {
+    bool added = index == candidate.count;
+    bool refresh = added && (index >= layout.count ||
+        memcmp(&layout.tiles[index].fighter_package_id, &tile->fighter_package_id, sizeof(tile->fighter_package_id)));
+    if (!(added ? nativeCssLayout_Add(&candidate, tile) : nativeCssLayout_Update(&candidate, index, tile))) {
         return false;
     }
     layout = candidate;
     apply_layout();
+    if (refresh) refresh_fighters();
     return true;
+}
+
+bool nativeCssOriginal_CommitPreview(void)
+{
+    return save_layout(&layout);
 }
 
 void nativeCssOriginal_CancelPreview(void)
 {
     if (scene_icons != NULL) {
+        for (unsigned i = saved_layout.count; i < layout.count; ++i)
+            nativeMenuVisuals_Rect(menu_visuals, i, 0, 0, 0, 0);
         layout = saved_layout;
         apply_layout();
     }

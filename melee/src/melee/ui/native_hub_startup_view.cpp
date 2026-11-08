@@ -2,6 +2,7 @@
 #include "native_hub_account.h"
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
+#include "native_hub_startup_stamp.h"
 #include <melee/gm/native_profile_input.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -121,7 +122,7 @@ void nativeHubStartup_RenderFrame()
         nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
             314, 391, 220, 40, HubAction::StartupNext, 0, true, !account.busy && !account.recovery_pending);
     }
-    if (s.step == NativeStartup_Clone && nativeHubStartup_HasFighter())
+    if (s.step == NativeStartup_Clone && nativeHubStartup_HasRoster())
         nativeHub_Button("setup-next", "Use my roster", 154, 426, 170, 28, HubAction::StartupNext);
     if (s.step != NativeStartup_Welcome) {
         const char* status = s.error[0] ? s.error : SDL_GetTicks() < hub.notice_until ? hub.notice : "";
@@ -203,6 +204,7 @@ void nativeHubStartup_Render()
         break;
     case NativeStartup_ConfirmFighter: nativeHubStartupRoster_Confirm(); break;
     case NativeStartup_Portrait: nativeHubStartupPortrait_Render(); break;
+    case NativeStartup_TileName: nativeHubStartupStamp_RenderName(); break;
     default: break;
     }
 }

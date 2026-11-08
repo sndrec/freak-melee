@@ -14,15 +14,21 @@ two prepared full sources do not establish actual paired gameplay. Advanced hand
 `bundle-fighter`, `bundle-project` and obsolete paired composition are removed.
 Historical C generation lives only in the explicit test reference exporter.
 
-The packet header is 80 bytes with two fixed 60-byte member-directory rows; the
-unused row must be zero. Each row contains the member key and seven lengths.
+The packet header is 80 bytes with two fixed 64-byte member-directory rows; the
+unused row must be zero. Each row contains the member key and eight lengths.
+The header stores the portrait length at byte 8 and an optional tile-name length
+at byte 12. The payload contains the PNG, the tile-name bytes, then the member
+chunks. A tile name contains up to 63 bytes of printable text. An empty tile name
+uses the fighter's full title on character-select tiles. Renaming a fighter
+preserves its tile name. Both names travel with a shared fighter package.
 The source/facts chunks are required, records decode through the actual facts
 codec, and text rejects embedded NUL. Parsing checks complete bounds/canonical
 padding before publishing either output; rejected packets leave caller outputs
 unchanged. DAT graph/FMS validation is the candidate layer's responsibility.
 
 A draft owns `assets.fma`, copied DATs, `behavior.fms`, parameter/CPU text and a
-small `project.txt` containing only title and an initial authoring template hint.
+small `project.txt` containing the title, an initial authoring template hint and
+an optional `tile_name` line for the short character-select label.
 New stock asset drafts Copy/Write the donor's numeric facts once. Subsequent
 ReadInfo/Open derives roots, actions, demo count, layout and rig from the owned
 record, never from the template hint or a stock behavior definition. Importing a

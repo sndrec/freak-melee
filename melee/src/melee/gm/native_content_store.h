@@ -58,6 +58,8 @@ typedef struct NativeFighterPackageMember {
 
 typedef struct NativeFighterPackage {
     char title[NATIVE_CONTENT_TITLE_BYTES];
+    // Optional short name printed on CSS tiles. Empty uses the fighter's title.
+    char tile_name[NATIVE_CONTENT_TITLE_BYTES];
     NativeFighterFamilyMode mode;
     uint8_t member_count;
     NativeFighterPackageMember members[NATIVE_FIGHTER_FAMILY_MEMBERS];

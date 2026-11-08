@@ -144,9 +144,40 @@ captured RGBA PNG. Mouse-camera handling still needs a hands-on check.
 The final build after removing the old clone-finish entry point is recorded in
 `.local/startup-portrait-ui-build-4.log`; it completes successfully.
 
-The shorthand label and manual CSS placement are still open. Until those steps
-are connected, portrait acceptance uses the existing automatic tile placement.
-This is an intermediate implementation, not the next user acceptance build.
+## Tile label and placement: implementation in progress
+
+After portrait capture, the player writes a short tile name beside a large stamp
+preview. This name is saved separately from the fighter's full name, retained
+when the fighter is renamed, and included in shared packages. An empty package
+tile name uses the full title. The Workshop's tile list and original CSS use the
+short name; fighter headings keep the full name.
+
+Continuing installs the completed fighter without adding a tile. The next page
+shows the actual CSS and a tile following the Melee hand. The player drops it
+with A or a click. Back cancels the preview without saving a layout change.
+Dropping commits the chosen position and finishes startup directly on CSS.
+The placement controls and hand use the CSS's camera and transforms. The menu
+keeps its regular hand/token state while startup owns input.
+
+Build: `.local/startup-stamp-build-5.log`. The hidden, muted native walkthrough
+passes six checks in `.local/startup-stamp-ui-review-3/receipt.json`, including
+mouse/stick placement, cancellation, the exact saved coordinates, a separate
+short name, one installed fighter and completed-setup restart. The stamp-entry,
+placement and returned CSS screenshots were inspected. The packet and layout
+contracts pass in `.local/startup-stamp-packet-contracts.log` and
+`.local/startup-stamp-layout-contracts.log`.
+
+The real asset-family review passes 118 checks across three family modes and
+both stock pairs in
+`A:/freak-melee-tests/startup-stamp-family-20261107-2/receipt.json`. It verifies
+the short name through build, package import, project reopen, identical rebuild
+and a full-title rename. It also runs per-member source validation. This checks
+authoring and transport; paired gameplay was not exercised by this review.
+
+The default-roster shortcut, native tile-frame presentation and final CSS
+control placement remain open. The goal remains active until the revision is
+ready for another user pass. Physical calibration and mouse-camera acceptance
+remain part of that hands-on pass.
 
 ## Screens and messages
 
@@ -191,6 +222,8 @@ This is an intermediate implementation, not the next user acceptance build.
   Show empty and populated CSS previews with an arrow between them.
 - That shortcut creates editable clones and reproduces the original tiles as
   closely as possible. Leave Kirby out while his scripted clone is deferred.
+- On confirmation, use the default CSS arrangement. Keep the player's existing
+  fighters in the Workshop; the shortcut replaces their layout, not their files.
 - Revisit the CSS's Ready/START, Workshop and Back placement as part of the
   placement/finish flow.
 

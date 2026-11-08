@@ -4581,7 +4581,7 @@ s32 mnCharSel_802640A0(void)
         jobj = HSD_JObjLoadJoint(css_models->hand.joint);
         cursor = HSD_MemAlloc(sizeof(*cursor));
         HSD_GObjObject_80390A70(cursor_gobj, HSD_GObj_JObjKind, jobj);
-        GObj_SetupGXLink(cursor_gobj, HSD_GObj_JObjCallback, 3, 0x80);
+        GObj_SetupGXLink(cursor_gobj, nativeCssInteraction_DrawLocalCursor, 3, 0x80);
         HSD_GObj_SetupProc(cursor_gobj, mnCharSel_CursorThink, 1);
         GObj_InitUserData(cursor_gobj, 4, HSD_Free, cursor);
         HSD_JObjAddAnimAll(jobj, css_models->hand.animjoint,
@@ -4612,7 +4612,7 @@ s32 mnCharSel_802640A0(void)
                 struct CSSCharModel* model = HSD_MemAlloc(sizeof(*model));
                 HSD_GObjObject_80390A70(model_gobj, HSD_GObj_JObjKind, jobj);
                 GObj_InitUserData(model_gobj, 4, HSD_Free, model);
-                GObj_SetupGXLink(model_gobj, HSD_GObj_JObjCallback, 2, 0x80);
+                GObj_SetupGXLink(model_gobj, nativeCssInteraction_DrawLocalCursor, 2, 0x80);
                 HSD_GObj_SetupProc(model_gobj, fn_80262648, 2);
                 HSD_JObjAddAnimAll(jobj, css_models->token.animjoint,
                                    css_models->token.matanim_joint,

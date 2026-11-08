@@ -3,6 +3,8 @@
 #include "native_hub_account.h"
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
+#include "native_hub_startup_stamp.h"
+#include <melee/mn/native_css_original.h>
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -50,6 +52,10 @@ namespace {
     void enter(NativeStartupStep step, bool backwards = false)
     {
         auto& s = nativeHubStartup;
+        if (s.step == NativeStartup_Placement && step != NativeStartup_Placement) nativeHubStartupStamp_CancelPlacement();
+        if (step == NativeStartup_Clone || step == NativeStartup_Portrait || step == NativeStartup_Done)
+            nativeHubStartupStamp_Unload();
+        if (step == NativeStartup_Portrait && s.step > NativeStartup_Portrait) nativeHubStartupRoster_Begin();
         if (s.step >= NativeStartup_Clone && s.step <= NativeStartup_Portrait &&
             (step < NativeStartup_Clone || step > NativeStartup_Portrait)) nativeHubStartupRoster_Unload();
         s.step = step; s.started_at = SDL_GetTicks(); s.error[0] = 0;
@@ -187,12 +193,19 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     if (!s.active) return false;
     if (s.step == NativeStartup_Clone && action == HubAction::StartupConfirmFighter) {
         s.draft[0] = 0;
+        std::snprintf(s.tile_name, sizeof(s.tile_name), "%s", hub.title);
         enter(NativeStartup_ConfirmFighter); return true;
     }
     if (s.step == NativeStartup_Portrait) {
         if (nativeHubStartupPortrait_Busy()) return true;
         if (action == HubAction::StartupPortraitReset) { nativeHubStartupPortrait_Reset(); return true; }
         if (action == HubAction::StartupPortraitSave) { nativeHubStartupPortrait_Save(); return true; }
+    }
+    if (s.step == NativeStartup_TileName && action == HubAction::StartupTileName) return false;
+    if (s.step == NativeStartup_Placement && action == HubAction::StartupPlaceTile) {
+        if (!nativeHubStartupStamp_Place()) std::snprintf(s.error, sizeof(s.error), "Could not save this position. Try again.");
+        else nativeHubStartup_Finish();
+        return true;
     }
     if (s.step == NativeStartup_Clone && action == HubAction::StartupFighterMove) {
         nativeHubStartupRoster_Move(value); return true;
@@ -204,6 +217,8 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
         if (s.step == NativeStartup_ConfirmFighter) { enter(NativeStartup_Clone, true); return true; }
         if (s.step == NativeStartup_Portrait) { enter(NativeStartup_ConfirmFighter, true); return true; }
+        if (s.step == NativeStartup_TileName) { enter(NativeStartup_Portrait, true); return true; }
+        if (s.step == NativeStartup_Placement) { enter(NativeStartup_TileName, true); return true; }
         if (s.step == NativeStartup_Test) restore_controls();
         if (s.step > NativeStartup_Welcome) enter(NativeStartupStep(unsigned(s.step) - 1), true);
         return true;
@@ -282,19 +297,51 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         enter(NativeStartup_Clone);
         break;
     case NativeStartup_Clone:
-        if (nativeHubStartup_HasFighter()) enter(NativeStartup_Done);
+        if (nativeHubStartup_HasRoster()) enter(NativeStartup_Done);
         break;
     case NativeStartup_ConfirmFighter: enter(NativeStartup_Portrait); break;
     case NativeStartup_Portrait: break;
+    case NativeStartup_TileName: {
+        if (!s.tile_name[0] || std::strspn(s.tile_name, " \t\r\n") == std::strlen(s.tile_name)) break;
+        if (!nativeFighterProject_SetTileName(s.draft, s.tile_name) || !nativeHubCatalog_PublishDraft(s.draft, false)) {
+            std::snprintf(s.error, sizeof(s.error), "Could not install your fighter. Your draft is saved in the Workshop."); break;
+        }
+        if (!nativeHubCatalog_Load()) {
+            std::snprintf(s.error, sizeof(s.error), "Could not load your installed fighter. Try again."); break;
+        }
+        bool found = false;
+        for (unsigned i = 0; i < nativeHubFighterCount; ++i)
+            if (nativeHubFighters[i].installed && !std::strcmp(s.draft, nativeHubFighters[i].draft)) {
+                hub.selected = int(i); s.fighter_id = nativeHubFighters[i].id;
+                found = true;
+            }
+        if (!found || !nativeHubStartupStamp_BeginPlacement()) {
+            std::snprintf(s.error, sizeof(s.error), "Could not open character select for placement. Try again."); break;
+        }
+        enter(NativeStartup_Placement);
+        break;
+    }
+    case NativeStartup_Placement: break;
     case NativeStartup_Done:
-        s.completed = true;
-        if (!save_progress()) { s.completed = false; std::snprintf(s.error, sizeof(s.error), "Could not save setup completion. Try again."); break; }
-        s.active = false; s.completed = true;
-        nativeMenuScenery_Unload();
-        hub.dismissed = true; hub.visible = false;
+        nativeHubStartup_Finish();
         break;
     }
     return true;
+}
+void nativeHubStartup_Finish()
+{
+    auto& s = nativeHubStartup;
+    s.completed = true;
+    if (!save_progress()) {
+        s.completed = false;
+        enter(NativeStartup_Done);
+        std::snprintf(s.error, sizeof(s.error), "Could not save setup completion. Try again.");
+        return;
+    }
+    nativeHubStartupStamp_Unload(); nativeHubStartupRoster_Unload();
+    s.active = false;
+    nativeMenuScenery_Unload();
+    hub.dismissed = true; hub.visible = false;
 }
 void nativeHubStartup_PortraitSaved(const char* portrait)
 {
@@ -309,19 +356,15 @@ void nativeHubStartup_PortraitSaved(const char* portrait)
         std::snprintf(s.draft, sizeof(s.draft), "%s", path);
     }
     std::snprintf(destination, sizeof(destination), "%s/portrait.png", s.draft);
-    if (!SDL_CopyFile(portrait, destination) || !nativeHubCatalog_PublishDraft(s.draft, true)) {
-        std::snprintf(s.error, sizeof(s.error), "Could not install your fighter. Your draft is saved in the Workshop."); return;
+    if (!SDL_CopyFile(portrait, destination) || !nativeHubStartupStamp_Load()) {
+        std::snprintf(s.error, sizeof(s.error), "Could not save your portrait. Your draft is saved in the Workshop."); return;
     }
-    nativeHubCatalog_Load();
-    for (unsigned i = 0; i < nativeHubFighterCount; ++i)
-        if (!std::strcmp(s.draft, nativeHubFighters[i].draft)) hub.selected = int(i);
-    enter(NativeStartup_Done);
+    enter(NativeStartup_TileName);
 }
-bool nativeHubStartup_HasFighter()
+bool nativeHubStartup_HasRoster()
 {
-    for (unsigned i = 0; i < nativeHubFighterCount; ++i)
-        if (nativeHubFighters[i].installed) return true;
-    return false;
+    const NativeCssLayout* layout = nativeCssOriginal_Layout();
+    return layout && layout->count;
 }
 void nativeHubStartup_Inspect()
 {

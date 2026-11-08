@@ -32,6 +32,7 @@ int main(int argc,char** argv)
     for(unsigned mode=NativeFighterFamily_Single;mode<=NativeFighterFamily_SimultaneousCompanion;++mode) {
         family=(NativeFighterFamilyProject){.mode=(NativeFighterFamilyMode)mode,.member_count=mode?2:1};
         family.members[0]=base;strcpy(family.keys[0],"primary");
+        strcpy(family.members[0].tile_name, "MY FIGHTER");
         if(mode){family.members[1]=base;family.members[1].script_text=(uint8_t*)partner_script;
             family.members[1].script_size=sizeof(partner_script)-1;family.members[1].parameter_text=NULL;
             family.members[1].parameter_size=0;strcpy(family.keys[1],"secondary");}
@@ -41,12 +42,14 @@ int main(int argc,char** argv)
         NativeFighterPackage metadata;NativeFighterPackageData spans;
         CHECK(nativeContentStore_ParseFighter(packet,bytes,&metadata,&spans));
         CHECK(metadata.mode==family.mode&&metadata.member_count==family.member_count);
+        CHECK(!strcmp(metadata.tile_name, "MY FIGHTER"));
         CHECK(!strcmp(metadata.members[0].key,"primary"));
         if(mode)CHECK(!strcmp(metadata.members[1].key,"secondary")&&spans.members[1].script_size==sizeof(partner_script)-1);
         char destination[512];CHECK(snprintf(destination,sizeof(destination),"%s/mode-%u",argv[3],mode)<sizeof(destination));
         CHECK(nativeFighterFamilyProject_CreateFromPackage(destination,metadata.title,packet,bytes));
         CHECK(nativeFighterFamilyProject_Open(destination,&opened));
         CHECK(opened.mode==family.mode&&opened.member_count==family.member_count);
+        CHECK(!strcmp(opened.members[0].tile_name, "MY FIGHTER"));
         CHECK(!strcmp(opened.keys[0],"primary"));
         for(unsigned member=0;member<family.member_count;++member) {
             const NativeFighterProject* a=&family.members[member];const NativeFighterProject* b=&opened.members[member];
@@ -63,6 +66,10 @@ int main(int argc,char** argv)
         uint8_t* roundtrip=NULL;size_t roundtrip_bytes=0;NativeContentId rebuilt;
         CHECK(nativeFighterFamilyProject_Build(&opened,portrait,(size_t)portrait_bytes,&roundtrip,&roundtrip_bytes,&rebuilt));
         CHECK(same_bytes(packet,bytes,roundtrip,roundtrip_bytes)&&!memcmp(&id,&rebuilt,sizeof(id)));
+        NativeFighterProjectInfo named;
+        CHECK(nativeFighterProject_Rename(destination, "Renamed fighter"));
+        CHECK(nativeFighterProject_ReadInfo(destination, &named) &&
+            !strcmp(named.title, "Renamed fighter") && !strcmp(named.tile_name, "MY FIGHTER"));
         free(roundtrip);nativeFighterFamilyProject_Close(&opened);free(packet);
         if(mode) {
             family.members[1].script_text=(uint8_t*)"fighter:\n    behavior independent\nfunc Invalid():\n    not_a_real_operation()\n";

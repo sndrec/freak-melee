@@ -104,12 +104,18 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
         !valid_portrait(data->portrait_png, data->portrait_size)) return false;
     size_t title_size = strnlen(fighter->title, NATIVE_CONTENT_TITLE_BYTES);
     if (title_size == 0 || title_size == NATIVE_CONTENT_TITLE_BYTES) return false;
+    size_t tile_size = strnlen(fighter->tile_name, NATIVE_CONTENT_TITLE_BYTES);
+    if (tile_size == NATIVE_CONTENT_TITLE_BYTES) return false;
+    for (size_t i = 0; i < tile_size; ++i)
+        if ((unsigned char)fighter->tile_name[i] < 32 || fighter->tile_name[i] == 127) return false;
     const uint8_t* pointers[NATIVE_FIGHTER_FAMILY_MEMBERS][MEMBER_CHUNKS];
     size_t sizes[NATIVE_FIGHTER_FAMILY_MEMBERS][MEMBER_CHUNKS];
     size_t key_sizes[NATIVE_FIGHTER_FAMILY_MEMBERS] = {0};
     size_t remaining = NATIVE_CONTENT_MAX_PACKAGE_BYTES - FAMILY_PAYLOAD;
     if (data->portrait_size > remaining) return false;
     remaining -= data->portrait_size;
+    if (tile_size > remaining) return false;
+    remaining -= tile_size;
     for (unsigned m = 0; m < NATIVE_FIGHTER_FAMILY_MEMBERS; ++m) {
         chunks(&data->members[m], pointers[m], sizes[m]);
         const NativeFighterPackageMember* member = &fighter->members[m];
@@ -143,10 +149,13 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
     built[5] = (uint8_t)fighter->mode;
     built[6] = fighter->member_count;
     write_u32(built + 8, (uint32_t)data->portrait_size);
+    write_u32(built + 12, (uint32_t)tile_size);
     memcpy(built + 16, fighter->title, title_size);
     uint8_t* output = built + FAMILY_PAYLOAD;
     memcpy(output, data->portrait_png, data->portrait_size);
     output += data->portrait_size;
+    memcpy(output, fighter->tile_name, tile_size);
+    output += tile_size;
     for (unsigned m = 0; m < fighter->member_count; ++m) {
         uint8_t* directory = built + FAMILY_HEADER + m * MEMBER_DIRECTORY;
         memcpy(directory, fighter->members[m].key, key_sizes[m]);
@@ -175,7 +184,7 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
     parsed.mode = (NativeFighterFamilyMode)bytes[5];
     parsed.member_count = bytes[6];
     if (memcmp(bytes, "FMSC", 4) != 0 || bytes[4] != 0 || bytes[7] != 0 ||
-        !zeros(bytes + 12, 4) || !valid_mode(parsed.mode, parsed.member_count))
+        !valid_mode(parsed.mode, parsed.member_count))
         return false;
     size_t title_size = strnlen((const char*)bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
     if (title_size == 0 || title_size == NATIVE_CONTENT_TITLE_BYTES ||
@@ -189,6 +198,12 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
     if (!valid_portrait(spans.portrait_png, spans.portrait_size)) return false;
     const uint8_t* cursor = spans.portrait_png + spans.portrait_size;
     remaining -= spans.portrait_size;
+    size_t tile_size = read_u32(bytes + 12);
+    if (tile_size >= NATIVE_CONTENT_TITLE_BYTES || tile_size > remaining) return false;
+    for (size_t i = 0; i < tile_size; ++i)
+        if (cursor[i] < 32 || cursor[i] == 127) return false;
+    memcpy(parsed.tile_name, cursor, tile_size);
+    cursor += tile_size; remaining -= tile_size;
     for (unsigned m = 0; m < NATIVE_FIGHTER_FAMILY_MEMBERS; ++m) {
         const uint8_t* directory = bytes + FAMILY_HEADER + m * MEMBER_DIRECTORY;
         if (m >= parsed.member_count) {

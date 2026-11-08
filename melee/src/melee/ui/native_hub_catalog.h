@@ -6,6 +6,7 @@ enum {
 struct NativeHubFighter {
     NativeContentId id;
     char title[64];
+    char tile_name[64];
     char draft[512];
     unsigned char* pixels;
     unsigned short width, height;

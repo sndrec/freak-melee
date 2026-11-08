@@ -22,6 +22,7 @@ typedef struct NativeFighterProject {
     unsigned action_count;
     unsigned demo_count;
     char title[64];
+    char tile_name[64];
     char template_key[NATIVE_FIGHTER_CODE_KEY_BYTES]; // Initial authoring hint only.
     NativeSourceAssetFacts facts;
     uint8_t* fighter_dat;
@@ -52,6 +53,7 @@ typedef struct NativeFighterProjectInfo {
     unsigned action_count;
     unsigned demo_count;
     char title[64];
+    char tile_name[64];
     char template_key[NATIVE_FIGHTER_CODE_KEY_BYTES];
     NativeSourceAssetFacts facts;
 } NativeFighterProjectInfo;
@@ -88,6 +90,7 @@ bool nativeFighterProject_ReadInfo(const char* path,
                                    NativeFighterProjectInfo* info);
 // Rename the primary project manifest. Family titles come from their primary member.
 bool nativeFighterProject_Rename(const char* path, const char* title);
+bool nativeFighterProject_SetTileName(const char* path, const char* tile_name);
 bool nativeFighterProject_Open(const char* path, NativeFighterProject* project);
 bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
                                        size_t property, double* value);

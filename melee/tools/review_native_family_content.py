@@ -30,11 +30,13 @@ def digest(data):
 
 def package(path):
     data = path.read_bytes()
-    assert data[:5] == b'FMSC\0' and data[7] == 0 and data[12:16] == bytes(4)
+    assert data[:5] == b'FMSC\0' and data[7] == 0
     mode, count = data[5:7]
     assert (mode, count) in [(0, 1), (1, 2), (2, 2)]
     portrait_bytes = struct.unpack_from('<I', data, 8)[0]
-    at = 208 + portrait_bytes
+    tile_bytes = int.from_bytes(data[12:16], 'little')
+    assert tile_bytes < 64
+    at = 208 + portrait_bytes + tile_bytes
     members = []
     for member in range(count):
         row = 80 + member * 64

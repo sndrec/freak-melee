@@ -268,6 +268,7 @@ int main(void)
     require(nativeSourceAssets_Write(&facts,asset_record,sizeof(asset_record),&asset_bytes,&diagnostic),"actual source facts codec write\n");
     static const uint8_t script_text[] = "fighter:\n    behavior independent\naction Idle:\n    on tick:\n        pass\n";
     strcpy(fighter.title, "Rook");
+    strcpy(fighter.tile_name, "ROOK!");
     NativeFighterPackageData source = {
         .portrait_png = portrait_png,
         .portrait_size = sizeof(portrait_png),
@@ -306,6 +307,7 @@ int main(void)
                                             &parsed_fighter, &parsed_data) &&
                 strcmp(parsed_fighter.members[0].key, "main") == 0 &&
                 strcmp(parsed_fighter.title, "Rook") == 0 &&
+                strcmp(parsed_fighter.tile_name, "ROOK!") == 0 &&
                 parsed_data.members[0].fighter_size == sizeof(fighter_dat) &&
                 parsed_data.members[0].animation_size == sizeof(animation_dat) &&
                 parsed_data.members[0].costume_size == sizeof(costume_dat) &&
@@ -320,6 +322,15 @@ int main(void)
                        sizeof(portrait_png)) == 0 &&
                 !nativeContentStore_ParseCostume(fighter_package, fighter_package_size, &metadata, &metadata_data),
             "typed fighter bundle round trip\n");
+    uint8_t saved_label_byte = fighter_package[208 + sizeof(portrait_png)];
+    fighter_package[208 + sizeof(portrait_png)] = '\n';
+    require(!nativeContentStore_ParseFighter(fighter_package, fighter_package_size,
+                                            &parsed_fighter, &parsed_data), "reject control bytes in a tile name\n");
+    fighter_package[208 + sizeof(portrait_png)] = saved_label_byte;
+    fighter_package[12] = 255;
+    require(!nativeContentStore_ParseFighter(fighter_package, fighter_package_size,
+                                            &parsed_fighter, &parsed_data), "reject oversized tile names\n");
+    fighter_package[12] = 5;
     static const uint8_t parameter_text[] = "float Lift = 1.25\n";
     source.members[0].parameter_text = parameter_text;
     source.members[0].parameter_size = sizeof(parameter_text) - 1;

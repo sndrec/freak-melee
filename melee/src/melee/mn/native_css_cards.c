@@ -11,6 +11,7 @@
 #include <melee/mn/types.h>
 #include <melee/sc/types.h>
 #include <melee/ui/native_hub.h>
+#include <melee/ui/native_hub_startup_stamp.h>
 #include <melee/ui/native_play_menu.h>
 #include <sysdolphin/baselib/aobj.h>
 #include <sysdolphin/baselib/gobj.h>
@@ -190,6 +191,10 @@ static void draw(HSD_GObj* object, int pass)
     if (!nativeCssOriginal_ViewMatrix(view)) {
         return;
     }
+    if (nativeHub_IsVisible()) {
+        if (pass == 2) nativeHubStartupStamp_DrawCss(view);
+        return;
+    }
     HSD_StateInvalidate(-1);
     if (cards.people.online) {
         for (unsigned i = 0; i < cards.people.count; ++i) {
@@ -355,7 +360,7 @@ void nativeCssCards_Update(void)
     {
         memset(&cards.people, 0, sizeof(cards.people));
     }
-    nativeCssOriginal_HidePlayerCards(cards.people.online);
+    nativeCssOriginal_HidePlayerCards(cards.people.online || nativeHub_IsVisible());
     static const unsigned colors[4] = { 2, 0, 8, 1 };
     for (unsigned i = 0; i < cards.people.count; ++i) {
         CardArt* art = &cards.art[i];

@@ -6,13 +6,15 @@ enum NativeStartupStep {
     NativeStartup_Welcome, NativeStartup_Profile, NativeStartup_Account,
     NativeStartup_Controller, NativeStartup_Rest, NativeStartup_Sticks,
     NativeStartup_Triggers, NativeStartup_Test, NativeStartup_Clone,
-    NativeStartup_ConfirmFighter, NativeStartup_Portrait, NativeStartup_Done
+    NativeStartup_ConfirmFighter, NativeStartup_Portrait, NativeStartup_TileName,
+    NativeStartup_Placement, NativeStartup_Done
 };
 struct NativeHubStartupState {
     NativeStartupStep step;
     NativeControllerCalibration capture;
     NativeProfile profile, previous_profile;
-    char profile_id[65], error[192], draft[512];
+    char profile_id[65], error[192], draft[512], tile_name[64];
+    NativeContentId fighter_id;
     int16_t raw[6];
     int8_t trigger_click[2]; // -1 means no independent digital button.
     int controller_index;
@@ -26,7 +28,8 @@ void nativeHubStartup_Begin();
 void nativeHubStartup_Tick();
 bool nativeHubStartup_Activate(HubAction action, int value);
 void nativeHubStartup_PortraitSaved(const char* path);
-bool nativeHubStartup_HasFighter();
+void nativeHubStartup_Finish();
+bool nativeHubStartup_HasRoster();
 void nativeHubStartup_Render();
 void nativeHubStartup_RenderFrame();
 void nativeHubStartup_Inspect();
