@@ -1,4 +1,5 @@
 #include "ftdrawcommon.h"
+#include "native_fighter_appearance.h"
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
 #include <sysdolphin/baselib/native_model_view.h>
 
@@ -284,9 +285,10 @@ void ftDrawCommon_800805C8(HSD_GObj* gobj, s32 arg1, bool arg2)
 
         mtx = ftDrawCommon_8008051C_inline(gobj, &sp54, &v, sp18, sp78);
 
-        HSD_JObjDispAll(GET_JOBJ(gobj), mtx, HSD_GObj_80390EB8(arg1), 0);
+        if (!nativeFighterAppearance_IsFiltered(fighter))
+            HSD_JObjDispAll(GET_JOBJ(gobj), mtx, HSD_GObj_80390EB8(arg1), 0);
 #ifdef MELEE_NATIVE
-        nativeFighterAttachment_Draw(gobj, arg1, mtx);
+        if (!nativeFighterAppearance_IsFiltered(fighter)) nativeFighterAttachment_Draw(gobj, arg1, mtx);
 #endif
         if (ftData_UnkMtxFunc0[fighter->kind] != NULL) {
             ftData_UnkMtxFunc0[fighter->kind](gobj, arg1, mtx);
@@ -294,7 +296,7 @@ void ftDrawCommon_800805C8(HSD_GObj* gobj, s32 arg1, bool arg2)
         ftCo_800C8AF0(fighter);
         ftCo_8009F7F8(fighter);
     }
-    if (fighter->x20A0_accessory != NULL) {
+    if (fighter->x20A0_accessory != NULL && !nativeFighterAppearance_IsFiltered(fighter)) {
         HSD_JObjDispAll(fighter->x20A0_accessory, NULL,
                         HSD_GObj_80390EB8(arg1), 0);
     }
@@ -341,9 +343,10 @@ void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
             vmtx = ftDrawCommon_8008051C_inline(gobj, &v1, &v2, sp18, sp70);
 
             jobj = GET_JOBJ(gobj);
-            HSD_JObjDispAll(jobj, vmtx, HSD_GObj_80390EB8(flag_index), 0);
+            if (!nativeFighterAppearance_IsFiltered(fighter))
+                HSD_JObjDispAll(jobj, vmtx, HSD_GObj_80390EB8(flag_index), 0);
 #ifdef MELEE_NATIVE
-            nativeFighterAttachment_Draw(gobj, flag_index, vmtx);
+            if (!nativeFighterAppearance_IsFiltered(fighter)) nativeFighterAttachment_Draw(gobj, flag_index, vmtx);
             if (flag_index == 0) nativeWorkshopGizmo_Draw(jobj, vmtx);
 #endif
             if (ftData_UnkMtxFunc0[fighter->kind] != NULL) {
@@ -352,11 +355,12 @@ void ftDrawCommon_80080C28(HSD_GObj* gobj, int flag_index)
             ftCo_800C8AF0(fighter);
             ftCo_8009F7F8(fighter);
         }
-        if (fighter->x20A0_accessory != NULL) {
+        if (fighter->x20A0_accessory != NULL && !nativeFighterAppearance_IsFiltered(fighter)) {
             HSD_JObjDispAll(fighter->x20A0_accessory, NULL,
                             HSD_GObj_80390EB8(flag_index), 0);
         }
     }
+    nativeFighterAppearance_Draw(gobj,flag_index);
 }
 
 static inline void ftDrawCommon_80080E18_inline0(HSD_GObj* gobj,
@@ -381,7 +385,7 @@ static inline void ftDrawCommon_80080E18_inline0(HSD_GObj* gobj,
         jobj = GET_JOBJ(gobj);
         ret = HSD_GObj_80390EB8(flag_index);
         matrix = ftDrawCommon_8008051C(gobj, sp54);
-        HSD_JObjDispAll(jobj, matrix, ret, 0);
+        if (!nativeFighterAppearance_IsFiltered(fp)) HSD_JObjDispAll(jobj, matrix, ret, 0);
     }
 }
 
@@ -409,7 +413,7 @@ static inline void ftDrawCommon_80080E18_inline1(HSD_GObj* gobj,
         jobj = gobj->hsd_obj;
         ret = HSD_GObj_80390EB8(flag_index);
         matrix = ftDrawCommon_8008051C(gobj, sp24);
-        HSD_JObjDispAll(jobj, matrix, ret, 0);
+        if (!nativeFighterAppearance_IsFiltered(fp)) HSD_JObjDispAll(jobj, matrix, ret, 0);
     }
 }
 
@@ -453,6 +457,7 @@ void ftDrawCommon_80080E18(HSD_GObj* gobj, int arg1)
                                   fp->x5AC.xC[4] != NULL ? false : true);
         }
     }
+    nativeFighterAppearance_Draw(gobj,arg1);
 }
 
 void ftDrawCommon_80081118(void)

@@ -14,6 +14,7 @@
 #include "gmmain.h"
 #include "gmmain_lib.h"
 #include "native_match_launch.h"
+#include "native_presentation.h"
 #include <melee/lb/native_disc_files.h>
 #include <melee/ft/native_script_fighter_launch.h>
 #include <melee/ft/native_script_fighter.h>
@@ -136,6 +137,7 @@ int main(int argc, char** argv)
         fprintf(stderr,"Could not load interpreted fighter source.\n");return 1;
     }
     HSD_AudioOutputSetMuted(nativeMatchLaunch_Muted());
+    nativePresentation_Load();
     if (!aurora_dvd_open(iso_path)) {
         fprintf(stderr, "Could not open game disc: %s\n", iso_path);
         return 1;
