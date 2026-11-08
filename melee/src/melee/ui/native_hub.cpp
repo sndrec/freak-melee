@@ -8,6 +8,7 @@
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
+#include "native_menu_portrait_capture.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
@@ -1231,6 +1232,7 @@ extern "C" void nativeHub_Draw(void)
     nativePlayMenu_DrawCountdown();
     nativeHubNotice_Draw();
     nativeMenuPaint_End();
+    nativeMenuPortraitCapture_Draw();
     nativeMenuScene_End();
 }
 extern "C" void nativeHub_MovePointer(int x, int y)
@@ -1479,6 +1481,8 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
+    if (!std::strcmp(id, "startup-portrait-save")) { nativeHubStartupRoster_Capture(); return; }
+    if (!std::strcmp(id, "startup-portrait")) { nativeMenuPortraitCapture_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
         float u = -1, v = -1;
         nativeMenuScene_Project(hub.pointer_x, hub.pointer_y, &u, &v);

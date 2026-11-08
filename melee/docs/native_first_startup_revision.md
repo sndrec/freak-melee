@@ -94,6 +94,35 @@ Build: `.local/startup-carousel-build-6.log`. The final flat-preview capture is
 source depth scale, and the outline leaves the depth buffer unchanged. Facing
 and precise framing remain part of the camera/portrait work.
 
+## Portrait capture foundation
+
+Preview framing now measures the visible posed mesh, including skinning and
+shape animation. It uses the same vertex reader as the Model workspace. The
+flat style also supplies its facing before the depth scale, so the silhouette
+keeps its profile. Paired previews have room for both members.
+
+The capture backend renders a square camera view into a transparent target and
+writes a 256-by-256 RGBA PNG. It supports orbit, tilt, zoom, pan and a chosen
+animation frame. A capture can contain multiple subjects, including both Ice
+Climbers. Captures wait for the shader variants they need before saving. The
+PNG writer is shared with ordinary screenshots, which keep their RGB output.
+
+This backend is available through the native inspection channel for isolated
+checks. The user-facing portrait controls, shorthand label and direct CSS
+placement still need connecting to the startup flow. The goal remains active.
+
+Build: `.local/startup-portrait-foundation-build-7.log`. Six focused model and
+input/profile tests pass in `.local/startup-portrait-contracts.log`. The isolated
+review in `.local/startup-portrait-cold-review/receipt.json` starts with an empty
+renderer cache and saves all 24 choices as nonempty transparent RGBA portraits,
+including both Ice Climbers. The portrait overview and restored carousel screen
+were inspected. This checks the export backend, not the unfinished wizard flow.
+
+Portrait controls will follow the Trophy Gallery: C-stick orbits, A + main stick
+or the D-pad pans, and X/Y zoom. The source is `_Toy_80309404` in `ty/toy.c`.
+The main stick continues moving the hand when A is released. Mouse controls are
+middle-drag orbit, Shift + middle-drag pan and wheel zoom.
+
 ## Screens and messages
 
 - Welcome contains only Freak Melee, FIRST STARTUP with four progress dots,

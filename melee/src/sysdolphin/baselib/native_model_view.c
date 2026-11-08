@@ -539,6 +539,28 @@ typedef struct CornerPositions {
     bool valid;
 } CornerPositions;
 
+typedef struct MeshBounds { Vec3 low, high; unsigned count; bool valid; } MeshBounds;
+static void bound_corner(const Vec3* value, float weight, void* user)
+{
+    MeshBounds* bounds = user;
+    if (!isfinite(value->x) || !isfinite(value->y) || !isfinite(value->z)) { bounds->valid = false; return; }
+    bounds->low.x = fminf(bounds->low.x, value->x); bounds->high.x = fmaxf(bounds->high.x, value->x);
+    bounds->low.y = fminf(bounds->low.y, value->y); bounds->high.y = fmaxf(bounds->high.y, value->y);
+    bounds->low.z = fminf(bounds->low.z, value->z); bounds->high.z = fmaxf(bounds->high.z, value->z);
+    ++bounds->count;
+}
+bool nativeModelView_MeshBounds(HSD_JObj* owner, HSD_DObj* mesh, Vec3* minimum, Vec3* maximum)
+{
+    if (!owner || !mesh || !minimum || !maximum) return false;
+    ViewMesh entry = { .owner = owner, .mesh = mesh };
+    MeshBounds bounds = {{FLT_MAX, FLT_MAX, FLT_MAX}, {-FLT_MAX, -FLT_MAX, -FLT_MAX}, 0, true};
+    for (HSD_PObj* p = mesh->pobj; p; p = p->next)
+        if (!visit(&entry, p, NULL, bound_corner, NULL, &bounds, NULL)) return false;
+    if (!bounds.valid || !bounds.count) return false;
+    *minimum = bounds.low; *maximum = bounds.high;
+    return true;
+}
+
 static void store_corner(const Vec3* value, float weight, void* user)
 {
     CornerPositions* output = user;

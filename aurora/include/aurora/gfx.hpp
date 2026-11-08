@@ -147,6 +147,7 @@ struct ResolveDesc {
 };
 
 struct ResolvedTargets {
+  wgpu::Texture colorTexture;
   wgpu::TextureView color; // single-sample snapshot; null if not requested
   wgpu::TextureView depth; // single-sample R32Float depth snapshot; null if not requested
   wgpu::TextureFormat colorFormat = wgpu::TextureFormat::Undefined;
@@ -163,12 +164,15 @@ struct ResolvedTargets {
 /// device. Returns false (with a warning) outside an active render pass.
 bool resolve_pass(const ResolveDesc& desc, ResolvedTargets& out);
 
+
 /// Opens an offscreen render pass (GXCreateFrameBuffer semantics): cleared
 /// single-sample color+depth at (width, height) with full-target
 /// viewport/scissor. Subsequent draws target it until resolve_pass restores the
 /// EFB. Nesting is unsupported: returns false (with a warning) outside an
 /// active render pass or while any offscreen pass is already open.
-bool create_pass(uint32_t width, uint32_t height);
+// waitForPipelines makes one-shot renders complete on first use, including
+// when their GX pipeline variants have not been compiled yet.
+bool create_pass(uint32_t width, uint32_t height, bool waitForPipelines);
 
 /// True while an offscreen pass (create_pass or GXCreateFrameBuffer) is open.
 bool is_offscreen() noexcept;

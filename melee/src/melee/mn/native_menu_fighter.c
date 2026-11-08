@@ -16,6 +16,7 @@
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/lobj.h>
 #include <sysdolphin/baselib/mobj.h>
+#include <sysdolphin/baselib/native_model_view.h>
 #include <sysdolphin/baselib/state.h>
 #include <sysdolphin/baselib/tev.h>
 #include <math.h>
@@ -33,21 +34,25 @@ typedef struct MenuFighter {
     float low_y, height;
     FighterKind kind;
     HSD_DObj* draws[256];
+    HSD_JObj* draw_owners[256];
     u32 render_modes[256];
     unsigned draw_count, visibility_frames;
     u8 visibility[1024][32], outlines[1024][32];
     u32 body_color, outline_color;
-    float depth;
+    float depth, facing, center_x, center_z;
+    Vec3 minimum, maximum;
     bool flat_color;
     short initial_variants[11];
 } MenuFighter;
 static MenuFighter fighters[NATIVE_MENU_FIGHTERS];
+static unsigned generations[NATIVE_MENU_FIGHTERS];
 static HSD_GObj* light_owner;
 static HSD_LObj* lighting;
 
 static void forget(void* data)
 {
     MenuFighter* fighter = data;
+    ++generations[fighter - fighters];
     // Descriptors and compressed tracks must outlive their HSD objects.
     HSD_GObjObject_80390B0C(fighter->owner);
     free(fighter->costume.arena);
@@ -102,16 +107,16 @@ static bool pointer(const HSD_Dat* dat, u32 slot, u32* result)
 }
 
 static bool collect(HSD_JObj* root, HSD_JObj** joints, unsigned* count,
-                     HSD_DObj** draws, unsigned* draw_count)
+                     HSD_DObj** draws, HSD_JObj** owners, unsigned* draw_count)
 {
     for (HSD_JObj* joint = root; joint; joint = joint->next) {
         if (*count == MAX_FT_PARTS) return false;
         joints[(*count)++] = joint;
         for (HSD_DObj* draw = HSD_JObjGetDObj(joint); draw; draw = draw->next) {
             if (*draw_count == 256) return false;
-            draws[(*draw_count)++] = draw;
+            owners[*draw_count] = joint; draws[(*draw_count)++] = draw;
         }
-        if (!(joint->flags & JOBJ_INSTANCE) && !collect(joint->child, joints, count, draws, draw_count)) return false;
+        if (!(joint->flags & JOBJ_INSTANCE) && !collect(joint->child, joints, count, draws, owners, draw_count)) return false;
     }
     return true;
 }
@@ -222,7 +227,7 @@ static bool bind_idle(MenuFighter* fighter, const NativeFighterDefinition* defin
     if (!fighter->animation_arena || !ftAnimationBank_Import(fighter->animation_bytes,
         animation_size, &entry, 1, fighter->animation_arena, FT_ANIMATION_IMPORT_ARENA_SIZE, &stats)) return false;
     HSD_JObj* joints[MAX_FT_PARTS]; unsigned joint_count = 0;
-    if (!collect(fighter->root, joints, &joint_count, fighter->draws, &fighter->draw_count) ||
+    if (!collect(fighter->root, joints, &joint_count, fighter->draws, fighter->draw_owners, &fighter->draw_count) ||
         joint_count != definition->joint_count ||
         !visibility_timeline(fighter, definition, dat, root, bytes, size, action)) return false;
     for (unsigned d = 0; d < fighter->draw_count; ++d)
@@ -254,13 +259,18 @@ static bool bind_idle(MenuFighter* fighter, const NativeFighterDefinition* defin
     if (tree->nodes[animation_node] != -1 || costume_node != joint_count) return false;
     HSD_JObjReqAnimAll(fighter->root, 0);
     HSD_JObjAnimAll(fighter->root);
-    float high = -INFINITY; fighter->low_y = INFINITY;
-    for (unsigned j = 0; j < joint_count; ++j) {
-        MtxPtr matrix = HSD_JObjGetMtxPtr(joints[j]);
-        fighter->low_y = fminf(fighter->low_y, matrix[1][3]);
-        high = fmaxf(high, matrix[1][3]);
+    Vec3 low = {INFINITY, INFINITY, INFINITY}, high = {-INFINITY, -INFINITY, -INFINITY};
+    for (unsigned d = 0; d < fighter->draw_count; ++d) {
+        if (!(fighter->visibility[0][d / 8] & (1u << (d % 8)))) continue;
+        Vec3 a, b;
+        if (!nativeModelView_MeshBounds(fighter->draw_owners[d], fighter->draws[d], &a, &b)) return false;
+        low.x = fminf(low.x, a.x); high.x = fmaxf(high.x, b.x);
+        low.y = fminf(low.y, a.y); high.y = fmaxf(high.y, b.y);
+        low.z = fminf(low.z, a.z); high.z = fmaxf(high.z, b.z);
     }
-    fighter->height = high - fighter->low_y;
+    fighter->low_y = low.y; fighter->height = high.y - low.y;
+    fighter->minimum = low; fighter->maximum = high;
+    fighter->center_x = (low.x + high.x) * .5f; fighter->center_z = (low.z + high.z) * .5f;
     return isfinite(fighter->height) && fighter->height > .01f;
 }
 
@@ -300,35 +310,32 @@ bool nativeMenuFighter_Load(unsigned slot, FighterKind kind, const short initial
     if (!ok) {
         fprintf(stderr, "[menu-fighter] Could not prepare stock preview %u\n", kind);
         nativeMenuFighter_Unload(slot);
-    } else { fighter->depth = 1; load_lights(); }
+    } else { ++generations[slot]; fighter->depth = 1; load_lights(); }
     return ok;
 }
 
-void nativeMenuFighter_SetPalette(unsigned slot, unsigned body, unsigned outline, float depth)
+unsigned nativeMenuFighter_Generation(unsigned slot)
+{
+    return slot < NATIVE_MENU_FIGHTERS && fighters[slot].root ? generations[slot] : 0;
+}
+
+void nativeMenuFighter_SetFlatStyle(unsigned slot, unsigned body, unsigned outline, float depth, float facing)
 {
     if (slot >= NATIVE_MENU_FIGHTERS || !fighters[slot].root || !isfinite(depth) || depth <= 0) return;
     fighters[slot].flat_color = true;
     fighters[slot].body_color = body; fighters[slot].outline_color = outline;
     fighters[slot].depth = depth;
+    fighters[slot].facing = facing;
 }
 
-void nativeMenuFighter_Draw(unsigned slot, Mtx canvas, float x, float feet_y,
-                            float height, float yaw, float frame)
+static void render_fighter(MenuFighter* fighter, Mtx view, float frame)
 {
-    if (slot >= NATIVE_MENU_FIGHTERS || !fighters[slot].root) return;
-    MenuFighter* fighter = &fighters[slot];
     FigaTree* idle = fighter->idle.x14;
     HSD_JObjReqAnimAll(fighter->root, fmodf(fmaxf(0, frame), fmaxf(1, idle->frames)));
     HSD_JObjAnimAll(fighter->root);
     HSD_LObjDeleteCurrentAll(NULL);
     for (HSD_LObj* light = lighting; light; light = light->next) HSD_LObjAddCurrent(light);
     HSD_LObjSetupInit(HSD_CObjGetCurrent());
-    float scale = height / fighter->height;
-    float c = cosf(yaw) * scale, s = sinf(yaw) * scale;
-    Mtx model = { { c, 0, s, x }, { 0, scale, 0, -feet_y - fighter->low_y * scale },
-                  { -s, 0, c, -70 } }, view;
-    model[0][2] *= fighter->depth; model[2][2] *= fighter->depth;
-    C_MTXConcat(canvas, model, view);
     unsigned visibility_frame = (unsigned)fmodf(fmaxf(0, frame), fighter->visibility_frames);
     for (unsigned pass = fighter->flat_color ? 0 : 1; pass < 2; ++pass) {
         const u8* visible = pass ? fighter->visibility[visibility_frame] : fighter->outlines[visibility_frame];
@@ -348,6 +355,53 @@ void nativeMenuFighter_Draw(unsigned slot, Mtx canvas, float x, float feet_y,
         HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
         HSD_JObjDispAll(fighter->root, view, HSD_TRSP_ALL, 0);
     }
+}
+
+void nativeMenuFighter_Draw(unsigned slot, Mtx canvas, float x, float feet_y,
+                            float height, float yaw, float frame)
+{
+    if (slot >= NATIVE_MENU_FIGHTERS || !fighters[slot].root) return;
+    MenuFighter* fighter = &fighters[slot];
+    float scale = height / fighter->height;
+    float c = cosf(yaw) * scale, s = sinf(yaw) * scale;
+    float a = cosf(fighter->facing), b = sinf(fighter->facing), depth = fighter->depth;
+    float cx = a * fighter->center_x + b * fighter->center_z;
+    float cz = (-b * fighter->center_x + a * fighter->center_z) * depth;
+    Mtx model = { { c*a-s*depth*b, 0, c*b+s*depth*a, x-c*cx-s*cz },
+                  { 0, scale, 0, -feet_y-fighter->low_y*scale },
+                  { -s*a-c*depth*b, 0, -s*b+c*depth*a, -70+s*cx-c*cz } }, view;
+    C_MTXConcat(canvas, model, view);
+    render_fighter(fighter, view, frame);
+}
+
+void nativeMenuFighter_DrawCamera(unsigned slot, float yaw, float pitch, float zoom,
+                                  float pan_x, float pan_y, float frame)
+{
+    if (slot >= NATIVE_MENU_FIGHTERS || !fighters[slot].root) return;
+    MenuFighter* fighter = &fighters[slot];
+    Mtx facing, depth, orbit, tilt, a, b, view;
+    C_MTXRotRad(facing, 'y', fighter->facing);
+    C_MTXScale(depth, 1, 1, fighter->depth);
+    C_MTXRotRad(orbit, 'y', yaw); C_MTXRotRad(tilt, 'x', pitch);
+    C_MTXConcat(depth, facing, a); C_MTXConcat(orbit, a, b); C_MTXConcat(tilt, b, view);
+    Vec3 low = {INFINITY, INFINITY, INFINITY}, high = {-INFINITY, -INFINITY, -INFINITY};
+    for (unsigned corner = 0; corner < 8; ++corner) {
+        Vec3 p = {corner & 1 ? fighter->maximum.x : fighter->minimum.x,
+                  corner & 2 ? fighter->maximum.y : fighter->minimum.y,
+                  corner & 4 ? fighter->maximum.z : fighter->minimum.z}, transformed;
+        C_MTXMultVecSR(view, &p, &transformed);
+        low.x = fminf(low.x, transformed.x); high.x = fmaxf(high.x, transformed.x);
+        low.y = fminf(low.y, transformed.y); high.y = fmaxf(high.y, transformed.y);
+    }
+    float scale = 1.8f * zoom / fmaxf(high.x-low.x, high.y-low.y);
+    for (unsigned row = 0; row < 3; ++row) for (unsigned column = 0; column < 3; ++column)
+        view[row][column] *= scale;
+    Vec3 center = { fighter->center_x, fighter->low_y + fighter->height * .5f, fighter->center_z }, target;
+    C_MTXMultVecSR(view, &center, &target);
+    view[0][3] = pan_x - target.x; view[1][3] = pan_y - target.y; view[2][3] = -10 - target.z;
+    Mtx44 projection; C_MTXOrtho(projection, 1, -1, -1, 1, 1, 100);
+    GXSetProjection(projection, GX_ORTHOGRAPHIC);
+    render_fighter(fighter, view, frame);
 }
 
 void nativeMenuFighter_Inspect(void)

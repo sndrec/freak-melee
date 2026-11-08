@@ -20,6 +20,9 @@ int nativeModelView_Pick(const float origin[3], const float direction[3]);
 // Caller owns the buffer and supplies the exact expected count. Repeated or
 // direct positions retain distinct corner entries; no draw-time allocations.
 bool nativeModelView_CornerPositions(unsigned mesh, Vec3* positions, unsigned count);
+// Bounds of the posed geometry, including skinning and shape animation.
+// Independent of the editor's current mesh registry; no temporary allocation.
+bool nativeModelView_MeshBounds(HSD_JObj* owner, HSD_DObj* mesh, Vec3* minimum, Vec3* maximum);
 #ifdef __cplusplus
 }
 #endif

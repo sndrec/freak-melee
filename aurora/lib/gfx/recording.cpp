@@ -45,6 +45,7 @@ struct FrameRecorder {
   uint32_t drawCallCount = 0;
   uint32_t mergedDrawCallCount = 0;
   bool inOffscreen = false;
+  bool waitForPipelines = false;
   std::optional<RenderPass> suspendedEfbPass;
   Viewport suspendedEfbViewport;
   ClipRect suspendedEfbScissor;
@@ -158,7 +159,7 @@ PassSnapshotEntry& acquire_pass_snapshot(uint32_t width, uint32_t height, bool w
     const auto format = webgpu::g_graphicsConfig.surfaceConfiguration.format;
     const wgpu::TextureDescriptor desc{
         .label = "Pass Snapshot Color",
-        .usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding,
+        .usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::CopySrc | wgpu::TextureUsage::TextureBinding,
         .dimension = wgpu::TextureDimension::e2D,
         .size = size,
         .format = format,
@@ -937,15 +938,19 @@ void begin_offscreen(uint32_t width, uint32_t height) {
     suspend_efb();
   }
   start_offscreen(width, height);
+  g_recorder.waitForPipelines = false;
 }
 
 void end_offscreen() {
   ZoneScoped;
   finish_current_offscreen();
   restore_efb();
+  g_recorder.waitForPipelines = false;
 }
 
-bool create_pass(uint32_t width, uint32_t height) {
+bool detail::pass_waits_for_pipelines() noexcept { return g_recorder.waitForPipelines; }
+
+bool create_pass(uint32_t width, uint32_t height, bool waitForPipelines) {
   if (width == 0 || height == 0) {
     Log.warn("create_pass: invalid size {}x{}", width, height);
     return false;
@@ -963,6 +968,7 @@ bool create_pass(uint32_t width, uint32_t height) {
   }
 
   begin_offscreen(width, height);
+  g_recorder.waitForPipelines = waitForPipelines;
   return true;
 }
 
@@ -989,6 +995,7 @@ bool resolve_pass(const ResolveDesc& desc, ResolvedTargets& out) {
     auto& entry = acquire_pass_snapshot(width, height, desc.color, wantDepth);
     if (desc.color) {
       prevPass.snapshotColorDst = entry.color.texture;
+      out.colorTexture = entry.color.texture;
       out.color = entry.color.view;
       out.colorFormat = entry.color.format;
     }

@@ -6,6 +6,7 @@
 #include <string>
 
 namespace aurora::gfx::detail {
+bool pass_waits_for_pipelines() noexcept;
 
 struct FramePacket;
 
