@@ -7,6 +7,28 @@
 #include <tracy/Tracy.hpp>
 
 namespace aurora::gx {
+bool shader_inputs_available(const ShaderConfig& config) noexcept {
+  if (config.tevStageCount > config.tevStages.size() || config.numIndStages > config.indStages.size()) return false;
+  for (unsigned i = 0; i < config.tevStageCount; ++i) {
+    const auto& stage = config.tevStages[i];
+    if (stage.texCoordId != GX_TEXCOORD_NULL && unsigned(stage.texCoordId) >= config.tcgs.size()) return false;
+    if (stage.texMapId != GX_TEXMAP_NULL && unsigned(stage.texMapId) >= MaxTextures) return false;
+  }
+  for (unsigned i = 0; i < config.numIndStages; ++i) {
+    if (unsigned(config.indStages[i].texCoordId) >= config.tcgs.size() ||
+        unsigned(config.indStages[i].texMapId) >= MaxTextures) return false;
+  }
+  const auto info = build_shader_info(config);
+  for (unsigned i = 0; i < config.tcgs.size(); ++i) {
+    if (!info.sampledTexCoords.test(i)) continue;
+    if (config.tcgs[i].type >= GX_TG_BUMP0 && config.tcgs[i].type <= GX_TG_BUMP7) continue;
+    const auto source = config.tcgs[i].src;
+    if (source >= GX_TG_TEX0 && source <= GX_TG_TEX7 &&
+        config.attrs[GX_VA_TEX0 + (source - GX_TG_TEX0)].attrType == GX_NONE) return false;
+  }
+  return true;
+}
+
 namespace {
 constexpr Module Log{"aurora::gx"};
 

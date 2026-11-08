@@ -1,4 +1,5 @@
 #include <sysdolphin/baselib/dat_import.h>
+#include <sysdolphin/baselib/dat_import_internal.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +21,27 @@ static void put32(u8* p, u32 n)
 
 void test_dat_import(void)
 {
+    {
+        u8 backing[128] = {0}, scratch[128] = {0};
+        HSD_VtxDescList a[2] = {
+            {.attr_type=GX_INDEX16,.vertex=backing,.vertex_size=12},
+            {.attr_type=GX_INDEX16,.vertex=backing+96,.vertex_size=8}
+        };
+        HSD_VtxDescList b[2] = {
+            {.attr_type=GX_INDEX16,.vertex=backing,.vertex_size=96},
+            {.attr_type=GX_DIRECT,.vertex=backing,.vertex_size=120}
+        };
+        HSD_DatImportRecord records[2] = {
+            {.type=DAT_VTXDESC,.count=2,.object=a},
+            {.type=DAT_VTXDESC,.count=2,.object=b}
+        };
+        HSD_DatImport shared = {.arena=scratch,.arena_size=sizeof(scratch),
+            .arena_used=16,.records=records,.record_count=2};
+        require(HSD_DatNormalizeVertexArrays(&shared) && a[0].vertex_size==96 &&
+                    b[0].vertex_size==96 && a[1].vertex_size==8 &&
+                    b[1].vertex_size==120 && shared.arena_used==16,
+                "Shared vertex arrays did not retain one common proven extent");
+    }
     static const u32 slots[] = { 8, 12, 20, 28, 100, 104, 108, 112,
                                 192, 196, 200, 204, 208, 312 };
     u8 file[568] = { 0 };

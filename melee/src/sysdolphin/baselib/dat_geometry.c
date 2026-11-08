@@ -1,5 +1,55 @@
 #include "dat_import_internal.h"
 #include <math.h>
+#include <stdlib.h>
+
+static int compare_vertex_array(const void* left, const void* right)
+{
+    const HSD_VtxDescList* a = *(HSD_VtxDescList* const*)left;
+    const HSD_VtxDescList* b = *(HSD_VtxDescList* const*)right;
+    uintptr_t x = (uintptr_t)a->vertex, y = (uintptr_t)b->vertex;
+    return (x > y) - (x < y);
+}
+
+bool HSD_DatNormalizeVertexArrays(HSD_DatImport* import)
+{
+    size_t count = 0;
+    for (u32 i = 0; i < import->record_count; ++i) {
+        const HSD_DatImportRecord* record = &import->records[i];
+        if (record->type != DAT_VTXDESC) continue;
+        const HSD_VtxDescList* list = record->object;
+        for (u32 j = 0; j < record->count; ++j)
+            if (list[j].vertex_size && list[j].attr_type > GX_DIRECT) ++count;
+    }
+    if (count < 2) return true;
+    // A display list proves only the prefix that it references. Give all
+    // descriptors for one backing array the largest proven prefix, so the
+    // renderer uploads it once rather than once per triangle's index range.
+    // Scratch uses the caller's arena and is released before returning.
+    const size_t mark = import->arena_used;
+    HSD_VtxDescList** arrays = HSD_DatImportAlloc(import, count * sizeof(*arrays));
+    if (!arrays) return false;
+    size_t at = 0;
+    for (u32 i = 0; i < import->record_count; ++i) {
+        const HSD_DatImportRecord* record = &import->records[i];
+        if (record->type != DAT_VTXDESC) continue;
+        HSD_VtxDescList* list = record->object;
+        for (u32 j = 0; j < record->count; ++j)
+            if (list[j].vertex_size && list[j].attr_type > GX_DIRECT) arrays[at++] = &list[j];
+    }
+    qsort(arrays, count, sizeof(*arrays), compare_vertex_array);
+    for (size_t first = 0; first < count;) {
+        size_t end = first + 1;
+        u32 maximum = arrays[first]->vertex_size;
+        while (end < count && arrays[end]->vertex == arrays[first]->vertex) {
+            if (arrays[end]->vertex_size > maximum) maximum = arrays[end]->vertex_size;
+            ++end;
+        }
+        for (size_t j = first; j < end; ++j) arrays[j]->vertex_size = maximum;
+        first = end;
+    }
+    import->arena_used = mark;
+    return true;
+}
 
 // GX fetches attributes in hardware order, independent of descriptor order.
 // This runs once during asset import, before any renderer can consume the bytes.

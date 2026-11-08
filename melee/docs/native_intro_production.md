@@ -23,7 +23,9 @@ static blocking is a reference for filming.
   pass recorded a valid 32 kHz stereo WAV with landing/taunt audio after stage
   music was stopped. Film clients can supply their sound effects to the edit.
 - Third-party costume assets downloaded into `.local/intro-production/assets`.
-  Import them through the normal costume/owned-fighter paths before filming.
+  Tom Nook's Island Shirt and Sweater models import and render through ordinary
+  owned costume packages. Rude Falco and the Cowboy Spacies models expose a
+  missing-texture-coordinate shader path in the port; keep them out of the cut.
 - Settings now offers **Custom fighter models: Show / Neutral**. Neutral uses
   posed hurtbox wireframes for source fighters and installed costumes during
   play; the frozen Workshop editor retains the authored model. It preserves the
@@ -35,21 +37,49 @@ static blocking is a reference for filming.
   `.local/intro-production/filter-comparison/receipt.json`. This is one Mario
   input sequence, rather than a complete roster audit.
 - Independent Mario, Mario Remix, exaggerated-knockback Ganondorf and Falco
-  projects are built in `.local/intro-production/cast-4`. Their interpreted
-  scripts validate, and all three credited Falco outfits import as ordinary
-  owned costume packages. `tools/prepare_intro_fighters.py` reproduces the cast.
+  projects are built in `.local/intro-production/cast-8`. Their interpreted
+  scripts validate. `tools/prepare_intro_fighters.py` reproduces the cast.
   Mario Remix changes tilt radii, transfers an aerial-jump pose into forward
   air and gives fireballs upward acceleration. Ganondorf's 242 attack-hitbox
   references deal 1% with base knockback 400 for the deliberately absurd gag.
 - `tools/record_intro_gameplay.py` records directed takes with normal physics
-  and installed fighters. Six first takes are in
-  `.local/intro-production/gameplay-take-1`; the costume-lineup take exposed
-  renderer failures and is being repaired before filming. These takes are
-  source footage, not a finished cut.
+  and installed fighters. The closer gameplay takes are in
+  `.local/intro-production/gameplay-take-3`. A three-actor costume lineup records
+  in `gameplay-take-4`, after the shared-array import fix below. These are source
+  footage, not a finished cut.
+- Actual hitbox editing and pose transfer are recorded in `workshop-take-5`.
+  Its saved animation DAT matches the authored Mario Remix DAT exactly.
+  `workshop-take-6/script-edit-2.mp4` records the fireball physics edit and a
+  successful source check. Earlier rejected takes stay out of the film.
+- `tools/record_intro_menus.py` records the native first-fighter carousel and
+  appearance setting in `menus-take-1`. `tools/record_intro_sharing.py` records
+  tile-to-player delivery and acceptance in `sharing-take-4`; its receipt proves
+  the previously uninstalled edited Mario is installed on the second client.
+  Both clients use a loopback lobby service and isolated data.
 - The original `/audio/howto.hps` is recorded through the native mixer as
   `.local/intro-production/howto-music.wav` (124.24 seconds, 32 kHz stereo).
-- Still required: Workshop recording, sharing footage, costume-lineup take,
-  finished gag/composition, final cut and end-to-end visual/audio review.
+- Still required: final outfit selection/take, gag/composition, final cut and
+  end-to-end visual/audio review.
+
+## Issues found while filming
+
+- Long script lines wrapped in the text area, while the syntax layer drew them
+  unwrapped. Setting the native text area to `wrap="nowrap"` aligns text, caret,
+  line numbers and keyboard navigation. The recorded script edit validates.
+- Polygon descriptors sharing a backing vertex array used different inferred
+  prefix lengths. The renderer uploaded the same arrays repeatedly, overflowing
+  both 8 MiB and a temporary 16 MiB render buffer. Import now gives descriptors
+  for one array their largest proven extent, using transient caller-arena
+  scratch. The render buffer remains **8 MiB**. Native DAT tests pass, and the
+  Tom Nook lineup records without that overflow.
+- Pipeline configurations were persisted before compilation completed. Failed
+  shaders could then crash unrelated launches during cache warmup. Pending
+  records now publish after successful compilation. Cache loading skips GX
+  configurations whose required vertex inputs are absent.
+- Accepting an already-cached fighter from a CSS button attempted preparation
+  inside a GObj callback. The online session now queues acceptance for its pump,
+  retaining the exact offer's ID, peer and serial. The cached gift installs
+  through the real CSS flow in `sharing-take-4`.
 
 ## Asset credits
 
@@ -58,13 +88,20 @@ are source material for the local draft, rather than repository assets.
 
 | Asset | Credit | Source | Download SHA-256 |
 | --- | --- | --- | --- |
-| Rude Falco | knifeinsideasock3t_ — texture edit of a baggy-pants model, as described on the post | [SSBM Nucleus](https://ssbmnucleus.net/post/17642/rude-falco) | `ffba18d04d1791c553cbf68978c4a3baec68f8a03eddaf9a8f6382ccd210530f` |
 | Tom Nook Falco — Island Shirt and Sweater | LarsBars / @RealLarsBars | [SSBM Nucleus](https://ssbmnucleus.net/post/17634/tom-nook-falco) | `9dfe246e6d01e37c229bed7524aaf349905b7b97a31ec8052dbb5299a5dd3725` |
 
-The Rude Falco post does not identify the underlying baggy-pants model's author.
-Try to identify that contributor before the final credits. A separate cowboy
-pack was inspected and downloaded, but is not selected for the draft; it mixes
-many works without clear individual attribution.
+Rejected-source provenance: Rude Falco is knifeinsideasock3t_'s texture edit of a
+baggy-pants model, [post 17642](https://ssbmnucleus.net/post/17642/rude-falco),
+archive SHA-256 `ffba18d04d1791c553cbf68978c4a3baec68f8a03eddaf9a8f6382ccd210530f`.
+The Cowboy Spacies compilation is from phant0m5351,
+[post 17628](https://ssbmnucleus.net/post/17628/cowboy-spacies), archive SHA-256
+`1bbf82fd37b1d1f4e2b0e2713178148abd3c4e2720cd4a7cbf211a67e6c691ea`.
+The original [Lazlo author index](https://ssbmtextures.com/author/lazlo/) lists
+Cowboy Spacies and baggy-pants Falco. Neither rejected model appears in the cut.
+The Han Solo Falco page credits LarsBars, but its download was blocked in
+Chrome and no asset was obtained. No costume's visual data was modified while
+testing. Color-specific public archive symbols were rebound to the cloned
+fighter's stock symbol names for costume import.
 
 ## Recording rules
 

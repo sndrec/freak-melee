@@ -5,6 +5,7 @@
 #include "resources.hpp"
 #include "hash.hpp"
 #include "../gx/pipeline.hpp"
+#include "../gx/shader_info.hpp"
 #include "../io.hpp"
 #ifdef AURORA_ENABLE_RMLUI
 #include "../rmlui/pipeline.hpp"
@@ -21,6 +22,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <type_traits>
 
 #include <SDL3/SDL_iostream.h>
 #include <absl/container/flat_hash_map.h>
@@ -76,6 +78,9 @@ static absl::flat_hash_map<PipelineRef, CachedPipeline> g_pipelines;
 static std::deque<PendingPipeline> g_pipelineQueue;
 static std::deque<PendingPipeline> g_backgroundPipelineQueue;
 static absl::flat_hash_set<PipelineRef> g_pendingPipelines;
+// Persist a configuration only after its pipeline has compiled successfully.
+// A failed import must not poison background warmup on every later launch.
+static absl::flat_hash_map<PipelineRef, PipelineCacheWrite> g_pendingPipelineWrites;
 static std::atomic_bool g_gpuCachePrunePending = false;
 
 static sqlite3* g_pipelineCacheDb = nullptr;
@@ -523,6 +528,21 @@ static PipelineRef find_pipeline_impl(ShaderType type, const PipelineConfig& con
       }
       ++queuedPipelines;
       notifyWorker = true;
+    }
+    if (cacheWrite && !pipelineReady) {
+      auto existing = g_pendingPipelineWrites.find(hash);
+      if (existing == g_pendingPipelineWrites.end() ||
+          cacheWrite->firstFrameUsed < existing->second.firstFrameUsed)
+        g_pendingPipelineWrites.insert_or_assign(hash, std::move(*cacheWrite));
+      cacheWrite.reset();
+    }
+    if (pipelineReady) {
+      auto pendingWrite = g_pendingPipelineWrites.find(hash);
+      if (pendingWrite != g_pendingPipelineWrites.end()) {
+        if (!cacheWrite || pendingWrite->second.firstFrameUsed < cacheWrite->firstFrameUsed)
+          cacheWrite = std::move(pendingWrite->second);
+        g_pendingPipelineWrites.erase(pendingWrite);
+      }
     }
   }
 
@@ -998,6 +1018,8 @@ static void pipeline_worker() {
       source.pop_front();
     }
     auto result = pending.create();
+    const bool compiled = bool(result);
+    std::optional<PipelineCacheWrite> cacheWrite;
     {
       std::lock_guard lock{g_pipelineMutex};
       g_pipelines.try_emplace(pending.hash, CachedPipeline{
@@ -1005,8 +1027,14 @@ static void pipeline_worker() {
                                                 .firstFrameUsed = pending.firstFrameUsed,
                                             });
       g_pendingPipelines.erase(pending.hash);
+      auto write = g_pendingPipelineWrites.find(pending.hash);
+      if (write != g_pendingPipelineWrites.end()) {
+        if (compiled) cacheWrite = std::move(write->second);
+        g_pendingPipelineWrites.erase(write);
+      }
       hasMore = !g_pipelineQueue.empty() || !g_backgroundPipelineQueue.empty();
     }
+    if (cacheWrite) enqueue_pipeline_cache_write(std::move(*cacheWrite));
     if (!g_hasPipelineThread) {
       ++g_pipelinesPerFrame;
     }
@@ -1046,6 +1074,12 @@ static size_t load_pipeline_cache_entries(ShaderType type, uint32_t configVersio
     std::memcpy(&config, configBlob, sizeof(config));
     if (config.version != configVersion) {
       continue;
+    }
+    if constexpr (std::is_same_v<PipelineConfig, gx::PipelineConfig>) {
+      if (!gx::shader_inputs_available(config.shaderConfig)) {
+        Log.warn("Skipping cached GX pipeline with unavailable vertex inputs");
+        continue;
+      }
     }
 
     find_pipeline_impl(type, config, [=] { return create(config); }, PipelinePriority::Background, firstFrameUsed);
@@ -1166,6 +1200,7 @@ void shutdown_pipeline_cache() {
   g_pipelineQueue.clear();
   g_backgroundPipelineQueue.clear();
   g_pendingPipelines.clear();
+  g_pendingPipelineWrites.clear();
 
   queuedPipelines = 0;
   createdPipelines = 0;

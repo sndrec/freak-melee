@@ -99,7 +99,7 @@ namespace {
             nativeHome_ReturnToSelection();
             break;
         case Action::Accept:
-            if (!nativeOnlineSession_AcceptGift()) {
+            if (!nativeOnlineSession_RequestGiftAcceptance()) {
                 nativeHub_Notice("Could not accept this fighter.");
             }
             break;
