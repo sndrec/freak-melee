@@ -81,6 +81,30 @@ void nativeMenuPortraitCapture_Inspect()
         unsigned(nativeMenuPortraitCapture_State()), capture.count, capture.path);
 }
 
+void nativeMenuPortraitCapture_Stage(const char* specification)
+{
+    unsigned id,kind,costume; int end=0; char animation[64];
+    NativePortraitSubject subject{NATIVE_MENU_FIGHTERS-1};
+    auto& c=subject.camera;
+    bool ok=std::sscanf(specification,"%u,%u,%u,%63[A-Za-z0-9_],%f,%f,%f,%f,%f,%f%n",
+        &id,&kind,&costume,animation,&c.frame,&c.yaw,&c.pitch,&c.zoom,&c.pan_x,&c.pan_y,&end)==10 &&
+        specification[end]==0 && id<=99999 && std::isfinite(c.frame) && c.frame>=0 && c.frame<=1024 &&
+        std::isfinite(c.yaw) && std::isfinite(c.pitch) && std::isfinite(c.zoom) && c.zoom>=.15f && c.zoom<=32 &&
+        std::isfinite(c.pan_x) && std::isfinite(c.pan_y);
+    auto state=nativeMenuPortraitCapture_State();
+    ok=ok && state!=NativePortraitCaptureState::Queued && state!=NativePortraitCaptureState::Saving;
+    // The shot tool uses stock costumes and the requested named animation.
+    // Move-specific visibility is evaluated by the same preview importer.
+    short variants[11]; for (unsigned i=0;i<11;++i) variants[i]=i==0?0:-1;
+    if (ok) ok=nativeMenuFighter_Load(subject.slot,FighterKind(kind),costume,animation,variants);
+    char path[48];
+    if (ok) {
+        std::snprintf(path,sizeof(path),"menu-shot-%05u.png",id);
+        ok=nativeMenuPortraitCapture_Request(&subject,1,path,512,512);
+    }
+    std::fprintf(stderr,"[hub-inspect] menu-shot accepted=%d\n",ok);
+}
+
 void nativeMenuPortraitCapture_Preview(const NativePortraitSubject* subjects, unsigned count,
                                        float x, float y, float preview_width, float preview_height)
 {

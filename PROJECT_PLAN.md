@@ -40,6 +40,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   adapter pass; each attempt saves a raw capture for diagnosis. Begin the intro
   storyboard and staged shot examples next, keeping unfinished appearance-filter
   shots marked as planned until their actual feature exists.
+  The [intro storyboard](melee/docs/native_intro_storyboard.md) now has a
+  62-second caption-led first cut, eleven native pose/costume captures and nine
+  boards. Caption styling references frames decoded directly from the original
+  How to Play movie. Gameplay demonstrations, custom outfits and the appearance
+  filter sequence remain production work after the user's storyboard review.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record

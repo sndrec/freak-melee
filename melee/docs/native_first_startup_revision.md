@@ -49,6 +49,9 @@ owned-project editing and separate card/tile saves. Three account-notice checks
 pass in `.local/startup-feedback-3-notice-review/receipt.json`. These clients
 were hidden, muted and isolated. They do not establish hardware calibration
 feel or final user acceptance.
+After adding the intro's named-animation/costume capture support, the combined
+startup walkthrough was repeated on the final executable: eight checks and
+thirteen captures pass in `.local/startup-feedback-3-final-review/receipt.json`.
 
 ## First batch: implemented and checked
 
@@ -354,10 +357,16 @@ or hands-on marker dragging.
 - Revisit the CSS's Ready/START, Workshop and Back placement as part of the
   placement/finish flow.
 
-## Intro: storyboard together after the playable flow
+## Intro: first storyboard after the playable flow
 
-The user chose to finish the playable flow before producing the cinematic.
-Preserve these storyboard beats for the later discussion:
+The [intro storyboard](native_intro_storyboard.md) and its tracked shot recipe
+now arrange these beats into a 62-second caption-led study. Eleven native
+pose/costume captures produce nine boards and a timed animatic in
+`.local/intro-storyboard-5/`. Frames decoded directly from `MvHowto.mth` inform
+the large white caption treatment. The native staging channel loads named
+animations and original costume variants, without altering their source assets.
+Actual edited gameplay, custom outfits and the appearance-filter shot remain
+to produce. The next review can address timing and composition:
 
 1. A fighter starts as a faithful copy. Show editing hitboxes, animation and
    scripts, with gameplay from cinematic camera angles.

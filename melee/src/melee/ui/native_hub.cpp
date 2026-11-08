@@ -1505,6 +1505,12 @@ extern "C" void nativeHub_Open(NativeHubPage page)
 }
 extern "C" void nativeHub_Inspect(const char* id)
 {
+    if (!std::strncmp(id,"menu-shot:",10)) {
+        if (nativeHome_IsSelection() && !nativeHubStartup.active && !nativeHubPortrait_Editing())
+            nativeMenuPortraitCapture_Stage(id+10);
+        else std::fprintf(stderr,"[hub-inspect] menu-shot accepted=0\n");
+        return;
+    }
     if (!std::strncmp(id, "menu-reference:", 15)) {
         scenery_preview = std::strcmp(id + 15, "off") != 0;
         nativeMenuScenery_Load(id + 15);

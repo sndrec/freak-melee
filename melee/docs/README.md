@@ -1,6 +1,6 @@
 # Freak Melee documentation
 
-Updated: 2026-11-07. Start with the current guides below. Dated checkpoint and
+Updated: 2026-11-08. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
 sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
 owns priorities and remaining acceptance. Optimization is currently deferred.
@@ -40,6 +40,9 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 Reference authors should follow the [documentation guidelines](documentation_guidelines.md).
 
 ## Reading implementation evidence
+
+The [intro storyboard](native_intro_storyboard.md) covers the first timed
+caption pass, native pose captures and footage still to record.
 
 Checkpoint files establish exactly their recorded paths, sources, binaries and
 test boundaries. A passing preparation fixture is not gameplay acceptance;
