@@ -33,6 +33,8 @@ typedef enum DbNativeControlCommand {
     DB_NATIVE_CONTROL_AUDIO_START = 16,
     DB_NATIVE_CONTROL_AUDIO_STOP = 17,
     DB_NATIVE_CONTROL_UI_WHEEL = 18,
+    DB_NATIVE_CONTROL_UI_DOWN = 19,
+    DB_NATIVE_CONTROL_UI_UP = 20,
 } DbNativeControlCommand;
 
 typedef struct DbNativeControlMessage {

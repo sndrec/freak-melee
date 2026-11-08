@@ -54,7 +54,7 @@ def main():
 
     for shot in args.shots:
         events = []
-        key = 'Mario' if shot == 'welcome' else 'Ganondorf' if shot in ('overpowered', 'neutral') else 'Falco' if shot == 'outfits' else 'MarioRemix'
+        key = 'Mario' if shot in ('welcome', 'stock-base') else 'Ganondorf' if shot in ('overpowered', 'neutral') else 'Falco' if shot in ('outfits', 'outfit-base') else 'MarioRemix'
         extra = []
         if shot == 'outfits':
             for port, outfit in enumerate(args.outfits, 2):
@@ -75,13 +75,15 @@ def main():
             pose(0, 'Wait', 0)
             pose(1, 'Wait', 65, facing=-1)
             if shot == 'outfits':
-                distance = 90 if len(args.outfits)==3 else 70
+                distance = 102 if len(args.outfits)==3 else 70
                 cue(f'camera,0,18,{distance},0,8,0,38')
                 for port in range(len(args.outfits)+1): pose(port, 'Wait', 65)
             if shot in ('tilt', 'overpowered'):
                 pose(0, 'Wait', -9)
                 pose(1, 'Wait', 4, facing=-1)
                 cue('camera,5,15,55,0,8,0,38')
+            if shot == 'overpowered':
+                cue('reset'); cue('music,off')
             if shot == 'neutral':
                 pose(0, 'Wait', -7); pose(1, 'Wait', 7, facing=-1)
                 cue('camera,-5,18,65,0,10,0,38')
@@ -90,9 +92,10 @@ def main():
             started = time.monotonic()
             with NativeVideo(client, root / (shot + '.mp4')):
                 time.sleep(1)
-                if shot == 'welcome':
+                if shot in ('welcome', 'stock-base', 'outfit-base'):
+                    height,distance,target=(22,65,14) if shot=='stock-base' else (18,48,8)
                     for step in range(30):
-                        cue(f'camera,{18-step*1.2:.2f},18,48,0,8,0,38')
+                        cue(f'camera,{18-step*1.2:.2f},{height},{distance},0,{target},0,38')
                         time.sleep(.1)
                     pose(0, 'AppealSR', 0)
                     time.sleep(3)
@@ -120,11 +123,11 @@ def main():
                     time.sleep(1.5)
                 elif shot == 'overpowered':
                     client.command('tap', 0, 'a', 'frames=2')
-                    time.sleep(3)
+                    time.sleep(4)
                 elif shot == 'neutral':
                     pose(0, 'AppealSR', -7)
                     time.sleep(1.4)
-                    cue('particle,0,202,2.5')
+                    cue('particle,0,90,3')
                     time.sleep(.08)
                     cue('appearance,0')
                     time.sleep(.5)
