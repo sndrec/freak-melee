@@ -34,9 +34,22 @@ static blocking is a reference for filming.
   the setting on/off, including 400 RNG and 800 fighter-state records; see
   `.local/intro-production/filter-comparison/receipt.json`. This is one Mario
   input sequence, rather than a complete roster audit.
-- Still required: edited fighter projects, Workshop recording, gameplay passes,
-  sharing footage, finished filter/gag shots, soundtrack/effects, final cut
-  and end-to-end visual/audio review.
+- Independent Mario, Mario Remix, exaggerated-knockback Ganondorf and Falco
+  projects are built in `.local/intro-production/cast-4`. Their interpreted
+  scripts validate, and all three credited Falco outfits import as ordinary
+  owned costume packages. `tools/prepare_intro_fighters.py` reproduces the cast.
+  Mario Remix changes tilt radii, transfers an aerial-jump pose into forward
+  air and gives fireballs upward acceleration. Ganondorf's 242 attack-hitbox
+  references deal 1% with base knockback 400 for the deliberately absurd gag.
+- `tools/record_intro_gameplay.py` records directed takes with normal physics
+  and installed fighters. Six first takes are in
+  `.local/intro-production/gameplay-take-1`; the costume-lineup take exposed
+  renderer failures and is being repaired before filming. These takes are
+  source footage, not a finished cut.
+- The original `/audio/howto.hps` is recorded through the native mixer as
+  `.local/intro-production/howto-music.wav` (124.24 seconds, 32 kHz stereo).
+- Still required: Workshop recording, sharing footage, costume-lineup take,
+  finished gag/composition, final cut and end-to-end visual/audio review.
 
 ## Asset credits
 
@@ -90,6 +103,8 @@ The CLI exposes `audio-start <WAV path>` and `audio-stop` separately.
 - `music,STEM`: play a disc/native HPS asset from `/audio/STEM.hps`.
 - `appearance,0` / `appearance,1`: apply the same saved neutral/show setting
   used by Settings.
+- `particle,port,id,scale`: spawn a common-bank particle generator at an actor,
+  using a uniform scale. The film uses generator 202 for the transformation puff.
 
 Ports are zero-based. These cues stage the actors; the game then runs their
 usual physics, collisions, animations and authored behavior.
@@ -103,3 +118,13 @@ They verify the recording path; they are not finished movie shots.
 editable stock script/parameter and owned-hitbox setup used by the Workshop's
 clone flow. The film's independent Mario project is in
 `.local/intro-production/authoring/Mario`.
+
+`project-hitbox-power PROJECT DAMAGE GROWTH BASE` edits all attack hitboxes in
+one authoring transaction and clears fixed-weight knockback. Shared command
+graphs become action-owned before editing. Invalid operands or a failed edit
+leave the on-disk draft unchanged.
+
+The native control tool also accepts middle/right `ui-drag` gestures with
+Shift/Ctrl/Alt modifiers, and `ui-wheel x y steps`. They feed the existing
+Workshop mouse listeners without moving the desktop cursor. Positive wheel
+steps scroll up or zoom in.

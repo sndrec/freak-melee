@@ -102,8 +102,15 @@ static void apply_message(const DbNativeControlMessage* message)
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_DRAG) {
-        nativeShell_DragAt(message->ui_x, message->ui_y,
-                           message->ui_end_x, message->ui_end_y);
+        if (message->buttons <= 2 && message->extensions <= 7)
+            nativeShell_DragAt(message->ui_x, message->ui_y,
+                               message->ui_end_x, message->ui_end_y,
+                               message->buttons, message->extensions);
+        return;
+    }
+    if (message->command == DB_NATIVE_CONTROL_UI_WHEEL) {
+        if (message->stick_y >= -100 && message->stick_y <= 100)
+            nativeShell_WheelAt(message->ui_x, message->ui_y, message->stick_y);
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_UI_INSPECT) {

@@ -11,9 +11,11 @@
 #include <melee/ft/ftcommon.h>
 #include <melee/ft/kinds/ftCommon/ftCo_Fall.h>
 #include <melee/if/ifall.h>
+#include <melee/ef/eflib.h>
 #include <melee/lb/lbaudio_ax.h>
 #include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/gobj.h>
+#include <sysdolphin/baselib/psstructs.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/debug.h>
 #include <math.h>
@@ -31,6 +33,7 @@ void nativeStudio_Command(const char* text)
     if (!camera || !camera->hsd_obj) { OSReport("[studio] Match camera is not ready.\n"); return; }
     unsigned value,port,motion; int end=0;
     float frame,x,y,facing;
+    unsigned particle; float scale;
     Vec3 eye,target; float fov;
     char music[64];
     bool accepted=false;
@@ -45,7 +48,18 @@ void nativeStudio_Command(const char* text)
         }
         return;
     }
-    if (sscanf(text,"appearance,%u%n",&value,&end)==1 && !text[end] && value<=1) {
+    if (sscanf(text,"particle,%u,%u,%f%n",&port,&particle,&scale,&end)==3 &&
+        !text[end] && port<4 && particle<592 && isfinite(scale) && scale>0 && scale<=20) {
+        Fighter_GObj* actor=Player_GetEntityAtIndex(port,0);
+        if (actor) {
+            HSD_Generator* generator=efLib_CreateGenerator_AddAppSRT(particle);
+            if (generator) {
+                generator->appsrt->translate=GET_FIGHTER(actor)->cur_pos;
+                generator->appsrt->scale=(Vec3){scale,scale,scale};
+                accepted=true;
+            }
+        }
+    } else if (sscanf(text,"appearance,%u%n",&value,&end)==1 && !text[end] && value<=1) {
         accepted=nativePresentation_SetCustomModels(value!=0);
     } else if (!strcmp(text,"music,off")) {
         lbAudioAx_800236DC(); accepted=true;

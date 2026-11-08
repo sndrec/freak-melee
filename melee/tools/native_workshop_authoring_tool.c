@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include <melee/ft/native_fighter_animation_editor.h>
+#include <melee/ft/native_fighter_action_editor.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_gltf_import.h>
 #include <melee/ft/native_fighter_material_animation.h>
@@ -40,11 +41,12 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
          sequences = !strcmp(args[0], "project-texture-sequences"),
          image = !strcmp(args[0], "project-texture-image"),
          meshes = !strcmp(args[0], "project-import-meshes"),
+         power = !strcmp(args[0], "project-hitbox-power"),
          sources = !strcmp(args[0], "project-model-sources"),
          reimport = !strcmp(args[0], "project-reimport-plan"),
          apply_reimport = !strcmp(args[0], "project-reimport");
     if (!create && !copy && !labels && !hidden && !sequences && !image &&
-        !meshes && !sources && !reimport && !apply_reimport)
+        !meshes && !sources && !reimport && !apply_reimport && !power)
     {
         return false;
     }
@@ -59,6 +61,57 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
     bool ok = false;
     unsigned a = 0, b = 0, c = 0;
     char error[192] = {};
+    if (power && count == 5 && number(args[2], &a) && a <= 1023 &&
+        number(args[3], &b) && b <= 511 && number(args[4], &c) && c <= 511)
+    {
+        NativeFighterActionInfo actions[NATIVE_FIGHTER_ACTION_CAPACITY];
+        size_t action_count = 0;
+        unsigned changed = 0;
+        ok = nativeFighterAction_List(&p, actions, NATIVE_FIGHTER_ACTION_CAPACITY,
+                                      &action_count);
+        for (size_t i = 0; ok && i < action_count; ++i) {
+            if (!actions[i].has_script) continue;
+            size_t n = 0;
+            ok = nativeFighterAction_Commands(&p, actions[i].index, NULL, 0, &n);
+            NativeFighterActionCommand* commands = n ? calloc(n, sizeof(*commands)) : NULL;
+            if (ok && n) ok = commands && nativeFighterAction_Commands(
+                &p, actions[i].index, commands, n, &n);
+            // Edits must own their source. Localize the whole action once if
+            // its hitboxes also serve another action, then refresh offsets.
+            for (size_t j = 0; ok && j < n; ++j) {
+                NativeFighterHitbox h;
+                unsigned users = 0;
+                if (!nativeFighterAction_GetHitbox(&p, actions[i].index,
+                                                   commands[j].source_offset, &h)) continue;
+                ok = nativeFighterAction_Users(&p, commands[j].source_offset, &users);
+                if (ok && users > 1) {
+                    uint32_t local;
+                    ok = nativeFighterAction_LocalizeCommand(&p, actions[i].index,
+                        commands[j].source_offset, &local) &&
+                        nativeFighterAction_Commands(&p, actions[i].index, commands, n, &n);
+                    break;
+                }
+            }
+            for (size_t j = 0; ok && j < n; ++j) {
+                NativeFighterHitbox h;
+                if (!nativeFighterAction_GetHitbox(&p, actions[i].index,
+                                                   commands[j].source_offset, &h)) continue;
+                h.damage = a; h.knockback_growth = b; h.base_knockback = c;
+                h.weight_set_knockback = 0;
+                ok = nativeFighterAction_SetHitbox(&p, actions[i].index,
+                                                   commands[j].source_offset, &h);
+                if (!ok) snprintf(error, sizeof(error), "action %u hitbox at 0x%X",
+                                   actions[i].index, commands[j].source_offset);
+                ++changed;
+            }
+            if (!ok && !*error) snprintf(error, sizeof(error), "action %u command graph",
+                                        actions[i].index);
+            free(commands);
+        }
+        if (ok) ok = nativeFighterProject_Save(args[1], &p);
+        if (ok) printf("Updated %u attack hitbox references: damage=%u growth=%u base=%u.\n",
+                       changed, a, b, c);
+    }
     if(sources && count==2) {
         NativeFighterModelEditor* model=calloc(1,sizeof(*model));
         ok=model && nativeFighterModel_Open(model,&p);
