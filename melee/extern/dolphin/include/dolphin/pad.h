@@ -119,6 +119,7 @@ BOOL PADGetNativeButtonState(u32 port, s32 button);
 s16 PADGetNativeAxisState(u32 port, s32 axis);
 // Logical raw main X/Y, C X/Y (Y up), L/R before filtering.
 s16 PADGetMappedAxisState(u32 port, u32 axis);
+void PADReadRawAxes(u32 port, const s32 bindings[6], const s8 directions[6], s16 values[6]);
 s32 PADGetMappedButtonState(u32 port, u32 button);
 typedef enum PADAxisSign {
     AXIS_SIGN_NEGATIVE = -1,

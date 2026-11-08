@@ -22,6 +22,34 @@ namespace {
     int confirm_index;
     constexpr uint32_t gold = 0xD9B754FF, muted = 0xB9ADBDFF;
 
+    void startup_choices()
+    {
+        nativeHub_Button("account-create-mode","Sign-Up",74,191,224,42,HubAction::AccountMode,1);
+        nativeHub_Button("account-login-mode","Login",97,249,224,42,HubAction::AccountMode,0);
+        nativeHub_Button("setup-next","Continue as Guest",74,315,247,36,HubAction::StartupNext);
+        nativeHub_Button("account-recover-mode","Recover",488,402,112,25,HubAction::AccountMode,2);
+        const char* heading = "Your account";
+        const char* text = "Keep friends, letters and invitations with an online account.";
+        if (nativeHub_Hover(74,191,224,42)) { heading="Sign-Up"; text="Choose an account name. Freak Melee creates an account key for you and gives you a recovery code to save."; }
+        else if (nativeHub_Hover(97,249,224,42)) { heading="Login"; text="Use a key saved on this PC, or import your account-key file. Your existing profile comes with your account."; }
+        else if (nativeHub_Hover(74,315,247,36)) { heading="Continue as Guest"; text="Play locally or online and use chat. Set a display name on the next page. You can create an account later."; }
+        else if (nativeHub_Hover(488,402,112,25)) { heading="Recover your account"; text="Use your saved recovery code if you have lost your account key. Recovery replaces old keys, signs out other devices and gives you a new key and recovery code."; }
+        nativeMenuPaint_Text(heading,364,199,224,18,gold,NativeMenuFont_MenuOption);
+        float row_y=240;
+        while (*text) {
+            while (*text==' ') ++text;
+            char row[128]{}; unsigned n=0, space=0;
+            while (text[n] && n<126) {
+                row[n]=text[n]; row[n+1]=0;
+                if (nativeMenuFont_Width(NativeMenuFont_Notice,row,12)>224 && n) { if(space)n=space; break; }
+                if (text[n]==' ') space=n;
+                ++n;
+            }
+            row[n]=0; nativeMenuPaint_Text(row,364,row_y,224,12,muted);
+            text+=n; row_y+=20;
+        }
+    }
+
     void submit(NativeAccountOperation operation, const char* target = nullptr)
     {
         NativeAccountRequest request{};
@@ -139,6 +167,9 @@ void nativeHubAccount_Render()
         nativeMenuPaint_Text("Signed in", 344, 285, 200, 20, gold, NativeMenuFont_MenuCaption);
         return;
     }
+    if (nativeHubStartup.active && !account.signed_in && !account.busy && !account.recovery_pending && mode == 3) {
+        startup_choices(); return;
+    }
     if (account.busy) {
         nativeMenuPaint_Text("Contacting the account service...", x + 194, 196, 370, 11, muted);
         if (account.cancellable) nativeHub_Button("account-cancel", "Cancel", x + 194, 236, 170, 31, HubAction::AccountCancel);
@@ -161,10 +192,15 @@ void nativeHubAccount_Render()
         nativeHub_Button("account-confirm", "Confirm", x + 194, 280, 187, 32, HubAction::AccountConfirm, 1, true);
         nativeHub_Button("account-keep", "Cancel", x + 395, 280, 189, 32, HubAction::AccountConfirm, 0);
     } else if (!account.signed_in) {
-        float tab_height = nativeHubStartup.active ? 36 : 26;
+        if (nativeHubStartup.active) {
+            nativeHub_Button("account-overview","< Account",75,171,124,27,HubAction::AccountMode,3);
+            nativeMenuPaint_Text(mode==1?"Sign-Up":mode==2?"Recover":"Login",330,176,250,20,gold,NativeMenuFont_MenuOption);
+        } else {
+        float tab_height = 26;
         nativeHub_Button("account-login-mode", "Sign in", x + 194, 179, 120, tab_height, HubAction::AccountMode, 0, mode == 0);
         nativeHub_Button("account-create-mode", "Create account", x + 322, 179, 135, tab_height, HubAction::AccountMode, 1, mode == 1);
         nativeHub_Button("account-recover-mode", "Recover", x + 465, 179, 119, tab_height, HubAction::AccountMode, 2, mode == 2);
+        }
         if (mode == 0) {
             char saved[80]; std::snprintf(saved, sizeof(saved), "Saved account: @%s", account.handle);
             nativeMenuPaint_Text(account.has_key ? saved : "Have an account on another PC?", x + 194, 226, 370, 12, gold);
@@ -253,6 +289,14 @@ void nativeHubAccount_Leave()
     SDL_memset(hub.account_recovery, 0, sizeof(hub.account_recovery));
     confirmation = HubAction::None;
 }
+void nativeHubAccount_BeginStartup() { mode = 3; offset = 0; confirmation = HubAction::None; }
+bool nativeHubAccount_BackStartup()
+{
+    if (account.busy || account.recovery_pending) return true;
+    if (mode != 3 && !account.signed_in) { mode=3; nativeHub_ChangePage(NativeHubPage_Account,true); return true; }
+    return false;
+}
+bool nativeHubAccount_StartupContinue() { return account.signed_in; }
 void nativeHubAccount_Inspect()
 {
     const char* connection = nativeOnlineSession_ConnectionId();

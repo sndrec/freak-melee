@@ -225,6 +225,8 @@ BOOL PADGetNativeButtonState(u32 port, s32 button);
 /* Returns one standardized physical axis in SDL's signed 16-bit range. */
 s16 PADGetNativeAxisState(u32 port, s32 axis);
 s16 PADGetMappedAxisState(u32 port, u32 axis);
+// Read one coherent six-axis snapshot. A binding of -1 uses the logical mapping.
+void PADReadRawAxes(u32 port, const s32 bindings[6], const s8 directions[6], s16 values[6]);
 // Physical mapped button: -1 if unmapped, 0 released, 1 pressed. No axis emulation.
 s32 PADGetMappedButtonState(u32 port, u32 button);
 /* Returns the first native axis which is currently pulled halfway or more */

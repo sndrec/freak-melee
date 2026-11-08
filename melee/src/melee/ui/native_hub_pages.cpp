@@ -5,6 +5,7 @@
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
+#include "native_hub_portrait.h"
 #include <melee/mn/native_menu_tile.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
@@ -119,6 +120,8 @@ namespace {
                              HubAction::RenameFighter, 0, false, nativeHome_IsSelection());
             nativeHub_Button("send-fighter", "Send fighter", 320, 332, 81, 21,
                              HubAction::SendFighter, 0, false, f.installed);
+            nativeHub_Button("portrait-fighter","Portrait & tile",410,332,177,23,
+                             HubAction::EditPortrait,0,false,nativeHome_IsSelection() && f.draft[0]);
         }
         if (nativeHubFighterCount > 14) {
             nativeHub_Button("roster-prev", "<", 539, 115, 27, 21,
@@ -455,6 +458,8 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_Portrait:
+        nativeHubPortrait_Render(); break;
     case NativeHubPage_Startup:
         nativeHubStartup_Render();
         break;

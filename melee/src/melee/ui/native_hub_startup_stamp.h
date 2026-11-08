@@ -3,7 +3,6 @@
 #include <dolphin/mtx.h>
 bool nativeHubStartupStamp_Load();
 void nativeHubStartupStamp_Unload();
-void nativeHubStartupStamp_RenderName();
 bool nativeHubStartupStamp_BeginPlacement();
 void nativeHubStartupStamp_Move();
 bool nativeHubStartupStamp_Place();
@@ -12,6 +11,7 @@ void nativeHubStartupStamp_CancelPlacement();
 extern "C" {
 #endif
 void nativeHubStartupStamp_DrawCss(Mtx view);
+bool nativeHubStartupStamp_IsPlacing(void);
 #ifdef __cplusplus
 }
 #endif

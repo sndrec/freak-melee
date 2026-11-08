@@ -1,9 +1,54 @@
 # Startup review: implementation and verification
 
 Updated: 2026-11-08. This list records the user's second wizard review and follow-up fixes.
-The playable revision is implemented and the native checks pass. This is the
-pause point for the user's hands-on pass. Commit locally; do not push. The
-cinematic remains a separate storyboard discussion.
+The playable revision is implemented and the native checks pass. Hardware
+calibration still needs the user's hands-on pass. Commit locally; do not push.
+The next section records the latest feedback; older sections describe their
+own checkpoints. Intro shot planning follows this playable revision.
+
+## Account-first flow, coherent capture and separate portraits
+
+Welcome now opens Sign-Up, Login and Continue as Guest, with Recover in the
+corner and an explanation of the hovered choice. A signed-in account supplies
+its profile and proceeds to controller selection. Guests enter their profile
+after choosing Guest. Account management stays in Settings.
+
+The calibration wizard reads all six mapped axes from one locked SDL snapshot.
+This prevents a stick pair from combining two different controller reports.
+The measured stick mapping applies on the trigger-adjustment page. Test stops
+controller-driven hand movement and tilt until START or Stop test is pressed.
+The fast-swirl report remains a hardware acceptance item: a coherent read is
+implemented, but the physical symptom has not been reproduced on the user's
+adapter. Leaving the stick page writes the last 2048 raw samples to
+`content/stick-capture.csv` for that attempt. MaxX Throttle's fixed-direction
+projection capture was inspected as a reference; Melee retains an outline of
+the measured boundary rather than copying MaxX's square gameplay mapping.
+
+Tile naming and camera framing share one page, with a second preview at CSS
+size. Zoom changes the orthographic projection around the framed point. Pan
+has no artificial position clamp. Ambient lighting now carries the HSD diffuse
+contribution flag required for the renderer to apply its ambient color.
+The capture retains the original model materials and textures.
+
+New stock clones receive the original player-card image extracted from the
+stock CSS material-animation tables. That 136x188 image is separate from the
+custom CSS tile. Workshop > Portrait & tile opens the owned fighter's shot
+editor, also linked from the detailed editor's portrait controls. Its two
+modes save independent images and camera framing. Player-card PNGs and camera
+values are ordinary named resources in the fighter's resource bundle.
+
+During placement, the player cards remain visible, the tile stays in the roster
+area above them, and the hand draws after the tile.
+
+Build: `.local/startup-feedback-3-build-5.log`. Three input/provider/release
+checks pass in `.local/startup-feedback-3-contracts.log`. The combined native
+walkthrough passes eight checks and records thirteen captures in
+`.local/startup-feedback-3-ui-review/receipt.json`, including account-first
+navigation, saved profile resumption, portrait controls, direct placement,
+owned-project editing and separate card/tile saves. Three account-notice checks
+pass in `.local/startup-feedback-3-notice-review/receipt.json`. These clients
+were hidden, muted and isolated. They do not establish hardware calibration
+feel or final user acceptance.
 
 ## First batch: implemented and checked
 

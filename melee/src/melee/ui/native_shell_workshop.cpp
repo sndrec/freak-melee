@@ -16,6 +16,8 @@
 #include "native_shell_css_original.h"
 #include "native_shell_profiles.h"
 #include "native_shell_rules.h"
+#include "native_hub_portrait.h"
+#include "native_hub_catalog.h"
 
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_family_project.h>
@@ -356,45 +358,8 @@ void create_stock_clone()
         status("workshop-library-status", "Choose a supported fighter to clone.");
         return;
     }
-    char root[PATH_CAPACITY];
-    if (!nativeFighterFamilyProject_LocalRoot(root, sizeof(root))) {
-        status("workshop-library-status", "Could not open the project folder.");
-        return;
-    }
-    FILETIME clock;
-    GetSystemTimeAsFileTime(&clock);
-    const unsigned long long timestamp =
-        (static_cast<unsigned long long>(clock.dwHighDateTime) << 32) |
-        clock.dwLowDateTime;
     char path[PATH_CAPACITY];
-    bool created = false;
-    for (unsigned attempt = 0; attempt < 16; ++attempt) {
-        int length = std::snprintf(path, sizeof(path),
-                                   "%s\\fighter-%016llx-%u", root,
-                                   timestamp, attempt);
-        if (length <= 0 || length >= sizeof(path)) {
-            break;
-        }
-        if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) {
-            continue;
-        }
-        NativeFighterFamilyMode mode = NativeFighterFamily_Single;
-        FighterKind partner = Ft_Kind_None;
-        switch (base_kind) {
-        case Ft_Kind_Zelda: mode = NativeFighterFamily_AlternateForm; partner = Ft_Kind_Seak; break;
-        case Ft_Kind_Seak: mode = NativeFighterFamily_AlternateForm; partner = Ft_Kind_Zelda; break;
-        case Ft_Kind_Popo: mode = NativeFighterFamily_SimultaneousCompanion; partner = Ft_Kind_Nana; break;
-        case Ft_Kind_Nana:
-            mode = NativeFighterFamily_SimultaneousCompanion;
-            base_kind = Ft_Kind_Popo;
-            partner = Ft_Kind_Nana;
-            break;
-        default: break;
-        }
-        created = nativeFighterFamilyProject_CreateStockFromDisc(
-            path, title.c_str(), mode, base_kind, partner);
-        break;
-    }
+    bool created=nativeHubCatalog_CreateStockDraft(base_kind,title.c_str(),path);
     if (!created) {
         status("workshop-library-status", "Could not clone the fighter from the game disc.");
         return;
@@ -848,6 +813,12 @@ class WorkshopEvents final : public Rml::EventListener {
             save_draft();
         } else if (id == "workshop-portrait-browse") {
             browse_portrait();
+        } else if (id == "workshop-portrait-edit") {
+            if (!project_loaded || !save_draft()) return;
+            char path[PATH_CAPACITY]; std::snprintf(path,sizeof(path),"%s",active_family.paths[0]);
+            unsigned member=active_member;
+            nativeShellWorkshop_Close();
+            if (!opened) nativeHubPortrait_Open(path,member,true);
         } else if (id == "workshop-preview" ||
                    id == "workshop-test-character") {
             preview_draft();

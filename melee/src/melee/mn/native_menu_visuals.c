@@ -120,7 +120,7 @@ void nativeMenuVisuals_End(NativeMenuVisuals** owner)
 {
     if(owner&&*owner)HSD_GObjFree((*owner)->gobj);
 }
-void nativeMenuVisuals_Begin(NativeMenuVisuals** owner,HSD_JObj* root,u8 gx_link)
+void nativeMenuVisuals_Begin(NativeMenuVisuals** owner,HSD_JObj* root,u8 gx_link,u8 priority)
 {
     nativeMenuVisuals_End(owner);
     NativeMenuVisuals* scene=calloc(1,sizeof(*scene));if(!scene)return;
@@ -128,7 +128,7 @@ void nativeMenuVisuals_Begin(NativeMenuVisuals** owner,HSD_JObj* root,u8 gx_link
     C_MTXInverse(root->mtx,scene->inverse);
     scene->gobj=GObj_Create(4,5,0x80);if(!scene->gobj){free(scene);return;}
     *owner=scene;nativeMenuFont_Acquire();nativeMenuTile_Acquire();GObj_InitUserData(scene->gobj,0,destroy,scene);
-    GObj_SetupGXLink(scene->gobj,draw,gx_link,0xFF);
+    GObj_SetupGXLink(scene->gobj,draw,gx_link,priority);
 }
 void nativeMenuVisuals_Text(NativeMenuVisuals* scene,HSD_JObj* anchor,
                            float x,float y,float z,float width,float height,

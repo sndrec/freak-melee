@@ -151,6 +151,11 @@ int main(int argc, char** argv)
     require(SDL_SetJoystickVirtualAxis(replacement.joystick, SDL_GAMEPAD_AXIS_LEFTY, 12000), "sample mapped vertical axis");
     SDL_UpdateGamepads();
     require(PADGetMappedAxisState(0, 1) == -12000, "logical calibration Y points up before filtering");
+    const s32 raw_bindings[6]={-1,-1,-1,-1,SDL_GAMEPAD_AXIS_LEFTY,-1};
+    const s8 raw_directions[6]={1,1,1,1,-1,1}; s16 raw_snapshot[6];
+    PADReadRawAxes(0,raw_bindings,raw_directions,raw_snapshot);
+    require(raw_snapshot[1]==-12000 && raw_snapshot[4]==-12000,
+            "coherent raw snapshot respects logical Y and explicitly inverted native bindings");
     profile.calibration.measured = true;
     for (unsigned axis = 0; axis < 6; ++axis) {
         profile.calibration.center[axis] = 0;

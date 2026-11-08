@@ -8,6 +8,7 @@
 #include <melee/ft/native_source_asset_facts.h>
 #include <melee/gm/native_content_store.h>
 #include "native_fighter_attributes.h"
+#include "native_source_resources.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -91,6 +92,9 @@ bool nativeFighterProject_ReadInfo(const char* path,
 // Rename the primary project manifest. Family titles come from their primary member.
 bool nativeFighterProject_Rename(const char* path, const char* title);
 bool nativeFighterProject_SetTileName(const char* path, const char* tile_name);
+// Add or replace an owned named resource; NULL+0 removes it.
+bool nativeFighterProject_SetResource(const char* path, const char* name,
+    NativeSourceResourceKind kind, const void* bytes, size_t size);
 bool nativeFighterProject_Open(const char* path, NativeFighterProject* project);
 bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
                                        size_t property, double* value);

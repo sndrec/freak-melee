@@ -33,13 +33,13 @@ def main():
             window_size=(1280, 960), chat_endpoint='http://localhost:1', write_profile=False)
         startup(0); screens.append(str(client.screenshot()))
         client.click('setup-next'); startup(1)
-        client.enter('setup-name', 'Startup review'); client.enter('setup-bio', 'A new player.')
-        screens.append(str(client.screenshot()))
+        client.element('account-login-mode'); screens.append(str(client.screenshot()))
         client.click('setup-next'); startup(2)
+        client.enter('setup-name', 'Startup review'); client.enter('setup-bio', 'A new player.')
         screens.append(str(client.screenshot()))
         client.click('setup-next'); startup(3)
         screens.append(str(client.screenshot()))
-        checks.append('An empty installation starts the native wizard and saves profile info; guest setup needs no online service')
+        checks.append('Account choices precede optional guest profile setup; an offline guest saves profile info without an online service')
         # Resume from an interrupted page using that same test-owned user data.
         data = client.folder / 'appdata'; client.stop()
         client = Client(args.exe.resolve(), args.iso.resolve(), data, output / 'resume', 'Startup review',
@@ -90,9 +90,9 @@ def main():
         client.click('setup-portrait-reset')
         checks.append('Gallery C-stick orbit, D-pad and A+stick pan, X/Y zoom and reset adjust the frozen portrait; panning consumes hand motion')
 
+        client.enter('setup-tile-name', 'MARIO!'); screens.append(str(client.screenshot()))
         client.click('setup-portrait-save')
         startup(11, timeout=120); screens.append(str(client.screenshot()))
-        assert not list((client.data / 'content/installed').glob('*.fmi'))
         from PIL import Image
         image_path = client.data / 'content/startup-portrait.png'
         with Image.open(image_path) as image:
@@ -100,8 +100,6 @@ def main():
             assert image.getchannel('A').getextrema() == (0, 255)
         portraits = list((client.data / 'projects').rglob('portrait.png'))
         assert any(p.read_bytes() == image_path.read_bytes() for p in portraits)
-        client.enter('setup-tile-name', 'MARIO!'); screens.append(str(client.screenshot()))
-        client.click('setup-place-next'); startup(12)
         client.element('setup-place-area'); screens.append(str(client.screenshot()))
         assert len(list((client.data / 'content/installed').glob('*.fmi'))) == 1
         layout_path = client.data / 'css-layout.bin'
@@ -110,9 +108,9 @@ def main():
             return struct.unpack_from('<H', layout_path.read_bytes(), 4)[0] if layout_path.exists() else 0
         assert saved_count() == 0, 'A placement preview must not save the tile'
         before_cancel = layout_path.read_bytes() if layout_path.exists() else None
-        client.click('setup-back'); startup(11)
+        client.click('setup-back'); startup(10)
         assert (layout_path.read_bytes() if layout_path.exists() else None) == before_cancel, 'Cancelling placement must preserve the original layout'
-        client.click('setup-place-next'); startup(12)
+        client.click('setup-portrait-save'); startup(11)
         area = client.inspect('setup-place-area')
         m = re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', area)
         ax, ay, aw, ah = map(float, m.groups())
@@ -139,6 +137,26 @@ def main():
         data = client.folder / 'appdata'; client.stop()
         client = Client(args.exe.resolve(), args.iso.resolve(), data, output / 'complete', 'Startup review',
             window_size=(1280, 960), chat_endpoint='http://localhost:1', write_profile=False)
+        client.click('nav-5'); client.click('portrait-fighter')
+        client.element('portrait-mode-card'); screens.append(str(client.screenshot()))
+        project = next((client.data / 'projects').iterdir())
+        tile_before = (project / 'portrait.png').read_bytes()
+        resources_before = (project / 'resources.fmr').read_bytes()
+        client.click('portrait-mode-card'); screens.append(str(client.screenshot()))
+        client.click('setup-portrait-save'); client.element('portrait-fighter')
+        assert (project / 'portrait.png').read_bytes() == tile_before
+        assert (project / 'resources.fmr').read_bytes() != resources_before
+        with Image.open(project / 'player-card.png') as card:
+            assert card.size == (136, 188)
+        checks.append('Workshop portrait tools load the owned fighter model and save a separate player-card image while preserving its CSS tile')
+        client.click('portrait-fighter'); client.element('setup-tile-name')
+        client.enter('setup-tile-name', 'A ridiculously long Mario fighter')
+        resources_after = (project / 'resources.fmr').read_bytes()
+        client.click('setup-portrait-save'); client.element('portrait-fighter')
+        assert (project / 'resources.fmr').read_bytes() == resources_after
+        with Image.open(project / 'portrait.png') as picture:
+            assert picture.size == (464, 248)
+        checks.append('Editing the tile name changes the capture aspect ratio and preserves the independently edited player-card portrait')
         client.click('nav-6'); client.click('settings-startup'); startup(0)
         checks.append('Completed setup stays completed on restart and can be rerun from Settings')
         (output / 'receipt.json').write_text(json.dumps({

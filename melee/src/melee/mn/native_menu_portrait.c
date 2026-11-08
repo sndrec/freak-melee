@@ -4,6 +4,7 @@
 #include <melee/gm/native_stock_content.h>
 #include <melee/pl/player.h>
 #include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_source_resources.h>
 #include <SDL3/SDL_filesystem.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,7 +19,7 @@ void nativeMenuPortrait_Free(NativeMenuPortrait* portrait)
     memset(portrait, 0, sizeof(*portrait));
 }
 bool nativeMenuPortrait_Load(NativeMenuPortrait* result,
-                             const NativeContentId* package, uint64_t stock_id)
+                             const NativeContentId* package, uint64_t stock_id, NativeMenuPortraitUse use)
 {
     if (!result) {
         return false;
@@ -45,8 +46,15 @@ bool nativeMenuPortrait_Load(NativeMenuPortrait* result,
             return false;
         }
         snprintf(result->title, sizeof(result->title), "%s", metadata.title);
-        result->pixels = nativeGxImage_Decode(data.portrait_png,
-                                              (unsigned) data.portrait_size,
+        const uint8_t* picture=data.portrait_png; size_t picture_size=data.portrait_size;
+        NativeSourceResources resources;
+        if (use==NativeMenuPortrait_PlayerCard && nativeSourceResources_Read(data.members[0].resources,
+                data.members[0].resource_size,&resources,NULL,0)) {
+            const NativeSourceResourceEntry* card=nativeSourceResources_Find(&resources,"ui/player-card.png",NativeSourceResource_PNG);
+            if (card) { picture=card->bytes; picture_size=card->size; }
+        }
+        result->pixels = nativeGxImage_Decode(picture,
+                                              (unsigned) picture_size,
                                               &result->width, &result->height);
         free(bytes);
     } else {
@@ -59,8 +67,8 @@ bool nativeMenuPortrait_Load(NativeMenuPortrait* result,
         snprintf(result->title, sizeof(result->title), "%s",
                  name ? name : "Fighter");
         char filename[560];
-        snprintf(filename, sizeof(filename), "%sui/portraits/stock-%u.png",
-                 SDL_GetBasePath(), kind);
+        snprintf(filename, sizeof(filename), "%sui/portraits/%s-%u.png",
+                 SDL_GetBasePath(),use==NativeMenuPortrait_PlayerCard?"card":"stock",kind);
         FILE* file = fopen(filename, "rb");
         if (!file) {
             return false;

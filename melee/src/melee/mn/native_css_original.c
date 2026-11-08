@@ -257,7 +257,7 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
     portrait_joint_count = 0;
     visibility_masked = false;
     hide_player_cards = false;
-    nativeMenuVisuals_Begin(&menu_visuals, menu, 1);
+    nativeMenuVisuals_Begin(&menu_visuals, menu, 1, 0xFD);
     Vec3 eye;
     HSD_CObjGetEyePosition(camera, &eye);
     const float half_height = (eye.z * tanf(HSD_CObjGetFov(camera) *
@@ -455,6 +455,15 @@ bool nativeCssOriginal_ReplaceLayout(const NativeCssLayout* candidate)
     if (!save_layout(candidate)) return false;
     nativeMenuVisuals_ClearSprites(menu_visuals);
     return true;
+}
+void nativeCssOriginal_TileArea(float* left, float* top, float* right, float* bottom)
+{
+    *left=640; *right=0; *top=480; *bottom=0;
+    for (unsigned i=0;i<defaults.count;++i) {
+        const NativeCssTile* tile=&defaults.tiles[i];
+        *left=fminf(*left,tile->x*.64f); *right=fmaxf(*right,(tile->x+tile->width)*.64f);
+        *top=fminf(*top,tile->y*.48f); *bottom=fmaxf(*bottom,(tile->y+tile->height)*.48f);
+    }
 }
 
 bool nativeCssOriginal_DrawReference(bool filled)

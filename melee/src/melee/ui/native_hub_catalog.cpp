@@ -1,4 +1,5 @@
 #include "native_hub_catalog.h"
+#include <SDL3/SDL_iostream.h>
 #include "native_shell_css_original.h"
 #include <melee/ft/native_gx_image.h>
 #include <melee/ft/native_fighter_template.h>
@@ -236,6 +237,11 @@ bool nativeHubCatalog_CreateStockDraft(FighterKind kind, const char* title,
     if (!nativeFighterTemplate_Apply(draft)) {
         return false;
     }
+    std::snprintf(source,sizeof(source),"%sui/portraits/card-%u.png",SDL_GetBasePath(),unsigned(kind));
+    size_t card_size=0; void* card=SDL_LoadFile(source,&card_size);
+    bool card_ok=card && nativeFighterProject_SetResource(draft,"ui/player-card.png",NativeSourceResource_PNG,card,card_size);
+    SDL_free(card);
+    if (!card_ok) return false;
     if (partner != Ft_Kind_None) {
         char partner_path[560];
         std::snprintf(partner_path, sizeof(partner_path), "%s/partner", draft);

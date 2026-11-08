@@ -31,6 +31,7 @@ bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile);
 // PreviewTile also accepts Layout()->count to append a tile without saving.
 bool nativeCssOriginal_CommitPreview(void);
 bool nativeCssOriginal_StockRoster(NativeCssLayout* result, FighterKind kinds[25]);
+void nativeCssOriginal_TileArea(float* left, float* top, float* right, float* bottom);
 bool nativeCssOriginal_ReplaceLayout(const NativeCssLayout* candidate);
 // Render the native CSS scene for an empty/stock-roster confirmation preview.
 bool nativeCssOriginal_DrawReference(bool filled);

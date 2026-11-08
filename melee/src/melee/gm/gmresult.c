@@ -1424,7 +1424,7 @@ void fn_80175DC8(HSD_GObj* gobj)
 
     fn_801785B0(gobj);
 #ifdef MELEE_NATIVE
-    nativeMenuVisuals_Begin(&custom_results_visuals, jobj, 0xD);
+    nativeMenuVisuals_Begin(&custom_results_visuals, jobj, 0xD, 0xFF);
     Vec3 eye; HSD_CObjGetEyePosition(data->cobj, &eye);
     float hh=eye.z*tanf(HSD_CObjGetFov(data->cobj)*0.00872664626f);
     float ww=hh*HSD_CObjGetAspect(data->cobj);

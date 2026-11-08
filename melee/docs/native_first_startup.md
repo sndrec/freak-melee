@@ -8,15 +8,17 @@ The pages use the original animated tournament-setup background, Melee's menu
 lettering and the Melee hand. The [revision record](native_first_startup_revision.md)
 contains implementation details, evidence and the remaining review items.
 
-## Profile and account
+## Account and profile
 
-Enter a display name and an optional bio. The display-name field starts empty;
-the faded Player text is an example.
+After the welcome page, choose **Sign-Up**, **Login** or **Continue as Guest**.
+Hover a choice to read what it does. Login offers the saved key and account-key
+file import. Your existing account supplies your display name and bio. Recover
+uses a recovery code to replace lost keys and sign out the old devices.
 
-Choose **Continue as guest**, create an online account, or import an account-key
-file. Guests can play online and use chat. An account keeps friends, letters and
-invitations. Account management is available later in Settings. Errors appear
-in a notice that can be dismissed with a new button press.
+Guests enter a display name and optional bio on the next page. The name starts
+empty, with faded Player text as an example. Guests can play online and use
+chat. An account keeps friends, letters and invitations. Account management is
+available later in Settings. Errors appear in a dismissible notice.
 
 ## Controller
 
@@ -29,8 +31,10 @@ continues to fighter selection.
    Drag each bar's Start and End markers with A and the Melee hand, or the mouse.
    Start sets the released reading to 0%; End sets full analog travel to 100%.
    Put End just before the digital click. The measured positions are suggestions.
-4. Try the result. The displays show measured stick outlines, raw input and
-   calibrated values. The trigger markers remain adjustable here.
+4. Try the result. **Test** stops controller-driven hand movement and menu tilt.
+   Press START or click **Stop test** to return to editing. The displays show
+   measured stick outlines, raw input and calibrated values. The trigger markers
+   remain adjustable outside the test.
 5. Choose **Save & continue**. **Calibrate again** repeats the measurements.
 
 During stick measurement, sticks move only the calibration displays. The
@@ -39,6 +43,7 @@ stick moves the hand so you can adjust the markers. Moving the hand keeps the
 completed stick measurements intact. Controllers without a separate digital
 click use full analog travel. Small movements should feel precise, and resting
 sticks and released triggers should read zero.
+The measured stick calibration already applies while setting the trigger ranges.
 
 Calibration is saved in a controller profile and applied to the selected port
 on later launches. Changing an axis binding clears the measured calibration so
@@ -58,14 +63,22 @@ Frame the portrait with the Trophy Gallery controls:
 - X/Y: zoom.
 - Mouse: middle-drag to orbit, Shift + middle-drag to pan, wheel to zoom.
 
-The fighter stays still while framing. **Reset view** restores the starting
-camera. **Use portrait** saves the picture. Enter the short name printed on its
-CSS tile, then continue to character select and place the tile with A or a
-click. B goes back. Dropping the tile finishes setup on character select.
+The fighter stays still while framing. Enter its short tile name on this page;
+the name-bar height and framing update together. A second preview shows the
+tile at CSS size. Zoom magnifies the orthographic view around the framed point,
+and panning has no artificial position limit. **Reset view** restores the
+starting camera. **Use portrait** saves the picture and opens placement on the
+actual CSS. The hand stays above the tile, and the visible player cards mark
+the lower boundary of the roster area. A or a click places the tile. B goes
+back. Dropping it finishes setup on character select.
 
 The fighter owns editable moves, scripts, animations and model data. Its short
 tile name is saved separately from its full fighter name and travels with a
 shared package. Open the Workshop to edit the fighter or rename it.
+New stock clones use the original Melee portrait on their player card. In the
+Workshop, **Portrait & tile** opens the shot editor. Its CSS tile and Player
+card modes edit separate images and retain their camera framing. The detailed
+fighter editor also links to this tool from the portrait controls.
 
 Character select begins empty. **Ready / START**, **Workshop** and **Back** sit
 in its footer. Choose a fighter, place its token and press START to practice.

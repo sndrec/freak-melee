@@ -9,7 +9,7 @@ extern "C" {
 typedef struct NativeMenuVisuals NativeMenuVisuals;
 // Scene-owned GX content. Positions are in the scene's initial world plane;
 // the anchor's subsequent transform and the current camera apply at draw time.
-void nativeMenuVisuals_Begin(NativeMenuVisuals** owner, HSD_JObj* root, u8 gx_link);
+void nativeMenuVisuals_Begin(NativeMenuVisuals** owner, HSD_JObj* root, u8 gx_link, u8 priority);
 void nativeMenuVisuals_End(NativeMenuVisuals** owner);
 void nativeMenuVisuals_Text(NativeMenuVisuals* scene, HSD_JObj* anchor,
                            float x, float y, float z, float width, float height,
