@@ -124,8 +124,8 @@ const char* nativeFighterProject_StockBaseName(FighterKind kind)
 {
     switch (kind) {
     case Ft_Kind_Mario: return "Mario";
-    case Ft_Kind_DrMario: return "DrMario";
-    case Ft_Kind_Ganon: return "Ganon";
+    case Ft_Kind_DrMario: return "Dr. Mario";
+    case Ft_Kind_Ganon: return "Ganondorf";
     case Ft_Kind_Captain: return "Captain Falcon";
     case Ft_Kind_Luigi: return "Luigi";
     case Ft_Kind_Purin: return "Jigglypuff";
@@ -144,10 +144,10 @@ const char* nativeFighterProject_StockBaseName(FighterKind kind)
     case Ft_Kind_Yoshi: return "Yoshi";
     case Ft_Kind_Ness: return "Ness";
     case Ft_Kind_Peach: return "Peach";
-    case Ft_Kind_GameWatch: return "Game & Watch";
+    case Ft_Kind_GameWatch: return "Mr. Game & Watch";
     case Ft_Kind_Zelda: return "Zelda";
     case Ft_Kind_Seak: return "Sheik";
-    case Ft_Kind_Popo: return "Popo";
+    case Ft_Kind_Popo: return "Ice Climbers";
     case Ft_Kind_Nana: return "Nana";
     default: return NULL;
     }
