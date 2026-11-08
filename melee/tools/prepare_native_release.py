@@ -80,6 +80,8 @@ def main() -> None:
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
     payload.append((scripts.parent / "licenses/yyjson.txt", "licenses/yyjson.txt"))
     payload.append((scripts.parent / "licenses/monocypher.txt", "licenses/monocypher.txt"))
+    payload.append((scripts.parent / "licenses/SDL3.txt", "licenses/SDL3.txt"))
+    payload.append((scripts.parent / "licenses/libusb.txt", "licenses/libusb.txt"))
 
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)

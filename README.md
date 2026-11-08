@@ -23,10 +23,14 @@ separate implemented features from remaining work and historical evidence.
 ## Build
 
 Use Windows x86-64, LLVM Clang targeting MSVC, Visual Studio C++ libraries and
-Windows SDK, CMake 3.25 or newer, Ninja, and Python 3 with Pillow
+Windows SDK, CMake 3.25 or newer, Ninja, 7-Zip, and Python 3 with Pillow
 (`python -m pip install -r melee/tools/requirements-build.txt`). Select a consistent MSVC
 library environment before configuring. The current development build uses
 Clang 22.1.6 and MSVC 14.44.
+
+SDL builds from the pinned source with fixed GameCube axis reports. The Windows
+build uses 7-Zip to extract libusb's official SDK; release packaging includes its
+runtime DLL automatically.
 
 Two private local inputs are required: the USA v1.02 Melee ISO, and a 4,096-byte
 DSP resampling coefficient table. Neither is uploaded here. Supply both paths

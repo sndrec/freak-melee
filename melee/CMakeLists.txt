@@ -1022,6 +1022,7 @@ if(NOT EXISTS "${MELEE_AURORA_SOURCE}/CMakeLists.txt")
 endif()
 set(AURORA_ENABLE_RMLUI ON CACHE BOOL
     "Enable Aurora's native desktop UI for the Freak Melee shell" FORCE)
+include(cmake/NativeSDL.cmake)
 add_subdirectory("${MELEE_AURORA_SOURCE}" "${CMAKE_BINARY_DIR}/aurora" EXCLUDE_FROM_ALL)
 include("${MELEE_AURORA_SOURCE}/cmake/AuroraCopyRuntimeDLLs.cmake")
 add_custom_target(melee_platform DEPENDS aurora_core aurora_os aurora_gx
@@ -1141,6 +1142,12 @@ if(MELEE_BUILD_TESTS)
     aurora_copy_runtime_dlls(native_profile_pad_test)
     add_test(NAME native_profile_pad COMMAND native_profile_pad_test
         "${CMAKE_BINARY_DIR}/profile-pad-fixture")
+    FetchContent_GetProperties(SDL SOURCE_DIR _native_sdl_source)
+    add_test(NAME native_gamecube_reports COMMAND Python3::Interpreter
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/gamecube_report_test.py"
+        --source "${_native_sdl_source}/src/joystick/hidapi/SDL_hidapi_gamecube.c"
+        --output "${CMAKE_BINARY_DIR}/gamecube-report-fixture"
+        --compiler "${CMAKE_C_COMPILER}")
     add_executable(native_dvd_transfer_test tests/native/dvd_transfer_test.cpp)
     target_include_directories(native_dvd_transfer_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_dvd_transfer_test PRIVATE MELEE_NATIVE=1)

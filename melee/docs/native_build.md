@@ -1,6 +1,6 @@
 # Build and launch the Windows native client
 
-Updated: 2026-10-17. The full gameplay/HSD tree builds as the runnable
+Updated: 2026-11-08. The full gameplay/HSD tree builds as the runnable
 `melee_native` client; the initial compile/link bring-up is finished.
 This guide describes the current source layout. Old compile-audit history is
 preserved in the private repository's pre-cleanup commit, not a work list.
@@ -10,7 +10,7 @@ preserved in the private repository's pre-cleanup commit, not a work list.
 - Windows x86-64.
 - LLVM Clang targeting MSVC, with Visual Studio C++ libraries and a Windows SDK.
   MinGW Clang is not the supported toolchain.
-- CMake 3.25 or newer, Ninja and Python 3.
+- CMake 3.25 or newer, Ninja, 7-Zip and Python 3.
 - This repository's modified Aurora at sibling `aurora/`; CMake obtains the
   configured third-party dependencies. Reference-only folders are unnecessary.
 - A local USA v1.02 Melee ISO and a local 4,096-byte DSP coefficient table.
@@ -18,6 +18,10 @@ preserved in the private repository's pre-cleanup commit, not a work list.
 The development cache uses Clang 22.1.6, MSVC 14.44 and RelWithDebInfo. A consistent
 MSVC environment matters: libraries built with a different STL/toolset can fail
 to link. Use explicit compiler paths if another Clang is earlier on PATH.
+
+SDL is built from the pinned source so GameCube input retains a fixed coordinate
+scale. The Windows build extracts the official libusb headers, import library
+and runtime DLL with 7-Zip. The normal DLL-copy and release steps include libusb.
 
 The ISO and DSP table are private local inputs, not included in Git or releases.
 `prepare_native_assets.py` extracts/validates the ISO executable and embedded

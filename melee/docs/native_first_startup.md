@@ -44,6 +44,8 @@ completed stick measurements intact. Controllers without a separate digital
 click use full analog travel. Small movements should feel precise, and resting
 sticks and released triggers should read zero.
 The measured stick calibration already applies while setting the trigger ranges.
+The center, outline and live dot use stable, unfiltered axis readings throughout
+measurement. Saved center/range correction and dead zones apply during normal use.
 
 Calibration is saved in a controller profile and applied to the selected port
 on later launches. Changing an axis binding clears the measured calibration so
