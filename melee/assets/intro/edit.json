@@ -1,0 +1,31 @@
+{
+  "music": "howto-music.wav",
+  "music_start": 0.3,
+  "music_gain": 0.72,
+  "segments": [
+    {"source":"gameplay-take-3/welcome.mp4","start":0.6,"seconds":5,"speed":0.76,"caption":1,"fade_in":0.4},
+    {"source":"menus-take-1/choose-fighter.mp4","start":2.6,"seconds":6.4,"caption":2,"caption_y":580,"sound":0},
+    {"source":"gameplay-take-9/stock-base.mp4","start":4.45,"seconds":3.8,"caption":3,"caption_y":565},
+    {"source":"workshop-take-5/hitbox-edit.mp4","start":0.1,"seconds":5.5,"caption":4,"font":42,"crop":[0,0,1424,1041],"caption_scrim":true,"sound":0},
+    {"source":"workshop-take-5/hitbox-edit.mp4","start":4.2,"seconds":4.5,"caption":5,"crop":[525,215,885,664],"sound":0},
+    {"source":"gameplay-take-3/tilt.mp4","start":0.5,"seconds":2.6,"caption":5},
+    {"source":"workshop-take-5/animation-edit-2.mp4","start":1.6,"seconds":4.9,"caption":6,"crop":[0,0,1424,1041],"sound":0},
+    {"source":"gameplay-take-3/aerial.mp4","start":3.3,"seconds":3.8,"speed":0.9,"caption":6},
+    {"source":"workshop-take-6/script-edit-2.mp4","start":0.1,"seconds":3.7,"caption":7,"crop":[390,365,600,450],"sound":0},
+    {"source":"gameplay-take-3/fireball.mp4","start":2.2,"seconds":4.4,"caption":7,"caption_y":585},
+    {"source":"sharing-take-5/send-fighter.mp4","start":0.2,"seconds":7.1,"caption":8,"font":42,"caption_y":35,"caption_scrim":true,"sound":0.3},
+    {"source":"sharing-take-5/receive-fighter.mp4","start":0.1,"seconds":3.3,"caption":9,"caption_y":605,"font":40,"sound":0.3},
+    {"source":"gameplay-take-7/overpowered.mp4","start":0.1,"seconds":5.6,"caption":10,"font":43,"caption_y":210},
+    {"source":"gameplay-take-8/neutral.mp4","start":0.05,"seconds":4,"speed":0.62,"caption":11,"font":43,"censor":true},
+    {"source":"menus-take-1/appearance-setting.mp4","start":0.75,"seconds":2.5,"caption":12,"font":42,"caption_scrim":true,"sound":0},
+    {"source":"gameplay-take-8/neutral.mp4","start":2.53,"seconds":0.12,"caption":12,"font":42,"censor":true},
+    {"source":"gameplay-take-8/neutral.mp4","start":2.65,"seconds":3.1,"caption":12,"font":42},
+    {"source":"gameplay-take-7/outfit-base.mp4","start":0.6,"seconds":4,"caption":13},
+    {"source":"gameplay-take-7/outfit-base.mp4","start":4.65,"seconds":2.3,"caption":14,"font":42},
+    {"source":"gameplay-take-9/outfits.mp4","start":1.45,"seconds":4.3,"caption":14,"font":42},
+    {"source":"gameplay-take-9/outfits.mp4","start":6,"seconds":3.2,"caption":15,"font":44},
+    {"source":"gameplay-take-9/outfits.mp4","start":4.7,"seconds":4.6,"caption":16,"font":52},
+    {"source":"gameplay-take-9/outfits.mp4","start":6.2,"seconds":3.5,"caption":17,"font":44,"caption_y":560,"logo":true},
+    {"source":"gameplay-take-9/outfits.mp4","start":3.7,"seconds":5.8,"credits":true,"sound":0,"fade_out":1}
+  ]
+}
