@@ -139,7 +139,7 @@ static bool new_path(char path[512])
                                (unsigned long long) SDL_GetTicksNS());
     return length > 0 && length < 512;
 }
-static bool install_draft(const char* path, bool place_on_css)
+bool nativeHubCatalog_PublishDraft(const char* path, bool place_on_css)
 {
     char png_path[560];
     std::snprintf(png_path, sizeof(png_path), "%s/portrait.png", path);
@@ -201,7 +201,7 @@ static bool install_draft(const char* path, bool place_on_css)
     }
     return ok;
 }
-bool nativeHubCatalog_CreateStock(FighterKind kind, const char* title,
+bool nativeHubCatalog_CreateStockDraft(FighterKind kind, const char* title,
                                   char draft[512])
 {
     NativeFighterFamilyMode mode = NativeFighterFamily_Single;
@@ -237,9 +237,6 @@ bool nativeHubCatalog_CreateStock(FighterKind kind, const char* title,
             return false;
         }
     }
-    if (!install_draft(draft, true)) {
-        return false;
-    }
     NativeFighterFamilyProjectInfo info{};
     return nativeFighterFamilyProject_ReadInfo(draft, &info);
 }
@@ -258,7 +255,7 @@ bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512])
                                       &packet, &size) &&
               nativeFighterFamilyProject_CreateFromPackage(draft, title,
                                                            packet, size) &&
-              install_draft(draft, true);
+              nativeHubCatalog_PublishDraft(draft, true);
     std::free(packet);
     return ok;
 }
@@ -299,7 +296,7 @@ bool nativeHubCatalog_Rename(unsigned index, const char* title)
     {
         return false;
     }
-    if (install_draft(draft, false)) {
+    if (nativeHubCatalog_PublishDraft(draft, false)) {
         return true;
     }
     nativeFighterProject_Rename(draft, original.title);

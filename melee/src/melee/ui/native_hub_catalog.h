@@ -15,8 +15,9 @@ extern NativeHubFighter nativeHubFighters[NATIVE_HUB_FIGHTERS];
 extern unsigned nativeHubFighterCount;
 bool nativeHubCatalog_Load(void);
 void nativeHubCatalog_Clear(void);
-bool nativeHubCatalog_CreateStock(FighterKind kind, const char* title,
+bool nativeHubCatalog_CreateStockDraft(FighterKind kind, const char* title,
                                   char draft[512]);
+bool nativeHubCatalog_PublishDraft(const char* path, bool place_on_css);
 bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512]);
 bool nativeHubCatalog_MakeEditable(unsigned index, char draft[512]);
 bool nativeHubCatalog_Rename(unsigned index, const char* title);

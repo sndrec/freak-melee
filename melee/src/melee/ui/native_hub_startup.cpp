@@ -2,6 +2,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_account.h"
 #include "native_hub_startup_roster.h"
+#include "native_hub_startup_portrait.h"
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -49,7 +50,8 @@ namespace {
     void enter(NativeStartupStep step, bool backwards = false)
     {
         auto& s = nativeHubStartup;
-        if (s.step == NativeStartup_Clone && step != NativeStartup_Clone) nativeHubStartupRoster_Unload();
+        if (s.step >= NativeStartup_Clone && s.step <= NativeStartup_Portrait &&
+            (step < NativeStartup_Clone || step > NativeStartup_Portrait)) nativeHubStartupRoster_Unload();
         s.step = step; s.started_at = SDL_GetTicks(); s.error[0] = 0;
         if (step == NativeStartup_Controller) s.controller_claimed = false;
         if (step == NativeStartup_Clone && !*hub.title) {
@@ -59,6 +61,7 @@ namespace {
         nativeHub_ChangePage(step == NativeStartup_Account ? NativeHubPage_Account :
             step == NativeStartup_Clone ? NativeHubPage_Clone : NativeHubPage_Startup, backwards);
         if (step == NativeStartup_Clone) nativeHubStartupRoster_Begin();
+        if (step == NativeStartup_Portrait) nativeHubStartupPortrait_Begin();
         if (!save_progress()) std::snprintf(s.error, sizeof(s.error), "Could not save setup progress. Check the user-data folder.");
     }
     bool connected()
@@ -119,7 +122,8 @@ void nativeHubStartup_Initialize(bool has_profile)
         if (!s.completed) {
             nativeHubStartup_Begin();
             // Measurements are intentionally repeated after an interrupted capture.
-            enter(step >= NativeStartup_Controller && step <= NativeStartup_Test ? NativeStartup_Controller : NativeStartupStep(step));
+            enter(step >= NativeStartup_Controller && step <= NativeStartup_Test ? NativeStartup_Controller :
+                  step > NativeStartup_Clone && step < NativeStartup_Done ? NativeStartup_Clone : NativeStartupStep(step));
         }
         return;
     }
@@ -148,6 +152,7 @@ void nativeHubStartup_Begin()
 }
 void nativeHubStartup_Tick()
 {
+    nativeHubStartupPortrait_Tick();
     auto& s = nativeHubStartup;
     if (!s.active || s.step < NativeStartup_Controller || s.step > NativeStartup_Test) return;
     int device = PADGetIndexForPort(s.port);
@@ -180,6 +185,15 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     auto& s = nativeHubStartup;
     if (action == HubAction::Startup) { nativeHubStartup_Begin(); return true; }
     if (!s.active) return false;
+    if (s.step == NativeStartup_Clone && action == HubAction::StartupConfirmFighter) {
+        s.draft[0] = 0;
+        enter(NativeStartup_ConfirmFighter); return true;
+    }
+    if (s.step == NativeStartup_Portrait) {
+        if (nativeHubStartupPortrait_Busy()) return true;
+        if (action == HubAction::StartupPortraitReset) { nativeHubStartupPortrait_Reset(); return true; }
+        if (action == HubAction::StartupPortraitSave) { nativeHubStartupPortrait_Save(); return true; }
+    }
     if (s.step == NativeStartup_Clone && action == HubAction::StartupFighterMove) {
         nativeHubStartupRoster_Move(value); return true;
     }
@@ -188,6 +202,8 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     }
     if (action == HubAction::Back || action == HubAction::StartupBack) {
         if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
+        if (s.step == NativeStartup_ConfirmFighter) { enter(NativeStartup_Clone, true); return true; }
+        if (s.step == NativeStartup_Portrait) { enter(NativeStartup_ConfirmFighter, true); return true; }
         if (s.step == NativeStartup_Test) restore_controls();
         if (s.step > NativeStartup_Welcome) enter(NativeStartupStep(unsigned(s.step) - 1), true);
         return true;
@@ -217,8 +233,8 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         enter(NativeStartup_Clone); return true;
     }
     if (action != HubAction::StartupNext) {
-        // Reuse the real account and clone pages, including their text fields.
-        if (s.step == NativeStartup_Account || s.step == NativeStartup_Clone ||
+        // Account fields and the profile fields use the hub's text editor.
+        if (s.step == NativeStartup_Account ||
             action == HubAction::FieldName || action == HubAction::FieldBio) return false;
         return true;
     }
@@ -268,6 +284,8 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     case NativeStartup_Clone:
         if (nativeHubStartup_HasFighter()) enter(NativeStartup_Done);
         break;
+    case NativeStartup_ConfirmFighter: enter(NativeStartup_Portrait); break;
+    case NativeStartup_Portrait: break;
     case NativeStartup_Done:
         s.completed = true;
         if (!save_progress()) { s.completed = false; std::snprintf(s.error, sizeof(s.error), "Could not save setup completion. Try again."); break; }
@@ -278,9 +296,26 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     }
     return true;
 }
-void nativeHubStartup_Cloned()
+void nativeHubStartup_PortraitSaved(const char* portrait)
 {
-    if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Clone) enter(NativeStartup_Done);
+    auto& s = nativeHubStartup;
+    if (!s.active || s.step != NativeStartup_Portrait) return;
+    char destination[560];
+    if (!s.draft[0]) {
+        char path[512];
+        if (!nativeHubCatalog_CreateStockDraft(static_cast<FighterKind>(hub.template_kind), hub.title, path)) {
+            std::snprintf(s.error, sizeof(s.error), "Could not create your fighter. Try again."); return;
+        }
+        std::snprintf(s.draft, sizeof(s.draft), "%s", path);
+    }
+    std::snprintf(destination, sizeof(destination), "%s/portrait.png", s.draft);
+    if (!SDL_CopyFile(portrait, destination) || !nativeHubCatalog_PublishDraft(s.draft, true)) {
+        std::snprintf(s.error, sizeof(s.error), "Could not install your fighter. Your draft is saved in the Workshop."); return;
+    }
+    nativeHubCatalog_Load();
+    for (unsigned i = 0; i < nativeHubFighterCount; ++i)
+        if (!std::strcmp(s.draft, nativeHubFighters[i].draft)) hub.selected = int(i);
+    enter(NativeStartup_Done);
 }
 bool nativeHubStartup_HasFighter()
 {

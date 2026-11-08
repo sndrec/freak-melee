@@ -8,3 +8,6 @@ bool nativeMenuPortraitCapture_Request(const NativePortraitSubject*, unsigned co
 NativePortraitCaptureState nativeMenuPortraitCapture_State();
 void nativeMenuPortraitCapture_Draw();
 void nativeMenuPortraitCapture_Inspect();
+// Draw the same square framing on the native menu's 640x480 canvas.
+void nativeMenuPortraitCapture_Preview(const NativePortraitSubject*, unsigned count,
+                                       float x, float y, float size);

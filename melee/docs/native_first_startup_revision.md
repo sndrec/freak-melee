@@ -75,10 +75,10 @@ gameplay callbacks. The flat-colour presentation accepts a palette and depth;
 Game & Watch's values match PlGw.dat's black body, white outline and 0.01 depth.
 The disc models and textures remain unchanged.
 
-The carousel selection currently feeds the existing clone-to-finish path.
-Camera portrait capture, shorthand stamp text, direct tile placement, the
-default-roster shortcut and final CSS control placement remain to implement.
-Preview framing and flat-character presentation still need visual acceptance.
+The carousel selection now feeds confirmation and portrait framing, described
+below. Shorthand stamp text, direct tile placement, the default-roster shortcut
+and final CSS control placement remain to implement. The native review checked
+preview framing and flat-character presentation; user acceptance remains open.
 The intro remains a separate storyboard discussion after the playable flow.
 
 The 24-choice load/lifetime review is recorded in
@@ -118,10 +118,35 @@ renderer cache and saves all 24 choices as nonempty transparent RGBA portraits,
 including both Ice Climbers. The portrait overview and restored carousel screen
 were inspected. This checks the export backend, not the unfinished wizard flow.
 
-Portrait controls will follow the Trophy Gallery: C-stick orbits, A + main stick
+Portrait controls follow the Trophy Gallery: C-stick orbits, A + main stick
 or the D-pad pans, and X/Y zoom. The source is `_Toy_80309404` in `ty/toy.c`.
 The main stick continues moving the hand when A is released. Mouse controls are
 middle-drag orbit, Shift + middle-drag pan and wheel zoom.
+
+## Portrait page: implementation in progress
+
+Choosing a starter now opens a confirmation page before portrait framing. The
+portrait page displays a frozen model in the same square view used by PNG
+capture. It accepts the Gallery controls above, with A + stick panning while the
+hand is over the picture. Holding A there consumes hand movement and button
+activation. C-stick input moves the portrait camera and leaves the page still.
+Reset view restores the original framing. Use portrait saves the image and
+copies it into the independent fighter draft before installation.
+
+The combined native walkthrough in
+`.local/startup-portrait-ui-review/receipt.json` passes five checks: profile
+setup, interruption/resume, Gallery camera controls with hand consumption,
+portrait installation, and completed-setup restart. Its controller inputs use
+the native injection channel. Six focused model/input/profile tests pass in
+`.local/startup-portrait-ui-contracts.log`. The confirmation, portrait and final
+one-tile CSS screenshots were inspected. The saved draft portrait matches the
+captured RGBA PNG. Mouse-camera handling still needs a hands-on check.
+The final build after removing the old clone-finish entry point is recorded in
+`.local/startup-portrait-ui-build-4.log`; it completes successfully.
+
+The shorthand label and manual CSS placement are still open. Until those steps
+are connected, portrait acceptance uses the existing automatic tile placement.
+This is an intermediate implementation, not the next user acceptance build.
 
 ## Screens and messages
 

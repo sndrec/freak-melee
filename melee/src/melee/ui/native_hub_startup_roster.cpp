@@ -124,7 +124,40 @@ void nativeHubStartupRoster_Render()
     nativeMenuPaint_Text(nativeFighterProject_StockBaseName(starters[current].kind), 52, 334, 540, 35,
         gold, NativeMenuFont_MenuCaption);
     nativeMenuPaint_Text(starters[current].description, 63, 377, 514, 11, 0xEEE9EDFF);
-    nativeHub_Button("create-clone", "Choose fighter", 412, 421, 190, 35, HubAction::CreateClone, 0, true);
+    nativeHub_Button("create-clone", "Choose fighter", 412, 421, 190, 35, HubAction::StartupConfirmFighter, 0, true);
+}
+
+void nativeHubStartupRoster_Confirm()
+{
+    constexpr uint32_t gold = 0xE5C361FF;
+    Mtx canvas; Mtx44 projection;
+    nativeMenuScene_View(false, false, canvas, projection);
+    int slot = slot_for(current);
+    if (slot >= 0 && cache[slot].loaded) {
+        bool pair = cache[slot].companion;
+        nativeMenuFighter_Draw(slot, canvas, pair ? 274 : 320, 327, pair ? 136 : 162, -.35f, 0);
+        if (pair) nativeMenuFighter_Draw(slot + 3, canvas, 366, 327, 136, .35f, 0);
+    }
+    nativeMenuPaint_Begin(canvas);
+    nativeMenuPaint_Text("Start with", 292, 102, 220, 20, 0xB9ADBDFF, NativeMenuFont_MenuOption);
+    nativeMenuPaint_Text(nativeFighterProject_StockBaseName(starters[current].kind), 60, 132, 520, 33,
+        gold, NativeMenuFont_MenuCaption, true);
+    nativeHub_Button("setup-confirm-fighter", "Choose portrait", 389, 402, 213, 39,
+        HubAction::StartupNext, 0, true);
+}
+
+unsigned nativeHubStartupRoster_Subjects(NativePortraitSubject subjects[2])
+{
+    int slot = slot_for(current);
+    if (slot < 0 || !cache[slot].loaded) return 0;
+    subjects[0] = { unsigned(slot) };
+    unsigned count = cache[slot].companion ? 2 : 1;
+    if (count == 2) {
+        subjects[1] = {unsigned(slot + 3)};
+        subjects[0].camera.pan_x = -.37f; subjects[1].camera.pan_x = .37f;
+        subjects[0].camera.zoom = subjects[1].camera.zoom = .65f;
+    }
+    return count;
 }
 
 void nativeHubStartupRoster_Unload()
@@ -148,12 +181,8 @@ void nativeHubStartupRoster_Capture()
     bool ok = nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Clone && folder && slot >= 0;
     if (ok) {
         std::snprintf(path, sizeof(path), "%s/starter-portrait.png", folder);
-        NativePortraitSubject subjects[2] = {{unsigned(slot)}, {unsigned(slot + 3)}};
-        unsigned count = cache[slot].companion ? 2 : 1;
-        if (count == 2) {
-            subjects[0].camera.pan_x = -.37f; subjects[1].camera.pan_x = .37f;
-            subjects[0].camera.zoom = subjects[1].camera.zoom = .65f;
-        }
+        NativePortraitSubject subjects[2];
+        unsigned count = nativeHubStartupRoster_Subjects(subjects);
         ok = nativeMenuPortraitCapture_Request(subjects, count, path);
     }
     std::fprintf(stderr, "[hub-inspect] portrait-request accepted=%d\n", ok);

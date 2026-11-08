@@ -1,5 +1,7 @@
 #include "native_menu_portrait_capture.h"
 #include <melee/mn/native_menu_fighter.h>
+#include <melee/mn/native_menu_scene.h>
+#include <dolphin/gx.h>
 extern "C" {
 #include <sysdolphin/baselib/state.h>
 }
@@ -73,4 +75,29 @@ void nativeMenuPortraitCapture_Inspect()
 {
     std::fprintf(stderr, "[hub-inspect] portrait-capture state=%u subjects=%u file=%s\n",
         unsigned(nativeMenuPortraitCapture_State()), capture.count, capture.path);
+}
+
+void nativeMenuPortraitCapture_Preview(const NativePortraitSubject* subjects, unsigned count,
+                                       float x, float y, float size)
+{
+    float u0, v0, u1, v1;
+    if (!subjects || !count || count > NATIVE_MENU_FIGHTERS || size <= 0 ||
+        !nativeMenuScene_Project(x, y, &u0, &v0) ||
+        !nativeMenuScene_Project(x + size, y + size, &u1, &v1) ||
+        u0 < 0 || v0 < 0 || u1 > 1 || v1 > 1 || u1 <= u0 || v1 <= v0) return;
+    float viewport[6], projection[7]; u32 scissor[4];
+    GXGetViewportv(viewport); GXGetProjectionv(projection);
+    GXGetScissor(&scissor[0], &scissor[1], &scissor[2], &scissor[3]);
+    float left = viewport[0] + u0 * viewport[2], top = viewport[1] + v0 * viewport[3];
+    float width = (u1 - u0) * viewport[2], height = (v1 - v0) * viewport[3];
+    GXSetViewport(left, top, width, height, viewport[4], viewport[5]);
+    GXSetScissor(unsigned(left), unsigned(top), unsigned(width), unsigned(height));
+    for (unsigned i = 0; i < count; ++i) {
+        const auto& c = subjects[i].camera;
+        nativeMenuFighter_DrawCamera(subjects[i].slot, c.yaw, c.pitch, c.zoom, c.pan_x, c.pan_y, c.frame);
+    }
+    GXSetViewport(viewport[0], viewport[1], viewport[2], viewport[3], viewport[4], viewport[5]);
+    GXSetScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
+    GXSetProjectionv(projection);
+    HSD_StateInvalidate(-1);
 }
