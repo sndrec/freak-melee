@@ -50,6 +50,11 @@ their own builds; their old "remaining" lists are not the current backlog.
   original fighter tweaks, retain the supplied captions, and vary the cuts and
   timing freely. Add reusable recording/authoring controls where needed. Pause
   the goal once the film is ready for nuanced critique.
+  The next calibration review identified SDL's adaptive GameCube axis ranges:
+  sweeping the sticks changed the coordinate scale beneath the saved center and
+  net. The client now builds SDL with fixed device reports. Parser regression
+  checks retain identical rest readings after extreme travel; the physical
+  C-stick review needs a fresh run with this input library.
   The **98-second moving draft is ready for review** in
   `.local/intro-production/final-cut-1/freak-melee-intro-draft.mp4`.
   It preserves all seventeen supplied captions and uses actual Workshop edits,

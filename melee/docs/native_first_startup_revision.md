@@ -357,6 +357,41 @@ or hands-on marker dragging.
 - Revisit the CSS's Ready/START, Workshop and Back placement as part of the
   placement/finish flow.
 
+## C-stick range drift: 2026-11-08
+
+The user's calibration recording showed a boundary beyond the live C-stick
+sweep and an offset resting dot. Its saved capture measured C-stick Y at -5,212
+during the rest step and about -323 after the sweep.
+
+The current boundary keeps actual sample points. MaxX Throttle instead keeps
+64 angular radii; its calibration and drawing paths were compared directly.
+Both approaches require a stable input coordinate system.
+
+SDL 3.4.10's GameCube HID driver expanded each axis's minimum/maximum while
+reading packets, then rescaled the packet against that changing range. An
+earlier center or boundary point could therefore disagree with an identical
+later hardware reading. The native client now builds its pinned SDL source
+with fixed GameCube reports. Each unsigned axis byte maps losslessly to the
+common signed 16-bit range. Adaptive range fields, resets and updates are
+removed from both Nintendo and PC report parsers. Profile calibration still
+supplies the measured center, range and dead zones. The net algorithm stays
+unchanged.
+
+The Windows source build imports the official libusb DLL for adapter support.
+Runtime dependency discovery includes it in the native build and release.
+SDL and libusb licenses are included in release packaging. Building on Windows
+also needs 7-Zip to extract the official libusb archive.
+
+`native_gamecube_reports` compiles the actual packet parsers with a report sink.
+The original parser changes 36 axis results after extreme travel; the patched
+parser changes zero, covering four Nintendo slots, both PC report formats and
+Windows/non-Windows slot handling. The SDL/profile tests exercise mapped axes,
+calibration and PAD conversion using virtual input. Physical acceptance needs
+another fresh calibration on the user's adapter. Use the same review launcher;
+each run creates new user data.
+
+Source: [SDL 3.4.10 GameCube driver](https://github.com/libsdl-org/SDL/blob/release-3.4.10/src/joystick/hidapi/SDL_hidapi_gamecube.c).
+
 ## Intro: first storyboard after the playable flow
 
 The [intro storyboard](native_intro_storyboard.md) and its tracked shot recipe
