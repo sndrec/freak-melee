@@ -458,14 +458,16 @@ extern "C" void nativeShell_ClickAt(int x, int y, int button)
 }
 
 extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
-                                   int end_y)
+                                   int end_y, int button, unsigned modifiers)
 {
     if (nativeHub_IsVisible()) {
-        nativeHub_ClickAt(start_x, start_y, 0);
-        nativeHub_MovePointer(end_x, end_y);
+        if (button == 0) {
+            nativeHub_ClickAt(start_x, start_y, 0);
+            nativeHub_MovePointer(end_x, end_y);
+        }
         return;
     }
-    if (nativeShell_CssPointerEvent(start_x, start_y, NativeCssPointer_Press))
+    if (button == 0 && nativeShell_CssPointerEvent(start_x, start_y, NativeCssPointer_Press))
     {
         nativeShell_CssPointerEvent(end_x, end_y, NativeCssPointer_Move);
         nativeShell_CssPointerEvent(end_x, end_y, NativeCssPointer_Release);
@@ -475,13 +477,24 @@ extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
         return;
     }
     Rml::Context* context = document->GetContext();
-    context->ProcessMouseMove(start_x, start_y, 0);
-    context->ProcessMouseButtonDown(0, 0);
+    int flags = (modifiers & 1 ? Rml::Input::KM_SHIFT : 0) |
+                (modifiers & 2 ? Rml::Input::KM_CTRL : 0) |
+                (modifiers & 4 ? Rml::Input::KM_ALT : 0);
+    context->ProcessMouseMove(start_x, start_y, flags);
+    context->ProcessMouseButtonDown(button, flags);
     for (int step = 1; step <= 8; ++step) {
         context->ProcessMouseMove(start_x + (end_x - start_x) * step / 8,
-                                  start_y + (end_y - start_y) * step / 8, 0);
+                                  start_y + (end_y - start_y) * step / 8, flags);
     }
-    context->ProcessMouseButtonUp(0, 0);
+    context->ProcessMouseButtonUp(button, flags);
+}
+
+extern "C" void nativeShell_WheelAt(int x, int y, int steps)
+{
+    if (!document || nativeHub_IsVisible()) return;
+    Rml::Context* context = document->GetContext();
+    context->ProcessMouseMove(x, y, 0);
+    context->ProcessMouseWheel(Rml::Vector2f{0, float(-steps)}, 0);
 }
 
 extern "C" void nativeShell_EnterText(const char* text)

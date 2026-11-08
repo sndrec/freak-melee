@@ -208,7 +208,7 @@
             <div><label for="workshop-hitbox-offset-y" class="field-label">Offset Y</label><input id="workshop-hitbox-offset-y" class="room-input" type="text" /></div>
             <div><label for="workshop-hitbox-offset-z" class="field-label">Offset Z</label><input id="workshop-hitbox-offset-z" class="room-input" type="text" /></div>
           </div>
-          <div class="workshop-unit-note">Offsets and radius are source integers (1/256 units).</div>
+          <div class="workshop-unit-note">Offsets and radius are in world units.</div>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-grounded" type="checkbox" /> Hits grounded fighters</label>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-aerial" type="checkbox" /> Hits airborne fighters</label>
           <button id="workshop-hitbox-apply" class="room-button primary">Apply hitbox edit</button>

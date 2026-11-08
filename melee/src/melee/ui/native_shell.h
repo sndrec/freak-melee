@@ -17,7 +17,9 @@ bool nativeShell_IsEditingText(void);
 // use.
 void nativeShell_InspectElement(const char* id);
 void nativeShell_ClickAt(int x, int y, int button);
-void nativeShell_DragAt(int start_x, int start_y, int end_x, int end_y);
+void nativeShell_DragAt(int start_x, int start_y, int end_x, int end_y,
+                        int button, unsigned modifiers);
+void nativeShell_WheelAt(int x, int y, int steps);
 void nativeShell_EnterText(const char* text);
 void nativeShell_MovePointer(int x, int y);
 bool nativeShell_CssPointerEvent(int x, int y, NativeCssPointerEvent event);

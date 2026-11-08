@@ -173,8 +173,12 @@ const char* action(const char* source)
     static const struct { const char* source; const char* label; } names[] = {
         { "Attack11", "Jab 1" }, { "Attack12", "Jab 2" },
         { "Attack100", "Rapid jab" }, { "AttackS3", "Forward tilt" },
+        { "AttackS3S", "Forward tilt" }, { "AttackS3Hi", "Forward tilt (up)" },
+        { "AttackS3Lw", "Forward tilt (down)" },
         { "AttackHi3", "Up tilt" }, { "AttackLw3", "Down tilt" },
         { "AttackS4", "Forward smash" }, { "AttackHi4", "Up smash" },
+        { "AttackS4S", "Forward smash" }, { "AttackS4Hi", "Forward smash (up)" },
+        { "AttackS4Lw", "Forward smash (down)" },
         { "AttackLw4", "Down smash" }, { "AttackAirN", "Neutral air" },
         { "AttackAirF", "Forward air" }, { "AttackAirB", "Back air" },
         { "AttackAirHi", "Up air" }, { "AttackAirLw", "Down air" },

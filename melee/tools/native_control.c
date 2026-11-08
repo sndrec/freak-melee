@@ -25,7 +25,8 @@ static void usage(const char* executable)
             "  %s [--id NAME] hold <port> <input>...\n"
             "  %s [--id NAME] ui-inspect <element-id>\n"
             "  %s [--id NAME] ui-click <x> <y> [right|middle]\n"
-            "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1>\n"
+            "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1> [left|right|middle] [shift|ctrl|alt]...\n"
+            "  ui-wheel <x> <y> <steps>\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
             "  %s [--id NAME] ui-key <letter|left|right|up|down|home|end|pageup|pagedown|tab|space|escape|enter|backspace|delete> "
@@ -236,7 +237,14 @@ int wmain(int argc, wchar_t** arguments)
                 return 1;
             }
         }
-    } else if (_stricmp(command[0], "ui-drag") == 0 && command_args == 5) {
+    } else if (_stricmp(command[0], "ui-wheel") == 0 && command_args == 4) {
+        long x, y, steps;
+        if (!parse_long(command[1], 0, 32767, &x) ||
+            !parse_long(command[2], 0, 32767, &y) ||
+            !parse_long(command[3], -100, 100, &steps)) return 1;
+        message.command = DB_NATIVE_CONTROL_UI_WHEEL;
+        message.ui_x = x; message.ui_y = y; message.stick_y = steps;
+    } else if (_stricmp(command[0], "ui-drag") == 0 && command_args >= 5) {
         long x0, y0, x1, y1;
         if (!parse_long(command[1], 0, 32767, &x0) ||
             !parse_long(command[2], 0, 32767, &y0) ||
@@ -250,6 +258,15 @@ int wmain(int argc, wchar_t** arguments)
         message.ui_y = y0;
         message.ui_end_x = x1;
         message.ui_end_y = y1;
+        for (int i = 5; i < command_args; ++i) {
+            if (!_stricmp(command[i], "left")) message.buttons = 0;
+            else if (!_stricmp(command[i], "right")) message.buttons = 1;
+            else if (!_stricmp(command[i], "middle")) message.buttons = 2;
+            else if (!_stricmp(command[i], "shift")) message.extensions |= 1;
+            else if (!_stricmp(command[i], "ctrl")) message.extensions |= 2;
+            else if (!_stricmp(command[i], "alt")) message.extensions |= 4;
+            else return 1;
+        }
     } else if (_stricmp(command[0], "ui-text") == 0 && command_args == 2) {
         if (strlen(command[1]) >= sizeof(message.text)) {
             fprintf(stderr, "UI text is limited to 127 bytes.\n");

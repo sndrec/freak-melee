@@ -128,6 +128,7 @@ static void usage(void)
         "  project-copy-normal-group SOURCE_PROJECT DEST_PROJECT "
         "jab|forward-tilt|forward-smash|neutral-air|forward-air|back-air|up-"
         "air|down-air\n"
+        "  project-hitbox-power PROJECT_DIRECTORY DAMAGE GROWTH BASE\n"
         "  project-hitbox PROJECT_DIRECTORY ACTION_INDEX OFFSET [FIELD "
         "VALUE]\n"
         "  project-sound PROJECT_DIRECTORY ACTION_INDEX OFFSET [SFX_ID VOLUME "
