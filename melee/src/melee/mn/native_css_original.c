@@ -1,5 +1,6 @@
 #include "native_css_original.h"
 #include "native_menu_visuals.h"
+#include "native_menu_paint.h"
 
 #ifdef MELEE_NATIVE
 
@@ -13,10 +14,14 @@
 #include <melee/ft/native_source_asset_facts.h>
 #include <melee/lb/lbspdisplay.h>
 #include <melee/mn/types.h>
+#include <melee/pl/player.h>
 #include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/random.h>
+#include <sysdolphin/baselib/state.h>
+#include <sysdolphin/baselib/tev.h>
+#include <sysdolphin/baselib/pobj.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -50,6 +55,7 @@ static unsigned portrait_joint_count;
 static bool visibility_masked;
 static bool hide_player_cards;
 static HSD_JObj* scene_root;
+static HSD_JObj* scene_background;
 static HSD_CObj* scene_camera;
 static Mtx initial_inverse;
 
@@ -240,10 +246,11 @@ static void apply_layout(void)
 }
 
 void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
-                             HSD_CObj* camera)
+                             HSD_CObj* camera, HSD_JObj* background)
 {
     scene_icons = icons;
     scene_root = menu;
+    scene_background = background;
     scene_camera = camera;
     HSD_JObjSetupMatrix(menu);
     C_MTXInverse(menu->mtx, initial_inverse);
@@ -343,6 +350,7 @@ void nativeCssOriginal_Exit(void)
     nativeMenuVisuals_End(&menu_visuals);
     scene_icons = NULL;
     scene_root = NULL;
+    scene_background = NULL;
     scene_camera = NULL;
     portrait_joint_count = 0;
     visibility_masked = false;
@@ -431,6 +439,56 @@ bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile)
 bool nativeCssOriginal_CommitPreview(void)
 {
     return save_layout(&layout);
+}
+
+bool nativeCssOriginal_StockRoster(NativeCssLayout* result, FighterKind kinds[25])
+{
+    if (!scene_icons || !result || !kinds) return false;
+    *result = defaults;
+    for (unsigned i = 0; i < STOCK_ICONS; ++i) kinds[i] = Player_800325C8(scene_icons[i].char_kind, false);
+    return true;
+}
+
+bool nativeCssOriginal_ReplaceLayout(const NativeCssLayout* candidate)
+{
+    if (!candidate) return false;
+    if (!save_layout(candidate)) return false;
+    nativeMenuVisuals_ClearSprites(menu_visuals);
+    return true;
+}
+
+bool nativeCssOriginal_DrawReference(bool filled)
+{
+    if (!scene_root || !scene_camera || !scene_background) return false;
+    HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
+    u32 flags[PORTRAIT_JOINTS];
+    for (unsigned i = 0; i < portrait_joint_count; ++i) {
+        HSD_JObj* joint = portrait_joints[i].joint;
+        flags[i] = joint->flags;
+        unsigned icon = portrait_joints[i].icon;
+        if (icon < STOCK_ICONS) {
+            if (filled && scene_icons[icon].char_kind != CKind_Kirby) HSD_JObjClearFlags(joint, JOBJ_HIDDEN);
+            else HSD_JObjSetFlags(joint, JOBJ_HIDDEN);
+        } else {
+            joint->flags = (joint->flags & ~JOBJ_HIDDEN) | portrait_joints[i].hidden;
+        }
+    }
+    for (unsigned i = 0; i < STOCK_ICONS; ++i) set_portrait_transform(i, &defaults.tiles[i]);
+    Mtx view; Mtx44 projection;
+    HSD_CObjGetViewingMtx(scene_camera, view); makeProjectionMtx(scene_camera, projection);
+    GXSetProjection(projection, GX_PERSPECTIVE);
+    for (unsigned pass = 0; pass < 3; ++pass) {
+        HSD_JObjDispAll(scene_background, view, HSD_GObj_80390EB8(pass), 0);
+        HSD_JObjDispAll(scene_root, view, HSD_GObj_80390EB8(pass), 0);
+    }
+    Mtx canvas; nativeCssOriginal_ViewMatrix(canvas);
+    nativeMenuPaint_Begin(canvas);
+    nativeMenuFont_Draw(NativeMenuFont_Heading, "CHOOSE A FIGHTER", world_x(300), world_y(95), 0,
+        (world_right-world_left)*.5f, (world_top-world_bottom)*.033f, 0xF5EFEAFF, true, true);
+    for (unsigned i = 0; i < portrait_joint_count; ++i) portrait_joints[i].joint->flags = flags[i];
+    apply_layout();
+    HSD_StateInvalidate(-1);
+    return true;
 }
 
 void nativeCssOriginal_CancelPreview(void)

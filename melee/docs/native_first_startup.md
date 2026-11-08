@@ -1,93 +1,81 @@
 # First startup
 
-Updated: 2026-11-07. The guided setup uses the in-game Melee menu scene and hand.
-It starts automatically for a fresh installation. Existing players can open
-**Settings > First startup**. Existing fighters and account keys stay available.
+Updated: 2026-11-07. Guided setup helps a new player choose a name, calibrate a
+controller and make their first fighter. It opens automatically on a fresh
+installation. Existing players can open **Settings > First startup**.
 
-Startup uses the original animated tournament setup backdrop, selected by the
-user from [native scenery captures](native_menu_references.md). Each step has
-centered controls, compact progress markers and open space around it. The
-artwork is loaded from the ISO and retains its original animation loop.
-The [current revision list](native_first_startup_revision.md) tracks the user's
-latest feedback and the remaining carousel, portrait and placement work.
+The pages use the original animated tournament-setup background, Melee's menu
+lettering and the Melee hand. The [revision record](native_first_startup_revision.md)
+contains implementation details, evidence and the remaining review items.
 
-## The sequence
+## Profile and account
 
-1. The opening screen shows Freak Melee, the startup indicator and Continue.
-2. Enter a display name and an optional bio.
-3. Create/import an online account, or choose **Continue as guest**. Guests can
-   play online and use chat. Accounts keep friends, letters and invitations.
-4. Choose a controller port, or press A on the controller you want to use.
-5. Release the sticks and triggers to measure their resting positions.
-6. Move both sticks around their edges, visiting all four directions.
-7. Press L and R fully, then release them.
-8. Try the measured calibration. **Calibrate again** repeats the capture;
-   **Save & continue** saves a controller profile and applies it to that port.
-9. Clone a vanilla fighter and give the copy a name. If an installed roster
-   already exists, **Use my roster** continues with it.
-10. Finish on character select. Choose the fighter, place its token and press
-    START to enter practice.
+Enter a display name and an optional bio. The display-name field starts empty;
+the faded Player text is an example.
 
-Controller setup can be deferred with **Set up later**. Keyboard text editing
-and mouse clicks work throughout. B goes back; setup keeps progress across
-restarts. An interrupted calibration restarts at controller selection. A
-disconnected or replaced controller also returns to that page.
-Back from the first-fighter page returns to controller selection, including
-when calibration was skipped. Selecting an unassigned port starts with default
-bindings; an assigned port keeps its existing bindings.
+Choose **Continue as guest**, create an online account, or import an account-key
+file. Guests can play online and use chat. An account keeps friends, letters and
+invitations. Account management is available later in Settings. Errors appear
+in a notice that can be dismissed with a new button press.
 
-## Calibration
+## Controller
 
-The profile stores a resting center and positive/negative travel for each
-stick axis, plus released/full trigger travel. It measures rest noise to choose
-small stick dead zones. Live meters show the input during capture; the test
-page shows the normalized result and applies it to hand movement.
-During measurements, stick motion updates only the input displays; hand
-movement and menu tilt are suppressed. The displays trace measured stick
-outlines and the review page includes scaled and raw axis values. Trigger
-maximums still use full travel while the agreed pre-click capture is built.
+Choose a port, or press A on the controller you want to use. **Set up later**
+continues to fighter selection.
 
-Measured default and remapped axes share the same conversion. Full stick travel
-maps to Melee's 80-unit input and full analog trigger travel to 140. The game
-keeps its original radial clamp and input thresholds. Profiles with no measured
-capture retain their existing conversion. Changing an axis binding clears the
-measured calibration, so the new mapping can be calibrated again.
+1. Release the sticks and triggers and hold the controller still.
+2. Move both sticks around their edges, visiting up, down, left and right.
+3. Slowly squeeze L and R through their digital clicks, then release them.
+4. Try the result. The displays show measured stick outlines, raw input and
+   calibrated values. Adjust each trigger's analog maximum if needed.
+5. Choose **Save & continue**. **Calibrate again** repeats the measurements.
 
-Setup saves a controller profile under the normal profile store. Its ID and port
-are recorded in `content/startup.txt` and reapplied on later launches. Choosing a
-different profile through Controls still applies that choice for the current
-session. The measured profile format is 191 bytes; the user approved recreating
-the previous development test profile. Old profile files are left untouched.
+Sticks move only the calibration displays during measurement. The trigger limit
+is captured just before the digital click. Controllers without a separate
+digital click use full travel. Small movements should feel precise, and resting
+sticks should stay still.
 
-## Current verification
+Calibration is saved in a controller profile and applied to the selected port
+on later launches. Changing an axis binding clears the measured calibration so
+it can be captured again. An interrupted measurement or a changed controller
+returns to controller selection.
 
-The first native build and five focused contracts pass:
-`.local/startup-build-1.log`, `.local/startup-build-2.log`,
-`.local/startup-contracts-1.log`. These cover saved measured ranges, neutral,
-half/full travel, overtravel, incomplete captures, mapped/default axes and the
-actual SDL/Aurora provider, alongside the existing input ownership checks.
+## First fighter
 
-Four native UI checks pass in `.local/startup-ui-1/receipt.json`. The hidden,
-muted run starts with an empty store, saves profile info without an online
-service, resumes controller selection after restart, clones and installs one
-independent Mario, finishes on CSS, and reopens setup from Settings after a
-completed restart. Seven PNGs were captured; welcome, optional account and
-controller selection were visually inspected.
+Browse the rotating fighter carousel and confirm a starter. Ice Climbers appear
+as a pair; Zelda's fighter includes Sheik. Kirby is excluded while his editable
+clone is deferred.
 
-The tournament-background revision builds in
-`.local/startup-quiet-build-1.log` and `.local/startup-quiet-build-2.log`.
-Its walkthrough passes in `.local/startup-quiet-ui-1/receipt.json`, including
-Back after skipping calibration, restart/resume, cloning and the return to CSS.
-The second build puts the fixed header/footer above page transitions and
-removes an intermediate Workshop transition after cloning during setup.
-Five settled screenshots from that build are in
-`.local/startup-quiet-final-captures/images.json`: welcome, profile, optional
-account, account creation form and controller selection. The welcome, profile
-and account creation screens were visually inspected. No account was created
-by that capture run.
+Frame the portrait with the Trophy Gallery controls:
 
-The UI runs skip hardware calibration. Physical capture and the user's design
-and usability pass remain open. The prepared
-`.local/startup-playtest/Launch Startup Test.cmd` opens the current native build
-with a separate empty user-data folder for that review. It leaves the existing
-installation's roster, profiles and account files in place.
+- C-stick: orbit.
+- A + main stick over the portrait, or D-pad: pan.
+- X/Y: zoom.
+- Mouse: middle-drag to orbit, Shift + middle-drag to pan, wheel to zoom.
+
+The fighter stays still while framing. **Reset view** restores the starting
+camera. **Use portrait** saves the picture. Enter the short name printed on its
+CSS tile, then continue to character select and place the tile with A or a
+click. B goes back. Dropping the tile finishes setup on character select.
+
+The fighter owns editable moves, scripts, animations and model data. Its short
+tile name is saved separately from its full fighter name and travels with a
+shared package. Open the Workshop to edit the fighter or rename it.
+
+Character select begins empty. **Ready / START**, **Workshop** and **Back** sit
+in its footer. Choose a fighter, place its token and press START to practice.
+
+## Add the Melee roster
+
+**Workshop > Add Melee roster** opens a confirmation with native empty/full CSS
+previews. Confirming creates 24 editable fighters and uses the original tile
+arrangement, leaving Kirby's position empty. Existing fighters stay in the
+Workshop. Repeating the shortcut reuses its defaults; edited fighters are kept
+as separate entries.
+
+## Review
+
+The revision record lists the native walkthroughs and focused checks. Physical
+controller calibration, camera feel and the user's visual/usability review are
+part of the next hands-on pass. The attract-style introduction will be
+storyboarded together after the playable flow.

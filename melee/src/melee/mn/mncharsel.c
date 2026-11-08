@@ -4296,6 +4296,7 @@ s32 mnCharSel_802640A0(void)
     s32 i;
     s32 slot;
     s32 icon;
+    HSD_JObj* native_background = NULL;
     u8 match_type = mnCharSel_804D6CB0->match_type;
 
 #ifdef MELEE_NATIVE
@@ -4394,6 +4395,7 @@ s32 mnCharSel_802640A0(void)
 
     gobj = GObj_Create(4, 5, 0x80);
     jobj = HSD_JObjLoadJoint(css_models->background.joint);
+    native_background = jobj;
     HSD_JObjAddAnimAll(jobj, css_models->background.animjoint,
                        css_models->background.matanim_joint,
                        css_models->background.shapeanim_joint);
@@ -4506,7 +4508,7 @@ s32 mnCharSel_802640A0(void)
 #ifdef MELEE_NATIVE
     if (nativeHome_IsSelection()) {
         nativeCssOriginal_Enter(icons, mnCharSel_804D6CC0,
-                                GET_COBJ(mnCharSel_804D6CB8));
+                                GET_COBJ(mnCharSel_804D6CB8), native_background);
         nativeHubHand_Load(&css_models->hand);
     }
 #endif

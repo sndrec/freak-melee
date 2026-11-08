@@ -237,7 +237,7 @@ bool nativeMenuScenery_Draw(void)
         HSD_ASSERT(0, reference.image->format == GX_TF_RGBA8);
         nativeMenuPaint_Begin(NULL);
         nativeMenuPaint_Image(reference.image->image_ptr, reference.image->width,
-            reference.image->height, 0, 0, 640, 480);
+            reference.image->height, 0, 0, 640, 480, NativeMenuImage_Stretch);
         nativeMenuPaint_End();
     }
     return true;

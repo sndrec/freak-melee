@@ -10,6 +10,7 @@
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup_portrait.h"
 #include "native_hub_startup_stamp.h"
+#include "native_hub_defaults.h"
 #include "native_menu_portrait_capture.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
@@ -28,6 +29,7 @@
 #include <melee/mn/native_menu_scene.h>
 #include <melee/mn/native_menu_scenery.h>
 #include <melee/mn/native_menu_skin.h>
+#include <melee/mn/native_menu_tile.h>
 #include <dolphin/gx.h>
 extern "C" {
 #include <sysdolphin/baselib/controller.h>
@@ -538,6 +540,7 @@ void nativeHub_Activate(HubAction action, int value)
 {
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
     if (nativeHubStartup_Activate(action, value)) return;
+    if (nativeHubDefaults_Activate(action)) return;
     if (nativeHubQuickStage_Activate(action,value)) return;
     if (nativeHubLobbies_Activate(action,value)) return;
     if (nativeHubAccount_Activate(action,value)) return;
@@ -619,7 +622,7 @@ void nativeHub_Activate(HubAction action, int value)
         text_focus(nullptr, 0);
         if (nativeHubCatalog_CreateStockDraft(
                 static_cast<FighterKind>(hub.template_kind), hub.title, path) &&
-            nativeHubCatalog_PublishDraft(path, true))
+            nativeHubCatalog_PublishDraft(path, NativeHubPublish::InstallAndPlace))
         {
             reload_catalog();
             nativeHub_ChangePage(NativeHubPage_Workshop);
@@ -1063,6 +1066,7 @@ extern "C" void nativeHub_Tick(void)
     nativeHubAccount_Tick();
     nativeHubSocial_Tick();
     nativeHubStartup_Tick();
+    nativeHubDefaults_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
@@ -1142,7 +1146,8 @@ extern "C" void nativeHub_Tick(void)
     }
     const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
                            nativeHubStartup.step <= NativeStartup_Triggers;
-    nativeMenuScene_Tick(!measuring && !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
+    nativeMenuScene_Tick(!measuring && !nativeHubDefaults_IsOpen() &&
+        !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
     if (pointer_mouse && !screen_to_canvas(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
         hub.pointer_x = hub.pointer_y = -100;
     // The hub consumes the same already-normalized sample as original menus.
@@ -1198,6 +1203,7 @@ extern "C" void nativeHub_Draw(void)
     if (!hub.fonts) {
         nativeMenuFont_Acquire();
         nativeMenuSkin_Acquire();
+        nativeMenuTile_Acquire();
         hub.fonts = true;
     }
     const char* caption = nativeHubStartup.active ? "First startup" : hub.page == NativeHubPage_Profile
@@ -1212,7 +1218,7 @@ extern "C" void nativeHub_Draw(void)
     hub.region_count = 0;
     if (!nativeHubStartup.active) nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
                      HubAction::Profile);
-    if (!nativeHubStartup.active && (hub.opened_from_play || nativeHome_IsPractice()))
+    if (!nativeHubStartup.active)
         nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
                          352, 21, 132, 19, HubAction::Close);
     for (unsigned i = 0; !nativeHubStartup.active && i < 7; ++i) {
@@ -1255,6 +1261,7 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
                             NativeMenuFont_Notice, true);
     }
+    nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
     nativeMenuPaint_Begin(canvas);
     nativePlayMenu_DrawCountdown();
@@ -1515,6 +1522,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
     if (!std::strcmp(id, "startup-camera")) { nativeHubStartupPortrait_Inspect(); return; }
     if (!std::strcmp(id, "startup-stamp")) { nativeHubStartupStamp_Inspect(); return; }
+    if (!std::strcmp(id, "defaults")) { nativeHubDefaults_Inspect(); return; }
     if (!std::strcmp(id, "startup-portrait-save")) { nativeHubStartupRoster_Capture(); return; }
     if (!std::strcmp(id, "startup-portrait")) { nativeMenuPortraitCapture_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {
@@ -1587,11 +1595,13 @@ extern "C" void nativeHub_Shutdown(void)
     nativeHubAccount_Shutdown();
     nativeHubStartupRoster_Unload();
     nativeHubStartupStamp_Unload();
+    nativeHubDefaults_Shutdown();
     nativeHubNotice_Clear();
     nativeHubSocial_Shutdown();
     if (hub.fonts) {
         nativeMenuFont_Release();
         nativeMenuSkin_Release();
+        nativeMenuTile_Release();
     }
     hub = HubState{};
 }

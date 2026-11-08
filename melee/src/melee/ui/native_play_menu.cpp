@@ -125,7 +125,7 @@ namespace {
             nativeMenuSkin_Panel(7, 5, 626, 32, 0xACA7B5FF, 0x09080EDC);
             nativeMenuPaint_Text(menu.status, 220, 17, 275, 9, 0xEBDDAEFF);
         } else {
-            nativeMenuPaint_Text(menu.status, 16, 460, 370, 8, 0xEBDDAEFF);
+            nativeMenuPaint_Text(menu.status, 200, 70, 415, 8, 0xEBDDAEFF);
         }
         if (*menu.delivery) {
             float y = menu.practice ? 44 : 99;
@@ -176,12 +176,12 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         !nativeOnlineSession_LocalActiveSeats();
     bool requesting_watch = nativeSpectatorMatch_State() == NativeSpectator_Requested;
     if (selection) {
-        add("play-ready", "Ready / START", 35, 207, 118, 27, Action::Ready,
+        add("play-ready", "Ready / START", 14, 451, 126, 22, Action::Ready,
             nativeCssInteraction_CanReady() && !stage_choice, true);
-        add("play-workshop", "Workshop", 419, 451, 113, 22, Action::Workshop);
+        add("play-workshop", "Workshop", 148, 451, 113, 22, Action::Workshop);
         add("play-lobby", "Back", 542, 451, 83, 22, Action::Lobby);
-        if (quick) add("play-queue", queue_label, 163, 207, 128, 27, Action::Queue, can_queue, !searching);
-        if (stage_choice) add("play-stage", "Next stage", 301, 207, 120, 27, Action::Stage, true, true);
+        if (quick) add("play-queue", queue_label, 270, 451, 128, 22, Action::Queue, can_queue, !searching);
+        if (stage_choice) add("play-stage", "Next stage", 406, 451, 122, 22, Action::Stage, true, true);
     } else {
         add("play-lobby", "Lobby", 13, 10, 88, 22, Action::Lobby);
         if (quick) add("play-queue", queue_label, 109, 10, 104, 22, Action::Queue, can_queue, !searching);

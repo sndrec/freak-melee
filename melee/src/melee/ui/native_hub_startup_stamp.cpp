@@ -4,6 +4,7 @@
 #include <melee/ft/native_gx_image.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_menu_skin.h>
+#include <melee/mn/native_menu_tile.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cmath>
@@ -54,14 +55,7 @@ void nativeHubStartupStamp_RenderName()
 {
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
     nativeMenuPaint_Text("Make your stamp", 292, 107, 310, 31, gold, NativeMenuFont_MenuCaption);
-    nativeMenuSkin_Panel(73, 163, 210, 210, 0xC2BEC7FF, 0x101018FF);
-    if (pixels) nativeMenuPaint_Image(pixels, width, height, 78, 168, 200, 200);
-    char lines[2][128];
-    unsigned count = nativeMenuFont_LayoutTileName(nativeHubStartup.tile_name, 188, 31, lines);
-    nativeMenuPaint_Rect(78, count == 2 ? 297 : 330, 200, count == 2 ? 71 : 38, 0x0F0A0DFF);
-    for (unsigned i = 0; i < count; ++i)
-        nativeMenuPaint_Text(lines[i], 84, (count == 2 ? 301 : 334) + i * 32, 188, 30,
-            0xF5EFEAFF, NativeMenuFont_Tile, true);
+    nativeMenuTile_Draw(pixels, width, height, nativeHubStartup.tile_name, 73, 178, 210, 210*56.f/64);
     nativeMenuPaint_Text("Short tile name", 338, 210, 260, 19, muted, NativeMenuFont_MenuOption);
     nativeHub_Field("setup-tile-name", nativeHubStartup.tile_name, 338, 245, 260, 38, HubAction::StartupTileName);
     nativeMenuPaint_Text("Printed beneath the portrait on character select.", 338, 298, 260, 10, muted);
