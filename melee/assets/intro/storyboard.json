@@ -8,8 +8,6 @@
   "shots": [
     {
       "id": "your-fighter",
-      "seconds": 7,
-      "caption": "In Freak Melee, your characters belong to you!",
       "direction": "Mario turns toward camera. The familiar fighter becomes your first editable clone.",
       "actors": [
         {
@@ -21,12 +19,28 @@
           "feet": 605,
           "size": 408
         }
+      ],
+      "captions": [
+        {
+          "text": "In Freak Melee, your characters belong to you!",
+          "seconds": 5
+        },
+        {
+          "text": "Select one to create a clone of.",
+          "seconds": 4
+        },
+        {
+          "text": "They'll start off like the original fighter...",
+          "seconds": 4
+        },
+        {
+          "text": "but with the built-in workshop, you can edit them to your heart's content.",
+          "seconds": 6
+        }
       ]
     },
     {
       "id": "hitboxes",
-      "seconds": 6,
-      "caption": "Tweak the hitboxes...",
       "direction": "Match cut from the real Action Editor to the edited attack. Show a modest range change before the later overpowered gag.",
       "pending": "Record the actual edit and its gameplay result.",
       "actors": [
@@ -39,12 +53,16 @@
           "feet": 600,
           "size": 395
         }
+      ],
+      "captions": [
+        {
+          "text": "Tweak the hitboxes...",
+          "seconds": 3
+        }
       ]
     },
     {
       "id": "animation",
-      "seconds": 6,
-      "caption": "...the animations...",
       "direction": "Scrub an authored pose in Animation, then cut to that pose moving in-game. Keep the same view direction across the cut.",
       "pending": "Author and record the changed animation.",
       "actors": [
@@ -57,12 +75,16 @@
           "feet": 575,
           "size": 382
         }
+      ],
+      "captions": [
+        {
+          "text": "tweak the animations...",
+          "seconds": 3
+        }
       ]
     },
     {
       "id": "scripts",
-      "seconds": 7,
-      "caption": "...the code!",
       "direction": "Show a few readable lines in Scripting. Cut to a visibly altered special, followed by the fighter landing in the same composition.",
       "pending": "Choose a small scripted change and film its real result.",
       "actors": [
@@ -75,12 +97,16 @@
           "feet": 600,
           "size": 374
         }
+      ],
+      "captions": [
+        {
+          "text": "tweak the code!",
+          "seconds": 3
+        }
       ]
     },
     {
       "id": "sharing",
-      "seconds": 7,
-      "caption": "Show off your one-of-a-kind fighters online.",
       "direction": "Film the real tile-to-player delivery, then the received fighter appearing on the other player's CSS.",
       "pending": "Capture a local two-client delivery with test accounts.",
       "actors": [
@@ -102,12 +128,20 @@
           "feet": 585,
           "size": 323
         }
+      ],
+      "captions": [
+        {
+          "text": "When you play online, you can show off your one-of-a-kind fighters",
+          "seconds": 5
+        },
+        {
+          "text": "to any other player, too.",
+          "seconds": 3
+        }
       ]
     },
     {
       "id": "anything",
-      "seconds": 7,
-      "caption": "There aren't any limits. Against strangers, expect anything...",
       "direction": "A low-percent victim is launched by one absurdly strong hit. Smash cut to a taunting Ganondorf behind a deliberately excessive CENSORED bar.",
       "pending": "Author the gag clone and film the KO. The censored board uses a fully clothed stock model.",
       "censor": true,
@@ -121,12 +155,20 @@
           "feet": 610,
           "size": 400
         }
+      ],
+      "captions": [
+        {
+          "text": "Be careful, though - there aren't any limits,",
+          "seconds": 4
+        },
+        {
+          "text": "so when playing against strangers, expect anything...",
+          "seconds": 4
+        }
       ]
     },
     {
       "id": "appearance-filter",
-      "seconds": 8,
-      "caption": "You can disable custom fighter appearances in Settings.",
       "direction": "Mid-taunt, a puff of smoke replaces the censored fighter with a neutral hurtbox-shaped wireframe. Jigglypuff sings; the wireframe falls asleep.",
       "pending": "Implement and verify the actual appearance filter before filming this setting. Wireframe design and sleep gag need staging.",
       "actors": [
@@ -140,12 +182,16 @@
           "size": 255
         }
       ],
-      "wireframe": true
+      "wireframe": true,
+      "captions": [
+        {
+          "text": "Don't worry - you can disable custom fighter appearances in the settings.",
+          "seconds": 6
+        }
+      ]
     },
     {
       "id": "outfits",
-      "seconds": 9,
-      "caption": "Keep the moves. Change the look. Swag up your fighters!",
       "direction": "Four Falcos drop in one at a time, land on the beat, then taunt. Final film uses distinct outfits; stock colors establish spacing in this study.",
       "pending": "Choose four actual outfit packages and record drop / landing / taunt transitions.",
       "actors": [
@@ -189,15 +235,37 @@
           "feet": 595,
           "size": 280
         }
+      ],
+      "captions": [
+        {
+          "text": "Of course, you don't have to make any tweaks.",
+          "seconds": 4
+        },
+        {
+          "text": "But even if you just change your character's look, and not their moves...",
+          "seconds": 6
+        },
+        {
+          "text": "other players will see that, too.",
+          "seconds": 3
+        },
+        {
+          "text": "Swag up your fighters!",
+          "seconds": 3
+        }
       ]
     },
     {
       "id": "end",
-      "seconds": 5,
-      "caption": "Be prepared for anything in Freak Melee!",
       "direction": "Hold the lineup; resolve to the Freak Melee logo. Fade into the live first-fighter carousel.",
       "actors": [],
-      "caption_y": 450
+      "caption_y": 450,
+      "captions": [
+        {
+          "text": "Be prepared for anything in Freak Melee!",
+          "seconds": 5
+        }
+      ]
     }
   ]
 }

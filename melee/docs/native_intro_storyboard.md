@@ -1,28 +1,31 @@
 # Intro storyboard
 
-Updated: 2026-11-08. First cut: **62 seconds**, 4:3, captions with music.
-The user chose captions like the existing How to Play movie. The supplied
+Updated: 2026-11-08. First cut: **71 seconds**, 4:3, captions with music.
+The captions preserve the user's original wording, punctuation and order.
+Keep that text verbatim. Adjust card breaks and timing for readability;
+propose wording changes separately.
+Card breaks and timing follow the existing How to Play movie. The supplied
 mode-select music is a temporary timing track. This study establishes
 composition and order before filming.
 
 The [shot recipe](../assets/intro/storyboard.json) drives the contact sheet and
 timed animatic. Its actors are rendered by the native client from the original
 models, costumes and named animations. Pending footage is labelled on the boards.
-The first renders live in `.local/intro-storyboard-5/`.
+The first renders live in `.local/intro-storyboard-6/`.
 
 ## Shot order
 
-| Time | Caption | Picture and camera |
+| Time | Captions | Picture and camera |
 | --- | --- | --- |
-| 0–7 | In Freak Melee, your characters belong to you! | Mario stands in a quiet pool of light. Begin with a three-quarter full-body view; ease around toward his face. The carousel settles on Mario, then confirms the clone. |
-| 7–13 | Tweak the hitboxes… | Match the Action Editor camera to a side view of Mario's forward tilt. Move the outer hitbox a little farther from the foot. Cut to the real attack reaching a sandbag it previously missed. |
-| 13–19 | …the animations… | Hold Mario's forward-air pose. Show selected joints and the shared curve graph, change the pose, then match-cut to the altered move playing in the practice room. |
-| 19–26 | …the code! | Show a short readable script change to a projectile's speed or launch angle. Cut to the result from a low three-quarter camera. Keep the example small enough to understand in one glance. |
-| 26–33 | Show off your one-of-a-kind fighters online. | Film the actual CSS tile being dragged onto another player. Cut to their received fighter, then both characters facing each other. Use local test accounts for capture. |
-| 33–40 | There aren't any limits. Against strangers, expect anything… | A ridiculously strong hit launches a low-percent opponent. Hard cut to a clothed Ganondorf taunting behind an oversized CENSORED bar. The joke works through the edit and bar; no nude asset is required. |
-| 40–48 | You can disable custom fighter appearances in Settings. | Select the actual setting, return mid-taunt, then smoke replaces the censored fighter with a neutral hurtbox-shaped wireframe. Jigglypuff sings and the wireframe falls asleep. |
-| 48–57 | Keep the moves. Change the look. Swag up your fighters! | Four different Falco outfits drop into a fixed wide shot on successive beats. Each lands and taunts. Hold all four together long enough to compare them. |
-| 57–62 | Be prepared for anything in Freak Melee! | Hold the lineup, then resolve to the logo. Fade into the live first-fighter carousel, where the player takes control. |
+| 0–19 | In Freak Melee, your characters belong to you!<br>Select one to create a clone of.<br>They'll start off like the original fighter...<br>but with the built-in workshop, you can edit them to your heart's content. | Mario turns toward camera. The familiar fighter becomes your first editable clone. |
+| 19–22 | Tweak the hitboxes... | Match cut from the real Action Editor to the edited attack. Show a modest range change before the later overpowered gag. |
+| 22–25 | tweak the animations... | Scrub an authored pose in Animation, then cut to that pose moving in-game. Keep the same view direction across the cut. |
+| 25–28 | tweak the code! | Show a few readable lines in Scripting. Cut to a visibly altered special, followed by the fighter landing in the same composition. |
+| 28–36 | When you play online, you can show off your one-of-a-kind fighters<br>to any other player, too. | Film the real tile-to-player delivery, then the received fighter appearing on the other player's CSS. |
+| 36–44 | Be careful, though - there aren't any limits,<br>so when playing against strangers, expect anything... | A low-percent victim is launched by one absurdly strong hit. Smash cut to a taunting Ganondorf behind a deliberately excessive CENSORED bar. |
+| 44–50 | Don't worry - you can disable custom fighter appearances in the settings. | Mid-taunt, a puff of smoke replaces the censored fighter with a neutral hurtbox-shaped wireframe. Jigglypuff sings; the wireframe falls asleep. |
+| 50–66 | Of course, you don't have to make any tweaks.<br>But even if you just change your character's look, and not their moves...<br>other players will see that, too.<br>Swag up your fighters! | Four Falcos drop in one at a time, land on the beat, then taunt. Final film uses distinct outfits; stock colors establish spacing in this study. |
+| 66–71 | Be prepared for anything in Freak Melee! | Hold the lineup; resolve to the Freak Melee logo. Fade into the live first-fighter carousel. |
 
 The current boards use stock animations and stock Falco colors to establish
 blocking. Gameplay shots need actual authored changes, recorded input and camera
@@ -73,11 +76,11 @@ python melee/tools/stage_native_intro.py `
   --exe melee/build/native/melee_native.exe `
   --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
   --profile .local/startup-feedback-3-ui-review/resume/appdata `
-  --output .local/intro-storyboard-5 `
+  --output .local/intro-storyboard-6 `
   --music A:/randomfiles/mode_select.flac
 ```
 
-Output includes the native transparent PNGs, nine composed boards,
+Output includes the native transparent PNGs, seventeen caption cards,
 `storyboard.png`, `intro-storyboard.mp4` and a receipt identifying the source
 recipe, executable and captured poses. These local disc-derived images stay
 outside Git. The shot recipe and staging tool are tracked.
