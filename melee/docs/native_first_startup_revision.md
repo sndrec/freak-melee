@@ -360,9 +360,10 @@ or hands-on marker dragging.
 ## Intro: first storyboard after the playable flow
 
 The [intro storyboard](native_intro_storyboard.md) and its tracked shot recipe
-now arrange these beats into a 62-second caption-led study. Eleven native
-pose/costume captures produce nine boards and a timed animatic in
-`.local/intro-storyboard-5/`. Frames decoded directly from `MvHowto.mth` inform
+now arrange these beats into a 71-second caption-led study. The captions use
+the user's original wording in full, split into seventeen cards. Eleven native
+pose/costume captures produce the boards and a timed animatic in
+`.local/intro-storyboard-6/`. Frames decoded directly from `MvHowto.mth` inform
 the large white caption treatment. The native staging channel loads named
 animations and original costume variants, without altering their source assets.
 Actual edited gameplay, custom outfits and the appearance-filter shot remain

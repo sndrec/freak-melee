@@ -28,6 +28,9 @@ def main():
     source = Path(__file__).resolve().parents[1]
     recipe = source / 'assets/intro/storyboard.json'
     board = json.loads(recipe.read_text())
+    shots = [dict(scene, scene=scene['id'], id=f"{scene['id']}-{i+1}",
+                  caption=cue['text'], seconds=cue['seconds'])
+             for scene in board['shots'] for i, cue in enumerate(scene['captions'])]
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     width, height = board['size']
     font = lambda size: ImageFont.truetype(str(source / 'assets/fonts/FolkPro-Medium.otf'), size)
@@ -57,7 +60,7 @@ def main():
                         output / 'native', 'Intro staging', window_size=(960, 720),
                         write_profile=False)
         client.element('nav-5')
-        for index, shot in enumerate(board['shots']):
+        for index, shot in enumerate(shots):
             image = Image.new('RGB', (width, height), (12, 12, 20))
             draw = ImageDraw.Draw(image)
             # Quiet stage for composition. These are storyboard marks, not a game stage.
@@ -95,7 +98,7 @@ def main():
                 for a, b in [((680,255),(680,405)),((680,290),(615,360)),((680,290),(745,360)),((680,405),(625,555)),((680,405),(735,555))]:
                     draw.line((a,b), fill=(215,205,235), width=3)
                 draw.text((600,570), 'FILTER ACTOR: TO STAGE', font=note_font, fill=(183,175,195))
-            if shot['id'] == 'end':
+            if shot['scene'] == 'end':
                 centered(draw, 'FREAK MELEE', 275, heavy, (238,203,88))
             draw.rectangle((0,0,width,65), fill=(20,17,28))
             draw.text((28,18), f"{index+1:02}  /  {shot['id'].upper().replace('-', ' ')}", font=header, fill=(232,202,105))
@@ -109,7 +112,7 @@ def main():
     finally:
         if client: client.stop()
 
-    contact = Image.new('RGB', (960, 3*300), (12,12,20))
+    contact = Image.new('RGB', (960, ((len(images)+2)//3)*300), (12,12,20))
     draw = ImageDraw.Draw(contact)
     for i, (path, shot) in enumerate(images):
         with Image.open(path) as panel:
