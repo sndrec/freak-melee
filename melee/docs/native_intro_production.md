@@ -9,7 +9,43 @@ wording. Split cards and adjust their holds as needed. The
 [storyboard](native_intro_storyboard.md) supplies the scene intentions; its
 static blocking is a reference for filming.
 
-## Current work
+## Draft for review
+
+The moving draft is
+`.local/intro-production/final-cut-1/freak-melee-intro-draft.mp4`.
+It runs **98.017 seconds**, at **960 × 720, 60 fps**, with stereo AAC sound.
+The movie is approximately **46 MB**. The seventeen supplied captions retain
+their original wording and order. Cuts, framing and holds follow the
+[edit recipe](../assets/intro/edit.json).
+
+The film includes native carousel selection; real hitbox, pose and script edits;
+the edited moves in gameplay; a tile dragged to another player's card; actual
+receipt and installation on the second client; a 1% exaggerated-knockback KO;
+the deliberately oversized censor bar; the actual appearance setting and
+hurtbox wireframe receiving Sing; and a four-fighter outfit lineup. The final
+outfits are original, Scarlet and Forest Falco, followed by Tom Nook's Island
+Shirt. The ending credits identify LarsBars and the Melee assets/music.
+
+The review boundary is this standalone movie. Startup playback integration and
+the user's pacing, visual and humor critique follow its review.
+
+| Time | Scene |
+| --- | --- |
+| 00:00 | Your first fighter and clone selection |
+| 00:15 | Workshop, hitboxes, animation and scripts |
+| 00:44 | Send and receive an edited fighter |
+| 00:55 | Absurd knockback and censored appearance |
+| 01:04 | Appearance setting, smoke, wireframe and Sing |
+| 01:10 | Stock fighter and outfit lineup |
+| 01:28 | Closing title and credits |
+
+The full movie decodes without errors. Its audit records 5,881 video frames,
+48 kHz stereo audio, a -21.1 dB mean and a -2.1 dB peak. One-second contact sheets
+cover the whole cut; the framing review corrected the growing Mario taunt,
+caption/timer overlap and clipped edge of the costume lineup. These media checks
+do not replace the user's creative review.
+
+## Recorded sources
 
 - Continuous native video capture works through the complete rendered client
   and an encoder pipe. A 156-frame native menu-transition capture was inspected.
@@ -44,22 +80,25 @@ static blocking is a reference for filming.
   references deal 1% with base knockback 400 for the deliberately absurd gag.
 - `tools/record_intro_gameplay.py` records directed takes with normal physics
   and installed fighters. The closer gameplay takes are in
-  `.local/intro-production/gameplay-take-3`. A three-actor costume lineup records
-  in `gameplay-take-4`, after the shared-array import fix below. These are source
-  footage, not a finished cut.
+  `.local/intro-production/gameplay-take-3`. The final cut also uses take 7's
+  stock-camera KO and Falco hero shot, take 8's smoke/filter/Sing sequence, and
+  take 9's wider Mario taunt and four-actor costume lineup.
 - Actual hitbox editing and pose transfer are recorded in `workshop-take-5`.
   Its saved animation DAT matches the authored Mario Remix DAT exactly.
   `workshop-take-6/script-edit-2.mp4` records the fireball physics edit and a
   successful source check. Earlier rejected takes stay out of the film.
 - `tools/record_intro_menus.py` records the native first-fighter carousel and
   appearance setting in `menus-take-1`. `tools/record_intro_sharing.py` records
-  tile-to-player delivery and acceptance in `sharing-take-4`; its receipt proves
+  tile-to-player delivery and acceptance in `sharing-take-5`; its receipt proves
   the previously uninstalled edited Mario is installed on the second client.
   Both clients use a loopback lobby service and isolated data.
 - The original `/audio/howto.hps` is recorded through the native mixer as
   `.local/intro-production/howto-music.wav` (124.24 seconds, 32 kHz stereo).
-- Still required: final outfit selection/take, gag/composition, final cut and
-  end-to-end visual/audio review.
+- `tools/assemble_native_intro.py` reads the original caption script and edit
+  recipe, trims the recorded plates, adds the censor/title/credit graphics and
+  mixes the native effects with the soundtrack. `tools/audit_native_intro.py`
+  decodes the result, measures its audio and makes visual-review contact sheets.
+  Generated images, footage, music and fighter packages remain local.
 
 ## Issues found while filming
 
@@ -75,7 +114,9 @@ static blocking is a reference for filming.
 - Pipeline configurations were persisted before compilation completed. Failed
   shaders could then crash unrelated launches during cache warmup. Pending
   records now publish after successful compilation. Cache loading skips GX
-  configurations whose required vertex inputs are absent.
+  configurations whose required vertex inputs are absent. A read-only backup of
+  the existing user cache was tested in isolated film data: one invalid row was
+  skipped and the native client survived warmup. The original database was kept.
 - Accepting an already-cached fighter from a CSS button attempted preparation
   inside a GObj callback. The online session now queues acceptance for its pump,
   retaining the exact offer's ID, peer and serial. The cached gift installs
@@ -88,7 +129,7 @@ are source material for the local draft, rather than repository assets.
 
 | Asset | Credit | Source | Download SHA-256 |
 | --- | --- | --- | --- |
-| Tom Nook Falco — Island Shirt and Sweater | LarsBars / @RealLarsBars | [SSBM Nucleus](https://ssbmnucleus.net/post/17634/tom-nook-falco) | `9dfe246e6d01e37c229bed7524aaf349905b7b97a31ec8052dbb5299a5dd3725` |
+| Tom Nook Falco — Island Shirt | LarsBars / @RealLarsBars | [SSBM Nucleus](https://ssbmnucleus.net/post/17634/tom-nook-falco) | `9dfe246e6d01e37c229bed7524aaf349905b7b97a31ec8052dbb5299a5dd3725` |
 
 Rejected-source provenance: Rude Falco is knifeinsideasock3t_'s texture edit of a
 baggy-pants model, [post 17642](https://ssbmnucleus.net/post/17642/rude-falco),
@@ -141,7 +182,7 @@ The CLI exposes `audio-start <WAV path>` and `audio-stop` separately.
 - `appearance,0` / `appearance,1`: apply the same saved neutral/show setting
   used by Settings.
 - `particle,port,id,scale`: spawn a common-bank particle generator at an actor,
-  using a uniform scale. The film uses generator 202 for the transformation puff.
+  using a uniform scale. The film uses generator 90 for the transformation smoke.
 
 Ports are zero-based. These cues stage the actors; the game then runs their
 usual physics, collisions, animations and authored behavior.
@@ -165,3 +206,17 @@ The native control tool also accepts middle/right `ui-drag` gestures with
 Shift/Ctrl/Alt modifiers, and `ui-wheel x y steps`. They feed the existing
 Workshop mouse listeners without moving the desktop cursor. Positive wheel
 steps scroll up or zoom in.
+
+`ui-down x y` and `ui-up x y`, with optional `right` or `middle`, hold and release
+the native pointer independently. The sharing take sends intermediate `ui-move`
+positions over time, so the hand and fighter tile visibly travel to the recipient.
+
+Rebuild the cut and make review sheets:
+
+```powershell
+python melee/tools/assemble_native_intro.py --plates .local/intro-production --output .local/intro-production/final-cut-1
+python melee/tools/audit_native_intro.py .local/intro-production/final-cut-1/freak-melee-intro-draft.mp4
+```
+
+Keep the source takes and authoring projects for revision after the user's pass.
+The local lobby service and all filming clients are stopped at this boundary.

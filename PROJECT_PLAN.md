@@ -50,6 +50,13 @@ their own builds; their old "remaining" lists are not the current backlog.
   original fighter tweaks, retain the supplied captions, and vary the cuts and
   timing freely. Add reusable recording/authoring controls where needed. Pause
   the goal once the film is ready for nuanced critique.
+  The **98-second moving draft is ready for review** in
+  `.local/intro-production/final-cut-1/freak-melee-intro-draft.mp4`.
+  It preserves all seventeen supplied captions and uses actual Workshop edits,
+  gameplay, two-client fighter delivery, the appearance setting and Sing, and
+  a credited Tom Nook costume alongside stock-color Falcos. Native capture and
+  direction tools, source projects, takes and an editable cut recipe are kept
+  for revisions. Startup playback integration follows the film review.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
