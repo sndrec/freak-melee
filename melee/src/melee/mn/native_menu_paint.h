@@ -28,8 +28,13 @@ void nativeMenuPaint_Text(const char* text, float x, float y, float w, float h,
                           uint32_t color, NativeMenuFontFace face,
                           bool centered, bool outline);
 #endif
+typedef enum NativeMenuImageFit { NativeMenuImage_Stretch, NativeMenuImage_Cover } NativeMenuImageFit;
 void nativeMenuPaint_Image(void* pixels, unsigned width, unsigned height,
-                           float x, float y, float w, float h);
+                           float x, float y, float w, float h, NativeMenuImageFit fit
+#ifdef __cplusplus
+                           = NativeMenuImage_Stretch
+#endif
+                           );
 #ifdef __cplusplus
 }
 #endif

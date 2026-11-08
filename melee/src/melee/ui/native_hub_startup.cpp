@@ -303,7 +303,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
     case NativeStartup_Portrait: break;
     case NativeStartup_TileName: {
         if (!s.tile_name[0] || std::strspn(s.tile_name, " \t\r\n") == std::strlen(s.tile_name)) break;
-        if (!nativeFighterProject_SetTileName(s.draft, s.tile_name) || !nativeHubCatalog_PublishDraft(s.draft, false)) {
+        if (!nativeFighterProject_SetTileName(s.draft, s.tile_name) || !nativeHubCatalog_PublishDraft(s.draft, NativeHubPublish::Install)) {
             std::snprintf(s.error, sizeof(s.error), "Could not install your fighter. Your draft is saved in the Workshop."); break;
         }
         if (!nativeHubCatalog_Load()) {

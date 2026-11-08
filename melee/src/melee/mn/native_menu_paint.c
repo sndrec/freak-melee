@@ -143,7 +143,7 @@ void nativeMenuPaint_Text(const char* text, float x, float y, float w, float h,
     nativeMenuFont_Draw(face, text, x, -y, -5, w, h, rgba, centered, outline);
 }
 void nativeMenuPaint_Image(void* pixels, unsigned width, unsigned height,
-                           float x, float y, float w, float h)
+                           float x, float y, float w, float h, NativeMenuImageFit fit)
 {
     if (!pixels || !width || !height) {
         return;
@@ -153,10 +153,16 @@ void nativeMenuPaint_Image(void* pixels, unsigned width, unsigned height,
                  GX_CLAMP, GX_FALSE);
     GXLoadTexObj(&texture, GX_TEXMAP0);
     GXSetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+    float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
+    if (fit == NativeMenuImage_Cover && w > 0 && h > 0) {
+        float source = (float)width / height, target = w / h;
+        if (source > target) { u0 = (1-target/source)*.5f; u1 = 1-u0; }
+        else { v0 = (1-source/target)*.5f; v1 = 1-v0; }
+    }
     GXBegin(GX_QUADS, GX_VTXFMT0, 4);
-    vertex(x, y, 0, 0);
-    vertex(x + w, y, 1, 0);
-    vertex(x + w, y + h, 1, 1);
-    vertex(x, y + h, 0, 1);
+    vertex(x, y, u0, v0);
+    vertex(x + w, y, u1, v0);
+    vertex(x + w, y + h, u1, v1);
+    vertex(x, y + h, u0, v1);
     GXEnd();
 }

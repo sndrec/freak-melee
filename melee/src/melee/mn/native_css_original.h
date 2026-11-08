@@ -4,6 +4,7 @@
 #ifdef MELEE_NATIVE
 
 #include "native_css_layout.h"
+#include <melee/ft/forward.h>
 
 #include <melee/mn/forward.h>
 #include <sysdolphin/baselib/forward.h>
@@ -15,7 +16,7 @@ extern "C" {
 
 void nativeCssOriginal_RestoreBounds(CSSIcon* icons);
 void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
-                             HSD_CObj* camera);
+                             HSD_CObj* camera, HSD_JObj* background);
 void nativeCssOriginal_Tick(void);
 void nativeCssOriginal_Draw(HSD_GObj* object, int pass);
 void nativeCssOriginal_BeginAnimation(void);
@@ -29,6 +30,10 @@ bool nativeCssOriginal_UpdateTile(unsigned index, const NativeCssTile* tile);
 bool nativeCssOriginal_PreviewTile(unsigned index, const NativeCssTile* tile);
 // PreviewTile also accepts Layout()->count to append a tile without saving.
 bool nativeCssOriginal_CommitPreview(void);
+bool nativeCssOriginal_StockRoster(NativeCssLayout* result, FighterKind kinds[25]);
+bool nativeCssOriginal_ReplaceLayout(const NativeCssLayout* candidate);
+// Render the native CSS scene for an empty/stock-roster confirmation preview.
+bool nativeCssOriginal_DrawReference(bool filled);
 void nativeCssOriginal_CancelPreview(void);
 bool nativeCssOriginal_RemoveTile(unsigned index);
 bool nativeCssOriginal_AddStock(unsigned stock_index);

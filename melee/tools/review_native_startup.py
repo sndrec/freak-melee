@@ -96,7 +96,7 @@ def main():
         from PIL import Image
         image_path = client.data / 'content/startup-portrait.png'
         with Image.open(image_path) as image:
-            assert image.mode == 'RGBA' and image.size == (256, 256)
+            assert image.mode == 'RGBA' and image.size == (464, 304)
             assert image.getchannel('A').getextrema() == (0, 255)
         portraits = list((client.data / 'projects').rglob('portrait.png'))
         assert any(p.read_bytes() == image_path.read_bytes() for p in portraits)

@@ -1,8 +1,9 @@
-# Startup review: next implementation pass
+# Startup review: implementation and verification
 
 Updated: 2026-11-07. This list records the user's second wizard review.
-The goal is active. Work through these changes, then pause for another hands-on
-pass. Commit locally; do not push.
+The playable revision is implemented and the native checks pass. This is the
+pause point for the user's hands-on pass. Commit locally; do not push. The
+cinematic remains a separate storyboard discussion.
 
 ## First batch: implemented and checked
 
@@ -58,7 +59,7 @@ does not pass through the notice. It uses an isolated localhost HTTP fixture
 and no existing account data. Physical pre-click capture and adjustment still
 need the user's controller test.
 
-## Starter carousel: implementation in progress
+## Starter carousel
 
 Startup now shows a three-position carousel with the stock costumes and idle
 animations. It offers 24 starter families, leaving Kirby out. Popo and Nana
@@ -75,10 +76,9 @@ gameplay callbacks. The flat-colour presentation accepts a palette and depth;
 Game & Watch's values match PlGw.dat's black body, white outline and 0.01 depth.
 The disc models and textures remain unchanged.
 
-The carousel selection now feeds confirmation and portrait framing, described
-below. Shorthand stamp text, direct tile placement, the default-roster shortcut
-and final CSS control placement remain to implement. The native review checked
-preview framing and flat-character presentation; user acceptance remains open.
+The carousel selection feeds confirmation and portrait framing, described
+below. The later sections record shorthand text, direct placement and the
+default-roster shortcut. User acceptance of the presentation remains open.
 The intro remains a separate storyboard discussion after the playable flow.
 
 The 24-choice load/lifetime review is recorded in
@@ -144,7 +144,7 @@ captured RGBA PNG. Mouse-camera handling still needs a hands-on check.
 The final build after removing the old clone-finish entry point is recorded in
 `.local/startup-portrait-ui-build-4.log`; it completes successfully.
 
-## Tile label and placement: implementation in progress
+## Tile label and placement
 
 After portrait capture, the player writes a short tile name beside a large stamp
 preview. This name is saved separately from the fighter's full name, retained
@@ -174,10 +174,59 @@ the short name through build, package import, project reopen, identical rebuild
 and a full-title rename. It also runs per-member source validation. This checks
 authoring and transport; paired gameplay was not exercised by this review.
 
-The default-roster shortcut, native tile-frame presentation and final CSS
-control placement remain open. The goal remains active until the revision is
-ready for another user pass. Physical calibration and mouse-camera acceptance
-remain part of that hands-on pass.
+## Native tile presentation and default roster
+
+The original Mario CSS tile supplies the reusable outer frame. Its 684 border
+pixels are unchanged; the portrait and name interior are cleared for new
+content. The extracted name strip's dark red is used behind the user's angular
+glyphs. Two-line stock portraits are cropped above their baked names, including
+Game & Watch. Transparent portrait backgrounds remain transparent.
+The pixel comparison is recorded in
+`.local/native-css-art-reference/receipt.json`.
+
+Portrait framing, the short-name page, the Workshop and CSS share that tile
+presentation. The camera window matches its portrait area. Saved startup
+portraits are 464 by 304 pixels for a single-line name, or 464 by 248 for two
+lines. This replaces the earlier square presentation while preserving the
+general capture tool's square default. Ready/START, Workshop and Back are in
+the CSS footer, and the hub has a visible Character select return button.
+
+Workshop > Add Melee roster shows a confirmation with empty and full CSS
+previews rendered from the original menu models. Confirming builds 24 editable
+fighter families, excludes Kirby, and replaces the CSS with the original tile
+positions. Existing fighters stay installed and editable. Stock abbreviations
+such as D K and C. Falcon are separate tile names; full fighter names remain
+unchanged.
+
+The shortcut records its original package IDs. Repeating it reuses those
+fighters. If a default was edited and published, restoring defaults imports the
+original package as a separate editable fighter and keeps the edited one. A
+failed build leaves the previous CSS layout intact and retains any completed
+fighters in the Workshop.
+
+The combined wizard review passes six checks and records eleven screenshots in
+`.local/startup-final-ui-review-2/receipt.json`. It covers setup/resume, Gallery
+camera controls and input consumption, portrait export, short names, actual CSS
+placement/cancellation, completion and reopening from Settings. Portrait and
+final CSS captures were inspected. It skips physical controller measurement.
+
+The default-roster review passes four combined checks covering cancellation, all 24 source fighters, retaining
+the initial fighter, restoring an edited default and repeating without extra
+drafts or installed packages. These are menu/content checks; they do not play
+matches with each generated fighter. The receipt is
+`.local/default-roster-final-review/receipt.json`; the final build completes in
+`.local/startup-defaults-build-10.log`. The confirmation and final full-roster
+captures were inspected. The final screenshot also verifies that CSS status
+text clears the portrait row and the two stock abbreviations fit one line.
+
+A fresh-data launcher is available at
+`.local/startup-revision-playtest/Launch Startup Review.cmd`. It uses the current
+native build and separate user data, preserving the existing test profile and
+roster. It starts muted. A later launch resumes that launcher's own setup data.
+
+Physical pre-click calibration, mouse-camera feel and visual/usability
+acceptance remain for the user's hands-on pass. The intro remains deferred to
+the joint storyboard discussion.
 
 ## Screens and messages
 

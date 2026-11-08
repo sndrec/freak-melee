@@ -5,6 +5,7 @@
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
+#include <melee/mn/native_menu_tile.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -74,22 +75,7 @@ namespace {
              hover = nativeHub_Hover(x, y, 49, 49);
         nativeMenuPaint_Round(x - 1, y - 1, 51, 52, 3,
                              selected || hover ? gold : 0xBAB6BFFF);
-        nativeMenuPaint_Round(x + 1, y + 1, 47, 48, 2, 0x17151FFF);
-        char lines[2][128];
-        unsigned count = nativeMenuFont_LayoutTileName(f.tile_name, 45, 8, lines);
-        float name_y = 49 - (count == 2 ? 18 : 10);
-        if (f.pixels) {
-            nativeMenuPaint_Image(f.pixels, f.width, f.height, x + 2, y + 2, 45,
-                                 name_y - 2);
-        } else {
-            nativeMenuPaint_Text(f.title, x + 5, y + 12, 40, 13, muted,
-                                NativeMenuFont_MenuOption, true);
-        }
-        nativeMenuPaint_Rect(x + 2, y + name_y, 45, 49 - name_y, 0x111019EE);
-        for (unsigned line = 0; line < count; ++line) {
-            nativeMenuPaint_Text(lines[line], x + 2, y + name_y + 1 + line * 8,
-                                45, 8, 0xFFF4E9FF, NativeMenuFont_Tile, true);
-        }
+        nativeMenuTile_Draw(f.pixels, f.width, f.height, f.tile_name, x, y, 49, 49*56.f/64);
         nativeHub_Region("fighter", x, y, 49, 49, HubAction::Fighter,
                          int(index));
     }
@@ -146,6 +132,8 @@ namespace {
                          HubAction::EditLayout, 0, false, nativeHome_IsSelection());
         nativeHub_Button("local-practice", "Local practice", 282, 372, 100, 25,
                          HubAction::Practice);
+        nativeHub_Button("defaults-open", "Add Melee roster", 457, 372, 148, 25,
+                         HubAction::DefaultsOpen, 0, false, nativeHome_IsSelection());
         if (nativeHome_IsPractice()) nativeMenuPaint_Text(
             "Return to character select to edit fighters.", 179, 385, 420, 9, muted);
         NativeNetplayGiftStatus gift{};

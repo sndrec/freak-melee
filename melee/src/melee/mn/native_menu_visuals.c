@@ -1,4 +1,6 @@
 #include "native_menu_visuals.h"
+#include "native_menu_paint.h"
+#include "native_menu_tile.h"
 #ifdef MELEE_NATIVE
 #include <melee/ft/native_gx_image.h>
 #include <sysdolphin/baselib/cobj.h>
@@ -14,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { LABELS = 16, SPRITES = 128 };
+enum { LABELS = 16, SPRITES = 256 };
 typedef struct MenuLabel { char text[128]; HSD_JObj* anchor; Mtx inverse;
     float x,y,z,width,height; NativeMenuFontFace face; } MenuLabel;
 typedef struct MenuSprite { u8* pixels; u16 width,height; float x,y,w,h;
@@ -28,9 +30,9 @@ struct NativeMenuVisuals {
     MenuLabel labels[LABELS];
     MenuSprite sprites[SPRITES];
 };
-static void matrix(HSD_JObj* anchor, Mtx inverse)
+static void matrix(HSD_JObj* anchor, Mtx inverse, Mtx result)
 {
-    Mtx view, model, result;
+    Mtx view, model;
     HSD_JObjSetupMatrix(anchor);
     HSD_CObjGetViewingMtx(HSD_CObjGetCurrent(), view);
     C_MTXConcat(anchor->mtx,inverse,model);
@@ -43,7 +45,8 @@ static void draw(HSD_GObj* object,int pass)
     // Menu glyphs and PNG portraits use alpha blending. Draw in the XLU pass
     // after opaque and texture-edge menu geometry, using this scene's camera.
     if(pass!=2 || !HSD_CObjGetCurrent())return;
-    matrix(scene->root,scene->inverse);
+    Mtx view;
+    matrix(scene->root,scene->inverse,view);
     GXClearVtxDesc();
     GXSetVtxAttrFmt(GX_VTXFMT0,GX_VA_POS,GX_POS_XYZ,GX_F32,0);
     GXSetVtxDesc(GX_VA_POS,GX_DIRECT);
@@ -60,7 +63,7 @@ static void draw(HSD_GObj* object,int pass)
     GXSetBlendMode(GX_BM_BLEND,GX_BL_SRCALPHA,GX_BL_INVSRCALPHA,GX_LO_NOOP);
     GXSetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_GREATER,0);
     for(unsigned i=0;i<SPRITES;++i) {
-        const MenuSprite* p=&scene->sprites[i];if(!p->pixels||p->w<=0||p->h<=0)continue;
+        const MenuSprite* p=&scene->sprites[i];if(!p->pixels||p->w<=0||p->h<=0||p->face==NativeMenuFont_Tile)continue;
         GXTexObj texture;GXInitTexObj(&texture,p->pixels,p->width,p->height,GX_TF_RGBA8,GX_CLAMP,GX_CLAMP,GX_FALSE);
         GXLoadTexObj(&texture,GX_TEXMAP0);
         GXBegin(GX_QUADS,GX_VTXFMT0,4);
@@ -71,12 +74,12 @@ static void draw(HSD_GObj* object,int pass)
     }
     for(unsigned i=0;i<SPRITES;++i) {
         const MenuSprite* p=&scene->sprites[i];
-        if(!p->pixels||!p->title[0]||p->w<=0||p->h<=0)continue;
+        if(!p->pixels||!p->title[0]||p->w<=0||p->h<=0||p->face==NativeMenuFont_Tile)continue;
         char lines[2][128];
         unsigned line_count = nativeMenuFont_LayoutTileName(p->title,
             p->w*.94f, p->h*.16f, lines);
         float name_top = line_count == 2 ? .64f : .80f;
-        matrix(scene->root,scene->inverse);
+        matrix(scene->root,scene->inverse,view);
         GXSetTevColor(GX_TEVREG0,(GXColor){15,10,13,255});
         GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
         GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_ZERO,GX_CA_ZERO,GX_CA_A0);
@@ -91,9 +94,16 @@ static void draw(HSD_GObj* object,int pass)
                 0xF5EFEAFF,true,true);
         }
     }
+    matrix(scene->root,scene->inverse,view);
+    nativeMenuPaint_Begin(view);
+    for (unsigned i = 0; i < SPRITES; ++i) {
+        const MenuSprite* p = &scene->sprites[i];
+        if (p->pixels && p->face == NativeMenuFont_Tile)
+            nativeMenuTile_Draw(p->pixels,p->width,p->height,p->title,p->x,-p->y,p->w,p->h);
+    }
     for(unsigned i=0;i<scene->count;++i) {
         const MenuLabel* label=&scene->labels[i];
-        matrix(label->anchor,(float(*)[4])label->inverse);
+        matrix(label->anchor,(float(*)[4])label->inverse,view);
         nativeMenuFont_Draw(label->face,label->text,label->x,label->y,label->z,label->width,label->height,label->face==NativeMenuFont_ResultWinner?0xF5CC67FF:0xF5EFEAFF,true,true);
     }
     HSD_StateInvalidate(-1);HSD_StateInitTev();HSD_ClearVtxDesc();
@@ -102,6 +112,7 @@ static void destroy(void* data)
 {
     NativeMenuVisuals* scene=data;
     nativeMenuFont_Release();
+    nativeMenuTile_Release();
     nativeMenuVisuals_ClearSprites(scene);
     *scene->owner=NULL;free(scene);
 }
@@ -116,7 +127,7 @@ void nativeMenuVisuals_Begin(NativeMenuVisuals** owner,HSD_JObj* root,u8 gx_link
     scene->owner=owner;scene->root=root;HSD_JObjSetupMatrix(root);
     C_MTXInverse(root->mtx,scene->inverse);
     scene->gobj=GObj_Create(4,5,0x80);if(!scene->gobj){free(scene);return;}
-    *owner=scene;nativeMenuFont_Acquire();GObj_InitUserData(scene->gobj,0,destroy,scene);
+    *owner=scene;nativeMenuFont_Acquire();nativeMenuTile_Acquire();GObj_InitUserData(scene->gobj,0,destroy,scene);
     GObj_SetupGXLink(scene->gobj,draw,gx_link,0xFF);
 }
 void nativeMenuVisuals_Text(NativeMenuVisuals* scene,HSD_JObj* anchor,

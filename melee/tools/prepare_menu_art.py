@@ -99,7 +99,8 @@ def portraits(iso, source):
                 position += 32
         # Exclude the baked border and stock name. Clones draw their own names
         # using the user's angular glyph set, including after a rename.
-        yield int(number, 16), result.crop((3, 3, 61, 41))
+        bottom = 34 if kind.lower() in {'popo', 'nana', 'purin', 'gamewatch'} else 41
+        yield int(number, 16), result.crop((3, 3, 61, bottom)), result
 
 
 if __name__ == '__main__':
@@ -108,5 +109,11 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    for kind, image in portraits(args.iso, Path(__file__).resolve().parents[1]):
+    for kind, image, tile in portraits(args.iso, Path(__file__).resolve().parents[1]):
         image.save(args.output / f'stock-{kind}.png')
+        if kind == 0:
+            # Keep the original outer bevel and clipped corners pixel-for-pixel.
+            # Only the portrait/name interior is transparent in this reusable frame.
+            frame = tile.copy()
+            frame.paste((0, 0, 0, 0), (3, 3, 61, 53))
+            frame.save(args.output / 'tile-frame.png')

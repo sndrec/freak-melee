@@ -2,6 +2,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
 #include <melee/mn/native_menu_scene.h>
+#include <melee/mn/native_menu_tile.h>
 #include <sysdolphin/baselib/controller.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -16,6 +17,14 @@ namespace {
     NativePortraitCamera camera;
     char destination[560];
     bool dragging, waiting;
+
+    const char* title() { return nativeHubStartup.tile_name[0] ? nativeHubStartup.tile_name : hub.title; }
+    NativeMenuTilePortrait photo()
+    {
+        NativeMenuTilePortrait result;
+        nativeMenuTile_PortraitRect(title(), x, y, size, size*56/64, &result);
+        return result;
+    }
 
     bool active() { return nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait; }
     float axis(float value)
@@ -70,7 +79,9 @@ void nativeHubStartupPortrait_Save()
     }
     std::snprintf(destination, sizeof(destination), "%s/startup-portrait.png", folder);
     apply_camera();
-    waiting = nativeMenuPortraitCapture_Request(subjects, count, destination);
+    const auto picture = photo();
+    waiting = nativeMenuPortraitCapture_Request(subjects, count, destination, 464,
+        unsigned(std::lround(464*picture.height/picture.width)));
     if (!waiting) std::snprintf(nativeHubStartup.error, sizeof(nativeHubStartup.error), "Could not capture this portrait. Try again.");
 }
 
@@ -91,7 +102,8 @@ bool nativeHubStartupPortrait_Controller(const HSD_PadStatus& pad)
 {
     if (!active()) return false;
     if (waiting) return true;
-    const bool pan = (pad.button & PAD_BUTTON_A) && nativeHub_Hover(x, y, size, size);
+    const auto picture = photo();
+    const bool pan = (pad.button & PAD_BUTTON_A) && nativeHub_Hover(picture.x, picture.y, picture.width, picture.height);
     float dx = 0, dy = 0;
     if (pad.button & PAD_BUTTON_LEFT) dx = -1;
     if (pad.button & PAD_BUTTON_RIGHT) dx = 1;
@@ -118,6 +130,7 @@ bool nativeHubStartupPortrait_Controller(const HSD_PadStatus& pad)
 bool nativeHubStartupPortrait_Event(const SDL_Event* event)
 {
     if (!active()) { dragging = false; return false; }
+    const auto picture = photo();
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_MIDDLE) {
         dragging = false; return true;
     }
@@ -125,7 +138,7 @@ bool nativeHubStartupPortrait_Event(const SDL_Event* event)
     if (waiting) return event->type == SDL_EVENT_MOUSE_WHEEL ||
         (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_MIDDLE);
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_MIDDLE) {
-        dragging = nativeHub_Hover(x, y, size, size);
+        dragging = nativeHub_Hover(picture.x, picture.y, picture.width, picture.height);
         return dragging;
     }
     if (event->type == SDL_EVENT_MOUSE_MOTION && dragging) {
@@ -135,13 +148,13 @@ bool nativeHubStartupPortrait_Event(const SDL_Event* event)
         float pixels = std::max(.1f, std::min(width / 640.f, height / 480.f));
         float dx = event->motion.xrel / pixels, dy = event->motion.yrel / pixels;
         if (SDL_GetModState() & SDL_KMOD_SHIFT) {
-            camera.pan_x += 2 * dx / size; camera.pan_y -= 2 * dy / size;
+            camera.pan_x += 2 * dx / picture.height; camera.pan_y -= 2 * dy / picture.height;
         } else {
             camera.yaw -= dx * .012f; camera.pitch += dy * .012f;
         }
         constrain(); apply_camera(); return true;
     }
-    if (event->type == SDL_EVENT_MOUSE_WHEEL && nativeHub_Hover(x, y, size, size)) {
+    if (event->type == SDL_EVENT_MOUSE_WHEEL && nativeHub_Hover(picture.x, picture.y, picture.width, picture.height)) {
         camera.zoom *= std::pow(1.12f, event->wheel.y);
         constrain(); apply_camera(); return true;
     }
@@ -151,9 +164,9 @@ bool nativeHubStartupPortrait_Event(const SDL_Event* event)
 void nativeHubStartupPortrait_Render()
 {
     nativeMenuPaint_Text("Your fighter's portrait", 266, 96, 338, 26, gold, NativeMenuFont_MenuCaption);
-    nativeMenuPaint_Round(x - 2, y - 2, size + 4, size + 4, 4, 0xB9ADBD99);
-    nativeMenuPaint_Rect(x, y, size, size, 0x101018FF);
-    nativeMenuPortraitCapture_Preview(subjects, count, x, y, size);
+    nativeMenuTile_Draw(nullptr, 0, 0, title(), x, y, size, size*56/64);
+    const auto picture = photo();
+    nativeMenuPortraitCapture_Preview(subjects, count, picture.x, picture.y, picture.width, picture.height);
     Mtx canvas; Mtx44 projection; nativeMenuScene_View(false, false, canvas, projection);
     nativeMenuPaint_Begin(canvas);
     nativeMenuPaint_Text(hub.title, 362, 154, 238, 25, gold, NativeMenuFont_MenuCaption);

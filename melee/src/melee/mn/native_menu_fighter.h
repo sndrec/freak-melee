@@ -16,9 +16,9 @@ void nativeMenuFighter_Unload(unsigned slot);
 void nativeMenuFighter_UnloadAll(void);
 void nativeMenuFighter_Draw(unsigned slot, Mtx canvas, float x, float feet_y,
                             float height, float yaw, float frame);
-// Square, orthographic portrait view. Pan uses normalized view coordinates.
+// Orthographic portrait view with the output's aspect ratio. Pan uses view coordinates.
 void nativeMenuFighter_DrawCamera(unsigned slot, float yaw, float pitch, float zoom,
-                                  float pan_x, float pan_y, float frame);
+                                  float pan_x, float pan_y, float frame, float aspect);
 void nativeMenuFighter_Inspect(void);
 #ifdef __cplusplus
 }

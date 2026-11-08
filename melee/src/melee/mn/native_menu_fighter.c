@@ -375,7 +375,7 @@ void nativeMenuFighter_Draw(unsigned slot, Mtx canvas, float x, float feet_y,
 }
 
 void nativeMenuFighter_DrawCamera(unsigned slot, float yaw, float pitch, float zoom,
-                                  float pan_x, float pan_y, float frame)
+                                  float pan_x, float pan_y, float frame, float aspect)
 {
     if (slot >= NATIVE_MENU_FIGHTERS || !fighters[slot].root) return;
     MenuFighter* fighter = &fighters[slot];
@@ -393,13 +393,13 @@ void nativeMenuFighter_DrawCamera(unsigned slot, float yaw, float pitch, float z
         low.x = fminf(low.x, transformed.x); high.x = fmaxf(high.x, transformed.x);
         low.y = fminf(low.y, transformed.y); high.y = fmaxf(high.y, transformed.y);
     }
-    float scale = 1.8f * zoom / fmaxf(high.x-low.x, high.y-low.y);
+    float scale = 1.8f * zoom / fmaxf((high.x-low.x)/aspect, high.y-low.y);
     for (unsigned row = 0; row < 3; ++row) for (unsigned column = 0; column < 3; ++column)
         view[row][column] *= scale;
     Vec3 center = { fighter->center_x, fighter->low_y + fighter->height * .5f, fighter->center_z }, target;
     C_MTXMultVecSR(view, &center, &target);
     view[0][3] = pan_x - target.x; view[1][3] = pan_y - target.y; view[2][3] = -10 - target.z;
-    Mtx44 projection; C_MTXOrtho(projection, 1, -1, -1, 1, 1, 100);
+    Mtx44 projection; C_MTXOrtho(projection, 1, -1, -aspect, aspect, 1, 100);
     GXSetProjection(projection, GX_ORTHOGRAPHIC);
     render_fighter(fighter, view, frame);
 }

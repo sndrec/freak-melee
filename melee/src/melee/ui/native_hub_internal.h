@@ -84,7 +84,8 @@ enum class HubAction {
     OpenAccount, SendInvitation, JoinInvitation,
     Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry,
     StartupTriggerMaximum, StartupFighterMove, StartupConfirmFighter,
-    StartupPortraitReset, StartupPortraitSave, StartupTileName, StartupPlaceTile
+    StartupPortraitReset, StartupPortraitSave, StartupTileName, StartupPlaceTile,
+    DefaultsOpen, DefaultsConfirm, DefaultsCancel
 };
 struct HubRegion {
     float x, y, w, h;

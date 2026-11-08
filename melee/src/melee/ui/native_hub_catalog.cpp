@@ -143,7 +143,7 @@ static bool new_path(char path[512])
                                (unsigned long long) SDL_GetTicksNS());
     return length > 0 && length < 512;
 }
-bool nativeHubCatalog_PublishDraft(const char* path, bool place_on_css)
+bool nativeHubCatalog_PublishDraft(const char* path, NativeHubPublish policy, NativeContentId* published_id)
 {
     char png_path[560];
     std::snprintf(png_path, sizeof(png_path), "%s/portrait.png", path);
@@ -184,10 +184,12 @@ bool nativeHubCatalog_PublishDraft(const char* path, bool place_on_css)
     std::free(packet);
     nativeFighterFamilyProject_Close(&family);
     if (ok) {
+        if (published_id) *published_id = id;
         const NativeContentId zero{};
         if (std::memcmp(&replaced, &zero, sizeof(zero))) {
             nativeHome_ReplaceInstalledFighter(&replaced, &id);
         }
+        if (policy == NativeHubPublish::Batch) return true;
         nativeCssOriginal_ReloadInstalledFighters();
         const NativeCssLayout* layout = nativeCssOriginal_Layout();
         bool present = false;
@@ -198,7 +200,7 @@ bool nativeHubCatalog_PublishDraft(const char* path, bool place_on_css)
                 present = true;
             }
         }
-        if (place_on_css && !present) {
+        if (policy == NativeHubPublish::InstallAndPlace && !present) {
             nativeCssOriginal_AddInstalled(&id);
         }
         nativeShellCssOriginal_RefreshInstalledFighters();
@@ -259,7 +261,7 @@ bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512])
                                       &packet, &size) &&
               nativeFighterFamilyProject_CreateFromPackage(draft, title,
                                                            packet, size) &&
-              nativeHubCatalog_PublishDraft(draft, true);
+              nativeHubCatalog_PublishDraft(draft, NativeHubPublish::InstallAndPlace);
     std::free(packet);
     return ok;
 }
@@ -300,7 +302,7 @@ bool nativeHubCatalog_Rename(unsigned index, const char* title)
     {
         return false;
     }
-    if (nativeHubCatalog_PublishDraft(draft, false)) {
+    if (nativeHubCatalog_PublishDraft(draft, NativeHubPublish::Install)) {
         return true;
     }
     nativeFighterProject_Rename(draft, original.title);

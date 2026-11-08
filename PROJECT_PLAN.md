@@ -7,7 +7,7 @@ their own builds; their old "remaining" lists are not the current backlog.
 
 ## Current direction
 
-- Current task: build and review the [first-startup sequence](melee/docs/native_first_startup.md).
+- Current task: user review of the [first-startup sequence](melee/docs/native_first_startup.md).
   Profile info, optional account sign-in, guided controller center/range/trigger
   calibration, a live test and the first vanilla fighter clone use the native
   Melee menus. Guest online play stays available. Setup finishes on CSS. Pause
@@ -16,12 +16,16 @@ their own builds; their old "remaining" lists are not the current backlog.
   The user chose the original animated tournament setup backdrop after comparing
   [native scenery captures](melee/docs/native_menu_references.md). Startup uses
   sparse pages and varied layouts, aiming for the quiet feel of Smash 64's menus.
-  The user completed a first pass. Implement the [startup revision list](melee/docs/native_first_startup_revision.md):
+  The user's [startup revision list](melee/docs/native_first_startup_revision.md) is implemented:
   simpler and more varied pages, account notices, measured controller feedback,
   pre-click trigger limits, a 3D starter carousel, portrait capture and direct
   CSS placement. The default-roster shortcut creates editable clones, excluding
   Kirby for now. Build the playable flow first; storyboard the intro together
-  afterwards. Pause again when the revision is ready for the user's test.
+  afterwards. The final native checks pass; pause at this user-review boundary.
+  The roster shortcut replaces the CSS arrangement and keeps existing fighters
+  in the Workshop. It reuses its defaults on later runs and preserves edited
+  versions separately. Hardware calibration and the user's usability review
+  remain open.
 - **Glim** is ready for review in the Workshop and installed character catalog.
   The [fighter guide](characters/glim/README.md) covers its moves and rebuild
   recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
