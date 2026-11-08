@@ -8,6 +8,7 @@
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
+#include "native_hub_startup_portrait.h"
 #include "native_menu_portrait_capture.h"
 #include "native_shell_workshop.h"
 #include "native_shell_profiles.h"
@@ -595,11 +596,12 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::CreateClone:
         text_focus(nullptr, 0);
-        if (nativeHubCatalog_CreateStock(
-                static_cast<FighterKind>(hub.template_kind), hub.title, path))
+        if (nativeHubCatalog_CreateStockDraft(
+                static_cast<FighterKind>(hub.template_kind), hub.title, path) &&
+            nativeHubCatalog_PublishDraft(path, true))
         {
             reload_catalog();
-            if (!nativeHubStartup.active) nativeHub_ChangePage(NativeHubPage_Workshop);
+            nativeHub_ChangePage(NativeHubPage_Workshop);
             for (unsigned i = 0; i < nativeHubFighterCount; ++i) {
                 if (!std::strcmp(path, nativeHubFighters[i].draft)) {
                     hub.selected = int(i);
@@ -607,7 +609,6 @@ void nativeHub_Activate(HubAction action, int value)
             }
             nativeHub_Notice("Fighter added to your roster. Edit it or head "
                              "into practice.");
-            nativeHubStartup_Cloned();
         } else {
             reload_catalog();
             nativeHub_Notice("Could not finish cloning. Any completed draft "
@@ -1117,7 +1118,7 @@ extern "C" void nativeHub_Tick(void)
     }
     const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
                            nativeHubStartup.step <= NativeStartup_Triggers;
-    nativeMenuScene_Tick(!measuring);
+    nativeMenuScene_Tick(!measuring && !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
     if (pointer_mouse && !nativeMenuScene_Unproject(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
         hub.pointer_x = hub.pointer_y = -100;
     // The hub consumes the same already-normalized sample as original menus.
@@ -1129,7 +1130,8 @@ extern "C" void nativeHub_Tick(void)
             continue;
         }
         if (nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
-            nativeHubStartup.step <= NativeStartup_Test && port != nativeHubStartup.port) continue;
+            nativeHubStartup.step <= NativeStartup_Portrait && port != nativeHubStartup.port) continue;
+        if (nativeHubStartupPortrait_Controller(pad)) continue;
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
@@ -1392,6 +1394,10 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         }
         return;
     }
+    if (event->type == SDL_EVENT_MOUSE_MOTION || event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+        nativeHub_MovePointer(int(event->type == SDL_EVENT_MOUSE_MOTION ? event->motion.x : event->button.x),
+                              int(event->type == SDL_EVENT_MOUSE_MOTION ? event->motion.y : event->button.y));
+    if (nativeHubStartupPortrait_Event(event)) return;
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
         nativeHub_MovePointer(int(event->motion.x), int(event->motion.y));
     }
@@ -1481,6 +1487,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
+    if (!std::strcmp(id, "startup-camera")) { nativeHubStartupPortrait_Inspect(); return; }
     if (!std::strcmp(id, "startup-portrait-save")) { nativeHubStartupRoster_Capture(); return; }
     if (!std::strcmp(id, "startup-portrait")) { nativeMenuPortraitCapture_Inspect(); return; }
     if (!std::strcmp(id, "hub-pointer")) {

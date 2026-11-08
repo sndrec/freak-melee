@@ -1,5 +1,7 @@
 #include "native_hub_startup.h"
 #include "native_hub_account.h"
+#include "native_hub_startup_roster.h"
+#include "native_hub_startup_portrait.h"
 #include <melee/gm/native_profile_input.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -112,7 +114,8 @@ void nativeHubStartup_RenderFrame()
         nativeMenuPaint_Round(header_x + 65 + i * 18, 73, 5, 5, 2.5f, i == group ? gold : 0x655E7AFF);
     if (s.step != NativeStartup_Welcome && s.step != NativeStartup_Done)
         nativeHub_Button("setup-back", "< Back", s.step == NativeStartup_Clone ? 40 : 124,
-            s.step == NativeStartup_Clone ? 426 : 402, 90, 28, HubAction::StartupBack);
+            s.step >= NativeStartup_Clone ? 426 : 402, 90, 28, HubAction::StartupBack, 0, false,
+            s.step != NativeStartup_Portrait || !nativeHubStartupPortrait_Busy());
     if (s.step == NativeStartup_Account) {
         const auto& account = nativeHubAccount_View();
         nativeHub_Button("setup-next", account.signed_in ? "Continue" : "Continue as guest",
@@ -122,7 +125,7 @@ void nativeHubStartup_RenderFrame()
         nativeHub_Button("setup-next", "Use my roster", 154, 426, 170, 28, HubAction::StartupNext);
     if (s.step != NativeStartup_Welcome) {
         const char* status = s.error[0] ? s.error : SDL_GetTicks() < hub.notice_until ? hub.notice : "";
-        line(status, s.step == NativeStartup_Clone ? 467 : 449, 9, s.error[0] ? 0xFFAE92FF : muted);
+        line(status, s.step >= NativeStartup_Clone ? 467 : 449, 9, s.error[0] ? 0xFFAE92FF : muted);
     }
 }
 void nativeHubStartup_Render()
@@ -198,6 +201,8 @@ void nativeHubStartup_Render()
         line("Use the Workshop to change moves, animations and models.", 266, 10, muted);
         next("Character select");
         break;
+    case NativeStartup_ConfirmFighter: nativeHubStartupRoster_Confirm(); break;
+    case NativeStartup_Portrait: nativeHubStartupPortrait_Render(); break;
     default: break;
     }
 }
