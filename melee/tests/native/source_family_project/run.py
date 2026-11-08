@@ -49,7 +49,7 @@ def main():
     # canonical byte extents while changing only the second member's script.
     packet = bytearray((cache / 'cache' / (ids[1] + '.fmc')).read_bytes())
     portrait_size = int.from_bytes(packet[8:12], 'little')
-    cursor = 208 + portrait_size
+    cursor = 208 + portrait_size + int.from_bytes(packet[12:16], 'little')
     script_offset = script_bytes = 0
     for member in range(2):
         directory = 80 + member * 64

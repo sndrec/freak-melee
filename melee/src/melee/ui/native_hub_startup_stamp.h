@@ -1,0 +1,18 @@
+#pragma once
+#include <Runtime/platform.h>
+#include <dolphin/mtx.h>
+bool nativeHubStartupStamp_Load();
+void nativeHubStartupStamp_Unload();
+void nativeHubStartupStamp_RenderName();
+bool nativeHubStartupStamp_BeginPlacement();
+void nativeHubStartupStamp_Move();
+bool nativeHubStartupStamp_Place();
+void nativeHubStartupStamp_CancelPlacement();
+#ifdef __cplusplus
+extern "C" {
+#endif
+void nativeHubStartupStamp_DrawCss(Mtx view);
+#ifdef __cplusplus
+}
+#endif
+void nativeHubStartupStamp_Inspect();

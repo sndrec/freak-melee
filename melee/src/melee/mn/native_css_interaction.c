@@ -21,6 +21,13 @@
 #include <string.h>
 #include <stdio.h>
 
+void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass)
+{
+    // Hub pages own their hand; the underlying CSS keeps its hand/token state.
+    if (!nativeHub_IsVisible())
+        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
+}
+
 static struct {
     CSSData* css;
     CSSDoorsData* doors;

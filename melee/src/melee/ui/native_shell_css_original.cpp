@@ -153,7 +153,7 @@ void load_portraits()
         if (valid) {
             InstalledPortrait portrait{};
             portrait.id = ids[index];
-            portrait.title = metadata.title;
+            portrait.title = metadata.tile_name[0] ? metadata.tile_name : metadata.title;
             if (decode_portrait(data.portrait_png, data.portrait_size,
                                 portrait)) {
                 portrait.png.assign(data.portrait_png,data.portrait_png+data.portrait_size);

@@ -357,7 +357,8 @@ bool nativeFighterFamilyProject_CreateFromPackage(
         if (!join_path(member_path, staging, i == 0 ? "main" : "partner") ||
             !nativeFighterProject_CreateFromMember(member_path, title,
                 &metadata.members[i], &data.members[i], data.portrait_png,
-                data.portrait_size)) return false;
+                data.portrait_size) ||
+            (i == 0 && !nativeFighterProject_SetTileName(member_path, metadata.tile_name))) return false;
     }
     if (!publish_primary_files(staging)) return false;
     return publish(destination, staging, metadata.mode, metadata.member_count,
@@ -379,6 +380,7 @@ bool nativeFighterFamilyProject_Build(const NativeFighterFamilyProject* project,
     NativeFighterPackage metadata = {.mode=project->mode, .member_count=(uint8_t)project->member_count};
     NativeFighterPackageData data = {.portrait_png=portrait_png, .portrait_size=portrait_size};
     memcpy(metadata.title, project->members[0].title, sizeof(metadata.title));
+    memcpy(metadata.tile_name, project->members[0].tile_name, sizeof(metadata.tile_name));
     bool valid = true;
     for (unsigned m = 0; valid && m < project->member_count; ++m) {
         const NativeFighterProject* member = &project->members[m];

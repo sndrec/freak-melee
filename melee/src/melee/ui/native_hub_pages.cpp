@@ -76,7 +76,7 @@ namespace {
                              selected || hover ? gold : 0xBAB6BFFF);
         nativeMenuPaint_Round(x + 1, y + 1, 47, 48, 2, 0x17151FFF);
         char lines[2][128];
-        unsigned count = nativeMenuFont_LayoutTileName(f.title, 45, 8, lines);
+        unsigned count = nativeMenuFont_LayoutTileName(f.tile_name, 45, 8, lines);
         float name_y = 49 - (count == 2 ? 18 : 10);
         if (f.pixels) {
             nativeMenuPaint_Image(f.pixels, f.width, f.height, x + 2, y + 2, 45,

@@ -75,6 +75,7 @@ bool nativeHubCatalog_Load(void)
             f.id = ids[i];
             f.installed = true;
             std::snprintf(f.title, sizeof(f.title), "%s", meta.title);
+            std::snprintf(f.tile_name, sizeof(f.tile_name), "%s", meta.tile_name[0] ? meta.tile_name : meta.title);
             f.pixels = nativeGxImage_Decode(data.portrait_png,
                                             unsigned(data.portrait_size),
                                             &f.width, &f.height);
@@ -114,6 +115,9 @@ bool nativeHubCatalog_Load(void)
             entry = &nativeHubFighters[nativeHubFighterCount++];
             std::snprintf(entry->title, sizeof(entry->title), "%s",
                           drafts[i].title);
+            NativeFighterProjectInfo info{};
+            if (nativeFighterProject_ReadInfo(drafts[i].path, &info))
+                std::snprintf(entry->tile_name, sizeof(entry->tile_name), "%s", info.tile_name[0] ? info.tile_name : info.title);
             std::snprintf(path, sizeof(path), "%s/portrait.png",
                           drafts[i].path);
             unsigned char* png = nullptr;

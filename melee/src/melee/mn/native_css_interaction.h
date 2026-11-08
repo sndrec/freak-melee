@@ -11,6 +11,7 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
                                 CSSIcon* icons, HSD_JObj* menu,
                                 const StaticModelDesc* source);
 void nativeCssInteraction_End(void);
+void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass);
 // Consumes native cookie input after the stock menu moves its hand.
 // Other controls (CPU slots, costumes and sliders) keep their existing input.
 bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* trigger);

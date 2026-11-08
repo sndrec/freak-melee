@@ -427,10 +427,20 @@ bool nativeFighterProject_ReadInfo(const char* path,NativeFighterProjectInfo* in
     if(!read_asset(path,"assets.fma",&record,&record_bytes))return false;
     bool decoded=nativeSourceAssets_Read(record,record_bytes,&candidate.facts,&diagnostic);free(record);if(!decoded)return false;
     uint8_t* text=NULL;size_t size=0;
-    if(!read_asset(path,"project.txt",&text,&size)||!size||size>=160||text[size-1]!='\n'||memchr(text,0,size)){free(text);return false;}
-    char manifest[160];memcpy(manifest,text,size);manifest[size]=0;free(text);
+    if(!read_asset(path,"project.txt",&text,&size)||!size||size>=256||text[size-1]!='\n'||memchr(text,0,size)){free(text);return false;}
+    char manifest[256];memcpy(manifest,text,size);manifest[size]=0;free(text);
     if(strncmp(manifest,"title=",6))return false;char* title_end=strchr(manifest,'\n');if(!title_end)return false;*title_end=0;
-    char* hint=title_end+1;if(strncmp(hint,"template=",9))return false;hint+=9;char* hint_end=strchr(hint,'\n');if(!hint_end||hint_end[1])return false;*hint_end=0;
+    char* hint=title_end+1;if(strncmp(hint,"template=",9))return false;hint+=9;char* hint_end=strchr(hint,'\n');if(!hint_end)return false;*hint_end=0;
+    char* tile = hint_end + 1;
+    if (*tile) {
+        if (strncmp(tile, "tile_name=", 10)) return false;
+        tile += 10;
+        char* end = strchr(tile, '\n');
+        if (!end || end[1]) return false;
+        *end = 0;
+        if (!title_valid(tile) || strchr(tile, 127)) return false;
+        strcpy(candidate.tile_name, tile);
+    }
     if(!title_valid(manifest+6)||!template_key_valid(hint))return false;
     size_t fighter_size,animation_size,costume_size;
     if(!asset_size(path,"fighter.dat",&fighter_size)||!asset_size(path,"animation.dat",&animation_size)||!asset_size(path,"costume.dat",&costume_size)||
@@ -455,6 +465,7 @@ bool nativeFighterProject_Open(const char* path, NativeFighterProject* project)
     project->action_count = info.action_count;
     project->demo_count = info.demo_count;
     strcpy(project->title, info.title);
+    strcpy(project->tile_name, info.tile_name);
     strcpy(project->template_key, info.template_key);
     project->facts=info.facts;
     bool ok = read_asset(path, "assets.fma", &project->asset_record, &project->asset_record_size) && read_asset(path, "fighter.dat", &project->fighter_dat,
@@ -592,17 +603,33 @@ static bool save_asset_with_previous(const char* path, const char* name,
     return saved;
 }
 
+static bool save_manifest(const char* path, const NativeFighterProjectInfo* info)
+{
+    char manifest[256];
+    int size = snprintf(manifest, sizeof(manifest), "title=%s\ntemplate=%s\n%s%s%s",
+        info->title, info->template_key, info->tile_name[0] ? "tile_name=" : "",
+        info->tile_name, info->tile_name[0] ? "\n" : "");
+    return size > 0 && size < sizeof(manifest) &&
+        save_asset_with_previous(path, "project.txt", manifest, (size_t)size);
+}
+
 bool nativeFighterProject_Rename(const char* path, const char* title)
 {
     NativeFighterProjectInfo info;
     if (path == NULL || title == NULL || !title_valid(title) ||
         !nativeFighterProject_ReadInfo(path, &info))
         return false;
-    char manifest[160];
-    int size = snprintf(manifest, sizeof(manifest), "title=%s\ntemplate=%s\n",
-                        title, info.template_key);
-    return size > 0 && size < sizeof(manifest) &&
-        save_asset_with_previous(path, "project.txt", manifest, (size_t)size);
+    strcpy(info.title, title);
+    return save_manifest(path, &info);
+}
+
+bool nativeFighterProject_SetTileName(const char* path, const char* tile_name)
+{
+    NativeFighterProjectInfo info;
+    if (!path || !tile_name || (*tile_name && !title_valid(tile_name)) || strchr(tile_name, 127) ||
+        !nativeFighterProject_ReadInfo(path, &info)) return false;
+    strcpy(info.tile_name, tile_name);
+    return save_manifest(path, &info);
 }
 
 bool nativeFighterProject_Save(const char* path,
