@@ -2,6 +2,7 @@
 #include <aurora/main.h>
 #include <aurora/dvd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sysdolphin/baselib/audio_output.h>
 #include <string.h>
 
@@ -145,7 +146,9 @@ int main(int argc, char** argv)
         aurora_dvd_close();
         return 1;
     }
+    const char* render_cache = getenv("FREAK_MELEE_RENDER_CACHE");
     AuroraConfig config = { .appName = "Freak Melee",
+        .cachePath = render_cache && *render_cache ? render_cache : NULL,
         .windowWidth = 1440, .windowHeight = 810,
         .vsync = !nativeMatchLaunch_Fast(),
         .hideWindow = nativeMatchLaunch_Hidden(),

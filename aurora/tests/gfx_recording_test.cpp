@@ -138,9 +138,9 @@ TEST_F(GfxRecordingTest, RepeatedUncopiedCreatesDiscardEarlierPasses) {
 TEST_F(GfxRecordingTest, PublicCreatePassRejectsExistingOffscreenPass) {
   seed(320, 180);
   seed(160, 90);
-  ASSERT_TRUE(create_pass(320, 180));
+  ASSERT_TRUE(create_pass(320, 180, false));
 
-  EXPECT_FALSE(create_pass(160, 90));
+  EXPECT_FALSE(create_pass(160, 90, false));
 
   ResolvedTargets ignored;
   EXPECT_TRUE(resolve_pass({.color = false, .depth = false}, ignored));

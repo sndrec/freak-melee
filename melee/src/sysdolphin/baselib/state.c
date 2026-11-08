@@ -26,6 +26,10 @@ static int state_logic_op;
 static u8 state_z_enable;
 static int state_z_func;
 static u8 state_z_update;
+#ifdef MELEE_NATIVE
+static bool alpha_write_override;
+void HSD_StateSetAlphaWriteOverride(bool enabled) { alpha_write_override = enabled; }
+#endif
 static int state_alpha_comp0;
 static u8 state_alpha_ref0;
 static int state_alpha_op;
@@ -384,6 +388,9 @@ void HSD_StateSetColorUpdate(int arg0)
 
 void HSD_StateSetAlphaUpdate(int arg0)
 {
+#ifdef MELEE_NATIVE
+    if (alpha_write_override) arg0 = 1;
+#endif
     arg0 = arg0 ? GX_TRUE : GX_FALSE;
     if (state_alpha_update != arg0) {
 #ifdef MELEE_NATIVE

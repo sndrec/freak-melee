@@ -177,6 +177,11 @@ int main(void)
             near(output[i].y,owner.mtx[1][1]*local[1]);near(output[i].z,local[2]);
         }
         Vec3 a=output[0],b=output[1],c=output[2];
+        Vec3 low,high;
+        check(nativeModelView_MeshBounds(&owner,&mesh,&low,&high));
+        near(low.x,fminf(a.x,fminf(b.x,c.x))); near(high.x,fmaxf(a.x,fmaxf(b.x,c.x)));
+        near(low.y,fminf(a.y,fminf(b.y,c.y))); near(high.y,fmaxf(a.y,fmaxf(b.y,c.y)));
+        near(low.z,fminf(a.z,fminf(b.z,c.z))); near(high.z,fmaxf(a.z,fmaxf(b.z,c.z)));
         const Vec3 u={b.x-a.x,b.y-a.y,b.z-a.z},v={c.x-a.x,c.y-a.y,c.z-a.z};
         const float direction[3]={u.z*v.y-u.y*v.z,u.x*v.z-u.z*v.x,u.y*v.x-u.x*v.y};
         const float origin[3]={(a.x+b.x+c.x)/3-direction[0],(a.y+b.y+c.y)/3-direction[1],

@@ -1,5 +1,6 @@
 #include "native_hub_startup_roster.h"
 #include "native_hub_startup.h"
+#include "native_menu_portrait_capture.h"
 #include <melee/mn/native_menu_fighter.h>
 #include <melee/mn/native_menu_scene.h>
 #include <SDL3/SDL_timer.h>
@@ -66,7 +67,7 @@ namespace {
             for (unsigned group = 0; group < 11; ++group) variants[group] = starters[target].visible_groups & (1u << group) ? 0 : -1;
             cache[slot].loaded = nativeMenuFighter_Load(slot, starters[target].kind, variants);
             if (starters[target].kind == Ft_Kind_GameWatch && cache[slot].loaded)
-                nativeMenuFighter_SetPalette(slot, 0x000000FF, 0xFFFFFF80, .01f);
+                nativeMenuFighter_SetFlatStyle(slot, 0x000000FF, 0xFFFFFF80, .01f, 1.57079633f);
             cache[slot].companion = starters[target].kind == Ft_Kind_Popo && nativeMenuFighter_Load(slot + 3, Ft_Kind_Nana, variants);
         }
     }
@@ -109,8 +110,10 @@ void nativeHubStartupRoster_Render()
         float x = 320 + position * 178, height = 95 + weight * 60;
         bool pair = index >= 0 && starters[index].kind == Ft_Kind_Popo;
         if (slot >= 0 && cache[slot].loaded) {
-            nativeMenuFighter_Draw(slot, canvas, x - (pair ? 23 : 0), 322, height, -.35f - position * .55f, frame);
-            if (cache[slot].companion) nativeMenuFighter_Draw(slot + 3, canvas, x + 23, 322, height, .35f - position * .55f, frame);
+            nativeMenuFighter_Draw(slot, canvas, x - (pair ? height * .23f : 0), 322,
+                height * (pair ? .84f : 1), -.35f - position * .55f, frame);
+            if (cache[slot].companion) nativeMenuFighter_Draw(slot + 3, canvas, x + height * .23f, 322,
+                height * .84f, .35f - position * .55f, frame);
         }
         nativeMenuPaint_Begin(canvas);
         char id[40]; std::snprintf(id, sizeof(id), "setup-fighter-%d", starters[index].kind);
@@ -135,4 +138,23 @@ void nativeHubStartupRoster_Inspect()
     std::fprintf(stderr, "[hub-inspect] startup-roster count=%d selected=%d kind=%u name=%s\n",
         count, current, starters[current].kind, nativeFighterProject_StockBaseName(starters[current].kind));
     nativeMenuFighter_Inspect();
+}
+
+void nativeHubStartupRoster_Capture()
+{
+    char root[512], path[560];
+    const char* folder = nativeHubCatalog_Root(root);
+    int slot = slot_for(current);
+    bool ok = nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Clone && folder && slot >= 0;
+    if (ok) {
+        std::snprintf(path, sizeof(path), "%s/starter-portrait.png", folder);
+        NativePortraitSubject subjects[2] = {{unsigned(slot)}, {unsigned(slot + 3)}};
+        unsigned count = cache[slot].companion ? 2 : 1;
+        if (count == 2) {
+            subjects[0].camera.pan_x = -.37f; subjects[1].camera.pan_x = .37f;
+            subjects[0].camera.zoom = subjects[1].camera.zoom = .65f;
+        }
+        ok = nativeMenuPortraitCapture_Request(subjects, count, path);
+    }
+    std::fprintf(stderr, "[hub-inspect] portrait-request accepted=%d\n", ok);
 }

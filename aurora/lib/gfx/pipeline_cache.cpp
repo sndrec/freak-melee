@@ -1,4 +1,5 @@
 #include "pipeline_cache.hpp"
+#include "recording.hpp"
 
 #include "clear.hpp"
 #include "resources.hpp"
@@ -1113,7 +1114,8 @@ PipelineRef find_pipeline(ShaderType type, const clear::PipelineConfig& config, 
 
 template <>
 PipelineRef find_pipeline(ShaderType type, const gx::PipelineConfig& config, NewPipelineCallback&& cb) {
-  return find_pipeline_impl(type, config, std::move(cb));
+  return find_pipeline_impl(type, config, std::move(cb),
+      detail::pass_waits_for_pipelines() ? PipelinePriority::Blocking : PipelinePriority::Normal);
 }
 
 #ifdef AURORA_ENABLE_RMLUI

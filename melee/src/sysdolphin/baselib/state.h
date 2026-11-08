@@ -33,6 +33,10 @@ typedef struct HSD_Chan {
 } HSD_Chan;
 
 void HSD_SetupChannelMode(u32 arg0);
+#ifdef MELEE_NATIVE
+// Offscreen authoring captures retain material opacity in their alpha channel.
+void HSD_StateSetAlphaWriteOverride(bool enabled);
+#endif
 void HSD_SetupPEMode(u32 flags, HSD_PEDesc* pe);
 void HSD_SetupRenderModeWithCustomPE(u32 rendermode, HSD_PEDesc* pe);
 void HSD_SetupRenderMode(u32);

@@ -4,6 +4,8 @@ add_library(aurora_gx STATIC
         lib/gfx/encoding.cpp
         lib/gfx/frame.cpp
         lib/gfx/screenshot.cpp
+        lib/gfx/png_writer.cpp
+        lib/gfx/image_export.cpp
         lib/gfx/pipeline_cache.cpp
         lib/gfx/recording.cpp
         lib/gfx/render_worker.cpp
