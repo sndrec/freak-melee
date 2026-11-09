@@ -853,6 +853,10 @@ void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origi
         nativeHub_Notice("Return home to edit a fighter.");
         return;
     }
+    if (!nativeHome_CanOpenWorkshop()) {
+        nativeHub_Notice("Return to character select outside Quick Play to edit a fighter.");
+        return;
+    }
     if (opened && !confirm_discard()) return;
     nativeShellProfiles_Close();
     nativeShellRules_Close();
@@ -921,10 +925,19 @@ void nativeShellWorkshop_Update()
 {
     if (opened && !testing) nativeShellWorkshopEditor_Update();
     if (opened && project_loaded) {
-        if (preview_loading && nativeHome_IsPractice() && !nativeHome_PracticeTransitioning()) {
+        if (preview_loading && !nativeHome_PracticeTransitioning()) {
             preview_loading = false;
-            status("workshop-editor-status", testing
-                ? "Live practice ready." : "Draft preview ready.");
+            if (nativeHome_IsPractice()) {
+                status("workshop-editor-status", testing
+                    ? "Live practice ready." : "Draft preview ready.");
+            } else {
+                testing = false;
+                document->GetElementById("workshop-panel")->SetClass("testing", false);
+                document->GetElementById("workshop-inspector")
+                    ->SetProperty("display", package_open ? "block" : "none");
+                nativeShellWorkshopEditor_SetTesting(false);
+                status("workshop-editor-status", "Could not load the draft preview.");
+            }
         }
         static int last_practice = -1;
         const int practice = nativeHome_IsPractice() ? 1 : 0;

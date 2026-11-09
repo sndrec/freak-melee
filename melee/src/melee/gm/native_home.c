@@ -79,7 +79,6 @@ static struct {
     bool preview_live_test;
     bool preview_restart;
     bool preview_transitioning;
-    bool authoring_transitioning;
     unsigned preview_port;
     unsigned workshop_member;
     Fighter_GObj* workshop_pose_gobj;
@@ -111,12 +110,6 @@ static struct {
     float workshop_camera_distance;
     NativeContentId preview_candidate;
     NativeContentId preview_previous_candidate;
-    NativeContentId preview_original_package;
-    NativeContentId preview_original_costume;
-    NativeContentId preview_original_costume_fighter;
-    uint8_t preview_original_costume_character;
-    uint8_t preview_original_costume_color;
-    PlayerInitData preview_original_player;
     uint8_t result_local_ports;
     uint8_t result_local_seats[GM_MAX_PLAYERS];
     uint8_t physical_ports[GM_MAX_PLAYERS];
@@ -218,16 +211,7 @@ void nativeHome_ReplaceInstalledFighter(const NativeContentId* previous,
             home.costume_fighters[port] = (NativeContentId){ 0 };
         }
     }
-    if (memcmp(&home.preview_original_package, previous,
-               sizeof(*previous)) == 0) {
-        home.preview_original_package = *next;
-        home.preview_original_costume = (NativeContentId){ 0 };
-        home.preview_original_costume_fighter = (NativeContentId){ 0 };
-    }
-    if (memcmp(&home.preview_candidate, previous,
-               sizeof(*previous)) == 0) home.preview_candidate = *next;
-    if (memcmp(&home.preview_previous_candidate, previous,
-               sizeof(*previous)) == 0) home.preview_previous_candidate = *next;
+
 }
 
 const NativeContentId* nativeHome_CostumePackage(unsigned port)
@@ -1283,53 +1267,44 @@ void nativeHome_SetAuthoring(bool active)
 
 bool nativeHome_PracticeTransitioning(void)
 {
-    return home.preview_transitioning || home.authoring_transitioning;
+    return home.preview_transitioning;
 }
 
-bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool live_test)
+static bool workshop_session_available(void)
+{
+    const NativeLobbySessionState state = nativeOnlineSession_State();
+    return state == NativeLobbySessionState_Disconnected ||
+           (state == NativeLobbySessionState_Waiting &&
+            !nativeOnlineSession_Quick());
+}
+
+bool nativeHome_CanOpenWorkshop(void)
+{
+    // An idle lobby's CSS can suspend its readiness while editing. Ordinary
+    // online practice may already be ready for the host to start a match.
+    return !home.preview_transitioning && workshop_session_available() &&
+           ((nativeHome_IsSelection() && home.css != NULL) ||
+            (nativeHome_IsPractice() &&
+             (home.preview_active ||
+              nativeOnlineSession_State() ==
+                  NativeLobbySessionState_Disconnected)));
+}
+
+bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter,
+                                         bool live_test)
 {
     if (fighter == NULL || !has_package_id(fighter) || !home.authoring ||
-        home.css == NULL || !nativeHome_IsSelection() ||
-        nativeHome_PracticeTransitioning() ||
-        nativeOnlineSession_State() != NativeLobbySessionState_Disconnected)
+        !nativeHome_IsSelection() || !nativeHome_CanOpenWorkshop()) {
         return false;
-    unsigned preview_port = GM_MAX_PLAYERS;
-    for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
-        const PlayerInitData* player = &home.css->vs.start.players[port];
-        if (preview_port == GM_MAX_PLAYERS &&
-            player->slot_type == Gm_PKind_Human) preview_port = port;
     }
-    if (preview_port == GM_MAX_PLAYERS) preview_port = 0;
-    for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
-        if (port == preview_port) continue;
-        const PlayerInitData* player = &home.css->vs.start.players[port];
-        if ((player->slot_type == Gm_PKind_Human ||
-             player->slot_type == Gm_PKind_Cpu) &&
-            player->ckind == ChKind_None &&
-            !has_package_id(&home.fighter_packages[port])) return false;
-    }
-    home.preview_port = preview_port;
-    home.preview_original_player =
-        home.css->vs.start.players[preview_port];
-    home.preview_original_package = home.fighter_packages[preview_port];
-    home.preview_original_costume = home.costume_packages[preview_port];
-    home.preview_original_costume_fighter =
-        home.costume_fighters[preview_port];
-    home.preview_original_costume_character =
-        home.costume_characters[preview_port];
-    home.preview_original_costume_color = home.costume_colors[preview_port];
+    memcpy(home.local_players, home.css->vs.start.players,
+           sizeof(home.local_players));
+    home.have_local_players = true;
     home.preview_candidate = *fighter;
     home.preview_previous_candidate = (NativeContentId){ 0 };
     home.preview_active = true;
     home.preview_live_test = live_test;
-    home.preview_restart = false;
     home.preview_transitioning = true;
-    home.fighter_packages[preview_port] = *fighter;
-    home.costume_packages[preview_port] = (NativeContentId){ 0 };
-    home.css->vs.start.players[preview_port].slot_type = Gm_PKind_Human;
-    home.css->vs.start.players[preview_port].ckind = CKind_Mario;
-    home.authoring_transitioning = true;
-    home.css->pending_scene_change = 1;
     gm_801A4B60();
     return true;
 }
@@ -1337,37 +1312,14 @@ bool nativeHome_RequestAuthoringPractice(const NativeContentId* fighter, bool li
 bool nativeHome_RequestPreview(const NativeContentId* id, bool live_test)
 {
     if (id == NULL || !has_package_id(id) || !home.authoring ||
-        !nativeHome_IsPractice() || home.preview_transitioning ||
-        nativeOnlineSession_State() != NativeLobbySessionState_Disconnected) {
+        !nativeHome_IsPractice() || !nativeHome_CanOpenWorkshop()) {
         return false;
     }
     home.workshop_camera_retain = !live_test && home.workshop_camera_active;
     // The outgoing frozen actor must remain paused until scene teardown.
     // Resuming here lets a physics tick slip into an asset-only refresh.
     nativeHome_WorkshopPoseRelease(false);
-    unsigned port = 0;
-    if (home.preview_active) {
-        port = home.preview_port;
-        home.preview_previous_candidate = home.fighter_packages[port];
-    } else {
-        while (port < 4 &&
-               home.local_players[port].slot_type != Gm_PKind_Human) {
-            ++port;
-        }
-        if (port == 4) {
-            return false;
-        }
-        home.preview_port = port;
-        home.preview_original_player = home.local_players[port];
-        home.preview_original_package = home.fighter_packages[port];
-        home.preview_original_costume = home.costume_packages[port];
-        home.preview_original_costume_fighter =
-            home.costume_fighters[port];
-        home.preview_original_costume_character =
-            home.costume_characters[port];
-        home.preview_original_costume_color = home.costume_colors[port];
-        home.preview_previous_candidate = (NativeContentId){ 0 };
-    }
+    home.preview_previous_candidate = home.preview_candidate;
     home.preview_active = true;
     home.preview_live_test = live_test;
     home.preview_restart = true;
@@ -1386,7 +1338,6 @@ bool nativeHome_ReturnToWorkshopPreview(void)
     home.preview_live_test = false;
     home.preview_restart = true;
     home.preview_transitioning = true;
-    home.preview_candidate = home.fighter_packages[home.preview_port];
     gm_801A4B60();
     return true;
 }
@@ -1394,18 +1345,6 @@ bool nativeHome_ReturnToWorkshopPreview(void)
 static void finish_preview(void)
 {
     home.workshop_camera_retain = false;
-    if (!home.preview_active) {
-        return;
-    }
-    unsigned port = home.preview_port;
-    home.local_players[port] = home.preview_original_player;
-    home.fighter_packages[port] = home.preview_original_package;
-    home.costume_packages[port] = home.preview_original_costume;
-    home.costume_fighters[port] =
-        home.preview_original_costume_fighter;
-    home.costume_characters[port] =
-        home.preview_original_costume_character;
-    home.costume_colors[port] = home.preview_original_costume_color;
     home.preview_active = false;
     home.preview_live_test = false;
     home.preview_restart = false;
@@ -1690,7 +1629,6 @@ void nativeHome_EnterSelection(CSSData* css)
         nativeSpectatorMatch_Finish();
     home.watch_results = false;
     home.css = css;
-    home.authoring_transitioning = false;
     const s8 physical_ports[4] = { 0, 1, 2, 3 };
     HSD_RumbleOutputSetPortMapping(physical_ports);
     nativeMatchLaunch_ClearNetplay();
@@ -1718,6 +1656,51 @@ void nativeHome_EnterSelection(CSSData* css)
 
 bool nativeHome_LockSelection(CSSData* css)
 {
+    if (home.preview_transitioning) {
+        if (!workshop_session_available()) {
+            finish_preview();
+            return false;
+        }
+        // Launch the draft on the first local human's controller. Keep the
+        // CSS roster and its outfits intact, even if a slot has no fighter.
+        unsigned port = 0;
+        for (unsigned slot = 0; slot < GM_MAX_PLAYERS; ++slot) {
+            if (home.local_players[slot].slot_type == Gm_PKind_Human) {
+                port = slot;
+                break;
+            }
+        }
+        NativeContentId packages[GM_MAX_PLAYERS] = { 0 };
+        uint8_t kinds[GM_MAX_PLAYERS];
+        packages[port] = home.preview_candidate;
+        if (!nativeMatchLaunch_ConfigureLocalFighters(packages, kinds, true)) {
+            if (has_package_id(&home.preview_previous_candidate)) {
+                home.preview_candidate = home.preview_previous_candidate;
+                home.preview_previous_candidate = (NativeContentId){ 0 };
+                home.preview_restart = true;
+                nativeHub_Notice(
+                    "New preview could not load; restoring previous preview.");
+            } else {
+                finish_preview();
+            }
+            return false;
+        }
+        home.preview_port = port;
+        nativeCostumeRuntime_Clear();
+        for (unsigned slot = 0; slot < GM_MAX_PLAYERS; ++slot) {
+            if (slot != port) {
+                gm_SetupPlayerDefaults(&css->vs.start.players[slot]);
+            }
+        }
+        PlayerInitData* player = &css->vs.start.players[port];
+        player->slot_type = Gm_PKind_Human;
+        player->ckind = kinds[port];
+        player->color = 0;
+        css->pending_scene_change = 1;
+        home.css = NULL;
+        prepare_preload(&css->vs, true);
+        return true;
+    }
     if (nativeOnlineSession_Quick()) {
         unsigned humans = 0;
         for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
@@ -1739,20 +1722,7 @@ bool nativeHome_LockSelection(CSSData* css)
     uint8_t custom_kinds[GM_MAX_PLAYERS];
     if (!nativeMatchLaunch_ConfigureLocalFighters(home.fighter_packages,
                                                    custom_kinds,
-                                                   home.preview_active)) {
-        if (home.preview_transitioning) {
-            if (has_package_id(&home.preview_previous_candidate)) {
-                // The new package failed before practice loaded. Re-enter
-                // practice with the last working preview exactly once.
-                home.preview_candidate = home.preview_previous_candidate;
-                home.preview_previous_candidate = (NativeContentId){ 0 };
-                home.preview_restart = true;
-                nativeHub_Notice(
-                    "New preview could not load; restoring previous preview.");
-                return false;
-            }
-            finish_preview();
-        }
+                                                   false)) {
         nativeHub_Notice("Selected fighter could not load.");
         return false;
     }
@@ -1846,7 +1816,6 @@ void nativeHome_EnterPractice(StartMeleeData* start)
     nativePractice_Configure(start, editor_port);
     home.selection.confirmed = true;
     home.preview_transitioning = false;
-    home.authoring_transitioning = false;
     home.preview_previous_candidate = (NativeContentId){ 0 };
 }
 
@@ -1938,9 +1907,6 @@ void nativeHome_Tick(void)
     }
     if (nativeHome_IsSelection() && home.preview_restart &&
         home.css != NULL) {
-        unsigned port = home.preview_port;
-        home.fighter_packages[port] = home.preview_candidate;
-        home.costume_packages[port] = (NativeContentId){ 0 };
         home.css->pending_scene_change = 1;
         home.preview_restart = false;
         gm_801A4B60();
