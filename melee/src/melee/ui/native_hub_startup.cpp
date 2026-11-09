@@ -122,13 +122,15 @@ namespace {
             s.trigger_click[trigger] = int8_t(PADGetMappedButtonState(s.port, trigger ? PAD_TRIGGER_R : PAD_TRIGGER_L));
         }
     }
-    void start_rest()
+    void start_rest(bool backwards = false)
     {
         auto& s = nativeHubStartup;
         restore_controls(); s.calibrated = false;
-        nativeControllerCalibration_Reset(&s.capture);
+        // Continue can confirm the default port without clicking its row.
+        std::snprintf(s.profile.name, sizeof(s.profile.name), "%s", hub.name);
         s.controller_index = PADGetIndexForPort(s.port);
-        enter(NativeStartup_Rest);
+        enter(NativeStartup_Rest, backwards);
+        nativeControllerCalibration_Reset(&s.capture);
     }
     bool stick_complete()
     {
@@ -255,6 +257,7 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         if (s.step == NativeStartup_Account && nativeHubAccount_BackStartup()) return true;
         if (s.step == NativeStartup_Profile) { enter(NativeStartup_Account,true); return true; }
         if (s.step == NativeStartup_Controller && nativeHubAccount_View().signed_in) { enter(NativeStartup_Account,true); return true; }
+        if (s.step == NativeStartup_Sticks) { start_rest(true); return true; }
         if (s.step == NativeStartup_Clone) { enter(NativeStartup_Controller, true); return true; }
         if (s.step == NativeStartup_ConfirmFighter) { enter(NativeStartup_Clone, true); return true; }
         if (s.step == NativeStartup_Portrait) { enter(NativeStartup_ConfirmFighter, true); return true; }
@@ -315,9 +318,16 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         break;
     case NativeStartup_Sticks:
         if (connected() && stick_complete()) {
-            NativeControllerCalibration sticks=s.capture;
-            for (unsigned i=0;i<2;++i) nativeControllerCalibration_SetTriggerRange(&sticks,i,0,32767);
-            if (nativeControllerCalibration_Finish(&sticks,&s.profile.calibration) && apply_controls()) enter(NativeStartup_Triggers);
+            NativeControllerCalibration sticks = s.capture;
+            for (unsigned i = 0; i < 2; ++i)
+                nativeControllerCalibration_SetTriggerRange(&sticks, i, 0, 32767);
+            if (!nativeControllerCalibration_Finish(&sticks, &s.profile.calibration)) {
+                std::snprintf(s.error, sizeof(s.error), "Go back and keep the controller still while capturing its resting position.");
+            } else if (!apply_controls()) {
+                std::snprintf(s.error, sizeof(s.error), "Could not apply this controller profile.");
+            } else {
+                enter(NativeStartup_Triggers);
+            }
         }
         break;
     case NativeStartup_Triggers:
@@ -333,7 +343,6 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         if (apply_controls()) enter(NativeStartup_Test);
         break;
     case NativeStartup_Test:
-        std::snprintf(s.profile.name, sizeof(s.profile.name), "%s", hub.name);
         if (!nativeProfileStore_Save(&s.profile, s.profile_id) || !nativeProfileInput_Assign(s.port, &s.profile)) {
             std::snprintf(s.error, sizeof(s.error), "Could not save this calibration. Your measurements are still here."); break;
         }

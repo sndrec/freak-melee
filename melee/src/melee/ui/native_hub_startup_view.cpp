@@ -135,6 +135,7 @@ void nativeHubStartup_Render()
         line("Keep the controller still for a moment.", 171, 10);
         stick(167, 204, 0); stick(372, 204, 2);
         line(s.capture.samples >= 60 ? "Center captured. Continue when ready." : "Measuring the resting position...", 346, 10);
+        line("Press START or click Continue.", 367, 9, muted);
         next("Continue", PADGetIndexForPort(s.port) >= 0 && s.capture.samples >= 60 && SDL_GetTicks() - s.started_at >= 1000);
         break;
     case NativeStartup_Sticks: {
@@ -146,6 +147,7 @@ void nativeHubStartup_Render()
             int center = (int(s.capture.rest_low[axis]) + s.capture.rest_high[axis]) / 2;
             complete &= s.capture.high[axis] - center >= 8192 && center - s.capture.low[axis] >= 8192;
         }
+        line("Press START or click Continue.", 367, 9, muted);
         next("Continue", complete);
         break;
     }
