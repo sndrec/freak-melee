@@ -16,6 +16,8 @@ bool nativeShellWorkshopModel_Open(unsigned member, NativeFighterProject* projec
 bool nativeShellWorkshopModel_Select(unsigned member);
 void nativeShellWorkshopModel_Close();
 void nativeShellWorkshopModel_Show(bool visible);
+bool nativeShellWorkshopModel_IsProperty(const char* id);
+bool nativeShellWorkshopModel_CommitProperty(const char* id);
 bool nativeShellWorkshopModel_Click(const char* id, bool shift);
 void nativeShellWorkshopModel_Update();
 bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member);

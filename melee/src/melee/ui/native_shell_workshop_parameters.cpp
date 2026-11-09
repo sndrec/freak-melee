@@ -93,8 +93,14 @@ class ParameterEvents final : public Rml::EventListener {
         const bool value = id.compare(0, 21, "workshop-param-value-") == 0;
         const bool reset = id.compare(0, 21, "workshop-param-reset-") == 0;
         const bool group = id.compare(0, 21, "workshop-param-group-") == 0;
+        const bool select = target->GetTagName() == "select";
+        const bool confirm = select
+            ? event.GetType() == "change"
+            : event.GetType() == "keydown" &&
+                event.GetParameter<int>("key_identifier", 0) == Rml::Input::KI_RETURN;
         if ((!value && !reset && !group) ||
-            (value ? event.GetType() != "change" : event.GetType() != "click")) return;
+            (value ? !confirm : event.GetType() != "click")) return;
+        if (value) event.StopPropagation();
         char* end = nullptr; const size_t index = std::strtoul(id.c_str()+21, &end, 10);
         if (*end || index >= rows.size()) return;
         if (group) { collapsed[rows[index].group] = !collapsed[rows[index].group]; render_rows(); return; }
@@ -129,6 +135,7 @@ void nativeShellWorkshopParameters_Open(Rml::ElementDocument* document,
     panel_document = document;
     static bool attached = false;
     if (!attached) {
+        document->GetElementById("workshop-parameters-list")->AddEventListener("keydown", &parameter_events);
         document->GetElementById("workshop-parameters-list")->AddEventListener("change", &parameter_events);
         document->GetElementById("workshop-parameters-list")->AddEventListener("click", &parameter_events);
         attached = true;

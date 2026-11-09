@@ -152,6 +152,25 @@ static bool open_clip(const NativeFighterProject* project,
     return true;
 }
 
+bool nativeFighterAnimation_PreviewTree(const NativeFighterProject* project,
+    NativeFighterAnimationClip clip, void* bytes, size_t byte_capacity,
+    FigaTree* tree, FigaTrack* tracks, size_t track_capacity)
+{
+    ClipDescriptor metadata;
+    HSD_Dat dat;
+    unsigned offset, size;
+    u32 root, nodes;
+    bool found;
+    if (!descriptor(project, clip, &metadata) ||
+        !locate_blob(project, &metadata, &dat, &offset, &size, &found) ||
+        !found || size > byte_capacity) return false;
+    memcpy(bytes, project->animation_dat + offset, size);
+    return HSD_DatOpen(&dat, bytes, size) == HSD_DAT_OK &&
+        HSD_DatFindRoot(&dat, metadata.name, &root) &&
+        lbAnim_DecodeFigaTree(&dat, root, tree, tracks, track_capacity,
+                             &nodes) == HSD_DAT_OK;
+}
+
 static bool packed(const uint8_t* bytes, size_t length, size_t* at,
                    unsigned* value)
 {
@@ -430,9 +449,10 @@ bool nativeFighterAnimation_SetKey(NativeFighterProject* project,
     return set_key_field(project, reference, track, key, value, false);
 }
 
-bool nativeFighterAnimation_SnapValue(const NativeFighterProject* project,
-                                      NativeFighterAnimationClip reference, unsigned track,
-                                      float requested, float* snapped)
+bool nativeFighterAnimation_Snap(const NativeFighterProject* project,
+                                 NativeFighterAnimationClip reference,
+                                 unsigned track, bool tangent,
+                                 float requested, float* snapped)
 {
     AnimationClip clip;
     if (snapped == NULL || !isfinite(requested) ||
@@ -442,7 +462,7 @@ bool nativeFighterAnimation_SnapValue(const NativeFighterProject* project,
     if (source->obj_type < HSD_A_J_ROTX ||
         source->obj_type > HSD_A_J_SCAZ ||
         source->obj_type == HSD_A_J_PATH) return false;
-    const uint8_t frac = source->frac_value;
+    const uint8_t frac = tangent ? source->frac_slope : source->frac_value;
     if ((frac & 0xE0) == HSD_A_FRAC_FLOAT) {
         *snapped = requested;
         return true;
@@ -811,7 +831,7 @@ bool nativeFighterAnimation_KeyChannel(NativeFighterProject* project,
     for (unsigned i = insertion; i < insertion + bone_tracks; ++i) {
         if (clip.tracks[i].obj_type == channel) {
             float snapped;
-            return nativeFighterAnimation_SnapValue(project, reference, i, value,
+            return nativeFighterAnimation_Snap(project, reference, i, false, value,
                                                     &snapped) &&
                    nativeFighterAnimation_InsertKey(project, reference, i, frame,
                                                     snapped);

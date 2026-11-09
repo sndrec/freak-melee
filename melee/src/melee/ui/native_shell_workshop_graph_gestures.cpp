@@ -2,6 +2,8 @@
 #ifdef MELEE_NATIVE
 namespace WorkshopEditor {
 
+    bool rebuilding_action_inspector;
+
     bool begin_graph_transform(GraphTool tool, int mouse_x, int mouse_y,
                                bool modal)
     {
@@ -50,6 +52,37 @@ namespace WorkshopEditor {
         if (session->graph_drag_baselines.empty()) {
             return false;
         }
+        float pivot_x = 0, pivot_y = 0;
+        if (session->graph_cursor_pivot) {
+            pivot_x =
+                8 + (session->graph_cursor_frame - session->graph_view_start) *
+                        (session->graph_width - 18) /
+                        (session->graph_view_end - session->graph_view_start);
+            pivot_y =
+                7 + (session->graph_value_high - session->graph_cursor_value) *
+                        (session->graph_height - 22) /
+                        (session->graph_value_high - session->graph_value_low);
+        } else {
+            float min_x = INFINITY, min_y = INFINITY, max_x = -INFINITY,
+                  max_y = -INFINITY;
+            for (const auto& baseline : session->graph_drag_baselines) {
+                min_x = std::min(min_x, baseline.screen_x);
+                max_x = std::max(max_x, baseline.screen_x);
+                min_y = std::min(min_y, baseline.screen_y);
+                max_y = std::max(max_y, baseline.screen_y);
+            }
+            pivot_x = (min_x + max_x) * .5f;
+            pivot_y = (min_y + max_y) * .5f;
+        }
+        session->graph_pivot_x = pivot_x;
+        session->graph_pivot_y = pivot_y;
+        session->graph_rotation = 0;
+        const auto origin = document->GetElementById("workshop-animation-graph")
+            ->GetAbsoluteOffset();
+        const float x = mouse_x - origin.x - pivot_x;
+        const float y = mouse_y - origin.y - pivot_y;
+        session->graph_previous_angle = std::atan2(y, x);
+        session->graph_has_angle = std::hypot(x, y) >= 2.0f;
         session->graph_before.assign(session->project->animation_dat,
                                      session->project->animation_dat +
                                          session->project->animation_size);
@@ -92,10 +125,13 @@ namespace WorkshopEditor {
             }
             const float tangent =
                 -y * baseline.units_per_pixel / (x * frames_per_pixel);
-            if (!std::isfinite(tangent) ||
+            float snapped;
+            if (!nativeFighterAnimation_Snap(session->project,
+                    session->animation_clip, baseline.ref.track, true,
+                    tangent, &snapped) ||
                 !nativeFighterAnimation_SetTangent(
                     session->project, session->animation_clip,
-                    baseline.ref.track, baseline.ref.key, tangent))
+                    baseline.ref.track, baseline.ref.key, snapped))
             {
                 return false;
             }
@@ -110,32 +146,29 @@ namespace WorkshopEditor {
         }
         const int dx = mouse_x - session->drag_start_x;
         const int dy = mouse_y - session->drag_start_y;
-        if (dx == 0 && dy == 0) {
+        if (dx == 0 && dy == 0 && session->graph_tool != GraphTool::Rotate) {
             session->graph_refresh = true;
             return true;
         }
-        float pivot_x = 0, pivot_y = 0;
-        if (session->graph_cursor_pivot) {
-            pivot_x =
-                8 + (session->graph_cursor_frame - session->graph_view_start) *
-                        (session->graph_width - 18) /
-                        (session->graph_view_end - session->graph_view_start);
-            pivot_y =
-                7 + (session->graph_value_high - session->graph_cursor_value) *
-                        (session->graph_height - 22) /
-                        (session->graph_value_high - session->graph_value_low);
-        } else {
-            float min_x = INFINITY, min_y = INFINITY, max_x = -INFINITY,
-                  max_y = -INFINITY;
-            for (const auto& baseline : session->graph_drag_baselines) {
-                min_x = std::min(min_x, baseline.screen_x);
-                max_x = std::max(max_x, baseline.screen_x);
-                min_y = std::min(min_y, baseline.screen_y);
-                max_y = std::max(max_y, baseline.screen_y);
+        const float pivot_x = session->graph_pivot_x;
+        const float pivot_y = session->graph_pivot_y;
+        if (session->graph_tool == GraphTool::Rotate) {
+            const auto origin = document->GetElementById("workshop-animation-graph")
+                ->GetAbsoluteOffset();
+            const float x = mouse_x - origin.x - pivot_x;
+            const float y = mouse_y - origin.y - pivot_y;
+            if (std::hypot(x, y) >= 2.0f) {
+                const float angle = std::atan2(y, x);
+                if (session->graph_has_angle)
+                    session->graph_rotation += std::remainder(
+                        angle - session->graph_previous_angle, 6.28318530718f);
+                session->graph_previous_angle = angle;
+                session->graph_has_angle = true;
             }
-            pivot_x = (min_x + max_x) * .5f;
-            pivot_y = (min_y + max_y) * .5f;
         }
+        const float rotation = session->graph_rotation;
+        const float cos_rotation = std::cos(rotation);
+        const float sin_rotation = std::sin(rotation);
         struct KeyTarget {
             GraphKeyBaseline baseline;
             int frame;
@@ -156,11 +189,9 @@ namespace WorkshopEditor {
                 x = pivot_x + (x - pivot_x) * factor;
                 y = pivot_y + (y - pivot_y) * factor;
             } else {
-                const float angle = dx * 0.01f;
-                const float c = std::cos(angle), s = std::sin(angle);
                 const float rx = x - pivot_x, ry = y - pivot_y;
-                x = pivot_x + c * rx - s * ry;
-                y = pivot_y + s * rx + c * ry;
+                x = pivot_x + cos_rotation * rx - sin_rotation * ry;
+                y = pivot_y + sin_rotation * rx + cos_rotation * ry;
             }
             if (session->graph_constraint == 1) {
                 y = baseline.screen_y;
@@ -173,9 +204,8 @@ namespace WorkshopEditor {
                 (x - 8.0f) *
                     (session->graph_view_end - session->graph_view_start) /
                     (session->graph_width - 18.0f);
-            const float raw_value =
-                session->graph_high_value[baseline.ref.track] -
-                (y - 7.0f) * baseline.units_per_pixel;
+            const float raw_value = baseline.value +
+                (baseline.screen_y - y) * baseline.units_per_pixel;
             if (!std::isfinite(time) || !std::isfinite(raw_value) ||
                 time < 0 || time > session->clip_frames)
             {
@@ -185,9 +215,9 @@ namespace WorkshopEditor {
                 return false;
             }
             float snapped;
-            if (!nativeFighterAnimation_SnapValue(
+            if (!nativeFighterAnimation_Snap(
                     session->project, session->animation_clip,
-                    baseline.ref.track, raw_value, &snapped))
+                    baseline.ref.track, false, raw_value, &snapped))
             {
                 set_text("workshop-editor-status",
                          "Transform exceeds a "
@@ -210,10 +240,8 @@ namespace WorkshopEditor {
                     tx *= factor;
                     ty *= factor;
                 } else {
-                    const float c = std::cos(dx * .01f),
-                                sine = std::sin(dx * .01f);
-                    tx = c - sine * original_y;
-                    ty = sine + c * original_y;
+                    tx = cos_rotation - sin_rotation * original_y;
+                    ty = sin_rotation + cos_rotation * original_y;
                 }
                 if (session->graph_constraint == 1) {
                     ty = original_y;
@@ -227,8 +255,11 @@ namespace WorkshopEditor {
                              "the angle to keep a finite slope.");
                     return false;
                 }
-                tangent =
+                const float slope =
                     -ty / tx * baseline.units_per_pixel / frames_per_pixel;
+                if (!nativeFighterAnimation_Snap(session->project,
+                        session->animation_clip, baseline.ref.track, true,
+                        slope, &tangent)) return false;
             }
             targets.push_back(
                 { baseline, (int) std::lround(time), snapped, tangent });
@@ -329,6 +360,8 @@ namespace WorkshopEditor {
                 session->project, session->animation_clip,
                 (unsigned) session->selected_track, session->keys, 1024,
                 &session->key_count);
+            if (session->selected_key >= 0)
+                select_key((unsigned) session->selected_key, false);
         }
         session->bone_pose_refresh = true;
         session->graph_refresh = true;
@@ -437,11 +470,91 @@ namespace WorkshopEditor {
         event.StopPropagation();
     }
 
+    enum class Property {
+        None, Hitbox, Sound, Effect, Command, EventValue, Playback,
+        ActionName, Key, Bone, ClipEnd, Model, Attribute, Parameter,
+    };
+
+    static Property inspector_property(const Rml::String& id)
+    {
+        auto prefix = [&](const char* start) { return id.rfind(start, 0) == 0; };
+        if (prefix("workshop-attribute-")) return Property::Attribute;
+        switch (session->mode) {
+        case WorkshopMode::Action:
+            if (prefix("workshop-hitbox-")) return Property::Hitbox;
+            if (prefix("workshop-sound-")) return Property::Sound;
+            if (prefix("workshop-effect-")) return Property::Effect;
+            if (prefix("workshop-command-field-")) return Property::Command;
+            if (id == "workshop-event-value" || id == "workshop-air-state")
+                return Property::EventValue;
+            if (id == "workshop-action-loop" || id == "workshop-action-root-motion")
+                return Property::Playback;
+            if (id == "workshop-action-name") return Property::ActionName;
+            break;
+        case WorkshopMode::Animation:
+            if (prefix("workshop-key-")) return Property::Key;
+            if (prefix("workshop-bone-")) return Property::Bone;
+            if (id == "workshop-clip-end") return Property::ClipEnd;
+            break;
+        case WorkshopMode::Model:
+            if (prefix("workshop-model-") || prefix("workshop-material-") ||
+                prefix("workshop-texture-")) return Property::Model;
+            break;
+        case WorkshopMode::Script:
+            if (prefix("workshop-param-value-")) return Property::Parameter;
+            break;
+        }
+        return Property::None;
+    }
+
+    static bool commit_property(Property property, const Rml::String& id)
+    {
+        switch (property) {
+        case Property::Hitbox: apply_hitbox(); show_event(); return true;
+        case Property::Sound: apply_sound(); show_event(); return true;
+        case Property::Effect: apply_effect(); show_event(); return true;
+        case Property::Command: apply_command_fields(); show_event(); return true;
+        case Property::EventValue: apply_event_value(); show_event(); return true;
+        case Property::Playback: apply_action_playback(); show_action_playback(); return true;
+        case Property::ActionName: return edit_action_label(true);
+        case Property::Key:
+            apply_key();
+            if (session->selected_key >= 0) select_key((unsigned) session->selected_key, false);
+            return true;
+        case Property::Bone: apply_bone_transform(); return true;
+        case Property::ClipEnd:
+            apply_clip_frames();
+            field("workshop-clip-end")->SetValue(float_text(session->clip_frames));
+            return true;
+        case Property::Model: return nativeShellWorkshopModel_CommitProperty(id.c_str());
+        case Property::Attribute:
+        case Property::Parameter:
+        case Property::None: return false;
+        }
+        return false;
+    }
+
     class EditorInputEvents final : public Rml::EventListener {
         int mouse_x = 0, mouse_y = 0;
         const char* ruler = nullptr;
+        Rml::ObserverPtr<Rml::Element> editing;
+        Rml::String original;
+        bool committing = false;
+        Rml::ObserverPtr<Rml::Element> pending;
 
     public:
+        void CommitDiscrete()
+        {
+            auto selected = std::move(pending);
+            pending = {};
+            if (auto* control = selected.get(); control && control->IsVisible()) {
+                const Rml::String id = control->GetId();
+                committing = true;
+                commit_property(inspector_property(id), id);
+                committing = false;
+            }
+        }
+
         void ProcessEvent(Rml::Event& event) override
         {
             if (!session->project || !nativeShellWorkshopEditor_IsOpen()) {
@@ -450,7 +563,18 @@ namespace WorkshopEditor {
             const auto type = event.GetType();
             auto* target = event.GetTargetElement();
             const auto& id = target->GetId();
-            if (type == "mousemove") {
+            const bool checkbox = target->GetAttribute<Rml::String>("type", "") == "checkbox";
+            const bool text_field = target->GetTagName() == "input" && !checkbox;
+            if (type == "focus" && text_field &&
+                inspector_property(id) != Property::None &&
+                (session->mode != WorkshopMode::Model ||
+                 nativeShellWorkshopModel_IsProperty(id.c_str()))) {
+                editing = target->GetObserverPtr();
+                original = field(id.c_str())->GetValue();
+            } else if (type == "blur" && target == editing.get()) {
+                editing = {};
+                if (!committing) field(id.c_str())->SetValue(original);
+            } else if (type == "mousemove") {
                 mouse_x = event.GetParameter<int>("mouse_x", mouse_x);
                 mouse_y = event.GetParameter<int>("mouse_y", mouse_y);
                 if (session->graph_drag_active) {
@@ -467,6 +591,12 @@ namespace WorkshopEditor {
                     (button == 1 || (button == 0 && session->graph_modal)))
                 {
                     finish_graph_transform(button == 0);
+                    discard_click = true;
+                    event.StopPropagation();
+                    return;
+                }
+                if (button == 1 && editing.get()) {
+                    editing.get()->Blur();
                     discard_click = true;
                     event.StopPropagation();
                     return;
@@ -494,11 +624,18 @@ namespace WorkshopEditor {
                 discard_click = false;
                 event.StopPropagation();
             } else if (type == "change") {
-                if (id.compare(0, 14, "workshop-bone-") == 0 &&
-                    target->GetTagName() == "input")
-                {
-                    apply_bone_transform();
-                } else if (id == "workshop-graph-pivot") {
+                if (!committing && !rebuilding_action_inspector &&
+                    (checkbox || target->GetTagName() == "select") &&
+                    inspector_property(id) != Property::None &&
+                    inspector_property(id) != Property::Parameter &&
+                    (session->mode != WorkshopMode::Model ||
+                     nativeShellWorkshopModel_IsProperty(id.c_str()))) {
+                    // Rml's dropdown continues using its options after dispatching
+                    // change. Apply on Update, after the widget has finished.
+                    pending = target->GetObserverPtr();
+                    return;
+                }
+                if (id == "workshop-graph-pivot") {
                     session->graph_cursor_pivot =
                         static_cast<Rml::ElementFormControlSelect*>(target)
                             ->GetValue() == "cursor";
@@ -537,6 +674,11 @@ namespace WorkshopEditor {
                     event.StopPropagation();
                     return;
                 }
+                if (key == Rml::Input::KI_ESCAPE && target == editing.get()) {
+                    target->Blur();
+                    event.StopPropagation();
+                    return;
+                }
                 const bool ctrl = event.GetParameter<int>("ctrl_key", 0) != 0;
                 if (ctrl &&
                     (key == Rml::Input::KI_Z || key == Rml::Input::KI_Y) &&
@@ -552,11 +694,20 @@ namespace WorkshopEditor {
                     event.StopPropagation();
                     return;
                 }
-                if (key == Rml::Input::KI_RETURN && id == "workshop-clip-end")
-                {
-                    apply_clip_frames();
-                    event.StopPropagation();
-                    return;
+                if (text_field && (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER) &&
+                    inspector_property(id) != Property::None) {
+                    // Inspector refresh can replace the focused element.
+                    const Rml::String field_id = id;
+                    committing = true;
+                    const bool handled = commit_property(inspector_property(id), field_id);
+                    if (handled) {
+                        if (auto* control = document->GetElementById(field_id);
+                            control && control == document->GetContext()->GetFocusElement())
+                            control->Blur();
+                        event.StopPropagation();
+                    }
+                    committing = false;
+                    if (handled) return;
                 }
                 if (key == Rml::Input::KI_I &&
                     session->mode == WorkshopMode::Animation)
@@ -608,10 +759,12 @@ namespace WorkshopEditor {
         }
     };
     static EditorInputEvents editor_input_events;
+    void commit_discrete_property() { editor_input_events.CommitDiscrete(); }
+
     void init_editor_input()
     {
         for (const char* type : { "mousemove", "mousedown", "mouseup", "click",
-                                  "keydown", "change" })
+                                  "keydown", "change", "focus", "blur" })
         {
             document->GetElementById("workshop-panel")
                 ->AddEventListener(type, &editor_input_events, true);

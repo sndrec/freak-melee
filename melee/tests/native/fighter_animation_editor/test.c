@@ -43,7 +43,7 @@ int main(void) {
     CHECK(nativeFighterAnimation_Tracks(&p,demo,tracks,4,&n)&&n==1&&tracks[0].keys==2);
     CHECK(nativeFighterAnimation_Keys(&p,demo,0,keys,4,&n)&&n==2&&keys[1].frame==10&&keys[1].value==4);
     CHECK(nativeFighterAnimation_Sample(&p,demo,0,5,&value)&&fabsf(value-3)<0.00001f);
-    CHECK(nativeFighterAnimation_SnapValue(&p,demo,0,6,&value)&&value==6);
+    CHECK(nativeFighterAnimation_Snap(&p,demo,0,false,6,&value)&&value==6);
     CHECK(nativeFighterAnimation_SetKey(&p,demo,0,1,6));
     CHECK(nativeFighterAnimation_SetFrames(&p,demo,25));
     CHECK(nativeFighterAnimation_Sample(&p,demo,0,5,&value)&&fabsf(value-4)<0.00001f);

@@ -220,6 +220,8 @@ std::string transform_fields(const float* position, const float* rotation,
     return result;
 }
 
+bool rebuilding_model_inspector;
+
 void render_inspector()
 {
     if (active->project == nullptr) return;
@@ -238,8 +240,7 @@ void render_inspector()
             markup += "<option value='" + std::to_string(i) + "'" +
                       (mesh.material == i ? " selected" : "") + ">" +
                       escape(active->model.materials[i].name) + "</option>";
-        markup += "</select><button id='workshop-model-apply-material' "
-                  "class='room-button'>Apply material</button>"
+        markup += "</select>"
                   "<button id='workshop-model-edit-material' class='room-button'>"
                   "Edit material ↗</button></div><div class='workshop-model-inspector-section'>"
                   "<div class='eyebrow'>BINDING</div><p>Uses the compatible fighter "
@@ -283,9 +284,7 @@ void render_inspector()
             "value='" +
             decimal(mat.shininess) +
             "' />"
-            "<button id='workshop-model-apply-surface' class='room-button "
-            "primary'>"
-            "Apply material</button></div><div "
+            "</div><div "
             "class='workshop-model-inspector-section'>"
             "<div class='eyebrow'>TEXTURE</div><p>" +
             std::string(mat.texture_offset ? "Texture attached"
@@ -382,8 +381,7 @@ void render_inspector()
             const float* s = active->rig_mode == RigMode::Edit ? bone.scale :
                                                         active->pose[active->selected_joint].scale;
             markup += transform_fields(p, r, s);
-            markup += "<button id='workshop-model-apply-transform' "
-                      "class='room-button primary'>Apply transform</button><p>" +
+            markup += "<p>" +
                       std::string(active->rig_mode == RigMode::Edit
                           ? "Keeps skinned meshes and rigid attachments in place. Review inherited clips after changing the rest rig."
                           : "Temporary preview only; no animation keys or rest data change.") +
@@ -414,12 +412,13 @@ void render_inspector()
                  "label><input id='workshop-model-name' class='room-input' "
                  "type='text' maxlength='63' value='" +
                  escape(label) +
-                 "'/><button id='workshop-model-rename' "
-                 "class='room-button'>Apply name</button></div>" +
+                 "'/></div>" +
                  markup;
     }
     if (active->context == Context::Skeleton) markup += rig_inspector();
+    rebuilding_model_inspector = true;
     element("workshop-model-inspector")->SetInnerRML(markup);
+    rebuilding_model_inspector = false;
 }
 
 void render()
@@ -1085,6 +1084,83 @@ void nativeShellWorkshopModel_Show(bool show)
     }
 }
 
+bool nativeShellWorkshopModel_IsProperty(const char* id)
+{
+    if (rebuilding_model_inspector) return false;
+    const std::string_view key(id);
+    return key == "workshop-model-name" || key == "workshop-model-assigned-material" ||
+        key == "workshop-model-diffuse" || key == "workshop-model-alpha" ||
+        key == "workshop-model-shininess" || key.starts_with("workshop-model-pos-") ||
+        key.starts_with("workshop-model-rot-") || key.starts_with("workshop-model-scale-") ||
+        key.starts_with("workshop-material-") || key.starts_with("workshop-texture-");
+}
+
+bool nativeShellWorkshopModel_CommitProperty(const char* id)
+{
+    if (!visible || !active->project || !nativeShellWorkshopModel_IsProperty(id)) return false;
+    const std::string_view key(id);
+    if (!std::strcmp(id, "workshop-model-name")) {
+        unsigned category =
+            active->context == Context::Meshes      ? NativeAuthoring_Mesh
+            : active->context == Context::Materials ? NativeAuthoring_Material
+                                                    : NativeAuthoring_Bone;
+        int selected = category == NativeAuthoring_Mesh ? active->selected_mesh
+                       : category == NativeAuthoring_Material
+                           ? active->selected_material
+                           : active->selected_joint;
+        if (selected < 0) {
+            return true;
+        }
+        auto before_labels = label_snapshot();
+        bool ok = nativeFighterAuthoring_SetName(
+                      active->project, category,
+                      category == NativeAuthoring_Mesh
+                          ? active->model.meshes[selected].offset
+                      : category == NativeAuthoring_Material
+                          ? active->model.materials[selected].offset
+                          : active->model.joints[selected].offset,
+                      input("workshop-model-name")->GetValue().c_str());
+        if (ok) {
+            record_label_change(before_labels, false);
+        }
+        reopen_model();
+        render();
+        status(ok ? "Name applied. Save to keep it."
+                  : "Could not save this name. Use up to 63 bytes without "
+                    "tabs or newlines.");
+        return true;
+    }
+    if (key.starts_with("workshop-model-pos-") ||
+        key.starts_with("workshop-model-rot-") || key.starts_with("workshop-model-scale-")) {
+        if (!apply_joint_transform()) status("Invalid bone transform.");
+        render_inspector();
+        return true;
+    }
+    if (std::strcmp(id, "workshop-model-assigned-material") == 0) {
+        if (active->selected_mesh < 0) return true;
+        const unsigned material = (unsigned) std::strtoul(
+            static_cast<Rml::ElementFormControlSelect*>(
+                element("workshop-model-assigned-material"))->GetValue().c_str(),
+            nullptr, 10);
+        if (material >= active->model.material_count) return true;
+        const uint32_t offset = 0x20 + active->model.meshes[active->selected_mesh].offset + 8;
+        uint8_t before[4];
+        std::memcpy(before, active->project->costume_dat + offset, 4);
+        if (nativeFighterModel_SetMeshMaterial(&active->model, active->selected_mesh,
+                                                material)) {
+            record(offset, 4, before);
+            active->selected_material = (int) material;
+            render();
+            status(nativeShellWorkshop_RefreshPreview()
+                ? "Mesh material changed; refreshing the live preview."
+                : "Mesh material changed. Test Character to reload it.");
+        }
+        return true;
+    }
+    apply_surface();
+    return true;
+}
+
 bool nativeShellWorkshopModel_Click(const char* id, bool shift)
 {
     if (rig_click(id)) return true;
@@ -1115,37 +1191,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         } else {
             status(error);
         }
-        return true;
-    }
-    if (!std::strcmp(id, "workshop-model-rename")) {
-        unsigned category =
-            active->context == Context::Meshes      ? NativeAuthoring_Mesh
-            : active->context == Context::Materials ? NativeAuthoring_Material
-                                                    : NativeAuthoring_Bone;
-        int selected = category == NativeAuthoring_Mesh ? active->selected_mesh
-                       : category == NativeAuthoring_Material
-                           ? active->selected_material
-                           : active->selected_joint;
-        if (selected < 0) {
-            return true;
-        }
-        auto before_labels = label_snapshot();
-        bool ok = nativeFighterAuthoring_SetName(
-                      active->project, category,
-                      category == NativeAuthoring_Mesh
-                          ? active->model.meshes[selected].offset
-                      : category == NativeAuthoring_Material
-                          ? active->model.materials[selected].offset
-                          : active->model.joints[selected].offset,
-                      input("workshop-model-name")->GetValue().c_str());
-        if (ok) {
-            record_label_change(before_labels, false);
-        }
-        reopen_model();
-        render();
-        status(ok ? "Name applied. Save to keep it."
-                  : "Could not save this name. Use up to 63 bytes without "
-                    "tabs or newlines.");
         return true;
     }
 
@@ -1245,11 +1290,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         status("Wireframe rendering is not available in the native renderer yet.");
         return true;
     }
-    if (std::strcmp(id, "workshop-model-apply-transform") == 0) {
-        if (!apply_joint_transform()) status("Invalid bone transform.");
-        else render_inspector();
-        return true;
-    }
     if (std::strcmp(id, "workshop-model-reset-pose") == 0) {
         nativeWorkshopTransform_Clear();
         active->pose_initialized = true;
@@ -1265,11 +1305,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         render_inspector();
         status("Temporary pose reset.");
         return true;
-    }
-    if (std::strcmp(id, "workshop-model-apply-surface") == 0 ||
-        std::strcmp(id, "workshop-material-apply-render") == 0)
-    {
-        apply_surface(); return true;
     }
     if (std::strcmp(id, "workshop-model-texture-browse") == 0) {
         char path[MAX_PATH] = {};
@@ -1287,27 +1322,6 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-model-texture-apply") == 0) {
         apply_texture(); return true;
-    }
-    if (std::strcmp(id, "workshop-model-apply-material") == 0) {
-        if (active->selected_mesh < 0) return true;
-        const unsigned material = (unsigned) std::strtoul(
-            static_cast<Rml::ElementFormControlSelect*>(
-                element("workshop-model-assigned-material"))->GetValue().c_str(),
-            nullptr, 10);
-        if (material >= active->model.material_count) return true;
-        const uint32_t offset = 0x20 + active->model.meshes[active->selected_mesh].offset + 8;
-        uint8_t before[4];
-        std::memcpy(before, active->project->costume_dat + offset, 4);
-        if (nativeFighterModel_SetMeshMaterial(&active->model, active->selected_mesh,
-                                                material)) {
-            record(offset, 4, before);
-            active->selected_material = (int) material;
-            render();
-            status(nativeShellWorkshop_RefreshPreview()
-                ? "Mesh material changed; refreshing the live preview."
-                : "Mesh material changed. Test Character to reload it.");
-        }
-        return true;
     }
     if (std::strcmp(id, "workshop-model-edit-material") == 0) {
         active->context = Context::Materials;
@@ -1411,7 +1425,7 @@ void nativeShellWorkshopModel_Update()
     }
     const float pose_frame = active->rig_mode == RigMode::Animation ? (float) active->frame : 0.0f;
     if (nativeHome_WorkshopPose({NativeFighterAnimation_Action,
-                               (unsigned) active->selected_clip}, pose_frame) &&
+                               (unsigned) active->selected_clip}, pose_frame, nullptr) &&
         active->rig_mode != RigMode::Animation) {
         for (unsigned i = 0; i < active->model.joint_count; ++i) {
             if (active->rig_mode == RigMode::Pose && !active->pose_changed[i]) continue;

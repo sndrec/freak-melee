@@ -56,6 +56,7 @@ void record_edit(bool animation, const uint8_t* before)
         edit.bytes.push_back({ (uint32_t) i, before[i], after[i] });
     }
     if (edit.bytes.empty()) return;
+    if (animation) nativeHome_WorkshopPoseInvalidate();
     session->edit_history.erase(session->edit_history.begin() + session->edit_cursor,
                        session->edit_history.end());
     if (session->edit_history.size() == 32) {
@@ -97,7 +98,8 @@ void record_structural_edit(bool animation, const uint8_t* before, size_t size,
     }
     session->edit_history.push_back(std::move(edit));
     session->edit_cursor = session->edit_history.size();
-    if (!animation) session->event_templates_dirty = true;
+    if (animation) nativeHome_WorkshopPoseInvalidate();
+    else session->event_templates_dirty = true;
     update_history_buttons();
 }
 
@@ -260,7 +262,7 @@ void toggle_action_preview()
     const float frame = std::min(requested,
         std::max(0.0f, (animation_mode ? session->clip_frames :
             session->action_clip_frames[session->selected_action]) - 1.0f));
-    if (!nativeHome_WorkshopPose(clip, frame)) {
+    if (!nativeHome_WorkshopPose(clip, frame, session->project)) {
         set_text("workshop-editor-status", "Press Test Character to load this "
                  "fighter in practice before playing it.");
         return;
@@ -348,8 +350,6 @@ void select_mode(WorkshopMode next)
         ->SetProperty("display", "none");
     document->GetElementById("workshop-effect-fields")
         ->SetProperty("display", "none");
-    document->GetElementById("workshop-event-timing")
-        ->SetProperty("display", "none");
     document->GetElementById("workshop-delete-event")
         ->SetProperty("display", "none");
     document->GetElementById("workshop-animation-fields")
@@ -357,8 +357,6 @@ void select_mode(WorkshopMode next)
     document->GetElementById("workshop-bone-fields")
         ->SetProperty("display", "none");
     document->GetElementById("workshop-action-playback")
-        ->SetProperty("display", session->mode == WorkshopMode::Action ? "block" : "none");
-    document->GetElementById("workshop-frame-stack")
         ->SetProperty("display", session->mode == WorkshopMode::Action ? "block" : "none");
     document->GetElementById("workshop-clip-fields")
         ->SetProperty("display", session->mode == WorkshopMode::Animation ? "block" : "none");
@@ -427,6 +425,14 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     init_editor_input();
     nativeShellWorkshopBones_Init(shell);
     nativeShellWorkshopHitboxes_Init(shell);
+    auto* elements = static_cast<Rml::ElementFormControlSelect*>(
+        shell->GetElementById("workshop-hitbox-element"));
+    const char* names[] = { "Normal", "Fire", "Electric", "Slash", "Coin",
+        "Ice", "Nap", "Sleep", "Catch", "Ground", "Cape", "Inert", "Disable",
+        "Dark", "Screw Attack", "Lipstick", "ReDead" };
+    for (unsigned i = 0; i < 32; ++i)
+        elements->Add(i < std::size(names) ? names[i] : "Unknown (" + number(i) + ")",
+                      number(i), -1, i < std::size(names));
     nativeShellWorkshopModel_Init(shell);
     for (const char* id : { "workshop-action-viewport",
                             "workshop-animation-viewport" }) {
@@ -743,6 +749,64 @@ bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x)
     return true;
 }
 
+bool WorkshopEditor::edit_action_label(bool rename)
+{
+    if (session->selected_action < 0) {
+        return true;
+    }
+    const unsigned action = (unsigned) session->selected_action;
+    EditHistoryEntry edit = {};
+    edit.label_edit = true;
+    edit.rig_revision = session->project->rig_edit_revision;
+    edit.label_action = action;
+    const char* previous = nativeFighterAuthoring_Name(
+        session->project, NativeAuthoring_Action, action);
+    edit.before_name = previous ? previous : "";
+    edit.before_hidden =
+        nativeFighterAuthoring_Hidden(session->project, action);
+    bool ok = rename
+                  ? nativeFighterAuthoring_SetName(
+                        session->project, NativeAuthoring_Action, action,
+                        field("workshop-action-name")->GetValue().c_str())
+                  : nativeFighterAuthoring_SetHidden(
+                        session->project, action,
+                        !nativeFighterAuthoring_Hidden(session->project,
+                                                       action));
+    if (ok) {
+        const char* current = nativeFighterAuthoring_Name(
+            session->project, NativeAuthoring_Action, action);
+        edit.after_name = current ? current : "";
+        edit.after_hidden =
+            nativeFighterAuthoring_Hidden(session->project, action);
+        session->edit_history.erase(session->edit_history.begin() +
+                                        session->edit_cursor,
+                                    session->edit_history.end());
+        if (session->edit_history.size() == 32) {
+            session->edit_history.erase(session->edit_history.begin());
+            --session->edit_cursor;
+        }
+        session->edit_history.push_back(std::move(edit));
+        session->edit_cursor = session->edit_history.size();
+        update_history_buttons();
+    }
+    nativeShellWorkshopEditor_FilterActions();
+    nativeShellWorkshopEditor_FilterClips();
+    const char* name = nativeFighterAuthoring_Name(
+        session->project, NativeAuthoring_Action, action);
+    set_text("workshop-context-action",
+             name && *name
+                 ? name
+                 : WorkshopLabels::action(session->actions[action].name));
+    set_text("workshop-action-hide",
+             nativeFighterAuthoring_Hidden(session->project, action)
+                 ? "Show action in editor"
+                 : "Hide action in editor");
+    field("workshop-action-name")->SetValue(name ? name : "");
+    set_text("workshop-editor-status", ok ? "Action updated." :
+                                              "Could not update the action.");
+    return true;
+}
+
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 {
     if (!std::strcmp(id,"workshop-action-tools-toggle") || !std::strcmp(id,"workshop-clip-tools-toggle")) {
@@ -758,64 +822,8 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         nativeShellWorkshopEditor_FilterActions();
         return true;
     }
-    if (!std::strcmp(id, "workshop-action-rename") ||
-        !std::strcmp(id, "workshop-action-hide"))
-    {
-        if (session->selected_action < 0) {
-            return true;
-        }
-        const unsigned action = (unsigned) session->selected_action;
-        EditHistoryEntry edit = {};
-        edit.label_edit = true;
-        edit.rig_revision = session->project->rig_edit_revision;
-        edit.label_action = action;
-        const char* previous = nativeFighterAuthoring_Name(
-            session->project, NativeAuthoring_Action, action);
-        edit.before_name = previous ? previous : "";
-        edit.before_hidden =
-            nativeFighterAuthoring_Hidden(session->project, action);
-        bool ok = !std::strcmp(id, "workshop-action-rename")
-                      ? nativeFighterAuthoring_SetName(
-                            session->project, NativeAuthoring_Action, action,
-                            field("workshop-action-name")->GetValue().c_str())
-                      : nativeFighterAuthoring_SetHidden(
-                            session->project, action,
-                            !nativeFighterAuthoring_Hidden(session->project,
-                                                           action));
-        if (ok) {
-            const char* current = nativeFighterAuthoring_Name(
-                session->project, NativeAuthoring_Action, action);
-            edit.after_name = current ? current : "";
-            edit.after_hidden =
-                nativeFighterAuthoring_Hidden(session->project, action);
-            session->edit_history.erase(session->edit_history.begin() +
-                                            session->edit_cursor,
-                                        session->edit_history.end());
-            if (session->edit_history.size() == 32) {
-                session->edit_history.erase(session->edit_history.begin());
-                --session->edit_cursor;
-            }
-            session->edit_history.push_back(std::move(edit));
-            session->edit_cursor = session->edit_history.size();
-            update_history_buttons();
-        }
-        nativeShellWorkshopEditor_FilterActions();
-        nativeShellWorkshopEditor_FilterClips();
-        const char* name = nativeFighterAuthoring_Name(
-            session->project, NativeAuthoring_Action, action);
-        set_text("workshop-context-action",
-                 name && *name
-                     ? name
-                     : WorkshopLabels::action(session->actions[action].name));
-        set_text("workshop-action-hide",
-                 nativeFighterAuthoring_Hidden(session->project, action)
-                     ? "Show action in editor"
-                     : "Hide action in editor");
-        set_text("workshop-editor-status",
-                 ok ? "Action name and editor visibility applied. Save to keep them."
-                    : "Could not apply the action label.");
-        return true;
-    }
+    if (!std::strcmp(id, "workshop-action-hide"))
+        return edit_action_label(false);
 
     if (session->mode == WorkshopMode::Model &&
         nativeShellWorkshopModel_Click(id, shift))
@@ -828,9 +836,11 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         if (session->mode == WorkshopMode::Action && session->selected_event >= 0 &&
             session->events[session->selected_event].kind ==
                 NativeFighterActionEvent_CreateHitbox) {
+            const ActionInspectorRefresh refresh;
+            document->GetElementById("workshop-hitbox-common-bone")->RemoveAttribute("checked");
             field("workshop-hitbox-bone")->SetValue(number(joint));
-            set_text("workshop-editor-status", "Attachment set to joint " +
-                     number(joint) + ". Apply the hitbox edit to keep it.");
+            apply_hitbox();
+            show_event();
             return true;
         }
         if (session->mode == WorkshopMode::Action)
@@ -930,7 +940,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             session->selected_event = session->selected_command = -1;
             show_event();
         }
-        show_frame_stack();
         return true;
     }
     if (std::strcmp(id, "workshop-frame-start") == 0 ||
@@ -1122,10 +1131,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         select_command(index);
         return true;
     }
-    if (parse_row(id, "workshop-stack-command-", &index)) {
-        select_command(index);
-        return true;
-    }
     if (std::strcmp(id, "workshop-event-timeline-lanes") == 0) {
             session->selected_event = -1;
         session->selected_command = -1;
@@ -1198,20 +1203,12 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         show_animation_graph();
         return true;
     }
-    if (std::strcmp(id, "workshop-key-apply") == 0) {
-        apply_key();
-        return true;
-    }
     if (std::strcmp(id, "workshop-add-event") == 0) {
         toggle_add_event_menu();
         return true;
     }
     if (std::strcmp(id, "workshop-delete-event") == 0) {
         delete_selected_event();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-event-frame-apply") == 0) {
-        apply_event_frame();
         return true;
     }
     if (parse_row(id, "workshop-add-command-", &index) && index < 59) {
@@ -1261,10 +1258,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-bone-key") == 0) {
         key_bone_channels();
-        return true;
-    }
-    if (std::strcmp(id, "workshop-action-loop-apply") == 0) {
-        apply_action_playback();
         return true;
     }
     if (std::strcmp(id, "workshop-animation-autokey") == 0) {
@@ -1332,6 +1325,7 @@ bool nativeShellWorkshopEditor_Shortcut(int key_identifier)
 void nativeShellWorkshopEditor_Update()
 {
     if (session->project == nullptr) return;
+    commit_discrete_property();
     action_timeline_events.Update();
     if (session->mode == WorkshopMode::Model) {
         nativeWorkshopPose_Clear();
@@ -1433,7 +1427,7 @@ void nativeShellWorkshopEditor_Update()
         if (preview_available && nativeHome_WorkshopPose(preview_clip,
                 std::min((float) frame,
                          std::max(0.0f,
-                             preview_frames - 1.0f)))) {
+                             preview_frames - 1.0f)), session->project)) {
             pose_ready = true;
             if (session->mode == WorkshopMode::Action &&
                 (session->preview_hitbox_cached_frame != session->timeline_frame ||

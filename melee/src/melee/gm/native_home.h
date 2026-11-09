@@ -34,7 +34,10 @@ bool nativeHome_WorkshopSelectMember(unsigned member, bool restart_preview);
 unsigned nativeHome_WorkshopInitialMember(unsigned port);
 // Authoring-only preview of a cached fighter's selected source action.
 // Holds its fighter processes while the original renderer draws its pose.
-bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame);
+bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
+                             const NativeFighterProject* draft);
+FigaTree* nativeHome_WorkshopAnimationOverride(const Fighter* fighter,
+                                               int animation);
 void nativeHome_WorkshopSceneStarted(void);
 bool nativeHome_WorkshopCameraActive(void);
 // Frozen editing displays the selected actor. Live practice displays the family.

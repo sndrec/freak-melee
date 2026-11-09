@@ -188,6 +188,9 @@ struct EditorSession {
     bool graph_tangent;
     int graph_tangent_side;
     unsigned graph_constraint;
+    float graph_pivot_x, graph_pivot_y;
+    float graph_rotation, graph_previous_angle;
+    bool graph_has_angle;
     float graph_cursor_x = 8, graph_cursor_y = 7;
     float graph_cursor_frame = 0, graph_cursor_value = 0;
     float graph_value_low, graph_value_high;
@@ -224,6 +227,14 @@ struct EditorSession {
 };
 std::string bone_name(unsigned joint);
 void init_editor_input();
+void commit_discrete_property();
+extern bool rebuilding_action_inspector;
+
+struct ActionInspectorRefresh {
+    bool previous = rebuilding_action_inspector;
+    ActionInspectorRefresh() { rebuilding_action_inspector = true; }
+    ~ActionInspectorRefresh() { rebuilding_action_inspector = previous; }
+};
 bool begin_graph_transform(GraphTool, int, int, bool);
 bool preview_graph_transform(int, int);
 void finish_graph_transform(bool);
@@ -363,9 +374,9 @@ void select_script_file(size_t index);
 void show_script();
 bool validate_script();
 void jump_to_script_line(unsigned line);
-void show_frame_stack();
 void show_action_playback();
 void apply_action_playback();
+bool edit_action_label(bool rename);
 void update_timeline_cursor();
 int hitbox_end_for_instance(size_t instance);
 int hitbox_end_frame(size_t index);
@@ -389,7 +400,6 @@ void select_command(unsigned index);
 bool begin_fighter_event_edit(uint32_t offset, FighterEventEdit* edit);
 void cancel_fighter_event_edit(FighterEventEdit* edit);
 void commit_fighter_event_edit(FighterEventEdit* edit);
-void apply_event_frame();
 void apply_hitbox();
 void apply_event_value();
 void apply_sound();

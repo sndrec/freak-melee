@@ -14,6 +14,7 @@
 #include "ftcostume_assets.h"
 #ifdef MELEE_NATIVE
 #include "native_fighter_runtime.h"
+#include <melee/gm/native_home.h>
 #endif
 #include "inlines.h"
 #include "kinds/ftCaptain/ftcaptain.h"
@@ -1864,8 +1865,10 @@ void ftData_80085CD8(Fighter* fp, Fighter* arg1, int msid)
     if (msid < arg1->x58C) {
         struct Fighter_WaitAnimData* animation =
             ftData_80085FD4(arg1, msid);
-        fp->x590 = animation->x14;
-        fp->x5A4 = animation->x14;
+        FigaTree* draft = fp == arg1
+            ? nativeHome_WorkshopAnimationOverride(fp, msid) : NULL;
+        fp->x590 = draft != NULL ? draft : animation->x14;
+        fp->x5A4 = fp->x590;
     }
 #else
     HSD_Archive sp14;
