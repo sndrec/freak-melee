@@ -218,7 +218,7 @@ void ftCo_Turn_Enter_Smash(Fighter_GObj* gobj)
     fp_r7->mv.co.turn.frames_to_turn = 0.0F;
     fp_r7->mv.co.turn.x8 = facing;
     fp_r7->mv.co.turn.buffered_dash = fp_r7->action_buffer.checking &&
-                                    fp_r7->action_buffer.replaying_x;
+        fp_r7->input.lstick[0].x != fp_r7->action_buffer.live_stick_x;
     fp_r7->mv.co.turn.x1C = 0;
 
     Fighter_ChangeMotionState(gobj, ftCo_MS_Turn, Ft_MF_None, 0.0F, 1.0F, 0.0F,

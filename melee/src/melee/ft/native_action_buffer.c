@@ -41,7 +41,11 @@ void nativeActionBuffer_Record(Fighter* fp, unsigned frames)
         frames + 1,
     };
     const int walk = direction(stick.x, p_ftCommonData->walk_stick_threshold);
-    const bool dash = fp->x670_timer_lstick_tilt_x == 0;
+    const float dash_threshold = p_ftCommonData->dash_smash_stick_threshold;
+    const int dash_direction = direction(stick.x, dash_threshold);
+    // A stick can leave its dead zone one sample before it reaches dash strength.
+    const bool dash = fp->x670_timer_lstick_tilt_x == 0 ||
+        (dash_direction && dash_direction != direction(last.x, dash_threshold));
     const bool vertical = fp->x671_timer_lstick_tilt_y == 0 ||
         (stick.y < -p_ftCommonData->x90 && last.y >= -p_ftCommonData->x90);
     if (dash || vertical ||
@@ -139,8 +143,8 @@ bool nativeActionBuffer_Begin(Fighter* fp, NativeActionInput* live,
         fp->x688 = offered->special_side;
         fp->x689 = offered->special_neutral;
     }
+    pending->live_stick_x = live->lstick.x;
     pending->checking = true;
-    pending->replaying_x = offered->lstick.x != live->lstick.x;
     return true;
 }
 
@@ -181,5 +185,5 @@ void nativeActionBuffer_End(Fighter* fp, const NativeActionInput* live,
     if (fp->x689 == offered->special_neutral)
         fp->x689 = live->special_neutral;
     fp->action_buffer.checking = false;
-    fp->action_buffer.replaying_x = false;
+    fp->action_buffer.live_stick_x = 0.0f;
 }
