@@ -23,6 +23,11 @@ SDL is built from the pinned source so GameCube input retains a fixed coordinate
 scale. The Windows build extracts the official libusb headers, import library
 and runtime DLL with 7-Zip. The normal DLL-copy and release steps include libusb.
 
+Connect the Nintendo Switch 2 GameCube controller directly with a USB-C data
+cable. SDL reads both sticks, analog trigger travel and the separate L/R clicks.
+On Windows, libusb needs WinUSB on the controller's vendor interface
+(`057E:2073`, interface 1). SDL 3.4.10 supports this controller over USB.
+
 The ISO and DSP table are private local inputs, not included in Git or releases.
 `prepare_native_assets.py` extracts/validates the ISO executable and embedded
 font data into the build tree. `prepare_audio_coefficients.py` consumes the DSP
