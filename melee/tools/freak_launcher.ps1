@@ -8,6 +8,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $install = Split-Path -Parent $MyInvocation.MyCommand.Path
 $versions = Join-Path $install 'versions'
 $statePath = Join-Path $install 'state.json'
@@ -65,6 +66,49 @@ function Resolve-Archive([string] $manifestLocation, [string] $archive) {
         return ([Uri]::new([Uri] $manifestLocation, $archive)).AbsoluteUri
     }
     return Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($manifestLocation))) $archive
+}
+
+function Receive-Archive([uri] $source, [string] $path, [long] $expectedBytes) {
+    Add-Type -AssemblyName System.Net.Http
+    $client = [Net.Http.HttpClient]::new()
+    $timeout = [Threading.CancellationTokenSource]::new([TimeSpan]::FromMinutes(10))
+    $response = $inputStream = $outputStream = $null
+    $receivedBytes = 0L
+    $buffer = [byte[]]::new(128KB)
+    $refresh = [Diagnostics.Stopwatch]::StartNew()
+    $progressShown = $false
+    $ProgressPreference = 'Continue'
+    try {
+        $request = $client.GetAsync($source, [Net.Http.HttpCompletionOption]::ResponseHeadersRead,
+                                    $timeout.Token)
+        $response = $request.GetAwaiter().GetResult()
+        $response.EnsureSuccessStatusCode() | Out-Null
+        $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+        $outputStream = [IO.File]::Open($path, [IO.FileMode]::CreateNew)
+        while ($true) {
+            $count = $inputStream.ReadAsync($buffer, 0, $buffer.Length,
+                                            $timeout.Token).GetAwaiter().GetResult()
+            if ($count -eq 0) { break }
+            $receivedBytes += $count
+            if ($receivedBytes -gt $expectedBytes) { throw 'Update exceeds the manifest size.' }
+            $outputStream.Write($buffer, 0, $count)
+            # The default PowerShell download progress redraws on each chunk.
+            if ($refresh.ElapsedMilliseconds -ge 500) {
+                Write-Progress -Activity 'Downloading Freak Melee' -Status (
+                    '{0:N1} of {1:N1} MB' -f ($receivedBytes / 1000000), ($expectedBytes / 1000000)
+                ) -PercentComplete ([int] (100 * $receivedBytes / $expectedBytes))
+                $progressShown = $true
+                $refresh.Restart()
+            }
+        }
+    } finally {
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($response) { $response.Dispose() }
+        $timeout.Dispose()
+        $client.Dispose()
+        if ($progressShown) { Write-Progress -Activity 'Downloading Freak Melee' -Completed }
+    }
 }
 
 function Test-FileEntry($entry) {
@@ -128,11 +172,15 @@ function Install-Update([string] $location, $state) {
         try {
             $source = Resolve-Archive $location ([string] $manifest.archive)
             Write-Host "Downloading Freak Melee $release..."
+            $phase = [Diagnostics.Stopwatch]::StartNew()
             if ($source -match '^https://') {
-                Invoke-WebRequest -Uri $source -OutFile $archiveFile -UseBasicParsing -TimeoutSec 600
+                Receive-Archive $source $archiveFile ([long] $manifest.size)
             } else {
                 Copy-Item -LiteralPath $source -Destination $archiveFile
             }
+            Write-Host ("Downloaded {0:N1} MB in {1:N1}s. Verifying and installing..." -f
+                        ($manifest.size / 1000000), $phase.Elapsed.TotalSeconds)
+            $phase.Restart()
             if ((Get-Item -LiteralPath $archiveFile).Length -ne [long] $manifest.size -or
                 (Get-Sha256 $archiveFile) -ne ([string] $manifest.sha256)) {
                 throw 'Downloaded release hash or size does not match the manifest.'
@@ -154,6 +202,7 @@ function Install-Update([string] $location, $state) {
                 throw 'Extracted release is incomplete or corrupt.'
             }
             Move-Item -LiteralPath $staging -Destination $target
+            Write-Host ("Verified and installed in {0:N1}s." -f $phase.Elapsed.TotalSeconds)
         } finally {
             if (Test-Path -LiteralPath $scratch) {
                 Remove-Item -LiteralPath $scratch -Recurse -Force
