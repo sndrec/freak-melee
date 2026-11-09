@@ -2,6 +2,7 @@
 #include "native_model_view.h"
 
 #include <math.h>
+#include <melee/lb/native_float_math.h>
 #include <string.h>
 
 #include "aobj.h"
@@ -1335,7 +1336,7 @@ void resolveIKJoint2(HSD_JObj* jobj)
         } else if (temp_f1_4 <= -1.0F) {
             var_f1_2 = M_PI;
         } else {
-            var_f1_2 = acosf(temp_f1_4);
+            var_f1_2 = nativeFloatMath_Acos(temp_f1_4);
         }
         if (var_r30 == 0) {
             var_f1_2 = -var_f1_2;

@@ -4,6 +4,7 @@
 #include <Runtime/platform.h>
 
 #include <math.h>
+#include <melee/lb/native_float_math.h>
 
 #include "debug.h"
 #include "list.h"
@@ -174,12 +175,12 @@ float HSD_ByteCodeEval(u8* bytecode, const f32* args, s32 nb_args)
             break;
         case 0x10:
             HSD_ASSERT(429, stack);
-            fv = (f32) (RAD_TO_DEG * asinf(((ByteCodeVal*) &stack->data)->f));
+            fv = (f32) (RAD_TO_DEG * nativeFloatMath_Asin(((ByteCodeVal*) &stack->data)->f));
             stack->data = *(void**) &fv;
             break;
         case 0x11:
             HSD_ASSERT(435, stack);
-            fv = (f32) (RAD_TO_DEG * acosf(((ByteCodeVal*) &stack->data)->f));
+            fv = (f32) (RAD_TO_DEG * nativeFloatMath_Acos(((ByteCodeVal*) &stack->data)->f));
             stack->data = *(void**) &fv;
             break;
         case 0x12:

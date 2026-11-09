@@ -37,7 +37,7 @@ def main():
         batch.write_text('@echo off\ncall "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat" >nul\n' + subprocess.list2cmdline(list(map(str, command))) + '\n')
         run(['cmd', '/c', batch], name + '.log')
     compile(flags + ['-shared', '-x', 'c', out / 'generated.inc', '-o', out / 'module.dll'], 'compile_module')
-    compile(flags + [HERE / 'test.c', sdk / 'src/melee/ft/native_callback_lifetime.c', sdk / 'src/melee/it/native_article_refs.c', '-o', out / 'test.exe'], 'compile_test')
+    compile(flags + [HERE / 'test.c', sdk / 'src/melee/ft/native_callback_lifetime.c', sdk / 'src/melee/it/native_article_refs.c', '-include', root / 'src/melee/lb/native_float_math.h', root / 'src/melee/lb/native_float_math.c', '-o', out / 'test.exe'], 'compile_test')
     result = run([out / 'test.exe'], 'run.log'); counts = re.search(r'PASS (\d+) original/generated pairs, (\d+) checks, (\d+) authored safety cases', result)
     if not counts: raise ValueError('Missing result counts')
     inputs = {p for p in sdk.rglob('*') if p.is_file()}; inputs.update(p for p in (base / 'compiler').rglob('*') if p.is_file())

@@ -1,4 +1,5 @@
 #include "lbvector.h"
+#include "native_float_math.h"
 
 #include <Runtime/platform.h>
 
@@ -96,7 +97,7 @@ float lbVector_Angle(Vec3* a, Vec3* b)
             cosine = -1.0f;
         }
 
-        return acosf(cosine); // acos
+        return nativeFloatMath_Acos(cosine);
     }
     return 0.0f;
 }
@@ -115,7 +116,7 @@ float lbVector_AngleXY(Vec3* a, Vec3* b)
         if (cosine < -1.0f) {
             cosine = -1.0f;
         }
-        return acosf(cosine); // acos
+        return nativeFloatMath_Acos(cosine);
     }
     return 0.0f;
 }
@@ -326,7 +327,7 @@ Vec3* lbVector_EulerAnglesFromONB(Vec3* result_angles, Vec3* a, Vec3* b,
         }
         result_angles->z = 0.0f;
     } else {
-        result_angles->y = asinf(-b->z);
+        result_angles->y = nativeFloatMath_Asin(-b->z);
         result_angles->x = atan2f(c->z, a->z);
         result_angles->z = atan2f(b->y, b->x);
     }

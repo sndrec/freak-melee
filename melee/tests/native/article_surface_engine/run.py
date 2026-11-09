@@ -61,7 +61,8 @@ def main():
     command=[str(snapshot/'compiler/clang.exe'),'-std=gnu11','-O2','-ffp-contract=off',
         '-fuse-ld=lld','-DMELEE_NATIVE=1','-D_USE_MATH_DEFINES','-D_CRT_SECURE_NO_WARNINGS',
         '-I'+str(sdk/'src'),'-I'+str(sdk/'extern/dolphin/include'),'-I'+str(output),
-        str(HERE/'test.c'),'-o',str(exe)]
+        '-include',str(root/'src/melee/lb/native_float_math.h'),
+        str(HERE/'test.c'),str(root/'src/melee/lb/native_float_math.c'),'-o',str(exe)]
     commands=[]
     for stage, cmd in [('compile',command),('run',[str(exe)])]:
         result=subprocess.run(cmd,capture_output=True,text=True,cwd=ROOT,timeout=90)

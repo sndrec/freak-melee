@@ -1,6 +1,7 @@
 #include "quatlib.h"
 
 #include <math.h>
+#include <melee/lb/native_float_math.h>
 #include <placeholder.h>
 
 s32 MatToQuat(Mtx m, Quaternion* q)
@@ -158,7 +159,7 @@ s32 HSD_QuatLib_8037EF28(Quaternion* p, Quaternion* q, Quaternion* out, f32 t)
 
     if ((1.0F + cosom) > 1e-10F) {
         if ((1.0F - cosom) > 1e-10F) {
-            theta = acosf(cosom);
+            theta = nativeFloatMath_Acos(cosom);
             sinom = sinf(theta);
             sp = sinf((1.0F - t) * theta) / sinom;
             sq = sinf(t * theta) / sinom;

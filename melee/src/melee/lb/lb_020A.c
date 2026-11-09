@@ -8,6 +8,7 @@
  */
 
 #include "lb_020A.h"
+#include "native_float_math.h"
 
 #include <math.h>
 #include <placeholder.h>
@@ -225,7 +226,7 @@ void fn_8002113C(HSD_JObj* jobj, Vec3* axis, f32 angle)
 
 static inline f32 calc_acos(f32 value)
 {
-    return acosf(value);
+    return nativeFloatMath_Acos(value);
 }
 
 static inline f32 sqrtf_store(f32 x, volatile f32* y)

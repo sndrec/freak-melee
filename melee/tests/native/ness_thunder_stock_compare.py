@@ -71,6 +71,7 @@ def prepare(a):
         chunks.append(function(vector.read_text(),"lbVector_sqrtf_accurate"))
     (out/"ness_thunder_original.generated.h").write_text("\n".join(chunks))
     sources=[ROOT/"tests/native/ness_thunder_stock_test.c",a.sdk_root/"src/melee/ft/native_fighter_parameters.c",ref/"src/melee/it/kinds/itnesspkthunderball.c",ref/"src/melee/it/kinds/itnesspkthundertrail.c"]
+    sources.append(ROOT/'src/melee/lb/native_float_math.c')
     if a.fighter: sources.append(hi)
     inputs=[*sources,hi,vec,vector,a.compiler,a.stock_dat,a.project/"behavior.fms",a.project/"fighter_parameters.fmp",a.project/"behavior.generated.c",a.sdk_root/"src/melee/ft/native_fighter_module.h",a.sdk_root/"src/melee/ft/native_fighter_runtime.h",ROOT/"tests/native/ness_thunder_candidate.fms",ROOT/"examples/ness_wip.fms",ROOT/"src/melee/ft/kinds/ftNess/ftness_clone.c",Path(__file__)]
     frozen_receipt=a.sdk_root.parent/"freeze.json"
@@ -90,7 +91,7 @@ def main():
     for k,v in vars(a).items():
         if isinstance(v,Path):setattr(a,k,v.resolve())
     sources=prepare(a)
-    flags=["-std=gnu11","-O2","-ffp-contract=off","-ffunction-sections","-fdata-sections","-DMELEE_NATIVE=1","-D_CRT_SECURE_NO_WARNINGS","-D_USE_MATH_DEFINES","-D_DLL","-D_MT","-Xclang","--dependent-lib=msvcrt","-I"+str(a.sdk_root/"src"),"-I"+str(a.sdk_root/"extern/dolphin/include"),"-I"+str(a.out_dir),"-I"+str(a.project)]
+    flags=["-std=gnu11","-O2","-ffp-contract=off","-ffunction-sections","-fdata-sections","-DMELEE_NATIVE=1","-D_CRT_SECURE_NO_WARNINGS","-D_USE_MATH_DEFINES","-D_DLL","-D_MT","-Xclang","--dependent-lib=msvcrt","-include",str(ROOT/"src/melee/lb/native_float_math.h"),"-I"+str(a.sdk_root/"src"),"-I"+str(a.sdk_root/"extern/dolphin/include"),"-I"+str(a.out_dir),"-I"+str(a.project)]
     if a.fighter: flags.append("-DTHUNDER_FIGHTER_CASES=1")
     commands=[];objs=[]
     for i,s in enumerate(sources):

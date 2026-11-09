@@ -31,9 +31,10 @@ def main():
  units += [ROOT/'tests/native/script_receiver_unavailable_identity.c',ROOT/'tests/native/script_source_fighter_absent.c']
  units += [ROOT/'src/melee/it/native_article_animation_demand.c', ROOT/'src/melee/it/native_article_animation_texture.c']
  registry=ROOT/'tests/native/script_receiver_unavailable_registry.c';extra=out/'registry.c';extra.write_text('#include <melee/ft/native_fighter_runtime.h>\n#include <melee/ef/native_model_effect.h>\n'+'\n'.join(extract.body(registry.read_text(),n) for n in ['nativeFighterRuntime_Definition','nativeModelEffect_Snapshot','nativeModelEffect_Resolve'])+'\n');units.append(extra)
+ units.append(ROOT/'src/melee/lb/native_float_math.c')
  inputs=units+list(HERE.glob('*.h'))+[original,trail,ground,mapping,animation,lb,classes,vector,joint,collision,registry,HERE/'run.py',HERE/'README.md',ROOT/'docs/scripting/item_observations.md',extract_path,a.compiler.resolve()]+list((ROOT/'src').rglob('*.h'))+list((ROOT/'extern/dolphin/include').rglob('*.h'))
  hashes={str(f):hashlib.sha256(f.read_bytes()).hexdigest() for f in inputs}
- command=[str(a.compiler),'-std=c11','-O2','-g','-ffp-contract=off','-fuse-ld=lld','-Wall','-Wextra','-Werror','-Wno-array-parameter','-Wno-missing-field-initializers','-DMELEE_NATIVE=1','-D_USE_MATH_DEFINES','-D_CRT_SECURE_NO_WARNINGS','-I'+str(ROOT/'src'),'-I'+str(ROOT/'extern/dolphin/include'),'-I'+str(out),*map(str,units),'-o',str(out/'test.exe')];commands=[]
+ command=[str(a.compiler),'-std=c11','-O2','-g','-ffp-contract=off','-fuse-ld=lld','-Wall','-Wextra','-Werror','-Wno-array-parameter','-Wno-missing-field-initializers','-DMELEE_NATIVE=1','-D_USE_MATH_DEFINES','-D_CRT_SECURE_NO_WARNINGS','-I'+str(ROOT/'src'),'-I'+str(ROOT/'extern/dolphin/include'),'-I'+str(out),'-include',str(ROOT/'src/melee/lb/native_float_math.h'),*map(str,units),'-o',str(out/'test.exe')];commands=[]
  for stage,cmd in [('compile',command),('run',[str(out/'test.exe')])]:
   r=subprocess.run(cmd,cwd=ROOT,capture_output=True,text=True,timeout=120,creationflags=subprocess.CREATE_NO_WINDOW);(out/(stage+'.log')).write_text(r.stdout+r.stderr);commands.append({'stage':stage,'command':cmd,'exit':r.returncode});(out/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
   if r.returncode:raise RuntimeError(stage+': '+(r.stdout+r.stderr)[-11000:])
