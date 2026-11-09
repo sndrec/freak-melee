@@ -1,4 +1,5 @@
 #include "native_shell_workshop_transform.h"
+#include <melee/lb/native_math_functions.h>
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
 
 #include <algorithm>
@@ -107,8 +108,8 @@ namespace {
     M local_matrix(const NativeHomeWorkshopBoneLocal& p)
     {
         float x = p.rotation[0], y = p.rotation[1], z = p.rotation[2];
-        float cx = std::cos(x), sx = std::sin(x), cy = std::cos(y),
-              sy = std::sin(y), cz = std::cos(z), sz = std::sin(z);
+        float cx = cr_cosf(x), sx = cr_sinf(x), cy = cr_cosf(y),
+              sy = cr_sinf(y), cz = cr_cosf(z), sz = cr_sinf(z);
         M r = {
             { { cz * cy, cz * sy * sx - sz * cx, cz * sy * cx + sz * sx, 0 },
               { sz * cy, sz * sy * sx + cz * cx, sz * sy * cx - cz * sx, 0 },
@@ -138,12 +139,12 @@ namespace {
                 r.v[i][j] /= std::fabs(s) > 1e-8f ? s : 1;
             }
         }
-        p.rotation[1] = std::asin(std::clamp(-r.v[2][0], -1.0f, 1.0f));
-        if (std::fabs(std::cos(p.rotation[1])) > 1e-5f) {
-            p.rotation[0] = std::atan2(r.v[2][1], r.v[2][2]);
-            p.rotation[2] = std::atan2(r.v[1][0], r.v[0][0]);
+        p.rotation[1] = nativeFloatMath_Asin(std::clamp(-r.v[2][0], -1.0f, 1.0f));
+        if (std::fabs(cr_cosf(p.rotation[1])) > 1e-5f) {
+            p.rotation[0] = cr_atan2f(r.v[2][1], r.v[2][2]);
+            p.rotation[2] = cr_atan2f(r.v[1][0], r.v[0][0]);
         } else {
-            p.rotation[0] = std::atan2(-r.v[1][2], r.v[1][1]);
+            p.rotation[0] = cr_atan2f(-r.v[1][2], r.v[1][1]);
             p.rotation[2] = 0;
         }
         for (unsigned i = 0; i < 3; ++i) {
@@ -349,7 +350,7 @@ namespace {
               ex = mouse_x - pivot_x, ey = mouse_y - pivot_y;
         float initial_radius = std::sqrt(sx * sx + sy * sy);
         float angle = initial_radius > 15
-                          ? std::atan2(sx * ey - sy * ex, sx * ex + sy * ey)
+                          ? cr_atan2f(sx * ey - sy * ex, sx * ex + sy * ey)
                           : (mouse_x - start_x) * .015f;
         float scale = initial_radius > 15
                           ? std::sqrt(ex * ex + ey * ey) / initial_radius
@@ -363,7 +364,7 @@ namespace {
             if (dot(n, view_normal) < 0) {
                 angle = -angle;
             }
-            float c = std::cos(angle), s = std::sin(angle);
+            float c = cr_cosf(angle), s = cr_sinf(angle);
             for (unsigned i = 0; i < 3; ++i) {
                 for (unsigned j = 0; j < 3; ++j) {
                     transform.v[i][j] =
@@ -507,8 +508,8 @@ namespace {
                 V p = center, q = center + basis[a] * size;
                 if (operation == Rotate) {
                     const float t = seg * 2 * Pi / 32, u = (seg + 1) * 2 * Pi / 32;
-                    p = center + (basis[(a+1)%3] * std::cos(t) + basis[(a+2)%3] * std::sin(t)) * size;
-                    q = center + (basis[(a+1)%3] * std::cos(u) + basis[(a+2)%3] * std::sin(u)) * size;
+                    p = center + (basis[(a+1)%3] * cr_cosf(t) + basis[(a+2)%3] * cr_sinf(t)) * size;
+                    q = center + (basis[(a+1)%3] * cr_cosf(u) + basis[(a+2)%3] * cr_sinf(u)) * size;
                 }
                 cached.visible = (operation == Rotate || seg == 0) &&
                     screen(p,cached.x,cached.y) && screen(q,cached.xx,cached.yy);
@@ -541,7 +542,7 @@ namespace {
             const float n = dx*dx + dy*dy;
             if (n < 9) continue;
             const float t = std::clamp(((mouse_x-segment.x)*dx+(mouse_y-segment.y)*dy)/n,0.0f,1.0f);
-            const float distance = std::hypot(mouse_x-segment.x-t*dx,mouse_y-segment.y-t*dy);
+            const float distance = cr_hypotf(mouse_x-segment.x-t*dx,mouse_y-segment.y-t*dy);
             if (distance < best) { best = distance; hit = (int) axis; }
         }
         return hit;

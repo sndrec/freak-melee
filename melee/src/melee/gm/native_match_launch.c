@@ -1500,6 +1500,11 @@ uint64_t nativeMatchLaunch_Signature(void)
         hash ^= settings[i];
         hash *= UINT64_C(1099511628211);
     }
+    const uint8_t* stock_digest = nativeStockContent_Digest();
+    for (size_t i = 0; i < NATIVE_STOCK_CONTENT_DIGEST_BYTES; ++i) {
+        hash ^= stock_digest[i];
+        hash *= UINT64_C(1099511628211);
+    }
     for (unsigned port = 0; port < 4; ++port) {
         for (unsigned byte = 0; byte < NATIVE_CONTENT_ID_BYTES; ++byte) {
             hash ^= launch.costume_packages[port].bytes[byte];

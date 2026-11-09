@@ -148,11 +148,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-
-// Stock native call sites use the CRT float operation. Taking its address
-// must bind the import directly; lbtrigf's console math symbols otherwise
-// pull an unused console implementation into the native link.
-__declspec(dllimport) float __cdecl atan2f(float, float);
+#include <melee/lb/native_math_functions.h>
 
 typedef const NativeFighterDefinition* (__cdecl* DefinitionEntry)(
     const NativeFighterDefinition* base, const NativeFighterHost* host);
@@ -1152,7 +1148,7 @@ static NativeFighterHost fighter_host = {
     .set_root_rotation_x = ftPartSetRotX,
     .set_root_rotation_z = ftPartSetRotZ,
     .align_root_to_floor = ftCommon_8007E5AC,
-    .angle_atan2 = atan2,
+    .angle_atan2 = cr_atan2,
     .resolve_bone = ftParts_GetBoneIndex,
     .joint_position = lb_8000B1CC,
     .spawn_projectile = spawn_projectile,
@@ -1334,8 +1330,8 @@ static NativeFighterHost fighter_host = {
     .item_set_joint_transform = nativeArticleModel_SetTransform,
     .item_clone_model = nativeArticleModel_Clone,
     .item_destroy_model = nativeArticleModel_Destroy,
-    .sin_float = sinf,
-    .cos_float = cosf,
+    .sin_float = cr_sinf,
+    .cos_float = cr_cosf,
     .abs_float = fabsf,
     .sqrt_float = sqrtf,
     .min_float = fminf,
@@ -1471,7 +1467,7 @@ bool nativeFighterModule_Open(const char* path,
         FreeLibrary(library);
         return false;
     }
-    fighter_host.angle_atan2_float = atan2f;
+    fighter_host.angle_atan2_float = cr_atan2f;
     DefinitionEntry entry = (DefinitionEntry) GetProcAddress(
         library, "FreakMelee_GetFighterModule");
     const NativeFighterDefinition* definition = entry != NULL

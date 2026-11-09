@@ -3,3 +3,4 @@
 *.jpg binary
 *.webp binary
 *.bat text eol=crlf
+melee/extern/core-math/** whitespace=-blank-at-eol,-blank-at-eof

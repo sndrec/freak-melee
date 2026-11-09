@@ -12,6 +12,8 @@
 
 #include "gm_unsplit.h"
 #include "gmmain.h"
+#include <melee/lb/native_float_math.h>
+#include <xmmintrin.h>
 #include "gmmain_lib.h"
 #include "native_match_launch.h"
 #include "native_presentation.h"
@@ -127,6 +129,7 @@ static void gmMain_8015FDA4(void)
 
 int main(int argc, char** argv)
 {
+    _mm_setcsr(NativeFloatMath_DefaultMxcsr);
     const char* iso_path;
     int parsed = nativeMatchLaunch_Parse(argc, argv, &iso_path);
     if (parsed <= 0) {

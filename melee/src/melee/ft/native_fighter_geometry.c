@@ -13,8 +13,6 @@
 #include <sysdolphin/baselib/gobj.h>
 #include <math.h>
 
-__declspec(dllimport) float __cdecl atan2f(float, float);
-
 bool nativeFighterGeometry_ProbeLedge(Fighter_GObj* object, float snap_y,
                                       float snap_height)
 {

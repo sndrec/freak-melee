@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/lb/native_math_functions.h>
 #ifdef MELEE_NATIVE
 namespace WorkshopEditor {
 
@@ -90,8 +91,8 @@ namespace WorkshopEditor {
             ->GetAbsoluteOffset();
         const float x = mouse_x - origin.x - pivot_x;
         const float y = mouse_y - origin.y - pivot_y;
-        session->graph_previous_angle = std::atan2(y, x);
-        session->graph_has_angle = std::hypot(x, y) >= 2.0f;
+        session->graph_previous_angle = cr_atan2f(y, x);
+        session->graph_has_angle = cr_hypotf(x, y) >= 2.0f;
         session->graph_before.assign(session->project->animation_dat,
                                      session->project->animation_dat +
                                          session->project->animation_size);
@@ -173,8 +174,8 @@ namespace WorkshopEditor {
                 ->GetAbsoluteOffset();
             const float x = mouse_x - origin.x - pivot_x;
             const float y = mouse_y - origin.y - pivot_y;
-            if (std::hypot(x, y) >= 2.0f) {
-                const float angle = std::atan2(y, x);
+            if (cr_hypotf(x, y) >= 2.0f) {
+                const float angle = cr_atan2f(y, x);
                 if (session->graph_has_angle)
                     session->graph_rotation += std::remainder(
                         angle - session->graph_previous_angle, 6.28318530718f);
@@ -183,8 +184,8 @@ namespace WorkshopEditor {
             }
         }
         const float rotation = session->graph_rotation;
-        const float cos_rotation = std::cos(rotation);
-        const float sin_rotation = std::sin(rotation);
+        const float cos_rotation = cr_cosf(rotation);
+        const float sin_rotation = cr_sinf(rotation);
         struct KeyTarget {
             GraphKeyBaseline baseline;
             int frame;
@@ -201,7 +202,7 @@ namespace WorkshopEditor {
                 y += dy;
             } else if (session->graph_tool == GraphTool::Scale) {
                 const float factor =
-                    std::clamp(std::exp((dx - dy) * 0.007f), 0.125f, 8.0f);
+                    std::clamp(cr_expf((dx - dy) * 0.007f), 0.125f, 8.0f);
                 x = pivot_x + (x - pivot_x) * factor;
                 y = pivot_y + (y - pivot_y) * factor;
             } else {
@@ -252,7 +253,7 @@ namespace WorkshopEditor {
                 const float original_y = ty;
                 if (session->graph_tool == GraphTool::Scale) {
                     const float factor =
-                        std::clamp(std::exp((dx - dy) * .007f), .125f, 8.0f);
+                        std::clamp(cr_expf((dx - dy) * .007f), .125f, 8.0f);
                     tx *= factor;
                     ty *= factor;
                 } else {

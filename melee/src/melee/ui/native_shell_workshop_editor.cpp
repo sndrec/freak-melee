@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/lb/native_math_functions.h>
 #include "native_shell_workshop_docs.h"
 #include <melee/ft/native_fighter_model_editor.h>
 
@@ -146,7 +147,7 @@ std::string float_text(float value)
 
 std::string graph_tick_text(float value, float step)
 {
-    const int precision = std::clamp(int(std::ceil(-std::log10(std::max(step,1e-9f)))),0,9);
+    const int precision = std::clamp(int(std::ceil(-cr_log10f(std::max(step,1e-9f)))),0,9);
     if (std::fabs(value) < step * 1e-4f) value = 0;
     char result[32];
     std::snprintf(result, sizeof(result), "%.*f", precision, value);

@@ -55,6 +55,18 @@ and lower to bytecode locally; they do not compile to C or behavior DLLs.
 Release/RelWithDebInfo use native ThinLTO while retaining strict floating-point
 settings; Debug is a separate debugging configuration.
 
+The native game, script runtime and Aurora matrix library use the pinned
+transcendental implementations in [CORE-MATH](../extern/core-math/README.md)
+and the game's inverse trig routines. The simulation thread resets to
+nearest-even rounding with subnormal support before each tick. To verify the
+compiled math and check for accidental CRT imports:
+
+```bat
+cmake --build melee/build/native --target native_math_test
+ctest --test-dir melee/build/native -R "^native_math$" --output-on-failure
+python melee/tools/audit_native_math.py melee/build/native
+```
+
 For an already configured development tree:
 
 ```bat

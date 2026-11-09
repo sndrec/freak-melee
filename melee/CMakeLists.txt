@@ -51,6 +51,24 @@ file(GLOB_RECURSE MELEE_GAME_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sysdolphin/*.c")
+set(NATIVE_INVERSE_TRIG "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/lb/native_float_math.c")
+list(REMOVE_ITEM MELEE_GAME_SOURCES "${NATIVE_INVERSE_TRIG}")
+file(GLOB_RECURSE CORE_MATH_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/extern/core-math/*.c")
+add_library(melee_math STATIC ${CORE_MATH_SOURCES} "${NATIVE_INVERSE_TRIG}")
+set(NATIVE_MATH_BUILD_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/lb/native_math_build.h")
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(melee_math PRIVATE /clang:-ffp-contract=off /clang:-frounding-math)
+    set(NATIVE_MATH_COMPILE_OPTIONS /clang:-include "/clang:${NATIVE_MATH_BUILD_HEADER}")
+else()
+    target_compile_options(melee_math PRIVATE -ffp-contract=off -frounding-math)
+    set(NATIVE_MATH_COMPILE_OPTIONS "SHELL:-include \"${NATIVE_MATH_BUILD_HEADER}\"")
+endif()
+add_executable(native_math_test tests/native/native_math_test.c)
+target_include_directories(native_math_test PRIVATE src)
+target_compile_options(native_math_test PRIVATE ${NATIVE_MATH_COMPILE_OPTIONS})
+target_link_libraries(native_math_test PRIVATE melee_math)
+add_test(NAME native_math COMMAND native_math_test)
 list(SORT MELEE_GAME_SOURCES)
 list(LENGTH MELEE_GAME_SOURCES MELEE_GAME_SOURCE_COUNT)
 message(STATUS "Native compilation covers ${MELEE_GAME_SOURCE_COUNT} game/HSD source files")
@@ -393,6 +411,7 @@ target_compile_definitions(native_article_resource_generated PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
 
 add_library(melee_game OBJECT ${MELEE_GAME_SOURCES})
+target_compile_options(melee_game PRIVATE "$<$<COMPILE_LANGUAGE:C>:${NATIVE_MATH_COMPILE_OPTIONS}>")
 set(NATIVE_NETPLAY_DIAGNOSTICS_URL "" CACHE STRING "Playtest-only HTTPS desync report endpoint")
 set(NATIVE_NETPLAY_DIAGNOSTICS_BUILD "" CACHE STRING "Build label for playtest desync reports")
 if(NATIVE_NETPLAY_DIAGNOSTICS_URL)
@@ -1041,6 +1060,8 @@ set(AURORA_ENABLE_RMLUI ON CACHE BOOL
     "Enable Aurora's native desktop UI for the Freak Melee shell" FORCE)
 include(cmake/NativeSDL.cmake)
 add_subdirectory("${MELEE_AURORA_SOURCE}" "${CMAKE_BINARY_DIR}/aurora" EXCLUDE_FROM_ALL)
+target_compile_options(aurora_mtx PRIVATE ${NATIVE_MATH_COMPILE_OPTIONS})
+target_link_libraries(aurora_mtx PUBLIC melee_math)
 include("${MELEE_AURORA_SOURCE}/cmake/AuroraCopyRuntimeDLLs.cmake")
 add_custom_target(melee_platform DEPENDS aurora_core aurora_os aurora_gx
     aurora_mtx aurora_vi aurora_pad aurora_dvd aurora_card aurora_thp)
@@ -2124,7 +2145,7 @@ add_test(NAME native_fighter_installed_clone_roundtrip COMMAND
 # Build it by default so source changes also refresh the playable client.
 target_link_libraries(melee_game PRIVATE yyjson melee_account_crypto aurora_main aurora_core
     LibJuice::LibJuice)
-target_link_libraries(melee_runtime PUBLIC LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
+target_link_libraries(melee_runtime PUBLIC melee_math LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
 add_executable(melee_native src/melee/gm/gmmain.c)
 target_include_directories(melee_native PRIVATE src extern/dolphin/include)
 target_compile_definitions(melee_native PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)

@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/lb/native_math_functions.h>
 
 #ifdef MELEE_NATIVE
 
@@ -238,7 +239,7 @@ void show_animation_graph()
     global_high = session->graph_value_high;
     auto grid_step = [](float span, float pixels) {
         const float desired = span * 80.0f / std::max(pixels, 1.0f);
-        const float base = std::pow(10.0f, std::floor(std::log10(std::max(desired, 1e-9f))));
+        const float base = cr_powf(10.0f, std::floor(cr_log10f(std::max(desired, 1e-9f))));
         const float unit = desired / base;
         return base * (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10);
     };
@@ -316,7 +317,7 @@ void show_animation_graph()
                 x0 += dx * enter;
                 y0 += dy * enter;
             }
-            const float length = std::hypot(x1 - x0, y1 - y0);
+            const float length = cr_hypotf(x1 - x0, y1 - y0);
             if (length < 0.1f) return;
             const float half = tangent ? 0.5f : 0.8f;
             const float offset_x = (y0 - y1) * half / length;
@@ -657,7 +658,7 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
         const float span = session->graph_view_end - session->graph_view_start;
         if (zooming) {
             const float next_span = std::clamp(span *
-                std::exp(float(y - last_y) * 0.012f),
+                cr_expf(float(y - last_y) * 0.012f),
                 std::min(session->clip_frames, std::max(1.0f, session->clip_frames / 120.0f)),
                 session->clip_frames);
             const float center = session->graph_view_start + span * 0.5f;
@@ -666,7 +667,7 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
             session->graph_view_end = session->graph_view_start + next_span;
             const float value_center = (session->graph_value_low + session->graph_value_high) * .5f;
             const float half_range = (session->graph_value_high - session->graph_value_low) * .5f *
-                                     std::exp(float(y - last_y) * .012f);
+                                     cr_expf(float(y - last_y) * .012f);
             session->graph_value_low = value_center - half_range;
             session->graph_value_high = value_center + half_range;
         } else {
@@ -713,7 +714,7 @@ void GraphNavigationEvents::ProcessEvent(Rml::Event& event)
     } else {
         const float min_span = std::min(session->clip_frames,
             std::max(1.0f, session->clip_frames / 120.0f));
-        const float next_span = std::clamp(span * std::pow(1.2f, vertical),
+        const float next_span = std::clamp(span * cr_powf(1.2f, vertical),
                                            min_span, session->clip_frames);
         const float x = float(event.GetParameter<int>("mouse_x", 0)) -
                         graph->GetAbsoluteOffset().x;

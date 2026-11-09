@@ -1,4 +1,5 @@
 #include "native_shell_workshop_bones.h"
+#include <melee/lb/native_math_functions.h>
 
 #ifdef MELEE_NATIVE
 
@@ -167,7 +168,7 @@ void position(const char* viewport_id, Rml::Element** markers,
         const int y = positions[parent_index].y;
         if (last.x != x || last.y != y || last.dx != dx || last.dy != dy) {
             const float length = std::sqrt(float(dx * dx + dy * dy));
-            const float angle = std::atan2(float(dy), float(dx)) *
+            const float angle = cr_atan2f(float(dy), float(dx)) *
                                 (180.0f / 3.14159265f);
             link->SetProperty("left", std::to_string(x) + "px");
             link->SetProperty("top", std::to_string(y) + "px");

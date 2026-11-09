@@ -1,4 +1,5 @@
 #include "native_shell_workshop_hitboxes.h"
+#include <melee/lb/native_math_functions.h>
 
 #ifdef MELEE_NATIVE
 
@@ -124,7 +125,7 @@ void nativeShellWorkshopHitboxes_Update(bool visible, int selected_hitbox,
         }
         const float dx = screen.direction_x * game_width;
         const float dy = screen.direction_y * game_height;
-        const float projected_length = std::hypot(dx, dy);
+        const float projected_length = cr_hypotf(dx, dy);
         const bool arrow_visible = !special && screen.direction_valid &&
             std::isfinite(projected_length) && projected_length >= 2.0f;
         if (arrow_visible != positions[id].arrow_visible) {
@@ -134,7 +135,7 @@ void nativeShellWorkshopHitboxes_Update(bool visible, int selected_hitbox,
         if (arrow_visible) {
             const int length = (int) std::lround(std::clamp(
                 projected_length, 24.0f, 42.0f));
-            const int degrees = (int) std::lround(std::atan2(dy, dx) *
+            const int degrees = (int) std::lround(cr_atan2f(dy, dx) *
                 (180.0f / 3.14159265358979323846f));
             if (length != positions[id].arrow_length) {
                 arrows[id]->SetProperty("width", std::to_string(length) + "px");

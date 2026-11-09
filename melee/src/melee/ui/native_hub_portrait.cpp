@@ -1,4 +1,5 @@
 #include "native_hub_portrait.h"
+#include <melee/lb/native_math_functions.h>
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
 #include "native_shell_workshop.h"
@@ -266,7 +267,7 @@ bool nativeHubPortrait_Event(const SDL_Event* event)
         constrain(); apply_camera(); return true;
     }
     if (event->type == SDL_EVENT_MOUSE_WHEEL && nativeHub_Hover(picture.x, picture.y, picture.width, picture.height)) {
-        camera.zoom *= std::pow(1.12f, event->wheel.y);
+        camera.zoom *= cr_powf(1.12f, event->wheel.y);
         constrain(); apply_camera(); return true;
     }
     return false;

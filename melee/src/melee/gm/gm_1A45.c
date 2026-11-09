@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <xmmintrin.h>
+#include <melee/lb/native_float_math.h>
 #include <melee/gm/native_match_control_history.h>
 #include "gm_1A45.h"
 #include "native_match_classes.h"
@@ -413,6 +415,8 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
     }
 
     while (temp_r25->unk_C == 0 && !gmMain_ExitRequested) {
+        // GPU and UI work run on this thread between ticks.
+        _mm_setcsr(NativeFloatMath_DefaultMxcsr);
         if(compact_before_input) {
             nativeSnapshotCensus_Sample(info->scene_kind,temp_r25->unk_0,
                                        nativeReplay_SampleCount());
