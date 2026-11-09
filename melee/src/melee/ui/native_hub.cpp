@@ -1159,6 +1159,7 @@ extern "C" void nativeHub_Tick(void)
     }
     const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
                            nativeHubStartup.step <= NativeStartup_Triggers;
+    const bool fixed_pointer = measuring && nativeHubStartup.step != NativeStartup_Triggers;
     nativeMenuScene_Tick(!measuring && !nativeHubStartup.testing_input && !nativeHubPortrait_Editing() && !nativeHubDefaults_IsOpen() &&
         !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
     if (pointer_mouse && !screen_to_canvas(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
@@ -1181,7 +1182,7 @@ extern "C" void nativeHub_Tick(void)
         if (hub.page == NativeHubPage_QuickStage && port < nativeOnlineSession_LocalPlayers() &&
             (pad.trigger || pad.stickX || pad.stickY)) hub.stage_seat = port;
         float x = pad.stickX, y = pad.stickY, magnitude = x * x + y * y;
-        if ((!measuring || (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Triggers)) && magnitude >= 200) {
+        if (!fixed_pointer && magnitude >= 200) {
             pointer_mouse = false;
             float scale = (magnitude - 200) / std::sqrt(magnitude) * .0016f;
             hub.pointer_x =
@@ -1201,6 +1202,8 @@ extern "C" void nativeHub_Tick(void)
             }
         } else if (pad.trigger & PAD_BUTTON_A) {
             click(port);
+        } else if (fixed_pointer && (pad.trigger & PAD_BUTTON_START)) {
+            queue(HubAction::StartupNext);
         } else if (pad.trigger & PAD_BUTTON_START && hub.page == NativeHubPage_Lobbies) {
             queue(HubAction::Practice);
         }
