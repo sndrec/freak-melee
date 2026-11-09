@@ -16,10 +16,10 @@ void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before
     const int timeline_frame=session->timeline_frame;
     const float graph_start=session->graph_view_start,graph_end=session->graph_view_end;
     NativeFighterAnimationTrack previous[1024];
-    bool selected[1024];
+    bool selected[512];
     const size_t count=session->track_count;
     std::copy_n(session->tracks,count,previous);
-    std::copy_n(session->selected_tracks,count,selected);
+    std::copy_n(session->selected_bones,std::size(selected),selected);
     const int selected_track=session->selected_track;
     const int outliner=session->selected_outliner_joint;
     const auto graph_selection=session->graph_selection;
@@ -65,7 +65,13 @@ void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before
     session->displayed_animation_clip.index=UINT_MAX;
     session->skeleton_hierarchy_available=false;
     show_animation();
-    std::fill_n(session->selected_tracks,1024,false);
+    std::fill_n(session->selected_bones,std::size(selected),false);
+    for(unsigned i=0;i<std::min<size_t>(after.joint_count,std::size(selected));++i)
+        for(unsigned old=0;old<std::min<size_t>(before.joint_count,std::size(selected));++old)
+            if(after.joints[i].offset==before.joints[old].offset) {
+                session->selected_bones[i]=selected[old];
+                break;
+            }
     session->selected_track=-1;session->selected_outliner_joint=-1;
     for(size_t i=0;i<count;++i) {
         if(previous[i].joint>=before.joint_count) continue;
@@ -74,7 +80,7 @@ void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before
             const auto& track=session->tracks[next];
             if(track.joint>=after.joint_count||track.channel!=previous[i].channel||
                after.joints[track.joint].offset!=offset) continue;
-            mapping[i]=(unsigned)next;session->selected_tracks[next]=selected[i];
+            mapping[i]=(unsigned)next;
             if((int)i==selected_track) session->selected_track=(int)next;
             break;
         }
@@ -84,14 +90,14 @@ void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before
             if(after.joints[i].offset==before.joints[outliner].offset) session->selected_outliner_joint=(int)i;
     if(session->selected_track<0)
         for(size_t i=0;i<session->track_count;++i)
-            if(session->selected_tracks[i]) {session->selected_track=(int)i;break;}
+            if(track_selected((unsigned) i)) {session->selected_track=(int)i;break;}
     if(session->selected_track<0 && session->selected_outliner_joint<0 && session->track_count) {
         // A fresh view gets the same first-bone selection as show_animation.
         // A retained unanimated bone keeps its explicit empty selection.
         session->selected_track=0;
         session->selected_outliner_joint=(int)session->tracks[0].joint;
-        for(size_t i=0;i<session->track_count;++i)
-            session->selected_tracks[i]=session->tracks[i].joint==session->tracks[0].joint;
+        if(session->tracks[0].joint<std::size(selected))
+            session->selected_bones[session->tracks[0].joint]=true;
     }
     if(session->selected_track>=0) refresh_track_selection();
     else {

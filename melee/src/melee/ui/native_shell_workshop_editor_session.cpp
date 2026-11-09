@@ -158,6 +158,7 @@ void restore_session_widgets()
 
 void cancel_session_gestures()
 {
+    close_delete_confirmation();
     stop_action_preview();
     finish_graph_transform(false);
     session->graph_drag_active = false;

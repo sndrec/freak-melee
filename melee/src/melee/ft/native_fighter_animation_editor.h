@@ -72,8 +72,8 @@ bool nativeFighterAnimation_RestoreDescriptors(NativeFighterProject*,
 bool nativeFighterAnimation_Info(const NativeFighterProject* project,
                                  NativeFighterAnimationClip clip,
                                  NativeFighterAnimationInfo* info);
-// Change the source figatree's end frame. Refuse to truncate encoded keys;
-// fighter action looping is separate from this clip metadata.
+// Change the source figatree's end frame. Refuse to cut keys inside the
+// old playback range. Endpoints already outside that range are preserved.
 bool nativeFighterAnimation_SetFrames(NativeFighterProject* project,
                                       NativeFighterAnimationClip clip, float frames);
 bool nativeFighterAnimation_Tracks(const NativeFighterProject* project,
@@ -96,11 +96,6 @@ bool nativeFighterAnimation_Snap(const NativeFighterProject* project,
 bool nativeFighterAnimation_SetTangent(NativeFighterProject* project,
                                        NativeFighterAnimationClip clip, unsigned track,
                                        unsigned key, float tangent);
-// Moves a timed key between its immediate timed neighbors by changing the two
-// adjacent encoded waits. The following keys and clip duration stay fixed.
-bool nativeFighterAnimation_MoveKey(NativeFighterProject* project,
-                                    NativeFighterAnimationClip clip, unsigned track,
-                                    unsigned key, int frame);
 // Re-encode one imported transform track and grow its DAT clip when a new
 // frame is needed. Existing encoded values, tangent bytes, opcodes and key
 // frames are retained; the new key uses linear interpolation. On success the
@@ -114,15 +109,27 @@ bool nativeFighterAnimation_InsertKey(NativeFighterProject* project,
 bool nativeFighterAnimation_KeyChannel(NativeFighterProject* project,
     NativeFighterAnimationClip clip, unsigned joint, unsigned channel, int frame,
     float value, float default_value);
-// Remove one interior timed transform key, preserving the other key payloads,
-// frames and following track data. A source endpoint or slope-only key cannot
-// be removed by this operation.
-bool nativeFighterAnimation_DeleteKey(NativeFighterProject* project,
-                                      NativeFighterAnimationClip clip, unsigned track,
-                                      unsigned key);
+typedef struct NativeFighterAnimationKeyRef {
+    unsigned track, key;
+} NativeFighterAnimationKeyRef;
+
+typedef struct NativeFighterAnimationKeyTime {
+    NativeFighterAnimationKeyRef ref;
+    int frame;
+} NativeFighterAnimationKeyTime;
+
+// Edit a sorted selection atomically. Keys sharing a source frame move
+// together. Deleting a channel's last value removes the channel.
+bool nativeFighterAnimation_EditKeys(NativeFighterProject* project,
+    NativeFighterAnimationClip clip, const NativeFighterAnimationKeyTime* keys,
+    size_t count, bool erase);
 // Evaluate a transform channel with Melee's own FOBJ interpreter. This is the
 // value seen by the animation system at the requested (possibly fractional)
 // frame, distinct from the encoded key's value.
+// Sample sorted frames using one decoded clip and one FObj per channel.
+bool nativeFighterAnimation_SampleFrames(const NativeFighterProject* project,
+    NativeFighterAnimationClip clip, unsigned track, const float* frames,
+    float* values, size_t count);
 bool nativeFighterAnimation_Sample(const NativeFighterProject* project,
                                     NativeFighterAnimationClip clip, unsigned track,
                                     float frame, float* value);

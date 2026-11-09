@@ -24,19 +24,6 @@ typedef struct AnimationClip {
     const char* name;
 } AnimationClip;
 
-typedef struct KeyTiming {
-    int previous_frame;
-    int frame;
-    size_t previous_wait_offset;
-    size_t current_wait_offset;
-    size_t previous_wait_size;
-    size_t current_wait_size;
-    unsigned previous_wait;
-    unsigned current_wait;
-    bool previous_timed;
-    bool current_timed;
-} KeyTiming;
-
 static uint32_t be32(const uint8_t* p)
 {
     return (uint32_t) p[0] << 24 | (uint32_t) p[1] << 16 |
@@ -250,8 +237,7 @@ static bool encode_value(uint8_t* destination, uint8_t frac, float value)
 
 static bool scan_keys(const FigaTrack* track, NativeFighterAnimationKey* keys,
                       size_t capacity, size_t* count, unsigned selected,
-                      size_t* value_offset, size_t* tangent_offset,
-                      KeyTiming* timing)
+                      size_t* value_offset, size_t* tangent_offset)
 {
     const uint8_t* bytes = track->ad_head;
     size_t length = track->length, at = 0;
@@ -288,25 +274,8 @@ static bool scan_keys(const FigaTrack* track, NativeFighterAnimationKey* keys,
                 !decode_value(bytes, length, &at, track->frac_slope,
                               &slope)) return false;
             unsigned wait = 0;
-            size_t wait_offset = at;
-            bool timed = op != HSD_A_OP_SLP && op != HSD_A_OP_KEY;
             if (op != HSD_A_OP_SLP && op != HSD_A_OP_KEY &&
                 !packed(bytes, length, &at, &wait)) return false;
-            if (timing != NULL && selected != 0 &&
-                *count == (size_t) selected - 1) {
-                timing->previous_frame = frame;
-                timing->previous_wait_offset = wait_offset;
-                timing->previous_wait_size = at - wait_offset;
-                timing->previous_wait = wait;
-                timing->previous_timed = timed;
-            }
-            if (timing != NULL && *count == selected) {
-                timing->frame = frame;
-                timing->current_wait_offset = wait_offset;
-                timing->current_wait_size = at - wait_offset;
-                timing->current_wait = wait;
-                timing->current_timed = timed;
-            }
             if (keys != NULL) {
                 if (*count >= capacity) return false;
                 keys[*count] = (NativeFighterAnimationKey){
@@ -352,13 +321,16 @@ bool nativeFighterAnimation_SetFrames(NativeFighterProject* project,
         const FigaTrack* source = &clip.tracks[track];
         size_t count = 0;
         if (!scan_keys(source, NULL, 0, &count, UINT32_MAX,
-                       NULL, NULL, NULL)) return false;
+                       NULL, NULL)) return false;
         NativeFighterAnimationKey* keys = malloc(count * sizeof(*keys));
         if (keys == NULL && count != 0) return false;
         bool valid = scan_keys(source, keys, count, &count, UINT32_MAX,
-                               NULL, NULL, NULL);
+                               NULL, NULL);
+        // Stock constant tracks can carry a hold endpoint beyond the clip.
+        // Preserve those streams and check only frames the trim would cut.
         for (size_t key = 0; valid && key < count; ++key)
-            if (keys[key].frame > frames) valid = false;
+            if (keys[key].frame > frames && keys[key].frame <= clip.tree.frames)
+                valid = false;
         free(keys);
         if (!valid) return false;
     }
@@ -390,7 +362,7 @@ bool nativeFighterAnimation_Tracks(const NativeFighterProject* project,
             const FigaTrack* source = &clip.tracks[track];
             size_t keys;
             if (!scan_keys(source, NULL, 0, &keys, UINT32_MAX,
-                           NULL, NULL, NULL))
+                           NULL, NULL))
                 return false;
             if (tracks != NULL) tracks[track] = (NativeFighterAnimationTrack){
                 joint, source->obj_type, (int16_t) source->startframe,
@@ -411,7 +383,7 @@ bool nativeFighterAnimation_Keys(const NativeFighterProject* project,
     AnimationClip clip;
     return open_clip(project, reference, &clip) && track < clip.track_count &&
            scan_keys(&clip.tracks[track], keys, capacity, count,
-                     UINT32_MAX, NULL, NULL, NULL);
+                     UINT32_MAX, NULL, NULL);
 }
 
 static bool set_key_field(NativeFighterProject* project, NativeFighterAnimationClip reference,
@@ -428,7 +400,7 @@ static bool set_key_field(NativeFighterProject* project, NativeFighterAnimationC
     size_t count, offset = SIZE_MAX;
     if (!scan_keys(source, NULL, 0, &count, key,
                    tangent ? NULL : &offset,
-                   tangent ? &offset : NULL, NULL) ||
+                   tangent ? &offset : NULL) ||
         key >= count || offset == SIZE_MAX) return false;
     uint8_t replacement[4];
     uint8_t frac = tangent ? source->frac_slope : source->frac_value;
@@ -757,7 +729,7 @@ bool nativeFighterAnimation_InsertKey(NativeFighterProject* project,
     if (!encode_value(encoded, source->frac_value, value)) return false;
     size_t count;
     if (!scan_keys(source, NULL, 0, &count, UINT32_MAX,
-                   NULL, NULL, NULL) || count == 0 || count >= MAX_KEYS)
+                   NULL, NULL) || count == 0 || count >= MAX_KEYS)
         return false;
     AuthorKey* keys = malloc((count + 1) * sizeof(*keys));
     if (keys == NULL) return false;
@@ -954,101 +926,256 @@ bool nativeFighterAnimation_KeyChannel(NativeFighterProject* project,
     return valid;
 }
 
-bool nativeFighterAnimation_DeleteKey(NativeFighterProject* project,
-                                      NativeFighterAnimationClip reference, unsigned track,
-                                      unsigned key)
+typedef struct EditedTrack {
+    uint8_t* stream;
+    size_t length;
+    int startframe;
+    bool removed;
+} EditedTrack;
+
+static bool timed_key(const AuthorKey* key)
 {
-    AnimationClip clip;
-    if (!open_clip(project, reference, &clip) || track >= clip.track_count)
-        return false;
-    const FigaTrack* source = &clip.tracks[track];
-    if (source->obj_type < HSD_A_J_ROTX ||
-        source->obj_type > HSD_A_J_SCAZ ||
-        source->obj_type == HSD_A_J_PATH) return false;
-    size_t count;
-    if (!scan_keys(source, NULL, 0, &count, UINT32_MAX,
-                   NULL, NULL, NULL) || key == 0 || key + 1 >= count)
-        return false;
-    AuthorKey* keys = malloc(count * sizeof(*keys));
-    if (keys == NULL) return false;
-    size_t parsed;
-    bool valid = author_keys(source, keys, count, &parsed) && parsed == count &&
-        keys[key - 1].op != HSD_A_OP_SLP &&
-        keys[key - 1].op != HSD_A_OP_KEY &&
-        keys[key].op != HSD_A_OP_SLP &&
-        keys[key].op != HSD_A_OP_KEY &&
-        keys[key - 1].frame < keys[key].frame &&
-        keys[key].frame < keys[key + 1].frame &&
-        (int64_t) keys[key - 1].frame + keys[key - 1].wait ==
-            keys[key].frame &&
-        (int64_t) keys[key].frame + keys[key].wait ==
-            keys[key + 1].frame;
-    if (valid) {
-        keys[key - 1].wait = (unsigned) (keys[key + 1].frame -
-                                          keys[key - 1].frame);
-        memmove(keys + key, keys + key + 1,
-                (count - key - 1) * sizeof(*keys));
-        valid = store_track_stream(project, reference, track, &clip,
-            (int16_t) source->startframe, keys, count - 1, 0, 0, false);
-    }
-    free(keys);
-    return valid;
+    return key->op != HSD_A_OP_SLP && key->op != HSD_A_OP_KEY;
 }
 
-bool nativeFighterAnimation_MoveKey(NativeFighterProject* project,
-                                    NativeFighterAnimationClip reference, unsigned track,
-                                    unsigned key, int frame)
+static bool edit_track_keys(const FigaTrack* track,
+                            const NativeFighterAnimationKeyTime* edits,
+                            size_t edit_count, bool erase, EditedTrack* result)
+{
+    size_t count;
+    if (track->obj_type < HSD_A_J_ROTX || track->obj_type > HSD_A_J_SCAZ ||
+        track->obj_type == HSD_A_J_PATH ||
+        !scan_keys(track, NULL, 0, &count, UINT32_MAX, NULL, NULL) ||
+        edits[edit_count - 1].ref.key >= count)
+        return false;
+    AuthorKey* keys = malloc(count * sizeof(*keys));
+    if (!keys) return false;
+    size_t parsed;
+    if (!author_keys(track, keys, count, &parsed) || parsed != count) {
+        free(keys);
+        return false;
+    }
+
+    // Slope-only records modify a value at the same time. Drop them when
+    // their whole frame loses its value, so they cannot alter another key.
+    size_t edit = 0, retained = 0, values = 0;
+    int previous = INT32_MIN;
+    for (size_t first = 0; first < count;) {
+        const int source_frame = keys[first].frame;
+        size_t end = first + 1;
+        while (end < count && keys[end].frame == source_frame) ++end;
+        int frame = source_frame;
+        if (!erase && edit < edit_count && edits[edit].ref.key < end) {
+            frame = edits[edit].frame;
+            while (edit < edit_count && edits[edit].ref.key < end) {
+                if (edits[edit++].frame != frame) {
+                    free(keys);
+                    return false;
+                }
+            }
+        }
+        if (frame <= previous) {
+            free(keys);
+            return false;
+        }
+        previous = frame;
+        const size_t write_start = retained;
+        bool has_value = false;
+        for (size_t k = first; k < end; ++k) {
+            if (erase && edit < edit_count && edits[edit].ref.key == k) {
+                ++edit;
+                continue;
+            }
+            has_value |= keys[k].op != HSD_A_OP_SLP;
+            values += keys[k].op != HSD_A_OP_SLP;
+            keys[k].frame = frame;
+            keys[retained++] = keys[k];
+        }
+        if (erase && !has_value) retained = write_start;
+        first = end;
+    }
+
+    if (values == 0) {
+        result->removed = true;
+        free(keys);
+        return true;
+    }
+    if (erase && values == 1) {
+        // A single KEY updates the channel at its authored start without
+        // inventing a second visible endpoint to drive interpolation.
+        size_t value = 0;
+        while (keys[value].op == HSD_A_OP_SLP) ++value;
+        keys[0] = keys[value];
+        keys[0].op = HSD_A_OP_KEY;
+        keys[0].payload_size = width(track->frac_value);
+        retained = 1;
+    }
+    if (keys[0].frame < INT16_MIN || keys[0].frame > INT16_MAX) {
+        free(keys);
+        return false;
+    }
+
+    size_t size = 0;
+    for (size_t i = 0; i < retained; ++i) {
+        AuthorKey* key = &keys[i];
+        const unsigned wait = i + 1 < retained
+            ? (unsigned) ((int64_t) keys[i + 1].frame - key->frame) : 0;
+        if (wait && !timed_key(key)) {
+            if (key->op == HSD_A_OP_SLP) {
+                // Put the timing on the value at this frame, keeping the
+                // slope override in its original relative order.
+                size_t previous = i;
+                while (previous > 0 && keys[previous].op == HSD_A_OP_SLP)
+                    --previous;
+                if (keys[previous].frame != key->frame ||
+                    keys[previous].op == HSD_A_OP_SLP) {
+                    free(keys);
+                    return false;
+                }
+                AuthorKey value = keys[previous];
+                memmove(keys + previous, keys + previous + 1,
+                        (i - previous) * sizeof(*keys));
+                keys[i] = value;
+                // Recalculate encoded widths after reordering below.
+            }
+            if (!timed_key(key)) key->op = HSD_A_OP_CON;
+        }
+        key->wait = wait;
+    }
+    for (size_t i = 0; i < retained; ++i) {
+        const AuthorKey* key = &keys[i];
+        size += 1 + key->payload_size + (timed_key(key) ? packed_width(key->wait) : 0);
+    }
+    if (size > UINT16_MAX || !(result->stream = malloc(size))) {
+        free(keys);
+        return false;
+    }
+    result->startframe = keys[0].frame;
+    result->length = size;
+    uint8_t* stream = result->stream;
+    for (size_t i = 0; i < retained; ++i) {
+        const AuthorKey* key = &keys[i];
+        *stream++ = key->op;
+        memcpy(stream, key->payload, key->payload_size);
+        stream += key->payload_size;
+        if (timed_key(key)) {
+            const size_t bytes = packed_width(key->wait);
+            write_packed(stream, bytes, key->wait);
+            stream += bytes;
+        }
+    }
+    free(keys);
+    return true;
+}
+
+bool nativeFighterAnimation_EditKeys(NativeFighterProject* project,
+    NativeFighterAnimationClip reference, const NativeFighterAnimationKeyTime* keys,
+    size_t count, bool erase)
 {
     AnimationClip clip;
-    if (!open_clip(project, reference, &clip) || track >= clip.track_count ||
-        key == 0) return false;
-    const FigaTrack* source = &clip.tracks[track];
-    if (source->obj_type < HSD_A_J_ROTX ||
-        source->obj_type > HSD_A_J_SCAZ ||
-        source->obj_type == HSD_A_J_PATH) return false;
-    size_t count;
-    KeyTiming timing = { 0 };
-    if (!scan_keys(source, NULL, 0, &count, key, NULL, NULL, &timing) ||
-        key + 1 >= count || !timing.previous_timed ||
-        !timing.current_timed || timing.previous_wait == 0 ||
-        timing.current_wait == 0) return false;
-    int64_t next = (int64_t) timing.frame + timing.current_wait;
-    if (frame <= timing.previous_frame || frame >= next) return false;
-    if (frame == timing.frame) return true;
-    unsigned before = (unsigned) (frame - timing.previous_frame);
-    unsigned after = (unsigned) (next - frame);
-    if (packed_width(before) != timing.previous_wait_size ||
-        packed_width(after) != timing.current_wait_size ||
-        timing.previous_wait_size > 5 || timing.current_wait_size > 5)
+    u32 root, old_table;
+    const char* external;
+    if (!keys || !count || !open_clip(project, reference, &clip) ||
+        keys[count - 1].ref.track >= clip.track_count ||
+        !HSD_DatFindRoot(&clip.dat, clip.name, &root) ||
+        HSD_DatResolve(&clip.dat, root + 16, &old_table, &external) !=
+            HSD_DAT_REF_LOCAL)
         return false;
-    size_t base = (size_t) (source->ad_head - project->animation_dat);
-    size_t previous = base + timing.previous_wait_offset;
-    size_t current = base + timing.current_wait_offset;
-    if (previous > project->animation_size ||
-        timing.previous_wait_size > project->animation_size - previous ||
-        current > project->animation_size ||
-        timing.current_wait_size > project->animation_size - current)
-        return false;
-    uint8_t saved_previous[5], saved_current[5];
-    memcpy(saved_previous, project->animation_dat + previous,
-           timing.previous_wait_size);
-    memcpy(saved_current, project->animation_dat + current,
-           timing.current_wait_size);
-    write_packed(project->animation_dat + previous,
-                 timing.previous_wait_size, before);
-    write_packed(project->animation_dat + current,
-                 timing.current_wait_size, after);
-    KeyTiming verified = { 0 };
-    size_t verified_count;
-    bool valid = scan_keys(source, NULL, 0, &verified_count, key,
-                           NULL, NULL, &verified) &&
-                 verified_count == count && verified.frame == frame;
-    if (!valid) {
-        memcpy(project->animation_dat + previous, saved_previous,
-               timing.previous_wait_size);
-        memcpy(project->animation_dat + current, saved_current,
-               timing.current_wait_size);
+    for (size_t i = 0; i < count; ++i) {
+        if ((!erase && (keys[i].frame < 0 || keys[i].frame > clip.tree.frames)) ||
+            (i > 0 && (keys[i].ref.track < keys[i - 1].ref.track ||
+             (keys[i].ref.track == keys[i - 1].ref.track &&
+              keys[i].ref.key <= keys[i - 1].ref.key))))
+            return false;
     }
+
+    EditedTrack* edits = calloc(clip.track_count, sizeof(*edits));
+    if (!edits) return false;
+    size_t stream_bytes = 0;
+    unsigned tracks = clip.track_count;
+    bool valid = true;
+    for (size_t first = 0; first < count && valid;) {
+        const unsigned track = keys[first].ref.track;
+        size_t end = first + 1;
+        while (end < count && keys[end].ref.track == track) ++end;
+        valid = edit_track_keys(&clip.tracks[track], keys + first,
+                                end - first, erase, &edits[track]);
+        stream_bytes += edits[track].length;
+        tracks -= edits[track].removed;
+        first = end;
+    }
+
+    const size_t nodes = (clip.dat.data_size + 3u) & ~3u;
+    const size_t table = (nodes + clip.nodes + 1 + 3u) & ~3u;
+    const size_t streams = table + tracks * 12;
+    const size_t data_size = (streams + stream_bytes + (tracks ? 3u : 7u)) & ~3u;
+    const size_t relocations = clip.dat.relocation_count + tracks;
+    const size_t tail_size = clip.size - 32 - clip.dat.data_size -
+                             clip.dat.relocation_count * 4;
+    const size_t clip_size = 32 + data_size + relocations * 4 + tail_size;
+    const size_t bank_size = project->animation_size - clip.size + clip_size;
+    uint8_t* bank = valid && bank_size <= NATIVE_CONTENT_MAX_PACKAGE_BYTES
+        ? calloc(1, bank_size) : NULL;
+    uint8_t* fighter = bank ? malloc(project->fighter_size) : NULL;
+    valid = fighter && rebase_descriptors(project, clip.offset, clip.size,
+                                         clip_size, fighter);
+    if (valid) {
+        uint8_t* bytes = bank + clip.offset;
+        uint8_t* data = bytes + 32;
+        memcpy(bank, project->animation_dat, clip.offset + 32 + clip.dat.data_size);
+        memcpy(data + data_size, clip.dat.relocations,
+               clip.dat.relocation_count * 4);
+        size_t stream = streams;
+        unsigned source = 0, target = 0;
+        for (unsigned node = 0; node < clip.nodes; ++node) {
+            const unsigned node_tracks = (uint8_t) clip.tree.nodes[node];
+            for (unsigned i = 0; i < node_tracks; ++i, ++source) {
+                const EditedTrack* edit = &edits[source];
+                if (edit->removed) continue;
+                uint8_t* descriptor = data + table + target * 12;
+                memcpy(descriptor, clip.dat.data + old_table + source * 12, 12);
+                if (edit->stream) {
+                    descriptor[0] = (uint8_t) (edit->length >> 8);
+                    descriptor[1] = (uint8_t) edit->length;
+                    descriptor[2] = (uint8_t) (edit->startframe >> 8);
+                    descriptor[3] = (uint8_t) edit->startframe;
+                    write_be32(descriptor + 8, (u32) stream);
+                    memcpy(data + stream, edit->stream, edit->length);
+                    stream += edit->length;
+                }
+                write_be32(data + data_size +
+                    (clip.dat.relocation_count + target++) * 4,
+                    (u32) (descriptor + 8 - data));
+                ++data[nodes + node];
+            }
+        }
+        data[nodes + clip.nodes] = 0xFF;
+        write_be32(data + root + 12, (u32) nodes);
+        write_be32(data + root + 16, (u32) table);
+        memcpy(data + data_size + relocations * 4, clip.dat.roots, tail_size);
+        write_be32(bytes, (u32) clip_size);
+        write_be32(bytes + 4, (u32) data_size);
+        write_be32(bytes + 8, (u32) relocations);
+        memcpy(bytes + clip_size, project->animation_dat + clip.offset + clip.size,
+               project->animation_size - clip.offset - clip.size);
+        NativeFighterProject candidate = *project;
+        candidate.fighter_dat = fighter;
+        candidate.animation_dat = bank;
+        candidate.animation_size = bank_size;
+        NativeFighterAnimationInfo info;
+        valid = nativeFighterAnimation_Info(&candidate, reference, &info) &&
+                info.tracks == tracks;
+    }
+    if (valid) {
+        memcpy(project->fighter_dat, fighter, project->fighter_size);
+        free(project->animation_dat);
+        project->animation_dat = bank;
+        project->animation_size = bank_size;
+    } else free(bank);
+    free(fighter);
+    for (unsigned track = 0; track < clip.track_count; ++track)
+        free(edits[track].stream);
+    free(edits);
     return valid;
 }
 
@@ -1065,14 +1192,13 @@ static void capture_sample(void* context, enum_t type, HSD_ObjData* data)
     sample->value = data->fv;
 }
 
-bool nativeFighterAnimation_Sample(const NativeFighterProject* project,
-                                    NativeFighterAnimationClip reference, unsigned track,
-                                    float frame, float* value)
+bool nativeFighterAnimation_SampleFrames(const NativeFighterProject* project,
+    NativeFighterAnimationClip reference, unsigned track, const float* frames,
+    float* values, size_t count)
 {
     AnimationClip clip;
-    if (value == NULL || !isfinite(frame) || frame < 0 || frame > 65535 ||
-        !open_clip(project, reference, &clip) || track >= clip.track_count ||
-        frame > clip.tree.frames) return false;
+    if (!frames || !values || !open_clip(project, reference, &clip) ||
+        track >= clip.track_count) return false;
     const FigaTrack* source = &clip.tracks[track];
     if (source->obj_type < HSD_A_J_ROTX ||
         source->obj_type > HSD_A_J_SCAZ ||
@@ -1087,17 +1213,31 @@ bool nativeFighterAnimation_Sample(const NativeFighterProject* project,
     HSD_FObjReqAnimAll(&fobj, 0);
     AnimationSample sample = { 0 };
     float previous = 0;
-    for (unsigned step = 0; (float) step <= frame; ++step) {
-        HSD_FObjInterpretAnim(&fobj, &sample, capture_sample,
-                              (float) step - previous);
-        previous = (float) step;
+    unsigned step = 0;
+    for (size_t index = 0; index < count; ++index) {
+        const float frame = frames[index];
+        if (!isfinite(frame) || frame < previous || frame > 65535 ||
+            frame > clip.tree.frames) return false;
+        for (; (float) step <= frame; ++step) {
+            HSD_FObjInterpretAnim(&fobj, &sample, capture_sample,
+                                  (float) step - previous);
+            previous = (float) step;
+        }
+        if (previous < frame) {
+            HSD_FObjInterpretAnim(&fobj, &sample, capture_sample,
+                                  frame - previous);
+            previous = frame;
+        }
+        values[index] = sample.seen ? sample.value : NAN;
     }
-    if (previous < frame)
-        HSD_FObjInterpretAnim(&fobj, &sample, capture_sample,
-                              frame - previous);
-    if (!sample.seen || !isfinite(sample.value)) return false;
-    *value = sample.value;
     return true;
+}
+
+bool nativeFighterAnimation_Sample(const NativeFighterProject* project,
+    NativeFighterAnimationClip reference, unsigned track, float frame, float* value)
+{
+    return nativeFighterAnimation_SampleFrames(project, reference, track,
+             &frame, value, 1) && isfinite(*value);
 }
 
 #endif

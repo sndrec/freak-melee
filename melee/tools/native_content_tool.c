@@ -1327,9 +1327,10 @@ static int project_animation_move(const char* path,
         fputs("Could not open a complete fighter draft.\n", stderr);
         return 1;
     }
-    bool ok = nativeFighterAnimation_MoveKey(&project, (NativeFighterAnimationClip){ NativeFighterAnimation_Action, action }, track, key,
-                                              (int) frame) &&
-              nativeFighterProject_SaveAnimation(path, &project);
+    const NativeFighterAnimationKeyTime edit = {{track, key}, (int) frame};
+    bool ok = nativeFighterAnimation_EditKeys(&project,
+        (NativeFighterAnimationClip){NativeFighterAnimation_Action, action},
+        &edit, 1, false) && nativeFighterProject_SaveAnimation(path, &project);
     nativeFighterProject_Close(&project);
     if (!ok) {
         fputs("Could not move that key within its neighboring frames.\n",
@@ -1430,11 +1431,13 @@ static int project_animation_delete(const char* path,
         fputs("Could not open a complete fighter draft.\n", stderr);
         return 1;
     }
-    bool ok = nativeFighterAnimation_DeleteKey(&project, (NativeFighterAnimationClip){ NativeFighterAnimation_Action, action }, track, key) &&
-              nativeFighterProject_SaveAnimation(path, &project);
+    const NativeFighterAnimationKeyTime edit = {{track, key}, 0};
+    bool ok = nativeFighterAnimation_EditKeys(&project,
+        (NativeFighterAnimationClip){NativeFighterAnimation_Action, action},
+        &edit, 1, true) && nativeFighterProject_SaveAnimation(path, &project);
     nativeFighterProject_Close(&project);
     if (!ok) {
-        fputs("Could not delete that interior timed animation key.\n", stderr);
+        fputs("Could not delete that animation key.\n", stderr);
         return 1;
     }
     printf("Deleted action %lu track %lu key %lu.\n",

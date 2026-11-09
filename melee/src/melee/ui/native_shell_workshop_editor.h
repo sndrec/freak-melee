@@ -9,6 +9,7 @@ namespace Rml { class ElementDocument; }
 struct NativeFighterProject;
 struct NativeFighterModelEditor;
 
+void nativeShellWorkshopEditor_RegisterGraph();
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* document);
 void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* project,
                                     const char* path);
