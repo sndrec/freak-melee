@@ -93,6 +93,7 @@ bool nativeProfile_Validate(const NativeProfile* profile)
         strnlen(profile->name, sizeof(profile->name)) >
             NATIVE_PROFILE_NAME_BYTES ||
         profile->c_stick > NativeProfileCStick_Tilt ||
+        profile->action_buffer_frames > 7 ||
         profile->calibration.main_stick_dead_zone > 32767 ||
         profile->calibration.c_stick_dead_zone > 32767 ||
         profile->calibration.left_trigger_activation > 32767 ||
@@ -146,7 +147,8 @@ static bool encode_profile(const NativeProfile* profile,
     memset(output, 0, PROFILE_FILE_SIZE);
     memcpy(output, profile_magic, sizeof(profile_magic));
     memcpy(output + 4, profile->name, strlen(profile->name));
-    output[36] = profile->tap_jump ? 1 : 0;
+    // Bit 0 is tap jump. Old profiles have zero in the three buffer bits.
+    output[36] = (profile->action_buffer_frames << 1) | profile->tap_jump;
     output[37] = profile->c_stick;
     output[38] = profile->calibration.use_dead_zones ? 1 : 0;
     output[39] = profile->calibration.emulate_digital_triggers ? 1 : 0;
@@ -193,7 +195,7 @@ static bool decode_profile(NativeProfile* profile,
     if (memcmp(input, profile_magic, sizeof(profile_magic)) != 0 ||
         read_u32(input + PROFILE_BODY_SIZE) !=
             profile_hash(input, PROFILE_BODY_SIZE) ||
-        input[36] > 1 || input[37] > NativeProfileCStick_Tilt ||
+        input[36] > 15 || input[37] > NativeProfileCStick_Tilt ||
         input[38] > 1 || input[39] > 1)
     {
         return false;
@@ -208,7 +210,8 @@ static bool decode_profile(NativeProfile* profile,
             .emulate_digital_triggers = input[39] != 0,
         },
         .c_stick = input[37],
-        .tap_jump = input[36] != 0,
+        .tap_jump = (input[36] & 1) != 0,
+        .action_buffer_frames = input[36] >> 1,
     };
     memcpy(decoded.name, input + 4, NATIVE_PROFILE_NAME_BYTES);
     decoded.name[NATIVE_PROFILE_NAME_BYTES] = '\0';

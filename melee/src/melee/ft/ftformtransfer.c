@@ -16,6 +16,7 @@
 #include "native_script_fighter.h"
 #include "kinds/ftCommon/ftpickupitem.h"
 #include "types.h"
+#include <string.h>
 #include <melee/gm/gm_unsplit.h>
 #include <melee/it/types.h>
 #include <melee/it/it_26B1.h>
@@ -247,6 +248,10 @@ bool ftCommon_ActivatePartner(Fighter_GObj* gobj, HSD_GObjEvent stock_finish)
     dst->xF8_playerNudgeVel.x = src->xF8_playerNudgeVel.x;
     dst->xF8_playerNudgeVel.y = src->xF8_playerNudgeVel.y;
     dst->input = src->input;
+    dst->action_buffer = src->action_buffer;
+    dst->action_buffer.checking = false;
+    memcpy(dst->ucf_stick, src->ucf_stick, sizeof(dst->ucf_stick));
+    dst->ucf_shield_drop_frames = src->ucf_shield_drop_frames;
     dst->x670_timer_lstick_tilt_x = src->x670_timer_lstick_tilt_x;
     dst->x671_timer_lstick_tilt_y = src->x671_timer_lstick_tilt_y;
     dst->trigger_analog_timer = src->trigger_analog_timer;
@@ -268,7 +273,6 @@ bool ftCommon_ActivatePartner(Fighter_GObj* gobj, HSD_GObjEvent stock_finish)
     dst->x67E = src->x67E;
     dst->x681 = src->x681;
     dst->x682 = src->x682;
-    dst->x67F = src->x67F;
     dst->x680 = src->x680;
     dst->x683 = src->x683;
     dst->x684 = src->x684;

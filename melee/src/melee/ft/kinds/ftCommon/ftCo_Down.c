@@ -90,7 +90,10 @@ static inline bool inlineB0(Fighter* fp)
 bool ftCo_80098400(Fighter_GObj* gobj)
 {
     Fighter* fp = gobj->user_data;
-    if (inlineB0(fp) || ftCo_800DF644(fp)) {
+    if (inlineB0(fp) ||
+        (fp->action_buffer.checking && (fp->input.pressed_buttons & HSD_PAD_AB)) ||
+        ftCo_800DF644(fp))
+    {
         FtMotionId msid = fp->motion_id == ftCo_MS_DownBoundU
                               ? ftCo_MS_DownAttackU
                               : ftCo_MS_DownAttackD;

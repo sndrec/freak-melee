@@ -38,17 +38,15 @@
 /* 14BA38 */ void ftGw_AttackAirHi_Coll(HSD_GObj* gobj);
 /* 14BA60 */ void ftGw_LandingAirHi_Enter(HSD_GObj* gobj);
 /* 14BB24 */ void ftGw_LandingAirN_Anim(HSD_GObj* gobj);
-/* 14BB70 */ void ftGw_LandingAirN_IASA(HSD_GObj* gobj);
+void ftGw_LandingAir_IASA(HSD_GObj* gobj);
 /* 14BB74 */ void ftGw_LandingAirN_Phys(HSD_GObj* gobj);
 /* 14BB94 */ void ftGw_LandingAirN_Coll(HSD_GObj* gobj);
 /* 14BBE0 */ void ftGw_LandingAirB_Init(HSD_GObj* gobj);
 /* 14BC0C */ void ftGw_LandingAirB_Anim(HSD_GObj* gobj);
-/* 14BC58 */ void ftGw_LandingAirB_IASA(HSD_GObj* gobj);
 /* 14BC5C */ void ftGw_LandingAirB_Phys(HSD_GObj* gobj);
 /* 14BC7C */ void ftGw_LandingAirB_Coll(HSD_GObj* gobj);
 /* 14BCC8 */ void ftGw_LandingAirHi_Init(HSD_GObj* gobj);
 /* 14BCF4 */ void ftGw_LandingAirHi_Anim(HSD_GObj* gobj);
-/* 14BD40 */ void ftGw_LandingAirHi_IASA(HSD_GObj* gobj);
 /* 14BD44 */ void ftGw_LandingAirHi_Phys(HSD_GObj* gobj);
 /* 14BD64 */ void ftGw_LandingAirHi_Coll(HSD_GObj* gobj);
 

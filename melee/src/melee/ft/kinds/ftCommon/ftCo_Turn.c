@@ -27,6 +27,8 @@
 #include <melee/ft/ft_0892.h>
 #include <melee/ft/inlines.h>
 #include <melee/ft/types.h>
+#include <melee/ft/native_ucf.h>
+#include <melee/pl/player.h>
 
 bool ftCo_800C97A8(Fighter_GObj* gobj)
 {
@@ -63,6 +65,7 @@ void ftCo_Turn_Enter(Fighter_GObj* gobj, FtMotionId msid, MotionFlags flags,
     fp->mv.co.turn.facing_after = -fp->facing_dir;
     fp->mv.co.turn.frames_to_turn = frames_to_turn;
     fp->mv.co.turn.x8 = arg3;
+    fp->mv.co.turn.buffered_dash = false;
     fp->mv.co.turn.x1C = 0;
     Fighter_ChangeMotionState(gobj, msid, flags, anim_start, 1.0F, 0.0F, NULL);
 #ifdef MELEE_NATIVE
@@ -113,6 +116,22 @@ void ftCo_Turn_IASA(Fighter_GObj* gobj)
     }
     if (!fp->mv.co.turn.has_turned) {
         fp->facing_dir = -fp->facing_dir;
+        // UCF dashback converts a second-frame tilt turn into a smash turn.
+        if (!fp->x221F_b4 && fp->cur_anim_frame == 2.0f &&
+            fp->input.lstick[0].x * fp->facing_dir >=
+                p_ftCommonData->dash_smash_stick_threshold &&
+            fp->x670_timer_lstick_tilt_x <= 1 &&
+            nativeUcf_StickTravel(fp, true, false, 75))
+        {
+            fp->mv.co.turn.has_turned = true;
+            fp->mv.co.turn.just_turned = true;
+            Fighter_GObj* partner = Player_GetEntityAtIndex(fp->player_id, 1);
+            if (partner != NULL && GET_FIGHTER(partner)->cpu.x444 != NULL) {
+                struct Fighter_x1A88_xFC_t* input = GET_FIGHTER(partner)->cpu.x444;
+                input->facing_dir = fp->facing_dir;
+                input->lstick.x = fp->facing_dir < 0 ? -128 : 127;
+            }
+        }
     }
 
     RETURN_IF(ftCo_SpecialS_CheckInput(gobj));
@@ -137,10 +156,13 @@ void ftCo_Turn_IASA(Fighter_GObj* gobj)
 
     fn_800C9C2C(gobj);
     if (fp->mv.co.turn.just_turned && fp->mv.co.turn.x8) {
-        if (fp->input.lstick[0].x * fp->mv.co.turn.facing_after >=
-            p_ftCommonData->dash_smash_stick_threshold)
+        const float forward = fp->input.lstick[0].x * fp->mv.co.turn.facing_after;
+        if ((fp->mv.co.turn.buffered_dash &&
+             forward > -p_ftCommonData->walk_stick_threshold) ||
+            forward >= p_ftCommonData->dash_smash_stick_threshold)
         {
             ftCo_Dash_Enter(gobj, 0);
+            return;
         }
     }
 
@@ -195,6 +217,8 @@ void ftCo_Turn_Enter_Smash(Fighter_GObj* gobj)
     fp_r7->mv.co.turn.facing_after = -fp_r7->facing_dir;
     fp_r7->mv.co.turn.frames_to_turn = 0.0F;
     fp_r7->mv.co.turn.x8 = facing;
+    fp_r7->mv.co.turn.buffered_dash = fp_r7->action_buffer.checking &&
+                                    fp_r7->action_buffer.replaying_x;
     fp_r7->mv.co.turn.x1C = 0;
 
     Fighter_ChangeMotionState(gobj, ftCo_MS_Turn, Ft_MF_None, 0.0F, 1.0F, 0.0F,

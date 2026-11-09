@@ -147,6 +147,9 @@ namespace {
     void render_options()
     {
         text("profile-tap", draft.tap_jump ? "On" : "Off");
+        text("profile-buffer", draft.action_buffer_frames
+                                   ? std::to_string(draft.action_buffer_frames)
+                                   : "Off");
         text("profile-cstick",
              draft.c_stick == NativeProfileCStick_Smash ? "Smash" : "Tilt");
         text("profile-deadzones",
@@ -479,6 +482,9 @@ namespace {
                 status("Draft reset. Save to apply.");
             } else if (id == "profile-tap") {
                 draft.tap_jump = !draft.tap_jump;
+                render_options();
+            } else if (id == "profile-buffer") {
+                draft.action_buffer_frames = (draft.action_buffer_frames + 1) % 8;
                 render_options();
             } else if (id == "profile-cstick") {
                 draft.c_stick ^= 1;

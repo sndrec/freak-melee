@@ -1,4 +1,5 @@
 #include "ftCo_Guard.h"
+#include <melee/ft/native_ucf.h>
 
 #include <math.h>
 
@@ -863,7 +864,10 @@ void ftCo_80093240(Fighter_GObj* gobj)
         if ((fp->input.lstick[0].x < 0 ? -fp->input.lstick[0].x
                                        : fp->input.lstick[0].x) >=
                 p_ftCommonData->sdi_min_stick_mag &&
-            fp->x670_timer_lstick_tilt_x < p_ftCommonData->sdi_stick_window)
+            (fp->x670_timer_lstick_tilt_x < p_ftCommonData->sdi_stick_window ||
+             (fp->x673 < 2 &&
+              fp->input.lstick[1].x < p_ftCommonData->sdi_min_stick_mag &&
+              nativeUcf_StickTravel(fp, true, false, 62))))
         {
             float scl = p_ftCommonData->x4C0 * (fp->input.lstick[0].x *
                                                 p_ftCommonData->sdi_pos_scale);

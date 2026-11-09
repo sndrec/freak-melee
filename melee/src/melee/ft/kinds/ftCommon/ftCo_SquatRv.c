@@ -25,13 +25,20 @@
 #include <melee/ft/ft_0892.h>
 #include <melee/ft/inlines.h>
 #include <melee/ft/types.h>
+#include <melee/ft/native_ucf.h>
 
 /* 0D6620 */ static void ftCo_SquatRv_Enter(Fighter_GObj* gobj);
 
 bool ftCo_SquatRv_CheckInput(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
-    if (fp->input.lstick[0].y > -p_ftCommonData->x94) {
+    float threshold = p_ftCommonData->x94;
+    if (fp->x670_timer_lstick_tilt_x == 0 &&
+        nativeUcf_AtStickRim(fp->input.lstick[0].x, fp->input.lstick[0].y))
+    {
+        threshold = 0.59f;
+    }
+    if (fp->input.lstick[0].y > -threshold) {
         ftCo_SquatRv_Enter(gobj);
         return true;
     }

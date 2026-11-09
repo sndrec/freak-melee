@@ -67,6 +67,8 @@
 #include "kinds/ftCommon/ftCo_KinokoGiantStart.h"
 #include "kinds/ftCommon/ftCo_KinokoSmallEnd.h"
 #include "kinds/ftCommon/ftCo_KinokoSmallStart.h"
+#include "kinds/ftCommon/ftCo_LandingAir.h"
+#include "native_ucf.h"
 #include "kinds/ftCommon/ftCo_Rebound.h"
 #include "kinds/ftCommon/ftCo_ShieldBreakFly.h"
 #include "kinds/ftCommon/ftCo_SpecialS.h"
@@ -739,6 +741,9 @@ void Fighter_ResetInputData_80068854(Fighter_GObj* gobj)
 
     fp->input.lstick[0].x = fp->input.lstick[0].y = fp->input.lstick[1].x =
         fp->input.lstick[1].y = 0.0f;
+    fp->action_buffer = (NativeActionBuffer){ 0 };
+    memset(fp->ucf_stick, 0, sizeof(fp->ucf_stick));
+    fp->ucf_shield_drop_frames = 0;
 
     fp->input.cstick[1].y = 0.0f;
     fp->input.cstick[1].x = 0.0f;
@@ -780,7 +785,6 @@ void Fighter_ResetInputData_80068854(Fighter_GObj* gobj)
     fp->x683 = 0xFF;
 
     fp->x680 = 0xFF;
-    fp->x67F = 0xFF;
 
     fp->x682 = 0xFF;
     fp->x681 = 0xFF;
@@ -813,7 +817,7 @@ static void Fighter_UnkInitLoad_80068914_Inner1(Fighter_GObj* gobj)
                 fp->x670_timer_lstick_tilt_x = fp->x671_timer_lstick_tilt_y =
                     fp->trigger_analog_timer = 0xFE;
 
-    fp->x67C = fp->x67D = fp->x67E = fp->x681 = fp->x682 = fp->x67F =
+    fp->x67C = fp->x67D = fp->x67E = fp->x681 = fp->x682 =
         fp->x680 = fp->x683 = fp->x684 = fp->x685 = fp->x686 = fp->x687 =
             fp->x688 = fp->x689 = fp->x68A = fp->x68B = 0xFF;
 }
@@ -1182,6 +1186,11 @@ void Fighter_ChangeMotionState(Fighter_GObj* gobj, FtMotionId msid,
     union Struct2070 x2070;
 
     fp->motion_id = msid;
+    fp->aerial_landing_interrupt_frame = 0.0f;
+    if (fp->action_buffer.checking) {
+        fp->action_buffer.direction.frames = 0;
+        fp->action_buffer.movement.frames = 0;
+    }
     fp->facing_dir1 = fp->facing_dir;
 
     HSD_JObjSetTranslate(jobj, &fp->cur_pos);
@@ -2100,6 +2109,7 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
 
     if (!fp->x221F_b3) {
         if (!fp->x2224_b2) {
+            const bool cpu = ftCo_800A2040(fp);
             if (!fp->x221D_b3) {
                 SET_STICKS(fp->input.lstick[1].x, fp->input.lstick[1].y,
                            fp->input.lstick[2].x, fp->input.lstick[2].y);
@@ -2117,7 +2127,7 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
                 fp->input.held_buttons[1] = fp->input.held_buttons[0];
             }
 
-            if (ftCo_800A2040(fp)) {
+            if (cpu) {
                 SET_STICKS(fp->input.lstick[0].x, fp->input.lstick[0].y,
                            ftCo_GetCpuLStickX(fp), ftCo_GetCpuLStickY(fp));
                 if (DbLevel < DbLKind_DebugRom &&
@@ -2187,7 +2197,7 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
                 fp->input.triggers[0] = 0.0f;
             }
 
-            if (ftCo_800A2040(fp)) {
+            if (cpu) {
                 fp->input.held_buttons[0] = ftCo_GetCpuButtons(fp);
             } else {
                 fp->input.held_buttons[0] =
@@ -2212,7 +2222,7 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
 
             if (gm_8016B0FC()) {
                 fp->input.triggers[0] = 0.0f;
-                if (ftCo_800A2040(fp)) {
+                if (cpu) {
                     fp->input.held_buttons[0] &= HSD_PAD_A | HSD_PAD_XY;
                 } else {
                     fp->input.held_buttons[0] &= HSD_PAD_A;
@@ -2436,18 +2446,23 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
                 fp->x682++;
             }
 
-            if (fp->input.pressed_buttons & HSD_PAD_LR) {
-                fp->x67F = 0;
-            } else if (fp->x67F < 0xFF) {
-                fp->x67F++;
-            }
-
             if (fp->input.pressed_buttons & (HSD_PAD_L | HSD_PAD_R)) {
                 fp->x684 = fp->x680;
                 fp->x680 = 0;
             } else if (fp->x680 < 0xFF) {
                 fp->x680++;
             }
+
+            unsigned buffer_frames = 0;
+            if (!cpu && fp->x618_player_id < 4) {
+                nativeUcf_Sample(fp);
+                if (fp->motion_id >= ftCo_MS_Wait && !gm_8016B0FC()) {
+                    buffer_frames = (HSD_PadGameStatus[fp->x618_player_id].extension &
+                                     NATIVE_PROFILE_EXT_ACTION_BUFFER_MASK) >>
+                                    NATIVE_PROFILE_EXT_ACTION_BUFFER_SHIFT;
+                }
+            }
+            nativeActionBuffer_Record(fp, buffer_frames);
         }
 
         if (fp->x221D_b4 || fp->x2224_b2 || gm_GetDbPauseFlag(2)) {
@@ -2470,14 +2485,29 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
             ftCommon_8008031C(gobj);
             Fighter_UnkIncrementCounters_8006ABEC(gobj);
 
+            NativeActionInput live, offered;
+            const bool buffered = nativeActionBuffer_Begin(fp, &live, &offered);
 #ifdef MELEE_NATIVE
             if (nativeScriptFighter_MotionBound(gobj,NativeScriptMotion_Interrupt)) {
-                if (!nativeScriptFighter_RunMotion(gobj,NativeScriptMotion_Interrupt)) return;
+                const FtMotionId motion = fp->motion_id;
+                const bool ran = nativeScriptFighter_RunMotion(
+                    gobj, NativeScriptMotion_Interrupt);
                 if (!nativeCallbackSource_Alive(gobj, callback_generation, NativeCallbackSource_Fighter)) return;
+                if (ran && fp->motion_id == motion &&
+                    fp->aerial_landing_interrupt_frame > 0.0f)
+                {
+                    ftCo_LandingAir_IASA(gobj);
+                }
             } else
 #endif
             if (fp->input_cb) {
                 fp->input_cb(gobj);
+            }
+            if (buffered &&
+                nativeCallbackSource_Alive(gobj, callback_generation,
+                                           NativeCallbackSource_Fighter))
+            {
+                nativeActionBuffer_End(fp, &live, &offered);
             }
         }
     }

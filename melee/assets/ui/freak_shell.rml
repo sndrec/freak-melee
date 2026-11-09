@@ -517,6 +517,7 @@
           <div id="profile-play-panel" class="profile-page">
             <div class="profile-page-title">Gameplay</div>
             <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Tap jump</div><p class="muted">Jump by pushing the main stick up.</p></div><button id="profile-tap" class="profile-setting">On</button></div>
+            <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Action buffer</div><p class="muted">Remember early actions for up to 7 frames.</p></div><button id="profile-buffer" class="profile-setting">Off</button></div>
             <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Attack stick</div><p class="muted">Choose smash attacks or tilts on the ground.</p></div><button id="profile-cstick" class="profile-setting">Smash</button></div>
             <div class="profile-note-card"><div class="profile-option-title">Short hop</div><p class="muted">Assign a dedicated button in Bindings. Jump keeps its normal hold-and-release behavior.</p></div>
           </div>

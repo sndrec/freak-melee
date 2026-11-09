@@ -6,6 +6,7 @@
 
 #include "forward.h"
 #include "ftCo_Landing.h"
+#include "ftCo_Wait.h"
 #include <melee/ft/fighter.h>
 #include <melee/ft/ftanim.h>
 #include <melee/ft/ftcommon.h>
@@ -42,14 +43,6 @@ void ftCo_LandingAir_EnterWithLag(Fighter_GObj* gobj)
             lag = fp->co_attrs.landingairlw_lag;
             break;
         }
-        if (msid != ftCo_MS_None && fp->x67F < p_ftCommonData->xE4) {
-            float div_lag = lag / p_ftCommonData->xE8;
-            int int_lag = div_lag;
-            if ((int) div_lag == 0) {
-                int_lag = 1;
-            }
-            lag = int_lag;
-        }
     }
     if (msid != ftCo_MS_None) {
         ftCo_LandingAir_EnterWithMsidLag(gobj, msid, lag);
@@ -79,7 +72,15 @@ void ftCo_LandingAir_EnterWithMsidLag(Fighter_GObj* gobj, FtMotionId msid,
     if (!nativeCallbackSource_Alive(gobj, generation, NativeCallbackSource_Fighter) ||
         fp->kind != kind || nativeFighterRuntime_Definition(kind) != definition) return;
 #endif
-    ftAnim_SetAnimRate(gobj, (ftAnim_8006F484(gobj) + 0.1f) / lag);
+    // Keep the uncanceled clip timing, including fighter-specific landing lag.
+    // The first interrupt is at the old shortened landing's end.
+    if (lag > 0.0f) {
+        const float speed = (ftAnim_8006F484(gobj) + 0.1f) / lag;
+        const int shortened_lag = (int) (lag / p_ftCommonData->xE8);
+        GET_FIGHTER(gobj)->aerial_landing_interrupt_frame =
+            speed * (shortened_lag > 0 ? shortened_lag : 1);
+        ftAnim_SetAnimRate(gobj, speed);
+    }
 }
 
 void ftCo_LandingAir_Anim(Fighter_GObj* gobj)
@@ -87,7 +88,15 @@ void ftCo_LandingAir_Anim(Fighter_GObj* gobj)
     ftCo_Landing_Anim(gobj);
 }
 
-void ftCo_LandingAir_IASA(Fighter_GObj* gobj) {}
+void ftCo_LandingAir_IASA(Fighter_GObj* gobj)
+{
+    Fighter* fp = GET_FIGHTER(gobj);
+    if (fp->aerial_landing_interrupt_frame > 0.0f &&
+        fp->cur_anim_frame + 0.0001f >= fp->aerial_landing_interrupt_frame)
+    {
+        ftCo_Wait_IASA(gobj);
+    }
+}
 
 void ftCo_LandingAir_Phys(Fighter_GObj* gobj)
 {

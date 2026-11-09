@@ -70,7 +70,8 @@ union ftCommon_MotionVars {
         /* fp+2340 */ bool has_turned;
         /* fp+2344 */ float facing_after;
         /* fp+2348 */ float x8;
-        /* fp+234C */ u8 pad_xC[4];
+        /* fp+234C */ bool buffered_dash;
+        /* fp+234D */ u8 pad_xD[3];
         /* fp+2350 */ float frames_to_turn;
         /* fp+2354 */ u8 pad_x14[4];
         /* fp+2358 */ bool just_turned;

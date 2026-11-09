@@ -82,6 +82,7 @@ typedef struct NativeProfile {
     char name[NATIVE_PROFILE_NAME_BYTES + 1];
     uint8_t c_stick;
     bool tap_jump;
+    uint8_t action_buffer_frames;
 } NativeProfile;
 
 typedef struct NativeProfileEntry {

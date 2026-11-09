@@ -285,6 +285,10 @@ void nativeProfileInput_Apply(PADStatus pads[4])
         } else {
             pads[port].extButton |= NATIVE_PROFILE_EXT_TAP_JUMP_DISABLED;
         }
+        pads[port].extButton =
+            (pads[port].extButton & ~NATIVE_PROFILE_EXT_ACTION_BUFFER_MASK) |
+            ((uint32_t) slots[port].profile.action_buffer_frames
+             << NATIVE_PROFILE_EXT_ACTION_BUFFER_SHIFT);
         if (slots[port].profile.c_stick == NativeProfileCStick_Tilt) {
             pads[port].extButton |= NATIVE_PROFILE_EXT_CSTICK_TILT;
         } else {

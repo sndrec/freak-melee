@@ -13,6 +13,7 @@
 #include <melee/ft/kinds/ftCommon/ftCo_Landing.h>
 #include <melee/ft/kinds/ftCommon/ftCo_LandingAir.h>
 #include <melee/ft/types.h>
+#include <melee/ft/native_callback_lifetime.h>
 #include <melee/it/kinds/itgamewatchbreath.h>
 #include <melee/it/kinds/itgamewatchparachute.h>
 #include <melee/it/kinds/itgamewatchturtle.h>
@@ -569,10 +570,17 @@ void ftGw_LandingAirN_Anim(HSD_GObj* gobj)
     }
 }
 
-/// 0x8014BB70 - Mr. Game & Watch's Neutral Aerial Landing IASA callback
-void ftGw_LandingAirN_IASA(HSD_GObj* gobj)
+void ftGw_LandingAir_IASA(HSD_GObj* gobj)
 {
-    return;
+    Fighter* fp = GET_FIGHTER(gobj);
+    const uint32_t generation = fp->x8_spawnNum;
+    const FtMotionId landing = fp->motion_id;
+    ftCo_LandingAir_IASA(gobj);
+    if (nativeCallbackSource_Alive(gobj, generation, NativeCallbackSource_Fighter) &&
+        fp->motion_id != landing)
+    {
+        ftGw_Init_OnDamage(gobj);
+    }
 }
 
 /// 0x8014BB74
@@ -620,12 +628,6 @@ void ftGw_LandingAirB_Anim(HSD_GObj* gobj)
     }
 }
 
-/// 0x8014BC58 - Mr. Game & Watch's Back Aerial Landing IASA callback
-void ftGw_LandingAirB_IASA(HSD_GObj* gobj)
-{
-    return;
-}
-
 /// 0x8014BC5C
 /// https://decomp.me/scratch/SqMil // Mr. Game & Watch's Back Aerial Landing
 /// Physics callback
@@ -667,12 +669,6 @@ void ftGw_LandingAirHi_Anim(HSD_GObj* gobj)
     if (fp->motion_id != ftGw_MS_LandingAirHi) {
         ftGw_Init_OnDamage(gobj);
     }
-}
-
-/// 0x8014BD40 - Mr. Game & Watch's Up Aerial Landing IASA callback
-void ftGw_LandingAirHi_IASA(HSD_GObj* gobj)
-{
-    return;
 }
 
 /// 0x8014BD44

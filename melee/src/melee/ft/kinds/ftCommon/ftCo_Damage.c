@@ -1,4 +1,5 @@
 #include "ftCo_Damage.h"
+#include <melee/ft/native_ucf.h>
 #include <melee/ft/native_callback_lifetime.h>
 #include <melee/ft/native_fighter_lifetime.h>
 #include <melee/ft/native_script_fighter.h>
@@ -482,7 +483,6 @@ block_63:
     if (msid == 0x5B) {
         inlineA1(gobj);
     }
-    fp->x67F = 0xFF;
     ftCo_Damage_SetMv8FromKbThreshold(fp);
     if (fp->mv.co.damage.x8 == 0) {
         goto block_67;
@@ -585,7 +585,11 @@ void ftCo_Damage_OnEveryHitlag(Fighter_GObj* gobj)
         VEC2_SQ_LEN(fp->input.lstick[0]) >=
             SQ(p_ftCommonData->sdi_min_stick_mag) &&
         (fp->x670_timer_lstick_tilt_x < p_ftCommonData->sdi_stick_window ||
-         fp->x671_timer_lstick_tilt_y < p_ftCommonData->sdi_stick_window))
+         fp->x671_timer_lstick_tilt_y < p_ftCommonData->sdi_stick_window ||
+         ((fp->x673 < 2 || fp->x674 < 2) &&
+          VEC2_SQ_LEN(fp->input.lstick[1]) <
+              SQ(p_ftCommonData->sdi_min_stick_mag) &&
+          nativeUcf_StickTravel(fp, true, true, 62))))
     {
         float scaled_lstick_x =
             fp->input.lstick[0].x * p_ftCommonData->sdi_pos_scale;

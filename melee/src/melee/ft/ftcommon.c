@@ -60,11 +60,17 @@ const Vec3 ftCo_803B74A0 = { 0 };
 
 bool ftCommon_CheckFallFast(Fighter* fp)
 {
+    const NativeActionStick* movement = &fp->action_buffer.movement;
+    const bool buffered_down =
+        movement->frames && !fp->action_buffer.direction.frames &&
+        movement->position.y <= -p_ftCommonData->x88 &&
+        movement->tilt_y < p_ftCommonData->x8C;
     if (!fp->fall_fast && fp->self_vel.y < 0 &&
-        fp->input.lstick[0].y <= -p_ftCommonData->x88 &&
-        fp->x671_timer_lstick_tilt_y < p_ftCommonData->x8C)
+        ((fp->input.lstick[0].y <= -p_ftCommonData->x88 &&
+          fp->x671_timer_lstick_tilt_y < p_ftCommonData->x8C) || buffered_down))
     {
         fp->fall_fast = true;
+        fp->action_buffer.movement.frames = 0;
         fp->x671_timer_lstick_tilt_y = 0xFE;
         ft_PlaySFX(fp, 0x96, 0x7F, 0x40);
         return true;

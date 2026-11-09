@@ -42,7 +42,9 @@ int main(void)
 
     NativeProfile saved;
     nativeProfile_Default(&saved, "Alice");
+    require(saved.action_buffer_frames == 0, "action buffering defaults to off");
     saved.tap_jump = false;
+    saved.action_buffer_frames = 7;
     saved.c_stick = NativeProfileCStick_Tilt;
     saved.calibration.main_stick_dead_zone = 4321;
     saved.calibration.measured = true;
@@ -79,6 +81,7 @@ int main(void)
             "load the complete profile");
     require(strcmp(loaded.name, "Alice") == 0 && !loaded.tap_jump &&
                 loaded.c_stick == NativeProfileCStick_Tilt &&
+                loaded.action_buffer_frames == 7 &&
                 loaded.calibration.main_stick_dead_zone == 4321 &&
                 loaded.calibration.measured && loaded.calibration.center[0] == 123 &&
                 loaded.calibration.minimum[0] == -25000 && loaded.calibration.maximum[0] == 26000 &&
@@ -113,6 +116,9 @@ int main(void)
             "reject corrupt data without mutating the destination");
 
     NativeProfile invalid = saved;
+    invalid.action_buffer_frames = 8;
+    require(!nativeProfile_Validate(&invalid), "limit action buffering to seven frames");
+    invalid = saved;
     invalid.calibration.left_trigger_activation = 40000;
     require(!nativeProfile_Validate(&invalid),
             "reject trigger thresholds beyond SDL gamepad travel");

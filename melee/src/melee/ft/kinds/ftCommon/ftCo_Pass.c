@@ -1,4 +1,5 @@
 #include "ftCo_Pass.h"
+#include <melee/ft/native_ucf.h>
 
 #include <Runtime/platform.h>
 
@@ -55,7 +56,12 @@ bool ftCo_8009A080(Fighter_GObj* gobj)
 {
     u8 _[8];
     Fighter* fp = gobj->user_data;
-    if (fp->input.held_buttons[0] & HSD_PAD_LR && ftCo_80099F1C(gobj)) {
+    if ((fp->input.held_buttons[0] & HSD_PAD_LR) &&
+        fp->x671_timer_lstick_tilt_y < p_ftCommonData->x468 &&
+        (fp->input.lstick[0].y <= -p_ftCommonData->x464 ||
+         nativeUcf_ShieldDropReady(fp)) &&
+        mpColl_IsOnPlatform(&fp->coll_data))
+    {
         ftCo_8009A228(gobj);
         return true;
     }

@@ -43,6 +43,7 @@
 #include <melee/ft/native_fighter_attachment.h>
 #include <melee/ft/native_capture_enclosure.h>
 #include <melee/ft/native_hitbox_lifetime.h>
+#include <melee/ft/native_action_buffer.h>
 #endif
 
 #define FTPART_INVALID 0xFF
@@ -1298,7 +1299,7 @@ struct Fighter {
     /*  fp+67C */ u8 x67C;
     /*  fp+67D */ u8 x67D;
     /*  fp+67E */ u8 x67E;
-    /*  fp+67F */ u8 x67F;
+    /*  fp+67F */ u8 pad_x67F;
     /*  fp+680 */ u8 x680;
     /*  fp+681 */ u8 x681;
     /*  fp+682 */ u8 x682;
@@ -1857,6 +1858,10 @@ struct Fighter {
     // the ordinary game-heap rollback snapshot owns it with the fighter.
     // Creation identity paired with every x1A5C assignment, restored by rollback.
     uint32_t native_hitlag_link_generation;
+    float aerial_landing_interrupt_frame;
+    S8Vec2 ucf_stick[3];
+    u8 ucf_shield_drop_frames;
+    NativeActionBuffer action_buffer;
     NativeHitboxLifetime native_hitbox_lifetimes[4];
     u8 native_module_state[256];
     struct {

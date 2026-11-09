@@ -311,6 +311,7 @@ static uint64_t add_fighter_common_motion_state(uint64_t hash,
         hash = add_float(hash, fighter->mv.co.turn.facing_after);
         hash = add_float(hash, fighter->mv.co.turn.x8);
         hash = add_float(hash, fighter->mv.co.turn.frames_to_turn);
+        hash = nativeSemanticState_AddU32(hash, fighter->mv.co.turn.buffered_dash);
         hash = nativeSemanticState_AddU32(hash,
                                           fighter->mv.co.turn.just_turned);
         return nativeSemanticState_AddU32(hash,
@@ -1181,13 +1182,34 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
         hash = add_float(hash, fighter->input.triggers[i]);
         hash = nativeSemanticState_AddU32(hash,
                                           fighter->input.held_buttons[i]);
+        hash = nativeSemanticState_AddU32(hash, (uint8_t) fighter->ucf_stick[i].x);
+        hash = nativeSemanticState_AddU32(hash, (uint8_t) fighter->ucf_stick[i].y);
     }
     hash = nativeSemanticState_AddU32(hash, fighter->input.pressed_buttons);
     hash = nativeSemanticState_AddU32(hash, fighter->input.released_buttons);
+    hash = nativeSemanticState_AddU32(hash, fighter->ucf_shield_drop_frames);
+    const NativeActionBuffer* pending = &fighter->action_buffer;
+    const NativeActionStick* sticks[] = { &pending->movement, &pending->direction };
+    for (unsigned i = 0; i < 2; ++i) {
+        hash = nativeSemanticState_AddU32(hash, sticks[i]->frames);
+        if (sticks[i]->frames) {
+            hash = add_vec2(hash, &sticks[i]->position);
+            hash = nativeSemanticState_AddU32(hash, sticks[i]->tilt_x);
+            hash = nativeSemanticState_AddU32(hash, sticks[i]->tilt_y);
+        }
+    }
+    if (pending->direction.frames) {
+        hash = add_vec2(hash, &pending->cstick);
+        hash = nativeSemanticState_AddU32(hash, pending->cstick_command);
+        hash = add_float(hash, pending->trigger);
+        hash = nativeSemanticState_AddU32(hash, pending->pressed);
+        hash = nativeSemanticState_AddU32(hash, pending->held);
+    }
     if (trace != NULL) trace->input = hash;
     hash = add_collision(hash, &fighter->coll_data);
     if (trace != NULL) trace->collision = hash;
     hash = add_float(hash, fighter->cur_anim_frame);
+    hash = add_float(hash, fighter->aerial_landing_interrupt_frame);
     hash = add_float(hash, fighter->x898_unk);
     hash = add_float(hash, fighter->frame_speed_mul);
     hash = add_float(hash, fighter->x8A0_unk);

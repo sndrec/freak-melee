@@ -1,4 +1,6 @@
 #include "ftCo_Escape.h"
+#include <melee/ft/native_ucf.h>
+#include <melee/mp/mpcoll.h>
 
 #include <Runtime/platform.h>
 
@@ -234,6 +236,14 @@ static inline bool inlineB0(Fighter* fp)
     if (fp->input.lstick[0].y <= p_ftCommonData->x314 &&
         fp->x671_timer_lstick_tilt_y < p_ftCommonData->x318)
     {
+        if (fp->input.cstick[0].y > p_ftCommonData->x314 &&
+            fp->x670_timer_lstick_tilt_x >= p_ftCommonData->x320 &&
+            fp->input.lstick[0].y > -0.8f &&
+            mpColl_IsOnPlatform(&fp->coll_data) &&
+            nativeUcf_AtStickRim(fp->input.lstick[0].x, fp->input.lstick[0].y))
+        {
+            return false;
+        }
         return true;
     }
     return false;
