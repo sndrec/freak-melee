@@ -69,6 +69,7 @@ bool nativeNetplayIce_Send(NativeNetplayIcePeer* peer, const uint8_t* bytes,
 bool nativeNetplayIce_PollDatagram(NativeNetplayIcePeer* peer,
                                    NativeNetplayIceDatagram* datagram);
 uint32_t nativeNetplayIce_DroppedDatagrams(const NativeNetplayIcePeer* peer);
+const char* nativeNetplayIce_SelectedRoute(const NativeNetplayIcePeer* peer);
 bool nativeNetplayIce_GetSelectedAddresses(const NativeNetplayIcePeer* peer,
                                            char* local, size_t local_capacity,
                                            char* remote,

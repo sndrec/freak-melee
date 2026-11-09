@@ -40,6 +40,21 @@ limit still handles missing inputs. This follows the frame advantage approach
 in [GGPO](https://github.com/pond3r/ggpo/blob/master/src/lib/ggpo/timesync.cpp)
 and [INVERSUS](https://www.gamedeveloper.com/design/rollback-networking-in-inversus).
 
+Quick Play and in-game lobbies schedule each local input two frames ahead and
+send it as soon as it is sampled. This gives packets time to arrive before the
+input is used. The first two frames use neutral inputs. Each peer owns its
+buffer, and the packet's clock still refers to the sample time. For comparison
+tests, `--netplay-input-delay <0..4>` sets the local buffer. Direct diagnostic
+matches default to zero. This is distinct from `--netplay-delay`, which
+withholds packets to exercise prediction.
+
+The match summary reports changes to predicted inputs separately from
+checkpoint refreshes, along with the deepest input correction and how often
+the client missed its sample deadline by 4 ms or more. Per peer, it also
+reports the selected route and the time to echo a controller sample. Echo
+time includes network transit and the time before each client polls or sends
+its next input packet.
+
 The packet uses explicit little-endian fields rather than native structure
 layout. Each controller sample serializes the original button, sticks,
 triggers, analog face buttons, error value, and native extension buttons in 15

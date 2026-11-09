@@ -65,10 +65,48 @@ static void check_clock_samples(uint64_t session_id)
             "an out-of-order packet cannot move the peer clock backward");
 }
 
+static void check_delayed_samples(uint64_t session_id)
+{
+    NativeNetplayExchange sender;
+    require(nativeNetplayExchange_Init(&sender, session_id, 0, 0xD),
+            "initialize buffered sender");
+    sender.input_delay_frames = 2;
+    PADStatus pads[4] = { 0 };
+    pads[0] = pad(PAD_BUTTON_A, 23);
+    pads[2].err = PAD_ERR_NO_CONTROLLER;
+    require(nativeNetplayExchange_RecordLocal(&sender, 0, pads),
+            "record first buffered controller sample");
+
+    uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
+    size_t size;
+    NativeNetplayInputBatch batch;
+    require(nativeNetplayExchange_PreparePacket(&sender, packet, sizeof(packet), &size) &&
+                nativeNetplayInput_Decode(&batch, packet, size) &&
+                batch.sample_frame == 0 && batch.start_frame == 0 &&
+                batch.frame_count == 3,
+            "transmit the actual input two frames early without shifting the clock");
+    require(batch.pads[0][0].button == 0 && batch.pads[1][0].stickX == 0 &&
+                batch.pads[0][2].err == PAD_ERR_NO_CONTROLLER &&
+                batch.pads[2][0].button == PAD_BUTTON_A &&
+                batch.pads[2][0].stickX == 23,
+            "send neutral startup frames followed by the captured input");
+    PADStatus local[4];
+    require(nativeNetplayExchange_GetLocal(&sender, 0, local) &&
+                local[0].button == 0 &&
+                nativeNetplayExchange_GetLocal(&sender, 2, local) &&
+                local[0].button == batch.pads[2][0].button,
+            "local simulation consumes the same buffered input as the wire");
+    require(nativeNetplayExchange_BeginPhase(&sender, session_id + 1) &&
+                sender.input_delay_frames == 2 &&
+                !nativeNetplayExchange_GetLocal(&sender, 2, local),
+            "preserve the configured buffer across phases and clear its inputs");
+}
+
 int main(void)
 {
     const uint64_t session_id = UINT64_C(0x0123456789ABCDEF);
     check_clock_samples(session_id);
+    check_delayed_samples(session_id);
     NativeNetplayUdp first;
     NativeNetplayUdp second;
     require(

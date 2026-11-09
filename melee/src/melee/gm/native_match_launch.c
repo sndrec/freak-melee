@@ -75,6 +75,8 @@ typedef struct NativeMatchLaunch {
     bool netplay_local_mask_explicit;
     bool netplay_delay_explicit;
     uint8_t artificial_delay_frames;
+    bool input_delay_explicit;
+    uint8_t input_delay_frames;
     bool netplay_room_explicit;
     bool netplay_room_id_explicit;
     bool netplay_peer_id_explicit;
@@ -643,6 +645,7 @@ static void usage(const char* program)
         "  --netplay-peer-id <id>  Stable local room identity\n"
         "  --netplay-room-peer <id,peer-id,mask>  Expected remote PC\n"
         "  --netplay-stun <host,port>  Optional ICE STUN server\n"
+        "  --netplay-input-delay <frames>  Local input buffer, 0..4\n"
         "  --netplay-delay <frames>  Diagnostic outbound delay, 0..14 "
         "(direct or room)\n"
         "Defaults: Battlefield, Falco human P1, Luigi CPU level 1 P2,\n"
@@ -865,6 +868,14 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
             if (valid) {
                 launch.artificial_delay_frames = (uint8_t) frames;
                 launch.netplay_delay_explicit = true;
+            }
+        } else if (strcmp(key, "--netplay-input-delay") == 0) {
+            unsigned frames;
+            valid = !launch.input_delay_explicit &&
+                    parse_number(value, 0, NATIVE_NETPLAY_MAX_INPUT_DELAY, &frames);
+            if (valid) {
+                launch.input_delay_frames = (uint8_t) frames;
+                launch.input_delay_explicit = true;
             }
         } else if (strcmp(key,"--script-kind")==0) {
             unsigned long number;char* end;
@@ -1310,6 +1321,12 @@ bool nativeMatchLaunch_DirectPreparationFailed(void)
 uint8_t nativeMatchLaunch_ArtificialDelayFrames(void)
 {
     return launch.artificial_delay_frames;
+}
+
+uint8_t nativeMatchLaunch_InputDelayFrames(bool online)
+{
+    if (launch.input_delay_explicit) return launch.input_delay_frames;
+    return online && !nativeMatchLaunch_ReplayPlayback() ? 2 : 0;
 }
 
 bool nativeMatchLaunch_PrepareSuddenDeathFighters(void)

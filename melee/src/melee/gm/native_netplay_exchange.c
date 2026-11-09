@@ -41,6 +41,7 @@ bool nativeNetplayExchange_BeginPhase(NativeNetplayExchange* exchange,
     uint8_t local_peer = exchange->local_peer;
     uint8_t local_port_mask = exchange->local_port_mask;
     uint8_t artificial_delay_frames = exchange->artificial_delay_frames;
+    uint8_t input_delay_frames = exchange->input_delay_frames;
     uint64_t prior_session_id = exchange->session_id;
     if (!nativeNetplayExchange_Init(exchange, session_id, local_peer,
                                     local_port_mask)) {
@@ -54,6 +55,7 @@ bool nativeNetplayExchange_BeginPhase(NativeNetplayExchange* exchange,
         }
     }
     exchange->artificial_delay_frames = artificial_delay_frames;
+    exchange->input_delay_frames = input_delay_frames;
     exchange->prior_session_id = prior_session_id;
     exchange->has_prior_session = true;
     return true;
@@ -107,10 +109,25 @@ bool nativeNetplayExchange_RecordLocal(NativeNetplayExchange* exchange,
     {
         return false;
     }
+    uint8_t delay = exchange->input_delay_frames;
+    if (delay > NATIVE_NETPLAY_MAX_INPUT_DELAY || frame >= UINT64_MAX - delay) {
+        return false;
+    }
+    if (frame == 0) {
+        for (uint64_t initial = 0; initial < delay; ++initial) {
+            NativeNetplayExchangeFrame* neutral = &exchange->frames[initial];
+            *neutral = (NativeNetplayExchangeFrame){ .frame = initial, .valid = true };
+            for (unsigned port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
+                if (exchange->local_port_mask & (1U << port))
+                    neutral->pads[port].err = pads[port].err;
+            }
+        }
+    }
+    uint64_t target = frame + delay;
     NativeNetplayExchangeFrame* saved =
-        &exchange->frames[frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
+        &exchange->frames[target % NATIVE_ROLLBACK_INPUT_CAPACITY];
     *saved = (NativeNetplayExchangeFrame){
-        .frame = frame,
+        .frame = target,
         .valid = true,
     };
     for (uint32_t port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
@@ -125,6 +142,16 @@ bool nativeNetplayExchange_RecordLocal(NativeNetplayExchange* exchange,
         exchange->observed_frames[i] =
             peer->has_sample ? peer->sample_frame : UINT64_MAX;
     }
+    return true;
+}
+
+bool nativeNetplayExchange_GetLocal(const NativeNetplayExchange* exchange,
+                                    uint64_t frame, PADStatus pads[4])
+{
+    const NativeNetplayExchangeFrame* saved =
+        &exchange->frames[frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
+    if (!saved->valid || saved->frame != frame) return false;
+    memcpy(pads, saved->pads, sizeof(saved->pads));
     return true;
 }
 
@@ -152,10 +179,11 @@ static void observe_peer_sample(const NativeNetplayExchange* exchange,
         return;
     }
     peer->sample_frame = remote;
+    peer->echoed_frame = batch->observed_frames[exchange->local_peer];
     peer->has_sample = true;
 
     uint64_t local = exchange->newest_frame;
-    uint64_t echoed = batch->observed_frames[exchange->local_peer];
+    uint64_t echoed = peer->echoed_frame;
     uint64_t gap = local > remote ? local - remote : remote - local;
     if (!exchange->has_newest_frame || echoed > local ||
         local - echoed >= LEAD_SAMPLE_MAX_AGE || gap >= LEAD_SAMPLE_MAX_AGE) {
@@ -211,6 +239,7 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
     if (send_through != 0) {
         send_through -= exchange->artificial_delay_frames;
     }
+    send_through += exchange->input_delay_frames;
     uint64_t start_frame = send_through + 1 > REDUNDANT_FRAME_COUNT
                                ? send_through + 1 - REDUNDANT_FRAME_COUNT
                                : 0;
@@ -236,13 +265,10 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
     memcpy(batch.observed_frames, exchange->observed_frames,
            sizeof(batch.observed_frames));
     for (uint32_t frame = 0; frame < batch.frame_count; ++frame) {
-        const NativeNetplayExchangeFrame* saved =
-            &exchange->frames[(start_frame + frame) %
-                              NATIVE_ROLLBACK_INPUT_CAPACITY];
-        if (!saved->valid || saved->frame != start_frame + frame) {
+        if (!nativeNetplayExchange_GetLocal(exchange, start_frame + frame,
+                                             batch.pads[frame])) {
             return false;
         }
-        memcpy(batch.pads[frame], saved->pads, sizeof(saved->pads));
     }
     *packet_size =
         nativeNetplayInput_Encode(&batch, packet, packet_capacity);

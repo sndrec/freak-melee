@@ -23,6 +23,7 @@ typedef struct NativeNetplayExchangePeer {
     uint64_t checksum;
     uint64_t sample_frame;
     uint64_t lead_sample_at;
+    uint64_t echoed_frame;
     int32_t lead_milliframes;
     uint8_t port_mask;
     bool configured;
@@ -55,6 +56,7 @@ typedef struct NativeNetplayExchange {
     uint8_t local_peer;
     uint8_t local_port_mask;
     uint8_t artificial_delay_frames;
+    uint8_t input_delay_frames;
     bool active;
     bool has_newest_frame;
     bool has_checksum;
@@ -74,6 +76,8 @@ bool nativeNetplayExchange_SetArtificialDelay(NativeNetplayExchange* exchange,
 bool nativeNetplayExchange_RecordLocal(NativeNetplayExchange* exchange,
                                        uint64_t frame,
                                        const PADStatus pads[4]);
+bool nativeNetplayExchange_GetLocal(const NativeNetplayExchange* exchange,
+                                    uint64_t frame, PADStatus pads[4]);
 int32_t nativeNetplayExchange_MaxLead(const NativeNetplayExchange* exchange);
 bool nativeNetplayExchange_SetChecksum(NativeNetplayExchange* exchange,
                                       uint64_t frame, uint64_t checksum);

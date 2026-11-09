@@ -14,6 +14,7 @@
 enum {
     NATIVE_NETPLAY_INPUT_MAX_FRAMES = 8,
     NATIVE_NETPLAY_INPUT_PACKET_CAPACITY = 576,
+    NATIVE_NETPLAY_MAX_INPUT_DELAY = 4,
 };
 
 typedef struct NativeNetplayInputBatch {

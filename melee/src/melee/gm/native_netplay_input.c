@@ -45,15 +45,18 @@ static size_t packet_size(uint8_t port_mask, uint8_t frame_count)
 
 static bool valid_batch_shape(const NativeNetplayInputBatch* batch)
 {
-    return batch != NULL && batch->sender_peer < 4 && batch->port_mask != 0 &&
-           (batch->port_mask & ~GAMEPLAY_PORT_MASK) == 0 &&
-           batch->frame_count > 0 &&
-           batch->frame_count <= NATIVE_NETPLAY_INPUT_MAX_FRAMES &&
-           batch->sample_frame != UINT64_MAX &&
-           batch->sample_frame >= batch->start_frame &&
-           batch->sample_frame - batch->start_frame >= batch->frame_count - 1U &&
-           batch->sample_frame - batch->start_frame <
-               batch->frame_count + NativeConfirmedCheckpoint_MaxPrediction - 1U;
+    if (batch == NULL || batch->sender_peer >= 4 || batch->port_mask == 0 ||
+        (batch->port_mask & ~GAMEPLAY_PORT_MASK) != 0 ||
+        batch->frame_count == 0 ||
+        batch->frame_count > NATIVE_NETPLAY_INPUT_MAX_FRAMES ||
+        batch->sample_frame == UINT64_MAX ||
+        batch->start_frame > UINT64_MAX - (batch->frame_count - 1U)) {
+        return false;
+    }
+    uint64_t last = batch->start_frame + batch->frame_count - 1U;
+    return batch->sample_frame >= last
+               ? batch->sample_frame - last < NativeConfirmedCheckpoint_MaxPrediction
+               : last - batch->sample_frame <= NATIVE_NETPLAY_MAX_INPUT_DELAY;
 }
 
 size_t nativeNetplayInput_Encode(const NativeNetplayInputBatch* batch,

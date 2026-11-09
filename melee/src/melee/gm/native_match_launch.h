@@ -67,6 +67,7 @@ bool nativeMatchLaunch_PrepareDirectFighters(void);
 bool nativeMatchLaunch_DirectPreparationFailed(void);
 // Local diagnostic outbound-input delay for direct or sidebar room matches.
 uint8_t nativeMatchLaunch_ArtificialDelayFrames(void);
+uint8_t nativeMatchLaunch_InputDelayFrames(bool online);
 // Re-import selected fighters before a tied match enters sudden death, whose
 // scene initialization clears the previous fighter registry.
 bool nativeMatchLaunch_PrepareSuddenDeathFighters(void);

@@ -58,6 +58,12 @@ typedef struct NativeNetplayReplayBoundary {
     bool valid;
 } NativeNetplayReplayBoundary;
 
+typedef struct NativeNetplayPeerQuality {
+    uint64_t echoed_frame;
+    uint64_t echo_ns;
+    uint64_t min_echo_ns;
+} NativeNetplayPeerQuality;
+
 typedef struct NativeNetplayStateDigest {
     uint64_t frame;
     uint64_t value;
@@ -103,6 +109,13 @@ static struct NativeNetplayMatch {
     uint64_t input_stall_ms;
     uint64_t next_sample_ns;
     uint64_t pace_delay_ns;
+    uint64_t sample_times[NATIVE_ROLLBACK_INPUT_CAPACITY];
+    NativeNetplayPeerQuality peer_quality[4];
+    uint32_t input_corrections;
+    uint32_t deep_corrections;
+    uint32_t late_samples;
+    unsigned max_correction_depth;
+    uint64_t max_sample_late_ns;
     int32_t peak_lead_milliframes;
     uint64_t mismatch_frame, mismatch_peer_digest;
     uint32_t initial_seed;
@@ -142,9 +155,28 @@ static void fail(const char* reason)
 
 static bool receive_packets(void)
 {
-    return netplay.room_transport
+    bool ok = netplay.room_transport
                ? nativeNetplayRoom_Receive(netplay.room, &netplay.inputs)
                : nativeNetplayUdp_Receive(&netplay.udp, &netplay.inputs);
+    NativeNetplayExchange* exchange = netplay.exchange;
+    if (!ok || !netplay.active || !exchange->has_newest_frame) return ok;
+    for (unsigned i = 0; i < 4; ++i) {
+        const NativeNetplayExchangePeer* peer = &exchange->peers[i];
+        NativeNetplayPeerQuality* quality = &netplay.peer_quality[i];
+        uint64_t echo = peer->echoed_frame;
+        if (!peer->has_sample || echo > exchange->newest_frame ||
+            exchange->newest_frame - echo >= NATIVE_ROLLBACK_INPUT_CAPACITY ||
+            (quality->echo_ns && echo <= quality->echoed_frame)) continue;
+        uint64_t sent = netplay.sample_times[echo % NATIVE_ROLLBACK_INPUT_CAPACITY];
+        if (!sent) continue;
+        uint64_t elapsed = SDL_GetTicksNS() - sent;
+        quality->echoed_frame = echo;
+        if (!quality->min_echo_ns || elapsed < quality->min_echo_ns)
+            quality->min_echo_ns = elapsed;
+        quality->echo_ns = quality->echo_ns
+                               ? (7 * quality->echo_ns + elapsed) / 8 : elapsed;
+    }
+    return ok;
 }
 
 static bool send_packets(void)
@@ -167,6 +199,11 @@ static void schedule_next_sample(void)
     netplay.pace_delay_ns += delay;
 
     uint64_t now = SDL_GetTicksNS();
+    if (netplay.current_frame >= 120 && now > netplay.next_sample_ns) {
+        uint64_t late = now - netplay.next_sample_ns;
+        if (late >= 4000000) ++netplay.late_samples;
+        if (late > netplay.max_sample_late_ns) netplay.max_sample_late_ns = late;
+    }
     uint64_t period = NETPLAY_TICK_NS + delay;
     uint64_t next = netplay.next_sample_ns + period;
     // Discard elapsed periods after a stall, including initial input exchange.
@@ -382,6 +419,13 @@ static void filter_inputs(PADStatus pads[4])
             fail("netplay input exchange failed");
             return;
         }
+        netplay.sample_times[netplay.current_frame % NATIVE_ROLLBACK_INPUT_CAPACITY] =
+            SDL_GetTicksNS();
+        if (!nativeNetplayExchange_GetLocal(netplay.exchange,
+                                            netplay.current_frame, pads)) {
+            fail("local input buffer is missing a frame");
+            return;
+        }
         if (netplay.paced) schedule_next_sample();
         if (!wait_for_remote_inputs(netplay.current_frame)) {
             return;
@@ -588,6 +632,14 @@ bool nativeNetplayMatch_Init(void)
         return false;
     }
     nativeNetplayTiming_Init();
+    netplay.exchange->input_delay_frames =
+        nativeMatchLaunch_InputDelayFrames(netplay.borrowed_online_room);
+    memset(netplay.sample_times, 0, sizeof(netplay.sample_times));
+    memset(netplay.peer_quality, 0, sizeof(netplay.peer_quality));
+    netplay.input_corrections = netplay.deep_corrections = 0;
+    netplay.max_correction_depth = 0;
+    netplay.late_samples = 0;
+    netplay.max_sample_late_ns = 0;
     netplay.paced = !nativeMatchLaunch_Fast();
     netplay.next_sample_ns = 0;
     netplay.pace_delay_ns = 0;
@@ -678,6 +730,8 @@ bool nativeNetplayMatch_Init(void)
     nativeReplay_SetStateTraceEnabled(true);
     OSReport("[netplay] Diagnostic outbound delay %u frames.\n",
              (unsigned)netplay.exchange->artificial_delay_frames);
+    OSReport("[netplay] Local input buffer %u frames.\n",
+             (unsigned)netplay.exchange->input_delay_frames);
     if (netplay.room_transport) {
         OSReport("[netplay] Session %016llx connected through room %s as "
                  "peer %u with port mask 0x%x; signaling %s.\n",
@@ -692,6 +746,42 @@ bool nativeNetplayMatch_Init(void)
                  config->local_port_mask);
     }
     return true;
+}
+
+static void report_match_quality(FILE* stream)
+{
+    fprintf(stream, "[netplay-quality] buffer=%u input_corrections=%u "
+                    "depth_4_or_more=%u max_depth=%u checkpoint_refreshes=%u "
+                    "late_samples_over_4ms=%u max_sample_late_ms=%.1f\n",
+            netplay.exchange->input_delay_frames, netplay.input_corrections,
+            netplay.deep_corrections, netplay.max_correction_depth,
+            netplay.correction_count - netplay.input_corrections,
+            netplay.late_samples, netplay.max_sample_late_ns / 1e6);
+    for (unsigned i = 0; i < 4; ++i) {
+        if (!netplay.exchange->peers[i].configured) continue;
+        const char* route = netplay.room_transport ? "unknown" : "direct";
+        uint32_t dropped = 0;
+        if (netplay.room_transport) {
+            const NativeNetplayConnection* connection = &netplay.room->connection;
+            for (unsigned r = 0; r < netplay.room->peer_count; ++r) {
+                if (netplay.room->peers[r].peer != i) continue;
+                for (unsigned p = 0; p < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++p) {
+                    const NativeNetplayConnectionPeer* peer = &connection->peers[p];
+                    if (peer->active && !strcmp(peer->peer_id, netplay.room->peers[r].peer_id)) {
+                        route = nativeNetplayIce_SelectedRoute(&peer->ice);
+                        dropped = nativeNetplayIce_DroppedDatagrams(&peer->ice);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        const NativeNetplayPeerQuality* quality = &netplay.peer_quality[i];
+        fprintf(stream, "[netplay-route] peer=%u route=%s input_echo_ms=%.1f "
+                        "min_echo_ms=%.1f ice_queue_drops=%u\n",
+                i, route, quality->echo_ns / 1e6, quality->min_echo_ns / 1e6,
+                dropped);
+    }
 }
 
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS
@@ -770,6 +860,7 @@ static void report_failure(void)
             (unsigned long long)netplay.checkpoint.boundary,
             netplay.exchange->received_packets, netplay.exchange->rejected_packets,
             netplay.compared_digest_count, netplay.correction_count, netplay.resimulated_frame_count);
+    report_match_quality(report);
     if (netplay.has_mismatch) {
         fprintf(report, "mismatch_frame=%llu remote_digest=%016llx\n",
                 (unsigned long long)netplay.mismatch_frame,
@@ -840,6 +931,7 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
     const uint32_t stale_packets = netplay.exchange != NULL
                                        ? netplay.exchange->stale_packets : 0;
     HSD_PadSetRawFilter(NULL);
+    if (netplay.active) report_match_quality(stderr);
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS
     report_failure();
     nativeReplayCapsuleTrace_EndMatch();
@@ -934,6 +1026,9 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
 static NativeConfirmedCheckpointStep reconcile_inputs(uint64_t* frame)
 {
     bool was_replaying=netplay.checkpoint.replaying;
+    uint64_t correction_depth =
+        netplay.inputs.has_correction && netplay.inputs.correction_frame < netplay.checkpoint.cursor
+            ? netplay.checkpoint.cursor - netplay.inputs.correction_frame : 0;
     if (!was_replaying && netplay.checksum_trace && !netplay.inputs.has_correction) {
         uint64_t confirmed;size_t bytes;
         if (nativeRollbackInput_ConfirmedBoundary(&netplay.inputs,netplay.checkpoint.boundary,
@@ -972,6 +1067,12 @@ static NativeConfirmedCheckpointStep reconcile_inputs(uint64_t* frame)
     }
     if (!was_replaying && step==NativeConfirmedCheckpoint_Replaying) {
         ++netplay.correction_count;
+        if (correction_depth) {
+            ++netplay.input_corrections;
+            if (correction_depth >= 4) ++netplay.deep_corrections;
+            if (correction_depth > netplay.max_correction_depth)
+                netplay.max_correction_depth = (unsigned) correction_depth;
+        }
         for (unsigned i=0;i<NATIVE_ROLLBACK_INPUT_CAPACITY;++i)
             if (netplay.state_digests[i].valid && netplay.state_digests[i].frame>=*frame)
                 netplay.state_digests[i].valid=false;
@@ -1214,6 +1315,7 @@ void nativeNetplayMatch_Inspect(void)
                 (unsigned long long)(netplay.pace_delay_ns / 1000000));
     }
     if (!netplay.active) return;
+    report_match_quality(stderr);
     for (unsigned port = 0; port < 4; ++port) {
         Fighter_GObj* object = Player_GetEntityAtIndex(port, 0);
         if (!object) continue;

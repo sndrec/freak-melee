@@ -240,6 +240,19 @@ uint32_t nativeNetplayIce_DroppedDatagrams(const NativeNetplayIcePeer* peer)
                                                memory_order_relaxed);
 }
 
+const char* nativeNetplayIce_SelectedRoute(const NativeNetplayIcePeer* peer)
+{
+    char local[JUICE_MAX_CANDIDATE_SDP_STRING_LEN];
+    char remote[JUICE_MAX_CANDIDATE_SDP_STRING_LEN];
+    if (peer == NULL || !peer->agent ||
+        juice_get_selected_candidates(ice_agent(peer), local, sizeof(local),
+                                     remote, sizeof(remote)) != JUICE_ERR_SUCCESS) {
+        return "unknown";
+    }
+    return strstr(local, " typ relay") || strstr(remote, " typ relay")
+               ? "relay" : "direct";
+}
+
 bool nativeNetplayIce_GetSelectedAddresses(const NativeNetplayIcePeer* peer,
                                            char* local, size_t local_capacity,
                                            char* remote,

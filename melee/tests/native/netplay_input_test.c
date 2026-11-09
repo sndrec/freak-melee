@@ -152,9 +152,9 @@ int main(void)
     packet[0] ^= 1;
     require(!nativeNetplayInput_Decode(&received, packet, packet_size),
             "reject the wrong packet type");
-    sent.sample_frame = 43;
+    sent.sample_frame = 39;
     require(nativeNetplayInput_Encode(&sent, packet, sizeof(packet)) == 0,
-            "reject a sender clock behind its input batch");
+            "reject input scheduled beyond the maximum delay");
 
     puts("Netplay input packets round-trip and commit atomically");
     return 0;
