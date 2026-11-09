@@ -13,6 +13,9 @@
 #include <dolphin/gx.h>
 #include <dolphin/mtx.h>
 #include <melee/ft/types.h>
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+#include <melee/gm/native_replay_capsule_trace.h>
+#endif
 #include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mtx.h>
@@ -1665,6 +1668,9 @@ bool lbColl_80007ECC(HitCapsule* arg0, HurtCapsule* arg1, Mtx arg2,
                 arg1->a_pos.z = hurt_pos_z;
             }
             arg1->skip_update_pos = 1;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+            nativeReplayCapsuleTrace_RecordTransform(arg1, NativeHurtboxTransform_HitTest);
+#endif
         }
         if (arg2 != NULL) {
             C_MTXConcat(arg2, HSD_JObjGetMtxPtr(arg1->bone), sp34);
@@ -1705,6 +1711,9 @@ bool lbColl_8000805C(HitCapsule* arg0, HurtCapsule* arg1, Mtx arg2, s32 arg3,
                 arg1->a_pos.z = arg6;
             }
             arg1->skip_update_pos = 1;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+            nativeReplayCapsuleTrace_RecordTransform(arg1, NativeHurtboxTransform_GrabTest);
+#endif
         }
         if (arg3 != 0) {
             arg0->hurt_coll_pos.x = 0.5F * (arg1->a_pos.x + arg1->b_pos.x);
@@ -1752,6 +1761,9 @@ bool lbColl_80008248(HitCapsule* arg0, HurtCapsule* arg1, Mtx arg2, f32 arg3,
             arg1->a_pos.z = arg5;
         }
         arg1->skip_update_pos = 1;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+        nativeReplayCapsuleTrace_RecordTransform(arg1, NativeHurtboxTransform_ContactTest);
+#endif
     }
     if (arg2 != NULL) {
         C_MTXConcat(arg2, HSD_JObjGetMtxPtr(arg1->bone), sp34);
@@ -1781,6 +1793,9 @@ void lbColl_800083C4(HurtCapsule* arg0)
     lb_8000B1CC(arg0->bone, &arg0->a_offset, &arg0->a_pos);
     lb_8000B1CC(arg0->bone, &arg0->b_offset, &arg0->b_pos);
     arg0->skip_update_pos = true;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    nativeReplayCapsuleTrace_RecordTransform(arg0, NativeHurtboxTransform_FighterBounds);
+#endif
 }
 
 void lbColl_80008428(HitCapsule* arg0)
@@ -2496,6 +2511,9 @@ bool lbColl_8000A244(HurtCapsule* hurt, u32 arg1, Mtx arg2, float arg3)
                 hurt->a_pos.z = arg3;
             }
             hurt->skip_update_pos = 1;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+            nativeReplayCapsuleTrace_RecordTransform(hurt, NativeHurtboxTransform_DebugDraw);
+#endif
         }
         if (arg2 != NULL) {
             C_MTXConcat(arg2, HSD_JObjGetMtxPtr(hurt->bone), sp9C);
@@ -2569,6 +2587,9 @@ bool lbColl_8000A584(HurtCapsule* hurt, u32 arg1, u32 arg2, Mtx arg3, f32 arg8)
                     hurt->a_pos.z = arg8;
                 }
                 hurt->skip_update_pos = 1;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+                nativeReplayCapsuleTrace_RecordTransform(hurt, NativeHurtboxTransform_DebugDraw);
+#endif
             }
             if (arg3 != NULL) {
                 C_MTXConcat(arg3, HSD_JObjGetMtxPtr(hurt->bone), spA0);

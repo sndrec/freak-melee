@@ -82,7 +82,8 @@ includes the build, session and peer numbers, stage and fighter IDs, recent
 controller samples and state hashes, and the failure reason. It keeps the inputs
 each tick actually used, the RNG seed, and whether rollback replayed the tick.
 Near the mismatch it records exact fighter hitbox and hurtbox values, including
-cached positions. Reports stay in
+cached positions. For hurtboxes refreshed on a recorded tick, it also records the
+joint transform, parent matrix and floating-point mode at the refresh. Reports stay in
 the private release bucket under `netplay-diagnostics/` for 14 days. Each client
 also saves its report under `%LOCALAPPDATA%\Freak Melee\netplay-diagnostics`.
 

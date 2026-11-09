@@ -22,14 +22,14 @@ def read_report(path):
         label, *values = line.split() or [""]
         if label.startswith("session="):
             session, peer = label[8:], values[0].removeprefix("peer=")
-        elif label in {"[hitbox-columns]", "[hurtbox-columns]"}:
+        elif label in {"[hitbox-columns]", "[hurtbox-columns]", "[hurt-transform-columns]"}:
             columns[label[1:-9]] = values[3:]
         elif label in {"[digest]", "[tick]", "[inputs]", "[consumed]", "[state-groups]"}:
             frames[int(values[0])][label] = values[1:]
         elif label == "[fighter-state]" and values[0] != "columns:":
             frame, actor = map(int, values[:2])
             frames[frame].setdefault("fighters", {})[actor] = values[2:]
-        elif label in {"[hitbox]", "[hurtbox]", "[hurtbox-count]"}:
+        elif label in {"[hitbox]", "[hurtbox]", "[hurtbox-count]", "[hurt-transform]"}:
             frame, actor, slot = map(int, values[:3])
             kind = label[1:-1]
             fields = columns[kind]

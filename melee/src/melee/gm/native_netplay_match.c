@@ -809,6 +809,7 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
     HSD_PadSetRawFilter(NULL);
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS
     report_failure();
+    nativeReplayCapsuleTrace_EndMatch();
 #endif
     if (netplay.replay_playback) {
         nativeReplay_SetTimelineValidation(true);
@@ -984,6 +985,7 @@ bool nativeNetplayMatch_BeginFrame(uint64_t* frame)
     netplay.current_frame=*frame;
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS
     netplay.has_consumed = false;
+    nativeReplayCapsuleTrace_BeginTick(*frame);
 #endif
     nativeRandom_TraceFrame(*frame,netplay.checksum_trace,netplay.checkpoint.replaying);
     if (netplay.checkpoint.replaying)++netplay.resimulated_frame_count;

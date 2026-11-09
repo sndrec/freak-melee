@@ -407,6 +407,7 @@ if(NATIVE_NETPLAY_DIAGNOSTICS_URL)
         src/melee/gm/native_netplay_match.c
         src/melee/gm/native_replay_capsule_trace.c
         src/melee/gm/native_replay_state.c
+        src/melee/lb/lbcollision.c
         APPEND PROPERTY COMPILE_DEFINITIONS NATIVE_NETPLAY_DIAGNOSTICS=1)
 endif()
 option(MELEE_PROFILE_MATCH_SAVE "Compile offline snapshot save-path profiler" OFF)
