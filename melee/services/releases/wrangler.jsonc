@@ -7,6 +7,9 @@
   "vars": {
     "CHANNEL_PATH": "3ShgcrpBLwN2237YIwwm6kX0"
   },
+  "ratelimits": [
+    { "name": "REPORT_LIMIT", "namespace_id": "710020", "simple": { "limit": 20, "period": 60 } }
+  ],
   "r2_buckets": [
     {
       "binding": "RELEASES",

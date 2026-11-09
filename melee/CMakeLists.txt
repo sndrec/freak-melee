@@ -393,6 +393,17 @@ target_compile_definitions(native_article_resource_generated PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
 
 add_library(melee_game OBJECT ${MELEE_GAME_SOURCES})
+set(NATIVE_NETPLAY_DIAGNOSTICS_URL "" CACHE STRING "Playtest-only HTTPS desync report endpoint")
+set(NATIVE_NETPLAY_DIAGNOSTICS_BUILD "" CACHE STRING "Build label for playtest desync reports")
+if(NATIVE_NETPLAY_DIAGNOSTICS_URL)
+    if(NOT NATIVE_NETPLAY_DIAGNOSTICS_URL MATCHES "^https://[A-Za-z0-9./_-]+/diagnostics$" OR
+       NOT NATIVE_NETPLAY_DIAGNOSTICS_BUILD MATCHES "^[A-Za-z0-9._-]+$")
+        message(FATAL_ERROR "Playtest diagnostics require an HTTPS /diagnostics URL and a build label")
+    endif()
+    set_property(SOURCE src/melee/gm/native_netplay_diagnostics.c APPEND PROPERTY COMPILE_DEFINITIONS
+        "NATIVE_NETPLAY_DIAGNOSTICS_URL=L\"${NATIVE_NETPLAY_DIAGNOSTICS_URL}\""
+        "NATIVE_NETPLAY_DIAGNOSTICS_BUILD=\"${NATIVE_NETPLAY_DIAGNOSTICS_BUILD}\"")
+endif()
 option(MELEE_PROFILE_MATCH_SAVE "Compile offline snapshot save-path profiler" OFF)
 if(MELEE_PROFILE_MATCH_SAVE)
     target_compile_definitions(melee_game PRIVATE MELEE_PROFILE_MATCH_SAVE=1)

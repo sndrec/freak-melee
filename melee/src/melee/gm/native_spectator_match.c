@@ -142,7 +142,7 @@ bool nativeSpectatorMatch_EndFrame(void)
     if(!nativeMatchPlayback_CommitFrame(&spectator.playback,actual)) {
         OSReport("[watch-playback] expected=%016llx actual=%016llx rng=%08x\n",
             (unsigned long long)spectator.sample.state_digest,(unsigned long long)actual,(unsigned)*seed_ptr);
-        nativeReplay_LogStateDigestSegments(spectator.playback.frame);
+        nativeReplay_WriteStateDigestSegments(stderr, spectator.playback.frame, false);
         fail("The watched game state diverged.");return false;
     }
     ++spectator.verified;if(spectator.hide_frame)++spectator.hidden;

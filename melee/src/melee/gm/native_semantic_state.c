@@ -1150,7 +1150,8 @@ uint64_t nativeSemanticState_AddCamera(uint64_t hash, const Camera* camera,
 }
 
 uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
-                                        uint32_t part_count)
+                                        uint32_t part_count,
+                                        NativeSemanticFighterTrace* trace)
 {
     hash = nativeSemanticState_AddU32(hash, (uint32_t) fighter->kind);
     hash = nativeSemanticState_AddU32(hash, fighter->player_id);
@@ -1173,6 +1174,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     hash = add_float(hash, fighter->gr_vel);
     hash = add_float(hash, fighter->xF0_ground_kb_vel);
     hash = add_float(hash, fighter->xF4_ground_attacker_shield_kb_vel);
+    if (trace != NULL) trace->movement = hash;
     for (uint32_t i = 0; i < 3; ++i) {
         hash = add_vec2(hash, &fighter->input.lstick[i]);
         hash = add_vec2(hash, &fighter->input.cstick[i]);
@@ -1182,7 +1184,9 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     }
     hash = nativeSemanticState_AddU32(hash, fighter->input.pressed_buttons);
     hash = nativeSemanticState_AddU32(hash, fighter->input.released_buttons);
+    if (trace != NULL) trace->input = hash;
     hash = add_collision(hash, &fighter->coll_data);
+    if (trace != NULL) trace->collision = hash;
     hash = add_float(hash, fighter->cur_anim_frame);
     hash = add_float(hash, fighter->x898_unk);
     hash = add_float(hash, fighter->frame_speed_mul);
@@ -1192,6 +1196,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     hash = add_float(hash, fighter->x3E4_fighterCmdScript.timer);
     hash = add_float(hash, fighter->x3E4_fighterCmdScript.frame_count);
     hash = nativeSemanticState_AddU32(hash, fighter->x594_b1_loop);
+    if (trace != NULL) trace->animation = hash;
     for (uint32_t i = 0; i < 4; ++i) {
         hash = add_hit_capsule(hash, &fighter->x914[i]);
     }
@@ -1207,6 +1212,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     for (uint32_t i = 0; i < hurt_count; ++i) {
         hash = add_hurt_capsule(hash, &fighter->hurt_capsules[i]);
     }
+    if (trace != NULL) trace->hitboxes = hash;
     hash = add_float(hash, fighter->dmg.x1830_percent);
     hash = nativeSemanticState_AddU32(hash,
                                       (uint32_t) fighter->dmg.x183C_applied);
@@ -1248,6 +1254,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     hash = nativeSemanticState_AddU32(hash, (uint32_t) fighter->x2330.y);
     hash = nativeSemanticState_AddU32(hash, (uint32_t) fighter->x2338.x);
     hash = nativeSemanticState_AddU32(hash, (uint32_t) fighter->x2338.y);
+    if (trace != NULL) trace->damage = hash;
     hash = add_fighter_kind_state(hash, fighter);
     if (fighter->kind >= Ft_Kind_CustomFirst) {
         hash = nativeSemanticState_AddU32(hash,
@@ -1265,6 +1272,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
             hash = nativeSemanticState_AddU32(hash, word);
         }
     }
+    if (trace != NULL) trace->script = hash;
     // Authored costume graphs live outside the fighter's primary joint tree.
     // Include their tracked controls and actual pose/materials in desync checks.
     hash = nativeSemanticState_AddU32(hash, fighter->native_attachment_dynamic_mask);
@@ -1282,6 +1290,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
         hash = nativeSemanticState_AddJointVisuals(hash, attachment->joint);
     }
     hash = add_fighter_common_motion_state(hash, fighter);
+    if (trace != NULL) trace->attachments = hash;
     hash = nativeSemanticState_AddU32(hash, part_count);
     if (part_count > 256) {
         part_count = 0;
@@ -1305,6 +1314,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
         hash = add_vec3(hash, &joint->translate);
         hash = add_vec3(hash, &joint->scale);
     }
+    if (trace != NULL) trace->pose = hash;
     return hash;
 }
 

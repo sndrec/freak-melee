@@ -138,7 +138,7 @@ static uint64_t digest_fixture(VsSceneController* controller,
     hash = nativeSemanticState_AddController(hash, controller);
     hash = nativeSemanticState_AddCamera(hash, camera, subject_tail);
     hash = nativeSemanticState_AddPlayer(hash, player);
-    hash = nativeSemanticState_AddFighter(hash, fighter, 0);
+    hash = nativeSemanticState_AddFighter(hash, fighter, 0, NULL);
     hash = nativeSemanticState_AddItem(hash, item, NULL);
     hash = nativeSemanticState_AddGround(hash, ground);
     return nativeSemanticState_AddJointTree(hash, stage_root);
@@ -376,29 +376,29 @@ int main(void)
     damage_fighter.mv.co.damage.x1A = 6;
     damage_fighter.mv.co.damage.x1B = 7;
     uint64_t damage_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &damage_fighter, 0);
+        nativeSemanticState_Begin(), &damage_fighter, 0, NULL);
     damage_fighter.mv.co.damage.x1B -= 1;
     require(damage_digest != nativeSemanticState_AddFighter(
                                  nativeSemanticState_Begin(), &damage_fighter,
-                                 0),
+                                 0, NULL),
             "damage motion state was not detected");
 
     Fighter clone_mario = { .kind = Ft_Kind_CustomFirst,
                             .behavior_kind = Ft_Kind_Mario };
     uint64_t clone_charge_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &clone_mario, 0);
+        nativeSemanticState_Begin(), &clone_mario, 0, NULL);
     clone_mario.u.mr.x2234_tornadoCharge = true;
     require(clone_charge_digest != nativeSemanticState_AddFighter(
                                        nativeSemanticState_Begin(),
-                                       &clone_mario, 0),
+                                       &clone_mario, 0, NULL),
             "cloned Mario charge state was not detected");
     clone_mario.u.mr.x2234_tornadoCharge = false;
     uint64_t authored_state_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &clone_mario, 0);
+        nativeSemanticState_Begin(), &clone_mario, 0, NULL);
     clone_mario.native_module_state[9] = 0xA5;
     require(authored_state_digest != nativeSemanticState_AddFighter(
                                          nativeSemanticState_Begin(),
-                                         &clone_mario, 0),
+                                         &clone_mario, 0, NULL),
             "authored per-fighter state was not detected");
 
     Fighter guard_fighter = fighter;
@@ -416,11 +416,11 @@ int main(void)
     guard_fighter.mv.co.guard.x24 = 9;
     guard_fighter.mv.co.guard.x2C = 10.0f;
     uint64_t guard_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &guard_fighter, 0);
+        nativeSemanticState_Begin(), &guard_fighter, 0, NULL);
     guard_fighter.mv.co.guard.x24 -= 1;
     require(guard_digest != nativeSemanticState_AddFighter(
                                 nativeSemanticState_Begin(), &guard_fighter,
-                                0),
+                                0, NULL),
             "guard motion state was not detected");
 
     Fighter ledge_fighter = fighter;
@@ -430,11 +430,11 @@ int main(void)
     ledge_fighter.mv.co.cliff.x4 = 30.0f;
     ledge_fighter.mv.co.cliff.x8 = true;
     uint64_t ledge_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &ledge_fighter, 0);
+        nativeSemanticState_Begin(), &ledge_fighter, 0, NULL);
     ledge_fighter.mv.co.cliff.x4 -= 1.0f;
     require(ledge_digest != nativeSemanticState_AddFighter(
                                 nativeSemanticState_Begin(), &ledge_fighter,
-                                0),
+                                0, NULL),
             "ledge motion state was not detected");
 
     Fighter item_throw_fighter = fighter;
@@ -446,11 +446,11 @@ int main(void)
     item_throw_fighter.mv.co.itemthrow4.x8.y = 2.0f;
     item_throw_fighter.mv.co.itemthrow4.x8.z = 3.0f;
     uint64_t item_throw_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &item_throw_fighter, 0);
+        nativeSemanticState_Begin(), &item_throw_fighter, 0, NULL);
     item_throw_fighter.mv.co.itemthrow4.x8.y += 1.0f;
     require(item_throw_digest != nativeSemanticState_AddFighter(
                                     nativeSemanticState_Begin(),
-                                    &item_throw_fighter, 0),
+                                    &item_throw_fighter, 0, NULL),
             "item-throw motion state was not detected");
 
     Fighter capture_fighter = fighter;
@@ -461,11 +461,11 @@ int main(void)
     capture_fighter.mv.co.capturewait.x8 = true;
     capture_fighter.mv.co.capturewait.xC = false;
     uint64_t capture_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &capture_fighter, 0);
+        nativeSemanticState_Begin(), &capture_fighter, 0, NULL);
     capture_fighter.mv.co.capturewait.xC = true;
     require(capture_digest != nativeSemanticState_AddFighter(
                                   nativeSemanticState_Begin(),
-                                  &capture_fighter, 0),
+                                  &capture_fighter, 0, NULL),
             "capture-wait motion state was not detected");
 
     Fighter thrown_fighter = fighter;
@@ -475,11 +475,11 @@ int main(void)
     thrown_fighter.mv.co.thrown.anim_timer = 14.0f;
     thrown_fighter.mv.co.thrown.xC = false;
     uint64_t thrown_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &thrown_fighter, 0);
+        nativeSemanticState_Begin(), &thrown_fighter, 0, NULL);
     thrown_fighter.mv.co.thrown.anim_timer -= 1.0f;
     require(thrown_digest != nativeSemanticState_AddFighter(
                                  nativeSemanticState_Begin(),
-                                 &thrown_fighter, 0),
+                                 &thrown_fighter, 0, NULL),
             "thrown motion state was not detected");
 
     Fighter shouldered_fighter = fighter;
@@ -488,11 +488,11 @@ int main(void)
     shouldered_fighter.mv.co.shouldered.x0 = 6.0f;
     shouldered_fighter.mv.co.shouldered.x4 = true;
     uint64_t shouldered_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &shouldered_fighter, 0);
+        nativeSemanticState_Begin(), &shouldered_fighter, 0, NULL);
     shouldered_fighter.mv.co.shouldered.x0 -= 1.0f;
     require(shouldered_digest != nativeSemanticState_AddFighter(
                                      nativeSemanticState_Begin(),
-                                     &shouldered_fighter, 0),
+                                     &shouldered_fighter, 0, NULL),
             "shouldered motion state was not detected");
 
     Fighter warp_fighter = fighter;
@@ -505,11 +505,11 @@ int main(void)
     warp_fighter.mv.co.warpstar.x1C = 45;
     warp_fighter.mv.co.warpstar.ecb.bottom = -4.0f;
     uint64_t warp_digest = nativeSemanticState_AddFighter(
-        nativeSemanticState_Begin(), &warp_fighter, 0);
+        nativeSemanticState_Begin(), &warp_fighter, 0, NULL);
     warp_fighter.mv.co.warpstar.ecb.bottom -= 1.0f;
     require(warp_digest != nativeSemanticState_AddFighter(
                                 nativeSemanticState_Begin(), &warp_fighter,
-                                0),
+                                0, NULL),
             "special common motion state was not detected");
 
     fighter_copy.u.gn.during_specials += 1;

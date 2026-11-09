@@ -1,8 +1,8 @@
 # Prepared Windows releases
 
-Updated: 2026-10-17. Current local acceptance covers a clean extracted installation,
-Workshop authoring and launcher updates. These local builds have not been uploaded.
-The hosted preview is older; its earlier receipts do not establish current readiness.
+Updated: 2026-11-09. The private playtest channel carries the desync diagnostics
+build. The October local acceptance below covers installation, Workshop authoring,
+and launcher updates.
 
 ## Prepare
 
@@ -41,7 +41,9 @@ working directory so its assets resolve beside the executable.
 
 Before launch, the launcher reads `channel.txt`, verifies a complete update and
 activates it while retaining the previous build. It refuses concurrent launcher
-runs. To download and activate without starting the game:
+runs. Standalone installs with an empty `channel.txt` can join the hosted channel
+by saving the manifest URL above on the first line of that file. To download and
+activate without starting the game:
 
 ```powershell
 .\Freak Melee.bat -CheckOnly
@@ -72,7 +74,20 @@ python tools/publish_native_release.py build/native/releases/2026-10-17-a
 This uploads both ZIPs, downloads and hashes each, and publishes `latest.json`
 last. Share the setup URL ending in `freak-melee-setup-<release>.zip`.
 The earlier `2026-09-24-preview-4` publication is historical evidence; the hosted
-channel has not been refreshed as part of the current local checks.
+channel now serves `2026-11-09-desync-1`.
+
+## Playtest desync reports
+
+The diagnostics build sends one report when an active online match aborts. It
+includes the build, session and peer numbers, stage and fighter IDs, recent
+controller samples and state hashes, and the failure reason. Reports stay in
+the private release bucket under `netplay-diagnostics/` for 14 days. Each client
+also saves its report under `%LOCALAPPDATA%\Freak Melee\netplay-diagnostics`.
+
+To build with reporting, configure `NATIVE_NETPLAY_DIAGNOSTICS_URL` with the
+hosted channel's `/diagnostics` endpoint and `NATIVE_NETPLAY_DIAGNOSTICS_BUILD`
+with the release ID. A fresh build defaults to reporting off. To turn it off in
+an existing build directory, clear `NATIVE_NETPLAY_DIAGNOSTICS_URL` and rebuild.
 
 ## Local acceptance — 2026-10-17
 

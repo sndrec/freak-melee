@@ -49,6 +49,11 @@ typedef struct NativeSemanticItemTrace {
     uint64_t commands;
 } NativeSemanticItemTrace;
 
+typedef struct NativeSemanticFighterTrace {
+    uint64_t movement, input, collision, animation, hitboxes, damage;
+    uint64_t script, attachments, pose, relations;
+} NativeSemanticFighterTrace;
+
 uint64_t nativeSemanticState_Begin(void);
 uint64_t nativeSemanticState_AddU32(uint64_t hash, uint32_t value);
 uint64_t nativeSemanticState_AddController(uint64_t hash,
@@ -58,7 +63,8 @@ uint64_t nativeSemanticState_AddPlayer(uint64_t hash,
 uint64_t nativeSemanticState_AddCamera(uint64_t hash, const Camera* camera,
                                        const CmSubject* subject_tail);
 uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
-                                        uint32_t part_count);
+                                        uint32_t part_count,
+                                        NativeSemanticFighterTrace* trace);
 uint64_t nativeSemanticState_FighterHitboxDigest(const Fighter* fighter);
 uint64_t nativeSemanticState_FighterHurtboxDigest(const Fighter* fighter);
 uint64_t nativeSemanticState_AddItem(uint64_t hash, const Item* item,

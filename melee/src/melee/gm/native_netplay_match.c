@@ -9,6 +9,8 @@
 #include <windows.h>
 
 #include "native_match_launch.h"
+#include "native_netplay_diagnostics.h"
+#include "native_pad_wire.h"
 #include "native_home.h"
 #include "native_netplay_room.h"
 #include "native_netplay_udp.h"
@@ -85,6 +87,10 @@ static struct NativeNetplayMatch {
     uint32_t input_stall_count;
     uint32_t compared_digest_count;
     uint64_t input_stall_ms;
+    uint64_t mismatch_frame, mismatch_peer_digest;
+    uint32_t initial_seed;
+    char failure_reason[128];
+    bool has_mismatch;
     s8 physical_ports[4];
     bool active;
     bool replay_playback;
@@ -104,6 +110,7 @@ static void fail(const char* reason)
     }
     if (!netplay.failed) {
         OSReport("[netplay] FAILED: %s\n", reason);
+        snprintf(netplay.failure_reason, sizeof(netplay.failure_reason), "%s", reason);
     }
     netplay.checkpoint.failed = true;
     netplay.failed = true;
@@ -251,7 +258,10 @@ static bool compare_peer_digests(void)
                          index, (unsigned long long) pending->frame,
                          (unsigned long long) local->value,
                          (unsigned long long) pending->value);
-                nativeReplay_LogStateDigestSegments(pending->frame);
+                nativeReplay_WriteStateDigestSegments(stderr, pending->frame, false);
+                netplay.has_mismatch = true;
+                netplay.mismatch_frame = pending->frame;
+                netplay.mismatch_peer_digest = pending->value;
                 fail("peer semantic checksum mismatch");
                 return false;
             }
@@ -461,6 +471,7 @@ bool nativeNetplayMatch_Prepare(bool sudden_death)
         netplay.compared_digest_count = 0;
         netplay.input_stall_ms = 0;
         netplay.has_published_digest = false;
+        netplay.initial_seed = *seed_ptr;
         memset(netplay.replay_boundaries, 0,
                sizeof(netplay.replay_boundaries));
         memset(netplay.state_digests, 0, sizeof(netplay.state_digests));
@@ -495,6 +506,7 @@ bool nativeNetplayMatch_Prepare(bool sudden_death)
     if (*seed_ptr == 0) {
         *seed_ptr = 1;
     }
+    netplay.initial_seed = *seed_ptr;
     OSReport("[netplay] Agreed initial RNG seed %08x.\n",
              (unsigned) *seed_ptr);
     if(netplay.room_transport &&
@@ -628,6 +640,72 @@ bool nativeNetplayMatch_Init(void)
     return true;
 }
 
+static void report_failure(void)
+{
+    if (!netplay.active || !netplay.failed || netplay.exchange == NULL) return;
+    uint64_t session = netplay.exchange->session_id;
+    unsigned peer = netplay.exchange->local_peer;
+    FILE* report = nativeNetplayDiagnostics_Open(session, peer);
+    if (report == NULL) return;
+    uint64_t cursor = netplay.checkpoint.cursor;
+    fprintf(report, "session=%016llx peer=%u port_mask=%x reason=%s\n"
+            "signature=%016llx seed=%08x frame=%llu checkpoint=%llu "
+            "received=%u rejected=%u compared=%u restores=%u replay_ticks=%u\n",
+            (unsigned long long)session, peer, netplay.inputs.local_mask,
+            netplay.failure_reason, (unsigned long long)nativeMatchLaunch_Signature(),
+            netplay.initial_seed, (unsigned long long)cursor,
+            (unsigned long long)netplay.checkpoint.boundary,
+            netplay.exchange->received_packets, netplay.exchange->rejected_packets,
+            netplay.compared_digest_count, netplay.correction_count, netplay.resimulated_frame_count);
+    if (netplay.has_mismatch) {
+        fprintf(report, "mismatch_frame=%llu remote_digest=%016llx\n",
+                (unsigned long long)netplay.mismatch_frame,
+                (unsigned long long)netplay.mismatch_peer_digest);
+    }
+    if (netplay.room_transport && netplay.room != NULL) {
+        const NativeLobbyMatch* match = &netplay.room->match;
+        fprintf(report, "stage=%llu mode=%u stocks=%u time=%u stock_time=%u "
+                "items=%d item_mask=%016llx teams=%u friendly_fire=%u\n",
+                (unsigned long long)match->stage_id, match->mode, match->stock_count,
+                match->time_limit_minutes, match->stock_time_limit_minutes, match->item_frequency,
+                (unsigned long long)match->item_mask, match->teams, match->friendly_fire);
+        for (unsigned port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
+            const NativeLobbyMatchSlot* slot = &match->slots[port];
+            char fighter[65], costume[65];
+            nativeContentStore_IdHex(&slot->character_package_id, fighter);
+            nativeContentStore_IdHex(&slot->costume_package_id, costume);
+            fprintf(report, "[slot] %u kind=%u character=%016llx costume=%016llx fighter_package=%s costume_package=%s\n",
+                    port, slot->kind, (unsigned long long)slot->character_id,
+                    (unsigned long long)slot->costume_id, fighter, costume);
+        }
+    }
+    fputs("[fighter-state] columns: frame actor port kind action movement input collision "
+          "animation hitboxes damage script attachments pose relations\n", report);
+    uint64_t start = cursor > NATIVE_ROLLBACK_INPUT_CAPACITY
+                         ? cursor - NATIVE_ROLLBACK_INPUT_CAPACITY : 0;
+    for (uint64_t frame = start; frame < cursor; ++frame) {
+        const NativeNetplayStateDigest* digest = find_state_digest(frame);
+        if (digest == NULL) continue;
+        fprintf(report, "[digest] %llu %016llx\n", (unsigned long long)frame,
+                (unsigned long long)digest->value);
+        PADStatus pads[NATIVE_ROLLBACK_INPUT_PORTS];
+        if (nativeRollbackInput_GetFrame(&netplay.inputs, frame, pads)) {
+            fprintf(report, "[inputs] %llu confirmed=%x", (unsigned long long)frame,
+                    nativeRollbackInput_ConfirmedMask(&netplay.inputs, frame));
+            for (unsigned port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
+                uint8_t bytes[NATIVE_PAD_WIRE_BYTES];
+                nativePadWire_Write(bytes, &pads[port]);
+                fputc(' ', report);
+                for (unsigned i = 0; i < sizeof(bytes); ++i) fprintf(report, "%02x", bytes[i]);
+            }
+            fputc('\n', report);
+        }
+        nativeReplay_WriteStateDigestSegments(report, frame,
+            !netplay.has_mismatch || frame != netplay.mismatch_frame);
+    }
+    nativeNetplayDiagnostics_Send(report, session, peer);
+}
+
 void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
                                  const struct MatchEnd* result)
 {
@@ -644,6 +722,7 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
     const uint32_t stale_packets = netplay.exchange != NULL
                                        ? netplay.exchange->stale_packets : 0;
     HSD_PadSetRawFilter(NULL);
+    report_failure();
     if (netplay.replay_playback) {
         nativeReplay_SetTimelineValidation(true);
     }
@@ -841,7 +920,7 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
     netplay.state_digests[frame%NATIVE_ROLLBACK_INPUT_CAPACITY]=
         (NativeNetplayStateDigest){.frame=frame,.value=semantic_state_digest(frame),.valid=true};
     if (netplay.checksum_trace) {
-        if (frame == 0) nativeReplay_LogStateDigestSegments(frame);
+        if (frame == 0) nativeReplay_WriteStateDigestSegments(stderr, frame, false);
         for(uint32_t slot=0;slot<nativeGObjPool.initialized_count;++slot)
             if(nativeGObjPool.slots[slot].occupied)
                 nativeRandom_TraceBytes("gobj",nativeGObjPool.payload+slot*nativeGObjPool.stride,nativeGObjPool.object_size);

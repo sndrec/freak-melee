@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <melee/it/forward.h>
 #include <melee/gm/forward.h>
 #include <sysdolphin/baselib/forward.h>
@@ -50,7 +51,8 @@ void nativeReplay_LogGeometry(uint64_t sample_index);
 HSD_JObj* nativeReplay_AdditionalItemModel(const Item*, unsigned slot);
 void nativeReplay_LogItemEvent(int kind, const char* event);
 void nativeReplay_LogBodyContact(const struct Fighter* fighter);
-void nativeReplay_LogStateDigestSegments(uint64_t sample_index);
+void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
+                                           bool fighter_only);
 bool nativeReplay_Close(void);
 
 #endif

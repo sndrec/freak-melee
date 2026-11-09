@@ -102,12 +102,18 @@ typedef struct StateTraceFrame {
     uint64_t sample;
     uint8_t count;
     uint8_t item_command_count;
+    uint8_t fighter_count;
     bool valid;
     StateTraceSegment segments[STATE_TRACE_SEGMENTS];
     struct {
         uint32_t kind;
         uint32_t words[8];
     } item_commands[STATE_TRACE_ITEM_COMMANDS];
+    struct {
+        NativeSemanticFighterTrace fields;
+        unsigned slot;
+        int kind, motion;
+    } fighters[NATIVE_SEMANTIC_FIGHTER_CAPACITY];
 } StateTraceFrame;
 
 static StateTraceFrame state_traces[STATE_TRACE_FRAMES];
@@ -386,7 +392,8 @@ static void trace_segment(StateTraceFrame* frame, StateTraceKind kind,
     }
 }
 
-void nativeReplay_LogStateDigestSegments(uint64_t sample_index)
+void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
+                                           bool fighter_only)
 {
     static const char* labels[] = {
         "controller", "camera", "player", "objects",
@@ -406,20 +413,33 @@ void nativeReplay_LogStateDigestSegments(uint64_t sample_index)
     if (!frame->valid || frame->sample != sample_index) {
         return;
     }
-    for (uint32_t i = 0; i < frame->count; ++i) {
+    for (uint32_t i = 0; !fighter_only && i < frame->count; ++i) {
         const StateTraceSegment* segment = &frame->segments[i];
-        fprintf(stderr, "[state] frame %llu %s %u %016llx\n",
+        fprintf(output, "[state] frame %llu %s %u %016llx\n",
                 (unsigned long long) sample_index, labels[segment->kind],
                 segment->index, (unsigned long long) segment->hash);
     }
-    for (uint32_t i = 0; i < frame->item_command_count; ++i) {
+    for (uint32_t i = 0; !fighter_only && i < frame->item_command_count; ++i) {
         const uint32_t* words = frame->item_commands[i].words;
-        fprintf(stderr,
+        fprintf(output,
                 "[state] frame %llu item-command-words %u kind=%u "
                 "%08x %08x %08x %08x %08x %08x %08x %08x\n",
                 (unsigned long long) sample_index, i,
                 frame->item_commands[i].kind, words[0], words[1], words[2],
                 words[3], words[4], words[5], words[6], words[7]);
+    }
+    for (unsigned i = 0; i < frame->fighter_count; ++i) {
+        const NativeSemanticFighterTrace* fields = &frame->fighters[i].fields;
+        fprintf(output, "[fighter-state] %llu %u %u %d %d "
+                "%016llx %016llx %016llx %016llx %016llx %016llx "
+                "%016llx %016llx %016llx %016llx\n",
+                (unsigned long long)sample_index, i, frame->fighters[i].slot,
+                frame->fighters[i].kind, frame->fighters[i].motion,
+                (unsigned long long)fields->movement, (unsigned long long)fields->input,
+                (unsigned long long)fields->collision, (unsigned long long)fields->animation,
+                (unsigned long long)fields->hitboxes, (unsigned long long)fields->damage,
+                (unsigned long long)fields->script, (unsigned long long)fields->attachments,
+                (unsigned long long)fields->pose, (unsigned long long)fields->relations);
     }
 }
 
@@ -445,6 +465,7 @@ uint64_t nativeReplay_StateDigest(uint64_t sample_index)
         trace->sample = sample_index;
         trace->count = 0;
         trace->item_command_count = 0;
+        trace->fighter_count = 0;
         trace->valid = false;
     }
     hash = nativeSemanticState_AddController(hash, gmVs_GetController_0());
@@ -595,17 +616,23 @@ uint64_t nativeReplay_StateDigest(uint64_t sample_index)
             nonfinite_reported = true;
         }
 
-        if (fp->parts == NULL || ftPartsTable == NULL ||
-            fp->kind < 0 || fp->kind >= Ft_Kind_StockCount ||
-            ftPartsTable[fp->kind] == NULL) {
-            hash = nativeSemanticState_AddFighter(hash, fp, 0);
-            hash = nativeSemanticState_AddFighterRelations(hash, fp, &objects);
-            trace_segment(trace, StateTrace_Fighter, fp->player_id, hash);
-            continue;
+        NativeSemanticFighterTrace* fields = NULL;
+        if (trace != NULL && trace->fighter_count < NATIVE_SEMANTIC_FIGHTER_CAPACITY) {
+            unsigned index = trace->fighter_count++;
+            trace->fighters[index].slot = fp->player_id;
+            trace->fighters[index].kind = fp->kind;
+            trace->fighters[index].motion = fp->motion_id;
+            fields = &trace->fighters[index].fields;
         }
-        uint32_t parts_num = ftPartsTable[fp->kind]->parts_num;
-        hash = nativeSemanticState_AddFighter(hash, fp, parts_num);
+        uint32_t parts_num = 0;
+        if (fp->parts != NULL && ftPartsTable != NULL &&
+            fp->kind >= 0 && fp->kind < Ft_Kind_StockCount &&
+            ftPartsTable[fp->kind] != NULL) {
+            parts_num = ftPartsTable[fp->kind]->parts_num;
+        }
+        hash = nativeSemanticState_AddFighter(hash, fp, parts_num, fields);
         hash = nativeSemanticState_AddFighterRelations(hash, fp, &objects);
+        if (fields != NULL) fields->relations = hash;
         trace_segment(trace, StateTrace_Fighter, fp->player_id, hash);
         if (parts_num > 256) {
             fprintf(stderr, "[replay] Invalid part count %u for fighter %u.\n",
