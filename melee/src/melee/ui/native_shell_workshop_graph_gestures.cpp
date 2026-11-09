@@ -18,36 +18,45 @@ namespace WorkshopEditor {
         session->graph_tool = tool;
         session->graph_tangent = false;
         session->graph_drag_baselines.clear();
-        for (const GraphKeyRef& ref : session->graph_selection) {
-            NativeFighterAnimationKey source_keys[1024];
-            size_t source_count;
-            if (ref.track >= session->track_count ||
-                !session->graph_visible[ref.track] ||
-                !nativeFighterAnimation_Keys(
-                    session->project, session->animation_clip, ref.track,
-                    source_keys, 1024, &source_count) ||
-                ref.key >= source_count)
-            {
-                continue;
+        auto selection = session->graph_selection;
+        std::sort(selection.begin(), selection.end(), [](const auto& a, const auto& b) {
+            return a.track < b.track || (a.track == b.track && a.key < b.key);
+        });
+        std::vector<NativeFighterAnimationKey> source_keys;
+        std::vector<float> frames, values;
+        for (size_t first = 0; first < selection.size();) {
+            const unsigned track = selection[first].track;
+            size_t end = first + 1;
+            while (end < selection.size() && selection[end].track == track) ++end;
+            if (track < session->track_count && session->graph_visible[track]) {
+                source_keys.resize(session->tracks[track].keys);
+                size_t count;
+                if (nativeFighterAnimation_Keys(session->project, session->animation_clip,
+                        track, source_keys.data(), source_keys.size(), &count) &&
+                    selection[end - 1].key < count) {
+                    frames.clear();
+                    for (size_t i = first; i < end; ++i)
+                        frames.push_back(float(source_keys[selection[i].key].frame));
+                    values.resize(frames.size());
+                    const bool sampled = nativeFighterAnimation_SampleFrames(session->project,
+                        session->animation_clip, track, frames.data(), values.data(), frames.size());
+                    for (size_t i = first; i < end; ++i) {
+                        const auto ref = selection[i];
+                        const auto& key = source_keys[ref.key];
+                        const float displayed = sampled && std::isfinite(values[i - first])
+                            ? values[i - first] : key.value;
+                        const float x = 8.0f + (key.frame - session->graph_view_start) /
+                            (session->graph_view_end - session->graph_view_start) *
+                            (session->graph_width - 18.0f);
+                        const float units = session->graph_units_per_pixel[track];
+                        const float y = 7.0f + (session->graph_high_value[track] - displayed) / units;
+                        session->graph_drag_baselines.push_back(
+                            {ref, key.frame, key.value, units, x, y,
+                             key.tangent, key.tangent_editable});
+                    }
+                }
             }
-            const float screen_x =
-                8.0f +
-                (source_keys[ref.key].frame - session->graph_view_start) /
-                    (session->graph_view_end - session->graph_view_start) *
-                    (session->graph_width - 18.0f);
-            float displayed_value = source_keys[ref.key].value;
-            nativeFighterAnimation_Sample(
-                session->project, session->animation_clip, ref.track,
-                float(source_keys[ref.key].frame), &displayed_value);
-            const float screen_y =
-                7.0f +
-                (session->graph_high_value[ref.track] - displayed_value) /
-                    session->graph_units_per_pixel[ref.track];
-            session->graph_drag_baselines.push_back(
-                { ref, source_keys[ref.key].frame, source_keys[ref.key].value,
-                  session->graph_units_per_pixel[ref.track], screen_x,
-                  screen_y, source_keys[ref.key].tangent,
-                  source_keys[ref.key].tangent_editable });
+            first = end;
         }
         if (session->graph_drag_baselines.empty()) {
             return false;
@@ -86,6 +95,8 @@ namespace WorkshopEditor {
         session->graph_before.assign(session->project->animation_dat,
                                      session->project->animation_dat +
                                          session->project->animation_size);
+        session->graph_fighter_before.assign(session->project->fighter_dat,
+            session->project->fighter_dat + session->project->fighter_size);
         session->drag_start_x = mouse_x;
         session->drag_start_y = mouse_y;
         session->graph_constraint = 0;
@@ -98,16 +109,21 @@ namespace WorkshopEditor {
         return true;
     }
 
+    static void restore_graph_draft()
+    {
+        // A retime only appends data. The current allocation always has room
+        // for the smaller original bank, even after a partial mouse update.
+        std::memcpy(session->project->animation_dat, session->graph_before.data(),
+                    session->graph_before.size());
+        session->project->animation_size = session->graph_before.size();
+        std::memcpy(session->project->fighter_dat, session->graph_fighter_before.data(),
+                    session->graph_fighter_before.size());
+    }
+
     bool preview_graph_transform(int mouse_x, int mouse_y)
     {
-        if (!session->graph_drag_active ||
-            session->graph_before.size() != session->project->animation_size)
-        {
-            return false;
-        }
-        std::memcpy(session->project->animation_dat,
-                    session->graph_before.data(),
-                    session->graph_before.size());
+        if (!session->graph_drag_active) return false;
+        restore_graph_draft();
         session->graph_refresh = true;
         nativeHome_WorkshopPoseInvalidate();
         if (session->graph_tangent) {
@@ -214,8 +230,8 @@ namespace WorkshopEditor {
                          "outside the clip. No keys were changed.");
                 return false;
             }
-            float snapped;
-            if (!nativeFighterAnimation_Snap(
+            float snapped = baseline.value;
+            if (raw_value != baseline.value && !nativeFighterAnimation_Snap(
                     session->project, session->animation_clip,
                     baseline.ref.track, false, raw_value, &snapped))
             {
@@ -273,32 +289,16 @@ namespace WorkshopEditor {
         if (!changed) {
             return false;
         }
-        const uint8_t* previous = session->graph_before.data();
-        std::sort(targets.begin(), targets.end(),
-                  [](const KeyTarget& a, const KeyTarget& b) {
-                      if (a.baseline.ref.track != b.baseline.ref.track) {
-                          return a.baseline.ref.track < b.baseline.ref.track;
-                      }
-                      const int da = a.frame - a.baseline.frame;
-                      const int db = b.frame - b.baseline.frame;
-                      if ((da < 0) != (db < 0)) {
-                          return da < 0;
-                      }
-                      return da > 0 ? a.baseline.ref.key > b.baseline.ref.key
-                                    : a.baseline.ref.key < b.baseline.ref.key;
-                  });
-        bool valid = true;
-        for (const KeyTarget& target : targets) {
-            if (target.frame != target.baseline.frame &&
-                !nativeFighterAnimation_MoveKey(
-                    session->project, session->animation_clip,
-                    target.baseline.ref.track, target.baseline.ref.key,
-                    target.frame))
-            {
-                valid = false;
-                break;
-            }
-        }
+        std::vector<NativeFighterAnimationKeyTime> times;
+        for (const KeyTarget& target : targets)
+            if (target.frame != target.baseline.frame)
+                times.push_back({target.baseline.ref, target.frame});
+        std::sort(times.begin(), times.end(), [](const auto& a, const auto& b) {
+            return a.ref.track < b.ref.track ||
+                   (a.ref.track == b.ref.track && a.ref.key < b.ref.key);
+        });
+        bool valid = times.empty() || nativeFighterAnimation_EditKeys(
+            session->project, session->animation_clip, times.data(), times.size(), false);
         for (const KeyTarget& target : targets) {
             if (!valid) {
                 break;
@@ -319,8 +319,7 @@ namespace WorkshopEditor {
             }
         }
         if (!valid) {
-            std::memcpy(session->project->animation_dat, previous,
-                        session->project->animation_size);
+            restore_graph_draft();
             set_text("workshop-editor-status",
                      "Selected keys cannot move there "
                      "in the source encoding. Key order and track precision "
@@ -340,20 +339,20 @@ namespace WorkshopEditor {
             return;
         }
         if (commit) {
-            if (std::memcmp(session->graph_before.data(),
-                            session->project->animation_dat,
-                            session->graph_before.size()))
-            {
+            if (session->project->animation_size != session->graph_before.size()) {
+                record_structural_edit(true, session->graph_before.data(), session->graph_before.size(),
+                    session->graph_fighter_before.data(), session->graph_fighter_before.size());
+                session->animation_dirty = true;
+            } else if (std::memcmp(session->graph_before.data(), session->project->animation_dat,
+                                   session->graph_before.size())) {
                 record_edit(true, session->graph_before.data());
                 session->animation_dirty = true;
             }
-        } else {
-            std::memcpy(session->project->animation_dat,
-                        session->graph_before.data(),
-                        session->graph_before.size());
-        }
+        } else restore_graph_draft();
         session->graph_drag_active = false;
+        session->graph_tool = GraphTool::Move;
         session->graph_before.clear();
+        session->graph_fighter_before.clear();
         nativeHome_WorkshopPoseInvalidate();
         if (session->selected_track >= 0) {
             nativeFighterAnimation_Keys(
@@ -383,7 +382,7 @@ namespace WorkshopEditor {
         }
         unsigned track, key;
         char tail;
-        const auto& id = event.GetCurrentElement()->GetId();
+        const auto& id = event.GetTargetElement()->GetId();
         if (id.compare(0, 19, "workshop-graph-key-") != 0 ||
             std::sscanf(id.c_str() + 19, "%u-%u%c", &track, &key, &tail) != 2)
         {
@@ -432,7 +431,7 @@ namespace WorkshopEditor {
         }
         unsigned track, key, side;
         char tail;
-        const auto& id = event.GetCurrentElement()->GetId();
+        const auto& id = event.GetTargetElement()->GetId();
         const char* prefix = "workshop-graph-tangent-";
         if (id.compare(0, std::strlen(prefix), prefix) ||
             std::sscanf(id.c_str() + std::strlen(prefix), "%u-%u-%u%c", &track,
@@ -534,8 +533,70 @@ namespace WorkshopEditor {
         return false;
     }
 
+    enum class DeleteTarget { None, Keys, Event, Bone };
+    static DeleteTarget delete_target;
+    static Rml::ObserverPtr<Rml::Element> delete_return_focus;
+    static int pointer_x, pointer_y;
+
+    void open_delete_confirmation()
+    {
+        if (!session->project) return;
+        Rml::String label;
+        if (session->mode == WorkshopMode::Animation &&
+            !session->graph_selection.empty()) {
+            delete_target = DeleteTarget::Keys;
+            const unsigned count = (unsigned) session->graph_selection.size();
+            label = "Delete " + number(count) + (count == 1 ? " key?" : " keys?");
+        } else if (session->mode == WorkshopMode::Action && session->selected_event >= 0) {
+            delete_target = DeleteTarget::Event;
+            label = "Delete selected command?";
+        } else if (session->mode == WorkshopMode::Model) {
+            auto* remove = document->GetElementById("workshop-model-bone-remove");
+            if (!remove || !remove->IsVisible()) return;
+            delete_target = DeleteTarget::Bone;
+            label = "Remove selected bone?";
+        } else return;
+        auto* popup = document->GetElementById("workshop-delete-confirmation");
+        auto* panel = document->GetElementById("workshop-panel");
+        const auto origin = panel->GetAbsoluteOffset();
+        const auto dimensions = document->GetContext()->GetDimensions();
+        const float density = document->GetContext()->GetDensityIndependentPixelRatio();
+        const int x = std::clamp(pointer_x - int(origin.x), 0,
+            std::max(0, dimensions.x - int(origin.x) - int(210 * density)));
+        const int y = std::clamp(pointer_y - int(origin.y), 0,
+            std::max(0, dimensions.y - int(origin.y) - int(88 * density)));
+        popup->SetProperty("left", number((unsigned) x) + "px");
+        popup->SetProperty("top", number((unsigned) y) + "px");
+        set_text("workshop-delete-title", label);
+        if (auto* focus = document->GetContext()->GetFocusElement())
+            delete_return_focus = focus->GetObserverPtr();
+        popup->SetProperty("display", "block");
+        document->GetElementById("workshop-delete-confirm")->Focus();
+    }
+
+    void close_delete_confirmation()
+    {
+        if (delete_target == DeleteTarget::None) return;
+        delete_target = DeleteTarget::None;
+        document->GetElementById("workshop-delete-confirmation")->SetProperty("display", "none");
+        if (auto* focus = delete_return_focus.get(); focus && focus->IsVisible())
+            focus->Focus();
+        delete_return_focus = {};
+    }
+
+    void confirm_delete()
+    {
+        const DeleteTarget target = delete_target;
+        close_delete_confirmation();
+        switch (target) {
+        case DeleteTarget::Keys: delete_selected_keys(); break;
+        case DeleteTarget::Event: delete_selected_event(); break;
+        case DeleteTarget::Bone: nativeShellWorkshopModel_Click("workshop-model-bone-remove", false); break;
+        case DeleteTarget::None: break;
+        }
+    }
+
     class EditorInputEvents final : public Rml::EventListener {
-        int mouse_x = 0, mouse_y = 0;
         const char* ruler = nullptr;
         Rml::ObserverPtr<Rml::Element> editing;
         Rml::String original;
@@ -575,18 +636,29 @@ namespace WorkshopEditor {
                 editing = {};
                 if (!committing) field(id.c_str())->SetValue(original);
             } else if (type == "mousemove") {
-                mouse_x = event.GetParameter<int>("mouse_x", mouse_x);
-                mouse_y = event.GetParameter<int>("mouse_y", mouse_y);
+                pointer_x = event.GetParameter<int>("mouse_x", pointer_x);
+                pointer_y = event.GetParameter<int>("mouse_y", pointer_y);
                 if (session->graph_drag_active) {
-                    preview_graph_transform(mouse_x, mouse_y);
+                    preview_graph_transform(pointer_x, pointer_y);
                 } else if (ruler) {
-                    nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x);
+                    nativeShellWorkshopEditor_ScrubTimeline(ruler, pointer_x);
                 }
             } else if (type == "mousedown") {
                 discard_click = false;
-                mouse_x = event.GetParameter<int>("mouse_x", mouse_x);
-                mouse_y = event.GetParameter<int>("mouse_y", mouse_y);
+                pointer_x = event.GetParameter<int>("mouse_x", pointer_x);
+                pointer_y = event.GetParameter<int>("mouse_y", pointer_y);
                 const int button = event.GetParameter<int>("button", -1);
+                if (delete_target != DeleteTarget::None) {
+                    auto* popup = document->GetElementById("workshop-delete-confirmation");
+                    bool inside = false;
+                    for (auto* p = target; p; p = p->GetParentNode()) inside |= p == popup;
+                    if (button == 1 || !inside) {
+                        close_delete_confirmation();
+                        discard_click = true;
+                        event.StopPropagation();
+                        return;
+                    }
+                }
                 if (session->graph_drag_active &&
                     (button == 1 || (button == 0 && session->graph_modal)))
                 {
@@ -609,7 +681,7 @@ namespace WorkshopEditor {
                         }
                     }
                     if (ruler) {
-                        nativeShellWorkshopEditor_ScrubTimeline(ruler, mouse_x);
+                        nativeShellWorkshopEditor_ScrubTimeline(ruler, pointer_x);
                     }
                 }
             } else if (type == "mouseup") {
@@ -653,6 +725,13 @@ namespace WorkshopEditor {
                 }
             } else if (type == "keydown") {
                 const int key = event.GetParameter<int>("key_identifier", 0);
+                if (delete_target != DeleteTarget::None) {
+                    if (key == Rml::Input::KI_ESCAPE) close_delete_confirmation();
+                    if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER)
+                        confirm_delete();
+                    event.StopPropagation();
+                    return;
+                }
                 if (session->graph_drag_active) {
                     if (key == Rml::Input::KI_ESCAPE) {
                         finish_graph_transform(false);
@@ -667,7 +746,7 @@ namespace WorkshopEditor {
                             session->graph_constraint =
                                 3 - session->graph_constraint;
                         }
-                        preview_graph_transform(mouse_x, mouse_y);
+                        preview_graph_transform(pointer_x, pointer_y);
                     } else {
                         return;
                     }
@@ -680,6 +759,13 @@ namespace WorkshopEditor {
                     return;
                 }
                 const bool ctrl = event.GetParameter<int>("ctrl_key", 0) != 0;
+                if (!ctrl && !text_field && !checkbox &&
+                    target->GetTagName() != "textarea" && target->GetTagName() != "select" &&
+                    key == Rml::Input::KI_DELETE) {
+                    open_delete_confirmation();
+                    if (delete_target != DeleteTarget::None) event.StopPropagation();
+                    return;
+                }
                 if (ctrl &&
                     (key == Rml::Input::KI_Z || key == Rml::Input::KI_Y) &&
                     (session->mode == WorkshopMode::Animation || session->mode == WorkshopMode::Model))
@@ -750,7 +836,7 @@ namespace WorkshopEditor {
                             key == Rml::Input::KI_G   ? GraphTool::Move
                             : key == Rml::Input::KI_R ? GraphTool::Rotate
                                                       : GraphTool::Scale,
-                            mouse_x, mouse_y, true))
+                            pointer_x, pointer_y, true))
                     {
                         event.StopPropagation();
                     }

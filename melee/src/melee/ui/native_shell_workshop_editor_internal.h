@@ -57,7 +57,7 @@ struct ActionEventTemplate {
     bool found;
 };
 struct TimelineEventInstance { unsigned event; int frame; };
-struct GraphKeyRef { unsigned track; unsigned key; };
+using GraphKeyRef = NativeFighterAnimationKeyRef;
 struct GraphKeyBaseline {
     GraphKeyRef ref;
     int frame;
@@ -118,7 +118,7 @@ struct EditorSession {
     NativeFighterActionCommand commands[512];
     NativeFighterAnimationTrack tracks[1024];
     NativeFighterAnimationKey keys[1024];
-    bool selected_tracks[1024];
+    bool selected_bones[512];
     bool skeleton_hierarchy_available;
     size_t action_count;
     size_t event_count;
@@ -142,7 +142,7 @@ struct EditorSession {
     bool action_dirty;
     bool script_loaded;
     bool normalize_values = false;
-    bool graph_animated_only = true;
+    bool graph_animated_only = false;
     bool show_animation_curves = true;
     bool graph_focused;
     float action_timeline_fraction = 0.32f;
@@ -195,7 +195,7 @@ struct EditorSession {
     float graph_cursor_frame = 0, graph_cursor_value = 0;
     float graph_value_low, graph_value_high;
     bool graph_value_range_valid;
-    std::vector<uint8_t> graph_before;
+    std::vector<uint8_t> graph_before, graph_fighter_before;
     std::string bone_names[512];
     unsigned drag_track;
     unsigned drag_key;
@@ -228,6 +228,9 @@ struct EditorSession {
 std::string bone_name(unsigned joint);
 void init_editor_input();
 void commit_discrete_property();
+void open_delete_confirmation();
+void close_delete_confirmation();
+void confirm_delete();
 extern bool rebuilding_action_inspector;
 
 struct ActionInspectorRefresh {
@@ -359,13 +362,15 @@ void show_animation_dopesheet();
 void select_key(unsigned key, bool seek = true);
 void show_track_browser();
 void refresh_track_selection();
-void select_track(unsigned track, bool toggle = false);
+bool track_selected(unsigned track);
+void select_track(unsigned track);
+void select_all_bones(bool selected);
 void select_joint(unsigned joint, bool toggle);
 void show_animation();
 void apply_clip_frames();
 void apply_key();
 void insert_key_at_frame();
-void delete_selected_key();
+void delete_selected_keys();
 void copy_pose_at_frame();
 void paste_copied_pose(const char* destination);
 std::string combined_script();

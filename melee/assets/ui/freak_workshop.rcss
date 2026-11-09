@@ -552,14 +552,10 @@
   color: #a1a6b8; border-top: 1dp #343743; font-size: 10dp; }
 #workshop-graph-focus.selected { color: #f59e82;
   border-color: #a46657; background-color: #46332f; }
-.workshop-graph-line { position: absolute; height: 2dp;
-  transform-origin: 0% 50%; pointer-events: none; }
 .workshop-graph-gridline { position: absolute; pointer-events: none;
   background-color: #343844; }
 .workshop-graph-gridlabel { position: absolute; pointer-events: none;
   color: #8c94a4; font-size: 9dp; }
-.workshop-graph-tangent-line { position: absolute; height: 1dp;
-  transform-origin: 0% 50%; pointer-events: none; }
 .workshop-graph-tangent-handle { position: absolute; width: 9dp;
   height: 9dp; margin-left: -4dp; margin-top: -4dp; padding: 0;
   border: 2dp #f59e82; border-radius: 5dp;
@@ -680,3 +676,14 @@ button:focus { border-color: #f59e82; }
 .workshop-graph-toggle span { display:inline-block; white-space:nowrap; flex-shrink:0; }
 .workshop-graph-toggle input { width:15dp; height:15dp; background-color:#211d2a; border:1dp #8d7480; }
 .workshop-graph-toggle input:checked { background-color:#b25b4d; border-color:#f4b093; }
+
+.workshop-outliner-tools { display: flex; gap: 5dp; margin: 4dp 0 8dp; }
+.workshop-outliner-tools .room-button { padding: 3dp 6dp; }
+.workshop-joint-row.active { border-left: 2dp #f59e82; }
+
+#workshop-delete-confirmation { display: none; position: absolute; z-index: 110;
+  width: 190dp; padding: 9dp; background-color: #24212c; border: 1dp #796074; }
+#workshop-delete-title { margin-bottom: 7dp; }
+#workshop-delete-confirmation .room-button { margin-right: 5dp; }
+
+#workshop-dope-rows { drag: drag; }

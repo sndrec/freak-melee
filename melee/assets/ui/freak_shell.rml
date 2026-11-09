@@ -66,6 +66,11 @@
       </div>
     </section>
     <section id="workshop-panel">
+      <div id="workshop-delete-confirmation">
+        <div id="workshop-delete-title"></div>
+        <button id="workshop-delete-confirm" class="room-button primary">Delete</button>
+        <button id="workshop-delete-cancel" class="room-button">Cancel</button>
+      </div>
       <button id="workshop-return-editor" class="room-button">‹ Return to editor</button>
       <div id="workshop-test-note"></div>
       <header id="workshop-editor-header">
@@ -134,6 +139,10 @@
           <div id="workshop-animation-clips"></div>
           <div class="workshop-divider"></div>
           <div class="eyebrow">BONE OUTLINER</div>
+          <div class="workshop-outliner-tools">
+            <button id="workshop-bones-all" class="room-button">Select all</button>
+            <button id="workshop-bones-none" class="room-button">Deselect all</button>
+          </div>
           <div id="workshop-animation-browser-summary"></div>
           <div id="workshop-animation-tracks"></div>
         </div>
@@ -260,7 +269,7 @@
           <label for="workshop-key-tangent" class="field-label">Hermite tangent</label>
           <input id="workshop-key-tangent" class="room-input" type="text" />
           <button id="workshop-key-insert" class="room-button">+ Key at current frame</button>
-          <button id="workshop-key-delete" class="room-button">Delete selected key</button>
+          <button id="workshop-key-delete" class="room-button">Delete selected keys</button>
           <div class="workshop-divider"></div>
           <div class="eyebrow">CHANNEL KEYS</div>
           <div id="workshop-animation-keys"></div>
@@ -443,12 +452,12 @@
         <div id="workshop-graph-toolbar">
           <label class="workshop-graph-toggle" title="Selection: center of the selected keys’ bounds. Cursor: the point set by clicking the graph."><span>Pivot</span><select id="workshop-graph-pivot" class="room-input"><option value="selection" selected="selected">Selection</option><option value="cursor">Cursor</option></select></label>
           <button id="workshop-graph-focus" class="room-button" title="Give the graph the full Workshop editing area">Expand graph</button>
-          <label class="workshop-graph-toggle" title="Show channels with more than one animation key"><input id="workshop-graph-animated-only" type="checkbox" checked="checked"/><span>Animated only</span></label>
+          <label class="workshop-graph-toggle" title="Show channels with more than one animation key"><input id="workshop-graph-animated-only" type="checkbox"/><span>Animated only</span></label>
           <label class="workshop-graph-toggle" title="Fit each channel to the same display range, preserving its authored values"><input id="workshop-graph-normalize" type="checkbox"/><span>Normalize values</span></label>
         </div>
         <div id="workshop-graph-content">
           <div id="workshop-graph-channels"></div>
-          <div id="workshop-animation-graph"></div>
+          <workshop-curve-graph id="workshop-animation-graph"></workshop-curve-graph>
         </div>
         <div id="workshop-graph-readout"><strong id="workshop-graph-selection-count">No keys selected</strong><span id="workshop-graph-active-channel"></span><span id="workshop-graph-note" class="workshop-graph-note">Tangent handles edit slope; time weights are fixed.</span></div>
         <div id="workshop-graph-help">Click empty space: set frame · Shift-click: add keys · B: box select · G / R / S: move, rotate, scale selected keys · Middle drag: pan · Ctrl+middle drag: zoom · Wheel: zoom</div>

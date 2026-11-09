@@ -443,9 +443,12 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     shell->AddEventListener("mousemove", &workshop_camera_events);
     shell->AddEventListener("mouseup", &workshop_camera_events);
     Rml::Element* graph = shell->GetElementById("workshop-animation-graph");
-    graph->AddEventListener("dragstart", &graph_box_events);
-    graph->AddEventListener("drag", &graph_box_events);
-    graph->AddEventListener("dragend", &graph_box_events);
+    auto* dope = shell->GetElementById("workshop-dope-rows");
+    for (auto* surface : {graph, dope})
+        for (const char* event : {"dragstart", "drag", "dragend"})
+            surface->AddEventListener(event, &graph_box_events);
+    graph->AddEventListener("mousedown", &graph_key_events);
+    graph->AddEventListener("mousedown", &graph_tangent_events);
     graph->AddEventListener("mousescroll", &graph_navigation_events);
     graph->AddEventListener("click", &graph_navigation_events);
     graph->AddEventListener("mousedown", &graph_navigation_events);
@@ -809,6 +812,14 @@ bool WorkshopEditor::edit_action_label(bool rename)
 
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 {
+    if (std::strcmp(id, "workshop-delete-confirm") == 0) {
+        confirm_delete();
+        return true;
+    }
+    if (std::strcmp(id, "workshop-delete-cancel") == 0) {
+        close_delete_confirmation();
+        return true;
+    }
     if (!std::strcmp(id,"workshop-action-tools-toggle") || !std::strcmp(id,"workshop-clip-tools-toggle")) {
         auto* tools = document->GetElementById(!std::strcmp(id,"workshop-action-tools-toggle") ? "workshop-action-tools" : "workshop-clip-tools");
         const bool open = tools->IsVisible();
@@ -825,6 +836,10 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     if (!std::strcmp(id, "workshop-action-hide"))
         return edit_action_label(false);
 
+    if (std::strcmp(id, "workshop-model-bone-remove") == 0) {
+        open_delete_confirmation();
+        return true;
+    }
     if (session->mode == WorkshopMode::Model &&
         nativeShellWorkshopModel_Click(id, shift))
     {
@@ -845,11 +860,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         }
         if (session->mode == WorkshopMode::Action)
             select_mode(WorkshopMode::Animation);
-        for (unsigned track = 0; track < session->track_count; ++track)
-            if (session->tracks[track].joint == joint) {
-                select_track(track);
-                break;
-            }
+        select_joint(joint, shift);
         return true;
     }
     if (std::strcmp(id, "workshop-view-bones") == 0 ||
@@ -1139,11 +1150,15 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (parse_row(id, "workshop-track-", &index)) {
-        select_track(index, shift);
+        select_track(index);
         return true;
     }
     if (parse_row(id, "workshop-graph-channel-", &index)) {
-        select_track(index, true);
+        select_track(index);
+        return true;
+    }
+    if (!std::strcmp(id, "workshop-bones-all") || !std::strcmp(id, "workshop-bones-none")) {
+        select_all_bones(!std::strcmp(id, "workshop-bones-all"));
         return true;
     }
     if (parse_row(id, "workshop-joint-", &index)) {
@@ -1163,7 +1178,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (parse_row(id, "workshop-dope-track-", &index)) {
-        select_track(index, shift);
+        select_track(index);
         return true;
     }
     if (parse_row(id, "workshop-dope-frame-", &index)) {
@@ -1191,8 +1206,10 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             });
         if (existing == session->graph_selection.end())
             session->graph_selection.push_back({ track, key });
+        else if (shift) session->graph_selection.erase(existing);
         session->selected_track = (int) track;
         select_key(key);
+        show_animation_dopesheet();
         show_animation_graph();
         return true;
     }
@@ -1208,7 +1225,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-delete-event") == 0) {
-        delete_selected_event();
+        open_delete_confirmation();
         return true;
     }
     if (parse_row(id, "workshop-add-command-", &index) && index < 59) {
@@ -1239,7 +1256,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-key-delete") == 0) {
-        delete_selected_key();
+        open_delete_confirmation();
         return true;
     }
     if (std::strcmp(id, "workshop-pose-copy") == 0) {
@@ -1292,27 +1309,26 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 bool nativeShellWorkshopEditor_Shortcut(int key_identifier)
 {
     if (session->project == nullptr) return false;
-    if (session->mode != WorkshopMode::Animation ||
-        !session->show_animation_curves) return false;
+    if (session->mode != WorkshopMode::Animation) return false;
     if (key_identifier == Rml::Input::KI_A) {
-        if (!session->graph_selection.empty()) session->graph_selection.clear();
-        else {
-        for (unsigned track = 0; track < session->track_count; ++track) {
-            if (!session->graph_visible[track]) continue;
-            NativeFighterAnimationKey listed[1024];
-            size_t count;
-            if (!nativeFighterAnimation_Keys(session->project, session->animation_clip, track, listed, 1024,
-                    &count)) continue;
-            for (unsigned key = 0; key < count &&
-                 session->graph_selection.size() < 2048; ++key)
-                if (listed[key].frame >= session->graph_view_start &&
-                    listed[key].frame <= session->graph_view_end)
-                    session->graph_selection.push_back({ track, key });
-        }
+        if (!session->graph_selection.empty()) {
+            session->graph_selection.clear();
+            session->selected_key = -1;
+            document->GetElementById("workshop-animation-fields")->SetProperty("display", "none");
+        } else {
+            for (unsigned track = 0; track < session->track_count; ++track) {
+                if (!track_selected(track) ||
+                    (session->show_animation_curves && session->graph_animated_only &&
+                     session->tracks[track].keys <= 1)) continue;
+                for (unsigned key = 0; key < session->tracks[track].keys; ++key)
+                    session->graph_selection.push_back({track, key});
+            }
         }
         show_animation_graph();
+        show_animation_dopesheet();
         return true;
     }
+    if (!session->show_animation_curves && key_identifier != Rml::Input::KI_B) return false;
     switch (key_identifier) {
     case Rml::Input::KI_B: set_graph_tool(GraphTool::Box); return true;
     case Rml::Input::KI_G: set_graph_tool(GraphTool::Move); return true;
@@ -1459,20 +1475,9 @@ void nativeShellWorkshopEditor_Update()
     if (session->mode == WorkshopMode::Animation && !session->action_preview_playing &&
         !session->graph_focused)
     {
-        bool selected_bones[512] = {};
-        for (size_t t = 0; t < session->track_count; ++t) {
-            if (session->selected_tracks[t] && session->tracks[t].joint < 512) {
-                selected_bones[session->tracks[t].joint] = true;
-            }
-        }
-        if (session->selected_outliner_joint >= 0 && session->selected_outliner_joint < 512) {
-            selected_bones[session->selected_outliner_joint] = true;
-        }
         unsigned joints[512], count = 0;
-        for (unsigned i = 0; i < 512; ++i) {
-            if (selected_bones[i]) {
-                joints[count++] = i;
-            }
+        for (unsigned i = 0; i < std::size(session->selected_bones); ++i) {
+            if (session->selected_bones[i]) joints[count++] = i;
         }
         nativeWorkshopPose_Update(joints, count,
                                   (unsigned) session->selected_outliner_joint, session->auto_key,

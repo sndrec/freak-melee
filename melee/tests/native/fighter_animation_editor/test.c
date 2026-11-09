@@ -48,7 +48,6 @@ int main(void) {
     CHECK(nativeFighterAnimation_SetFrames(&p,demo,25));
     CHECK(nativeFighterAnimation_Sample(&p,demo,0,5,&value)&&fabsf(value-4)<0.00001f);
     CHECK(!nativeFighterAnimation_SetTangent(&p,demo,0,0,1));
-    CHECK(!nativeFighterAnimation_MoveKey(&p,demo,0,0,3));
     uint8_t fighter[512];memcpy(fighter,p.fighter_dat,p.fighter_size);uint8_t action_bytes[512],later_bytes[512];
     CHECK(nativeFighterAnimation_Info(&p,action,&j));memcpy(action_bytes,p.animation_dat+j.clip_offset,j.clip_size);unsigned action_size=j.clip_size;
     CHECK(nativeFighterAnimation_Info(&p,later,&j));memcpy(later_bytes,p.animation_dat+j.clip_offset,j.clip_size);unsigned later_size=j.clip_size,old_later=j.clip_offset;
@@ -59,8 +58,8 @@ int main(void) {
     CHECK(nativeFighterAnimation_Info(&p,later,&j)&&j.clip_size==later_size&&!memcmp(later_bytes,p.animation_dat+j.clip_offset,later_size));
     CHECK(!memcmp(action_bytes,p.animation_dat,action_size));
     for(unsigned r=32;r<152;r+=24)CHECK(!memcmp(fighter+32+r+12,p.fighter_dat+32+r+12,12));
-    CHECK(nativeFighterAnimation_MoveKey(&p,demo,0,1,6));
-    CHECK(nativeFighterAnimation_DeleteKey(&p,demo,0,1));
+    CHECK(nativeFighterAnimation_EditKeys(&p,demo,&(NativeFighterAnimationKeyTime){{0,1},6},1,false));
+    CHECK(nativeFighterAnimation_EditKeys(&p,demo,&(NativeFighterAnimationKeyTime){{0,1},0},1,true));
     CHECK(nativeFighterAnimation_KeyChannel(&p,demo,0,HSD_A_J_TRAY,5,8,2));
     CHECK(nativeFighterAnimation_Tracks(&p,demo,tracks,4,&n)&&n==2);
     CHECK(nativeFighterAnimation_Sample(&p,demo,1,5,&value)&&fabsf(value-8)<0.00001f);
@@ -77,6 +76,20 @@ int main(void) {
     CHECK(nativeFighterAnimation_Info(&p,demo,&i)&&i.clip_offset>prior);
     CHECK(nativeFighterAnimation_Info(&p,alias,&j)&&i.clip_offset==j.clip_offset);
     CHECK(nativeFighterAnimation_Info(&p,(NativeFighterAnimationClip){NativeFighterAnimation_Demo,2},&j)&&j.clip_offset==0);
+    close_project(&p);
+    p=project();
+    CHECK(nativeFighterAnimation_KeyChannel(&p,demo,0,HSD_A_J_TRAY,5,8,2));
+    const NativeFighterAnimationKeyTime retime[] = {{{0,0},1},{{0,1},7},{{1,1},3}};
+    CHECK(nativeFighterAnimation_EditKeys(&p,demo,retime,3,false));
+    CHECK(nativeFighterAnimation_Keys(&p,demo,0,keys,4,&n)&&n==2&&keys[0].frame==1&&keys[1].frame==7);
+    CHECK(nativeFighterAnimation_Keys(&p,demo,1,keys,4,&n)&&n==2&&keys[1].frame==3);
+    const NativeFighterAnimationKeyTime deletion[] = {{{0,1},0},{{1,0},0},{{1,1},0}};
+    CHECK(nativeFighterAnimation_EditKeys(&p,demo,deletion,3,true));
+    CHECK(nativeFighterAnimation_Info(&p,demo,&i)&&i.tracks==1);
+    CHECK(nativeFighterAnimation_Keys(&p,demo,0,keys,4,&n)&&n==1&&keys[0].frame==1);
+    CHECK(nativeFighterAnimation_Sample(&p,demo,0,4,&value)&&fabsf(value-keys[0].value)<0.00001f);
+    CHECK(nativeFighterAnimation_EditKeys(&p,demo,&(NativeFighterAnimationKeyTime){{0,0},0},1,true));
+    CHECK(nativeFighterAnimation_Info(&p,demo,&i)&&i.tracks==0);
     close_project(&p);
     p=project();CHECK(nativeFighterAnimation_Info(&p,demo,&i));
     // A float spline carries independently editable value and tangent payloads.

@@ -20,7 +20,7 @@ void show_animation_keys()
 void show_animation_graph();
 void show_animation_dopesheet();
 void show_animation();
-void select_track(unsigned track, bool toggle);
+
 void stop_action_preview();
 
 void show_bone_transform()
@@ -98,32 +98,20 @@ void record_pose_keys(const uint8_t* before, size_t size,
     record_structural_edit(true, before, size, before_fighter, fighter_size);
     session->animation_dirty = true;
     NativeFighterAnimationTrack previous[1024];
-    bool previous_selection[1024];
-    const size_t previous_count = session->track_count;
     const int previous_active = session->selected_track;
-    std::memcpy(previous, session->tracks, session->track_count * sizeof(session->tracks[0]));
-    std::memcpy(previous_selection, session->selected_tracks, sizeof(session->selected_tracks));
+    const size_t previous_count = session->track_count;
+    std::memcpy(previous, session->tracks, previous_count * sizeof(previous[0]));
     nativeFighterAnimation_Tracks(session->project, session->animation_clip, session->tracks,
                                   1024, &session->track_count);
-    std::memset(session->selected_tracks, 0, sizeof(session->selected_tracks));
     session->selected_track = -1;
-    for (size_t t = 0; t < session->track_count; ++t) {
-        for (size_t old = 0; old < previous_count; ++old) {
-            if (session->tracks[t].joint != previous[old].joint ||
-                session->tracks[t].channel != previous[old].channel)
-            {
-                continue;
-            }
-            session->selected_tracks[t] = previous_selection[old];
-            if ((int) old == previous_active) {
-                session->selected_track = (int) t;
-            }
-        }
-        if (session->tracks[t].joint == (unsigned) session->selected_outliner_joint) {
-            session->selected_tracks[t] = true;
-            if (session->selected_track < 0) {
-                session->selected_track = (int) t;
-            }
+    for (unsigned t = 0; t < session->track_count; ++t) {
+        if (!track_selected(t)) continue;
+        if (session->selected_track < 0) session->selected_track = (int) t;
+        if (previous_active >= 0 && (size_t) previous_active < previous_count &&
+            session->tracks[t].joint == previous[previous_active].joint &&
+            session->tracks[t].channel == previous[previous_active].channel) {
+            session->selected_track = (int) t;
+            break;
         }
     }
     if (session->selected_track >= 0) {
@@ -137,12 +125,33 @@ void record_pose_keys(const uint8_t* before, size_t size,
     nativeShellWorkshop_RefreshPreview();
 }
 
+class WorkshopCurveGraph final : public Rml::Element {
+public:
+    explicit WorkshopCurveGraph(const Rml::String& tag) : Rml::Element(tag) {}
+
+    void SetCurves(Rml::Mesh mesh)
+    {
+        curves = GetRenderManager()->MakeGeometry(std::move(mesh));
+    }
+
+protected:
+    void OnRender() override
+    {
+        Rml::ElementUtilities::SetClippingRegion(this);
+        curves.Render(GetAbsoluteOffset(Rml::BoxArea::Content));
+    }
+
+private:
+    Rml::Geometry curves;
+};
+
 void show_animation_graph()
 {
     if (!session->show_animation_curves || session->project == nullptr ||
         session->animation_clip.index == UINT_MAX || session->clip_frames <= 0)
         return;
-    Rml::Element* graph = document->GetElementById("workshop-animation-graph");
+    auto* graph = static_cast<WorkshopCurveGraph*>(
+        document->GetElementById("workshop-animation-graph"));
     int width = graph->GetClientWidth();
     if (width < 100) {
         const Rml::Context* context = document->GetContext();
@@ -156,61 +165,65 @@ void show_animation_graph()
     session->graph_height = height;
     const float plot_height = float(height - 22);
     constexpr int SAMPLES = 33;
-    constexpr int MAX_CURVES = 32;
     struct Curve {
         unsigned track;
-        float values[SAMPLES];
-        float low;
-        float high;
-    } curves[MAX_CURVES];
-    unsigned count = 0;
+        std::vector<float> frames, values;
+        std::vector<NativeFighterAnimationKey> keys;
+        float low = INFINITY;
+        float high = -INFINITY;
+    };
+    std::vector<Curve> curves;
+    curves.reserve(session->track_count);
     float global_low = INFINITY, global_high = -INFINITY;
-    for (unsigned track = 0; track < session->track_count && count < MAX_CURVES;
-         ++track) {
-        if (!session->selected_tracks[track] ||
+    for (unsigned track = 0; track < session->track_count; ++track) {
+        if (!track_selected(track) ||
             (session->graph_animated_only && session->tracks[track].keys <= 1)) continue;
-        Curve& curve = curves[count];
+        Curve curve = {};
         curve.track = track;
-        curve.low = INFINITY;
-        curve.high = -INFINITY;
-        bool valid = true;
-        for (int sample = 0; sample < SAMPLES; ++sample) {
-            const float frame = session->graph_view_start +
-                (session->graph_view_end - session->graph_view_start) * sample / (SAMPLES - 1);
-            if (!nativeFighterAnimation_Sample(session->project, session->animation_clip, track, frame,
-                    &curve.values[sample]) ||
-                !std::isfinite(curve.values[sample])) {
-                valid = false;
-                break;
-            }
-            curve.low = std::min(curve.low, curve.values[sample]);
-            curve.high = std::max(curve.high, curve.values[sample]);
+        curve.keys.resize(session->tracks[track].keys);
+        size_t key_count;
+        if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
+                track, curve.keys.data(), curve.keys.size(), &key_count)) continue;
+        curve.keys.resize(key_count);
+        curve.frames.reserve(SAMPLES + key_count);
+        for (int i = 0; i < SAMPLES; ++i) {
+            const float fraction = float(i) / (SAMPLES - 1);
+            curve.frames.push_back(std::lerp(session->graph_view_start,
+                                             session->graph_view_end, fraction));
         }
-        if (!valid) continue;
-        NativeFighterAnimationKey curve_keys[1024];
-        size_t curve_key_count = 0;
-        if (nativeFighterAnimation_Keys(session->project, session->animation_clip, track, curve_keys, 1024,
-                &curve_key_count)) {
-            for (size_t key = 0; key < curve_key_count; ++key) {
-                if (curve_keys[key].frame < session->graph_view_start ||
-                    curve_keys[key].frame > session->graph_view_end) continue;
-                float value;
-                if (nativeFighterAnimation_Sample(session->project, session->animation_clip, track,
-                        float(curve_keys[key].frame), &value) &&
-                    std::isfinite(value)) {
-                    curve.low = std::min(curve.low, value);
-                    curve.high = std::max(curve.high, value);
-                }
-            }
+        for (const auto& key : curve.keys)
+            if (key.frame >= session->graph_view_start && key.frame <= session->graph_view_end)
+                curve.frames.push_back(float(key.frame));
+        std::sort(curve.frames.begin(), curve.frames.end());
+        curve.frames.erase(std::unique(curve.frames.begin(), curve.frames.end()), curve.frames.end());
+        curve.values.resize(curve.frames.size());
+        if (!nativeFighterAnimation_SampleFrames(session->project, session->animation_clip,
+                track, curve.frames.data(), curve.values.data(), curve.frames.size())) continue;
+        for (float value : curve.values) {
+            if (!std::isfinite(value)) continue;
+            curve.low = std::min(curve.low, value);
+            curve.high = std::max(curve.high, value);
         }
+        if (curve.low > curve.high) continue;
         global_low = std::min(global_low, curve.low);
         global_high = std::max(global_high, curve.high);
-        ++count;
+        curves.push_back(std::move(curve));
     }
+    const unsigned count = (unsigned) curves.size();
     static const char* colors[] = {
         "#f59e82", "#92b9ed", "#9ccfc0", "#b69bdb",
         "#f2d27e", "#ec8497", "#a7c9fa", "#dfbba4"
     };
+    static const Rml::ColourbPremultiplied line_colors[] = {
+        {245,158,130,255}, {146,185,237,255}, {156,207,192,255}, {182,155,219,255},
+        {242,210,126,255}, {236,132,151,255}, {167,201,250,255}, {223,187,164,255}
+    };
+    Rml::Mesh mesh;
+    auto selection = session->graph_selection;
+    auto key_order = [](const GraphKeyRef& a, const GraphKeyRef& b) {
+        return a.track < b.track || (a.track == b.track && a.key < b.key);
+    };
+    std::sort(selection.begin(), selection.end(), key_order);
     std::string markup;
     if (!session->graph_value_range_valid) {
         session->graph_value_low = count ? global_low : -1;
@@ -274,10 +287,8 @@ void show_animation_graph()
         auto y = [low, high, plot_height](float value) {
             return 7.0f + (1.0f - (value - low) / (high - low)) * plot_height;
         };
-        NativeFighterAnimationKey graph_keys[1024];
-        size_t graph_key_count = 0;
-        if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                curve.track, graph_keys, 1024, &graph_key_count)) continue;
+        const auto& graph_keys = curve.keys;
+        const size_t graph_key_count = graph_keys.size();
         const bool overflow = session->graph_drag_active &&
             session->selected_track == (int) curve.track;
         auto in_graph = [&](float px, float py, float margin) {
@@ -307,54 +318,40 @@ void show_animation_graph()
             }
             const float length = std::hypot(x1 - x0, y1 - y0);
             if (length < 0.1f) return;
-            const float degrees = std::atan2(y1 - y0, x1 - x0) * 57.2957795f;
-            char style[256];
-            std::snprintf(style, sizeof(style), "left:%.2fpx;top:%.2fpx;"
-                "width:%.2fpx;transform:rotate(%.2fdeg);background-color:%s",
-                x0, y0, length, degrees, colors[c % 8]);
-            markup += tangent ? "<div class='workshop-graph-tangent-line' style='"
-                              : "<div class='workshop-graph-line' style='";
-            markup += style;
-            markup += "'/>";
+            const float half = tangent ? 0.5f : 0.8f;
+            const float offset_x = (y0 - y1) * half / length;
+            const float offset_y = (x1 - x0) * half / length;
+            const int vertex = (int) mesh.vertices.size();
+            const auto color = line_colors[c % std::size(line_colors)];
+            mesh.vertices.insert(mesh.vertices.end(), {
+                {{x0 + offset_x, y0 + offset_y}, color, {}},
+                {{x0 - offset_x, y0 - offset_y}, color, {}},
+                {{x1 - offset_x, y1 - offset_y}, color, {}},
+                {{x1 + offset_x, y1 + offset_y}, color, {}},
+            });
+            mesh.indices.insert(mesh.indices.end(), {
+                vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3
+            });
         };
-        size_t next_key = 0;
-        float previous_frame = session->graph_view_start;
-        float previous_value = curve.values[0];
-        for (int sample = 1; sample < SAMPLES; ++sample) {
-            const float sample_frame = session->graph_view_start +
-                (session->graph_view_end - session->graph_view_start) * sample / (SAMPLES - 1);
-            while (next_key < graph_key_count &&
-                   graph_keys[next_key].frame <= sample_frame) {
-                const float key_frame = float(graph_keys[next_key++].frame);
-                if (key_frame <= previous_frame) continue;
-                float key_value;
-                if (nativeFighterAnimation_Sample(session->project, session->animation_clip, curve.track,
-                        key_frame, &key_value) && std::isfinite(key_value)) {
-                    add_segment(x(previous_frame), y(previous_value),
-                        x(key_frame), y(key_value));
-                    previous_frame = key_frame;
-                    previous_value = key_value;
-                }
-            }
-            add_segment(x(previous_frame), y(previous_value),
-                x(sample_frame), y(curve.values[sample]));
-            previous_frame = sample_frame;
-            previous_value = curve.values[sample];
+        for (size_t point = 1; point < curve.frames.size(); ++point) {
+            if (!std::isfinite(curve.values[point - 1]) ||
+                !std::isfinite(curve.values[point])) continue;
+            add_segment(x(curve.frames[point - 1]), y(curve.values[point - 1]),
+                        x(curve.frames[point]), y(curve.values[point]));
         }
         for (size_t key = 0; key < graph_key_count; ++key) {
             if (graph_keys[key].frame < session->graph_view_start ||
                 graph_keys[key].frame > session->graph_view_end) continue;
-            float value;
-            if (!nativeFighterAnimation_Sample(session->project, session->animation_clip, curve.track,
-                    float(graph_keys[key].frame), &value) ||
-                !std::isfinite(value)) continue;
-            const float key_x = x(float(graph_keys[key].frame));
-            const float key_y = y(value);
-            const bool chosen = std::any_of(session->graph_selection.begin(),
-                session->graph_selection.end(), [=](const GraphKeyRef& ref) {
-                    return ref.track == curve.track && ref.key == key;
-                });
-            if (chosen && graph_keys[key].tangent_editable) {
+            const float frame = float(graph_keys[key].frame);
+            const size_t point = std::lower_bound(curve.frames.begin(), curve.frames.end(),
+                                                   frame) - curve.frames.begin();
+            if (point >= curve.values.size() || !std::isfinite(curve.values[point])) continue;
+            const float key_x = x(frame);
+            const float key_y = y(curve.values[point]);
+            const bool chosen = std::binary_search(selection.begin(), selection.end(),
+                GraphKeyRef{curve.track, (unsigned) key}, key_order);
+            if (chosen && (int) curve.track == session->selected_track &&
+                (int) key == session->selected_key && graph_keys[key].tangent_editable) {
                 const float frames_per_pixel =
                     (session->graph_view_end - session->graph_view_start) / (width - 18.0f);
                 const float pixels_per_pixel = graph_keys[key].tangent *
@@ -393,10 +390,11 @@ void show_animation_graph()
               "style='display:none'></div>";
     document->GetElementById("workshop-animation-pane")->SetClass(
         "transforming", session->graph_drag_active);
+    graph->SetCurves(std::move(mesh));
     graph->SetInnerRML(markup);
     bool selected_joints[1024] = {};
     for (unsigned track = 0; track < session->track_count; ++track)
-        if (session->selected_tracks[track] && session->tracks[track].joint < 1024 &&
+        if (track_selected(track) && session->tracks[track].joint < 1024 &&
             (!session->graph_animated_only || session->tracks[track].keys > 1))
             selected_joints[session->tracks[track].joint] = true;
     std::string channel_rows;
@@ -418,7 +416,7 @@ void show_animation_graph()
             }
         channel_rows += "<button id='workshop-graph-channel-" +
             number(track) + "' class='workshop-graph-channel" +
-            (session->selected_tracks[track] ? " selected" : "") +
+            (track == (unsigned) session->selected_track ? " selected" : "") +
             "'><span class='workshop-graph-swatch' style='border-color:" +
             colors[color] + "'></span><span>" +
             WorkshopLabels::channel(session->tracks[track].channel) +
@@ -439,36 +437,8 @@ void show_animation_graph()
             ? bone_name(session->tracks[session->selected_track].joint) + " · " +
               WorkshopLabels::channel(session->tracks[session->selected_track].channel)
             : "");
-    unsigned selected_count = 0;
-    for (unsigned track = 0; track < session->track_count; ++track)
-        if (session->selected_tracks[track] &&
-            (!session->graph_animated_only || session->tracks[track].keys > 1))
-            ++selected_count;
-    set_text("workshop-graph-note", selected_count > MAX_CURVES
-        ? "Showing first 32 channels. Hide some channels to see the rest."
-        : "Tangent handles edit slope; time weights are fixed.");
-    for (unsigned c = 0; c < count; ++c) {
-        NativeFighterAnimationKey graph_keys[1024];
-        size_t graph_key_count = 0;
-        if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
-                curves[c].track, graph_keys, 1024, &graph_key_count)) continue;
-        for (size_t key = 0; key < graph_key_count; ++key) {
-            Rml::Element* element = document->GetElementById(
-                "workshop-graph-key-" + number(curves[c].track) + "-" +
-                number((unsigned) key));
-            if (element != nullptr) {
-                element->AddEventListener("mousedown", &graph_key_events);
-            }
-            for (unsigned side = 0; side < 2; ++side) {
-                Rml::Element* handle = document->GetElementById(
-                    "workshop-graph-tangent-" +
-                    number(curves[c].track) + "-" +
-                    number((unsigned) key) + "-" + number(side));
-                if (handle == nullptr) continue;
-                handle->AddEventListener("mousedown", &graph_tangent_events);
-            }
-        }
-    }
+    set_text("workshop-graph-note", number(count) + " channels");
+
 }
 
 void set_graph_tool(GraphTool tool)
@@ -496,6 +466,7 @@ void show_animation_dopesheet()
         return;
     }
     sheet->SetProperty("display", session->show_animation_curves ? "none" : "flex");
+    if (session->show_animation_curves) return;
     std::string labels = "<div class='workshop-dope-heading'>CHANNELS</div>";
     std::string ruler;
     std::string rows;
@@ -511,7 +482,7 @@ void show_animation_dopesheet()
     }
     unsigned visible = 0;
     for (unsigned track = 0; track < session->track_count; ++track) {
-        if (!session->selected_tracks[track]) continue;
+        if (!track_selected(track)) continue;
         NativeFighterAnimationKey listed[1024];
         size_t count = 0;
         if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
@@ -546,6 +517,7 @@ void show_animation_dopesheet()
     }
     document->GetElementById("workshop-dope-labels")->SetInnerRML(labels);
     document->GetElementById("workshop-dope-ruler")->SetInnerRML(ruler);
+    rows += "<div id='workshop-dope-selection-box' class='workshop-graph-selection-box' style='display:none'/>";
     document->GetElementById("workshop-dope-rows")->SetInnerRML(rows);
     const float percent = 100.0f * session->animation_frame / std::max(1, end);
     char style[48];
@@ -582,9 +554,11 @@ void GraphBoxEvents::ProcessEvent(Rml::Event& event)
 {
     if (session->graph_tool != GraphTool::Box ||
         session->mode != WorkshopMode::Animation || session->animation_clip.index == UINT_MAX) return;
-    Rml::Element* graph = document->GetElementById("workshop-animation-graph");
-    if (event.GetTargetElement() != graph) return;
-    const Rml::Vector2f origin = graph->GetAbsoluteOffset();
+    const bool curves = session->show_animation_curves;
+    Rml::Element* surface = document->GetElementById(
+        curves ? "workshop-animation-graph" : "workshop-dope-rows");
+    if (event.GetTargetElement() != surface) return;
+    const Rml::Vector2f origin = surface->GetAbsoluteOffset();
     const int x = event.GetParameter<int>("mouse_x", 0) - (int) origin.x;
     const int y = event.GetParameter<int>("mouse_y", 0) - (int) origin.y;
     if (event.GetType() == "dragstart") {
@@ -595,7 +569,7 @@ void GraphBoxEvents::ProcessEvent(Rml::Event& event)
     if (!session->graph_box_active) return;
     if (event.GetType() == "dragstart" || event.GetType() == "drag") {
         Rml::Element* box = document->GetElementById(
-            "workshop-graph-selection-box");
+            curves ? "workshop-graph-selection-box" : "workshop-dope-selection-box");
         if (box == nullptr) return;
         box->SetProperty("display", "block");
         box->SetProperty("left", number((unsigned) std::max(0,
@@ -616,23 +590,15 @@ void GraphBoxEvents::ProcessEvent(Rml::Event& event)
     const float max_y = float(std::max(y, session->graph_box_start_y));
     if (!event.GetParameter<int>("shift_key", 0)) session->graph_selection.clear();
     GraphKeyRef first = { UINT_MAX, UINT_MAX };
+    const char* prefix = curves ? "workshop-graph-key-" : "workshop-dope-key-";
     for (unsigned track = 0; track < session->track_count; ++track) {
-        if (!session->graph_visible[track]) continue;
-        NativeFighterAnimationKey listed[1024];
-        size_t count = 0;
-        if (!nativeFighterAnimation_Keys(session->project, session->animation_clip, track, listed, 1024, &count))
-            continue;
-        for (unsigned key = 0; key < count; ++key) {
-            const float px = 8.0f +
-                (listed[key].frame - session->graph_view_start) /
-                (session->graph_view_end - session->graph_view_start) * (session->graph_width - 18.0f);
-            float displayed_value = listed[key].value;
-            nativeFighterAnimation_Sample(session->project, session->animation_clip, track,
-                float(listed[key].frame), &displayed_value);
-            const float py = 7.0f +
-                (session->graph_high_value[track] - displayed_value) /
-                session->graph_units_per_pixel[track];
-            if (px < min_x || px > max_x || py < min_y || py > max_y)
+        if (!(curves ? session->graph_visible[track] : track_selected(track))) continue;
+        for (unsigned key = 0; key < session->tracks[track].keys; ++key) {
+            auto* marker = document->GetElementById(prefix + number(track) + "-" + number(key));
+            if (!marker) continue;
+            const auto point = marker->GetAbsoluteOffset(Rml::BoxArea::Border) - origin +
+                               marker->GetBox().GetSize(Rml::BoxArea::Border) * 0.5f;
+            if (point.x < min_x || point.x > max_x || point.y < min_y || point.y > max_y)
                 continue;
             const auto existing = std::find_if(session->graph_selection.begin(),
                 session->graph_selection.end(), [track, key](const GraphKeyRef& ref) {
@@ -778,7 +744,9 @@ void show_track_browser()
         }
         rows += "<button id='workshop-joint-" + number(joint) +
                 "' class='workshop-joint-row" +
-                ((int) joint == session->selected_outliner_joint ? " selected" : "") +
+                (joint < std::size(session->selected_bones) && session->selected_bones[joint]
+                     ? " selected" : "") +
+                ((int) joint == session->selected_outliner_joint ? " active" : "") +
                 "' title='Shift-click to select multiple bones'" +
                 " style='padding-left:" + number(7 + depth * 12) +
                 "px'>" + (depth ? "&nbsp;&nbsp;" : "") +
@@ -793,7 +761,7 @@ void refresh_track_selection()
     session->key_count = 0;
     document->GetElementById("workshop-animation-fields")
         ->SetProperty("display", "none");
-    if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
+    if (session->selected_track >= 0 && !nativeFighterAnimation_Keys(session->project, session->animation_clip,
                                      (unsigned) session->selected_track, session->keys, 1024,
                                      &session->key_count)) {
         set_text("workshop-editor-status", "This track has too many keys "
@@ -807,67 +775,68 @@ void refresh_track_selection()
     show_animation_dopesheet();
 }
 
-void select_track(unsigned track, bool toggle)
+bool track_selected(unsigned track)
 {
-    if (session->project == nullptr || session->animation_clip.index == UINT_MAX || track >= session->track_count)
-        return;
-    if (!toggle) {
-        std::fill(session->selected_tracks, session->selected_tracks + 1024, false);
-        for (unsigned i = 0; i < session->track_count; ++i)
-            if (session->tracks[i].joint == session->tracks[track].joint)
-                session->selected_tracks[i] = true;
-    }
-    if (toggle && session->selected_tracks[track]) {
-        unsigned total = 0;
-        for (unsigned i = 0; i < session->track_count; ++i)
-            total += session->selected_tracks[i];
-        if (total > 1) session->selected_tracks[track] = false;
-    } else session->selected_tracks[track] = true;
+    if (track >= session->track_count) return false;
+    const unsigned bone = session->tracks[track].joint;
+    return bone < std::size(session->selected_bones) && session->selected_bones[bone];
+}
+
+void select_track(unsigned track)
+{
+    if (track >= session->track_count) return;
+    const unsigned bone = session->tracks[track].joint;
+    if (bone >= std::size(session->selected_bones)) return;
+    session->selected_bones[bone] = true;
     session->selected_track = (int) track;
-    session->selected_outliner_joint = (int) session->tracks[track].joint;
-    if (!session->selected_tracks[track]) {
-        for (unsigned i = 0; i < session->track_count; ++i) {
-            if (session->selected_tracks[i]) { session->selected_track = (int) i; break; }
-        }
-    }
+    session->selected_outliner_joint = (int) bone;
     refresh_track_selection();
 }
 
 void select_joint(unsigned joint, bool toggle)
 {
-    unsigned first = UINT_MAX;
-    bool all_selected = true, other_selected = false;
-    for (unsigned track = 0; track < session->track_count; ++track) {
-        if (session->tracks[track].joint == joint) {
-            if (first == UINT_MAX) first = track;
-            all_selected &= session->selected_tracks[track];
-        } else other_selected |= session->selected_tracks[track];
-    }
-    session->selected_outliner_joint = (int) joint;
-    if (first == UINT_MAX) {
-        if (!toggle) {
-            std::fill(session->selected_tracks, session->selected_tracks + 1024, false);
-            session->selected_track = session->selected_key = -1;
-        }
-        show_track_browser();
-        show_bone_transform();
-        show_animation_graph();
-        return;
-    }
+    if (joint >= std::size(session->selected_bones)) return;
+    auto& bones = session->selected_bones;
     if (!toggle) {
-        select_track(first);
-        return;
+        std::fill(std::begin(bones), std::end(bones), false);
+        session->graph_selection.clear();
     }
-    const bool enable = !all_selected || !other_selected;
-    for (unsigned track = 0; track < session->track_count; ++track)
-        if (session->tracks[track].joint == joint)
-            session->selected_tracks[track] = enable;
-    if (enable) session->selected_track = (int) first;
-    else for (unsigned track = 0; track < session->track_count; ++track)
-        if (session->selected_tracks[track]) {
+    bones[joint] = !toggle || !bones[joint];
+    session->selected_outliner_joint = bones[joint] ? (int) joint : -1;
+    session->selected_track = -1;
+    std::erase_if(session->graph_selection,
+                  [](const GraphKeyRef& key) { return !track_selected(key.track); });
+    if (session->selected_outliner_joint < 0) {
+        const auto* first = std::find(std::begin(bones), std::end(bones), true);
+        if (first != std::end(bones))
+            session->selected_outliner_joint = (int) (first - std::begin(bones));
+    }
+    for (unsigned track = 0; track < session->track_count; ++track) {
+        if (!track_selected(track)) continue;
+        if (session->selected_track < 0) session->selected_track = (int) track;
+        if ((int) session->tracks[track].joint == session->selected_outliner_joint) {
             session->selected_track = (int) track;
             break;
         }
+    }
+    session->graph_value_range_valid = false;
+    refresh_track_selection();
+}
+
+void select_all_bones(bool selected)
+{
+    auto& bones = session->selected_bones;
+    std::fill(std::begin(bones), std::end(bones), false);
+    if (selected) {
+        const unsigned count = std::min<unsigned>(std::size(bones),
+            std::max(session->animation_joint_count, nativeHome_WorkshopBoneCount()));
+        std::fill_n(bones, count, true);
+    }
+    session->selected_track = selected && session->track_count ? 0 : -1;
+    session->selected_outliner_joint = selected
+        ? (session->selected_track < 0 ? 0 : (int) session->tracks[0].joint) : -1;
+    session->graph_selection.clear();
+    session->graph_value_range_valid = false;
     refresh_track_selection();
 }
 
@@ -885,14 +854,14 @@ void show_animation()
         return;
     }
     session->selected_track = session->selected_key = -1;
-    session->selected_outliner_joint = -1;
-    std::fill(session->selected_tracks, session->selected_tracks + 1024, false);
     session->track_count = session->key_count = 0;
     session->clip_frames = 0;
     session->animation_joint_count = 0;
     document->GetElementById("workshop-animation-tracks")->SetInnerRML("");
     document->GetElementById("workshop-animation-keys")->SetInnerRML("");
-    document->GetElementById("workshop-animation-graph")->SetInnerRML("");
+    auto* graph = static_cast<WorkshopCurveGraph*>(document->GetElementById("workshop-animation-graph"));
+    graph->SetCurves({});
+    graph->SetInnerRML("");
     document->GetElementById("workshop-dope-labels")->SetInnerRML("");
     document->GetElementById("workshop-dope-ruler")->SetInnerRML("");
     document->GetElementById("workshop-dope-rows")->SetInnerRML("");
@@ -931,7 +900,14 @@ void show_animation()
     set_text("workshop-animation-frame-total", "/ " +
              number((unsigned) std::ceil(session->clip_frames)));
     session->displayed_animation_clip = session->animation_clip;
-    if (session->track_count != 0) select_track(0);
+    if (session->selected_outliner_joint < 0 && session->track_count) {
+        select_track(0);
+    } else {
+        for (unsigned t = 0; t < session->track_count; ++t) {
+            if (track_selected(t)) { session->selected_track = (int) t; break; }
+        }
+        refresh_track_selection();
+    }
 }
 
 void apply_clip_frames()
@@ -1000,33 +976,33 @@ void apply_key()
         return;
     if (frame == original.frame && value == original.value &&
         tangent == original.tangent) return;
-    uint8_t* previous = (uint8_t*) std::malloc(session->project->animation_size);
-    if (previous == nullptr) {
-        set_text("workshop-editor-status", "Could not reserve edit memory.");
-        return;
-    }
-    std::memcpy(previous, session->project->animation_dat, session->project->animation_size);
-    bool valid = (frame == original.frame ||
-                  nativeFighterAnimation_MoveKey(session->project, session->animation_clip, track,
-                                                  key, (int) frame)) &&
-                 (value == original.value ||
-                  nativeFighterAnimation_SetKey(session->project, session->animation_clip, track,
-                                                 key, value)) &&
-                 (tangent == original.tangent ||
-                  nativeFighterAnimation_SetTangent(session->project, session->animation_clip, track,
-                                                     key, tangent));
+    const size_t size = session->project->animation_size;
+    std::vector<uint8_t> before(session->project->animation_dat,
+                                session->project->animation_dat + size);
+    std::vector<uint8_t> fighter;
+    const NativeFighterAnimationKeyTime timing = {{track, key}, (int) frame};
+    if (frame != original.frame)
+        fighter.assign(session->project->fighter_dat,
+                       session->project->fighter_dat + session->project->fighter_size);
+    const bool valid = (fighter.empty() ||
+        nativeFighterAnimation_EditKeys(session->project, session->animation_clip,
+                                        &timing, 1, false)) &&
+        (value == original.value ||
+         nativeFighterAnimation_SetKey(session->project, session->animation_clip, track, key, value)) &&
+        (tangent == original.tangent ||
+         nativeFighterAnimation_SetTangent(session->project, session->animation_clip, track, key, tangent));
     if (!valid) {
-        std::memcpy(session->project->animation_dat, previous, session->project->animation_size);
-        set_text("workshop-editor-status", "This frame, value or tangent "
-                 "cannot be represented in the source track's encoding. "
-                 "A frame must stay between its neighboring keys.");
+        std::memcpy(session->project->animation_dat, before.data(), size);
+        session->project->animation_size = size;
+        if (!fighter.empty())
+            std::memcpy(session->project->fighter_dat, fighter.data(), fighter.size());
+        set_text("workshop-editor-status", "Keep keyframes in order and inside the clip.");
     } else {
-        record_edit(true, previous);
+        if (fighter.empty()) record_edit(true, before.data());
+        else record_structural_edit(true, before.data(), size, fighter.data(), fighter.size());
         session->animation_dirty = true;
-        set_text("workshop-editor-status", "Animation key changed in the "
-                 "draft. Save before leaving this fighter.");
+        set_text("workshop-editor-status", "Animation key updated.");
     }
-    std::free(previous);
     if (valid && nativeFighterAnimation_Keys(session->project, session->animation_clip, track,
                                              session->keys, 1024, &session->key_count)) {
         select_key(key);
@@ -1080,34 +1056,36 @@ void insert_key_at_frame()
              number((unsigned) inserted_frame) + ". Save to keep this edit.");
 }
 
-void delete_selected_key()
+void delete_selected_keys()
 {
-    if (session->project == nullptr || session->animation_clip.index == UINT_MAX || session->selected_track < 0 ||
-        session->selected_key < 0 || (size_t) session->selected_key >= session->key_count) return;
-    const unsigned track = (unsigned) session->selected_track;
-    const unsigned key = (unsigned) session->selected_key;
-    const size_t original_size = session->project->animation_size;
+    if (!session->project || session->graph_selection.empty()) return;
+    auto keys = session->graph_selection;
+    std::sort(keys.begin(), keys.end(), [](const GraphKeyRef& a, const GraphKeyRef& b) {
+        return a.track < b.track || (a.track == b.track && a.key < b.key);
+    });
+    const size_t size = session->project->animation_size;
     std::vector<uint8_t> before(session->project->animation_dat,
-                                session->project->animation_dat + original_size);
-    std::vector<uint8_t> before_fighter(session->project->fighter_dat,
-                                        session->project->fighter_dat + session->project->fighter_size);
-    if (!nativeFighterAnimation_DeleteKey(session->project, session->animation_clip,
-                                          track, key)) {
-        set_text("workshop-editor-status", "Only interior timed transform "
-                 "keys can be deleted without changing the source track "
-                 "boundary. No key was removed.");
+                                session->project->animation_dat + size);
+    std::vector<uint8_t> fighter(session->project->fighter_dat,
+                                 session->project->fighter_dat + session->project->fighter_size);
+    std::vector<NativeFighterAnimationKeyTime> edits;
+    edits.reserve(keys.size());
+    for (const auto& key : keys) edits.push_back({key, 0});
+    if (!nativeFighterAnimation_EditKeys(session->project, session->animation_clip,
+                                         edits.data(), edits.size(), true)) {
+        set_text("workshop-editor-status", "Could not delete the selected animation keys.");
         return;
     }
-    record_structural_edit(true, before.data(), original_size, before_fighter.data(), before_fighter.size());
+    record_structural_edit(true, before.data(), size, fighter.data(), fighter.size());
     session->animation_dirty = true;
+    const float start = session->graph_view_start, end = session->graph_view_end;
     session->displayed_animation_clip.index = UINT_MAX;
     show_animation();
-    if (track < session->track_count) {
-        select_track(track);
-        if (key > 0 && key - 1 < session->key_count) select_key(key - 1);
-    }
-    set_text("workshop-editor-status", "Animation key deleted. Save the "
-             "draft to keep the edit.");
+    session->graph_view_start = start;
+    session->graph_view_end = end;
+    session->graph_refresh = true;
+    set_text("workshop-editor-status", "Deleted " + number((unsigned) keys.size()) +
+        (keys.size() == 1 ? " key." : " keys."));
 }
 
 void copy_pose_at_frame()
@@ -1147,7 +1125,7 @@ void paste_copied_pose(const char* destination)
         "workshop-pose-root-translation")->HasAttribute("checked");
     unsigned char joints[NATIVE_FIGHTER_POSE_JOINTS] = {};
     for (size_t i = 0; i < session->track_count; ++i)
-        if (session->selected_tracks[i] && session->tracks[i].joint <
+        if (track_selected((unsigned) i) && session->tracks[i].joint <
             NATIVE_FIGHTER_POSE_JOINTS) joints[session->tracks[i].joint] = 1;
     const size_t original_size = session->project->animation_size;
     std::vector<uint8_t> before(session->project->animation_dat,
@@ -1187,5 +1165,11 @@ void paste_copied_pose(const char* destination)
 
 
 } // namespace WorkshopEditor
+
+void nativeShellWorkshopEditor_RegisterGraph()
+{
+    static Rml::ElementInstancerGeneric<WorkshopEditor::WorkshopCurveGraph> instancer;
+    Rml::Factory::RegisterElementInstancer("workshop-curve-graph", &instancer);
+}
 
 #endif

@@ -299,6 +299,7 @@ extern "C" bool nativeShell_Init(void)
     }
 
     nativeWorkshopCode_Register();
+    nativeShellWorkshopEditor_RegisterGraph();
     document = context->LoadDocument("ui/freak_shell.rml");
     if (document == nullptr) {
         std::fprintf(stderr, "Could not load the native shell UI.\n");
