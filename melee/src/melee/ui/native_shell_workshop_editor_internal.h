@@ -379,7 +379,7 @@ void select_action(unsigned action);
 void select_demo_clip(unsigned clip);
 void read_demo_clips();
 void select_event(unsigned index, bool seek_to_first_occurrence = true);
-int active_hitbox_event(unsigned hitbox_id);
+void active_hitbox_events(int (&event_indices)[4]);
 void refresh_event_templates();
 void toggle_add_event_menu();
 void insert_selected_event(unsigned template_action, uint32_t template_offset);

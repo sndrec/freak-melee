@@ -907,8 +907,10 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (parse_row(id, "workshop-viewport-hitbox-", &index)) {
-        const int chosen = active_hitbox_event(index);
-        if (chosen >= 0) select_event((unsigned) chosen, false);
+        int active[4];
+        active_hitbox_events(active);
+        if (index < std::size(active) && active[index] >= 0)
+            select_event((unsigned) active[index], false);
         return true;
     }
     if (std::strcmp(id, "workshop-timeline-graph") == 0 ||
@@ -1437,23 +1439,15 @@ void nativeShellWorkshopEditor_Update()
                 (session->preview_hitbox_cached_frame != session->timeline_frame ||
                  session->preview_hitbox_cached_action != session->selected_action)) {
                 session->preview_hitbox_mask = 0;
-                for (size_t i = 0; i < session->timeline_event_count; ++i) {
-                    const auto& occurrence = session->timeline_events[i];
-                    if (occurrence.frame > session->timeline_frame) break;
-                    const NativeFighterActionEvent& event =
-                        session->events[occurrence.event];
-                    if (event.kind == NativeFighterActionEvent_ClearAllHitboxes)
-                        session->preview_hitbox_mask = 0;
-                    else if (event.kind == NativeFighterActionEvent_ClearHitbox &&
-                             event.target_id < 4)
-                        session->preview_hitbox_mask &= ~(1u << event.target_id);
-                    else if (event.kind == NativeFighterActionEvent_CreateHitbox &&
-                             event.target_id < 4 &&
-                             nativeFighterAction_GetHitbox(session->project,
-                                 (unsigned) session->selected_action,
-                                 event.source_offset,
-                                 &session->preview_hitboxes[event.target_id]))
-                        session->preview_hitbox_mask |= 1u << event.target_id;
+                int active[4];
+                active_hitbox_events(active);
+                for (unsigned slot = 0; slot < std::size(active); ++slot) {
+                    if (active[slot] >= 0 && nativeFighterAction_GetHitbox(session->project,
+                            (unsigned) session->selected_action,
+                            session->events[active[slot]].source_offset,
+                            &session->preview_hitboxes[slot])) {
+                        session->preview_hitbox_mask |= 1u << slot;
+                    }
                 }
                 session->preview_hitbox_cached_frame = session->timeline_frame;
                 session->preview_hitbox_cached_action = session->selected_action;

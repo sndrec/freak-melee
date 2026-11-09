@@ -725,27 +725,31 @@ void select_event(unsigned index, bool seek_to_first_occurrence)
     show_action_timeline();
 }
 
-int active_hitbox_event(unsigned hitbox_id)
+void active_hitbox_events(int (&event_indices)[4])
 {
-    int active = -1;
+    const TimelineEventInstance* active[4] = {};
     for (size_t i = 0; i < session->timeline_event_count; ++i) {
         const TimelineEventInstance& instance = session->timeline_events[i];
         if (instance.frame > session->timeline_frame) continue;
         const NativeFighterActionEvent& event = session->events[instance.event];
-        if (event.kind == NativeFighterActionEvent_ClearAllHitboxes ||
-            (event.kind == NativeFighterActionEvent_ClearHitbox &&
-             event.target_id == hitbox_id)) active = -1;
-        else if (event.kind == NativeFighterActionEvent_CreateHitbox &&
-                 event.target_id == hitbox_id) active = (int) instance.event;
+        if (event.kind == NativeFighterActionEvent_ClearAllHitboxes) {
+            std::fill(std::begin(active), std::end(active), nullptr);
+        } else if (event.target_id < std::size(active)) {
+            if (event.kind == NativeFighterActionEvent_ClearHitbox)
+                active[event.target_id] = nullptr;
+            else if (event.kind == NativeFighterActionEvent_CreateHitbox)
+                active[event.target_id] = &instance;
+        }
     }
-    if (active >= 0 && session->events[active].duration256) {
-        int start = -1;
-        for (size_t i = 0; i < session->timeline_event_count; ++i)
-            if (session->timeline_events[i].event == (unsigned)active && session->timeline_events[i].frame <= session->timeline_frame)
-                start = session->timeline_events[i].frame;
-        if (start >= 0 && (session->timeline_frame - start) * 256u >= session->events[active].duration256) active = -1;
+    for (size_t slot = 0; slot < std::size(active); ++slot) {
+        event_indices[slot] = -1;
+        const TimelineEventInstance* instance = active[slot];
+        if (instance == nullptr) continue;
+        const auto duration = session->events[instance->event].duration256;
+        const unsigned elapsed = (session->timeline_frame - instance->frame) * 256u;
+        if (duration == 0 || elapsed < duration)
+            event_indices[slot] = (int) instance->event;
     }
-    return active;
 }
 
 void refresh_event_templates()
