@@ -4,8 +4,10 @@
 #include "native_hub_startup_roster.h"
 #include "native_shell_workshop.h"
 #include <melee/ft/native_fighter_family_project.h>
+#include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_home.h>
 #include <melee/mn/native_menu_fighter.h>
+#include <melee/mn/native_menu_portrait.h>
 #include <melee/mn/native_menu_scenery.h>
 #include <melee/mn/native_menu_skin.h>
 #include <melee/mn/native_menu_scene.h>
@@ -22,6 +24,7 @@ namespace {
     constexpr float x = 71, y = 133, size = 264;
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
     NativePortraitSubject subjects[2];
+    NativeMenuPortrait saved_portraits[2];
     unsigned count;
     NativePortraitCamera camera;
     char destination[560];
@@ -55,6 +58,7 @@ namespace {
     void close_editor()
     {
         editing=pending=waiting=false;
+        for (auto& portrait : saved_portraits) nativeMenuPortrait_Free(&portrait);
         nativeMenuFighter_UnloadAll(); nativeMenuScenery_Unload();
         if (return_editor) {
             hub.visible=false; hub.dismissed=true;
@@ -63,13 +67,23 @@ namespace {
     }
     bool load_project()
     {
+        NativeFighterProjectInfo info{};
+        if (!nativeFighterProject_ReadInfo(draft, &info)) return false;
+        std::snprintf(edit_name, sizeof(edit_name), "%s",
+                      info.tile_name[0] ? info.tile_name : info.title);
+        std::snprintf(edit_title, sizeof(edit_title), "%s", info.title);
+        nativeMenuFighter_UnloadAll();
+        count = 0;
+        for (auto& portrait : saved_portraits) nativeMenuPortrait_Free(&portrait);
+        std::memset(has_saved_camera, 0, sizeof(has_saved_camera));
+
         NativeFighterFamilyProject family{};
-        if (!nativeFighterFamilyProject_Open(draft,&family)) return false;
-        edit_member=std::min(edit_member,family.member_count-1);
-        auto& primary=family.members[edit_member];
-        NativeSourceResources resources;
-        std::memset(has_saved_camera,0,sizeof(has_saved_camera));
-        if (nativeSourceResources_Read(family.members[0].resources,family.members[0].resource_size,&resources,nullptr,0))
+        bool opened = nativeFighterFamilyProject_Open(draft, &family);
+        NativeSourceResources resources{};
+        bool has_resources = opened &&
+            nativeSourceResources_Read(family.members[0].resources, family.members[0].resource_size,
+                                       &resources, nullptr, 0);
+        if (has_resources)
             for (unsigned mode=0;mode<2;++mode) {
                 const auto* record=nativeSourceResources_Find(&resources,mode?"ui/portrait-card.camera":"ui/portrait-tile.camera",NativeSourceResource_Blob);
                 if (!record || record->size>=192) continue;
@@ -79,19 +93,45 @@ namespace {
                     std::isfinite(c.yaw) && std::isfinite(c.pitch) && std::isfinite(c.zoom) && std::isfinite(c.pan_x) && std::isfinite(c.pan_y) &&
                     std::isfinite(c.frame) && c.zoom>=.15f && c.zoom<=32 && c.frame>=0 && c.frame<=1024;
             }
-        std::snprintf(edit_name,sizeof(edit_name),"%s",primary.tile_name[0]?primary.tile_name:primary.title);
-        std::snprintf(edit_title,sizeof(edit_title),"%s",primary.title);
-        nativeMenuFighter_UnloadAll();
-        count=family.mode==NativeFighterFamily_SimultaneousCompanion?2:1;
-        bool ok=nativeMenuFighter_LoadProject(0,&primary);
-        subjects[0]={0};
-        if (ok && count==2) { ok=nativeMenuFighter_LoadProject(3,&family.members[1-edit_member]); subjects[1]={3}; }
-        nativeFighterFamilyProject_Close(&family);
-        if (ok) {
-            nativeHubPortrait_Reset();
-            if (has_saved_camera[0]) { camera=saved_camera[0]; apply_camera(); }
+        if (opened) {
+            edit_member = std::min(edit_member, family.member_count - 1);
+            if (nativeMenuFighter_LoadProject(0, &family.members[edit_member])) {
+                subjects[0] = {0};
+                count = 1;
+                if (family.mode == NativeFighterFamily_SimultaneousCompanion) {
+                    if (nativeMenuFighter_LoadProject(3, &family.members[1 - edit_member])) {
+                        subjects[1] = {3};
+                        count = 2;
+                    } else {
+                        nativeMenuFighter_UnloadAll();
+                        count = 0;
+                    }
+                }
+            }
         }
-        return ok;
+        if (!count) {
+            // Keep the saved image and tile name independent of the 3D preview.
+            char path[560];
+            std::snprintf(path, sizeof(path), "%s/portrait.png", draft);
+            size_t size = 0;
+            auto* png = static_cast<unsigned char*>(SDL_LoadFile(path, &size));
+            auto& tile = saved_portraits[0];
+            if (png && size && size <= 1024 * 1024)
+                tile.pixels = nativeGxImage_Decode(png, unsigned(size), &tile.width, &tile.height);
+            SDL_free(png);
+            if (has_resources) {
+                const auto* card = nativeSourceResources_Find(&resources, "ui/player-card.png",
+                                                               NativeSourceResource_PNG);
+                auto& portrait = saved_portraits[1];
+                if (card && card->size <= 1024 * 1024)
+                    portrait.pixels = nativeGxImage_Decode(card->bytes, unsigned(card->size),
+                                                           &portrait.width, &portrait.height);
+            }
+        }
+        nativeFighterFamilyProject_Close(&family);
+        nativeHubPortrait_Reset();
+        if (count && has_saved_camera[0]) { camera=saved_camera[0]; apply_camera(); }
+        return true;
     }
     float axis(float value)
     {
@@ -113,6 +153,17 @@ namespace {
                 subjects[i].camera.pan_x += i ? .37f : -.37f;
             }
         }
+    }
+
+    void draw_saved_portrait(const NativeMenuTilePortrait& rect)
+    {
+        const auto& portrait = saved_portraits[card_mode && saved_portraits[1].pixels ? 1 : 0];
+        if (!portrait.pixels) return;
+        float scale = std::min(rect.width / portrait.width, rect.height / portrait.height);
+        float width = portrait.width * scale, height = portrait.height * scale;
+        nativeMenuPaint_Image(portrait.pixels, portrait.width, portrait.height,
+                             rect.x + (rect.width - width) * .5f,
+                             rect.y + (rect.height - height) * .5f, width, height);
     }
 }
 
@@ -162,7 +213,17 @@ bool nativeHubPortrait_Activate(HubAction action,int value)
 void nativeHubPortrait_Save()
 {
     const char* label=nativeHubPortrait_TileName();
-    if (!active() || waiting || !count || !*label || std::strspn(label," \t\r\n")==std::strlen(label)) return;
+    if (!active() || waiting || !*label || std::strspn(label," \t\r\n")==std::strlen(label)) return;
+    if (!count) {
+        if (!editing || card_mode) return;
+        if (!nativeFighterProject_SetTileName(draft, edit_name))
+            fail("Could not save the tile name.");
+        else if (!nativeHubCatalog_PublishDraft(draft, NativeHubPublish::Install))
+            fail("Tile name saved to the draft. Could not update the installed fighter.");
+        else
+            close_editor();
+        return;
+    }
     char root[512]; const char* folder = nativeHubCatalog_Root(root);
     if (!folder) {
         fail("Could not open your user-data folder.");
@@ -185,7 +246,7 @@ void nativeHubPortrait_Tick()
         pending=false; waiting=false;
         if (!load_project()) {
             nativeMenuFighter_UnloadAll(); nativeHub_Open(NativeHubPage_Workshop);
-            nativeHub_Notice("Could not load this fighter's portrait preview."); return;
+            nativeHub_Notice("Could not read this fighter's draft."); return;
         }
         editing=true; nativeHub_Open(NativeHubPage_Portrait); nativeMenuScenery_Load("tournament-background");
     }
@@ -212,7 +273,7 @@ void nativeHubPortrait_Tick()
 
 bool nativeHubPortrait_Controller(const HSD_PadStatus& pad)
 {
-    if (!active()) return false;
+    if (!active() || !count) return false;
     if (waiting) return true;
     const auto picture = photo();
     const bool pan = (pad.button & PAD_BUTTON_A) && nativeHub_Hover(picture.x, picture.y, picture.width, picture.height);
@@ -241,7 +302,7 @@ bool nativeHubPortrait_Controller(const HSD_PadStatus& pad)
 
 bool nativeHubPortrait_Event(const SDL_Event* event)
 {
-    if (!active()) { dragging = false; return false; }
+    if (!active() || !count) { dragging = false; return false; }
     const auto picture = photo();
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP && event->button.button == SDL_BUTTON_MIDDLE) {
         dragging = false; return true;
@@ -279,7 +340,8 @@ void nativeHubPortrait_Render()
     const auto picture = photo();
     if (card_mode) nativeMenuSkin_Panel(picture.x-3,picture.y-3,picture.width+6,picture.height+6,0xC2BEC7FF,0x10101880);
     else nativeMenuTile_Draw(nullptr, 0, 0, title(), x, y, size, size*56/64);
-    nativeMenuPortraitCapture_Preview(subjects, count, picture.x, picture.y, picture.width, picture.height);
+    if (count) nativeMenuPortraitCapture_Preview(subjects, count, picture.x, picture.y, picture.width, picture.height);
+    else if (editing) draw_saved_portrait(picture);
     Mtx canvas; Mtx44 projection; nativeMenuScene_View(false, false, canvas, projection);
     nativeMenuPaint_Begin(canvas);
     NativeMenuTilePortrait small;
@@ -288,7 +350,8 @@ void nativeHubPortrait_Render()
         nativeMenuTile_Draw(nullptr,0,0,title(),411,291,small_size,small_size*56/64);
         nativeMenuTile_PortraitRect(title(),411,291,small_size,small_size*56/64,&small);
     }
-    nativeMenuPortraitCapture_Preview(subjects,count,small.x,small.y,small.width,small.height);
+    if (count) nativeMenuPortraitCapture_Preview(subjects,count,small.x,small.y,small.width,small.height);
+    else if (editing) draw_saved_portrait(small);
     nativeMenuPaint_Begin(canvas);
     if (editing) {
         nativeHub_Button("portrait-mode-tile","CSS tile",365,141,108,25,HubAction::PortraitMode,0,!card_mode);
@@ -298,15 +361,18 @@ void nativeHubPortrait_Render()
         nativeMenuPaint_Text("Short tile name",365,172,230,11,muted);
         nativeHub_Field("setup-tile-name",nativeHubPortrait_TileName(),365,190,230,30,HubAction::PortraitTileName);
     } else nativeMenuPaint_Text("Shown on the player's panel.",365,183,230,12,muted);
-    nativeMenuPaint_Text("C-stick: orbit    X / Y: zoom",365,234,230,10,muted);
-    nativeMenuPaint_Text("A + stick on portrait / D-pad: pan",365,253,230,10,muted);
+    if (count) {
+        nativeMenuPaint_Text("C-stick: orbit    X / Y: zoom",365,234,230,10,muted);
+        nativeMenuPaint_Text("A + stick on portrait / D-pad: pan",365,253,230,10,muted);
+        nativeMenuPaint_Text("Middle-drag: orbit    Wheel: zoom",72,383,264,10,muted);
+        nativeMenuPaint_Text("Shift + middle-drag: pan",72,402,264,10,muted);
+        nativeHub_Button("setup-portrait-reset", "Reset view", 363, 368, 150, 26,
+                         HubAction::PortraitReset, 0, false, !waiting);
+    } else if (editing) nativeMenuPaint_Text("3D preview unavailable",365,234,230,11,muted);
     nativeMenuPaint_Text(card_mode?"Card size":"CSS size",486,307,105,10,muted);
-    nativeMenuPaint_Text("Middle-drag: orbit    Wheel: zoom",72,383,264,10,muted);
-    nativeMenuPaint_Text("Shift + middle-drag: pan",72,402,264,10,muted);
-    nativeHub_Button("setup-portrait-reset", "Reset view", 363, 368, 150, 26,
-        HubAction::PortraitReset, 0, false, !waiting);
-    nativeHub_Button("setup-portrait-save", waiting ? "Saving..." : "Use portrait", 386, 418, 216, 37,
-        HubAction::PortraitSave, 0, true, count && !waiting);
+    if (count || (editing && !card_mode))
+        nativeHub_Button("setup-portrait-save", waiting ? "Saving..." : count ? "Use portrait" : "Save tile name",
+                         386, 418, 216, 37, HubAction::PortraitSave, 0, true, !waiting);
     if (editing) nativeHub_Button("portrait-back","< Back",40,427,110,28,HubAction::Back);
     if (editing && edit_error[0]) nativeMenuPaint_Text(edit_error,40,466,555,9,0xFFAE92FF);
 }
