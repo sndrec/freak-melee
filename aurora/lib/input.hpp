@@ -14,6 +14,7 @@ namespace aurora::input {
 struct GameController {
   SDL_Gamepad* m_controller = nullptr;
   bool m_isGameCube = false;
+  bool m_isNSOGameCube = false;
   Sint32 m_index = -1;
   bool m_hasRumble = false;
   PADDeadZones m_deadZones{

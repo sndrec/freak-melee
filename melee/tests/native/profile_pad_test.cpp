@@ -22,7 +22,7 @@ struct Device {
     SDL_Joystick* joystick;
 };
 
-static Device attach(const char* name, unsigned port)
+static Device attach(const char* name, unsigned port, Uint16 vendor = 0, Uint16 product = 0)
 {
     SDL_VirtualJoystickDesc description;
     SDL_INIT_INTERFACE(&description);
@@ -31,6 +31,8 @@ static Device attach(const char* name, unsigned port)
     description.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
     description.axis_mask = (1u << SDL_GAMEPAD_AXIS_COUNT) - 1;
     description.button_mask = (1u << SDL_GAMEPAD_BUTTON_COUNT) - 1;
+    description.vendor_id = vendor;
+    description.product_id = product;
     description.name = name;
     Device device {SDL_AttachVirtualJoystick(&description), nullptr};
     require(device.id != 0, "attach virtual SDL controller");
@@ -170,6 +172,30 @@ int main(int argc, char** argv)
     nativeProfileInput_ClearAll();
     detach(first);
     detach(replacement);
+
+    // The virtual pad supplies the same SDL button slots as the Switch 2 USB
+    // driver. The driver and its USB transport are outside this fixture.
+    Device nso = attach("Switch 2 GameCube fixture", 0, 0x057e, 0x2073);
+    require(PADGetControllerType(0) == PAD_TYPE_NSO_GAMECUBE &&
+                PADGetControllerTypeForIndex(PADGetIndexForPort(0)) == PAD_TYPE_NSO_GAMECUBE &&
+                !PADIsGCAdapter(0), "identify the standalone controller separately from an adapter port");
+    require(SDL_SetJoystickVirtualButton(nso.joystick, SDL_GAMEPAD_BUTTON_WEST, true) &&
+                SDL_SetJoystickVirtualButton(nso.joystick, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, true) &&
+                SDL_SetJoystickVirtualAxis(nso.joystick, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 0),
+            "press GameCube B, Z and partially pull R");
+    auto nso_pad = read(nso, 0, 0);
+    require(nso_pad.button == (PAD_BUTTON_B | PAD_TRIGGER_Z) && nso_pad.triggerRight > 0 &&
+                PADGetMappedButtonState(0, PAD_TRIGGER_R) == 0,
+            "Z and partial analog travel do not click R");
+    require(SDL_SetJoystickVirtualButton(nso.joystick, SDL_GAMEPAD_BUTTON_MISC3, true) &&
+                SDL_SetJoystickVirtualButton(nso.joystick, SDL_GAMEPAD_BUTTON_MISC4, true),
+            "press both independent trigger clicks");
+    nso_pad = read(nso, 0, 0);
+    require((nso_pad.button & (PAD_TRIGGER_L | PAD_TRIGGER_R)) == (PAD_TRIGGER_L | PAD_TRIGGER_R) &&
+                PADGetMappedButtonState(0, PAD_TRIGGER_L) == 1 && PADGetMappedButtonState(0, PAD_TRIGGER_R) == 1,
+            "both physical trigger clicks reach gameplay and calibration");
+    detach(nso);
+
     require(aurora::input::g_GameControllers.empty(), "all task controllers closed");
     SDL_Quit();
     std::puts("Actual SDL profile calibration, replacement and mixed shielding passed");
