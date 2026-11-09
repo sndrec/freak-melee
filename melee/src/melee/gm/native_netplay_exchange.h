@@ -21,9 +21,14 @@ typedef struct NativeNetplayExchangePeer {
         NATIVE_ROLLBACK_INPUT_CAPACITY];
     uint64_t checksum_frame;
     uint64_t checksum;
+    uint64_t sample_frame;
+    uint64_t lead_sample_at;
+    int32_t lead_milliframes;
     uint8_t port_mask;
     bool configured;
     bool has_checksum;
+    bool has_sample;
+    bool has_lead;
 } NativeNetplayExchangePeer;
 
 typedef struct NativeNetplayExchangeFrame {
@@ -38,6 +43,7 @@ typedef struct NativeNetplayExchange {
     uint64_t session_id;
     uint64_t prior_session_id;
     uint64_t newest_frame;
+    uint64_t observed_frames[4];
     uint64_t checksum_frame;
     uint64_t checksum;
     uint32_t received_packets;
@@ -68,6 +74,7 @@ bool nativeNetplayExchange_SetArtificialDelay(NativeNetplayExchange* exchange,
 bool nativeNetplayExchange_RecordLocal(NativeNetplayExchange* exchange,
                                        uint64_t frame,
                                        const PADStatus pads[4]);
+int32_t nativeNetplayExchange_MaxLead(const NativeNetplayExchange* exchange);
 bool nativeNetplayExchange_SetChecksum(NativeNetplayExchange* exchange,
                                       uint64_t frame, uint64_t checksum);
 bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,

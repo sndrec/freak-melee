@@ -7,6 +7,8 @@
 enum {
     GAMEPLAY_PORT_MASK = (1U << NATIVE_ROLLBACK_INPUT_PORTS) - 1,
     REDUNDANT_FRAME_COUNT = NATIVE_NETPLAY_INPUT_MAX_FRAMES,
+    LEAD_SAMPLE_MAX_AGE = 60,
+    MAX_MEASURED_LEAD = 16000, // milliframes
 };
 
 bool nativeNetplayExchange_Init(NativeNetplayExchange* exchange,
@@ -118,7 +120,61 @@ bool nativeNetplayExchange_RecordLocal(NativeNetplayExchange* exchange,
     }
     exchange->newest_frame = frame;
     exchange->has_newest_frame = true;
+    for (unsigned i = 0; i < 4; ++i) {
+        const NativeNetplayExchangePeer* peer = &exchange->peers[i];
+        exchange->observed_frames[i] =
+            peer->has_sample ? peer->sample_frame : UINT64_MAX;
+    }
     return true;
+}
+
+int32_t nativeNetplayExchange_MaxLead(const NativeNetplayExchange* exchange)
+{
+    int32_t lead = 0;
+    for (unsigned i = 0; i < 4; ++i) {
+        const NativeNetplayExchangePeer* peer = &exchange->peers[i];
+        if (peer->has_lead && peer->lead_milliframes > lead &&
+            exchange->newest_frame - peer->lead_sample_at < LEAD_SAMPLE_MAX_AGE) {
+            lead = peer->lead_milliframes;
+        }
+    }
+    return lead;
+}
+
+static void observe_peer_sample(const NativeNetplayExchange* exchange,
+                                NativeNetplayExchangePeer* peer,
+                                const NativeNetplayInputBatch* batch)
+{
+    // Redundant and reordered datagrams carry useful input, but must not
+    // update the clock estimate more than once per sender sample.
+    uint64_t remote = batch->sample_frame;
+    if (peer->has_sample && remote <= peer->sample_frame) {
+        return;
+    }
+    peer->sample_frame = remote;
+    peer->has_sample = true;
+
+    uint64_t local = exchange->newest_frame;
+    uint64_t echoed = batch->observed_frames[exchange->local_peer];
+    uint64_t gap = local > remote ? local - remote : remote - local;
+    if (!exchange->has_newest_frame || echoed > local ||
+        local - echoed >= LEAD_SAMPLE_MAX_AGE || gap >= LEAD_SAMPLE_MAX_AGE) {
+        return;
+    }
+
+    // The local samples span a round trip. Compare the remote sample to
+    // their midpoint to cancel symmetric travel time in frame units.
+    int32_t separation = local >= remote ? (int32_t) gap : -(int32_t) gap;
+    int32_t lead = 1000 * separation - 500 * (int32_t) (local - echoed);
+    if (lead > MAX_MEASURED_LEAD) lead = MAX_MEASURED_LEAD;
+    if (lead < -MAX_MEASURED_LEAD) lead = -MAX_MEASURED_LEAD;
+    if (peer->has_lead && local - peer->lead_sample_at < LEAD_SAMPLE_MAX_AGE) {
+        peer->lead_milliframes += (lead - peer->lead_milliframes) / 8;
+    } else {
+        peer->lead_milliframes = lead;
+    }
+    peer->lead_sample_at = local;
+    peer->has_lead = true;
 }
 
 bool nativeNetplayExchange_SetChecksum(NativeNetplayExchange* exchange,
@@ -174,8 +230,11 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
         .frame_count = (uint8_t) (send_through - start_frame + 1),
         .checksum_frame = exchange->checksum_frame,
         .checksum = exchange->checksum,
+        .sample_frame = exchange->newest_frame,
         .has_checksum = exchange->has_checksum,
     };
+    memcpy(batch.observed_frames, exchange->observed_frames,
+           sizeof(batch.observed_frames));
     for (uint32_t frame = 0; frame < batch.frame_count; ++frame) {
         const NativeNetplayExchangeFrame* saved =
             &exchange->frames[(start_frame + frame) %
@@ -259,6 +318,7 @@ bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
         peer->checksum = batch.checksum;
         peer->has_checksum = true;
     }
+    observe_peer_sample(exchange, peer, &batch);
     ++exchange->received_packets;
     return true;
 }

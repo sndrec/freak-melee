@@ -51,6 +51,8 @@ int main(void)
         .start_frame = 42,
         .checksum_frame = 40,
         .checksum = UINT64_C(0x0123456789ABCDEF),
+        .sample_frame = 47,
+        .observed_frames = { 45, 49, UINT64_MAX, 44 },
         .sender_peer = 2,
         .port_mask = (1U << 0) | (1U << 2),
         .frame_count = 3,
@@ -70,7 +72,7 @@ int main(void)
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
     size_t packet_size =
         nativeNetplayInput_Encode(&sent, packet, sizeof(packet));
-    require(packet_size == 40 + 3 * 2 * 15,
+    require(packet_size == 80 + 3 * 2 * 15,
             "encode compact explicit controller fields");
     NativeNetplayInputBatch received;
     require(nativeNetplayInput_Decode(&received, packet, packet_size),
@@ -79,6 +81,9 @@ int main(void)
                 received.start_frame == sent.start_frame &&
                 received.checksum_frame == sent.checksum_frame &&
                 received.checksum == sent.checksum &&
+                received.sample_frame == sent.sample_frame &&
+                memcmp(received.observed_frames, sent.observed_frames,
+                       sizeof(sent.observed_frames)) == 0 &&
                 received.sender_peer == sent.sender_peer &&
                 received.port_mask == sent.port_mask &&
                 received.frame_count == sent.frame_count &&
@@ -147,6 +152,9 @@ int main(void)
     packet[0] ^= 1;
     require(!nativeNetplayInput_Decode(&received, packet, packet_size),
             "reject the wrong packet type");
+    sent.sample_frame = 43;
+    require(nativeNetplayInput_Encode(&sent, packet, sizeof(packet)) == 0,
+            "reject a sender clock behind its input batch");
 
     puts("Netplay input packets round-trip and commit atomically");
     return 0;

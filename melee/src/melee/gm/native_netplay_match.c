@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <SDL3/SDL_timer.h>
 
 #include "native_match_launch.h"
 #include "native_netplay_diagnostics.h"
@@ -43,6 +44,9 @@ enum {
     NETPLAY_ADMISSION_SCRATCH_BYTES = 64 * 1024 * 1024,
     NETPLAY_INPUT_TIMEOUT_MS = 5000,
     NETPLAY_ROOM_SETUP_TIMEOUT_MS = 60000,
+    NETPLAY_TICK_NS = 1000000000 / 60,
+    NETPLAY_LEAD_DEAD_ZONE = 1000, // milliframes
+    NETPLAY_MAX_PACE_DELAY_NS = 5000000,
 };
 
 static const uint64_t sudden_death_session_tag =
@@ -97,6 +101,9 @@ static struct NativeNetplayMatch {
     uint32_t input_stall_count;
     uint32_t compared_digest_count;
     uint64_t input_stall_ms;
+    uint64_t next_sample_ns;
+    uint64_t pace_delay_ns;
+    int32_t peak_lead_milliframes;
     uint64_t mismatch_frame, mismatch_peer_digest;
     uint32_t initial_seed;
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS
@@ -108,6 +115,7 @@ static struct NativeNetplayMatch {
     bool has_mismatch;
     s8 physical_ports[4];
     bool active;
+    bool paced;
     bool replay_playback;
     bool room_transport;
     bool borrowed_online_room;
@@ -143,6 +151,26 @@ static bool send_packets(void)
 {
     return netplay.room_transport ? nativeNetplayRoom_Send(netplay.room)
                                   : nativeNetplayUdp_Send(&netplay.udp);
+}
+
+static void schedule_next_sample(void)
+{
+    int32_t lead = nativeNetplayExchange_MaxLead(netplay.exchange);
+    if (lead > netplay.peak_lead_milliframes) {
+        netplay.peak_lead_milliframes = lead;
+    }
+    // Add up to 5 ms to the next period, proportional to the lead outside
+    // the one-frame dead zone. The trailing peer runs at its usual rate.
+    uint64_t delay = lead > NETPLAY_LEAD_DEAD_ZONE
+                        ? 1000U * (lead - NETPLAY_LEAD_DEAD_ZONE) : 0;
+    if (delay > NETPLAY_MAX_PACE_DELAY_NS) delay = NETPLAY_MAX_PACE_DELAY_NS;
+    netplay.pace_delay_ns += delay;
+
+    uint64_t now = SDL_GetTicksNS();
+    uint64_t period = NETPLAY_TICK_NS + delay;
+    uint64_t next = netplay.next_sample_ns + period;
+    // Discard elapsed periods after a stall, including initial input exchange.
+    netplay.next_sample_ns = next > now ? next : now + period;
 }
 
 static void shutdown_transport(void)
@@ -354,6 +382,7 @@ static void filter_inputs(PADStatus pads[4])
             fail("netplay input exchange failed");
             return;
         }
+        if (netplay.paced) schedule_next_sample();
         if (!wait_for_remote_inputs(netplay.current_frame)) {
             return;
         }
@@ -559,6 +588,10 @@ bool nativeNetplayMatch_Init(void)
         return false;
     }
     nativeNetplayTiming_Init();
+    netplay.paced = !nativeMatchLaunch_Fast();
+    netplay.next_sample_ns = 0;
+    netplay.pace_delay_ns = 0;
+    netplay.peak_lead_milliframes = 0;
     nativeCallbackProfile_Init();
     netplay.visible_tick_pending=false;
     const char* checksum_trace=getenv("FREAK_MELEE_NETPLAY_CHECKSUM_TRACE");
@@ -871,6 +904,9 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
         OSReport("[netplay] Waited %llu ms across %u input stalls.\n",
                  (unsigned long long) netplay.input_stall_ms,
                  netplay.input_stall_count);
+        OSReport("[netplay-clock] peak_lead=%.3f frames pace_delay_ms=%llu\n",
+                 netplay.peak_lead_milliframes / 1000.0,
+                 (unsigned long long)(netplay.pace_delay_ns / 1000000));
         OSReport("[netplay] Compared %u confirmed peer checksums.\n",
                  netplay.compared_digest_count);
         if (netplay.replay_playback) {
@@ -960,6 +996,14 @@ bool nativeNetplayMatch_BeginFrame(uint64_t* frame)
 {
     if (!frame || !netplay.active || netplay.failed || netplay.frame_active) return false;
     if (!netplay.checkpoint.replaying) {
+        // The wall clock is independent of the rewindable input clock.
+        // Wait before reconciling so inputs that arrive here can avoid a replay.
+        uint64_t now = netplay.paced ? SDL_GetTicksNS() : 0;
+        if (netplay.paced && now < netplay.next_sample_ns) {
+            if (nativeNetplayTimingEnabled) nativeNetplayTiming_Begin(NativeNetplayTiming_InputWait);
+            SDL_DelayPrecise(netplay.next_sample_ns - now);
+            if (nativeNetplayTimingEnabled) nativeNetplayTiming_End(NativeNetplayTiming_InputWait);
+        }
         // A reconstruction has already reconciled the current packet batch.
         // Give the normal tick its turn before starting another reconstruction.
         // Normal input sampling still receives packets; an exhausted prediction
@@ -1162,6 +1206,13 @@ void nativeNetplayMatch_Inspect(void)
         (unsigned long long)netplay.checkpoint.replay_ticks,netplay.compared_digest_count,
         netplay.correction_count,netplay.failed,netplay.input_stall_count,
         (unsigned long long)netplay.input_stall_ms);
+    if (netplay.active) {
+        fprintf(stderr, "[netplay-clock] sampled=%llu lead=%.3f peak_lead=%.3f frames pace_delay_ms=%llu\n",
+                (unsigned long long)netplay.exchange->newest_frame,
+                nativeNetplayExchange_MaxLead(netplay.exchange) / 1000.0,
+                netplay.peak_lead_milliframes / 1000.0,
+                (unsigned long long)(netplay.pace_delay_ns / 1000000));
+    }
     if (!netplay.active) return;
     for (unsigned port = 0; port < 4; ++port) {
         Fighter_GObj* object = Player_GetEntityAtIndex(port, 0);

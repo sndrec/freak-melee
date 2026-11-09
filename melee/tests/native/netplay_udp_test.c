@@ -26,9 +26,49 @@ static void initialize_inputs(NativeRollbackInputHistory* inputs,
     require(nativeRollbackInput_Init(inputs, local_mask), "initialize peer input history");
 }
 
+static void check_clock_samples(uint64_t session_id)
+{
+    NativeNetplayExchange local;
+    NativeRollbackInputHistory inputs;
+    require(nativeNetplayExchange_Init(&local, session_id, 0, 0xD) &&
+                nativeNetplayExchange_AddPeer(&local, 1, 0x2),
+            "initialize clock observation peer");
+    initialize_inputs(&inputs, 0xD);
+
+    PADStatus pads[4] = { 0 };
+    require(nativeNetplayExchange_RecordLocal(&local, 24, pads),
+            "sample the local clock at the return leg");
+    NativeNetplayInputBatch sample = {
+        .session_id = session_id,
+        .start_frame = 18,
+        .sample_frame = 19,
+        .observed_frames = { 22, UINT64_MAX, UINT64_MAX, UINT64_MAX },
+        .sender_peer = 1,
+        .port_mask = 0x2,
+        .frame_count = 1,
+    };
+    uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
+    size_t size = nativeNetplayInput_Encode(&sample, packet, sizeof(packet));
+    require(size && nativeNetplayExchange_AcceptPacket(&local, &inputs, 1, packet, size) &&
+                nativeNetplayExchange_MaxLead(&local) == 4000,
+            "measure a four-frame lead after removing the round-trip allowance");
+
+    require(nativeNetplayExchange_RecordLocal(&local, 25, pads) &&
+                nativeNetplayExchange_AcceptPacket(&local, &inputs, 1, packet, size) &&
+                nativeNetplayExchange_MaxLead(&local) == 4000,
+            "a redundant packet does not bias the clock");
+    sample.sample_frame = 18;
+    size = nativeNetplayInput_Encode(&sample, packet, sizeof(packet));
+    require(size && nativeNetplayExchange_AcceptPacket(&local, &inputs, 1, packet, size) &&
+                nativeNetplayExchange_MaxLead(&local) == 4000 &&
+                local.peers[1].sample_frame == 19,
+            "an out-of-order packet cannot move the peer clock backward");
+}
+
 int main(void)
 {
     const uint64_t session_id = UINT64_C(0x0123456789ABCDEF);
+    check_clock_samples(session_id);
     NativeNetplayUdp first;
     NativeNetplayUdp second;
     require(

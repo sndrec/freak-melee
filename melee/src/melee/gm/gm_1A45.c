@@ -36,6 +36,7 @@
 #include <sysdolphin/baselib/native_particle_control_snapshot.h>
 #include <aurora/aurora.h>
 #include <aurora/event.h>
+#include <aurora/gfx.h>
 #include <melee/db/db.h>
 #include <melee/db/dbnativecontrol.h>
 #include <melee/ui/native_shell.h>
@@ -384,6 +385,10 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                    (info->scene_kind == GS_VS ||
                     info->scene_kind == GS_SUDDEN_DEATH) &&
                    nativeNetplayMatch_Init();
+    // The online match clock sets the tick cadence. Prefer mailbox present
+    // so a monitor refresh does not round each clock correction up to a frame.
+    bool netplay_present = netplay && !nativeMatchLaunch_Fast();
+    if (netplay_present) aurora_enable_vsync(false);
     bool spectator_requested = nativeMatchLaunch_IsSpectating() &&
         (info->scene_kind == GS_VS || info->scene_kind == GS_SUDDEN_DEATH);
     bool spectating = spectator_requested && nativeSpectatorMatch_Init();
@@ -483,10 +488,12 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 if (!ready) { pad_queue_count = 0; SDL_Delay(1); continue; }
                 watch_frame_ready = true;
             }
-            pad_queue_count = lbInput_Poll(spectating ? lbInput_NextSampleTimeNs() : nativeMatchLaunch_Fast()
-                                               ? lbInput_VirtualClockNowNs()
-                                               : netplay && nativeNetplayMatch_IsResimulating()
-                                                     ? lbInput_NextSampleTimeNs()
+            // Online matches gate visible samples on the host clock in
+            // BeginFrame. Every sample advances the simulation clock once.
+            pad_queue_count = lbInput_Poll(spectating || netplay
+                                               ? lbInput_NextSampleTimeNs()
+                                               : nativeMatchLaunch_Fast()
+                                                     ? lbInput_VirtualClockNowNs()
                                                      : SDL_GetTicksNS());
             if (lbInput_DidSample()) {
                 dbNativeControl_OnInputSample();
@@ -787,6 +794,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         nativeRollbackCensus_Shutdown();
     }
     GXDrawDone();
+    if (netplay_present) aurora_enable_vsync(true);
 }
 
 static bool loop_config_matches(const HSD_GObjLibInitDataType* config)

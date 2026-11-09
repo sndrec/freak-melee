@@ -23,6 +23,8 @@ typedef struct NativeNetplayInputBatch {
     uint64_t start_frame;
     uint64_t checksum_frame;
     uint64_t checksum;
+    uint64_t sample_frame;
+    uint64_t observed_frames[4]; // UINT64_MAX until a sample arrives from that peer
     uint8_t sender_peer;
     uint8_t port_mask;
     uint8_t frame_count;

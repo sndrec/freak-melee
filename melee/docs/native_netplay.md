@@ -23,7 +23,22 @@ least one human fighter; its mask may also cover CPU or empty ports so all four
 input histories still have one deterministic sender. Every datagram carries
 one through eight consecutive frames for all ports owned by its sender. Repeating recent
 frames recovers ordinary loss without a reliable ordered stream. A maximum
-four-port batch is 520 bytes.
+four-port batch is 560 bytes.
+
+Input packets also carry the sender's latest sample and the most recent sample
+it had seen from each peer when it took that sample. The receiver compares the
+remote frame to the midpoint of the echoed and current local frames. This
+estimates the lead without counting symmetric network delay. Repeated and
+reordered packets carry inputs but do not update the clock estimate.
+
+Visible online ticks use a 60 Hz wall clock outside rollback state. A client
+estimated to be over one frame ahead of a peer adds up to 5 ms to its next
+sample interval so the other peer can catch up. Online play prefers mailbox
+presentation when available to avoid quantizing the adjustment to display
+refreshes. Rollback ticks still run immediately, and the existing prediction
+limit still handles missing inputs. This follows the frame advantage approach
+in [GGPO](https://github.com/pond3r/ggpo/blob/master/src/lib/ggpo/timesync.cpp)
+and [INVERSUS](https://www.gamedeveloper.com/design/rollback-networking-in-inversus).
 
 The packet uses explicit little-endian fields rather than native structure
 layout. Each controller sample serializes the original button, sticks,
