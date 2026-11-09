@@ -25,7 +25,7 @@ class NativeVideo:
                     ffmpeg, '-hide_banner', '-loglevel', 'warning', '-y',
                     '-f', 'image2pipe', '-framerate', str(fps), '-vcodec', 'ppm']
                 if realtime: command += ['-use_wallclock_as_timestamps','1']
-                command += ['-i', self.pipe, '-r', str(fps), '-vsync', 'cfr',
+                command += ['-i', self.pipe, '-r', str(fps), '-fps_mode', 'cfr',
                     '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
                     '-an', '-c:v', 'libx264', '-preset', 'fast', '-crf', '17', '-pix_fmt', 'yuv420p',
                     '-movflags', '+faststart', str(self.output)]
