@@ -129,8 +129,6 @@ namespace WorkshopEditor {
                      : number(fields[index].value)) +
                 "'/></div>";
         }
-        document->GetElementById("workshop-command-fields-apply")
-            ->SetProperty("display", markup.empty() ? "none" : "block");
         document->GetElementById("workshop-command-fields-inputs")
             ->SetInnerRML(markup);
         document->GetElementById("workshop-command-fields")

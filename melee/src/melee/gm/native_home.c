@@ -31,6 +31,7 @@
 #include <melee/ft/ftanimation_bank.h>
 #include <melee/ft/ftcharacter_assets.h>
 #include <melee/ft/ftcoll.h>
+#include <melee/ft/ftdata.h>
 #include <melee/ft/ftparts.h>
 #include <melee/ft/ftlib.h>
 #include <melee/ft/native_callback_lifetime.h>
@@ -92,6 +93,8 @@ static struct {
     unsigned workshop_companion_proc_count;
     NativeFighterAnimationClip workshop_pose_clip;
     FigaTree* workshop_pose_tree;
+    bool workshop_draft_applied;
+    const NativeFighterProject* workshop_pose_project;
     const struct FtCostumeAssets* workshop_pose_costume;
     HSD_JObj* workshop_pose_root;
     FighterBone* workshop_pose_parts;
@@ -115,6 +118,23 @@ static struct {
     uint8_t physical_ports[GM_MAX_PLAYERS];
     uint8_t physical_count;
 } home;
+
+// A paused actor's FObjs borrow the decoded streams until its next pose.
+static struct {
+    FigaTree tree;
+    FigaTrack tracks[FT_ANIMATION_SCRATCH_TRACK_CAPACITY];
+    uint8_t bytes[FT_ANIMATION_IMPORT_ARENA_SIZE];
+    const Fighter* loading_fighter;
+    int loading_animation;
+} workshop_draft;
+
+FigaTree* nativeHome_WorkshopAnimationOverride(const Fighter* fighter,
+                                               int animation)
+{
+    return workshop_draft.loading_fighter == fighter &&
+           workshop_draft.loading_animation == animation
+               ? &workshop_draft.tree : NULL;
+}
 
 static bool has_package_id(const NativeContentId* id)
 {
@@ -426,7 +446,8 @@ static bool workshop_pose_span(const void* base, size_t size,
 // Validate the decoded bank and the exact part traversal used by the shared
 // figatree loader before it walks the selected actor's live joints.
 static bool workshop_pose_tree_valid(Fighter_GObj* object,
-    const NativeFighterPoseAssets* assets, const FigaTree* tree)
+    const NativeFighterPoseAssets* assets, const FigaTree* tree,
+    u32 part_mask)
 {
     if (!workshop_pose_span(assets->animation_arena,
             assets->animation_arena_size, tree, sizeof(*tree)) ||
@@ -448,7 +469,7 @@ static bool workshop_pose_tree_valid(Fighter_GObj* object,
         while (part < parts && !fighter->parts[part].flags_b1) ++part;
         while (part < parts && fighter->parts[part].flags_b2) {
             u32 mask = ftParts_8007506C(fighter->kind, part);
-            if (mask == 0 || (mask & fighter->x594_bits)) break;
+            if (mask == 0 || (mask & part_mask)) break;
             ++part;
         }
         if (part == parts || (part != 0 &&
@@ -496,7 +517,8 @@ void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
         nativeCallbackSource_Alive(posed, home.workshop_pose_generation,
                                     NativeCallbackSource_Fighter)) {
         Fighter* fighter = GET_FIGHTER(posed);
-        if (home.workshop_pose_clip.bank == NativeFighterAnimation_Demo &&
+        if ((home.workshop_pose_clip.bank == NativeFighterAnimation_Demo ||
+             home.workshop_draft_applied) &&
             fighter->kind == home.workshop_pose_kind &&
             fighter->ft_data == home.workshop_pose_data &&
             nativeFighterRuntime_SourcePackage(fighter->kind) ==
@@ -505,7 +527,8 @@ void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
             NativeFighterPoseAssets assets;
             if (nativeFighterRuntime_PoseAssets(posed, &assets) &&
                 nativeFighterRuntime_PoseClip(posed, fighter->anim_id) == fighter->x590 &&
-                workshop_pose_tree_valid(posed, &assets, fighter->x590) &&
+                workshop_pose_tree_valid(posed, &assets, fighter->x590,
+                                         fighter->x594_bits) &&
                 isfinite(fighter->cur_anim_frame)) {
                 ftAnim_80070758(posed->hsd_obj);
                 ftAnim_8006FA58(fighter, FtPart_TopN, fighter->x108_costume_joint);
@@ -539,6 +562,8 @@ void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
     home.workshop_pose_data = NULL;
     home.workshop_pose_source = NULL;
     home.workshop_pose_lifetime = (NativeFighterLifetime){0};
+    home.workshop_draft_applied = false;
+    home.workshop_pose_project = NULL;
     home.workshop_pose_clip.index = UINT_MAX;
     home.workshop_pose_tree = NULL;
     home.workshop_pose_costume = NULL;
@@ -779,7 +804,8 @@ void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox hitboxes[4],
     }
 }
 
-bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
+bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
+                             const NativeFighterProject* draft)
 {
     if (!home.authoring || !home.preview_active || home.preview_live_test ||
         home.preview_transitioning || !nativeHome_IsPractice() ||
@@ -805,12 +831,29 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
             lifetime.program->bank != &source->compiler.bank ||
             lifetime.program->identity != source->program.identity)) ||
         (source == NULL && (kind >= Ft_Kind_CustomFirst || lifetime.source_owned))) return false;
+    if (home.workshop_pose_gobj != gobj ||
+        home.workshop_pose_generation != generation)
+        nativeHome_WorkshopPoseRelease(true);
+    const bool same_clip = home.workshop_pose_clip.bank == clip.bank &&
+                           home.workshop_pose_clip.index == clip.index &&
+                           home.workshop_pose_project == draft &&
+                           home.workshop_pose_kind == kind &&
+                           home.workshop_pose_data == data &&
+                           home.workshop_pose_source == source &&
+                           home.workshop_pose_root == gobj->hsd_obj &&
+                           home.workshop_pose_parts == fighter->parts;
     FtMotionId motion = 0;
+    u32 part_mask = fighter->x594_bits;
     FigaTree* tree = NULL;
     const struct FtCostumeAssets* costume = NULL;
     if (clip.bank == NativeFighterAnimation_Action) {
         if (!workshop_motion_for_action(fighter, clip.index, &motion))
             return false;
+        if (clip.index < fighter->x58C) {
+            // Native x594 packs the optional-part mask above the low 11 bits.
+            part_mask = ((u32) fighter->x24[clip.index].x10_animCurrFlags >> 11) &
+                        0x1FFF;
+        }
     } else {
         NativeFighterPoseAssets assets;
         if (!nativeFighterRuntime_PoseAssets(gobj, &assets) ||
@@ -827,17 +870,32 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
             nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
             home.workshop_pose_clip.bank == clip.bank &&
             home.workshop_pose_clip.index == clip.index &&
-            home.workshop_pose_tree == tree && home.workshop_pose_costume == costume &&
+            home.workshop_pose_costume == costume &&
             home.workshop_pose_root == gobj->hsd_obj &&
             home.workshop_pose_parts == fighter->parts;
-        if ((!cached && (!workshop_pose_tree_valid(gobj, &assets, tree) ||
-                nativeFighterRuntime_PoseClip(gobj, fighter->anim_id) != fighter->x590 ||
-                !workshop_pose_tree_valid(gobj, &assets, fighter->x590))) ||
-            !isfinite(tree->frames) || frame > tree->frames) return false;
+        if (!cached && (!workshop_pose_tree_valid(gobj, &assets, tree, part_mask) ||
+            nativeFighterRuntime_PoseClip(gobj, fighter->anim_id) != fighter->x590 ||
+            !workshop_pose_tree_valid(gobj, &assets, fighter->x590, part_mask)))
+            return false;
     }
-    if (home.workshop_pose_gobj != gobj ||
-        home.workshop_pose_generation != generation)
-        nativeHome_WorkshopPoseRelease(true);
+    if (same_clip) {
+        tree = home.workshop_pose_tree;
+    } else if (draft != NULL && source != NULL) {
+        const NativeFighterPoseAssets edited = {
+            .animation_arena = &workshop_draft,
+            .animation_arena_size = sizeof(workshop_draft),
+            .animation_bytes = workshop_draft.bytes,
+            .animation_size = sizeof(workshop_draft.bytes),
+        };
+        if (nativeFighterAnimation_PreviewTree(draft, clip,
+                workshop_draft.bytes, sizeof(workshop_draft.bytes),
+                &workshop_draft.tree, workshop_draft.tracks,
+                ARRAY_SIZE(workshop_draft.tracks)) &&
+            workshop_pose_tree_valid(gobj, &edited, &workshop_draft.tree,
+                                     part_mask))
+            tree = &workshop_draft.tree;
+    }
+    if (tree != NULL && frame > tree->frames) return false;
     if (!workshop_hold_companion(gobj)) return false;
     if (!home.workshop_camera_active) {
         HSD_GObj* camera = Camera_80030A50();
@@ -877,22 +935,27 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
     home.workshop_pose_data = data;
     home.workshop_pose_source = source;
     home.workshop_pose_lifetime = lifetime;
-    bool reload = home.workshop_pose_clip.bank != clip.bank ||
-        home.workshop_pose_clip.index != clip.index ||
+    bool reload = !same_clip ||
         home.workshop_pose_tree != tree || home.workshop_pose_costume != costume ||
         home.workshop_pose_root != gobj->hsd_obj ||
         home.workshop_pose_parts != fighter->parts;
     home.workshop_pose_clip = clip;
+    home.workshop_pose_project = draft;
     home.workshop_pose_tree = tree;
     home.workshop_pose_costume = costume;
     home.workshop_pose_root = gobj->hsd_obj;
     home.workshop_pose_parts = fighter->parts;
     home.workshop_pose_frame = frame;
     if (clip.bank == NativeFighterAnimation_Action) {
+        if (tree == &workshop_draft.tree) {
+            workshop_draft.loading_fighter = fighter;
+            workshop_draft.loading_animation = (int) clip.index;
+        }
         Fighter_ChangeMotionState(gobj, motion,
                               Ft_MF_SkipAnimVel | Ft_MF_SkipAttackCount |
                                   Ft_MF_SkipRumble,
                                   frame, 0.0f, 0.0f, NULL);
+        workshop_draft.loading_fighter = NULL;
     } else {
         // The demo tree changes only the paused live rig. Gameplay action,
         // blend skeleton, callbacks and subaction bookkeeping remain intact.
@@ -915,6 +978,9 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame)
         nativeHome_WorkshopPoseRelease(true);
         return false;
     }
+    home.workshop_draft_applied = tree == &workshop_draft.tree;
+    if (fighter->x590 == &workshop_draft.tree)
+        ftData_80085CD8(fighter, fighter, fighter->anim_id);
     return true;
 }
 

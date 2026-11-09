@@ -202,8 +202,6 @@ bool family_has_unsaved_edits()
 bool select_member(unsigned member, bool restart_preview = false)
 {
     if (!project_loaded || member >= active_family.member_count) return false;
-    for (int i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i)
-        attribute_text[active_member][i] = input(attribute_id(i).c_str())->GetValue();
     // Editor restoration can immediately apply a pose. Select its actual actor
     // before restoring the incoming member's action/animation controls.
     const bool member_available = nativeHome_WorkshopSelectMember(member, restart_preview);
@@ -375,24 +373,6 @@ void create_stock_clone()
     status("workshop-library-status", "Fighter clone saved as a separate draft.");
 }
 
-bool apply_attribute_inputs(NativeFighterProject* project)
-{
-    for (int i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i) {
-        const std::string text = input(attribute_id(i).c_str())->GetValue();
-        char* end = nullptr;
-        double value = std::strtod(text.c_str(), &end);
-        if (text.empty() || *end != '\0' ||
-            !nativeFighterProject_SetAttribute(
-                project, size_t(i), value)) {
-            std::string message = "Invalid " +
-                                  std::string(nativeFighterCommonAttributes[i].label) + ".";
-            status("workshop-save-status", message.c_str());
-            return false;
-        }
-    }
-    return true;
-}
-
 bool save_draft()
 {
     if (!project_loaded || selected < 0 ||
@@ -405,8 +385,7 @@ bool save_draft()
         if (!select_member(member)) { saved = false; break; }
         const char* path = active_family.paths[member];
         char asset_error[256] = {};
-        if (!apply_attribute_inputs(active_project) ||
-            !nativeFighterProject_SaveAssets(path, active_project,
+        if (!nativeFighterProject_SaveAssets(path, active_project,
                                               asset_error, sizeof(asset_error)) ||
             !nativeShellWorkshopParameters_Save(document, active_project, path) ||
             !nativeShellWorkshopEditor_SaveScriptDraft()) {
@@ -528,12 +507,12 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
     std::string preview_source[NATIVE_FIGHTER_FAMILY_MEMBERS];
     std::string preview_parameters[NATIVE_FIGHTER_FAMILY_MEMBERS];
     if (opened_project) {
-        bool valid = save_project ? save_draft() : apply_attribute_inputs(active_project);
+        bool valid = !save_project || save_draft();
         NativeFighterFamilyProject candidate = active_family;
         const unsigned previous_member = active_member;
         for (unsigned member = 0; valid && !require_built_script &&
              member < candidate.member_count; ++member) {
-            valid = select_member(member) && apply_attribute_inputs(active_project) &&
+            valid = select_member(member) &&
                 nativeShellWorkshopEditor_PreviewSource(member, &preview_source[member],
                                                         &preview_parameters[member]);
             if (valid) {
@@ -716,8 +695,34 @@ class WorkshopEvents final : public Rml::EventListener {
                 discard_pending = false;
                 nativeShellWorkshopEditor_RefreshScriptOutline();
             } else {
-                if (id.compare(0, 19, "workshop-attribute-") == 0) attributes_dirty[active_member] = true;
                 discard_pending = false;
+            }
+            return;
+        }
+        if (project_loaded && id.compare(0, 19, "workshop-attribute-") == 0 &&
+            (event.GetType() == "keydown" || event.GetType() == "blur")) {
+            const unsigned index = std::strtoul(id.c_str() + 19, nullptr, 10);
+            if (index >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT) return;
+            auto* control = input(id.c_str());
+            auto& saved = attribute_text[active_member][index];
+            if (event.GetType() == "blur") {
+                control->SetValue(saved);
+            } else if (event.GetParameter<int>("key_identifier", 0) ==
+                       Rml::Input::KI_RETURN) {
+                const auto value = control->GetValue();
+                char* end;
+                const double number = std::strtod(value.c_str(), &end);
+                if (value != saved && end != value.c_str() && *end == '\0' &&
+                    nativeFighterProject_SetAttribute(active_project, index, number)) {
+                    saved = value;
+                    attributes_dirty[active_member] = true;
+                    discard_pending = false;
+                    status("workshop-save-status", "Attribute updated.");
+                } else if (value != saved) {
+                    status("workshop-save-status", "Enter a valid attribute value.");
+                }
+                control->Blur();
+                event.StopPropagation();
             }
             return;
         }
@@ -918,7 +923,7 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
     document->GetElementById("workshop-family-member")
         ->AddEventListener("change", &events);
     for (size_t index = 0; index < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++index)
-        document->GetElementById(attribute_id(index))->AddEventListener("change", &events);
+        document->GetElementById(attribute_id(index))->AddEventListener("blur", &events);
 }
 
 void nativeShellWorkshop_Update()

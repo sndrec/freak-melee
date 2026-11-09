@@ -151,8 +151,10 @@ void show_animation_graph()
     }
     width = std::max(width, 120);
     session->graph_width = width;
-    session->graph_height = std::max((int) graph->GetClientHeight(), 140);
-    const float plot_height = float(session->graph_height - 22);
+    const int client_height = graph->GetClientHeight();
+    const int height = client_height > 22 ? client_height : 140;
+    session->graph_height = height;
+    const float plot_height = float(height - 22);
     constexpr int SAMPLES = 33;
     constexpr int MAX_CURVES = 32;
     struct Curve {
@@ -276,14 +278,42 @@ void show_animation_graph()
         size_t graph_key_count = 0;
         if (!nativeFighterAnimation_Keys(session->project, session->animation_clip,
                 curve.track, graph_keys, 1024, &graph_key_count)) continue;
-        auto add_segment = [&](float x0, float y0, float x1, float y1) {
+        const bool overflow = session->graph_drag_active &&
+            session->selected_track == (int) curve.track;
+        auto in_graph = [&](float px, float py, float margin) {
+            return std::isfinite(px) && std::isfinite(py) &&
+                (overflow || (px >= margin && px <= width - margin &&
+                              py >= margin && py <= height - margin));
+        };
+        auto add_segment = [&](float x0, float y0, float x1, float y1,
+                               bool tangent = false) {
+            const float dx = x1 - x0, dy = y1 - y0;
+            if (!std::isfinite(dx) || !std::isfinite(dy)) return;
+            if (!overflow) {
+                float enter = 0, leave = 1;
+                auto clip_axis = [&](float at, float delta, float limit) {
+                    if (delta == 0) return at >= 2 && at <= limit - 2;
+                    const float first = (2 - at) / delta;
+                    const float last = (limit - 2 - at) / delta;
+                    enter = std::max(enter, std::min(first, last));
+                    leave = std::min(leave, std::max(first, last));
+                    return enter < leave;
+                };
+                if (!clip_axis(x0, dx, width) || !clip_axis(y0, dy, height)) return;
+                x1 = x0 + dx * leave;
+                y1 = y0 + dy * leave;
+                x0 += dx * enter;
+                y0 += dy * enter;
+            }
             const float length = std::hypot(x1 - x0, y1 - y0);
+            if (length < 0.1f) return;
             const float degrees = std::atan2(y1 - y0, x1 - x0) * 57.2957795f;
             char style[256];
             std::snprintf(style, sizeof(style), "left:%.2fpx;top:%.2fpx;"
                 "width:%.2fpx;transform:rotate(%.2fdeg);background-color:%s",
                 x0, y0, length, degrees, colors[c % 8]);
-            markup += "<div class='workshop-graph-line' style='";
+            markup += tangent ? "<div class='workshop-graph-tangent-line' style='"
+                              : "<div class='workshop-graph-line' style='";
             markup += style;
             markup += "'/>";
         };
@@ -334,18 +364,12 @@ void show_animation_graph()
                 for (int side : { -1, 1 }) {
                     const float dx = side * reach;
                     const float dy = -dx * pixels_per_pixel;
-                    const float length = std::hypot(dx, dy);
-                    const float degrees = std::atan2(dy, dx) * 57.2957795f;
-                    char line_style[220], handle_style[160];
-                    std::snprintf(line_style, sizeof(line_style),
-                        "left:%.2fpx;top:%.2fpx;width:%.2fpx;"
-                        "transform:rotate(%.2fdeg);background-color:%s",
-                        key_x, key_y, length, degrees, colors[c % 8]);
+                    add_segment(key_x, key_y, key_x + dx, key_y + dy, true);
+                    if (!in_graph(key_x + dx, key_y + dy, 5)) continue;
+                    char handle_style[160];
                     std::snprintf(handle_style, sizeof(handle_style),
                         "left:%.2fpx;top:%.2fpx;border-color:%s",
                         key_x + dx, key_y + dy, colors[c % 8]);
-                    markup += "<div class='workshop-graph-tangent-line' "
-                              "style='" + std::string(line_style) + "'/>";
                     markup += "<button id='workshop-graph-tangent-" +
                         number(curve.track) + "-" + number((unsigned) key) +
                         "-" + number((unsigned) (side > 0)) +
@@ -353,6 +377,7 @@ void show_animation_graph()
                         handle_style + "'></button>";
                 }
             }
+            if (!in_graph(key_x, key_y, 5)) continue;
             char style[180];
             std::snprintf(style, sizeof(style), "left:%.2fpx;top:%.2fpx;"
                 "background-color:%s", key_x, key_y, colors[c % 8]);
@@ -366,6 +391,8 @@ void show_animation_graph()
     markup += "<div id='workshop-graph-selection-box' "
               "class='workshop-graph-selection-box' "
               "style='display:none'></div>";
+    document->GetElementById("workshop-animation-pane")->SetClass(
+        "transforming", session->graph_drag_active);
     graph->SetInnerRML(markup);
     bool selected_joints[1024] = {};
     for (unsigned track = 0; track < session->track_count; ++track)
@@ -964,14 +991,21 @@ void apply_key()
                  "in its original encoding.");
         return;
     }
+    const unsigned track = (unsigned) session->selected_track;
+    const unsigned key = (unsigned) session->selected_key;
+    if ((value != original.value && !nativeFighterAnimation_Snap(
+            session->project, session->animation_clip, track, false, value, &value)) ||
+        (tangent != original.tangent && !nativeFighterAnimation_Snap(
+            session->project, session->animation_clip, track, true, tangent, &tangent)))
+        return;
+    if (frame == original.frame && value == original.value &&
+        tangent == original.tangent) return;
     uint8_t* previous = (uint8_t*) std::malloc(session->project->animation_size);
     if (previous == nullptr) {
         set_text("workshop-editor-status", "Could not reserve edit memory.");
         return;
     }
     std::memcpy(previous, session->project->animation_dat, session->project->animation_size);
-    const unsigned track = (unsigned) session->selected_track;
-    const unsigned key = (unsigned) session->selected_key;
     bool valid = (frame == original.frame ||
                   nativeFighterAnimation_MoveKey(session->project, session->animation_clip, track,
                                                   key, (int) frame)) &&
@@ -1009,8 +1043,8 @@ void insert_key_at_frame()
     float sampled;
     if (!nativeFighterAnimation_Sample(session->project, session->animation_clip, track,
                                        (float) session->animation_frame, &sampled) ||
-        !nativeFighterAnimation_SnapValue(session->project, session->animation_clip, track,
-                                          sampled, &sampled)) {
+        !nativeFighterAnimation_Snap(session->project, session->animation_clip, track,
+                                     false, sampled, &sampled)) {
         set_text("workshop-editor-status", "Could not sample this transform "
                  "channel at the current frame.");
         return;

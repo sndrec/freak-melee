@@ -46,6 +46,12 @@ typedef struct NativeFighterAnimationClip {
     unsigned index;
 } NativeFighterAnimationClip;
 
+// Decode a draft clip into caller-owned storage. The decoded streams borrow
+// from the copied bytes, so the live pose can outlast edits to the draft.
+bool nativeFighterAnimation_PreviewTree(const NativeFighterProject* project,
+    NativeFighterAnimationClip clip, void* bytes, size_t byte_capacity,
+    FigaTree* tree, FigaTrack* tracks, size_t track_capacity);
+
 // Independently replace one action's animation; existing events and other
 // clip descriptors are preserved. These operations support editor undo.
 bool nativeFighterAnimation_Duplicate(NativeFighterProject*,
@@ -81,12 +87,12 @@ bool nativeFighterAnimation_Keys(const NativeFighterProject* project,
 bool nativeFighterAnimation_SetKey(NativeFighterProject* project,
                                    NativeFighterAnimationClip clip, unsigned track,
                                    unsigned key, float value);
-// Snap a dragged value to the source track's representable precision/range.
+// Snap a value or tangent to the source track's representable precision/range.
 // Float tracks retain the requested value; packed integer tracks use their
 // original fractional scale. Does not change the draft.
-bool nativeFighterAnimation_SnapValue(const NativeFighterProject* project,
-                                      NativeFighterAnimationClip clip, unsigned track,
-                                      float requested, float* snapped);
+bool nativeFighterAnimation_Snap(const NativeFighterProject* project,
+                                 NativeFighterAnimationClip clip, unsigned track,
+                                 bool tangent, float requested, float* snapped);
 bool nativeFighterAnimation_SetTangent(NativeFighterProject* project,
                                        NativeFighterAnimationClip clip, unsigned track,
                                        unsigned key, float tangent);

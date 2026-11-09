@@ -111,7 +111,7 @@
           <button id="workshop-action-tools-toggle" class="workshop-action-group-button">Edit name / visibility</button>
           <div id="workshop-action-tools" style="display: none">
             <label class="field-label">Action name</label><input id="workshop-action-name" class="room-input" type="text" maxlength="63"/>
-            <button id="workshop-action-rename" class="room-button">Apply name</button><button id="workshop-action-hide" class="room-button">Hide action in editor</button>
+            <button id="workshop-action-hide" class="room-button">Hide action in editor</button>
           </div>
           <label class="workshop-hitbox-check"><input id="workshop-show-hidden-actions" type="checkbox"/> Show hidden actions</label><div id="workshop-action-list"></div>
           <div id="workshop-linked-resources">
@@ -147,30 +147,15 @@
           <div class="eyebrow">ACTION PLAYBACK</div>
           <label class="workshop-hitbox-check"><input id="workshop-action-loop" type="checkbox" /> Loop animation in this action</label>
           <label class="workshop-hitbox-check" title="Extract TransN translation for action physics. Vertical travel also requires an airborne transition."><input id="workshop-action-root-motion" type="checkbox" /> Use TransN root motion</label>
-          <button id="workshop-action-loop-apply" class="room-button">Apply playback</button>
-        </div>
-        <div id="workshop-frame-stack">
-          <div class="workshop-divider"></div>
-          <div id="workshop-frame-stack-title" class="eyebrow">FRAME 0 COMMANDS</div>
-          <div class="workshop-inspector-hint">Execution order at the playhead. Click a command to inspect it.</div>
-          <div id="workshop-frame-stack-rows"></div>
-        </div>
-        <div id="workshop-event-timing">
-          <div class="workshop-divider"></div>
-          <div class="eyebrow">EVENT TIMING</div>
-          <div class="workshop-inspector-hint">Move this event and its loop repetitions. Other events keep their existing times.</div>
-          <div class="workshop-inspector-row"><label for="workshop-event-frame" class="field-label">First execution frame</label><input id="workshop-event-frame" class="room-input" type="text" /></div>
-          <button id="workshop-event-frame-apply" class="room-button">Move event</button>
         </div>
         <button id="workshop-delete-event" class="room-button" title="Remove this source command from the action, including every loop repeat">Delete selected command</button>
-        <div id="workshop-command-fields"><div class="workshop-divider"></div><div id="workshop-command-fields-title" class="eyebrow">COMMAND PROPERTIES</div><div id="workshop-command-fields-help" class="workshop-muted"></div><div id="workshop-command-fields-inputs"></div><button id="workshop-command-fields-apply" class="room-button primary">Apply command edit</button></div>
+        <div id="workshop-command-fields"><div class="workshop-divider"></div><div id="workshop-command-fields-title" class="eyebrow">COMMAND PROPERTIES</div><div id="workshop-command-fields-help" class="workshop-muted"></div><div id="workshop-command-fields-inputs"></div></div>
         <div id="workshop-value-fields">
           <div class="workshop-divider"></div>
           <div id="workshop-value-kind" class="eyebrow"></div>
           <div id="workshop-value-target" class="workshop-muted"></div>
           <div id="workshop-value-number" class="workshop-inspector-row"><label id="workshop-event-value-label" for="workshop-event-value" class="field-label">Command value</label><input id="workshop-event-value" class="room-input" type="text" /></div>
           <select id="workshop-air-state" class="room-input"><option value="0">Grounded</option><option value="1">Airborne (one jump used)</option><option value="2">Airborne (no jumps left)</option></select>
-          <button id="workshop-value-apply" class="room-button primary">Apply event edit</button>
         </div>
         <div id="workshop-sound-fields">
           <div class="workshop-divider"></div><div class="eyebrow">SOUND EFFECT</div>
@@ -178,7 +163,6 @@
           <div class="workshop-inspector-row"><label for="workshop-sound-id" class="field-label">Sound ID</label><input id="workshop-sound-id" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-volume" class="field-label">Volume</label><input id="workshop-sound-volume" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-pan" class="field-label">Panning</label><input id="workshop-sound-pan" class="room-input" type="text" /></div>
-          <button id="workshop-sound-apply" class="room-button primary">Apply sound edit</button>
         </div>
         <div id="workshop-effect-fields">
           <div class="workshop-divider"></div><div class="eyebrow">VISUAL EFFECT</div>
@@ -186,7 +170,6 @@
           <div class="workshop-inspector-row"><label for="workshop-effect-bone" class="field-label">Attachment bone</label><input id="workshop-effect-bone" class="room-input" type="text" /></div>
           <div class="workshop-bone-axis"><span>Offset</span><span>X</span><span>Y</span><span>Z</span></div>
           <div class="workshop-bone-row"><span></span><input id="workshop-effect-x" type="text" /><input id="workshop-effect-y" type="text" /><input id="workshop-effect-z" type="text" /></div>
-          <button id="workshop-effect-apply" class="room-button primary">Apply effect edit</button>
         </div>
         <div id="workshop-event-fields">
           <div class="workshop-divider"></div>
@@ -197,10 +180,19 @@
             <label class="workshop-hitbox-check" title="Allow another hit when this interval follows a hitbox in the same slot. Leave off to preserve its hit history."><input id="workshop-hitbox-refresh" type="checkbox" /> Refresh Hit Eligibility</label>
           </div>
           <div id="workshop-hitbox-manual-lifetime" class="workshop-inspector-hint">Duration could not be inferred safely. Edit its ending command in the Event list.</div>
+          <div class="workshop-inspector-row">
+            <label for="workshop-hitbox-element" class="field-label">Element</label>
+            <select id="workshop-hitbox-element" class="room-input"></select>
+          </div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-damage" class="field-label">Damage</label><input id="workshop-hitbox-damage" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-angle" class="field-label">Angle</label><input id="workshop-hitbox-angle" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-kbg" class="field-label">Knockback growth</label><input id="workshop-hitbox-kbg" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-bkb" class="field-label">Base knockback</label><input id="workshop-hitbox-bkb" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-hitbox-wkb" class="field-label">Weight-set knockback</label><input id="workshop-hitbox-wkb" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-hitbox-shield" class="field-label">Shield damage</label><input id="workshop-hitbox-shield" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-hitbox-rehit-group" class="field-label">Hit group</label><input id="workshop-hitbox-rehit-group" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-hitbox-sfx-level" class="field-label">Hit sound level</label><input id="workshop-hitbox-sfx-level" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-hitbox-sfx-kind" class="field-label">Hit sound ID</label><input id="workshop-hitbox-sfx-kind" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-bone" class="field-label">Attachment bone</label><input id="workshop-hitbox-bone" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-radius" class="field-label">Radius</label><input id="workshop-hitbox-radius" class="room-input" type="text" /></div>
           <div class="workshop-hitbox-offsets">
@@ -209,9 +201,15 @@
             <div><label for="workshop-hitbox-offset-z" class="field-label">Offset Z</label><input id="workshop-hitbox-offset-z" class="room-input" type="text" /></div>
           </div>
           <div class="workshop-unit-note">Offsets and radius are in world units.</div>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-common-bone" type="checkbox" /> Use common bone ID</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-grabbed" type="checkbox" /> Only hit grabbed fighter</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-items" type="checkbox" /> Item interaction</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-ignore-thrown" type="checkbox" /> Ignore thrown fighters</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-ignore-scale" type="checkbox" /> Ignore fighter scale</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-clank" type="checkbox" /> Clank</label>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-rebound" type="checkbox" /> Rebound</label>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-grounded" type="checkbox" /> Hits grounded fighters</label>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-aerial" type="checkbox" /> Hits airborne fighters</label>
-          <button id="workshop-hitbox-apply" class="room-button primary">Apply hitbox edit</button>
         </div>
         <div id="workshop-bone-fields">
           <div class="workshop-divider"></div><div class="eyebrow">SELECTED BONE</div>
@@ -261,7 +259,6 @@
           <input id="workshop-key-value" class="room-input" type="text" />
           <label for="workshop-key-tangent" class="field-label">Hermite tangent</label>
           <input id="workshop-key-tangent" class="room-input" type="text" />
-          <button id="workshop-key-apply" class="room-button primary">Apply key edit</button>
           <button id="workshop-key-insert" class="room-button">+ Key at current frame</button>
           <button id="workshop-key-delete" class="room-button">Delete selected key</button>
           <div class="workshop-divider"></div>

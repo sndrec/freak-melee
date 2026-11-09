@@ -207,8 +207,7 @@ nativeWorkshopMaterials_Controls(const NativeFighterModelEditor& model,
                 std::to_string(i) + "' value='" + std::to_string(pe[i]) +
                 "' />";
     }
-    return html + "<button id='workshop-material-apply-render' "
-                  "class='room-button primary'>Apply material</button></div>" + nativeWorkshopTextures_Controls(model,material);
+    return html + "</div>" + nativeWorkshopTextures_Controls(model,material);
 }
 
 bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,

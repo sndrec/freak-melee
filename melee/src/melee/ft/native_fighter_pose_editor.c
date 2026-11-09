@@ -105,7 +105,7 @@ bool nativeFighterPose_Paste(NativeFighterProject* project,
             (!include_root_translation && joint == pose->root_joint &&
              channel >= HSD_A_J_TRAX && channel <= HSD_A_J_TRAZ)) continue;
         float snapped;
-        ok = nativeFighterAnimation_SnapValue(&working, clip, (unsigned) i,
+        ok = nativeFighterAnimation_Snap(&working, clip, (unsigned) i, false,
             pose->values[joint][channel], &snapped) &&
              nativeFighterAnimation_InsertKey(&working, clip, (unsigned) i,
                                                frame, snapped);
