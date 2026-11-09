@@ -80,9 +80,16 @@ channel now serves `2026-11-09-desync-1`.
 
 The diagnostics build sends one report when an active online match aborts. It
 includes the build, session and peer numbers, stage and fighter IDs, recent
-controller samples and state hashes, and the failure reason. Reports stay in
+controller samples and state hashes, and the failure reason. It keeps the inputs
+each tick actually used, the RNG seed, and whether rollback replayed the tick.
+Near the mismatch it records exact fighter hitbox and hurtbox values, including
+cached positions. Reports stay in
 the private release bucket under `netplay-diagnostics/` for 14 days. Each client
 also saves its report under `%LOCALAPPDATA%\Freak Melee\netplay-diagnostics`.
+
+Run `python tools/compare_netplay_reports.py <peer-0.log> <peer-1.log>` to find
+the first shared confirmed frame with a different checksum and see the fields
+that differ.
 
 To build with reporting, configure `NATIVE_NETPLAY_DIAGNOSTICS_URL` with the
 hosted channel's `/diagnostics` endpoint and `NATIVE_NETPLAY_DIAGNOSTICS_BUILD`

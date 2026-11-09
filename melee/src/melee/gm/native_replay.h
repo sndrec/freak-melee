@@ -53,6 +53,10 @@ void nativeReplay_LogItemEvent(int kind, const char* event);
 void nativeReplay_LogBodyContact(const struct Fighter* fighter);
 void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
                                            bool fighter_only);
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+bool nativeReplay_WriteCapsuleTrace(FILE* output, uint64_t sample_index,
+                                   size_t* remaining);
+#endif
 bool nativeReplay_Close(void);
 
 #endif

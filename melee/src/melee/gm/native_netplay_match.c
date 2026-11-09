@@ -16,6 +16,9 @@
 #include "native_netplay_udp.h"
 #include "native_online_session.h"
 #include "native_replay.h"
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+#include "native_replay_capsule_trace.h"
+#endif
 #include "gmvs.h"
 #include "types.h"
 #include "native_match_state_admission.h"
@@ -56,6 +59,13 @@ typedef struct NativeNetplayStateDigest {
     uint64_t value;
     bool valid;
     uint32_t controller[11+GM_MAX_PLAYERS*19];
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    PADStatus consumed[NATIVE_ROLLBACK_INPUT_PORTS];
+    uint64_t first_digest, checkpoint;
+    uint32_t rng, pass, simulations;
+    uint8_t confirmed_at_tick;
+    bool has_consumed, resimulated;
+#endif
 } NativeNetplayStateDigest;
 
 static struct NativeNetplayMatch {
@@ -89,6 +99,11 @@ static struct NativeNetplayMatch {
     uint64_t input_stall_ms;
     uint64_t mismatch_frame, mismatch_peer_digest;
     uint32_t initial_seed;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    PADStatus consumed[NATIVE_ROLLBACK_INPUT_PORTS];
+    uint8_t confirmed_at_tick;
+    bool has_consumed;
+#endif
     char failure_reason[128];
     bool has_mismatch;
     s8 physical_ports[4];
@@ -355,6 +370,12 @@ static void filter_inputs(PADStatus pads[4])
         return;
     }
     memcpy(pads, resolved, sizeof(resolved));
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    memcpy(netplay.consumed, resolved, sizeof(resolved));
+    netplay.confirmed_at_tick =
+        nativeRollbackInput_ConfirmedMask(&netplay.inputs, netplay.current_frame);
+    netplay.has_consumed = true;
+#endif
 }
 
 static uint8_t local_human_count(const NativeLobbyMatch* match,
@@ -640,6 +661,65 @@ bool nativeNetplayMatch_Init(void)
     return true;
 }
 
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+static void report_pads(FILE* report, const PADStatus pads[NATIVE_ROLLBACK_INPUT_PORTS])
+{
+    for (unsigned port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
+        uint8_t bytes[NATIVE_PAD_WIRE_BYTES];
+        nativePadWire_Write(bytes, &pads[port]);
+        fputc(' ', report);
+        for (unsigned i = 0; i < sizeof(bytes); ++i) fprintf(report, "%02x", bytes[i]);
+    }
+    fputc('\n', report);
+}
+
+static void report_state_history(FILE* report, uint64_t start, uint64_t end)
+{
+    if (start == end) return;
+    uint64_t focus = end - 1;
+    if (netplay.has_mismatch && netplay.mismatch_frame >= start &&
+        netplay.mismatch_frame < end) {
+        focus = netplay.mismatch_frame;
+    } else if (netplay.checkpoint.boundary > start &&
+               netplay.checkpoint.boundary <= end) {
+        // A peer that stopped first can leave us with a tail of predicted ticks.
+        focus = netplay.checkpoint.boundary - 1;
+    }
+    fprintf(report, "[trace-focus] %llu\n", (unsigned long long)focus);
+    if (netplay.has_mismatch && focus == netplay.mismatch_frame) {
+        nativeReplay_WriteStateDigestSegments(report, focus, false);
+    }
+    // Write the same summaries on both peers, starting near the suspected frame.
+    for (uint64_t distance = 0; distance < end - start; ++distance) {
+        long position = ftell(report);
+        if (position < 0 || position >= NativeNetplayDiagnostics_MaxBytes / 2) break;
+        if (distance <= focus - start) {
+            uint64_t frame = focus - distance;
+            if (find_state_digest(frame) != NULL)
+                nativeReplay_WriteStateDigestSegments(report, frame, true);
+        }
+        if (distance && distance < end - focus && find_state_digest(focus + distance)) {
+            nativeReplay_WriteStateDigestSegments(report, focus + distance, true);
+        }
+    }
+    nativeReplayCapsuleTrace_WriteColumns(report);
+    long position = ftell(report);
+    if (position < 0 || position >= NativeNetplayDiagnostics_MaxBytes - 80) return;
+    size_t remaining = NativeNetplayDiagnostics_MaxBytes - (size_t)position - 80;
+    for (uint64_t distance = 0; distance < end - start; ++distance) {
+        if (distance <= focus - start && find_state_digest(focus - distance) &&
+            !nativeReplay_WriteCapsuleTrace(report, focus - distance, &remaining)) {
+            fputs("[capsule-limit] further capsule rows omitted\n", report);
+            break;
+        }
+        if (distance && distance < end - focus && find_state_digest(focus + distance) &&
+            !nativeReplay_WriteCapsuleTrace(report, focus + distance, &remaining)) {
+            fputs("[capsule-limit] further capsule rows omitted\n", report);
+            break;
+        }
+    }
+}
+
 static void report_failure(void)
 {
     if (!netplay.active || !netplay.failed || netplay.exchange == NULL) return;
@@ -688,23 +768,28 @@ static void report_failure(void)
         if (digest == NULL) continue;
         fprintf(report, "[digest] %llu %016llx\n", (unsigned long long)frame,
                 (unsigned long long)digest->value);
+        fprintf(report, "[tick] %llu rng=%08x checkpoint=%llu pass=%u "
+                "simulations=%u replay=%u first_digest=%016llx\n",
+                (unsigned long long)frame, digest->rng,
+                (unsigned long long)digest->checkpoint, digest->pass,
+                digest->simulations, digest->resimulated,
+                (unsigned long long)digest->first_digest);
+        if (digest->has_consumed) {
+            fprintf(report, "[consumed] %llu confirmed=%x",
+                    (unsigned long long)frame, digest->confirmed_at_tick);
+            report_pads(report, digest->consumed);
+        }
         PADStatus pads[NATIVE_ROLLBACK_INPUT_PORTS];
         if (nativeRollbackInput_GetFrame(&netplay.inputs, frame, pads)) {
             fprintf(report, "[inputs] %llu confirmed=%x", (unsigned long long)frame,
                     nativeRollbackInput_ConfirmedMask(&netplay.inputs, frame));
-            for (unsigned port = 0; port < NATIVE_ROLLBACK_INPUT_PORTS; ++port) {
-                uint8_t bytes[NATIVE_PAD_WIRE_BYTES];
-                nativePadWire_Write(bytes, &pads[port]);
-                fputc(' ', report);
-                for (unsigned i = 0; i < sizeof(bytes); ++i) fprintf(report, "%02x", bytes[i]);
-            }
-            fputc('\n', report);
+            report_pads(report, pads);
         }
-        nativeReplay_WriteStateDigestSegments(report, frame,
-            !netplay.has_mismatch || frame != netplay.mismatch_frame);
     }
+    report_state_history(report, start, cursor);
     nativeNetplayDiagnostics_Send(report, session, peer);
 }
+#endif
 
 void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
                                  const struct MatchEnd* result)
@@ -722,7 +807,9 @@ void nativeNetplayMatch_Shutdown(bool continue_into_sudden_death,
     const uint32_t stale_packets = netplay.exchange != NULL
                                        ? netplay.exchange->stale_packets : 0;
     HSD_PadSetRawFilter(NULL);
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
     report_failure();
+#endif
     if (netplay.replay_playback) {
         nativeReplay_SetTimelineValidation(true);
     }
@@ -895,6 +982,9 @@ bool nativeNetplayMatch_BeginFrame(uint64_t* frame)
     if (!netplay.checkpoint.replaying) netplay.visible_tick_pending=false;
     if (*frame!=netplay.checkpoint.cursor) {fail("checkpoint frame cursor mismatch");return false;}
     netplay.current_frame=*frame;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    netplay.has_consumed = false;
+#endif
     nativeRandom_TraceFrame(*frame,netplay.checksum_trace,netplay.checkpoint.replaying);
     if (netplay.checkpoint.replaying)++netplay.resimulated_frame_count;
     if (netplay.replay_playback) {
@@ -917,14 +1007,33 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
     if (!HSD_AudioRollbackEndFrame()) {
         fail("checkpoint audio-intent history overflowed");return NativeConfirmedCheckpoint_Failed;
     }
-    netplay.state_digests[frame%NATIVE_ROLLBACK_INPUT_CAPACITY]=
-        (NativeNetplayStateDigest){.frame=frame,.value=semantic_state_digest(frame),.valid=true};
+    NativeNetplayStateDigest* digest =
+        &netplay.state_digests[frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
+    uint64_t value = semantic_state_digest(frame);
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+    if (digest->frame != frame || digest->simulations == 0) {
+        digest->first_digest = value;
+        digest->simulations = 0;
+    }
+    ++digest->simulations;
+    digest->checkpoint = netplay.checkpoint.boundary;
+    digest->rng = *seed_ptr;
+    digest->pass = netplay.correction_count;
+    digest->resimulated = netplay.checkpoint.replaying;
+    digest->has_consumed = netplay.has_consumed;
+    if (netplay.has_consumed) {
+        memcpy(digest->consumed, netplay.consumed, sizeof(digest->consumed));
+        digest->confirmed_at_tick = netplay.confirmed_at_tick;
+    }
+#endif
+    digest->frame = frame;
+    digest->value = value;
+    digest->valid = true;
     if (netplay.checksum_trace) {
         if (frame == 0) nativeReplay_WriteStateDigestSegments(stderr, frame, false);
         for(uint32_t slot=0;slot<nativeGObjPool.initialized_count;++slot)
             if(nativeGObjPool.slots[slot].occupied)
                 nativeRandom_TraceBytes("gobj",nativeGObjPool.payload+slot*nativeGObjPool.stride,nativeGObjPool.object_size);
-        NativeNetplayStateDigest* digest=&netplay.state_digests[frame%NATIVE_ROLLBACK_INPUT_CAPACITY];
         const VsSceneController* c=gmVs_GetController_0();
         uint32_t values[]={c->unk_0,(uint32_t)c->pauser,c->pause_timer,c->unpause_timer,
             c->terminate_match,c->match_result,c->match_over,c->frame_count,

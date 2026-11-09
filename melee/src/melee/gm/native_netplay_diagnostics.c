@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-enum { REPORT_LIMIT = 256 * 1024, REPORT_HTTP_TIMEOUT_MS = 1500 };
+enum { REPORT_HTTP_TIMEOUT_MS = 1500 };
 
 FILE* nativeNetplayDiagnostics_Open(uint64_t session, unsigned peer)
 {
@@ -42,7 +42,8 @@ void nativeNetplayDiagnostics_Send(FILE* report, uint64_t session_id, unsigned p
     void* body = NULL;
     HINTERNET session = NULL, connection = NULL, request = NULL;
     DWORD status = 0;
-    if (bytes <= 0 || bytes > REPORT_LIMIT || fseek(report, 0, SEEK_SET) ||
+    if (bytes <= 0 || bytes > NativeNetplayDiagnostics_MaxBytes ||
+        fseek(report, 0, SEEK_SET) ||
         !WinHttpCrackUrl(endpoint, 0, 0, &parts) || parts.nScheme != INTERNET_SCHEME_HTTPS) goto done;
     if (swprintf(object + parts.dwUrlPathLength,
                  sizeof(object) / sizeof(object[0]) - parts.dwUrlPathLength,

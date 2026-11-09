@@ -403,6 +403,11 @@ if(NATIVE_NETPLAY_DIAGNOSTICS_URL)
     set_property(SOURCE src/melee/gm/native_netplay_diagnostics.c APPEND PROPERTY COMPILE_DEFINITIONS
         "NATIVE_NETPLAY_DIAGNOSTICS_URL=L\"${NATIVE_NETPLAY_DIAGNOSTICS_URL}\""
         "NATIVE_NETPLAY_DIAGNOSTICS_BUILD=\"${NATIVE_NETPLAY_DIAGNOSTICS_BUILD}\"")
+    set_property(SOURCE
+        src/melee/gm/native_netplay_match.c
+        src/melee/gm/native_replay_capsule_trace.c
+        src/melee/gm/native_replay_state.c
+        APPEND PROPERTY COMPILE_DEFINITIONS NATIVE_NETPLAY_DIAGNOSTICS=1)
 endif()
 option(MELEE_PROFILE_MATCH_SAVE "Compile offline snapshot save-path profiler" OFF)
 if(MELEE_PROFILE_MATCH_SAVE)
@@ -544,8 +549,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/sysdolphin/baselib/report.c
     src/sysdolphin/baselib/native_controller_snapshot.c
     src/sysdolphin/baselib/rumble_output.c)
-set_source_files_properties(${MELEE_ROLLBACK_HOST_STATE_SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS MELEE_ROLLBACK_HOST_STATE=1)
+set_property(SOURCE ${MELEE_ROLLBACK_HOST_STATE_SOURCES}
+    APPEND PROPERTY COMPILE_DEFINITIONS MELEE_ROLLBACK_HOST_STATE=1)
 set(MELEE_ROLLBACK_AUDIO_STATE_SOURCES
     src/melee/lb/lbaudio_ax.c
     src/sysdolphin/baselib/audio_aux.c

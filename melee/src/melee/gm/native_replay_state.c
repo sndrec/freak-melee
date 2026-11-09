@@ -3,6 +3,7 @@
 #include "native_replay_item_fields.h"
 #include "native_match_launch.h"
 #include "native_replay_resources.h"
+#include "native_replay_capsule_trace.h"
 
 #ifdef MELEE_NATIVE
 
@@ -53,7 +54,6 @@ HSD_JObj* nativeReplay_AdditionalItemModel(const Item* item, unsigned slot)
 static bool nonfinite_reported;
 
 enum {
-    STATE_TRACE_FRAMES = 64,
     STATE_TRACE_SEGMENTS = 192,
     STATE_TRACE_ITEM_COMMANDS = 16,
 };
@@ -116,7 +116,7 @@ typedef struct StateTraceFrame {
     } fighters[NATIVE_SEMANTIC_FIGHTER_CAPACITY];
 } StateTraceFrame;
 
-static StateTraceFrame state_traces[STATE_TRACE_FRAMES];
+static StateTraceFrame state_traces[NativeReplay_StateTraceFrames];
 static bool trace_enabled;
 static bool action_trace_enabled;
 static bool fighter_trace_enabled;
@@ -409,7 +409,7 @@ void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
         "items", "fighter", "final",
     };
     const StateTraceFrame* frame =
-        &state_traces[sample_index % STATE_TRACE_FRAMES];
+        &state_traces[sample_index % NativeReplay_StateTraceFrames];
     if (!frame->valid || frame->sample != sample_index) {
         return;
     }
@@ -428,6 +428,29 @@ void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
                 frame->item_commands[i].kind, words[0], words[1], words[2],
                 words[3], words[4], words[5], words[6], words[7]);
     }
+    if (fighter_only) {
+        fprintf(output, "[state-groups] %llu", (unsigned long long)sample_index);
+        for (uint32_t i = 0; i < frame->count; ++i) {
+            const StateTraceSegment* segment = &frame->segments[i];
+            switch (segment->kind) {
+            case StateTrace_Player:
+                if (segment->index != GM_MAX_PLAYERS - 1) continue;
+                // Last cumulative player hash covers all player slots.
+            case StateTrace_Controller:
+            case StateTrace_Camera:
+            case StateTrace_Objects:
+            case StateTrace_Ground:
+            case StateTrace_Items:
+            case StateTrace_Final:
+                fprintf(output, " %s=%016llx", labels[segment->kind],
+                        (unsigned long long)segment->hash);
+                break;
+            default:
+                break;
+            }
+        }
+        fputc('\n', output);
+    }
     for (unsigned i = 0; i < frame->fighter_count; ++i) {
         const NativeSemanticFighterTrace* fields = &frame->fighters[i].fields;
         fprintf(output, "[fighter-state] %llu %u %u %d %d "
@@ -442,6 +465,18 @@ void nativeReplay_WriteStateDigestSegments(FILE* output, uint64_t sample_index,
                 (unsigned long long)fields->pose, (unsigned long long)fields->relations);
     }
 }
+
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+bool nativeReplay_WriteCapsuleTrace(FILE* output, uint64_t sample_index,
+                                   size_t* remaining)
+{
+    const StateTraceFrame* frame =
+        &state_traces[sample_index % NativeReplay_StateTraceFrames];
+    if (!frame->valid || frame->sample != sample_index) return true;
+    return nativeReplayCapsuleTrace_WriteFrame(output, sample_index,
+                                               frame->fighter_count, remaining);
+}
+#endif
 
 extern GameSceneInfo* gm_804D6720;
 
@@ -461,7 +496,7 @@ uint64_t nativeReplay_StateDigest(uint64_t sample_index)
     trace_fighter_actions(sample_index);
     StateTraceFrame* trace = NULL;
     if (trace_enabled) {
-        trace = &state_traces[sample_index % STATE_TRACE_FRAMES];
+        trace = &state_traces[sample_index % NativeReplay_StateTraceFrames];
         trace->sample = sample_index;
         trace->count = 0;
         trace->item_command_count = 0;
@@ -623,6 +658,9 @@ uint64_t nativeReplay_StateDigest(uint64_t sample_index)
             trace->fighters[index].kind = fp->kind;
             trace->fighters[index].motion = fp->motion_id;
             fields = &trace->fighters[index].fields;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS
+            nativeReplayCapsuleTrace_Capture(sample_index, index, fp);
+#endif
         }
         uint32_t parts_num = 0;
         if (fp->parts != NULL && ftPartsTable != NULL &&
