@@ -73,8 +73,7 @@ python tools/publish_native_release.py build/native/releases/2026-10-17-a
 
 This uploads both ZIPs, downloads and hashes each, and publishes `latest.json`
 last. Share the setup URL ending in `freak-melee-setup-<release>.zip`.
-The earlier `2026-09-24-preview-4` publication is historical evidence; the hosted
-channel now serves `2026-11-09-desync-1`.
+The channel's `latest.json` shows the current release.
 
 ## Playtest desync reports
 
