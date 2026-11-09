@@ -267,6 +267,9 @@ static bool bind_animation(MenuFighter* fighter, const NativeSourceAssetFacts* f
     Vec3 low = {INFINITY, INFINITY, INFINITY}, high = {-INFINITY, -INFINITY, -INFINITY};
     for (unsigned d = 0; d < fighter->draw_count; ++d) {
         if (!(fighter->visibility[0][d / 8] & (1u << (d % 8)))) continue;
+        // Imported costumes may retain empty draw slots to preserve the
+        // fighter's visibility indices. Only geometry contributes to framing.
+        if (fighter->draws[d]->pobj == NULL) continue;
         Vec3 a, b;
         if (!nativeModelView_MeshBounds(fighter->draw_owners[d], fighter->draws[d], &a, &b)) return false;
         low.x = fminf(low.x, a.x); high.x = fmaxf(high.x, b.x);
