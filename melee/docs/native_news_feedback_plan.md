@@ -321,6 +321,14 @@ Current checkpoint (2026-11-13):
   lifecycle. Hosted report delivery and the admin browser review remain open.
 - The two-peer rollback check completed 273 restores and 883 replay ticks with
   matching confirmed checksums while the annotating player remained neutral.
+- The remote D1 database and private feedback R2 bucket are created, and the
+  initial database migration is applied. Cloudflare Zero Trust activation needs
+  Twilight to complete its terms/billing checkout before admin Access setup.
+  Other client/service work can continue while that browser step is pending.
+- The foundation Worker is deployed. Hosted public reads and feedback upload /
+  idempotent retry pass, with R2 public access disabled. Admin HTML, assets and
+  APIs deny access while sign-in configuration is pending. No updater release
+  has been published for this goal.
 
 Reusable reviews are `melee/tools/review_native_fighter_deletion.py`,
 `melee/tools/review_native_community.py`, `melee/tools/review_native_feedback.py`

@@ -26,8 +26,12 @@ the service has no alternate login path.
 
 ## Deployment
 
-Create the D1 database and private R2 bucket named in `wrangler.jsonc`. Replace
-the database's `local` ID with the resulting remote ID. Set `ACCESS_TEAM_DOMAIN`
+The D1 database and private R2 bucket named in `wrangler.jsonc` were created on
+2026-11-13 in Eastern North America. The initial migration has been applied.
+Preview URLs are disabled; the production `workers.dev` hostname serves the
+community API and administration.
+
+Set `ACCESS_TEAM_DOMAIN`
 and `ACCESS_AUDIENCE` to the Access application's team domain and audience.
 Allow only the configured administrator email in that application's policy.
 Protect `/admin` and `/admin/*` on every enabled hostname. The Worker also checks
@@ -42,6 +46,19 @@ npx wrangler deploy
 Verify an allowed sign-in and a rejected sign-in through the deployed hostname,
 including private screenshot and diagnostic downloads. An unconfigured Access
 application returns a clear service error and grants no administrative access.
+
+Current setup: the Cloudflare account still requires activation of Zero Trust
+Free. Its checkout asks the account owner to accept terms and authorize charges
+above the free allowance. That step has been left for Twilight in the browser.
+The Worker denies administration until the Access application is configured.
+
+The foundation Worker is deployed at
+`https://freak-melee-community.sndrec32exe.workers.dev` (version
+`6f40d3d4-1698-414e-b644-afbf990868f5`). Hosted checks passed for health/feed reads,
+an accepted feedback upload and its idempotent retry. Admin HTML, scripts and
+APIs currently return the configuration error above. The report bucket's
+`r2.dev` public access is disabled. Complete Access setup and browser review
+before calling administration ready.
 
 ## Feedback reports
 
