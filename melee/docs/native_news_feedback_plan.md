@@ -1,8 +1,8 @@
 # Workshop deletion, news, announcements and feedback
 
 Updated 2026-11-13. This is the implementation plan for the next goal.
-The features below are planned. Existing systems and proposed defaults are
-identified separately so implementation progress can be tracked accurately.
+Implementation is underway. The milestones below distinguish implemented work
+from deployment and review that still remain.
 
 ## Goal
 
@@ -15,6 +15,9 @@ The work is ready for implementation as a goal. Finish with a working local
 client, deployed services and admin page, and a user review of the complete
 flow. Record the tested build and any remaining acceptance. Obtain Twilight's
 admin identity before opening access to the hosted administration page.
+Twilight confirmed `sndrec32exe@gmail.com` as that identity. Once the full goal
+is complete and the admin page is deployed, publish the new client build to the
+existing auto-updater channel; Twilight has authorized that release.
 
 ## Confirmed requirements
 
@@ -293,10 +296,10 @@ Persist a small last-valid feed and seen-announcement set locally.
 1. **Workshop deletion**
    - [ ] Implement confirmed deletion for installed, draft and paired fighters.
    - [ ] Clean CSS and local selections consistently, including lobby readiness.
-   - [ ] Verify cancellation, file failure and restart recovery.
+   - [x] Verify cancellation, file failure and restart recovery.
 2. **Service and administration**
-   - [ ] Define bounded JSON/report formats and storage tables/objects.
-   - [ ] Implement public reads, safe report submission and authenticated admin APIs.
+   - [x] Define bounded JSON/report formats and storage tables/objects.
+   - [x] Implement public reads, safe report submission and authenticated admin APIs.
    - [ ] Build the single-page news editor, announcement composer and feedback inbox.
    - [ ] Configure and verify Twilight's admin access.
 3. **Ticker, News page and announcements**
@@ -313,7 +316,7 @@ Persist a small last-valid feed and seen-announcement set locally.
    - [ ] Verify deployment and report read/write permissions through hosted routes.
    - [ ] Commit coherent changes and push the private repository.
    - [ ] Offer the complete local build/admin URL for the user's visual and usability pass.
-   - [ ] Publish the client through the updater when requested.
+   - [ ] Publish the client through the updater after the full goal and admin deployment are ready (authorized).
 
 ## Acceptance
 
@@ -340,7 +343,8 @@ Persist a small last-valid feed and seen-announcement set locally.
 
 ## Open choices and proposed defaults
 
-- Confirm the hosted admin identity and hostname before enabling admin access.
+- Admin identity: `sndrec32exe@gmail.com`. Verify the hosted admin route and
+  Access policy before enabling access.
 - Thirty-second polling provides prompt updates initially. Revisit push delivery
   if a demonstrated requirement needs lower latency.
 - The first reader uses restricted text formatting. Plan images/attachments only
