@@ -306,6 +306,10 @@ Current checkpoint (2026-11-13):
   IDs and an offline restart. Screenshots were inspected at two window sizes.
 - News links, remaining queue/input cases, hosted administration and the full F2
   capture/annotation path still need implementation or integration review.
+- The displayed-image reservation backend is implemented. Its D3D12 test checks
+  that queued newer frames and a changed resolution cannot replace a reserved
+  capture. The diagnostic collector and host-only input/log history are also
+  implemented; F2 activation, annotation and upload still need to connect them.
 
 Reusable reviews are `melee/tools/review_native_fighter_deletion.py` and
 `melee/tools/review_native_community.py`. Both use hidden, muted clients with

@@ -214,6 +214,15 @@ const NativeSourcePackage* nativeFighterRuntime_SourcePackage(FighterKind kind)
         if(slots[i].active && slots[i].fighter_kind==kind)return slots[i].source;
     return NULL;
 }
+const NativeContentId* nativeFighterRuntime_PackageId(FighterKind kind)
+{
+    for (unsigned i=0;i<NATIVE_FIGHTER_ACTOR_CAPACITY;++i) {
+        const NativeFighterSlot* slot=&slots[i];
+        if (slot->active && slot->fighter_kind==kind && slot->family && slot->family->active)
+            return &slot->family->id;
+    }
+    return NULL;
+}
 
 bool nativeFighterRuntime_AlternatePair(FighterKind first,FighterKind second)
 {

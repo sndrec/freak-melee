@@ -514,6 +514,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub.cpp
     src/melee/ui/native_hub_news.cpp
     src/melee/gm/native_community.cpp
+    src/melee/gm/native_feedback_context.c
     src/melee/ui/native_hub_startup.cpp
     src/melee/ui/native_hub_startup_view.cpp
     src/melee/ui/native_hub_startup_roster.cpp

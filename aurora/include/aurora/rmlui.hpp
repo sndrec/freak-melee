@@ -12,6 +12,8 @@
 #include <string>
 #include <string_view>
 
+union SDL_Event;
+
 namespace aurora::rmlui {
 
 enum class InputType {
@@ -26,6 +28,9 @@ inline constexpr const char* TouchCancelEvent = "touchcancel";
 
 Rml::Context* get_context() noexcept;
 bool is_initialized() noexcept;
+// Dispatch input to the current RmlUi document. An application event filter can
+// use this for a modal overlay, then consume the event before game dispatch.
+void handle_event(SDL_Event& event) noexcept;
 void set_input_type(InputType type) noexcept;
 void set_ui_scale(float scale) noexcept;
 float get_ui_scale() noexcept;

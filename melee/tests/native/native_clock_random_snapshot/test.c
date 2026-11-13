@@ -50,6 +50,7 @@ int PADReset(unsigned long mask) { (void)mask; return true; }
 void PADControlMotor(s32 port, u32 command) { (void)port; (void)command; ++motors; }
 bool nativeReplay_IsPlayback(void) { return true; }
 void nativeReplay_RecordPads(const PADStatus* status) { CHECK(status); }
+void nativeFeedbackContext_RecordPads(const PADStatus* status) { CHECK(status); }
 void nativeProfileInput_Apply(PADStatus status[4]) { (void)status; CHECK(false); }
 void HSD_DevComPoll(void) { CHECK(false); }
 void HSD_AudioOutputPoll(void) { CHECK(false); }

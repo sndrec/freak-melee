@@ -26,6 +26,7 @@ void PADControlMotor(s32 port, u32 command)
 { CHECK(port >= 0 && port < 4 && command <= PAD_MOTOR_STOP_HARD); ++motor_calls; }
 bool nativeReplay_IsPlayback(void) { return true; }
 void nativeReplay_RecordPads(const PADStatus* status) { CHECK(status); ++recordings; }
+void nativeFeedbackContext_RecordPads(const PADStatus* status) { CHECK(status); }
 void nativeProfileInput_Apply(PADStatus status[4]) { (void)status; CHECK(false); }
 
 static void filter(PADStatus status[4])

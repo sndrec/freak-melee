@@ -80,6 +80,9 @@ int PADReset(unsigned long mask) { (void)mask; return true; }
 void PADControlMotor(s32 port,u32 command) { (void)port; (void)command; ++fixture_motors; }
 bool nativeReplay_IsPlayback(void) { return true; }
 void nativeReplay_RecordPads(const PADStatus* status) { (void)status; ++replay_samples; }
+void nativeFeedbackContext_RecordPads(const PADStatus* status) { (void)status; }
+void nativeFeedbackContext_Boundary(int scene, int64_t tick, uint64_t rollback, bool resimulating, bool online)
+{ (void)scene; (void)tick; (void)rollback; (void)resimulating; (void)online; }
 u64 nativeReplay_SampleCount(void) { return replay_samples; }
 void nativeProfileInput_Apply(PADStatus status[4]) { (void)status; abort(); }
 void HSD_DevComPoll(void) {}

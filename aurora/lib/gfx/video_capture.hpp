@@ -1,8 +1,11 @@
 #pragma once
-#include "screenshot.hpp"
+#include "../webgpu/gpu.hpp"
+#include <array>
+#include <functional>
+#include <vector>
 
 namespace aurora::gfx::video_capture {
-struct Command { unsigned operation = 0; screenshot::Path path{}; };
+struct Command { unsigned operation = 0; std::array<char, 1024> path{}; };
 // Game-thread commands become immutable parts of the submitted frame.
 bool request(const char* path);
 Command take_request();

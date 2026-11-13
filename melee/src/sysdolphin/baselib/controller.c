@@ -8,6 +8,7 @@
 #ifdef MELEE_NATIVE
 #include <melee/gm/native_replay.h>
 #include <melee/gm/native_profile_input.h>
+#include <melee/gm/native_feedback_history.h>
 #include "native_controller_snapshot_internal.h"
 #endif
 
@@ -73,6 +74,7 @@ void HSD_PadRenewRawStatus(bool err_check)
     if (nativeControllerRawFilter != NULL) {
         nativeControllerRawFilter(now);
     }
+    nativeFeedbackContext_RecordPads(now);
 #endif
     if (err_check) {
         for (i = 0; i < 4; i++) {

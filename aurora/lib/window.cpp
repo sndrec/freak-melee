@@ -179,7 +179,8 @@ void sync_paused() {
 
 void process_event(SDL_Event& event) {
   const bool primaryWindow = targets_primary_window(&event);
-  if (primaryWindow) {
+  const bool consumed = primaryWindow && g_config.eventFilter && g_config.eventFilter(&event);
+  if (primaryWindow && !consumed) {
 #ifdef AURORA_ENABLE_GX
     imgui::process_event(event);
 #endif
@@ -274,11 +275,13 @@ void process_event(SDL_Event& event) {
   if (primaryWindow) {
     sync_paused();
   }
-  retain_event_strings(event);
-  g_events.push_back(AuroraEvent{
-      .type = AURORA_SDL_EVENT,
-      .sdl = event,
-  });
+  if (!consumed) {
+    retain_event_strings(event);
+    g_events.push_back(AuroraEvent{
+        .type = AURORA_SDL_EVENT,
+        .sdl = event,
+    });
+  }
 }
 } // namespace
 

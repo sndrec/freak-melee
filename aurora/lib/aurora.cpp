@@ -4,7 +4,7 @@
 #ifdef AURORA_ENABLE_GX
 #include "gfx/resources.hpp"
 #include "gfx/frame.hpp"
-#include "gfx/screenshot.hpp"
+#include "gfx/presented_capture.hpp"
 #include "gfx/video_capture.hpp"
 #include "gfx/recording.hpp"
 #include "gfx/render_worker.hpp"
@@ -298,7 +298,7 @@ void end_frame(bool present) noexcept {
   wgpu::BindGroup rmlBindGroup;
   webgpu::Viewport rmlViewport{};
   bool rmlOverlay = false;
-  gfx::screenshot::Path screenshotPath{};
+  const auto captureBackdrop = gfx::presented_capture::backdrop();
   gfx::video_capture::Command videoCapture;
   if (present) {
     const uint64_t imguiStarted = profiled ? SDL_GetTicksNS() : 0;
@@ -324,11 +324,10 @@ void end_frame(bool present) noexcept {
       rmlOverlay = rmlFrame.overlay;
     }
 #endif
-    screenshotPath = gfx::screenshot::take_request();
     videoCapture = gfx::video_capture::take_request();
   }
   if (profiled) frame_profile::mark(frame_profile::Phase::Overlay);
-  gfx::end_frame([present, videoBlack = g_videoBlack, screenshotPath, videoCapture, rmlBindGroup = std::move(rmlBindGroup),
+  gfx::end_frame([present, videoBlack = g_videoBlack, captureBackdrop, videoCapture, rmlBindGroup = std::move(rmlBindGroup),
                   rmlViewport, rmlOverlay, viewport,
                   imguiDrawData = std::move(imguiDrawData)](
                      wgpu::CommandEncoder& encoder, std::vector<gfx::AfterSubmitCallback> afterSubmitCallbacks) {
@@ -362,7 +361,13 @@ void end_frame(bool present) noexcept {
       encoder.BeginRenderPass(&descriptor).End();
     } else if (canPresent) {
       wgpu::BindGroup presentBindGroup;
-      if (rmlBindGroup && !rmlOverlay) {
+      auto imageViewport = viewport;
+      if (captureBackdrop.bind_group) {
+        presentBindGroup = captureBackdrop.bind_group;
+        imageViewport = webgpu::calculate_present_viewport(
+            webgpu::g_graphicsConfig.surfaceConfiguration.width, webgpu::g_graphicsConfig.surfaceConfiguration.height,
+            captureBackdrop.extent.width, captureBackdrop.extent.height);
+      } else if (rmlBindGroup && !rmlOverlay) {
         presentBindGroup = rmlBindGroup;
       } else {
         const auto& resampledSource = webgpu::resample_present_source(encoder, viewport);
@@ -386,11 +391,11 @@ void end_frame(bool present) noexcept {
         // Copy EFB -> XFB (swapchain)
         pass.SetPipeline(webgpu::g_CopyPipeline);
         pass.SetBindGroup(0, presentBindGroup, 0, nullptr);
-        set_present_viewport(pass, viewport, webgpu::g_graphicsConfig.surfaceConfiguration.width,
+        set_present_viewport(pass, imageViewport, webgpu::g_graphicsConfig.surfaceConfiguration.width,
                              webgpu::g_graphicsConfig.surfaceConfiguration.height);
 
         pass.Draw(3);
-        if (rmlBindGroup && rmlOverlay) {
+        if (rmlBindGroup && (rmlOverlay || captureBackdrop.bind_group)) {
           pass.SetPipeline(webgpu::g_CopyPremultipliedAlphaPipeline);
           pass.SetBindGroup(0, rmlBindGroup, 0, nullptr);
           set_present_viewport(pass, rmlViewport, webgpu::g_graphicsConfig.surfaceConfiguration.width,
@@ -416,19 +421,19 @@ void end_frame(bool present) noexcept {
         const auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
         pass.SetViewport(0.f, 0.f, static_cast<float>(webgpu::g_graphicsConfig.surfaceConfiguration.width),
                          static_cast<float>(webgpu::g_graphicsConfig.surfaceConfiguration.height), 0.f, 1.f);
-        imgui::render(pass, imguiDrawData);
+        if (!captureBackdrop.bind_group) imgui::render(pass, imguiDrawData);
         pass.End();
       }
     } else if (present) {
       Log.info("Skipping present; window not presentable");
     }
+    int retainedSlot = -1;
     if (present) {
       const wgpu::Extent3D windowExtent{
           webgpu::g_graphicsConfig.surfaceConfiguration.width,
           webgpu::g_graphicsConfig.surfaceConfiguration.height, 1};
-      gfx::screenshot::encode(encoder, screenshotPath, currentTexture,
-                              webgpu::g_graphicsConfig.surfaceConfiguration.format,
-                              windowExtent, afterSubmitCallbacks);
+      retainedSlot = gfx::presented_capture::retain(encoder, currentTexture,
+          webgpu::g_graphicsConfig.surfaceConfiguration.format, windowExtent);
       gfx::video_capture::encode(encoder, videoCapture, currentTexture,
                                  webgpu::g_graphicsConfig.surfaceConfiguration.format,
                                  windowExtent, afterSubmitCallbacks);
@@ -451,6 +456,7 @@ void end_frame(bool present) noexcept {
         }
       }
       if (status) {
+        gfx::presented_capture::publish(retainedSlot);
         gfx::after_present();
       } else {
         Log.warn("Surface present failed");
@@ -544,13 +550,6 @@ void aurora_set_present_margins(uint32_t left, uint32_t right, uint32_t top, uin
   aurora::g_presentRightMargin = right;
   aurora::g_presentTopMargin = top;
   aurora::g_presentBottomMargin = bottom;
-}
-bool aurora_request_screenshot(const char* path) {
-#ifdef AURORA_ENABLE_GX
-  return aurora::gfx::screenshot::request(path);
-#else
-  return false;
-#endif
 }
 bool aurora_request_video_capture(const char* path) {
 #ifdef AURORA_ENABLE_GX

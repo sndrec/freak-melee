@@ -4,6 +4,7 @@
 #include "pipeline_cache.hpp"
 #include "recording.hpp"
 #include "render_worker.hpp"
+#include "presented_capture.hpp"
 #include "resource_cache.hpp"
 #include "tex_copy_conv.hpp"
 #include "tex_palette_conv.hpp"
@@ -521,6 +522,7 @@ void initialize() {
 void shutdown() {
   render_worker::synchronize();
   render_worker::shutdown();
+  presented_capture::shutdown();
   g_processEventsQueued.store(false, std::memory_order_release);
   g_lastPresentNs.store(0, std::memory_order_release);
   g_presentPeriodNs.store(0, std::memory_order_release);

@@ -169,6 +169,12 @@ if (AURORA_ENABLE_GX)
   )
   gtest_discover_tests(render_worker_tests)
 
+  add_executable(presented_capture_tests presented_capture_test.cpp)
+  target_include_directories(presented_capture_tests PRIVATE ../include ../lib)
+  target_link_libraries(presented_capture_tests PRIVATE aurora::gx aurora::vi gtest gtest_main PNG::PNG)
+  aurora_copy_runtime_dlls(presented_capture_tests)
+  gtest_discover_tests(presented_capture_tests)
+
   add_executable(gfx_recording_tests
     gfx_recording_test.cpp
     render_target_layout_test.cpp

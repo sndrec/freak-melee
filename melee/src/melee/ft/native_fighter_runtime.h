@@ -498,6 +498,9 @@ struct NativeSourcePackage;
 // The actual selected source candidate, with owned data-only facts and arenas.
 // Native Definition is absent for these actors; no DLL-shaped substitute.
 const struct NativeSourcePackage* nativeFighterRuntime_SourcePackage(FighterKind);
+// Immutable identity of the package that owns an active runtime fighter kind.
+// Returns NULL for an ordinary stock fighter or an unregistered kind.
+const NativeContentId* nativeFighterRuntime_PackageId(FighterKind);
 // Both kinds must be distinct members of the same active alternate family.
 // Player role permutation is separate from this immutable membership query.
 bool nativeFighterRuntime_AlternatePair(FighterKind first,FighterKind second);

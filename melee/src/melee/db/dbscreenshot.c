@@ -77,7 +77,7 @@ void db_TakeScreenshotIfPending(void)
     snprintf(path, sizeof(path), "screenshots/melee-%lld-%lu-%04d.png",
              (long long) time(NULL), (unsigned long) GetCurrentProcessId(),
              db_ScreenshotNumber);
-    if (aurora_request_screenshot(path)) {
+    if (aurora_capture_presented(path, false, NULL)) {
         db_ScreenshotNumber++;
         db_ScreenshotPending = 0;
     }

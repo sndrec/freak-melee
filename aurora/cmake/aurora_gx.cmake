@@ -3,7 +3,7 @@ add_library(aurora_gx STATIC
         lib/gfx/depth_peek.cpp
         lib/gfx/encoding.cpp
         lib/gfx/frame.cpp
-        lib/gfx/screenshot.cpp
+        lib/gfx/presented_capture.cpp
         lib/gfx/video_capture.cpp
         lib/gfx/png_writer.cpp
         lib/gfx/image_export.cpp

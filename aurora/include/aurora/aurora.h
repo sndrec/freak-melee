@@ -72,9 +72,13 @@ typedef struct {
 
 typedef struct SDL_Window SDL_Window;
 typedef struct AuroraEvent AuroraEvent;
+union SDL_Event;
 
 typedef void (*AuroraLogCallback)(AuroraLogLevel level, const char* module, const char* message, unsigned int len);
 typedef void (*AuroraImGuiInitCallback)(const AuroraWindowSize* size);
+// Runs on the application thread before UI dispatch. A consumed event still
+// receives window/device lifecycle handling, but is not sent to game controls.
+typedef bool (*AuroraEventFilter)(const union SDL_Event* event);
 
 #define MEM1_DEFAULT_SIZE (24 * 1024 * 1024)
 #define ARAM_DEFAULT_SIZE (16 * 1024 * 1024)
@@ -105,6 +109,7 @@ typedef struct {
   AuroraLogCallback logCallback;
   AuroraLogLevel logLevel;
   AuroraImGuiInitCallback imGuiInitCallback;
+  AuroraEventFilter eventFilter;
 
   /*
    * The size of the GameCube's main memory, or MEM1 on the Wii.
@@ -147,10 +152,26 @@ void aurora_set_video_black(bool black);
 // Reserve surface space around the presented game image. The image keeps its
 // source aspect ratio and is centered within the remaining area.
 void aurora_set_present_margins(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom);
-// Game-thread request: capture the next presented window frame to a PNG file.
-// Returns false for an invalid path or while another capture is outstanding.
-// Acceptance is not completion; readback/write failures are reported to the log.
-bool aurora_request_screenshot(const char* path);
+typedef enum AuroraCaptureStatus {
+  AURORA_CAPTURE_NONE, AURORA_CAPTURE_PENDING, AURORA_CAPTURE_READY, AURORA_CAPTURE_FAILED
+} AuroraCaptureStatus;
+typedef struct AuroraPresentedCapture {
+  uint64_t capture_id;
+  uint64_t displayed_frame;
+  uint64_t presented_at_ns;
+  uint32_t width, height;
+  AuroraCaptureStatus status;
+  char error[160];
+} AuroraPresentedCapture;
+// Reserve the last successfully presented full-window image immediately.
+// Readback/PNG writing complete asynchronously. retain_image keeps this same
+// GPU image available as a frozen backdrop until explicitly released.
+bool aurora_capture_presented(const char* png_path, bool retain_image, AuroraPresentedCapture* info);
+// Retry or export the already reserved image, preserving its capture/frame IDs.
+bool aurora_write_presented_capture(const char* png_path);
+void aurora_presented_capture_status(AuroraPresentedCapture* info);
+void aurora_set_capture_backdrop(bool enabled);
+void aurora_release_presented_capture();
 // Record presented frames as a binary PPM stream. A named pipe can feed a video
 // encoder directly. NULL stops and flushes at the next presented frame.
 bool aurora_request_video_capture(const char* path);

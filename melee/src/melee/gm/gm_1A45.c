@@ -4,6 +4,7 @@
 #include <melee/gm/native_match_control_history.h>
 #include "gm_1A45.h"
 #include "native_match_classes.h"
+#include "native_feedback_history.h"
 
 #include "gm_1A36.h"
 #include "gm_1A45.static.h"
@@ -461,6 +462,8 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_Input);
         bool watch_frame_ready = !spectating;
         do {
+            nativeFeedbackContext_Boundary(info->scene_kind, temp_r25->unk_0, rollback_frame,
+                (netplay && nativeNetplayMatch_IsResimulating()) || nativeSnapshotCensus_IsResimulating(), netplay);
             dbNativeControl_Poll();
             const AuroraEvent* event = aurora_update();
             for (; event && event->type != AURORA_NONE; ++event) {

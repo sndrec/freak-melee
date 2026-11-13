@@ -27,6 +27,7 @@ def main():
     base = ROOT / 'src/sysdolphin/baselib'
     names = ['controller.c', 'rumble.c', 'rumble_output.c', 'native_controller_snapshot.c', 'random.c']
     pairs = [(base/name, frozen/'src/sysdolphin/baselib'/name) for name in names]
+    pairs.append((ROOT/'src/melee/gm/native_match_arena.c', frozen/'src/melee/gm/native_match_arena.c'))
     pairs.append((ROOT/'src/melee/lb/lb_0195.c', frozen/'src/melee/lb/lb_0195.c'))
     pairs.append((ROOT/'tests/native/input_timing_test.c', frozen/'input_timing_test.c'))
     for directory in [ROOT/'src', ROOT/'extern/dolphin/include']:
@@ -44,6 +45,7 @@ def main():
              '-D_CRT_SECURE_NO_WARNINGS', '-D_USE_MATH_DEFINES',
              '-I'+str(frozen/'src'), '-I'+str(frozen/'dolphin')]
     units = [frozen/'src/sysdolphin/baselib'/name for name in names]
+    units.insert(0, frozen/'src/melee/gm/native_match_arena.c')
     units.append(frozen/'src/melee/lb/lb_0195.c')
     receipt = dict(status='RUNNING', original_sha256=original, snapshot_sha256=pins,
                    compiler_sha256=sha(args.compiler), commands=[], limits=[
@@ -67,6 +69,7 @@ def main():
         receipt['summary'] = json.loads(result.stdout)
         assert receipt['summary']['status'] == 'PASS'
         timing_cmd = [str(args.compiler), *flags, '-fuse-ld=lld', str(units[-1]),
+                      str(frozen/'src/melee/gm/native_match_arena.c'),
                       str(frozen/'input_timing_test.c'), '-o', str(out/'timing.exe')]
         for stage, command in [('timing-compile', timing_cmd), ('timing', [str(out/'timing.exe')])]:
             result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
