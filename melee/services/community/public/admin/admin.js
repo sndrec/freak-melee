@@ -1,3 +1,4 @@
+import {formatNews} from "./news-format.js";
 const $ = id => document.getElementById(id);
 let tab = "", current = null, next = null, reportId = null;
 let listRequest = 0, detailRequest = 0, tabRequest = 0, saving = false;
@@ -40,22 +41,10 @@ function restoreForm(value) {
   $("revision").textContent=current?`Revision ${current.revision}`:"Draft";
   $("preview").hidden=true;
 }
-function formatText(parent,body) {
-  for(const block of body.split(/\n\s*\n/u)) {
-    if(!block.trim())continue;
-    const heading=/^(#{1,3}) (.*)$/u.exec(block);
-    const lines=block.split("\n");
-    const bullet=lines.every(line=>line.startsWith("- "));
-    const element=document.createElement(heading?`h${heading[1].length+1}`:bullet?"ul":"p");
-    if(bullet)for(const line of lines){const item=document.createElement("li");item.textContent=line.slice(2);element.append(item);}
-    else element.textContent=heading?heading[2]:block;
-    parent.append(element);
-  }
-}
 function preview() {
   const pane=$("preview");pane.replaceChildren();pane.classList.toggle("notice",tab==="announcements");
   const title=document.createElement("h1");title.textContent=$("title").value||"Untitled";pane.append(title);
-  formatText(pane,$("body").value);pane.hidden=false;
+  formatNews(pane,$("body").value);pane.hidden=false;
 }
 function recordButton(row) {
   const button=document.createElement("button");button.className="record";
@@ -136,10 +125,10 @@ async function openRecord(key) {
     for(const note of row.notes) {
       const pin=document.createElement("button");pin.className="pin";pin.dataset.pin=note.id;
       pin.style.left=`${note.x*100}%`;pin.style.top=`${note.y*100}%`;pin.title=note.text;
-      const number=document.createElement("span");number.textContent=String(note.id+1);pin.append(number);
+      const number=document.createElement("span");number.textContent=String(note.id);pin.append(number);
       pin.onclick=()=>selectPin(note.id);$("pins").append(pin);
       const item=document.createElement("div");item.className="note";item.dataset.pin=note.id;
-      const title=document.createElement("strong");title.textContent=`Note ${note.id+1}`;
+      const title=document.createElement("strong");title.textContent=`Note ${note.id}`;
       item.append(title,document.createTextNode(note.text));item.onclick=()=>selectPin(note.id);$("notes").append(item);
     }
     try {

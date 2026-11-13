@@ -1,7 +1,7 @@
 #pragma once
 #include <aurora/aurora.h>
 
-enum class NativeFeedbackAction { None, ConfirmSend, Send, Retry, Discard, Close };
+enum class NativeFeedbackAction { None, ConfirmSend, ConfirmDiscard, Send, Retry, Discard, Close };
 struct NativeFeedbackPin { unsigned id; float x, y; char text[8193]; };
 struct NativeFeedbackDraft {
     char id[37], captured_at[40], image_path[1024], context_path[1024];
@@ -15,4 +15,4 @@ void nativeFeedbackView_Update();
 bool nativeFeedbackView_Key(int scancode, bool shift);
 NativeFeedbackAction nativeFeedbackView_Action();
 void nativeFeedbackView_Status(const char* message, bool locked, bool retry, bool complete);
-void nativeFeedbackView_Confirm();
+void nativeFeedbackView_Confirm(bool discard = false);

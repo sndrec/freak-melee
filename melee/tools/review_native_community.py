@@ -49,7 +49,7 @@ def main():
         def do_GET(self):
             path = urlsplit(self.path)
             if path.path == "/v1/feed":
-                result = {"headline": state["headline"], "announcements": state["announcements"]}
+                result = {"headline": state["headline"], "announcements": state["announcements"], "announcements_next": None}
             elif path.path == "/v1/news":
                 older = bool(parse_qs(path.query).get("before"))
                 result = {"entries": rows[25:] if older else rows[:25],
@@ -60,6 +60,12 @@ def main():
                     self.send_error(404)
                     return
                 result = {**row, "body": article_body}
+            elif path.path.startswith("/v1/announcements/"):
+                row = next((r for r in state["announcements"] if r["delivery_id"] == path.path.rsplit("/", 1)[-1]), None)
+                if row is None:
+                    self.send_error(404)
+                    return
+                result = row
             else:
                 self.send_error(404)
                 return

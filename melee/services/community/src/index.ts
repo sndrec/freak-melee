@@ -13,7 +13,8 @@ export default {
       if ((url.pathname === "/" || url.pathname === "/admin") && request.method === "GET")
         return Response.redirect(new URL("/admin/", url).href, 302);
       if (url.pathname === "/v1/feedback") return await submitFeedback(request, env);
-      if (url.pathname === "/v1/feed" || url.pathname === "/v1/news" || url.pathname.startsWith("/v1/news/"))
+      if (url.pathname === "/v1/feed" || url.pathname === "/v1/news" || url.pathname.startsWith("/v1/news/") ||
+          url.pathname === "/v1/announcements" || url.pathname.startsWith("/v1/announcements/"))
         return await publicNews(request, env);
       if (url.pathname.startsWith("/admin/")) {
         await requireAdmin(request, env);

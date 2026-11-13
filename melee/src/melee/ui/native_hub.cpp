@@ -303,7 +303,7 @@ namespace {
     }
     void key(SDL_Keycode key, SDL_Keymod modifiers)
     {
-        if (nativeHubNotice_BlocksInput()) { nativeHubNotice_Dismiss(); return; }
+        if (nativeHubNotice_BlocksInput()) { nativeHubNotice_Dismiss(key == SDLK_X); return; }
         if (key == SDLK_ESCAPE) {
             if (hub.field) {
                 text_focus(nullptr, 0);
@@ -1039,6 +1039,7 @@ extern "C" bool nativeHub_IsVisible(void)
 {
     return hub.visible;
 }
+extern "C" NativeHubPage nativeHub_CurrentPage(void) { return hub.page; }
 extern "C" bool nativeHub_ConsumesGameInput(void)
 {
     return hub.visible || hub.consumes_input;
@@ -1178,9 +1179,14 @@ extern "C" void nativeHub_Tick(void)
     if (nativeHubNotice_BlocksInput()) {
         nativeMenuScene_Tick(false);
         hub.pending_action = 0;
-        for (unsigned port = 0; port < 4; ++port)
-            if (!HSD_PadCopyStatus[port].err && HSD_PadCopyStatus[port].trigger)
-                nativeHubNotice_Dismiss();
+        for (unsigned port = 0; port < 4; ++port) {
+            const auto& pad = HSD_PadCopyStatus[port];
+            if (pad.err || !pad.trigger) continue;
+            if (pad.trigger & PAD_BUTTON_X) nativeHubNotice_Dismiss(true);
+            else if (pad.trigger & PAD_BUTTON_A) nativeHubNotice_Click(hub.pointer_x, hub.pointer_y);
+            else nativeHubNotice_Dismiss();
+            break;
+        }
         return;
     }
     if (hub.pending_action) {
@@ -1349,8 +1355,12 @@ extern "C" void nativeHub_MovePointer(int x, int y)
 }
 extern "C" void nativeHub_ClickAt(int x, int y, int button)
 {
-    if (nativeHubNotice_BlocksInput()) { nativeHubNotice_Dismiss(); return; }
     nativeHub_MovePointer(x, y);
+    if (nativeHubNotice_BlocksInput()) {
+        if (!button) nativeHubNotice_Click(hub.pointer_x, hub.pointer_y);
+        else nativeHubNotice_Dismiss();
+        return;
+    }
     if (button == 0) {
         click();
     } else if (button == 1) {
@@ -1448,8 +1458,13 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         hub.pressed = false;
     }
     if (hub.visible && nativeHubNotice_BlocksInput()) {
-        if ((event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat) ||
-            event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) nativeHubNotice_Dismiss();
+        if (event->type == SDL_EVENT_MOUSE_MOTION) nativeHub_MovePointer(int(event->motion.x), int(event->motion.y));
+        if (event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat) nativeHubNotice_Dismiss(event->key.key == SDLK_X);
+        if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            nativeHub_MovePointer(int(event->button.x), int(event->button.y));
+            if (event->button.button == SDL_BUTTON_LEFT) nativeHubNotice_Click(hub.pointer_x, hub.pointer_y);
+            else nativeHubNotice_Dismiss();
+        }
         return;
     }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F1 &&

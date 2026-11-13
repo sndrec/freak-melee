@@ -13,10 +13,10 @@
 namespace {
 Rml::ElementDocument* document;
 NativeFeedbackDraft* draft;
-Rml::ElementDocument* hidden[32];
+Rml::ObserverPtr<Rml::Element> hidden[32];
 unsigned hidden_count;
-Rml::Element* old_focus;
-bool old_overlay, locked, modal, retry_enabled, finished, controls_visible;
+Rml::ObserverPtr<Rml::Element> old_focus;
+bool old_overlay, locked, modal, discard_confirmation, retry_enabled, finished, controls_visible;
 NativeFeedbackAction action;
 int selected = -1;
 uint64_t bubble_until;
@@ -129,9 +129,9 @@ class Events final : public Rml::EventListener {
         if (id == "feedback-close") { action = NativeFeedbackAction::Close; return; }
         if (id == "feedback-retry") { action = NativeFeedbackAction::Retry; return; }
         if (locked) return;
-        if (id == "feedback-exit") { action = NativeFeedbackAction::Discard; return; }
+        if (id == "feedback-exit") { action = NativeFeedbackAction::ConfirmDiscard; return; }
         if (id == "feedback-keep") { modal = false; visible("feedback-modal", false); return; }
-        if (id == "feedback-send") { action = NativeFeedbackAction::Send; return; }
+        if (id == "feedback-send") { action = discard_confirmation ? NativeFeedbackAction::Discard : NativeFeedbackAction::Send; return; }
         if (modal) return;
         if (id == "feedback-done") { commit(); return; }
         if (id == "feedback-remove") { remove_note(); return; }
@@ -160,7 +160,7 @@ bool nativeFeedbackView_Open(NativeFeedbackDraft& value)
         for (const char* name : {"click", "mouseover", "mouseout"}) document->AddEventListener(name, &events);
     }
     draft = &value; action = NativeFeedbackAction::None; selected = -1;
-    bubble_until = 0; locked = modal = retry_enabled = finished = false;
+    bubble_until = 0; locked = modal = discard_confirmation = retry_enabled = finished = false;
     controls_visible = true; visible("feedback-header", true); visible("feedback-status", true);
     hidden_count = 0;
     // Finish pointer capture outside the old document's hover targets before
@@ -170,10 +170,11 @@ bool nativeFeedbackView_Open(NativeFeedbackDraft& value)
     for (unsigned button = 1; button <= 5; ++button) {
         release.button.button = Uint8(button); aurora::rmlui::handle_event(release);
     }
-    old_focus = context->GetFocusElement();
+    old_focus = {};
+    if (auto* focus = context->GetFocusElement()) old_focus = focus->GetObserverPtr();
     for (int i = 0; i < context->GetNumDocuments(); ++i) {
         auto* item = context->GetDocument(i);
-        if (item != document && item->IsVisible()) { hidden[hidden_count++] = item; item->Hide(); }
+        if (item != document && item->IsVisible()) { hidden[hidden_count++] = item->GetObserverPtr(); item->Hide(); }
     }
     old_overlay = aurora::rmlui::get_surface_overlay(); aurora::rmlui::set_surface_overlay(true);
     visible("feedback-modal", false); visible("feedback-bubble", false); visible("feedback-hover", false);
@@ -185,10 +186,11 @@ void nativeFeedbackView_Close()
 {
     if (!draft) return;
     document->Hide();
-    for (unsigned i = 0; i < hidden_count; ++i) hidden[i]->Show();
-    if (old_focus) old_focus->Focus();
+    for (unsigned i = 0; i < hidden_count; ++i)
+        if (auto* item = hidden[i].get()) static_cast<Rml::ElementDocument*>(item)->Show();
+    if (auto* focus = old_focus.get(); focus && focus->IsVisible()) focus->Focus();
     aurora::rmlui::set_surface_overlay(old_overlay);
-    hidden_count = 0; old_focus = nullptr; draft = nullptr;
+    hidden_count = 0; old_focus = {}; draft = nullptr;
 }
 void nativeFeedbackView_Update()
 {
@@ -213,7 +215,7 @@ bool nativeFeedbackView_Key(int key, bool shift)
             if (!*draft->pins[selected].text) remove_note();
             else { selected = -1; visible("feedback-bubble", false); }
         }
-        else action = NativeFeedbackAction::Discard;
+        else action = NativeFeedbackAction::ConfirmDiscard;
         return true;
     }
     if ((key == SDL_SCANCODE_RETURN || key == SDL_SCANCODE_KP_ENTER) && !shift) {
@@ -222,7 +224,7 @@ bool nativeFeedbackView_Key(int key, bool shift)
             else if (finished) action = NativeFeedbackAction::Close;
             return true;
         }
-        if (modal) action = NativeFeedbackAction::Send;
+        if (modal) action = discard_confirmation ? NativeFeedbackAction::Discard : NativeFeedbackAction::Send;
         else if (selected >= 0 && !bubble_until) commit();
         else { if (commit()) action = NativeFeedbackAction::ConfirmSend; }
         return true;
@@ -231,13 +233,14 @@ bool nativeFeedbackView_Key(int key, bool shift)
 }
 NativeFeedbackAction nativeFeedbackView_Action()
 { const auto result = action; action = NativeFeedbackAction::None; return result; }
-void nativeFeedbackView_Confirm()
+void nativeFeedbackView_Confirm(bool discard)
 {
     if (!commit()) return;
     selected = -1; bubble_until = 0; visible("feedback-bubble", false); visible("feedback-hover", false);
-    modal = true;
-    text("feedback-dialog-title", "Send feedback?");
-    text("feedback-dialog-text", "Send this screenshot, your notes, and gameplay diagnostics?");
+    modal = true; discard_confirmation = discard;
+    text("feedback-dialog-title", discard ? "Discard feedback?" : "Send feedback?");
+    text("feedback-dialog-text", discard ? "Discard this screenshot and your notes?" : "Send this screenshot, your notes, and gameplay diagnostics?");
+    text("feedback-send", discard ? "Discard feedback" : "Send feedback");
     visible("feedback-modal", true); visible("feedback-keep", true); visible("feedback-send", true);
     visible("feedback-retry", false); visible("feedback-close", false);
     element("feedback-keep")->Focus();

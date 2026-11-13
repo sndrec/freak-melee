@@ -58,6 +58,35 @@ describe("community publishing", () => {
     expect((await body(await publicNews(request("/v1/feed"), testEnv))).announcements).toEqual([]);
   });
 
+  it("pages through every active announcement and refreshes an older delivery by ID", async () => {
+    const at = Date.now() - 2000;
+    const ids = Array.from({length: 130}, () => crypto.randomUUID()).sort().reverse();
+    const deliveries = ids.map(() => crypto.randomUUID());
+    await testEnv.COMMUNITY.batch(ids.map((key, i) => testEnv.COMMUNITY.prepare(
+      "INSERT INTO announcements(id,delivery_id,title,body,published_at,updated_at) VALUES(?,?,?,?,?,?)"
+    ).bind(key, deliveries[i], `Notice ${i}`, "Read this.", at, at)));
+    const feed = await body(await publicNews(request("/v1/feed"), testEnv));
+    expect((feed.announcements as unknown[]).length).toBe(64);
+    const found = (feed.announcements as {id:string}[]).map(row => row.id);
+    let next = feed.announcements_next;
+    while (next) {
+      const page = await body(await publicNews(request(`/v1/announcements?before=${next}`), testEnv));
+      found.push(...(page.entries as {id:string}[]).map(row => row.id));
+      next = page.next;
+    }
+    expect(found).toEqual(ids);
+    const route = `/v1/announcements/${deliveries[100]}`;
+    expect(await body(await publicNews(request(route), testEnv))).toMatchObject({title:"Notice 100"});
+    await testEnv.COMMUNITY.prepare("UPDATE announcements SET body='Updated',revision=revision+1 WHERE id=?").bind(ids[100]).run();
+    expect(await body(await publicNews(request(route), testEnv))).toMatchObject({body:"Updated",revision:2});
+    await testEnv.COMMUNITY.prepare("UPDATE announcements SET withdrawn=1 WHERE id=?").bind(ids[100]).run();
+    await expect(publicNews(request(route), testEnv)).rejects.toMatchObject({status:404});
+    await testEnv.COMMUNITY.prepare("UPDATE announcements SET expires_at=? WHERE id=?").bind(at, ids[101]).run();
+    await expect(publicNews(request(`/v1/announcements/${deliveries[101]}`), testEnv)).rejects.toMatchObject({status:404});
+    await expect(publicNews(request("/v1/announcements?before=broken"), testEnv)).rejects.toMatchObject({status:400});
+    await testEnv.COMMUNITY.batch(ids.map(key => testEnv.COMMUNITY.prepare("DELETE FROM announcements WHERE id=?").bind(key)));
+  });
+
   it("denies admin routes when authentication is unconfigured", async () => {
     const response = await worker.fetch(request("/admin/api/news"), testEnv);
     expect(response.status).toBe(503);

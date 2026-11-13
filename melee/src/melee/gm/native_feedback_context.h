@@ -11,9 +11,16 @@ extern "C" {
 // copied into an immutable report before annotation changes input or UI state.
 void nativeFeedbackContext_Log(AuroraLogLevel, const char* module, const char* message, unsigned length);
 bool nativeFeedbackContext_Online(void);
+typedef struct NativeFeedbackInterface {
+    const char* workspace;
+    const char* mode;
+    const char* focused_control;
+    int hub_page;
+    bool menu_transition;
+} NativeFeedbackInterface;
 bool nativeFeedbackContext_Write(const char* path, const char* id, const char* captured_at,
                                  const AuroraPresentedCapture* image,
-                                 const char* workspace, const char* focused_control);
+                                 const NativeFeedbackInterface* interface_state);
 #ifdef __cplusplus
 }
 #endif

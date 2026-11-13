@@ -414,6 +414,19 @@ add_library(melee_game OBJECT ${MELEE_GAME_SOURCES})
 target_compile_options(melee_game PRIVATE "$<$<COMPILE_LANGUAGE:C>:${NATIVE_MATH_COMPILE_OPTIONS}>")
 set(NATIVE_NETPLAY_DIAGNOSTICS_URL "" CACHE STRING "Playtest-only HTTPS desync report endpoint")
 set(NATIVE_NETPLAY_DIAGNOSTICS_BUILD "" CACHE STRING "Build label for playtest desync reports")
+# The upstream repository contains both melee/ and aurora/. The retained donor
+# checkout inside melee/ has its own history and is not this client's revision.
+execute_process(COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}/.." rev-parse HEAD
+    OUTPUT_VARIABLE NATIVE_FEEDBACK_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}/.." status --porcelain --untracked-files=no
+    OUTPUT_VARIABLE NATIVE_FEEDBACK_SOURCE_CHANGES ERROR_QUIET)
+if(NATIVE_FEEDBACK_SOURCE_REVISION MATCHES "^[0-9a-f]+$")
+    if(NATIVE_FEEDBACK_SOURCE_CHANGES)
+        string(APPEND NATIVE_FEEDBACK_SOURCE_REVISION "-modified")
+    endif()
+    set_property(SOURCE src/melee/gm/native_feedback_context.c APPEND PROPERTY COMPILE_DEFINITIONS
+        "NATIVE_FEEDBACK_SOURCE_REVISION=\"${NATIVE_FEEDBACK_SOURCE_REVISION}\"")
+endif()
 if(NATIVE_NETPLAY_DIAGNOSTICS_BUILD)
     if(NOT NATIVE_NETPLAY_DIAGNOSTICS_BUILD MATCHES "^[A-Za-z0-9._-]+$")
         message(FATAL_ERROR "The client build label must contain letters, numbers, dots, underscores or dashes")
@@ -521,6 +534,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/mn/native_online_sss.c
     src/melee/ui/native_hub.cpp
     src/melee/ui/native_hub_news.cpp
+    src/melee/ui/native_hub_announcements.cpp
+    src/melee/ui/native_news_text.cpp
     src/melee/gm/native_community.cpp
     src/melee/gm/native_community_upload.cpp
     src/melee/gm/native_feedback.cpp
@@ -2168,6 +2183,10 @@ add_executable(native_feedback_input_test tests/native/native_feedback_input_tes
 target_include_directories(native_feedback_input_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_feedback_input_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_feedback_input COMMAND native_feedback_input_test)
+add_executable(native_news_text_test tests/native/native_news_text_test.cpp
+    src/melee/ui/native_news_text.cpp)
+target_include_directories(native_news_text_test PRIVATE src)
+add_test(NAME native_news_text COMMAND native_news_text_test)
 add_executable(melee_native src/melee/gm/gmmain.c)
 target_include_directories(melee_native PRIVATE src extern/dolphin/include)
 target_compile_definitions(melee_native PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)

@@ -1299,6 +1299,33 @@ void nativeNetplayMatch_Abort(const char* reason)
     fail(reason);
 }
 
+void nativeNetplayMatch_Observe(NativeNetplayObservation* result)
+{
+    *result = (NativeNetplayObservation){
+        .active=netplay.active, .failed=netplay.failed, .replaying=netplay.checkpoint.replaying,
+        .frame=netplay.current_frame, .checkpoint=netplay.checkpoint.boundary,
+        .restores=netplay.checkpoint.restores, .replay_ticks=netplay.checkpoint.replay_ticks,
+        .wait_ms=netplay.input_stall_ms, .pace_delay_ns=netplay.pace_delay_ns,
+        .corrections=netplay.correction_count, .input_stalls=netplay.input_stall_count,
+        .compared_checksums=netplay.compared_digest_count, .local_mask=netplay.inputs.local_mask,
+        .max_correction_depth=netplay.max_correction_depth,
+    };
+    if (!netplay.active || !netplay.exchange) return;
+    const NativeNetplayExchange* exchange=netplay.exchange;
+    result->received_packets=exchange->received_packets; result->rejected_packets=exchange->rejected_packets;
+    result->input_delay_frames=exchange->input_delay_frames; result->has_checksum=exchange->has_checksum;
+    result->checksum_frame=exchange->checksum_frame; result->checksum=exchange->checksum;
+    for (unsigned i=0;i<4;++i) {
+        const NativeNetplayExchangePeer* peer=&exchange->peers[i];
+        result->peers[i].configured=peer->configured; result->peers[i].has_sample=peer->has_sample;
+        result->peers[i].has_checksum=peer->has_checksum; result->peers[i].sample_frame=peer->sample_frame;
+        result->peers[i].lead_milliframes=peer->lead_milliframes;
+        result->peers[i].checksum_frame=peer->checksum_frame; result->peers[i].checksum=peer->checksum;
+        result->peers[i].echo_ns=netplay.peer_quality[i].echo_ns;
+        result->peers[i].min_echo_ns=netplay.peer_quality[i].min_echo_ns;
+    }
+}
+
 void nativeNetplayMatch_Inspect(void)
 {
     fprintf(stderr,"[netplay-state] frame=%llu checkpoint=%llu cursor=%llu restores=%llu replay_ticks=%llu checksums=%u corrections=%u failed=%d input_stalls=%u wait_ms=%llu\n",

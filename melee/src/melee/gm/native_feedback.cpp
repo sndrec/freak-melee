@@ -8,6 +8,8 @@
 #include <melee/ui/native_hub_catalog.h>
 #include <melee/ui/native_hub.h>
 #include <melee/ui/native_shell_workshop.h>
+#include <melee/ui/native_shell_workshop_editor.h>
+#include <melee/mn/native_menu_scene.h>
 #include <melee/mn/native_css_interaction.h>
 extern "C" {
 #include <melee/lb/lb_0195.h>
@@ -152,9 +154,17 @@ extern "C" bool nativeFeedback_Open(void)
     if (!aurora_capture_presented(draft.image_path, true, &draft.image)) return false;
     auto* context = aurora::rmlui::get_context();
     const auto* focused = context ? context->GetFocusElement() : nullptr;
-    const char* workspace = nativeShellWorkshop_IsOpen() ? "Workshop" : nativeHub_IsVisible() ? "Hub" : "Game";
+    const bool workshop = nativeShellWorkshop_IsOpen();
+    NativeFeedbackInterface interface_state{};
+    interface_state.workspace = workshop ? "Workshop" : nativeHub_IsVisible() ? "Hub" : "Game";
+    interface_state.mode = !workshop ? "" : nativeShellWorkshop_IsTesting() ? "Test Character" :
+        nativeShellWorkshopEditor_IsModelMode() ? "Model" : nativeShellWorkshopEditor_IsAnimationMode() ? "Animation" :
+        nativeShellWorkshopEditor_IsScriptMode() ? "Scripting" : "Action Editor";
+    interface_state.hub_page = nativeHub_IsVisible() ? int(nativeHub_CurrentPage()) : -1;
+    interface_state.menu_transition = nativeMenuScene_Active();
+    interface_state.focused_control = focused ? focused->GetId().c_str() : "";
     context_ready = nativeFeedbackContext_Write(draft.context_path, draft.id, draft.captured_at, &draft.image,
-        workspace, focused ? focused->GetId().c_str() : "");
+        &interface_state);
     if (!nativeFeedbackView_Open(draft)) { aurora_release_presented_capture(); return false; }
     const char* room = nativeOnlineSession_RoomCode();
     online = nativeFeedbackContext_Online() || (room && *room);
@@ -218,6 +228,7 @@ extern "C" void nativeFeedback_Update(void)
     nativeFeedbackView_Update();
     switch (nativeFeedbackView_Action()) {
     case NativeFeedbackAction::ConfirmSend: nativeFeedbackView_Confirm(); break;
+    case NativeFeedbackAction::ConfirmDiscard: nativeFeedbackView_Confirm(true); break;
     case NativeFeedbackAction::Send: case NativeFeedbackAction::Retry: if (!sending && !completed) send(); break;
     case NativeFeedbackAction::Discard: if (!sending) close(true); return;
     case NativeFeedbackAction::Close: if (!sending) close(false); return;

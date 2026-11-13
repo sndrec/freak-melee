@@ -57,6 +57,8 @@ def main():
         context = next((a.data / "content/feedback").glob("*.context.json"))
         data = json.loads(context.read_bytes())
         assert data["online"] and any("script" in fighter for fighter in data["fighters"])
+        assert data["netplay"]["input_delay_frames"] == 2 and len(data["netplay"]["peers"]) == 1
+        assert data["netplay"]["received_packets"] > 0 and data["netplay"]["compared_checksums"] > 0
         (root / "capture.json").write_bytes(context.read_bytes())
         first = state(b)
         a.command("hold", 0, "sx=80")
@@ -70,6 +72,8 @@ def main():
         assert during[1][1][0] > first[1][1][0] + 1, (first, during)
         b.command("hold", 1, "sx=0")
         a.command("ui-key", "escape")
+        time.sleep(.1)
+        a.command("ui-key", "enter")
         time.sleep(.4)
         after = state(b)
         assert after[1][0][0] > during[1][0][0] + 1, (during, after)

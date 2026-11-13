@@ -88,7 +88,7 @@ enum class HubAction {
     PortraitReset, PortraitSave, PortraitTileName, StartupPlaceTile,
     DefaultsOpen, DefaultsConfirm, DefaultsCancel, EditPortrait, PortraitMode,
     DeleteFighter, ConfirmDeleteFighter,
-    News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack
+    News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink
 };
 struct HubRegion {
     float x, y, w, h;

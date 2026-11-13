@@ -10,14 +10,16 @@
 
 namespace {
     constexpr unsigned response_limit = 512 * 1024;
-    enum class Operation { Feed, Page, Article };
+    enum class Operation { Feed, Page, Article, Announcements, Announcement };
     struct Request { Operation operation; char value[96]; };
     struct Worker {
         SRWLOCK lock = SRWLOCK_INIT;
         HANDLE wake = nullptr, thread = nullptr;
         HINTERNET session = nullptr, connection = nullptr;
         bool stop = false, queued = false, secure = true, upload_queued = false;
+        bool announcement_queued = false;
         Request request{};
+        Request announcement_request{};
         NativeCommunityUpload upload{};
         NativeCommunityReceipt receipt{};
         NativeCommunityView view{};
@@ -57,26 +59,37 @@ namespace {
         if (!yyjson_alc_pool_init(&allocator, w.json_pool, sizeof(w.json_pool))) return nullptr;
         return yyjson_read_opts(bytes, size, 0, &allocator, nullptr);
     }
+    bool cursor(yyjson_val* value, char (&output)[96])
+    {
+        if (!string(value, output, sizeof(output), true)) return false;
+        for (const char* c = output; *c; ++c) if (!std::strchr("0123456789abcdef,-", *c)) return false;
+        return true;
+    }
+    bool announcement(yyjson_val* value, NativeAnnouncement& n)
+    {
+        yyjson_val* expiry = yyjson_obj_get(value, "expires_at");
+        const bool valid = string(yyjson_obj_get(value, "id"), n.id, sizeof(n.id)) && identifier(n.id) &&
+            string(yyjson_obj_get(value, "delivery_id"), n.delivery_id, sizeof(n.delivery_id)) && identifier(n.delivery_id) &&
+            string(yyjson_obj_get(value, "title"), n.title, sizeof(n.title)) &&
+            string(yyjson_obj_get(value, "body"), n.body, sizeof(n.body)) &&
+            string(yyjson_obj_get(value, "news_id"), n.news_id, sizeof(n.news_id), true) &&
+            (!*n.news_id || identifier(n.news_id)) && (yyjson_is_null(expiry) || yyjson_is_uint(expiry));
+        if (valid) n.expires_at = yyjson_get_uint(expiry);
+        return valid;
+    }
+    bool announcements(yyjson_val* rows, NativeAnnouncement (&entries)[64], unsigned& length)
+    {
+        if (!yyjson_is_arr(rows) || yyjson_arr_size(rows) > 64) return false;
+        size_t i, count; yyjson_val* row;
+        yyjson_arr_foreach(rows, i, count, row) if (!announcement(row, entries[i])) return false;
+        length = unsigned(yyjson_arr_size(rows)); return true;
+    }
     bool feed(yyjson_val* root, NativeCommunityFeed& result)
     {
         yyjson_val* title = yyjson_obj_get(root, "headline");
         if (!yyjson_is_null(title) && !headline(title, result.headline)) return false;
-        yyjson_val* notices = yyjson_obj_get(root, "announcements");
-        if (!yyjson_is_arr(notices) || yyjson_arr_size(notices) > 64) return false;
-        size_t i, count; yyjson_val* notice;
-        yyjson_arr_foreach(notices, i, count, notice) {
-            auto& n = result.announcements[i];
-            yyjson_val* expiry = yyjson_obj_get(notice, "expires_at");
-            if (!string(yyjson_obj_get(notice, "delivery_id"), n.delivery_id, sizeof(n.delivery_id)) ||
-                !identifier(n.delivery_id) ||
-                !string(yyjson_obj_get(notice, "title"), n.title, sizeof(n.title)) ||
-                !string(yyjson_obj_get(notice, "body"), n.body, sizeof(n.body)) ||
-                !string(yyjson_obj_get(notice, "news_id"), n.news_id, sizeof(n.news_id), true) ||
-                (*n.news_id && !identifier(n.news_id)) ||
-                (!yyjson_is_null(expiry) && !yyjson_is_uint(expiry))) return false;
-            n.expires_at = yyjson_get_uint(expiry);
-        }
-        result.count = unsigned(yyjson_arr_size(notices));
+        if (!announcements(yyjson_obj_get(root, "announcements"), result.announcements, result.count) ||
+            !cursor(yyjson_obj_get(root, "announcements_next"), result.announcements_next)) return false;
         result.available = true;
         return true;
     }
@@ -151,7 +164,9 @@ namespace {
         wchar_t path[256], headers[256];
         if (command.operation == Operation::Feed) wcscpy_s(path, L"/v1/feed");
         else if (command.operation == Operation::Article) swprintf_s(path, L"/v1/news/%hs", command.value);
-        else swprintf_s(path, L"/v1/news%s%hs", *command.value ? L"?before=" : L"", command.value);
+        else if (command.operation == Operation::Page) swprintf_s(path, L"/v1/news%s%hs", *command.value ? L"?before=" : L"", command.value);
+        else if (command.operation == Operation::Announcement) swprintf_s(path, L"/v1/announcements/%hs", command.value);
+        else swprintf_s(path, L"/v1/announcements?before=%hs", command.value);
         HINTERNET request = WinHttpOpenRequest(w.connection, L"GET", path, nullptr,
             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, w.secure ? WINHTTP_FLAG_SECURE : 0);
         if (!request) return false;
@@ -200,14 +215,18 @@ namespace {
         NativeCommunityFeed fresh_feed;
         NativeNewsPage fresh_page;
         NativeNewsArticle fresh_article;
+        NativeAnnouncementPage fresh_notices;
+        NativeAnnouncementCheck fresh_notice;
         for (;;) {
             Request command{};
             NativeCommunityUpload upload{};
             AcquireSRWLockExclusive(&w.lock);
             const bool stop = w.stop, queued = w.queued;
             const bool sending = w.upload_queued;
+            const bool background = !queued && w.announcement_queued;
             if (sending) { upload = w.upload; w.upload_queued = false; }
             else if (queued) { command = w.request; w.queued = false; }
+            else if (background) { command = w.announcement_request; w.announcement_queued = false; }
             ReleaseSRWLockExclusive(&w.lock);
             if (stop) break;
             if (sending) {
@@ -227,11 +246,11 @@ namespace {
                 continue;
             }
             const uint64_t now = GetTickCount64();
-            if (!queued && now < next_feed) {
+            if (!queued && !background && now < next_feed) {
                 WaitForSingleObject(w.wake, DWORD(next_feed - now));
                 continue;
             }
-            if (!queued) command.operation = Operation::Feed;
+            if (!queued && !background) command.operation = Operation::Feed;
             size_t received = 0; DWORD status = 0; char tag[128]{};
             bool ok = fetch(w, command, received, status, tag);
             yyjson_doc* doc = ok && status == 200 ? json(w, w.receive, received) : nullptr;
@@ -246,12 +265,25 @@ namespace {
             } else if (command.operation == Operation::Page) {
                 fresh_page = {};
                 ok = root && page(root, fresh_page);
-            } else {
+            } else if (command.operation == Operation::Article) {
                 fresh_article = {};
                 ok = root && headline(root, fresh_article.headline) &&
                     !std::strcmp(fresh_article.headline.id, command.value) &&
                     string(yyjson_obj_get(root, "body"), fresh_article.body, sizeof(fresh_article.body));
                 fresh_article.available = ok;
+            } else if (command.operation == Operation::Announcements) {
+                fresh_notices = {};
+                std::snprintf(fresh_notices.before, sizeof(fresh_notices.before), "%s", command.value);
+                ok = root && announcements(yyjson_obj_get(root, "entries"), fresh_notices.entries, fresh_notices.count) &&
+                    cursor(yyjson_obj_get(root, "next"), fresh_notices.next);
+                fresh_notices.available = ok;
+            } else {
+                fresh_notice = {};
+                std::snprintf(fresh_notice.delivery_id, sizeof(fresh_notice.delivery_id), "%s", command.value);
+                const bool missing = ok && status == 404;
+                ok = missing || (root && announcement(root, fresh_notice.entry) &&
+                    !std::strcmp(fresh_notice.entry.delivery_id, command.value));
+                fresh_notice.available = ok; fresh_notice.found = ok && !missing;
             }
             yyjson_doc_free(doc);
             AcquireSRWLockExclusive(&w.lock);
@@ -263,12 +295,22 @@ namespace {
             } else if (command.operation == Operation::Page) {
                 if (ok) w.view.page = fresh_page;
                 std::snprintf(w.view.page.error, sizeof(w.view.page.error), "%s", ok ? "" : "Could not load this news page. Please try again.");
-            } else {
+            } else if (command.operation == Operation::Article) {
                 if (ok) w.view.article = fresh_article;
                 std::snprintf(w.view.article.error, sizeof(w.view.article.error), "%s", ok ? "" : status == 404 ?
                     "This article is unavailable." : "Could not load the article. Please try again.");
+            } else if (command.operation == Operation::Announcements) {
+                const unsigned revision = w.view.notices.revision + 1;
+                if (ok || std::strcmp(w.view.notices.before, command.value)) w.view.notices = fresh_notices;
+                w.view.notices.revision = revision;
+                if (!ok) std::snprintf(w.view.notices.error, sizeof(w.view.notices.error), "Could not refresh announcements.");
+            } else {
+                const unsigned revision = w.view.notice.revision + 1;
+                w.view.notice = fresh_notice; w.view.notice.revision = revision;
+                if (!ok) std::snprintf(w.view.notice.error, sizeof(w.view.notice.error), "Could not refresh this announcement.");
             }
             if (queued) w.view.busy = false;
+            if (background) w.view.announcement_busy = false;
             ++w.view.revision;
             ReleaseSRWLockExclusive(&w.lock);
         }
@@ -288,6 +330,18 @@ namespace {
         }
         ReleaseSRWLockExclusive(&w.lock);
         return ok;
+    }
+    bool request_announcements(Operation operation, const char* value)
+    {
+        if (!worker || !value || std::strlen(value) >= sizeof(Request::value)) return false;
+        auto& w = *worker; AcquireSRWLockExclusive(&w.lock);
+        const bool ok = !w.stop && !w.view.announcement_busy;
+        if (ok) {
+            w.announcement_request = {}; w.announcement_request.operation = operation;
+            std::snprintf(w.announcement_request.value, sizeof(w.announcement_request.value), "%s", value);
+            w.announcement_queued = w.view.announcement_busy = true; ++w.view.revision; SetEvent(w.wake);
+        }
+        ReleaseSRWLockExclusive(&w.lock); return ok;
     }
 }
 
@@ -340,6 +394,14 @@ bool nativeCommunity_RequestArticle(const char* id)
     return id && identifier(id) && submit(Operation::Article, id);
 }
 bool nativeCommunity_Refresh() { return submit(Operation::Feed, nullptr); }
+bool nativeCommunity_RequestAnnouncements(const char* before)
+{
+    if (!before || !*before) return false;
+    for (const char* c = before; *c; ++c) if (!std::strchr("0123456789abcdef,-", *c)) return false;
+    return request_announcements(Operation::Announcements, before);
+}
+bool nativeCommunity_CheckAnnouncement(const char* id)
+{ return id && identifier(id) && request_announcements(Operation::Announcement, id); }
 bool nativeCommunity_RequestUpload(const NativeCommunityUpload& upload)
 {
     if (!worker || !identifier(upload.id) || !*upload.metadata || !*upload.image || !*upload.context) return false;

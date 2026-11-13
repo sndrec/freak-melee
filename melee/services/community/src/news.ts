@@ -32,6 +32,15 @@ function cursor(url: URL): [number, string] {
   return [stamp, id(pair[1])];
 }
 
+async function announcements(env: CloudflareBindings, url: URL, now: number) {
+  const [date, key] = cursor(url);
+  const page = await env.COMMUNITY.prepare(
+    "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE withdrawn=0 AND published_at<=? AND (expires_at IS NULL OR expires_at>?) AND (published_at<? OR (published_at=? AND id<?)) ORDER BY published_at DESC,id DESC LIMIT 65"
+  ).bind(now, now, date, date, key).all<AnnouncementRow>();
+  const entries = page.results.slice(0, 64), last = entries.at(-1);
+  return { entries, next: page.results.length > 64 && last ? `${last.published_at},${last.id}` : null };
+}
+
 export async function publicNews(request: Request, env: CloudflareBindings): Promise<Response> {
   const url = new URL(request.url);
   if (request.method !== "GET") throw new HttpError(405, "Use GET.");
@@ -40,10 +49,18 @@ export async function publicNews(request: Request, env: CloudflareBindings): Pro
     const headline = await env.COMMUNITY.prepare(
       "SELECT id,title,ticker,published_at,updated_at,revision FROM news WHERE archived=0 AND published_at<=? ORDER BY published_at DESC,id DESC LIMIT 1"
     ).bind(now).first();
-    const notices = await env.COMMUNITY.prepare(
-      "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE withdrawn=0 AND published_at<=? AND (expires_at IS NULL OR expires_at>?) ORDER BY published_at DESC,id DESC LIMIT 64"
-    ).bind(now, now).all();
-    return conditionalJson(request, { headline, announcements: notices.results });
+    const notices = await announcements(env, new URL(url.origin), now);
+    return conditionalJson(request, { headline, announcements: notices.entries, announcements_next: notices.next });
+  }
+  if (url.pathname === "/v1/announcements")
+    return conditionalJson(request, await announcements(env, url, now));
+  const notice = /^\/v1\/announcements\/([^/]+)$/u.exec(url.pathname);
+  if (notice) {
+    const entry = await env.COMMUNITY.prepare(
+      "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE delivery_id=? AND withdrawn=0 AND published_at<=? AND (expires_at IS NULL OR expires_at>?)"
+    ).bind(id(notice[1]), now, now).first();
+    if (!entry) throw new HttpError(404, "This announcement is unavailable.");
+    return conditionalJson(request, entry);
   }
   if (url.pathname === "/v1/news") {
     const [date, key] = cursor(url);

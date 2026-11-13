@@ -32,6 +32,7 @@ void nativeHub_Tick(void);
 void nativeHub_Draw(void);
 void nativeHub_Shutdown(void);
 bool nativeHub_IsVisible(void);
+NativeHubPage nativeHub_CurrentPage(void);
 bool nativeHub_ConsumesGameInput(void);
 void nativeHub_Event(const union SDL_Event* event);
 void nativeHub_ReleasePointer(void);

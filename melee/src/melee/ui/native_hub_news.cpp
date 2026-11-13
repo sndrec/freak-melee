@@ -1,18 +1,16 @@
 #include "native_hub_news.h"
 #include "native_hub_notice.h"
-#include "native_hub_startup.h"
-#include "native_hub_portrait.h"
-#include "native_hub_defaults.h"
+#include "native_hub_announcements.h"
+#include "native_news_text.h"
 #include <melee/gm/native_community.h>
 #include <melee/gm/native_feedback.h>
-#include <melee/gm/native_home.h>
 #include <melee/gm/native_services.h>
-#include <melee/gm/native_online_session.h>
 #include <melee/mn/native_menu_scene.h>
 extern "C" {
 #include <sysdolphin/baselib/controller.h>
 }
 #include <SDL3/SDL_timer.h>
+#include <SDL3/SDL_misc.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -27,10 +25,8 @@ namespace {
     NativeCommunityView community;
     bool attempted, started, article_open, loading_page;
     NativeHubPage return_page = NativeHubPage_Workshop;
-    char selected_article[37], seen_path[1024], awaiting_notice[37];
-    char recent_seen[64][37]; unsigned recent_count, recent_next;
-    unsigned scanned_feed;
-    bool scan_needed = true;
+    char selected_article[37];
+    bool awaiting_article;
     char ticker_text[961]; float ticker_offset;
     uint64_t ticker_time;
     unsigned history_offset, article_offset, line_count;
@@ -39,7 +35,8 @@ namespace {
     uint64_t next_scroll;
     struct Line { unsigned start, length; unsigned char size, indent; };
     Line lines[32001];
-    char layout_body[128001];
+    char source_body[128001];
+    NativeNewsText article_text;
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
 
     void date(uint64_t stamp, char (&output)[32])
@@ -49,39 +46,12 @@ namespace {
         if (!localtime_s(&local, &seconds)) std::strftime(output, sizeof(output), "%b %d, %Y", &local);
         else *output = 0;
     }
-    bool seen(const char* delivery)
-    {
-        for (unsigned i = 0; i < recent_count; ++i)
-            if (!std::strcmp(delivery, recent_seen[i])) return true;
-        FILE* file = std::fopen(seen_path, "rb");
-        if (!file) return false;
-        char line[64]; bool found = false;
-        while (std::fgets(line, sizeof(line), file)) {
-            line[std::strcspn(line, "\r\n")] = 0;
-            if (!std::strcmp(line, delivery)) { found = true; break; }
-        }
-        std::fclose(file);
-        return found;
-    }
-    void remember_notice()
-    {
-        // Keep a small immediate cache too, so a disk failure cannot repeatedly
-        // reopen a notice during this session. The append-only file is tiny.
-        std::snprintf(recent_seen[recent_next], sizeof(recent_seen[0]), "%s", awaiting_notice);
-        recent_next = (recent_next + 1) % 64;
-        recent_count = std::min(64U, recent_count + 1);
-        FILE* file = std::fopen(seen_path, "ab");
-        bool ok = file && std::fprintf(file, "%s\n", awaiting_notice) > 0;
-        if (file) ok = std::fclose(file) == 0 && ok;
-        if (!ok) nativeHub_Notice("Could not save the dismissed notice.");
-        *awaiting_notice = 0;
-        scan_needed = true;
-    }
     void open_article(const char* key)
     {
-        if (!nativeCommunity_RequestArticle(key)) return;
+        if (std::strcmp(selected_article, key)) article_offset = 0;
         if (key != selected_article) std::snprintf(selected_article, sizeof(selected_article), "%s", key);
-        article_open = true; article_offset = 0;
+        article_open = true;
+        awaiting_article = !nativeCommunity_RequestArticle(selected_article);
     }
     bool request_history(const char* before)
     {
@@ -97,9 +67,10 @@ namespace {
     }
     void layout()
     {
-        const char* body = community.article.body;
-        if (!std::strcmp(body, layout_body)) return;
-        std::snprintf(layout_body, sizeof(layout_body), "%s", body);
+        if (!std::strcmp(community.article.body, source_body)) return;
+        std::snprintf(source_body, sizeof(source_body), "%s", community.article.body);
+        nativeNewsText_Parse(source_body, article_text);
+        const char* body = article_text.body;
         line_count = 0;
         unsigned start = 0;
         while (body[start] && line_count < 32001) {
@@ -161,32 +132,21 @@ void nativeHubNews_Tick()
         char buffer[512]; const char* root = nativeHubCatalog_Root(buffer);
         const char* endpoint = std::getenv("FREAK_MELEE_COMMUNITY_ENDPOINT");
         started = root && nativeCommunity_Start(root, endpoint && *endpoint ? endpoint : NATIVE_COMMUNITY_ENDPOINT);
-        if (root) std::snprintf(seen_path, sizeof(seen_path), "%s/seen-announcements.txt", root);
+        nativeHubAnnouncements_Init(root);
     }
     if (!started) return;
     nativeCommunity_Poll(community);
     if (loading_page && !community.busy) loading_page = false;
-    if (*awaiting_notice) {
-        if (!nativeHubNotice_BlocksInput()) remember_notice();
-        return;
-    }
-    const auto* quick = nativeOnlineSession_Quick();
-    if (!hub.visible || !nativeHome_IsSelection() || nativeHubStartup.active ||
-        nativeHubPortrait_Editing() || hub.field || hub.rename || hub.delete_confirmation ||
-        nativeHubDefaults_IsOpen() || nativeMenuScene_Active() || nativeHubNotice_BlocksInput() ||
-        hub.page == NativeHubPage_QuickStage || nativeOnlineSession_State() == NativeLobbySessionState_Starting ||
-        nativeOnlineSession_State() == NativeLobbySessionState_Ready ||
-        (quick && quick->state == NativeQuickState_Assigned)) return;
-    if (!scan_needed && scanned_feed == community.feed_revision) return;
-    scan_needed = false; scanned_feed = community.feed_revision;
-    const uint64_t now = uint64_t(std::time(nullptr)) * 1000;
-    for (unsigned i = 0; i < community.feed.count; ++i) {
-        const auto& notice = community.feed.announcements[i];
-        if ((notice.expires_at && notice.expires_at <= now) || seen(notice.delivery_id)) continue;
-        nativeHubNotice_Show(notice.title, notice.body);
-        std::snprintf(awaiting_notice, sizeof(awaiting_notice), "%s", notice.delivery_id);
-        break;
-    }
+    if (awaiting_article && !community.busy)
+        awaiting_article = !nativeCommunity_RequestArticle(selected_article);
+    nativeHubAnnouncements_Tick(community);
+}
+void nativeHubNews_OpenArticle(const char* id)
+{
+    if (!id || !*id) return;
+    if (hub.page != NativeHubPage_News) return_page = hub.page;
+    nativeHub_ChangePage(NativeHubPage_News);
+    open_article(id);
 }
 void nativeHubNews_Input()
 {
@@ -212,7 +172,7 @@ void nativeHubNews_Ticker()
 {
     constexpr float x = 337, y = 57, width = 258, height = 21;
     const auto& headline = community.feed.headline;
-    const char* text = *headline.ticker ? headline.ticker : *headline.title ? headline.title : "News";
+    const char* text = *headline.ticker ? headline.ticker : headline.title;
     if (std::strcmp(ticker_text, text)) {
         std::snprintf(ticker_text, sizeof(ticker_text), "%s", text); ticker_offset = 0;
     }
@@ -239,7 +199,7 @@ void nativeHubNews_Render()
         nativeHub_Button("news-history", "News history", 188, 108, 104, 22, HubAction::NewsHistory);
         nativeHub_Button("news-refresh", "Refresh", 511, 108, 79, 22, HubAction::NewsRefresh, 0, false, !community.busy);
         if (!valid) {
-            nativeMenuPaint_Text(community.busy ? "Loading article..." : *community.article.error ? community.article.error : "Choose an article.",
+            nativeMenuPaint_Text((community.busy || awaiting_article) ? "Loading article..." : *community.article.error ? community.article.error : "Choose an article.",
                 193, 168, 390, 12, muted);
             return;
         }
@@ -247,13 +207,31 @@ void nativeHubNews_Render()
         char published[32]{}; date(community.article.headline.published_at, published);
         nativeMenuPaint_Text(published, 193, 163, 385, 8, muted);
         layout();
-        float y = 184; unsigned shown = 0;
+        article_offset = std::min(article_offset, line_count ? line_count - 1 : 0);
+        float y = 184; unsigned shown = 0, link_index = 0;
         for (unsigned i = article_offset; i < line_count; ++i) {
             const auto& row = lines[i];
             if (y + row.size > 355) break;
-            char text[512]; std::memcpy(text, layout_body + row.start, row.length); text[row.length] = 0;
+            char text[512]; std::memcpy(text, article_text.body + row.start, row.length); text[row.length] = 0;
             nativeMenuPaint_Text(text, 193 + row.indent, y, 386 - row.indent, row.size,
                 row.size > 10 ? gold : 0xF2ECEDFF);
+            while (link_index < article_text.link_count &&
+                article_text.links[link_index].start + article_text.links[link_index].length <= row.start) ++link_index;
+            for (unsigned link = link_index; link < article_text.link_count; ++link) {
+                const auto& item = article_text.links[link];
+                if (item.start >= row.start + row.length) break;
+                const unsigned start = std::max(row.start, item.start), end = std::min(row.start + row.length, item.start + item.length);
+                if (end <= start) continue;
+                char prefix[512]; std::memcpy(prefix, text, start-row.start); prefix[start-row.start] = 0;
+                char label[512]; std::memcpy(label, article_text.body + start, end-start); label[end-start] = 0;
+                const float x = 193 + row.indent + nativeMenuFont_Width(NativeMenuFont_Notice, prefix, row.size);
+                const float width = nativeMenuFont_Width(NativeMenuFont_Notice, label, row.size);
+                const bool hover = nativeHub_Hover(x, y-2, width, row.size+5);
+                nativeMenuPaint_Text(label, x, y, width+1, row.size, hover ? gold : 0xA6DCEAFF);
+                nativeMenuPaint_Rect(x, y+row.size+1, width, 0.6f, hover ? gold : 0xA6DCEAAA);
+                char id[40]; std::snprintf(id, sizeof(id), "news-link-%u-%u", link, i);
+                nativeHub_Region(id, x, y-2, width, row.size+5, HubAction::NewsLink, int(link));
+            }
             y += row.size + 5; ++shown;
         }
         scrollbar(line_count, shown, article_offset);
@@ -277,6 +255,7 @@ void nativeHubNews_Render()
         nativeMenuPaint_Text(published, 514, y + 9, 73, 7, muted);
     }
     if (!community.page.count) nativeMenuPaint_Text("No news yet.", 193, 162, 390, 13, muted);
+    if (*community.page.error) nativeMenuPaint_Text("Offline copy", 193, 350, 270, 8, muted);
     scrollbar(community.page.count, 8, history_offset);
     nativeHub_Button("news-up", "Up", 190, 366, 54, 22, HubAction::NewsScroll, -5, false, history_offset != 0);
     nativeHub_Button("news-down", "Down", 252, 366, 54, 22, HubAction::NewsScroll, 5, false, end < community.page.count);
@@ -313,6 +292,15 @@ bool nativeHubNews_Activate(HubAction action, int value)
         if (article_open) open_article(selected_article);
         else request_history(nullptr);
         return true;
+    case HubAction::NewsLink:
+        if (article_open && unsigned(value) < article_text.link_count) {
+            const auto& link = article_text.links[value]; char url[2049];
+            if (nativeNewsText_ValidUrl(source_body + link.url_start, link.url_length)) {
+                std::memcpy(url, source_body + link.url_start, link.url_length); url[link.url_length] = 0;
+                if (!SDL_OpenURL(url)) nativeHub_Notice("Could not open this link in your browser.");
+            }
+        }
+        return true;
     default: return false;
     }
 }
@@ -328,14 +316,16 @@ void nativeHubNews_Inspect()
         community.feed.headline.title, community.feed.count, community.page.count,
         article_open ? selected_article : "", line_count, article_open ? article_offset : history_offset,
         article_open ? community.article.error : community.page.error);
+    nativeHubAnnouncements_Inspect();
 }
 void nativeHubNews_Shutdown()
 {
+    nativeHubAnnouncements_Shutdown();
     nativeCommunity_Shutdown();
     community = {}; attempted = started = article_open = loading_page = false;
-    *selected_article = *seen_path = *awaiting_notice = *ticker_text = *layout_body = 0;
+    *selected_article = *ticker_text = *source_body = 0; article_text = {};
     ticker_offset = 0; ticker_time = 0;
-    recent_count = recent_next = scanned_feed = history_offset = article_offset = line_count = 0;
-    scan_needed = true;
+    history_offset = article_offset = line_count = 0;
+    awaiting_article = false;
     dragging_scroll = false; next_scroll = 0;
 }

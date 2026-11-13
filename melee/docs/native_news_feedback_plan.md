@@ -298,12 +298,23 @@ Current checkpoint (2026-11-13):
 - The native deletion review passed for installed fighters, draft-only fighters
   and a Zelda/Sheik family. Cancellation, a locked file, restart recovery,
   unrelated fighters and retained cache objects were checked in copied profiles.
-- Seven Worker checks pass, covering publication, edit conflicts, announcement
+- Eleven Worker/formatter checks pass, covering publication, edit conflicts, announcement
   resends, signed admin access, write origins, feedback retries and attachment
   cleanup. Type checking and the deployment dry run pass.
 - The native news review passed for ticker/article selection, article scrolling,
   25-entry history pages, a live feed change, announcement dismissal, saved seen
   IDs and an offline restart. Screenshots were inspected at two window sizes.
+- An additional native review passed with 130 announcements. It checked older
+  pages, the Read news action, edits while visible, withdrawal, expiry, malformed
+  feeds retaining their cached headline, and valid empty feeds clearing it.
+  Native article links and the admin preview use the same restricted text format.
+- The admin page was reviewed in Chrome using loopback fixture data. Article
+  saving, draft retention across tabs, previews, feedback notes and scaled pin
+  coordinates passed. Hosted sign-in and live admin-to-client editing remain.
+- Feedback captures now include source revision, Workshop mode, hub page,
+  menu-transition state and available netplay timing/checksum observations.
+  Escape asks before discarding the report. The immutable upload/retry and
+  two-peer neutral-input reviews passed again with these changes.
 - News links, remaining announcement queue/input cases and hosted administration
   still need implementation or integration review.
 - The displayed-image reservation backend is implemented. Its D3D12 test checks
@@ -331,7 +342,7 @@ Current checkpoint (2026-11-13):
   has been published for this goal.
 
 Reusable reviews are `melee/tools/review_native_fighter_deletion.py`,
-`melee/tools/review_native_community.py`, `melee/tools/review_native_feedback.py`
+`melee/tools/review_native_community.py`, `melee/tools/review_native_announcements.py`, `melee/tools/review_native_feedback.py`
 and `melee/tools/review_native_feedback_online.py`. They use hidden, muted clients
 with copied user data; pass an existing test profile and a new output directory.
 
@@ -342,10 +353,10 @@ with copied user data; pass an existing test profile and a new output directory.
 2. **Service and administration**
    - [x] Define bounded JSON/report formats and storage tables/objects.
    - [x] Implement public reads, safe report submission and authenticated admin APIs.
-   - [ ] Build the single-page news editor, announcement composer and feedback inbox.
+   - [x] Build the single-page news editor, announcement composer and feedback inbox.
    - [ ] Configure and verify Twilight's admin access.
 3. **Ticker, News page and announcements**
-   - [ ] Implement refresh/cache/history and native menu presentation/input.
+   - [x] Implement refresh/cache/history and native menu presentation/input.
    - [ ] Reuse notices with convenient display, expiry, withdrawal and seen tracking.
    - [ ] Verify a live admin edit appears in a running client.
 4. **F2 capture and annotation**

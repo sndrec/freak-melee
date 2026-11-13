@@ -3,6 +3,7 @@
 #include "native_home.h"
 #include "native_match_launch.h"
 #include "native_replay.h"
+#include "native_netplay_match.h"
 #include "gmvs.h"
 #include <melee/ft/native_fighter_pool.h>
 #include <melee/ft/native_fighter_runtime.h>
@@ -212,7 +213,7 @@ static void items(yyjson_mut_doc* doc, yyjson_mut_val* root)
 }
 
 bool nativeFeedbackContext_Write(const char* path, const char* id, const char* captured_at,
-                                 const AuroraPresentedCapture* image, const char* workspace, const char* focused)
+                                 const AuroraPresentedCapture* image, const NativeFeedbackInterface* interface_state)
 {
     yyjson_mut_doc* doc=yyjson_mut_doc_new(NULL);if (!doc) return false;
     yyjson_mut_val* root=yyjson_mut_obj(doc);yyjson_mut_doc_set_root(doc,root);
@@ -222,8 +223,14 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
 #else
     yyjson_mut_obj_add_str(doc,root,"build","development");
 #endif
-    yyjson_mut_obj_add_strcpy(doc,root,"workspace",workspace?workspace:"");
-    yyjson_mut_obj_add_strcpy(doc,root,"focused_control",focused?focused:"");
+#ifdef NATIVE_FEEDBACK_SOURCE_REVISION
+    yyjson_mut_obj_add_str(doc,root,"source_revision",NATIVE_FEEDBACK_SOURCE_REVISION);
+#endif
+    yyjson_mut_obj_add_strcpy(doc,root,"workspace",interface_state->workspace);
+    yyjson_mut_obj_add_strcpy(doc,root,"work_mode",interface_state->mode);
+    yyjson_mut_obj_add_strcpy(doc,root,"focused_control",interface_state->focused_control);
+    yyjson_mut_obj_add_sint(doc,root,"hub_page",interface_state->hub_page);
+    yyjson_mut_obj_add_bool(doc,root,"menu_transition",interface_state->menu_transition);
     yyjson_mut_obj_add_uint(doc,root,"backend",aurora_get_backend());
     yyjson_mut_obj_add_str(doc,root,"platform","Windows PC");
     yyjson_mut_obj_add_uint(doc,root,"pointer_bytes",sizeof(void*));
@@ -252,6 +259,30 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
     }
     const NativeNetplayLaunchConfig* network=nativeMatchLaunch_Netplay();
     if (network) {identity(doc,root,"match_id",network->session_id);yyjson_mut_obj_add_uint(doc,root,"local_player_mask",network->local_port_mask);}
+    NativeNetplayObservation observation; nativeNetplayMatch_Observe(&observation);
+    if (observation.active) {
+        yyjson_mut_val* row=yyjson_mut_obj(doc);yyjson_mut_obj_add_val(doc,root,"netplay",row);
+        yyjson_mut_obj_add_bool(doc,row,"failed",observation.failed);
+        yyjson_mut_obj_add_bool(doc,row,"replaying",observation.replaying);
+#define NUMBER(name) yyjson_mut_obj_add_uint(doc,row,#name,observation.name)
+        NUMBER(frame);NUMBER(checkpoint);NUMBER(restores);NUMBER(replay_ticks);NUMBER(wait_ms);NUMBER(pace_delay_ns);
+        NUMBER(corrections);NUMBER(input_stalls);NUMBER(compared_checksums);NUMBER(received_packets);NUMBER(rejected_packets);
+        NUMBER(local_mask);NUMBER(input_delay_frames);NUMBER(max_correction_depth);
+#undef NUMBER
+        if (observation.has_checksum) {identity(doc,row,"checksum",observation.checksum);yyjson_mut_obj_add_uint(doc,row,"checksum_frame",observation.checksum_frame);}
+        yyjson_mut_val* peers=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,row,"peers",peers);
+        for (unsigned i=0;i<4;++i) {
+            if (!observation.peers[i].configured) continue;
+            yyjson_mut_val* peer=yyjson_mut_obj(doc);yyjson_mut_arr_append(peers,peer);
+            yyjson_mut_obj_add_uint(doc,peer,"index",i);
+            yyjson_mut_obj_add_sint(doc,peer,"lead_milliframes",observation.peers[i].lead_milliframes);
+            yyjson_mut_obj_add_uint(doc,peer,"echo_ns",observation.peers[i].echo_ns);
+            yyjson_mut_obj_add_uint(doc,peer,"min_echo_ns",observation.peers[i].min_echo_ns);
+            if (observation.peers[i].has_sample) yyjson_mut_obj_add_uint(doc,peer,"sample_frame",observation.peers[i].sample_frame);
+            if (observation.peers[i].has_checksum) {identity(doc,peer,"checksum",observation.peers[i].checksum);
+                yyjson_mut_obj_add_uint(doc,peer,"checksum_frame",observation.peers[i].checksum_frame);}
+        }
+    }
     fighters(doc,root);items(doc,root);
     yyjson_mut_val* packages=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,root,"selected_packages",packages);
     for (unsigned port=0;port<4;++port) {char hex[65];const NativeContentId* package=nativeHome_FighterPackage(port);

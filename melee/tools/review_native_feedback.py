@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import struct
+import subprocess
 import threading
 import time
 
@@ -58,7 +59,7 @@ def main():
             self.wfile.write(body)
 
         def do_GET(self):
-            self.answer(200, {"headline": None, "announcements": []})
+            self.answer(200, {"headline": None, "announcements": [], "announcements_next": None})
 
         def do_POST(self):
             assert self.path == "/v1/feedback"
@@ -89,6 +90,10 @@ def main():
         assert len(contexts) == 1
         context = contexts[0].read_bytes()
         captured = json.loads(context)
+        assert captured["source_revision"] and captured["workspace"] == "Hub"
+        revision = subprocess.check_output(["git", "-C", str(Path(__file__).resolve().parents[2]), "rev-parse", "HEAD"], text=True).strip()
+        assert captured["source_revision"].removesuffix("-modified") == revision
+        assert captured["hub_page"] >= 0 and isinstance(captured["menu_transition"], bool)
         # Notes, resize and the failed upload must never regenerate context.
         client.command("ui-click", 700, 420)
         client.command("ui-text", "The preview needs a clearer origin.")
@@ -134,6 +139,23 @@ def main():
         assert not contexts[0].exists(), "Accepted local attachments should be removed"
         client.click("feedback-close")
         assert "visible=0" in client.inspect("feedback-document") or "absent" in client.inspect("feedback-document")
+        # Escape closes note editing first and asks before discarding a report.
+        client.command("ui-key", "f2")
+        wait_visible(client, "feedback-image")
+        client.command("ui-click", 600, 350)
+        client.command("ui-text", "Keep this until discard is confirmed.")
+        client.command("ui-key", "escape")
+        assert "visible=1" in client.inspect("feedback-document")
+        client.command("ui-key", "escape")
+        wait_visible(client, "feedback-keep")
+        client.click("feedback-keep")
+        assert "visible=1" in client.inspect("feedback-document")
+        client.click("feedback-exit")
+        wait_visible(client, "feedback-send")
+        assert "Discard feedback" in client.inspect("feedback-send")
+        client.command("ui-key", "enter")
+        assert "visible=0" in client.inspect("feedback-document") or "absent" in client.inspect("feedback-document")
+        assert not list((client.data / "content/feedback").glob("*.context.json"))
         result.update(status="PASS", id=metadata["id"], screenshot_bytes=b, context_bytes=c,
                       report_sha256=hashlib.sha256(body).hexdigest(), capture=captured["captured_at"],
                       limits=["Local HTTP fixture; hosted Access/R2 delivery and two-peer neutral input are separate checks."])

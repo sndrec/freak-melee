@@ -16,9 +16,16 @@ npx wrangler d1 migrations apply COMMUNITY --local
 npm run dev
 ```
 
-The public routes are `/v1/feed`, `/v1/news`, `/v1/news/<id>` and
-`POST /v1/feedback`. News history uses 25-entry pages and the returned `next`
-cursor. Feed and article reads support `If-None-Match`.
+The public routes are `/v1/feed`, `/v1/news`, `/v1/news/<id>`,
+`/v1/announcements`, `/v1/announcements/<delivery-id>` and `POST /v1/feedback`.
+News history uses 25-entry pages and the returned `next` cursor. The feed includes
+64 announcements and an `announcements_next` cursor for older notices. Individual
+announcement reads let clients refresh or withdraw a notice already on screen.
+Public reads support `If-None-Match`.
+
+Articles support paragraphs, headings, lists, `[label](https://...)` links and
+plain HTTP/HTTPS addresses. The admin preview and native reader display other
+markup as text. Links open only when selected.
 
 Administration requires a Cloudflare Access assertion even in local development.
 Tests sign their own temporary assertions and supply a test verification key;
@@ -54,7 +61,7 @@ The Worker denies administration until the Access application is configured.
 
 The foundation Worker is deployed at
 `https://freak-melee-community.sndrec32exe.workers.dev` (version
-`6f40d3d4-1698-414e-b644-afbf990868f5`). Hosted checks passed for health/feed reads,
+`9b5db411-8e5a-46e0-a4e1-97cf5dc2f0f5`). Hosted checks passed for health/feed reads,
 an accepted feedback upload and its idempotent retry. Admin HTML, scripts and
 APIs currently return the configuration error above. The report bucket's
 `r2.dev` public access is disabled. Complete Access setup and browser review
