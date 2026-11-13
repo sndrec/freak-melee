@@ -433,6 +433,8 @@ bool nativeSnapshotCensus_HasFailed(void) {return false;}
 void HSD_AudioRollbackReset(void) {abort();}
 bool HSD_AudioRollbackBeginFrame(uint64_t frame,bool resimulating) {(void)frame;(void)resimulating;abort();}
 bool HSD_AudioRollbackEndFrame(void) {abort();}
-void HSD_AudioRollbackAbortFrame(void) {abort();}
+// Scene reset aborts any pending audio journal, including when none is active.
+// This fixture runs with replay audio journaling disabled.
+void HSD_AudioRollbackAbortFrame(void) {}
 
 void nativeSnapshotCensus_Abort(const char* reason) {(void)reason;abort();}

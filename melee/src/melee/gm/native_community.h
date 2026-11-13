@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "native_community_upload.h"
 
 // Public community data is owned by the menu, outside deterministic game state.
 struct NativeNewsHeadline {
@@ -41,4 +42,6 @@ bool nativeCommunity_Poll(NativeCommunityView& view);
 bool nativeCommunity_RequestPage(const char* before = nullptr);
 bool nativeCommunity_RequestArticle(const char* id);
 bool nativeCommunity_Refresh();
+bool nativeCommunity_RequestUpload(const NativeCommunityUpload& upload);
+bool nativeCommunity_PollReceipt(NativeCommunityReceipt& receipt);
 void nativeCommunity_Shutdown();

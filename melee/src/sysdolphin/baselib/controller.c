@@ -9,6 +9,7 @@
 #include <melee/gm/native_replay.h>
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_feedback_history.h>
+#include <melee/gm/native_feedback_input.h>
 #include "native_controller_snapshot_internal.h"
 #endif
 
@@ -67,6 +68,7 @@ void HSD_PadRenewRawStatus(bool err_check)
 #ifdef MELEE_NATIVE
     if (!nativeReplay_IsPlayback()) {
         nativeProfileInput_Apply(now);
+        nativeFeedbackInput_Filter(now);
     }
     // Capture mapped local inputs before netplay resolves the four fighter
     // ports. Playback supplies these same inputs and runs the filter again.

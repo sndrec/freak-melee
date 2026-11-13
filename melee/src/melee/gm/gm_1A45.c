@@ -5,6 +5,7 @@
 #include "gm_1A45.h"
 #include "native_match_classes.h"
 #include "native_feedback_history.h"
+#include "native_feedback.h"
 
 #include "gm_1A36.h"
 #include "gm_1A45.static.h"
@@ -485,6 +486,15 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (gmMain_ExitRequested) {
                 break;
             }
+            nativeFeedback_Update();
+            if (nativeFeedback_PausesSimulation()) {
+                // Annotation owns the event loop. Rendering the retained
+                // image does not execute scene callbacks or sample inputs.
+                if (aurora_begin_frame()) aurora_end_frame();
+                pad_queue_count = 0;
+                SDL_Delay(1);
+                continue;
+            }
             if (spectating) {
                 int ready = nativeSpectatorMatch_PollFrame();
                 if (ready < 0) { gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST); break; }
@@ -643,7 +653,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_Drawing);
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_Drawing);
         if (!hidden_rollback_frame) {
-            nativeShell_Update();
+            if (!nativeFeedback_IsOpen()) nativeShell_Update();
         }
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_RenderBegin);
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_RenderBegin);

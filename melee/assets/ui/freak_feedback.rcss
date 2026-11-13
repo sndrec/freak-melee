@@ -1,0 +1,30 @@
+body { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; font-family: "Segoe UI"; font-size: 16px; color: #fff8ec; background: transparent; }
+div { display: block; }
+button { font-family: "Segoe UI"; font-size: 16px; font-weight: bold; color: #f8efda; background: #24222bee; border: 1px #e4c977; border-radius: 5px; padding: 9px 17px; cursor: pointer; }
+button:hover, button:focus { background: #dabb43; color: #16151a; }
+#feedback-image { position: absolute; }
+#feedback-pins { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#feedback-header { position: absolute; left: 0; top: 0; right: 0; height: 66px; background: #14131ce8; border-bottom: 1px #897a51; }
+#feedback-title { position: absolute; left: 22px; top: 9px; font-size: 21px; font-weight: bold; color: #f0d276; }
+#feedback-instructions { position: absolute; left: 22px; top: 38px; right: 125px; font-size: 14px; }
+#feedback-exit { position: absolute; right: 18px; top: 13px; }
+.feedback-pin { position: absolute; width: 30px; height: 30px; padding: 0; margin-left: -15px; margin-top: -32px; border: 2px #fff3d7; border-radius: 15px; background: #bd3d36; text-align: center; line-height: 27px; color: white; transform-origin: 50% 100%; }
+.feedback-pin:hover, .feedback-pin:focus { background: #e8bb43; color: #17141b; }
+.feedback-pin .needle { position: absolute; left: 12px; top: 29px; height: 9px; width: 2px; background: #fff3d7; }
+.feedback-pin.arriving { animation: 0.18s ease-out pin-drop; }
+@keyframes pin-drop { from { transform: translateY(-24px) scale(1.2); opacity: 0; } to { transform: translateY(0px) scale(1); opacity: 1; } }
+#feedback-bubble { position: absolute; display: none; width: 320px; padding: 15px; background: #25222ff5; border: 1px #ecd08c; border-radius: 11px; transform-origin: 50% 100%; }
+.bubble-title { color: #edcc76; font-weight: bold; margin-bottom: 8px; }
+#feedback-note { display: block; width: 100%; height: 96px; box-sizing: border-box; font-family: "Segoe UI"; font-size: 16px; color: white; background: #121119; border: 1px #756b80; padding: 8px; }
+.bubble-buttons { margin-top: 10px; display: flex; justify-content: space-between; }
+.bubble-tail { position: absolute; left: 50%; bottom: -10px; width: 16px; height: 16px; background: #25222f; border-right: 1px #ecd08c; border-bottom: 1px #ecd08c; transform: rotate(45deg); }
+#feedback-bubble.committing { animation: 0.16s ease-in bubble-close; }
+@keyframes bubble-close { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.05); } }
+#feedback-hover { position: absolute; display: none; max-width: 300px; padding: 10px 14px; background: #25222ff5; border: 1px #ecd08c; border-radius: 8px; font-size: 14px; pointer-events: none; }
+#feedback-status { position: absolute; bottom: 16px; left: 22px; width: 650px; max-width: 85%; padding: 10px 16px; background: #14131ce8; border-radius: 6px; color: #eed184; }
+#feedback-modal { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #090810a8; }
+#feedback-dialog { position: absolute; left: 50%; top: 38%; width: 430px; margin-left: -240px; padding: 24px; background: #24212cf8; border: 2px #d1b772; border-radius: 10px; }
+#feedback-dialog-title { font-size: 26px; font-weight: bold; color: #f0d276; margin-bottom: 12px; }
+#feedback-dialog-text { margin-bottom: 22px; }
+.dialog-buttons { display: flex; justify-content: space-between; }
+#feedback-retry, #feedback-close { display: none; margin-top: 14px; }

@@ -28,6 +28,7 @@ def main():
     names = ['controller.c', 'rumble.c', 'rumble_output.c', 'native_controller_snapshot.c', 'random.c']
     pairs = [(base/name, frozen/'src/sysdolphin/baselib'/name) for name in names]
     pairs.append((ROOT/'src/melee/gm/native_match_arena.c', frozen/'src/melee/gm/native_match_arena.c'))
+    pairs.append((ROOT/'src/melee/gm/native_feedback_input.c', frozen/'src/melee/gm/native_feedback_input.c'))
     pairs.append((ROOT/'src/melee/lb/lb_0195.c', frozen/'src/melee/lb/lb_0195.c'))
     pairs.append((ROOT/'tests/native/input_timing_test.c', frozen/'input_timing_test.c'))
     for directory in [ROOT/'src', ROOT/'extern/dolphin/include']:
@@ -46,6 +47,7 @@ def main():
              '-I'+str(frozen/'src'), '-I'+str(frozen/'dolphin')]
     units = [frozen/'src/sysdolphin/baselib'/name for name in names]
     units.insert(0, frozen/'src/melee/gm/native_match_arena.c')
+    units.insert(0, frozen/'src/melee/gm/native_feedback_input.c')
     units.append(frozen/'src/melee/lb/lb_0195.c')
     receipt = dict(status='RUNNING', original_sha256=original, snapshot_sha256=pins,
                    compiler_sha256=sha(args.compiler), commands=[], limits=[

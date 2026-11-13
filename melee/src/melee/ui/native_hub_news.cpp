@@ -4,6 +4,7 @@
 #include "native_hub_portrait.h"
 #include "native_hub_defaults.h"
 #include <melee/gm/native_community.h>
+#include <melee/gm/native_feedback.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_services.h>
 #include <melee/gm/native_online_session.h>
@@ -154,6 +155,7 @@ namespace {
 
 void nativeHubNews_Tick()
 {
+    if (nativeFeedback_IsOpen()) return;
     if (!attempted && hub.initialized) {
         attempted = true;
         char buffer[512]; const char* root = nativeHubCatalog_Root(buffer);

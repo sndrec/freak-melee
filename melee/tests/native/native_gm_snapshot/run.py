@@ -29,6 +29,7 @@ def main():
     relative += ['src/sysdolphin/baselib/'+name for name in
                 ('controller.c', 'rumble.c', 'rumble_output.c', 'native_controller_snapshot.c', 'random.c', 'native_render_phase.c')]
     relative.append('src/melee/lb/lb_0195.c')
+    relative.append('src/melee/gm/native_feedback_input.c')
     relative += ['src/melee/lb/dynamics_state.c','src/melee/lb/native_dynamics_snapshot.c']
     relative += ['src/melee/pl/'+name for name in
                 ('player_state.c', 'plstale.c', 'plattack.c', 'native_player_snapshot.c')]

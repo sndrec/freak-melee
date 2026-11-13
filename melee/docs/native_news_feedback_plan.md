@@ -304,16 +304,28 @@ Current checkpoint (2026-11-13):
 - The native news review passed for ticker/article selection, article scrolling,
   25-entry history pages, a live feed change, announcement dismissal, saved seen
   IDs and an offline restart. Screenshots were inspected at two window sizes.
-- News links, remaining queue/input cases, hosted administration and the full F2
-  capture/annotation path still need implementation or integration review.
+- News links, remaining announcement queue/input cases and hosted administration
+  still need implementation or integration review.
 - The displayed-image reservation backend is implemented. Its D3D12 test checks
   that queued newer frames and a changed resolution cannot replace a reserved
   capture. The diagnostic collector and host-only input/log history are also
-  implemented; F2 activation, annotation and upload still need to connect them.
+  implemented. F2 activation, pin/bubble editing, full-window resize, immutable
+  diagnostic collection and upload/retry are now connected.
+- The F2 review passed against a loopback service, including a deliberately
+  failed upload followed by a byte-identical retry. An offline gameplay check
+  confirmed that a scripted fighter's animation and position stay frozen during
+  annotation and resume afterward. Two UDP peers kept playing during F2 with
+  neutral local input, including rollback under six-frame artificial latency.
+- Controller and clock snapshot checks pass. The production GM-loop fixture
+  also passes after updating its host endpoints for the current scene/input
+  lifecycle. Hosted report delivery and the admin browser review remain open.
+- The two-peer rollback check completed 273 restores and 883 replay ticks with
+  matching confirmed checksums while the annotating player remained neutral.
 
-Reusable reviews are `melee/tools/review_native_fighter_deletion.py` and
-`melee/tools/review_native_community.py`. Both use hidden, muted clients with
-copied user data; pass an existing test profile and a new output directory.
+Reusable reviews are `melee/tools/review_native_fighter_deletion.py`,
+`melee/tools/review_native_community.py`, `melee/tools/review_native_feedback.py`
+and `melee/tools/review_native_feedback_online.py`. They use hidden, muted clients
+with copied user data; pass an existing test profile and a new output directory.
 
 1. **Workshop deletion**
    - [x] Implement confirmed deletion for installed, draft and paired fighters.
@@ -329,10 +341,11 @@ copied user data; pass an existing test profile and a new output directory.
    - [ ] Reuse notices with convenient display, expiry, withdrawal and seen tracking.
    - [ ] Verify a live admin edit appears in a running client.
 4. **F2 capture and annotation**
-   - [ ] Capture the displayed image and diagnostic state together at activation.
-   - [ ] Implement pins, bubbles, editing/removal animations and submit confirmation.
-   - [ ] Implement offline pause and online neutral-input behavior.
+   - [x] Capture the displayed image and diagnostic state together at activation.
+   - [x] Implement pins, bubbles, editing/removal animations and submit confirmation.
+   - [x] Implement offline pause and online neutral-input behavior.
    - [ ] Upload/retry the immutable report and show it correctly in administration.
+     Native upload/retry passes locally; hosted delivery/viewing remains.
 5. **Integration and user review**
    - [ ] Batch service/input/report checks and hidden, muted native reviews.
    - [ ] Verify deployment and report read/write permissions through hosted routes.

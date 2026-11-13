@@ -55,6 +55,11 @@ void nativeCssInteraction_EnablePointer(bool enabled)
         selection.pointer.count = 0;
     }
 }
+void nativeCssInteraction_CancelPointer(void)
+{
+    selection.pointer.active = selection.pointer.down = false;
+    selection.pointer.count = 0;
+}
 bool nativeCssInteraction_Pointer(float u, float v,
                                   NativeCssPointerEvent event)
 {

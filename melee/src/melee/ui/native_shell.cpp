@@ -1,4 +1,5 @@
 #include "native_shell.h"
+#include <melee/gm/native_feedback.h>
 
 #include "native_hub.h"
 #include "native_chat.h"
@@ -23,6 +24,8 @@
 
 #include <aurora/aurora.h>
 #include <aurora/rmlui.hpp>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keyboard.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_services.h>
 #include <melee/gm/native_online_session.h>
@@ -358,6 +361,7 @@ extern "C" bool nativeShell_IsEditingText(void)
 
 extern "C" void nativeShell_Shutdown(void)
 {
+    nativeFeedback_Shutdown();
     nativeHub_Shutdown();
     nativeChat_Stop();
     if (document != nullptr) {
@@ -374,6 +378,8 @@ extern "C" void nativeShell_Shutdown(void)
 
 extern "C" void nativeShell_InspectElement(const char* id)
 {
+    Rml::ElementDocument* inspected = nativeFeedback_IsOpen()
+        ? aurora::rmlui::get_context()->GetDocument("feedback-document") : document;
     if (!std::strcmp(id, "workshop-model-surface")) {
         nativeShellWorkshopModel_Inspect();
         return;
@@ -392,17 +398,17 @@ extern "C" void nativeShell_InspectElement(const char* id)
         return;
     }
     // Lobby chat remains active while gameplay hides the hub.
-    if (nativeHub_IsVisible() || !std::strcmp(id, "lobby-chat-state")) {
+    if (!nativeFeedback_IsOpen() && (nativeHub_IsVisible() || !std::strcmp(id, "lobby-chat-state"))) {
         nativeHub_Inspect(id);
         return;
     }
-    if (nativePlayMenu_Inspect(id)) {
+    if (!nativeFeedback_IsOpen() && nativePlayMenu_Inspect(id)) {
         return;
     }
-    if (!document) {
+    if (!inspected) {
         return;
     }
-    auto* element = document->GetElementById(id);
+    auto* element = inspected->GetElementById(id);
     if (!element) {
         std::fprintf(stderr, "[ui-inspect] %s: absent\n", id);
         return;
@@ -436,7 +442,7 @@ extern "C" void nativeShell_InspectElement(const char* id)
 
 extern "C" void nativeShell_ClickAt(int x, int y, int button)
 {
-    if (nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         nativeHub_ClickAt(x, y, button);
         return;
     }
@@ -460,7 +466,7 @@ extern "C" void nativeShell_ClickAt(int x, int y, int button)
 
 extern "C" void nativeShell_PointerButtonAt(int x, int y, int button, bool down)
 {
-    if (nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         if (down) nativeHub_ClickAt(x, y, button);
         return;
     }
@@ -477,7 +483,7 @@ extern "C" void nativeShell_PointerButtonAt(int x, int y, int button, bool down)
 extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
                                    int end_y, int button, unsigned modifiers)
 {
-    if (nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         if (button == 0) {
             nativeHub_ClickAt(start_x, start_y, 0);
             nativeHub_MovePointer(end_x, end_y);
@@ -508,7 +514,7 @@ extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
 
 extern "C" void nativeShell_WheelAt(int x, int y, int steps)
 {
-    if (!document || nativeHub_IsVisible()) return;
+    if (!document || (!nativeFeedback_IsOpen() && nativeHub_IsVisible())) return;
     Rml::Context* context = document->GetContext();
     context->ProcessMouseMove(x, y, 0);
     context->ProcessMouseWheel(Rml::Vector2f{0, float(-steps)}, 0);
@@ -516,7 +522,7 @@ extern "C" void nativeShell_WheelAt(int x, int y, int steps)
 
 extern "C" void nativeShell_EnterText(const char* text)
 {
-    if (nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         nativeHub_EnterText(text);
         return;
     }
@@ -528,7 +534,7 @@ extern "C" void nativeShell_EnterText(const char* text)
 
 extern "C" void nativeShell_MovePointer(int x, int y)
 {
-    if (nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         nativeHub_MovePointer(x, y);
         return;
     }
@@ -542,6 +548,7 @@ extern "C" void nativeShell_MovePointer(int x, int y)
 extern "C" bool nativeShell_CssPointerEvent(int x, int y,
                                             NativeCssPointerEvent event)
 {
+    if (nativeFeedback_IsOpen()) return false;
     if (document &&
         document->GetElementById("collection-panel")->IsClassSet("open"))
     {
@@ -561,7 +568,20 @@ extern "C" bool nativeShell_CssPointerEvent(int x, int y,
 
 extern "C" void nativeShell_PressKey(const char* name, unsigned modifiers)
 {
-    if (nativeHub_IsVisible()) {
+    if (name && (!std::strcmp(name, "f2") || (nativeFeedback_IsOpen() &&
+        (!std::strcmp(name, "enter") || !std::strcmp(name, "escape"))))) {
+        const char* mapped = !std::strcmp(name, "enter") ? "Return" :
+            !std::strcmp(name, "escape") ? "Escape" : name;
+        SDL_Event event{}; event.type = SDL_EVENT_KEY_DOWN;
+        event.key.scancode = SDL_GetScancodeFromName(mapped);
+        event.key.key = SDL_GetKeyFromScancode(event.key.scancode, SDL_KMOD_NONE, false);
+        event.key.mod = (modifiers & 1 ? SDL_KMOD_SHIFT : 0) |
+            (modifiers & 2 ? SDL_KMOD_CTRL : 0) | (modifiers & 4 ? SDL_KMOD_ALT : 0);
+        nativeFeedback_Event(&event);
+        event.type = SDL_EVENT_KEY_UP; nativeFeedback_Event(&event);
+        return;
+    }
+    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         nativeHub_PressKey(name, modifiers);
         return;
     }

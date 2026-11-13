@@ -16,8 +16,10 @@ namespace {
         SRWLOCK lock = SRWLOCK_INIT;
         HANDLE wake = nullptr, thread = nullptr;
         HINTERNET session = nullptr, connection = nullptr;
-        bool stop = false, queued = false, secure = true;
+        bool stop = false, queued = false, secure = true, upload_queued = false;
         Request request{};
+        NativeCommunityUpload upload{};
+        NativeCommunityReceipt receipt{};
         NativeCommunityView view{};
         char origin[512], cache[1024], etag[128]{};
         char receive[response_limit + 1];
@@ -200,11 +202,30 @@ namespace {
         NativeNewsArticle fresh_article;
         for (;;) {
             Request command{};
+            NativeCommunityUpload upload{};
             AcquireSRWLockExclusive(&w.lock);
             const bool stop = w.stop, queued = w.queued;
-            if (queued) { command = w.request; w.queued = false; }
+            const bool sending = w.upload_queued;
+            if (sending) { upload = w.upload; w.upload_queued = false; }
+            else if (queued) { command = w.request; w.queued = false; }
             ReleaseSRWLockExclusive(&w.lock);
             if (stop) break;
+            if (sending) {
+                NativeCommunityReceipt receipt{};
+                nativeCommunity_SendReport(w.connection, w.secure, upload, receipt,
+                    [](void* owner, uint64_t sent, uint64_t total) {
+                        auto& target = *static_cast<Worker*>(owner);
+                        AcquireSRWLockExclusive(&target.lock);
+                        target.receipt.sent = sent; target.receipt.total = total; ++target.receipt.revision;
+                        const bool running = !target.stop;
+                        ReleaseSRWLockExclusive(&target.lock);
+                        return running;
+                    }, &w);
+                AcquireSRWLockExclusive(&w.lock);
+                receipt.revision = w.receipt.revision + 1; w.receipt = receipt;
+                ReleaseSRWLockExclusive(&w.lock);
+                continue;
+            }
             const uint64_t now = GetTickCount64();
             if (!queued && now < next_feed) {
                 WaitForSingleObject(w.wake, DWORD(next_feed - now));
@@ -319,6 +340,29 @@ bool nativeCommunity_RequestArticle(const char* id)
     return id && identifier(id) && submit(Operation::Article, id);
 }
 bool nativeCommunity_Refresh() { return submit(Operation::Feed, nullptr); }
+bool nativeCommunity_RequestUpload(const NativeCommunityUpload& upload)
+{
+    if (!worker || !identifier(upload.id) || !*upload.metadata || !*upload.image || !*upload.context) return false;
+    auto& w = *worker;
+    AcquireSRWLockExclusive(&w.lock);
+    const bool ok = !w.stop && !w.receipt.busy && !w.upload_queued;
+    if (ok) {
+        w.upload = upload; w.upload_queued = true;
+        const unsigned revision = w.receipt.revision + 1;
+        w.receipt = {}; w.receipt.revision = revision; w.receipt.busy = true;
+        std::snprintf(w.receipt.id, sizeof(w.receipt.id), "%s", upload.id);
+        SetEvent(w.wake);
+    }
+    ReleaseSRWLockExclusive(&w.lock); return ok;
+}
+bool nativeCommunity_PollReceipt(NativeCommunityReceipt& receipt)
+{
+    if (!worker) return false;
+    AcquireSRWLockShared(&worker->lock);
+    const bool changed = receipt.revision != worker->receipt.revision;
+    if (changed) receipt = worker->receipt;
+    ReleaseSRWLockShared(&worker->lock); return changed;
+}
 void nativeCommunity_Shutdown()
 {
     if (!worker) return;

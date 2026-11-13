@@ -1,4 +1,5 @@
 #include "native_feedback_context.h"
+#include "native_feedback_input.h"
 #include "native_home.h"
 #include "native_match_launch.h"
 #include "native_replay.h"
@@ -35,7 +36,9 @@ static SRWLOCK log_lock = SRWLOCK_INIT;
 void nativeFeedbackContext_Boundary(int scene, int64_t tick, uint64_t rollback, bool resimulating, bool online)
 {
     boundary = (struct Boundary){ scene, tick, rollback, resimulating, online };
+    nativeFeedbackInput_SetResimulating(resimulating);
 }
+bool nativeFeedbackContext_Online(void) { return boundary.online; }
 void nativeFeedbackContext_RecordPads(const PADStatus pads[4])
 {
     if (boundary.resimulating) return;
@@ -216,6 +219,8 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
     yyjson_mut_obj_add_strcpy(doc,root,"id",id);yyjson_mut_obj_add_strcpy(doc,root,"captured_at",captured_at);
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS_BUILD
     yyjson_mut_obj_add_str(doc,root,"build",NATIVE_NETPLAY_DIAGNOSTICS_BUILD);
+#else
+    yyjson_mut_obj_add_str(doc,root,"build","development");
 #endif
     yyjson_mut_obj_add_strcpy(doc,root,"workspace",workspace?workspace:"");
     yyjson_mut_obj_add_strcpy(doc,root,"focused_control",focused?focused:"");

@@ -18,6 +18,7 @@
 #include "native_match_launch.h"
 #include "native_presentation.h"
 #include "native_feedback_context.h"
+#include "native_feedback.h"
 #include <melee/lb/native_disc_files.h>
 #include <melee/ft/native_script_fighter_launch.h>
 #include <melee/ft/native_script_fighter.h>
@@ -161,6 +162,7 @@ int main(int argc, char** argv)
         .hideWindow = nativeMatchLaunch_Hidden(),
         .logLevel = LOG_INFO,
         .logCallback = nativeFeedbackContext_Log,
+        .eventFilter = nativeFeedback_Event,
         .mem1Size = 128 * 1024 * 1024,
         .mem2Size = 16 * 1024 * 1024 };
     aurora_initialize(argc, argv, &config);

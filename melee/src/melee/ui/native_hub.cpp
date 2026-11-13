@@ -1435,6 +1435,12 @@ extern "C" void nativeHub_PressKey(const char* name, unsigned modifiers)
                          (modifiers & 2 ? SDL_KMOD_CTRL : 0) |
                          (modifiers & 4 ? SDL_KMOD_ALT : 0)));
 }
+extern "C" void nativeHub_ReleasePointer(void)
+{
+    mouse_pressed = false;
+    hub.pressed = false;
+}
+
 extern "C" void nativeHub_Event(const SDL_Event* event)
 {
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {

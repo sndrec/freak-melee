@@ -21,6 +21,7 @@ bool nativeCssInteraction_SetLocalPlayers(unsigned count);
 bool nativeCssInteraction_Random(unsigned slot);
 void nativeCssInteraction_Inspect(void);
 void nativeCssInteraction_EnablePointer(bool enabled);
+void nativeCssInteraction_CancelPointer(void);
 bool nativeCssInteraction_Pointer(float u, float v,
                                   NativeCssPointerEvent event);
 bool nativeCssInteraction_PointerPort(unsigned port);

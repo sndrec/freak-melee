@@ -10,6 +10,10 @@ void nativeMatchClasses_Initialize(void) {}
 #include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_match_object_census.h>
 #include <melee/gm/native_netplay_match.h>
+#include <melee/gm/native_netplay_timing.h>
+#include <melee/gm/native_spectator_match.h>
+#include <melee/ui/native_hub.h>
+#include <melee/ui/native_shell_costumes.h>
 #include <melee/gm/native_rollback_benchmark.h>
 #include <melee/gm/native_rollback_probe.h>
 #include <melee/gm/native_rollback_census.h>
@@ -146,6 +150,28 @@ bool nativeShellProfiles_IsOpen(void) { return false; }
 bool nativeShellRules_IsOpen(void) { return false; }
 bool nativeShell_IsEditingText(void) { return false; }
 void nativeShell_Update(void) {}
+void nativeFeedback_Update(void) {}
+bool nativeFeedback_IsOpen(void) { return false; }
+bool nativeFeedback_PausesSimulation(void) { return false; }
+bool nativeMatchLaunch_IsSpectating(void) { return false; }
+bool nativeSpectatorMatch_Init(void) { abort(); }
+void nativeSpectatorMatch_Stop(void) { abort(); }
+int nativeSpectatorMatch_PollFrame(void) { abort(); }
+bool nativeSpectatorMatch_HideFrame(void) { abort(); }
+bool nativeSpectatorMatch_EndFrame(void) { abort(); }
+bool nativeNetplayTimingEnabled;
+void nativeNetplayTiming_Begin(NativeNetplayTimingPhase phase) { (void)phase; abort(); }
+void nativeNetplayTiming_End(NativeNetplayTimingPhase phase) { (void)phase; abort(); }
+void nativeNetplayTiming_Submitted(uint64_t frame, bool hidden) { (void)frame; (void)hidden; abort(); }
+void nativeCallbackProfile_SetFrame(uint64_t frame, bool resimulating) { (void)frame; (void)resimulating; abort(); }
+void nativeHub_Event(const union SDL_Event* event) { (void)event; }
+void nativeHome_HandleInput(void) {}
+void nativeHub_Tick(void) {}
+bool nativeHome_IsPractice(void) { return false; }
+bool nativeHub_ConsumesGameInput(void) { return false; }
+bool nativeShellCostumes_IsOpen(void) { return false; }
+void nativeHub_Draw(void) {}
+void aurora_enable_vsync(bool enabled) { (void)enabled; }
 const AuroraEvent* aurora_update(void) { return NULL; }
 bool aurora_begin_frame(void) { return true; }
 bool aurora_begin_frame_without_present(void) { return true; }
@@ -153,7 +179,9 @@ bool aurora_begin_frame_without_output(void) { abort(); }
 void aurora_end_frame_without_output(void) { abort(); }
 void aurora_end_frame(void) { ++fixture_frames; }
 void aurora_end_frame_without_present(void) { abort(); }
-Uint64 SDL_GetTicksNS(void) { abort(); }
+// Scene construction rebases the input clock to host time. The fixture then
+// advances its fast virtual clock, so this host boundary remains fixed.
+Uint64 SDL_GetTicksNS(void) { return UINT64_C(1000000000); }
 void SDL_Delay(Uint32 milliseconds) { (void)milliseconds; }
 void HSD_PerfSetStartTime(void) {}
 void HSD_PerfSetCPUTime(void) {}
