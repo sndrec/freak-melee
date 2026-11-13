@@ -1,13 +1,22 @@
 # Freak Melee: current project plan
 
-Updated: 2026-11-08. This is the current product contract and work list.
+Updated: 2026-11-13. This is the current product contract and work list.
 The [documentation index](melee/docs/README.md) links implementation details,
 authoring specifications and dated evidence. Historical checkpoints describe
 their own builds; their old "remaining" lists are not the current backlog.
 
 ## Current direction
 
-- Current task: user review of the [first-startup sequence](melee/docs/native_first_startup.md).
+- Next goal: [Workshop deletion, news, announcements, feedback and administration](melee/docs/native_news_feedback_plan.md).
+  Add fighter deletion, a native hub ticker and News page, convenient game-wide
+  notices, and F2 screenshot feedback with editable pins. F2 captures gameplay
+  and script state at the keypress and preserves it through submission. Online
+  annotation sends neutral local input while the match continues. Provide one
+  authenticated admin website for publishing/editing news, sending notices and
+  reviewing reports. The linked plan owns milestones, acceptance and proposed
+  defaults. Confirm the admin identity before enabling hosted admin access.
+  Startup/FMV and other earlier review work remain in the backlog below.
+- Earlier review work: the [first-startup sequence](melee/docs/native_first_startup.md).
   Profile info, optional account sign-in, guided controller center/range/trigger
   calibration, a live test and the first vanilla fighter clone use the native
   Melee menus. Guest online play stays available. Setup finishes on CSS. Pause

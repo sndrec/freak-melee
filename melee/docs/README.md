@@ -13,6 +13,7 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Set up a new player | [First startup](native_first_startup.md) |
 | Inspect original menu scenery | [Menu references](native_menu_references.md) |
 | Current scope / what's next | [Project plan](../../PROJECT_PLAN.md) |
+| Next goal for news, announcements and screenshot feedback | [Implementation plan and admin website](native_news_feedback_plan.md) |
 | This PC's tooling | [Local tooling](../../TOOLING.md) |
 | Workshop capabilities and gaps | [Current Workshop status](native_character_workshop_progress.md) |
 | Implement the approved editor | [Handoff](native_character_editor_handoff.md), [UI specification](native_character_workshop_ui.md), [Model specification](native_model_workspace_design.md), [rest-edit verification](native_model_rest_checkpoint.md) |
