@@ -298,6 +298,10 @@ Current checkpoint (2026-11-13):
 - The native deletion review passed for installed fighters, draft-only fighters
   and a Zelda/Sheik family. Cancellation, a locked file, restart recovery,
   unrelated fighters and retained cache objects were checked in copied profiles.
+- The two-client lobby review passed selected-fighter deletion. Local CSS and
+  peer selection clear; the peer's installed fighter and cached packages remain.
+  Deletion is disabled during ready practice. Returning to CSS clears readiness
+  before deletion becomes available.
 - Eleven Worker/formatter checks pass, covering publication, edit conflicts, announcement
   resends, signed admin access, write origins, feedback retries and attachment
   cleanup. Type checking and the deployment dry run pass.
@@ -315,8 +319,10 @@ Current checkpoint (2026-11-13):
   menu-transition state and available netplay timing/checksum observations.
   Escape asks before discarding the report. The immutable upload/retry and
   two-peer neutral-input reviews passed again with these changes.
-- News links, remaining announcement queue/input cases and hosted administration
-  still need implementation or integration review.
+- Mouse and controller A open News from all seven main hub pages. A notice
+  published during a real online match stays pending until the players return
+  to the hub. Holding A dismisses it once. That match compared over 1,700
+  confirmed peer checksums without a mismatch.
 - The displayed-image reservation backend is implemented. Its D3D12 test checks
   that queued newer frames and a changed resolution cannot replace a reserved
   capture. The diagnostic collector and host-only input/log history are also
@@ -327,9 +333,18 @@ Current checkpoint (2026-11-13):
   confirmed that a scripted fighter's animation and position stay frozen during
   annotation and resume afterward. Two UDP peers kept playing during F2 with
   neutral local input, including rollback under six-frame artificial latency.
+- F2 capture and return pass during startup and in Action Editor, Scripting,
+  Animation and Model. A four-player match with four scripted fighters and an
+  item produced 61,678 bytes of diagnostics. The service's 8 MiB context budget
+  leaves room for larger reports; this sample does not establish a worst case.
+- A failed diagnostic save keeps the screenshot and notes usable. The client
+  writes a partial-capture explanation using the original capture identity.
+  The report-owner fixture passes 21 checks for failed collection, failed UI
+  activation, file-write recovery and byte-identical upload retries. The GPU
+  capture test also passes cancellation and saved-destination preservation.
 - Controller and clock snapshot checks pass. The production GM-loop fixture
   also passes after updating its host endpoints for the current scene/input
-  lifecycle. Hosted report delivery and the admin browser review remain open.
+  lifecycle. Hosted authenticated report viewing and live admin edits remain.
 - The two-peer rollback check completed 273 restores and 883 replay ticks with
   matching confirmed checksums while the annotating player remained neutral.
 - The remote D1 database and private feedback R2 bucket are created, and the
@@ -341,14 +356,21 @@ Current checkpoint (2026-11-13):
   APIs deny access while sign-in configuration is pending. No updater release
   has been published for this goal.
 
+Current local executable: `melee/build/native/melee_native.exe`, SHA-256
+`b04f505c74db5ff1b2bf6fa2c7d53b02404e6d70bf7657564c26cb154cac799f`.
+The existing `Launch Freak Melee.bat` starts this local build. Its final updater
+release remains gated on hosted admin access, integration and user review.
+
 Reusable reviews are `melee/tools/review_native_fighter_deletion.py`,
-`melee/tools/review_native_community.py`, `melee/tools/review_native_announcements.py`, `melee/tools/review_native_feedback.py`
-and `melee/tools/review_native_feedback_online.py`. They use hidden, muted clients
+`melee/tools/review_native_community.py`, `melee/tools/review_native_announcements.py`,
+`melee/tools/review_native_community_match.py`, `melee/tools/review_native_feedback.py`,
+`melee/tools/review_native_feedback_online.py` and
+`melee/tools/review_native_feedback_contexts.py`. They use hidden, muted clients
 with copied user data; pass an existing test profile and a new output directory.
 
 1. **Workshop deletion**
    - [x] Implement confirmed deletion for installed, draft and paired fighters.
-   - [ ] Clean CSS and local selections consistently, including lobby readiness.
+   - [x] Clean CSS and local selections consistently, including lobby readiness.
    - [x] Verify cancellation, file failure and restart recovery.
 2. **Service and administration**
    - [x] Define bounded JSON/report formats and storage tables/objects.
@@ -357,18 +379,18 @@ with copied user data; pass an existing test profile and a new output directory.
    - [ ] Configure and verify Twilight's admin access.
 3. **Ticker, News page and announcements**
    - [x] Implement refresh/cache/history and native menu presentation/input.
-   - [ ] Reuse notices with convenient display, expiry, withdrawal and seen tracking.
+   - [x] Reuse notices with convenient display, expiry, withdrawal and seen tracking.
    - [ ] Verify a live admin edit appears in a running client.
 4. **F2 capture and annotation**
    - [x] Capture the displayed image and diagnostic state together at activation.
    - [x] Implement pins, bubbles, editing/removal animations and submit confirmation.
    - [x] Implement offline pause and online neutral-input behavior.
    - [ ] Upload/retry the immutable report and show it correctly in administration.
-     Native upload/retry passes locally; hosted delivery/viewing remains.
+     Native and hosted upload/retry pass; authenticated hosted viewing remains.
 5. **Integration and user review**
-   - [ ] Batch service/input/report checks and hidden, muted native reviews.
+   - [x] Batch service/input/report checks and hidden, muted native reviews.
    - [ ] Verify deployment and report read/write permissions through hosted routes.
-   - [ ] Commit coherent changes and push the private repository.
+   - [x] Commit coherent changes and push the private repository.
    - [ ] Offer the complete local build/admin URL for the user's visual and usability pass.
    - [ ] Publish the client through the updater after the full goal and admin deployment are ready (authorized).
 

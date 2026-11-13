@@ -129,6 +129,7 @@ def main():
         assert body[20+a+b:] == context
         assert metadata["capture_at"] == captured["captured_at"] and metadata["id"] == captured["id"]
         assert metadata["build"] == captured["build"] and metadata["build"]
+        assert metadata["context_complete"] is True
         assert len(metadata["pins"]) == 1 and metadata["pins"][0]["text"].startswith("Edited after resizing")
         assert abs(metadata["pins"][0]["x"] - 700/captured["image_width"]) < .002
         assert abs(metadata["pins"][0]["y"] - 420/captured["image_height"]) < .002

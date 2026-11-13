@@ -108,9 +108,14 @@ TEST(PresentedCapture, KeepsPressedFrameAcrossQueuedRendersResizeReleaseAndFailu
   ASSERT_TRUE(aurora_capture_presented(invalid.c_str(), false, nullptr));
   EXPECT_EQ(wait_capture().status, AURORA_CAPTURE_FAILED);
   // A cancelled request cannot keep the fixed image slots occupied forever.
-  ASSERT_TRUE(aurora_capture_presented(green.c_str(), true, nullptr));
-  aurora_release_presented_capture(); gfx::render_worker::synchronize();
+  // Cancelling before writing also preserves a previously saved destination.
+  std::latch cancel_gate{1};
+  gfx::render_worker::enqueue_work([&] { cancel_gate.wait(); });
+  const bool cancelled_accepted = aurora_capture_presented(green.c_str(), true, nullptr);
+  aurora_release_presented_capture(); cancel_gate.count_down(); gfx::render_worker::synchronize();
+  ASSERT_TRUE(cancelled_accepted);
   wait_capture();
+  expect_pixels(green, 128, 64, {0, 255, 0});
   ASSERT_TRUE(aurora_capture_presented(green.c_str(), false, nullptr));
   EXPECT_EQ(wait_capture().status, AURORA_CAPTURE_READY);
   aurora_shutdown();

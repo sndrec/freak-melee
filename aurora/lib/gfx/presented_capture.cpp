@@ -70,9 +70,14 @@ void readback(int slot_index, uint64_t id, const Path& path) {
       const void* pixels = buffer.GetConstMappedRange(0, bytes);
       const bool ok = wanted && pixels && write_png(path.data(), pixels, extent.width, extent.height, pitch, bgra, false);
       buffer.Unmap();
-      if (ok) Log.info("Saved screenshot {}", path.data());
-      else if (wanted) Log.error("Screenshot PNG save failed: {}", path.data());
-      finish(id, ok, ok ? "" : "Could not save the captured screen.");
+      bool cancelled;
+      { std::lock_guard lock{mutex}; cancelled = !active || capture.capture_id != id; }
+      // Cancellation can arrive after the initial wanted check, while the PNG
+      // file is open. Remove it here after the writer has closed its handle.
+      if (cancelled && wanted && pixels) std::remove(path.data());
+      if (ok && !cancelled) Log.info("Saved screenshot {}", path.data());
+      else if (wanted && !cancelled) Log.error("Screenshot PNG save failed: {}", path.data());
+      finish(id, ok && !cancelled, cancelled ? "Capture cancelled." : ok ? "" : "Could not save the captured screen.");
     });
 }
 }

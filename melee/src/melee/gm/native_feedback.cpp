@@ -34,10 +34,15 @@ namespace {
 NativeFeedbackDraft draft;
 NativeCommunityUpload upload;
 NativeCommunityReceipt receipt;
-bool open, online, context_ready, submitted, sending, completed, old_cursor;
+bool open, online, context_ready, context_complete, submitted, sending, completed, old_cursor;
 bool suppressed_keys[SDL_SCANCODE_COUNT];
 unsigned suppressed_mouse;
 unsigned shown_revision;
+#ifdef NATIVE_NETPLAY_DIAGNOSTICS_BUILD
+constexpr const char* build = NATIVE_NETPLAY_DIAGNOSTICS_BUILD;
+#else
+constexpr const char* build = "development";
+#endif
 
 bool directory(const char* path)
 { return CreateDirectoryA(path, nullptr) || GetLastError() == ERROR_ALREADY_EXISTS; }
@@ -58,11 +63,8 @@ bool metadata()
     auto* root = yyjson_mut_obj(doc); yyjson_mut_doc_set_root(doc, root);
     yyjson_mut_obj_add_strcpy(doc, root, "id", draft.id);
     yyjson_mut_obj_add_strcpy(doc, root, "capture_at", draft.captured_at);
-#ifdef NATIVE_NETPLAY_DIAGNOSTICS_BUILD
-    yyjson_mut_obj_add_str(doc, root, "build", NATIVE_NETPLAY_DIAGNOSTICS_BUILD);
-#else
-    yyjson_mut_obj_add_str(doc, root, "build", "development");
-#endif
+    yyjson_mut_obj_add_str(doc, root, "build", build);
+    yyjson_mut_obj_add_bool(doc, root, "context_complete", context_complete);
     auto* pins = yyjson_mut_arr(doc); yyjson_mut_obj_add_val(doc, root, "pins", pins);
     for (unsigned i = 0; i < draft.count; ++i) {
         const auto& pin = draft.pins[i]; auto* row = yyjson_mut_obj(doc); yyjson_mut_arr_append(pins, row);
@@ -75,6 +77,20 @@ bool metadata()
     bool ok = file && std::fwrite(bytes, 1, length, file) == length;
     if (file) ok = std::fclose(file) == 0 && ok;
     std::free(bytes); yyjson_mut_doc_free(doc); return ok;
+}
+bool unavailable_context()
+{
+    // Only generated UUID, UTC and validated build-label characters enter the
+    // JSON strings. A retry uses this original capture header, never live state.
+    FILE* file = std::fopen(draft.context_path, "wb");
+    if (!file) return false;
+    const bool written = std::fprintf(file,
+        "{\"id\":\"%s\",\"captured_at\":\"%s\",\"build\":\"%s\","
+        "\"context_complete\":false,\"error\":\"Gameplay diagnostics could not be collected.\","
+        "\"displayed_frame\":%llu,\"presented_at_ns\":%llu,\"image_width\":%u,\"image_height\":%u}",
+        draft.id, draft.captured_at, build, (unsigned long long)draft.image.displayed_frame,
+        (unsigned long long)draft.image.presented_at_ns, draft.image.width, draft.image.height) > 0;
+    return std::fclose(file) == 0 && written;
 }
 void close(bool discard)
 {
@@ -105,8 +121,8 @@ void close(bool discard)
 void send()
 {
     AuroraPresentedCapture capture{}; aurora_presented_capture_status(&capture);
-    if (!context_ready) {
-        nativeFeedbackView_Status("Could not save the gameplay context. Cancel this capture and try F2 again.", false, false, false); return;
+    if (!context_ready && !(context_ready = unavailable_context())) {
+        nativeFeedbackView_Status("Could not save the diagnostic capture. Free some disk space, then press Enter to retry. Your screenshot and notes are retained.", false, false, false); return;
     }
     if (capture.capture_id != draft.image.capture_id || capture.status != AURORA_CAPTURE_READY) {
         if (capture.capture_id == draft.image.capture_id && capture.status == AURORA_CAPTURE_FAILED &&
@@ -163,9 +179,16 @@ extern "C" bool nativeFeedback_Open(void)
     interface_state.hub_page = nativeHub_IsVisible() ? int(nativeHub_CurrentPage()) : -1;
     interface_state.menu_transition = nativeMenuScene_Active();
     interface_state.focused_control = focused ? focused->GetId().c_str() : "";
-    context_ready = nativeFeedbackContext_Write(draft.context_path, draft.id, draft.captured_at, &draft.image,
+    context_complete = nativeFeedbackContext_Write(draft.context_path, draft.id, draft.captured_at, &draft.image,
         &interface_state);
-    if (!nativeFeedbackView_Open(draft)) { aurora_release_presented_capture(); return false; }
+    context_ready = context_complete || unavailable_context();
+    if (!nativeFeedbackView_Open(draft)) {
+        aurora_release_presented_capture();
+        DeleteFileA(draft.context_path); DeleteFileA(draft.image_path);
+        return false;
+    }
+    if (!context_complete) nativeFeedbackView_Status(
+        "Gameplay diagnostics could not be captured. You can still send this screenshot and your notes.", false, false, false);
     const char* room = nativeOnlineSession_RoomCode();
     online = nativeFeedbackContext_Online() || (room && *room);
     submitted = sending = completed = false; shown_revision = 0;

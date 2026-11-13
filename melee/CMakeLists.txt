@@ -2183,6 +2183,12 @@ add_executable(native_feedback_input_test tests/native/native_feedback_input_tes
 target_include_directories(native_feedback_input_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_feedback_input_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_feedback_input COMMAND native_feedback_input_test)
+add_executable(native_feedback_owner_test tests/native/native_feedback_owner_test.cpp
+    src/melee/gm/native_feedback.cpp)
+target_include_directories(native_feedback_owner_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_feedback_owner_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(native_feedback_owner_test PRIVATE aurora_core yyjson bcrypt)
+add_test(NAME native_feedback_owner COMMAND native_feedback_owner_test "${CMAKE_BINARY_DIR}/tests/feedback-owner")
 add_executable(native_news_text_test tests/native/native_news_text_test.cpp
     src/melee/ui/native_news_text.cpp)
 target_include_directories(native_news_text_test PRIVATE src)
