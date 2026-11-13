@@ -512,6 +512,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/mn/native_online_menu.c
     src/melee/mn/native_online_sss.c
     src/melee/ui/native_hub.cpp
+    src/melee/ui/native_hub_news.cpp
+    src/melee/gm/native_community.cpp
     src/melee/ui/native_hub_startup.cpp
     src/melee/ui/native_hub_startup_view.cpp
     src/melee/ui/native_hub_startup_roster.cpp
@@ -537,6 +539,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_account_transport.cpp
     src/melee/gm/native_account_store.cpp
     src/melee/ui/native_hub_catalog.cpp
+    src/melee/ui/native_hub_delete.cpp
     src/melee/mn/native_menu_paint.c
     src/melee/mn/native_menu_font.c
     src/melee/mn/native_menu_skin.c

@@ -234,6 +234,23 @@ void nativeHome_ReplaceInstalledFighter(const NativeContentId* previous,
 
 }
 
+void nativeHome_RemoveInstalledFighter(const NativeContentId* id)
+{
+    if (id == NULL || !nativeHome_IsSelection()) return;
+    bool changed = false;
+    for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
+        if (memcmp(&home.fighter_packages[port], id, sizeof(*id))) continue;
+        nativeHome_SelectFighterPackage(port, NULL);
+        if (home.css != NULL) home.css->vs.start.players[port].ckind = ChKind_None;
+        changed = true;
+    }
+    if (changed) {
+        home.selection.confirmed = false;
+        nativeHome_CancelStartMatch();
+        if (nativeOnlineSession_Quick()) nativeOnlineSession_UnreadyQuick();
+    }
+}
+
 const NativeContentId* nativeHome_CostumePackage(unsigned port)
 {
     if (port >= GM_MAX_PLAYERS || home.css == NULL ||

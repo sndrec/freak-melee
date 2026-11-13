@@ -120,6 +120,7 @@ const NativeContentId* nativeHome_FighterPackage(unsigned port);
 void nativeHome_SelectFighterPackage(unsigned port, const NativeContentId* id);
 void nativeHome_ReplaceInstalledFighter(const NativeContentId* previous,
                                        const NativeContentId* next);
+void nativeHome_RemoveInstalledFighter(const NativeContentId* id);
 bool nativeHome_LockSelection(CSSData* css);
 int nativeHome_PhysicalPortForLocalPlayer(unsigned local_player);
 void nativeHome_EnterPractice(StartMeleeData* start);

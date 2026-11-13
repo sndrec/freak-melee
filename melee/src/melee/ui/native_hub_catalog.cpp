@@ -1,4 +1,5 @@
 #include "native_hub_catalog.h"
+#include "native_hub_delete.h"
 #include <SDL3/SDL_iostream.h>
 #include "native_shell_css_original.h"
 #include <melee/ft/native_gx_image.h>
@@ -53,6 +54,7 @@ void nativeHubCatalog_Clear(void)
 }
 bool nativeHubCatalog_Load(void)
 {
+    const bool recovered = nativeHubDelete_Recover();
     nativeHubCatalog_Clear();
     char root_buffer[512];
     const char* root = nativeHubCatalog_Root(root_buffer);
@@ -132,7 +134,7 @@ bool nativeHubCatalog_Load(void)
         std::snprintf(entry->draft, sizeof(entry->draft), "%s",
                       drafts[i].path);
     }
-    return true;
+    return recovered;
 }
 static bool new_path(char path[512])
 {

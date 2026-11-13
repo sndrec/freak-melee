@@ -293,8 +293,26 @@ Persist a small last-valid feed and seen-announcement set locally.
 
 ## Implementation milestones
 
+Current checkpoint (2026-11-13):
+
+- The native deletion review passed for installed fighters, draft-only fighters
+  and a Zelda/Sheik family. Cancellation, a locked file, restart recovery,
+  unrelated fighters and retained cache objects were checked in copied profiles.
+- Seven Worker checks pass, covering publication, edit conflicts, announcement
+  resends, signed admin access, write origins, feedback retries and attachment
+  cleanup. Type checking and the deployment dry run pass.
+- The native news review passed for ticker/article selection, article scrolling,
+  25-entry history pages, a live feed change, announcement dismissal, saved seen
+  IDs and an offline restart. Screenshots were inspected at two window sizes.
+- News links, remaining queue/input cases, hosted administration and the full F2
+  capture/annotation path still need implementation or integration review.
+
+Reusable reviews are `melee/tools/review_native_fighter_deletion.py` and
+`melee/tools/review_native_community.py`. Both use hidden, muted clients with
+copied user data; pass an existing test profile and a new output directory.
+
 1. **Workshop deletion**
-   - [ ] Implement confirmed deletion for installed, draft and paired fighters.
+   - [x] Implement confirmed deletion for installed, draft and paired fighters.
    - [ ] Clean CSS and local selections consistently, including lobby readiness.
    - [x] Verify cancellation, file failure and restart recovery.
 2. **Service and administration**

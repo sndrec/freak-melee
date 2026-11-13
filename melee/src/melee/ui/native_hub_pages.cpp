@@ -1,4 +1,5 @@
 #include "native_hub_internal.h"
+#include "native_hub_news.h"
 #include <melee/gm/native_presentation.h>
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
@@ -121,8 +122,10 @@ namespace {
                              HubAction::RenameFighter, 0, false, nativeHome_IsSelection());
             nativeHub_Button("send-fighter", "Send fighter", 320, 332, 81, 21,
                              HubAction::SendFighter, 0, false, f.installed);
-            nativeHub_Button("portrait-fighter","Portrait & tile",410,332,177,23,
+            nativeHub_Button("portrait-fighter","Portrait & tile",410,332,110,23,
                              HubAction::EditPortrait,0,false,nativeHome_IsSelection() && f.draft[0]);
+            nativeHub_Button("delete-fighter", "Delete", 526, 332, 61, 23,
+                             HubAction::DeleteFighter, 0, false, nativeHome_IsSelection());
         }
         if (nativeHubFighterCount > 14) {
             nativeHub_Button("roster-prev", "<", 539, 115, 27, 21,
@@ -152,7 +155,22 @@ namespace {
             nativeHub_Button("decline-fighter", "Decline", 523, 235, 60, 27,
                              HubAction::DeclineGift);
         }
-        if (hub.rename) {
+        if (hub.delete_confirmation && hub.selected >= 0 &&
+            unsigned(hub.selected) < nativeHubFighterCount) {
+            hub.region_count = 0;
+            nativeMenuPaint_Rect(0, 0, 640, 480, 0x00000090);
+            nativeHub_Panel(190, 181, 400, 123);
+            nativeMenuPaint_Text("Delete fighter?", 207, 195, 366, 18, gold,
+                                 NativeMenuFont_MenuOption);
+            nativeMenuPaint_Text(nativeHubFighters[hub.selected].title,
+                                 207, 222, 366, 12, 0xF5EFEAFF);
+            nativeMenuPaint_Text("Remove its project and Character Select tiles.",
+                                 207, 243, 366, 9, muted);
+            nativeHub_Button("delete-cancel", "Cancel", 207, 266, 120, 24,
+                             HubAction::Cancel, 0, true);
+            nativeHub_Button("delete-confirm", "Delete fighter", 397, 266, 175, 24,
+                             HubAction::ConfirmDeleteFighter);
+        } else if (hub.rename) {
             nativeHub_Panel(194, 196, 390, 91);
             nativeMenuPaint_Text("Fighter name", 208, 207, 200, 10, gold);
             nativeHub_Field("fighter-title", hub.title, 208, 227, 360, 23,
@@ -461,6 +479,8 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_News:
+        nativeHubNews_Render(); break;
     case NativeHubPage_Portrait:
         nativeHubPortrait_Render(); break;
     case NativeHubPage_Startup:

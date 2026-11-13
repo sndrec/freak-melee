@@ -191,6 +191,27 @@ unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
     lines[0][split] = 0;
     return 2;
 }
+static float clip_left, clip_right;
+void nativeMenuFont_Clip(float left, float right)
+{
+    clip_left = left; clip_right = right;
+}
+typedef struct FontVertex { float x, y, u, v; } FontVertex;
+static unsigned clip_edge(const FontVertex* input, unsigned count, FontVertex* output, float bound, bool minimum)
+{
+    unsigned written = 0;
+    for (unsigned i = 0; i < count; ++i) {
+        FontVertex a = input[(i + count - 1) % count], b = input[i];
+        const bool inside_a = minimum ? a.x >= bound : a.x <= bound;
+        const bool inside_b = minimum ? b.x >= bound : b.x <= bound;
+        if (inside_a != inside_b) {
+            const float t = (bound - a.x) / (b.x - a.x);
+            output[written++] = (FontVertex){bound, a.y+(b.y-a.y)*t, a.u+(b.u-a.u)*t, a.v+(b.v-a.v)*t};
+        }
+        if (inside_b) output[written++] = b;
+    }
+    return written;
+}
 void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
                         float x,float y,float z,float width,float height,
                         u32 rgba, bool centered, bool outline)
@@ -222,11 +243,22 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
         float left=x+g->left*horizontal,top=y-g->top*scale;
         float shear=face==NativeMenuFont_ResultWinner?height*.22f:
             face==NativeMenuFont_MenuCaption?(h+g->top*scale)*.30f:0;
-        GXBegin(GX_QUADS,GX_VTXFMT0,4);
-        GXPosition3f32(left+shear,top,z);GXTexCoord2f32(u,v);
-        GXPosition3f32(left+w+shear,top,z);GXTexCoord2f32(r,v);
-        GXPosition3f32(left+w,top-h,z);GXTexCoord2f32(r,b);
-        GXPosition3f32(left,top-h,z);GXTexCoord2f32(u,b);GXEnd();
+        FontVertex vertices[8] = {{left+shear,top,u,v},{left+w+shear,top,r,v},
+            {left+w,top-h,r,b},{left,top-h,u,b}};
+        unsigned count = 4;
+        if (clip_right > clip_left) {
+            FontVertex scratch[8];
+            count = clip_edge(vertices, count, scratch, clip_left, true);
+            if (count) count = clip_edge(scratch, count, vertices, clip_right, false);
+        }
+        if (count >= 3) {
+            GXBegin(GX_TRIANGLEFAN,GX_VTXFMT0,count);
+            for (unsigned i=0;i<count;++i) {
+                GXPosition3f32(vertices[i].x,vertices[i].y,z);
+                GXTexCoord2f32(vertices[i].u,vertices[i].v);
+            }
+            GXEnd();
+        }
         x+=g->advance*horizontal;
     }
 }

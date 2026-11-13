@@ -1,4 +1,6 @@
 #include "native_hub.h"
+#include "native_hub_delete.h"
+#include "native_hub_news.h"
 #include "native_hub_hand.h"
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
@@ -56,7 +58,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News" };
     const char* descriptions[] = {
         "Find someone to play",      "Create a lobby or join your friends",
         "Talk with everyone online", "Find your friends",
@@ -542,6 +544,8 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
 }
 void nativeHub_Activate(HubAction action, int value)
 {
+    if (hub.delete_confirmation && action != HubAction::ConfirmDeleteFighter &&
+        action != HubAction::Cancel && action != HubAction::Back) return;
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
     if (nativeHubPortrait_Activate(action,value)) return;
     if (nativeHubStartup_Activate(action, value)) return;
@@ -550,6 +554,7 @@ void nativeHub_Activate(HubAction action, int value)
     if (nativeHubLobbies_Activate(action,value)) return;
     if (nativeHubAccount_Activate(action,value)) return;
     if (nativeHubSocial_Activate(action,value)) return;
+    if (nativeHubNews_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
             unsigned(action) - unsigned(HubAction::QuickPlay)));
@@ -566,7 +571,9 @@ void nativeHub_Activate(HubAction action, int value)
         nativeHub_ChangePage(NativeHubPage_Profile);
         break;
     case HubAction::Back:
-        if (hub.rename) {
+        if (hub.delete_confirmation) {
+            hub.delete_confirmation = false;
+        } else if (hub.rename) {
             hub.rename = false;
             text_focus(nullptr, 0);
         } else if (hub.page == NativeHubPage_Send && hub.send_from_css) {
@@ -680,6 +687,32 @@ void nativeHub_Activate(HubAction action, int value)
             text_focus(hub.title, sizeof(hub.title));
         }
         break;
+    case HubAction::DeleteFighter:
+        if (nativeHome_IsSelection() && hub.selected >= 0 &&
+            unsigned(hub.selected) < nativeHubFighterCount) {
+            hub.rename = false;
+            text_focus(nullptr, 0);
+            hub.delete_confirmation = true;
+            hub.pointer_x = 267;
+            hub.pointer_y = 276;
+        }
+        break;
+    case HubAction::ConfirmDeleteFighter:
+        if (hub.delete_confirmation) {
+            const int selected = hub.selected;
+            hub.delete_confirmation = false;
+            if (selected >= 0 && nativeHubDelete_Fighter(unsigned(selected))) {
+                reload_catalog();
+                hub.selected = nativeHubFighterCount ?
+                    std::min(selected, int(nativeHubFighterCount) - 1) : -1;
+                hub.first_fighter = hub.selected >= 0 ? hub.selected / 14 * 14 : 0;
+                nativeHub_Notice("Fighter deleted.");
+            } else {
+                reload_catalog();
+                nativeHubNotice_Show("Could not finish deleting", "Close any program using the fighter's files, then reopen Workshop to retry.");
+            }
+        }
+        break;
     case HubAction::ApplyRename:
         text_focus(nullptr, 0);
         if (nativeHubCatalog_Rename(unsigned(hub.selected), hub.title)) {
@@ -692,6 +725,7 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::Cancel:
         hub.rename = false;
+        hub.delete_confirmation = false;
         text_focus(nullptr, 0);
         break;
     case HubAction::Practice:
@@ -1080,6 +1114,7 @@ extern "C" void nativeHub_Tick(void)
     nativeHubSocial_Tick();
     nativeHubStartup_Tick();
     nativeHubDefaults_Tick();
+    nativeHubNews_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
     if (hub.initialized) {
         nativeChat_Identify(hub.public_name);
@@ -1211,6 +1246,7 @@ extern "C" void nativeHub_Tick(void)
         if (hub.page != NativeHubPage_QuickStage && !nativeHubStartup.active) break;
     }
     nativeHubStartupTriggers_Update();
+    nativeHubNews_Input();
     if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Placement) nativeHubStartupStamp_Move();
 }
 extern "C" void nativeHub_Draw(void)
@@ -1272,11 +1308,14 @@ extern "C" void nativeHub_Draw(void)
         hub.passive_page = false;
         nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation)
+        nativeHubNews_Ticker();
     if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
     else if (!nativeHubPortrait_Editing()) {
         nativeHub_Panel(38, 408, 565, 32);
         const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
             : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
+            : hub.page == NativeHubPage_News ? "Read news and updates"
             : unsigned(hub.page) < 7 ? descriptions[unsigned(hub.page)] : "";
         nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
         nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
@@ -1481,6 +1520,10 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         if (!event->key.repeat || !action_key || multiline_return)
             key(event->key.key, event->key.mod);
     }
+    if (event->type == SDL_EVENT_MOUSE_WHEEL && hub.visible && hub.page == NativeHubPage_News) {
+        nativeHubNews_Scroll(-int(event->wheel.y) * 3);
+        return;
+    }
     if (event->type == SDL_EVENT_MOUSE_WHEEL && hub.visible && hub.page == NativeHubPage_Letter) {
         nativeHubSocial_Scroll(-int(event->wheel.y) * 3);
         return;
@@ -1504,7 +1547,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_Portrait || nativeHubStartup.active) {
+        page > NativeHubPage_News || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;
@@ -1533,6 +1576,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     }
     if (!std::strcmp(id, "hub-lobbies")) { nativeHubLobbies_Inspect(); return; }
     if (!std::strcmp(id, "hub-account")) { nativeHubAccount_Inspect(); return; }
+    if (!std::strcmp(id, "hub-news")) { nativeHubNews_Inspect(); return; }
     if (!std::strcmp(id, "hub-social")) { nativeHubSocial_Inspect(); return; }
     if (!std::strcmp(id, "hub-people")) {
         const auto* chat = nativeChat_View(); const auto* room = nativeOnlineSession_Presence();
@@ -1620,6 +1664,7 @@ extern "C" void nativeHub_Shutdown(void)
     nativePlayMenu_Shutdown();
     nativeHubLobbies_Shutdown();
     nativeHubAccount_Shutdown();
+    nativeHubNews_Shutdown();
     nativeHubStartupRoster_Unload();
     nativeHubStartupStamp_Unload();
     nativeHubDefaults_Shutdown();

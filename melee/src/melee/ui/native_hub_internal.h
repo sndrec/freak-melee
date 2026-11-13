@@ -86,7 +86,9 @@ enum class HubAction {
     Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry,
     StartupTriggerRange, StartupTest, StartupFighterMove, StartupConfirmFighter,
     PortraitReset, PortraitSave, PortraitTileName, StartupPlaceTile,
-    DefaultsOpen, DefaultsConfirm, DefaultsCancel, EditPortrait, PortraitMode
+    DefaultsOpen, DefaultsConfirm, DefaultsCancel, EditPortrait, PortraitMode,
+    DeleteFighter, ConfirmDeleteFighter,
+    News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack
 };
 struct HubRegion {
     float x, y, w, h;
@@ -121,6 +123,7 @@ struct HubState {
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
     bool returning_from_tool, rename, select_all, send_from_css,
         profile_self = true;
+    bool delete_confirmation;
     bool opened_from_play;
     bool consumes_input;
     bool passive_page;
