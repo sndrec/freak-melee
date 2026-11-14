@@ -9,8 +9,8 @@
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   "vars": {
     "ADMIN_EMAIL": "sndrec32exe@gmail.com",
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUDIENCE": ""
+    "ACCESS_TEAM_DOMAIN": "divine-cake-d237.cloudflareaccess.com",
+    "ACCESS_AUDIENCE": "83a2f77b0a408974488fc3a7ce2d761e9c099895e271b6b4690524fe6d698c3a"
   },
   "d1_databases": [
     { "binding": "COMMUNITY", "database_name": "freak-melee-community", "database_id": "998db328-08f6-49dc-a13d-d5b70036f44c", "migrations_dir": "migrations" }

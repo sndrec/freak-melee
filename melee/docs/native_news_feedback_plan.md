@@ -348,13 +348,21 @@ Current checkpoint (2026-11-13):
 - The two-peer rollback check completed 273 restores and 883 replay ticks with
   matching confirmed checksums while the annotating player remained neutral.
 - The remote D1 database and private feedback R2 bucket are created, and the
-  initial database migration is applied. Cloudflare Zero Trust activation needs
-  Twilight to complete its terms/billing checkout before admin Access setup.
-  Other client/service work can continue while that browser step is pending.
-- The foundation Worker is deployed. Hosted public reads and feedback upload /
-  idempotent retry pass, with R2 public access disabled. Admin HTML, assets and
-  APIs deny access while sign-in configuration is pending. No updater release
-  has been published for this goal.
+  initial database migration is applied. Zero Trust is activated. The admin
+  Access application protects `/admin` and its descendants, allows only
+  Twilight's configured email, and uses twelve-hour sessions. Twilight
+  confirmed that real sign-in reaches the deployed administration page.
+- Worker version `d9f83847-ba54-493c-b9e3-9763d4b80aaf` is deployed. Hosted public
+  reads and feedback upload / idempotent retry pass, with R2 public access
+  disabled. Unauthenticated admin HTML, assets, APIs and report downloads
+  redirect to Access. The eleven service tests pass with the production
+  audience configured. No updater release has been published for this goal.
+- Hosted review passed: Twilight signed in, published and edited news, and
+  opened feedback with its screenshot, pins, notes and diagnostics. An already
+  running hidden, muted client received the published article and announcement
+  and displayed the edited article body. The public article reached revision 3.
+  Evidence is in `.local/community-hosted-access-review-1` and
+  `.local/community-hosted-publication-review-1`.
 
 Current local executable: `melee/build/native/melee_native.exe`, SHA-256
 `b04f505c74db5ff1b2bf6fa2c7d53b02404e6d70bf7657564c26cb154cac799f`.
@@ -376,22 +384,21 @@ with copied user data; pass an existing test profile and a new output directory.
    - [x] Define bounded JSON/report formats and storage tables/objects.
    - [x] Implement public reads, safe report submission and authenticated admin APIs.
    - [x] Build the single-page news editor, announcement composer and feedback inbox.
-   - [ ] Configure and verify Twilight's admin access.
+   - [x] Configure and verify Twilight's admin access.
 3. **Ticker, News page and announcements**
    - [x] Implement refresh/cache/history and native menu presentation/input.
    - [x] Reuse notices with convenient display, expiry, withdrawal and seen tracking.
-   - [ ] Verify a live admin edit appears in a running client.
+   - [x] Verify a live admin edit appears in a running client.
 4. **F2 capture and annotation**
    - [x] Capture the displayed image and diagnostic state together at activation.
    - [x] Implement pins, bubbles, editing/removal animations and submit confirmation.
    - [x] Implement offline pause and online neutral-input behavior.
-   - [ ] Upload/retry the immutable report and show it correctly in administration.
-     Native and hosted upload/retry pass; authenticated hosted viewing remains.
+   - [x] Upload/retry the immutable report and show it correctly in administration.
 5. **Integration and user review**
    - [x] Batch service/input/report checks and hidden, muted native reviews.
-   - [ ] Verify deployment and report read/write permissions through hosted routes.
+   - [x] Verify deployment and report read/write permissions through hosted routes.
    - [x] Commit coherent changes and push the private repository.
-   - [ ] Offer the complete local build/admin URL for the user's visual and usability pass.
+   - [x] Offer the complete local build/admin URL for the user's visual and usability pass.
    - [ ] Publish the client through the updater after the full goal and admin deployment are ready (authorized).
 
 ## Acceptance

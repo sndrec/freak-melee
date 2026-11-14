@@ -88,7 +88,9 @@ describe("community publishing", () => {
   });
 
   it("denies admin routes when authentication is unconfigured", async () => {
-    const response = await worker.fetch(request("/admin/api/news"), testEnv);
+    const response = await worker.fetch(request("/admin/api/news"), {
+      ...testEnv, ACCESS_TEAM_DOMAIN: "", ACCESS_AUDIENCE: "",
+    });
     expect(response.status).toBe(503);
   });
 
@@ -104,6 +106,7 @@ describe("community publishing", () => {
       headers: { "Cf-Access-Jwt-Assertion": jwt },
     }), settings);
     try {
+      expect((await worker.fetch(request("/admin/api/news"), settings)).status).toBe(401);
       expect((await read(await token())).status).toBe(200);
       expect((await read(await token({ email: "someone-else@example.com" }))).status).toBe(403);
       expect((await read(await token({ aud: "another-application" }))).status).toBe(403);

@@ -54,18 +54,22 @@ Verify an allowed sign-in and a rejected sign-in through the deployed hostname,
 including private screenshot and diagnostic downloads. An unconfigured Access
 application returns a clear service error and grants no administrative access.
 
-Current setup: the Cloudflare account still requires activation of Zero Trust
-Free. Its checkout asks the account owner to accept terms and authorize charges
-above the free allowance. That step has been left for Twilight in the browser.
-The Worker denies administration until the Access application is configured.
-
-The foundation Worker is deployed at
+The service is deployed at
 `https://freak-melee-community.sndrec32exe.workers.dev` (version
-`9b5db411-8e5a-46e0-a4e1-97cf5dc2f0f5`). Hosted checks passed for health/feed reads,
-an accepted feedback upload and its idempotent retry. Admin HTML, scripts and
-APIs currently return the configuration error above. The report bucket's
-`r2.dev` public access is disabled. Complete Access setup and browser review
-before calling administration ready.
+`d9f83847-ba54-493c-b9e3-9763d4b80aaf`). Administration is at `/admin/`.
+The Access application `9d75a2a4-ff59-46eb-a479-8a1eab6ea982` protects that
+directory and its descendants. Its allow policy contains only
+`sndrec32exe@gmail.com`, with a twelve-hour sign-in session. The configured
+team domain is `divine-cake-d237.cloudflareaccess.com`.
+
+Twilight confirmed that hosted sign-in reaches the admin page. Hosted checks
+passed for public news/feed reads, feedback upload and an identical retry.
+Unauthenticated admin HTML, scripts, APIs and both report attachment routes
+redirect to Access sign-in. The report bucket's `r2.dev` public access is
+disabled. Twilight published and edited an article through the hosted admin
+page and confirmed that the feedback screenshot, pins, notes and diagnostics
+load. A running native client received the article and announcement, then
+displayed the edited article body without restarting.
 
 ## Feedback reports
 
