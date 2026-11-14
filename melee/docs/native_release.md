@@ -1,8 +1,19 @@
 # Prepared Windows releases
 
-Updated: 2026-11-09. The private playtest channel carries the desync diagnostics
-build. The October local acceptance below covers installation, Workshop authoring,
-and launcher updates.
+Updated: 2026-11-13. The private playtest channel carries
+`2026-11-13-community-1`, including fighter deletion, news, announcements and F2
+feedback. The October local acceptance below covers installation, Workshop
+authoring, and launcher updates.
+
+The community release contains 205 payload files. Its 37,387,668-byte update
+archive and complete setup archive passed preparation checks and remote hash
+verification through both R2 and the public download routes. A hidden, muted
+packaged launch with Windows-only PATH loaded the hosted news article and
+captured F2 feedback with the correct release and source identity. The source
+revision is `6e491992b293f2d0c80959ef8983f3a586ee2a5a`; the executable SHA-256 is
+`0c0a817ed6d2348a29b68866afc60401a2514dfaec8076397534e9b6daec427c`.
+Hosted administration is at
+`https://freak-melee-community.sndrec32exe.workers.dev/admin/`.
 
 ## Prepare
 

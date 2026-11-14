@@ -1,8 +1,7 @@
 # Workshop deletion, news, announcements and feedback
 
-Updated 2026-11-13. This is the implementation plan for the next goal.
-Implementation is underway. The milestones below distinguish implemented work
-from deployment and review that still remain.
+Updated 2026-11-13. Implementation, hosted administration review and updater
+publication are complete. The milestones below record the delivered work.
 
 ## Goal
 
@@ -11,10 +10,10 @@ announcements at a convenient time, and send feedback pinned to a screenshot.
 Give Twilight an authenticated admin website to write and edit news, send
 announcements, and review feedback.
 
-The work is ready for implementation as a goal. Finish with a working local
-client, deployed services and admin page, and a user review of the complete
-flow. Record the tested build and any remaining acceptance. Obtain Twilight's
-admin identity before opening access to the hosted administration page.
+Finish with a working local client, deployed services and admin page, and a
+user review of the complete flow. Record the tested build and any remaining
+acceptance. Obtain Twilight's admin identity before opening access to the
+hosted administration page.
 Twilight confirmed `sndrec32exe@gmail.com` as that identity. Once the full goal
 is complete and the admin page is deployed, publish the new client build to the
 existing auto-updater channel; Twilight has authorized that release.
@@ -356,7 +355,7 @@ Current checkpoint (2026-11-13):
   reads and feedback upload / idempotent retry pass, with R2 public access
   disabled. Unauthenticated admin HTML, assets, APIs and report downloads
   redirect to Access. The eleven service tests pass with the production
-  audience configured. No updater release has been published for this goal.
+  audience configured.
 - Hosted review passed: Twilight signed in, published and edited news, and
   opened feedback with its screenshot, pins, notes and diagnostics. An already
   running hidden, muted client received the published article and announcement
@@ -364,10 +363,19 @@ Current checkpoint (2026-11-13):
   Evidence is in `.local/community-hosted-access-review-1` and
   `.local/community-hosted-publication-review-1`.
 
+The updater now serves `2026-11-13-community-1`, built from source
+`6e491992b293f2d0c80959ef8983f3a586ee2a5a`. Its 205-file update archive is
+37,387,668 bytes. Both hosted archives were downloaded and matched their
+prepared SHA-256 hashes; the channel manifest matches the prepared manifest.
+The packaged client launched with Windows-only PATH, read the live news and
+captured F2 feedback with the correct release and source identity. Evidence is
+in `.local/community-package-review-1` and
+`.local/community-published-release-review.json`.
+
 Current local executable: `melee/build/native/melee_native.exe`, SHA-256
-`b04f505c74db5ff1b2bf6fa2c7d53b02404e6d70bf7657564c26cb154cac799f`.
-The existing `Launch Freak Melee.bat` starts this local build. Its final updater
-release remains gated on hosted admin access, integration and user review.
+`0c0a817ed6d2348a29b68866afc60401a2514dfaec8076397534e9b6daec427c`.
+The existing `Launch Freak Melee.bat` starts this local build. Installed friend
+copies receive the release through their updater-enabled `Freak Melee.bat`.
 
 Reusable reviews are `melee/tools/review_native_fighter_deletion.py`,
 `melee/tools/review_native_community.py`, `melee/tools/review_native_announcements.py`,
@@ -399,7 +407,7 @@ with copied user data; pass an existing test profile and a new output directory.
    - [x] Verify deployment and report read/write permissions through hosted routes.
    - [x] Commit coherent changes and push the private repository.
    - [x] Offer the complete local build/admin URL for the user's visual and usability pass.
-   - [ ] Publish the client through the updater after the full goal and admin deployment are ready (authorized).
+   - [x] Publish the client through the updater after the full goal and admin deployment are ready (authorized).
 
 ## Acceptance
 
