@@ -97,7 +97,7 @@ describe("verified connection identities and invitations", () => {
       do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; }
       while (!before.participants.find(p => p.peerId === guest.peer)?.selection.length);
       guest.client.socket.send(encodeSetMatch(new Uint8Array([0x46, 0x4d, 0x4c, 0x01]), 8192));
-      do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; } while (!before.match.length);
+      do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; } while (!before.match?.length);
       guest.client.socket.send(encodeUpdate({ ready: true }, 8192));
       do { before = (await guest.client.next(ServerMessageType.Presence)).snapshot; }
       while (!before.participants.find(p => p.peerId === guest.peer)?.ready);

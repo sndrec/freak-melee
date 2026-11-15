@@ -58,6 +58,8 @@ class ReleasePayload(unittest.TestCase):
             self.assertIn('disc/audio/first_startup.hps', names)
             self.assertIn('ui/portraits/tile-frame.png', names)
             self.assertIn('licenses/monocypher.txt', names)
+            for notice in ['freak-melee.txt', 'sources.md', 'aurora.txt', 'cgltf.txt', 'core-math.txt']:
+                self.assertIn('licenses/' + notice, names)
             self.assertEqual(names.count('SDL3.dll'), 1)
             self.assertNotIn('native_fighter_test_fixture.dll', names)
             self.assertNotIn('ui/retired.fms', names)
@@ -78,6 +80,16 @@ class ReleasePayload(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('native_content_tool.exe', result.stderr)
         self.assertFalse(self.output.exists())
+
+    def test_source_build_without_optional_startup_track_can_be_packaged(self):
+        listing = self.build/'native_release_ui.txt'
+        listing.write_text('\n'.join(name for name in listing.read_text().splitlines()
+                                     if name != 'disc/audio/first_startup.hps') + '\n')
+        (self.build/'disc/audio/first_startup.hps').unlink()
+        self.assertEqual(self.prepare().returncode, 0)
+        self.assertEqual(self.publish().returncode, 0)
+        with zipfile.ZipFile(self.output/'freak-melee-test-a.zip') as archive:
+            self.assertNotIn('disc/audio/first_startup.hps', archive.namelist())
 
     def test_declared_missing_template_prevents_any_release(self):
         (self.build/'ui/yoshi_wip.fms').unlink()

@@ -82,6 +82,11 @@ def main() -> None:
     payload.append((scripts.parent / "licenses/monocypher.txt", "licenses/monocypher.txt"))
     payload.append((scripts.parent / "licenses/SDL3.txt", "licenses/SDL3.txt"))
     payload.append((scripts.parent / "licenses/libusb.txt", "licenses/libusb.txt"))
+    payload.append((scripts.parents[1] / "LICENSE", "licenses/freak-melee.txt"))
+    payload.append((scripts.parents[1] / "LICENSING.md", "licenses/sources.md"))
+    payload.append((scripts.parents[1] / "aurora/LICENSE", "licenses/aurora.txt"))
+    payload.append((scripts.parent / "extern/cgltf/LICENSE", "licenses/cgltf.txt"))
+    payload.append((scripts.parent / "extern/core-math/LICENSE", "licenses/core-math.txt"))
 
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)

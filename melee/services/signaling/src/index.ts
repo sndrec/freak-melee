@@ -36,9 +36,21 @@ export default {
         return env.ACCOUNTS.getByName(handle).fetch(request);
       }
       if (url.pathname === "/v1/turn-credentials") {
-        return request.method === "GET"
-          ? turnCredentialsResponse(env)
-          : jsonError("Method not allowed", 405);
+        if (request.method !== "GET") return jsonError("Method not allowed", 405);
+        if (url.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+          return jsonError("TURN credentials require HTTPS", 403);
+        // Guests can play online. Limit issuance without making an account a
+        // prerequisite. Cloudflare supplies this address at the edge; never
+        // trust an X-Forwarded-For value supplied by a client.
+        const network = request.headers.get("CF-Connecting-IP") ?? "local";
+        const allowed = await env.TURN_NETWORK_LIMIT.limit({ key: network });
+        const total = allowed.success && await env.TURN_TOTAL_LIMIT.limit({ key: "issuance" });
+        if (!allowed.success || !total || !total.success) {
+          return Response.json({ error: "Too many connection requests. Please wait a minute." }, {
+            status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" },
+          });
+        }
+        return turnCredentialsResponse(env);
       }
 
       if (url.pathname === "/chat/connect") {

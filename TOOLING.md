@@ -56,7 +56,7 @@ cgltf; HSDLib is a reference, not an ordinary runtime/import dependency.
 
 ## Source ownership and storage
 
-The root Git repository pushes only to private `sndrec/freak-melee`. Nested
+The root Git repository pushes to `sndrec/freak-melee`, which is public. Nested
 `melee` and `aurora` retain their original local Git histories and donor remotes.
 Use explicit paths for commits; never push those donor remotes. The root index
 contains actual source files, not embedded-repository links.

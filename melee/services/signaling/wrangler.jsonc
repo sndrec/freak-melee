@@ -9,7 +9,11 @@
   "vars": {
     "AUTH_ORIGIN": "https://freak-melee-signaling.sndrec32exe.workers.dev"
   },
-  "ratelimits": [{ "name": "ACCOUNT_LIMIT", "namespace_id": "710019", "simple": { "limit": 60, "period": 60 } }],
+  "ratelimits": [
+    { "name": "ACCOUNT_LIMIT", "namespace_id": "710019", "simple": { "limit": 60, "period": 60 } },
+    { "name": "TURN_NETWORK_LIMIT", "namespace_id": "710022", "simple": { "limit": 20, "period": 60 } },
+    { "name": "TURN_TOTAL_LIMIT", "namespace_id": "710023", "simple": { "limit": 120, "period": 60 } }
+  ],
   "durable_objects": {
     "bindings": [
       {

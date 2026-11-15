@@ -24,6 +24,7 @@
 *.dll
 *.pdb
 *.otf
+*.hps
 *.log
 .env
 .env.*

@@ -25,7 +25,7 @@ See the [account contract](../../docs/native_account_auth.md) for controls,
 protocol, storage and verification scope. The old Windows WebAuthn flow has
 been removed at the user's request.
 
-The local service also implements friends, offline letters, verified chat/lobby
+The service also implements friends, offline letters, verified chat/lobby
 profiles and expiring lobby invitations. Its account socket upgrade uses
 `Authorization: Bearer <session>` and `X-Freak-Account: <account_name>`.
 The service supplies public account metadata in presence and chat records.
@@ -37,8 +37,8 @@ Update the service and client together: the new presence records require both
 ends of the updated wire format. Local native checks set both
 `FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
 localhost service. The [social guide](../../docs/native_social_accounts.md)
-records social behavior and native verification. The account-key suite now
-passes 71 service tests in ten files. Two hidden/muted native clients also pass
+records social behavior and native verification. The current service suite
+passes 75 tests in eleven files. Two hidden/muted native clients also pass
 the hosted account-key/profile/invitation/join/sign-out review:
 `.local/account-key-hosted-1/receipt.json`.
 
@@ -77,6 +77,22 @@ The Worker requests credentials with a 24-hour lifetime. Every room startup
 fetches a fresh configuration, and clients reject malformed or oversized
 responses before starting ICE. Direct candidates remain preferred by ICE; TURN
 is available when the peers cannot establish a direct route.
+
+Credential requests require HTTPS outside localhost. Issuance has separate
+limits of 20 requests per minute per network address and 120 requests per minute
+across addresses in a Cloudflare location. Rejected requests return HTTP 429
+with a 60-second retry delay before contacting the paid TURN provider. Guest
+play remains available. These approximate, location-local limits reduce abuse;
+they are not an account-wide bandwidth or spending cap. A usable credential
+can still be shared until it expires. The client acquires credentials when it
+opens a room and does not refresh a running relay, so the 24-hour lifetime
+continues to allow long lobby sessions.
+
+The 2026-11-14 admission-limit deployment is
+`9881d061-29cb-411c-b9d0-02f1051179e4`. Its health check and one live binary
+credential request passed after deployment. The 75-test local service suite
+covers guest issuance and both refusal paths; the hosted check issued one
+credential, rather than generating a burst against the paid service.
 
 The recorded September 2026 deployment returned STUN-only configuration.
 A live two-client `native_connection_probe` against the

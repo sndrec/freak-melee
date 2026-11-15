@@ -13,6 +13,7 @@
 extern "C" {
 #include <melee/lb/lbaudio_ax.h>
 #include <melee/gm/gmmain_lib.h>
+#include <dolphin/dvd.h>
 }
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -193,7 +194,9 @@ void nativeHubStartup_Begin()
     }
     hub.visible = true; hub.dismissed = false;
     nativeMenuScenery_Load("tournament-background");
-    lbAudioAx_PlayMusicFile("/audio/first_startup.hps");
+    const char* music = DVDConvertPathToEntrynum("/audio/first_startup.hps") >= 0
+        ? "/audio/first_startup.hps" : "/audio/menu01.hps";
+    lbAudioAx_PlayMusicFile(music);
     enter(NativeStartup_Welcome);
 }
 void nativeHubStartup_Tick()

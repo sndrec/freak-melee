@@ -1,6 +1,6 @@
 # Freak Melee
 
-Private Windows native Melee client and character-authoring workshop. The full
+Windows native Melee client and character-authoring workshop. The full
 Melee decompilation is the game base, with our modified Aurora as the platform
 and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
 
@@ -78,10 +78,13 @@ The game source derives from [doldecomp/melee](https://github.com/doldecomp/mele
 Aurora derives from [encounter/aurora](https://github.com/encounter/aurora);
 its MIT license is retained at `aurora/LICENSE`. Third-party code retains its
 own notices, including cgltf. See `SOURCE_PROVENANCE.json` for the exact local
-base commits. No blanket license is asserted for the whole combined tree.
+base commits. Original Freak Melee software contributions use [0BSD](LICENSE).
+[Licensing and sources](LICENSING.md) explains the scope, upstream terms and
+asset inputs. The optional startup track stays outside Git and is included in
+official updater builds; source builds use ISO menu music when it is absent.
 
-Current priorities: native social-hub integration, CSS participant and sharing
-flows, Quick Play, and the planned account/inbox service. Collaborative Workshop
-review continues alongside this work. Optimization,
-Kirby cloning and whole-move transfer are deferred. See the
+The native hub includes Quick Play, lobbies, global chat, persistent accounts,
+friends, an offline inbox, fighter sharing, news and F2 feedback. Collaborative
+Workshop review continues. Optimization, Kirby cloning and whole-move transfer
+are deferred. See the
 [project plan](PROJECT_PLAN.md) and [documentation index](melee/docs/README.md).

@@ -1,9 +1,15 @@
 # Prepared Windows releases
 
-Updated: 2026-11-13. The private playtest channel carries
+Updated: 2026-11-14. The public playtest download channel carries
 `2026-11-13-community-1`, including fighter deletion, news, announcements and F2
 feedback. The October local acceptance below covers installation, Workshop
 authoring, and launcher updates.
+
+The manifest and download URLs are public distribution endpoints. Their path
+component is a channel name, not a password or an access-control mechanism.
+Publishing is performed separately with the maintainer's Cloudflare access.
+The optional startup HPS is packaged from the local build output; its source
+audio is excluded from Git. See [disc assets](native_disc_assets.md).
 
 The community release contains 205 payload files. Its 37,387,668-byte update
 archive and complete setup archive passed preparation checks and remote hash
