@@ -1,9 +1,7 @@
 # Local development tooling
 
-Updated: 2026-10-13. For portable build instructions use
-[native_build.md](melee/docs/native_build.md); for outstanding work use
-[PROJECT_PLAN.md](PROJECT_PLAN.md). This file records this PC's setup, not
-dependencies that every clone must contain.
+For portable build instructions use [the build guide](native_build.md).
+This file records the development machine's setup and testing conventions.
 
 ## Native build on this PC
 
@@ -35,7 +33,7 @@ The top-level `Launch Freak Melee.bat` opens the current native build and ISO.
   channel. Do not send keyboard/mouse input to the user's desktop.
 - The accelerated path retains CPU effects and state required by gameplay.
   Production rollback suppresses GPU output; see
-  [rollback architecture](melee/docs/native_rollback_current.md).
+  [rollback architecture](native_rollback_current.md).
 - Use the built-in screenshot path for whole-UI PNG captures. A successful
   build or isolated fixture is not gameplay/pixel acceptance.
 - Keep profilers/samplers separate from uninstrumented timing acceptance.

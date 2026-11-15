@@ -81,5 +81,3 @@ deferred. Profiler/sampler captures are attribution, not acceptance timing.
 
 Remaining work is targeted restored-state/lifetime coverage, integrated room/
 Workshop/content checks, eventual separate-PC acceptance and deferred tuning.
-Read the [project plan](../../PROJECT_PLAN.md) for current priorities instead
-of historical owner-migration or profiler TODO lists.

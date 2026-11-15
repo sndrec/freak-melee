@@ -1,7 +1,7 @@
 # Interpreted heavy-item input and entry
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 `controls.try_heavy_item_throw()` now invokes the common heavy-item selector.

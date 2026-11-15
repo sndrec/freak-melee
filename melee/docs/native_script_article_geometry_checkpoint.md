@@ -1,7 +1,7 @@
 # Interpreted article geometry — 2026-10-10
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 Subsequent [scheduler checkpoint](native_script_auxiliary_scheduler_checkpoint.md):

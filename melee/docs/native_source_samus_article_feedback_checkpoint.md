@@ -1,7 +1,7 @@
 # Samus article feedback checkpoint
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 2026-10-10, following `88aabc8a4`. The batch source audit now reports **five**

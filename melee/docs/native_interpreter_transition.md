@@ -67,6 +67,6 @@ whole-roster port or snapshot ownership migration from historical notes.
 The 10 ms median / <=12 ms peak full reconstruction target remains unmet and
 deferred, not silently removed from acceptance.
 
-See the [project plan](../../PROJECT_PLAN.md), [scripting guide](scripting/index.md)
+See the [scripting guide](scripting/index.md)
 and [dated evidence index](checkpoint_index.md). Pre-migration C/DLL architecture
 and early measured costs are preserved in the private source backup commit.

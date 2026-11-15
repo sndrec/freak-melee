@@ -143,6 +143,5 @@ to use it. Follow the links between related callbacks, properties and functions.
 Examples use supported script syntax.
 
 For project development and test results, see the
-[Workshop progress notes](../native_character_workshop_progress.md),
-[Mario translation notes](../mario_script_translation.md), and
-[project plan](../../../PROJECT_PLAN.md).
+[Workshop progress notes](../native_character_workshop_progress.md) and
+[Mario translation notes](../mario_script_translation.md).

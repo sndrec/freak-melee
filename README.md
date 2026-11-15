@@ -12,9 +12,8 @@ and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
   fighter templates and optional signaling/release service source.
 - `aurora/`: the exact modified framework required by this client; its CMake
   configuration obtains pinned third-party dependencies.
-- `PROJECT_PLAN.md`: current product contract and remaining work.
 - `melee/docs/README.md`: current guides and dated evidence index.
-- `TOOLING.md`: local tooling and build notes.
+- `melee/docs/development.md`: local tooling and build notes.
 
 This repository is a source snapshot, not a copy of the development machine.
 It excludes the ISO, extracted game assets, SDK/tool binaries, build products,
@@ -86,5 +85,4 @@ official updater builds; source builds use ISO menu music when it is absent.
 The native hub includes Quick Play, lobbies, global chat, persistent accounts,
 friends, an offline inbox, fighter sharing, news and F2 feedback. Collaborative
 Workshop review continues. Optimization, Kirby cloning and whole-move transfer
-are deferred. See the
-[project plan](PROJECT_PLAN.md) and [documentation index](melee/docs/README.md).
+are deferred. See the [documentation index](melee/docs/README.md).

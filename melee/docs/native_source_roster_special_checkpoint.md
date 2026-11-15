@@ -1,7 +1,7 @@
 # Interpreted single-fighter special-entry checkpoint
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 2026-10-11. All 176 selected grounded/airborne special-entry scenarios now have

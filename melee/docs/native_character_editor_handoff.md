@@ -2,8 +2,8 @@
 
 Updated: 2026-10-13. The backend and four-workspace interface already exist.
 Do not repeat the initial Mario bring-up or generated-C architecture work.
-Read [current capabilities](native_character_workshop_progress.md), the
-[project plan](../../PROJECT_PLAN.md) and the [approved UI](native_character_workshop_ui.md).
+Read [current capabilities](native_character_workshop_progress.md) and the
+[approved UI](native_character_workshop_ui.md).
 
 ## Authoring contract
 

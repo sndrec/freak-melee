@@ -9,7 +9,6 @@ This document defines future work, not implemented editor capabilities.
 The 2026-10-07 decision in `native_interpreter_transition.md` supersedes the
 generated-C backend: direct script validation, interpreted bytecode and explicit
 native savestates are the production direction. The approved UI remains intact.
-The parent `PROJECT_PLAN.md` supplies the wider port acceptance criteria.
 `native_character_editor_handoff.md` records the implementation sequence,
 source ownership, integration points and acceptance gates for this design.
 

@@ -1,8 +1,8 @@
 # Workshop: current capabilities and remaining work
 
 Updated: 2026-10-19. This is a current summary, not a chronological log.
-Use the [project plan](../../PROJECT_PLAN.md) for priorities and the
-[approved UI](native_character_workshop_ui.md) / [Model design](native_model_workspace_design.md)
+Use the [approved UI](native_character_workshop_ui.md) /
+[Model design](native_model_workspace_design.md)
 for the agreed layout. Historical bring-up is preserved in the pre-cleanup Git
 commit and [dated evidence](checkpoint_index.md); do not restart it as new work.
 
@@ -97,13 +97,14 @@ acceptance. Preserve the user's deliberately unfinished character behavior.
    attachments](native_texture_skin_checkpoint.md) now pass ordinary/morph
    painting checks and the retail batch.
 2. Morph logical capacity and additional tangent/UV/color target channels.
-3. Remaining room/release acceptance in the project plan. Coordinated outfits now
+3. Room/release acceptance. Coordinated outfits now
    pass [current room matches](native_outfit_match_checkpoint.md), including four
    Ice Climbers slots across two PCs. Source-only single/paired fighter delivery and independent
    recipient editing now have [current evidence](native_family_content_checkpoint.md).
 
 Extra-bone editing, rigid/skinned rest compensation and ordinary source-aware
-reimport now have acceptance evidence in the [current plan](../../PROJECT_PLAN.md).
+reimport have evidence in the [rest-edit](native_model_rest_checkpoint.md) and
+[reimport](native_gltf_reimport_checkpoint.md) checkpoints.
 Large imported meshes also pass painting, saved source reimport and native
 rendering checks; see the [large-GLB checkpoint](native_large_gltf_checkpoint.md).
 

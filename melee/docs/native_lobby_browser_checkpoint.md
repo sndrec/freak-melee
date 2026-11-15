@@ -1,8 +1,7 @@
 # Native lobby browser checkpoint
 
 Updated: 2026-10-19. The current product scope is in the
-[social hub design](native_social_hub_design.md) and
-[project plan](../../PROJECT_PLAN.md).
+[social hub design](native_social_hub_design.md).
 
 ## Behavior
 

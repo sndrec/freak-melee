@@ -1,8 +1,7 @@
 # Native menu asset checkpoint
 
 Updated: 2026-10-17. This records the stock assets, camera and dynamic lettering.
-The current requirements remain in `PROJECT_PLAN.md` and
-`native_social_hub_design.md`.
+The current requirements are in [the social hub design](native_social_hub_design.md).
 
 ## Current implementation
 

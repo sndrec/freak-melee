@@ -1,7 +1,7 @@
 # Samus shared ahead-query checkpoint
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 The 2026-10-10 batch implements Article-scoped

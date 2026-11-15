@@ -1,7 +1,7 @@
 # Samus composed-source gameplay checkpoint
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 2026-10-11. Fresh Workshop clones now use the independent `samus_full.fms`

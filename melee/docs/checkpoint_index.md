@@ -1,8 +1,8 @@
 # Dated checkpoint evidence
 
 Indexed: 2026-10-19. These records describe their own snapshots of source and
-tests. They are not a merged task list. Read the [current plan](../../PROJECT_PLAN.md),
-[Workshop status](native_character_workshop_progress.md), [roster status](SCRIPT_PORT_CHECKPOINT.md)
+tests. Start with [Workshop status](native_character_workshop_progress.md),
+[roster status](SCRIPT_PORT_CHECKPOINT.md)
 and [rollback architecture](native_rollback_current.md) first.
 
 Entries keep their existing paths to preserve source-fixture references and

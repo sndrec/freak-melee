@@ -1,7 +1,7 @@
 # Interpreter companion identity, history and Sleep checkpoint
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 This batch follows `f1062ac79`. It reuses existing active family/slot metadata

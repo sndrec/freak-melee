@@ -2,8 +2,7 @@
 
 Updated: 2026-11-08. Start with the current guides below. Dated checkpoint and
 audit files preserve evidence for their recorded build; old "next"/"pending"
-sentences are not the current work list. The [project plan](../../PROJECT_PLAN.md)
-owns priorities and remaining acceptance. Optimization is currently deferred.
+sentences describe the work remaining at that time. Optimization is currently deferred.
 
 ## Start here
 
@@ -12,9 +11,8 @@ owns priorities and remaining acceptance. Optimization is currently deferred.
 | Build and launch | [Windows native build](native_build.md) |
 | Set up a new player | [First startup](native_first_startup.md) |
 | Inspect original menu scenery | [Menu references](native_menu_references.md) |
-| Current scope / what's next | [Project plan](../../PROJECT_PLAN.md) |
 | Next goal for news, announcements and screenshot feedback | [Implementation plan and admin website](native_news_feedback_plan.md) |
-| This PC's tooling | [Local tooling](../../TOOLING.md) |
+| Development tooling and testing | [Development notes](development.md) |
 | Workshop capabilities and gaps | [Current Workshop status](native_character_workshop_progress.md) |
 | Implement the approved editor | [Handoff](native_character_editor_handoff.md), [UI specification](native_character_workshop_ui.md), [Model specification](native_model_workspace_design.md), [rest-edit verification](native_model_rest_checkpoint.md) |
 | Author a fighter | [Scripting guide](scripting/index.md) and [fighter-owned parameters](fighter_owned_parameters.md) |
@@ -54,14 +52,12 @@ Large receipts, screenshots, binaries and profiling archives stay outside Git.
 Their paths in reports may refer to another drive or a retained older baseline.
 Do not assume every historical archive is currently installed or should be copied.
 
-The private upstream's initial source commit preserves the documents before
+The initial source commit preserves the documents before
 this cleanup: [pre-cleanup source](https://github.com/sndrec/freak-melee/tree/4b04fe10b9495325f4ecbf434f4f9abd994d6dfa).
 No useful recorded evidence was discarded to manufacture a completed milestone.
 
 ## Documentation responsibilities
 
-- `PROJECT_PLAN.md`: current product contract, scope, priorities and explicit
-  remaining acceptance. Keep it concise; no append-only session log.
 - Current build/Workshop/interpreter/rollback guides: implementation readers'
   starting points. Update them when architecture changes.
 - `native_character_workshop_ui.md` and `native_model_workspace_design.md`:
@@ -79,4 +75,4 @@ implemented it. Check the live source before making implementation claims.
 The inherited decomp contribution/tooling material remains historical reference;
 the native build guide is authoritative for this Windows client. Publishing
 friend builds and pushing donor repositories are separate actions from this
-private source backup.
+source repository.

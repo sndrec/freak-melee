@@ -1,6 +1,6 @@
 # Original client startup integration
 
-> Historical native startup/porting evidence. The runnable client and full source build are established; use [current build instructions](native_build.md) and the [project plan](../../PROJECT_PLAN.md) for new work.
+> Historical native startup/porting evidence. For new work, use the [current build instructions](native_build.md).
 
 The next acceptance milestone is the original game entry point reaching its
 scene scheduler on Windows. The model viewer remains a diagnostic and will not

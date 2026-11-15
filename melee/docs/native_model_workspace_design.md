@@ -79,8 +79,9 @@ Remaining Model work includes unusual model-node domains, different texture
 normal bases,
 morph logical capacity, additional target channels and advanced texture/UV controls. Continuous surface brushing
 and the broader interface still need user review. Extra-bone editing, ordinary
-source-aware reimport and large imported meshes have the evidence linked in the
-[current plan](../../PROJECT_PLAN.md). Ordinary stock
+source-aware reimport and large imported meshes have evidence in the
+[rest-edit](native_model_rest_checkpoint.md), [reimport](native_gltf_reimport_checkpoint.md)
+and [large-GLB](native_large_gltf_checkpoint.md) checkpoints. Ordinary stock
 painting passes all 130 retail costume archives; see the
 [stock painting checkpoint](native_stock_skin_checkpoint.md).
 Morph surfaces support picking, highlighting, weight heatmaps and painting

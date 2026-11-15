@@ -1,7 +1,7 @@
 # Fighter hitbox controls and raw-part effects
 
 > Dated evidence, not the current backlog. Results and limitations below apply
-> to the recorded build. See the [current plan](../../PROJECT_PLAN.md) and
+> to the recorded build. See the
 > [evidence index](checkpoint_index.md) before treating an old pending item as new work.
 
 This interpreter batch connects three reusable engine operations. It introduces
