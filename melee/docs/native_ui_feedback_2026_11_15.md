@@ -401,3 +401,57 @@ are complete; the one native-settings submission remains in the fixed batch.
 | `72281e7c-a55a-4fa3-9bf3-7a34f2071b3d` | Populated Inbox footer/count spacing at both reviewed sizes. |
 | `3645f09b-8b8c-4349-945e-b4016e04c9f8` | Persistent local-player setting in Controls and ticker fades inset within the frame. |
 | `162b2c34-722c-48c0-9c95-2a99a2a7f1ae` | All five earlier hub/font/ticker/F2 points checked on the current client. |
+
+
+### Native controller profiles and calibration
+
+The Controls page now opens native Player profiles, using the original Options
+frame, title and lighting. Saved profiles, naming and port selection sit beside
+Gameplay, Buttons, Axes and Calibration tabs. The existing profile store and
+input application code are used directly. Save & use, defaults, reset, deletion
+confirmation and paginated saved-profile selection remain available. The old
+Rml profile implementation, markup and style sheet were removed, along with
+its old open/update/close call sites.
+
+Gameplay exposes tap jump, the 0–7-frame action buffer and smash/tilt C-stick.
+Bindings support replacement, additional inputs, duplicate rejection, signed
+axes, clearing and default axes. Capture waits for neutral, then an input, then
+release. The edit is committed on release. Escape, Cancel binding or holding
+START cancels without changing the previous binding; a short START press stays
+bindable. Percentage fields confirm on Enter or blur and restore the previous
+value after invalid input.
+
+The native calibration pages use the existing raw-input calibration backend:
+stable rest, edge capture, manual trigger Start/End markers, numerical review
+and input test mode. Stick calibration is applied before adjusting the trigger
+ranges. Temporary assignments are restored on cancel, exit or controller change;
+Save & use remains the explicit persistence step. Controller identity uses the
+SDL instance rather than the device's changing list index. This detects a
+replacement even if it reuses the old index. Detailed controller settings stay
+outside rollback state.
+
+The diagnostic control channel can create up to four owned SDL virtual gamepads,
+set their raw axes/buttons and ports, and detach them. They use the ordinary SDL
+and Aurora input path; they do not replace calibration samples or its decisions.
+The diagnostic pointer down/up path now delivers held mouse state to the hub,
+which allows real trigger-handle dragging in automated reviews too.
+
+Verification: `.local/native-profiles-review-3/receipt.json` passed on the Release
+client. It covers all tabs, held-A edge behavior, raw SDL button and signed-axis
+capture, additional/duplicate bindings, cancellation, Enter-confirmed values,
+invalid input, raw rest/edge capture, both Start and End handles on both triggers,
+review/test input suppression, START stopping testing, disconnect recovery,
+save/reopen and deletion cancellation/confirmation. Screenshots were reviewed at
+1440x900 and 960x540. The review uses isolated data and hidden, muted clients.
+
+The same cohort completed three 2,200-sample Ganondorf practice recordings for
+default controls, disabled tap jump and tilt C-stick. Full/short jumps and all
+three C-stick directions retain their expected behavior. Six profile/provider,
+rumble and CSS checks passed in `.local/native-profiles-contracts-final.log`;
+the provider test includes stable device identity and replacement. The final
+client/control-tool build is `.local/native-profiles-build-7.log`.
+
+Physical GameCube controller feel and physical rumble remain hands-on checks.
+Submission `88ed16a2-d996-41e7-bc97-5e02e95ab8a7` stays open: match-rule editing,
+costume management and package management still need their native replacements.
+Eighteen submissions remain completed and removed; no release was published.

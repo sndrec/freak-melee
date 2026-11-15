@@ -83,6 +83,7 @@ int main(int argc, char** argv)
     profile.calibration.right_trigger_activation = 20000;
     require(nativeProfileInput_Assign(0, &profile), "assign profile before controller connects");
     Device first = attach("Profile test A", 0);
+    require(PADGetInstanceForPort(0) == first.id, "report the connected device instance");
     require(read(first, 0, 5000).stickX == 5000 / 256,
             "new controller uses the port's previously assigned calibration");
     require(PADGetDeadZones(0)->stickDeadZone == 8000,
@@ -119,10 +120,15 @@ int main(int argc, char** argv)
     require(SDL_SetGamepadPlayerIndex(aurora::input::g_GameControllers.at(first.id).m_controller, 2),
             "move the first device to another physical port");
     Device second = attach("Profile test B", 0);
+    require(PADGetInstanceForPort(2) == first.id && PADGetInstanceForPort(0) == second.id,
+            "device identity follows each controller's port");
     require(read(second, 0, 5000).stickX == 5000 / 256 && read(first, 2, 5000).stickX == 0,
             "calibration follows the assigned port rather than the old device");
     detach(second);
+    require(PADGetInstanceForPort(0) == 0, "disconnected port has no device instance");
     Device replacement = attach("Profile test C", 0);
+    require(PADGetInstanceForPort(0) == replacement.id && replacement.id != second.id,
+            "replacement is distinguishable even when its catalog index is reused");
     require(read(replacement, 0, 5000).stickX == 5000 / 256,
             "replacement controller inherits the port calibration");
     PADGetDeadZones(0)->stickDeadZone = 10000;

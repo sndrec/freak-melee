@@ -8,7 +8,6 @@
 #include "native_shell_collection.h"
 #include "native_shell_costumes.h"
 #include "native_shell_css_original.h"
-#include "native_shell_profiles.h"
 #include "native_shell_rules.h"
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_code.h"
@@ -321,7 +320,6 @@ extern "C" bool nativeShell_Init(void)
     nativeShellWorkshop_Init(document);
     nativeShellCssOriginal_Init(document);
     nativeShellCostumes_Init(document);
-    nativeShellProfiles_Init(document);
     nativeShellRules_Init(document);
     update_layout();
     return true;
@@ -336,7 +334,6 @@ extern "C" void nativeShell_Update(void)
         nativeShellWorkshop_Update();
         nativeShellCssOriginal_Update();
         nativeShellCostumes_Update();
-        nativeShellProfiles_Update();
         nativeShellRules_Update();
     }
 }
@@ -366,7 +363,6 @@ extern "C" void nativeShell_Shutdown(void)
     nativeHub_Shutdown();
     nativeChat_Stop();
     if (document != nullptr) {
-        nativeShellProfiles_Close();
         nativeShellRules_Close();
         nativeShellWorkshop_Close();
         nativeShellCollection_Close();
@@ -468,7 +464,11 @@ extern "C" void nativeShell_ClickAt(int x, int y, int button)
 extern "C" void nativeShell_PointerButtonAt(int x, int y, int button, bool down)
 {
     if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
-        if (down) nativeHub_ClickAt(x, y, button);
+        SDL_Event event{};
+        event.type = down ? SDL_EVENT_MOUSE_BUTTON_DOWN : SDL_EVENT_MOUSE_BUTTON_UP;
+        event.button.x = float(x); event.button.y = float(y);
+        event.button.button = button == 0 ? SDL_BUTTON_LEFT : button == 1 ? SDL_BUTTON_RIGHT : SDL_BUTTON_MIDDLE;
+        nativeHub_Event(&event);
         return;
     }
     const auto event = down ? (button == 0 ? NativeCssPointer_Press : NativeCssPointer_Back)
@@ -486,8 +486,9 @@ extern "C" void nativeShell_DragAt(int start_x, int start_y, int end_x,
 {
     if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
         if (button == 0) {
-            nativeHub_ClickAt(start_x, start_y, 0);
+            nativeShell_PointerButtonAt(start_x, start_y, button, true);
             nativeHub_MovePointer(end_x, end_y);
+            nativeShell_PointerButtonAt(end_x, end_y, button, false);
         }
         return;
     }

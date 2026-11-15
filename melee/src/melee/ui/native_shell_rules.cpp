@@ -4,7 +4,6 @@
 #ifdef MELEE_NATIVE
 
 #include "native_shell.h"
-#include "native_shell_profiles.h"
 #include "native_shell_collection.h"
 
 extern "C" {
@@ -258,7 +257,7 @@ void nativeShellRules_Open()
         nativeHub_Notice("Only the room host can edit match rules.");
         return;
     }
-    nativeShellProfiles_Close();
+
     nativeShellCollection_Close();
     draft_rules = *gmMainLib_GetGameRules();
     draft_prefs = *gmMainLib_GetGamePrefs();

@@ -47,7 +47,7 @@ enum class HubAction {
     Cancel,
     AcceptGift,
     DeclineGift,
-    Controls, EditControls, SettingsCategory, VideoFullscreen, VideoVsync, AudioChannels, AudioBalance,
+    EditControls, SettingsCategory, VideoFullscreen, VideoVsync, AudioChannels, AudioBalance,
     SaveProfile,
     ToggleCustomModels,
     FieldName,
@@ -84,6 +84,9 @@ enum class HubAction {
     PortraitReset, PortraitSave, PortraitTileName, PortraitAnimation, PortraitAnimationPage, PortraitFrame, PortraitFrameStep, StartupPlaceTile,
     DefaultsOpen, DefaultsConfirm, DefaultsCancel, EditPortrait, PortraitMode,
     DeleteFighter, ConfirmDeleteFighter,
+    ProfileNew, ProfileSelect, ProfileListPage, ProfilePort, ProfileTab, ProfileSave, ProfileDelete, ProfileDeleteConfirm,
+    ProfileDefault, ProfileReset, ProfileOption, ProfileField, ProfileBind, ProfileAdd, ProfileClear, ProfileAxis, ProfileAxisDefault,
+    ProfileCancelBinding, ProfileCalibrate, ProfileTest, ProfileCalibrationNext, ProfileCalibrationCancel, ProfileCalibrationRange,
     News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink
 };
 struct HubRegion {
@@ -141,9 +144,10 @@ void nativeHub_Button(const char* id, const char* label, float x, float y,
                       bool gold = false, bool enabled = true,
                       const char* peer = nullptr, const char* name = nullptr,
                       const char* account = nullptr);
+void nativeHub_Focus(char* field, unsigned capacity);
 void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action, bool secret = false,
-                     const char* placeholder = nullptr);
+                     const char* placeholder = nullptr, int action_value = 0);
 unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,
     float size, uint32_t color, unsigned first_line = 0);
 unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, float width);

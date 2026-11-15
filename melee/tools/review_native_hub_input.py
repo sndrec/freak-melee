@@ -84,8 +84,8 @@ def main():
         time.sleep(.12)
 
     def tap_value():
-        text = client.inspect('profile-tap')
-        match = re.search(r'\[ui-inspect-value\].*text=(On|Off)', text)
+        text = client.inspect('controller-profile')
+        match = re.search(r' tap=([01]) ', text)
         if not match: raise RuntimeError(text)
         return match[1]
 
@@ -110,17 +110,18 @@ def main():
         hold('B'); expect(page=1); stable(page=1); release()
         checks.append('B dismisses text editing once, wins over simultaneous A, and returns one page per new press')
 
-        client.click('nav-6'); client.click('your-profile')
+        client.click('nav-6'); client.click('settings-category-3'); client.click('edit-profile')
         expect(page=7)
-        hold('B'); expect(page=6); stable(page=6); release()
-        checks.append('Holding B on a nested profile page returns to Settings once')
+        hold('B'); expect(page=24); stable(page=24); release()
+        checks.append('Holding B on a nested profile page returns to Online once')
+        client.click('settings-back'); client.click('settings-back')
 
         client.click('nav-1'); hold('START'); expect(visible=0); release()
         client.element('play-lobby'); client.click('play-lobby'); expect(visible=1)
         hold('B'); expect(visible=0); stable(seconds=1.0, visible=0); release()
         hold('B'); expect(visible=1); stable(visible=1); release()
         checks.append('B used to close the hub cannot reopen it until released; a fresh B hold opens it once')
-        client.click('nav-6'); client.click('controls'); client.click('profile-new')
+        client.click('nav-6'); client.click('settings-category-4'); client.click('edit-controls'); client.click('profile-new')
         client.click('profile-tap'); before = tap_value()
         key(0x0D)
         after = tap_value(); assert after != before
@@ -129,11 +130,11 @@ def main():
         key(0x0D, down=False); key(0x0D); key(0x0D, down=False)
         assert tap_value() == before
         checks.append('SDL keyboard auto-repeat activates a focused Controls button once per Enter press')
-        client.click('profile-bind'); client.click('bind-0'); key(0x1B)
+        client.click('profile-tab-1'); client.click('bind-0'); key(0x1B)
         for _ in range(8): key(0x1B, repeat=True)
-        assert 'visible=1' in client.inspect('profile-close')
+        assert 'absent' not in client.inspect('profile-close')
         key(0x1B, down=False); key(0x1B); key(0x1B, down=False)
-        expect(visible=1, page=6)
+        expect(visible=1, page=20)
         checks.append('Escape cancels binding capture once; repeats do not also close Controls')
         screenshots.append(str(client.screenshot()))
         (output / 'receipt.json').write_text(json.dumps({

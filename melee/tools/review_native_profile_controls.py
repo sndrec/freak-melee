@@ -2,7 +2,7 @@
 
 Uses copied profiles, hidden/muted clients and deterministic offline input files.
 The recordings enter after raw-device mapping; they prove fighter semantics,
-not physical adapter calibration or successful raw SDL binding capture.
+not physical adapter calibration. Raw capture uses an SDL virtual gamepad.
 """
 import argparse
 import hashlib
@@ -13,8 +13,10 @@ from pathlib import Path
 import re
 import struct
 import subprocess
+import time
 
 from review_native_css_room import Client
+from review_native_release import close_window
 
 
 def inputs(path, policy):
@@ -48,69 +50,148 @@ def state_rows(text):
 
 
 def review_ui(args, output, receipt):
-    first=Client(args.exe.resolve(),args.iso.resolve(),args.profile.resolve(),output/'settings',
-                 'Profile Review',window_size=(1440,900),without_drafts=True)
+    client = None
+    ui = receipt['ui']; ui['screenshots'] = {}
+    os.environ['FREAK_MELEE_MENU_MOTION'] = '0'
+    os.environ['SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS'] = '1'
+    for service in ('SERVICE','CHAT','COMMUNITY'):
+        os.environ['FREAK_MELEE_'+service+'_ENDPOINT'] = 'http://localhost:1'
+
+    def state(): return client.inspect('controller-profile')
+    def wait(pattern, timeout=15):
+        deadline = time.monotonic()+timeout
+        while time.monotonic()<deadline:
+            text = state()
+            if re.search(pattern,text): return text
+            time.sleep(.1)
+        raise AssertionError((pattern,text))
+    def shot(name): ui['screenshots'][name] = str(client.screenshot())
+    def device(command):
+        client.command('device',command); time.sleep(.12)
+    def axes(x=0,y=0,cx=0,cy=0,lt=-32768,rt=-32768):
+        device(f'axes,0,{x},{y},{cx},{cy},{lt},{rt}')
+    def open_profiles():
+        client.click('nav-6'); client.click('settings-category-4'); client.click('edit-controls')
+        client.element('profile-name')
+    def select(name):
+        entries = re.findall(r'controller-profile-entry index=(\d+) id=([^ ]+) name=([^\r\n]+)',state())
+        index = next(int(i) for i,_,n in entries if n==name)
+        client.click('profile-new')
+        for _ in range(index//5): client.click('profile-list-next')
+        client.click('profile-entry-'+str(index))
+    def drag(name,fraction,first,last):
+        start = client.element(name); left,right = client.element(first),client.element(last)
+        point = (round(left[0]+(right[0]-left[0])*fraction),start[1])
+        client.command('ui-down',*start); client.command('ui-move',*point)
+        time.sleep(.25); client.command('ui-up',*point); time.sleep(.15)
+
     try:
-        first.click('nav-6');first.click('controls');first.element('profile-name')
-        first.click('profile-new');first.enter('profile-name','Native controls review')
-        first.click('profile-port-3');first.click('profile-tap');first.click('profile-cstick')
-        first.click('profile-save')
-        files=list((first.data/'profiles').glob('*.fmp'))
-        matches=[p for p in files if p.read_bytes()[4:36].split(b'\0')[0]==b'Native controls review']
-        assert len(matches)==1,files
-        profile=matches[0];saved=profile.read_bytes()
-        assert len(saved)==191 and saved[36:38]==bytes((0,1))
-        assert struct.unpack_from('<4H',saved,40)==(8000,8000,31150,31150)
-        receipt['ui']['saved_profile']=profile.name
-        receipt['ui']['gameplay_screenshot']=str(first.screenshot())
-        first.command('tap',0,'START','sy=80','frames=8')
-        assert 'visible=1' in first.inspect('profiles-panel'),'Background input closed the settings scene'
-        first.click('profile-bind');first.click('bind-0')
-        capture=first.inspect('profile-status')
-        if 'Connect a controller to this port first.' in capture:
-            receipt['ui']['capture']='Disconnected port rejects capture before it starts'
-        else:
-            assert 'Release controls, then press the input to bind.' in capture,capture
-            first.command('ui-key','escape')
-            assert 'Binding cancelled.' in first.inspect('profile-status')
-            receipt['ui']['capture']='Capture starts and Escape cancels it'
-        first.click('profile-tune');first.enter('profile-main-zone','bad')
-        first.click('profile-save');assert profile.read_bytes()==saved
-        receipt['ui']['invalid_screenshot']=str(first.screenshot())
-        first.enter('profile-main-zone','17.5');first.enter('profile-l-zone','0');first.enter('profile-r-zone','100')
-        first.click('profile-save');saved=profile.read_bytes()
-        assert struct.unpack_from('<4H',saved,40)==(math.floor(32767*.175+.5),8000,0,32767)
-        receipt['ui']['calibration_screenshot']=str(first.screenshot())
-        receipt['ui']['saved_sha256']=hashlib.sha256(saved).hexdigest()
-        first.click('profile-close')
+        client = Client(args.exe.resolve(),args.iso.resolve(),args.profile.resolve(),output/'settings',
+                        'Native profile review',window_size=(1440,900),without_drafts=True)
+        open_profiles(); client.click('profile-new')
+        client.enter('profile-name','Native controls review'); client.command('ui-key','enter')
+        client.click('profile-port-3')
+        client.command('ui-move',*client.element('profile-tap')); client.tap('A',frames=40)
+        wait(r'tap=0 buffer=0 cstick=0')
+        for _ in range(3): client.click('profile-buffer')
+        client.click('profile-cstick'); client.click('profile-save')
+        wait(r'tap=0 buffer=3 cstick=1')
+        main_id = re.search(r' id=([^ ]+) name=Native controls review ',state())[1]
+        profile = client.data/'profiles'/(main_id+'.fmp'); saved = profile.read_bytes()
+        assert saved[4:36].split(b'\0')[0] == b'Native controls review'
+        assert saved[36:38] == bytes((6,1))
+        shot('gameplay')
+        device('attach,0'); time.sleep(.6); device('port,0,3')
+        wait(r'controller-profile-status device=\d+ ')
+        client.click('profile-tab-1'); client.click('bind-0')
+        wait(r'capture=0,-1 ready=1 release=0')
+        device('button,0,0,1'); wait(r'capture=0,-1 ready=1 release=1')
+        device('button,0,0,0'); wait(r'capture=-1,-1')
+        assert 'controller-input action=0 binding=0 type=1 input=0' in state()
+        client.click('add-0'); wait(r'capture=0,-1 ready=1')
+        axes(x=24000); wait(r'release=1'); axes(); wait(r'capture=-1,-1')
+        assert 'controller-binding action=0 count=2' in state()
+        client.click('add-0'); wait(r'capture=0,-1 ready=1')
+        device('button,0,0,1'); wait(r'release=1'); device('button,0,0,0'); wait(r'capture=-1,-1')
+        assert 'controller-binding action=0 count=2' in state()
+        client.click('bind-1'); wait(r'capture=1,-1 ready=1')
+        client.command('ui-key','escape'); wait(r'capture=-1,-1')
+        client.click('bind-1'); wait(r'capture=1,-1 ready=1')
+        device('button,0,6,1'); time.sleep(.8); wait(r'capture=-1,-1')
+        device('button,0,6,0')
+        assert 'controller-input action=1 binding=0 type=0 input=-1' in state()
+        shot('buttons')
+        client.click('profile-tab-2'); client.click('axis-1'); wait(r'capture=-1,1 ready=1')
+        axes(y=-24000); wait(r'release=1'); axes(); wait(r'capture=-1,-1')
+        assert 'axis=1 direction=-1 assigned=1' in state()
+        shot('axes'); client.click('profile-tab-3')
+        for field,value in [('profile-main-zone','17.5'),('profile-l-zone','0'),('profile-r-zone','100')]:
+            client.enter(field,value); client.command('ui-key','enter')
+        assert 'controller-zones main=5734 c=8000 l=0 r=32767' in state()
+        client.enter('profile-c-zone','bad'); client.command('ui-key','enter')
+        assert 'controller-zones main=5734 c=8000 l=0 r=32767' in state()
+        client.click('profile-save'); saved = profile.read_bytes()
+        assert struct.unpack_from('<4H',saved,40)==(5734,8000,0,32767)
+        shot('calibration-options')
+        axes(x=1000,y=-750,cx=-400,cy=250,lt=-30000,rt=-30000)
+        client.click('profile-calibrate'); wait(r'step=0 testing=0')
+        time.sleep(1.2); shot('rest')
+        client.click('profile-calibration-next'); wait(r'step=1 testing=0')
+        before = client.inspect('hub-pointer')
+        for x,y in [(29000,0),(29000,28000),(0,28000),(-29000,28000),(-29000,0),(-29000,-28000),(0,-28000),(29000,-28000)]:
+            axes(x=x,y=y,cx=round(x*.92),cy=round(y*.92),lt=-30000,rt=-30000)
+        axes(x=1000,y=-750,cx=-400,cy=250,lt=-30000,rt=-30000)
+        assert re.search(r'local=([^ ]+)',before)[1] == re.search(r'local=([^ ]+)',client.inspect('hub-pointer'))[1]
+        shot('sticks'); client.click('profile-calibration-next'); wait(r'step=2 testing=0 applied=1')
+        for value in [-18000,0,18000,30000,-30000]:
+            axes(x=1000,y=-750,cx=-400,cy=250,lt=value,rt=value)
+        for trigger in range(2):
+            drag(f'profile-trigger-{trigger}-start',.08,f'profile-trigger-{trigger}-start',f'profile-trigger-{trigger}-end')
+            drag(f'profile-trigger-{trigger}-end',.90,f'profile-trigger-{trigger}-start',f'profile-trigger-{trigger}-end')
+        shot('triggers'); client.click('profile-calibration-next'); wait(r'step=3 testing=0 applied=1')
+        assert profile.read_bytes() == saved, 'Preview must not save the profile'
+        ranges = re.findall(r'controller-binding action=[45].*?center=(\d+) min=\d+ max=(\d+)',state())
+        assert len(ranges)==2 and all(int(low)>2500 and int(high)<31000 for low,high in ranges),ranges
+        shot('review'); client.click('profile-test-toggle'); wait(r'testing=1 applied=1')
+        before = client.inspect('hub-pointer'); axes(x=26000,y=-22000,cx=-24000,cy=23000)
+        device('button,0,0,1'); device('button,0,1,1'); wait(r'testing=1 applied=1')
+        assert re.search(r'local=([^ ]+)',before)[1] == re.search(r'local=([^ ]+)',client.inspect('hub-pointer'))[1]
+        shot('input-test'); device('button,0,0,0'); device('button,0,1,0'); axes()
+        device('button,0,6,1'); wait(r'testing=0 applied=1'); device('button,0,6,0')
+        client.click('profile-calibration-next'); wait(r'measured=1 .*applied=0')
+        client.click('profile-save'); saved = profile.read_bytes()
+        client.resize(960,540); shot('profiles-narrow')
+        client.click('profile-test'); wait(r'step=3 testing=0 applied=1')
+        client.tap('B',frames=40,port=3); wait(r'applied=0'); client.element('profile-name')
+        client.click('profile-calibrate'); wait(r'step=0')
+        device('detach,0'); wait(r'Controller changed')
+        assert 'applied=0' in state(); client.element('profile-name')
+        client.click('profile-close'); client.element('edit-controls')
+        ui['checks'] = ['native gameplay/buttons/axes/calibration tabs','one toggle per held A press',
+            'saved and assigned profile','raw SDL button and signed-axis binding','additional/duplicate binding',
+            'Escape and held START cancel capture without changing a binding','Enter commits percentages; invalid input restores the prior value',
+            'raw rest and edge capture','no cursor movement while capturing sticks','manual trigger ranges',
+            'temporary calibration assignment','test mode suppresses hand and button navigation; START stops it',
+            'controller disconnect restores the previous assignment','both window sizes']
+        ui['saved_profile'] = profile.name; ui['saved_sha256'] = hashlib.sha256(saved).hexdigest()
+        source = client.folder/'appdata'
+        close_window(client.process.pid); client.process.wait(timeout=20)
+        client = Client(args.exe.resolve(),args.iso.resolve(),source,output/'reopened',
+                        'Native profile review',window_size=(960,540),without_drafts=True)
+        open_profiles(); select('Native controls review'); wait(r'tap=0 buffer=3 cstick=1 measured=1')
+        assert (client.data/'profiles'/profile.name).read_bytes()==saved
+        client.click('profile-tab-1'); assert 'controller-binding action=0 count=2' in state(); shot('reopened')
+        client.click('profile-delete'); shot('delete-confirm')
+        client.click('profile-delete-cancel'); assert (client.data/'profiles'/profile.name).exists()
+        client.click('profile-delete'); client.click('profile-delete-yes')
+        assert not (client.data/'profiles'/profile.name).exists()
+        ui['checks'] += ['saved values and bindings survive restart','delete cancellation and confirmed removal']
+    except Exception as error:
+        receipt.update(status='FAIL',error=str(error))
+        raise
     finally:
-        first.stop();receipt['ui']['first_stopped']=first.process.poll() is not None
-        (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
-    second=Client(args.exe.resolve(),args.iso.resolve(),first.folder/'appdata',output/'reopened',
-                  'Profile Review',window_size=(1440,900),without_drafts=True)
-    try:
-        second.click('nav-6');second.click('controls');second.click('profile-list')
-        # The copied catalog may contain other fixtures; select the exact saved ID.
-        selected=False
-        for _ in range(65):
-            second.command('ui-key','down');second.command('ui-key','enter')
-            if 'Native controls review' in second.inspect('profile-name'):
-                selected=True;break
-            second.click('profile-list')
-        assert selected,'Saved profile did not reopen'
-        assert (second.data/'profiles'/profile.name).read_bytes()==saved
-        second.click('profile-tune')
-        assert 'value=17.5' in second.inspect('profile-main-zone')
-        assert 'value=0' in second.inspect('profile-l-zone')
-        assert 'value=100' in second.inspect('profile-r-zone')
-        receipt['ui']['reopened_screenshot']=str(second.screenshot())
-        second.click('profile-delete');second.click('profile-delete-cancel')
-        assert (second.data/'profiles'/profile.name).exists()
-        second.click('profile-delete');second.click('profile-delete-yes')
-        assert not (second.data/'profiles'/profile.name).exists()
-        second.click('profile-close')
-    finally:
-        second.stop();receipt['ui']['second_stopped']=second.process.poll() is not None
+        if client and client.process.poll() is None:
+            close_window(client.process.pid); client.process.wait(timeout=20)
         (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
 
 
@@ -158,7 +239,7 @@ def main():
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     receipt=dict(status='RUNNING',exe_sha256=hashlib.sha256(args.exe.read_bytes()).hexdigest(),
                  script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                 ui={},gameplay={},limitations=['Raw SDL binding capture','Physical GameCube adapter feel','Physical rumble'])
+                 ui={},gameplay={},limitations=['Physical GameCube adapter feel','Physical rumble'])
     os.environ['FREAK_MELEE_SERVICE_ENDPOINT']='http://127.0.0.1:1'
     review_ui(args,output,receipt)
     review_gameplay(args,output,receipt)

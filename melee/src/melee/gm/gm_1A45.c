@@ -44,7 +44,6 @@
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_hub.h>
 #include <melee/ui/native_shell_costumes.h>
-#include <melee/ui/native_shell_profiles.h>
 #include <melee/ui/native_shell_rules.h>
 #include <melee/if/ifcoget.h>
 #include <melee/lb/lb_013B.h>
@@ -555,7 +554,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                     nativeHome_ApplyResultsInput();
                     if (!rollback_active) nativeHub_Tick();
                     if ((nativeHome_IsSelection() || nativeHome_IsPractice()) &&
-                        (nativeHub_ConsumesGameInput() || nativeShellProfiles_IsOpen() ||
+                        (nativeHub_ConsumesGameInput() ||
                          nativeShellRules_IsOpen() || nativeShellCostumes_IsOpen() || nativeShell_IsEditingText()))
                     {
                         // Raw controller sampling remains available to rebinding;

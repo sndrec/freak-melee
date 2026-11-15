@@ -1,103 +1,71 @@
-# Player profiles in Options
+# Controller profiles
 
-New players can use [First startup](native_first_startup.md) for guided
-center/range/trigger calibration. It saves an ordinary controller profile and
-remembers that setup profile's port for subsequent launches. The older manual
-settings and explicit per-session profile assignments described below remain
-available in Controls.
+Open **Settings > Controls > Player profiles & bindings**. Use the Melee hand or
+mouse to select controls, and the keyboard to enter a profile name or number.
 
-Options opens a full-window panel that slides in from the left. Back in the
-upper-left corner returns to Melee and the gameplay sidebars. The settings
-screen is authored in `assets/ui/freak_shell.rml` and `freak_profiles.rcss`;
-the dynamic binding rows reflect the current draft. It uses the existing native
-profile format and controller application code directly.
+Choose a saved profile from the left column, or choose **New**. The arrow buttons
+show more saved profiles. Choose the controller port at the top of the screen.
+**Save & use** saves the profile and assigns it to that port for this launch.
+First startup also remembers its chosen profile and port for future launches.
 
-The left column selects or creates a saved profile, edits its display name,
-and explicitly chooses one of four local controller ports. Save & use writes
-the profile atomically under LocalAppData and applies it to that port. Merely
-editing or selecting a draft does not change live controls. Use default controls
-clears the chosen port's assignment without deleting the saved profile.
-The assigned calibration stays with that port when a controller connects or is
-replaced. A controller moved to another port uses that port's profile, if assigned.
-Use default controls returns to the connected device's own calibration.
-Delete saved profile requires a second click on Confirm delete. Deleting its
-file removes it from the picker but leaves any already assigned in-memory
-controls in effect until the player changes that port's assignment.
+**Use defaults** gives the chosen port its default controls. **Reset** resets the
+profile being edited. **Delete** asks for confirmation before removing a saved
+profile. Assigned controls stay active until you choose another profile or use
+the defaults.
 
-Gameplay exposes tap jump and smash/tilt attack-stick behavior. Bindings exposes
-all six existing actions, including Short hop, and all six analog axes. Bind
-replaces an action's bindings, + adds one (up to four), and Clear unbinds it.
-Axis rows can be returned individually to their default mapping. Capture waits
-for controls to be released, accepts the next button or axis, and waits for its
-release; Cancel, Escape, disconnect, and a 15-second timeout end capture.
+## Gameplay
 
-Calibration exposes the existing dead-zone and trigger settings as percentages.
-Unedited display rounding never changes the underlying raw value. Invalid
-fields prevent saving or applying the profile. Trigger activation supports the
-full 0â€“100% range of SDL gamepad travel. The original default Shield binding
-preserves analog strength; replacing Shield with a digital action requests full
-shield. Calibration now shows six live stick/trigger signals for the selected
-port. The meters use draft axis mappings where assigned, update at 10 Hz, and
-show a dash when no controller is connected.
+- **Tap jump** lets you jump by pushing the main stick up.
+- **Action buffer** remembers early actions for 0–7 frames. Off uses zero frames.
+- **Attack stick** selects smash attacks or tilts for grounded C-stick attacks.
+- A dedicated **Short hop** input can be assigned on the Buttons page.
 
-A custom digital Shield binding gives full shield strength while held, including
-when the same profile also maps the analog triggers. Releasing that binding
-returns shield strength to the mapped analog input.
+## Buttons and axes
 
-The editor opens only in home CSS and closes if the scene changes. Controller
-input while it is open does not drive the underlying character selection. Settings remain
-fixed during matches. The editor's presentation state is excluded from rollback.
-Keyboard/gameplay text capture continues to use the existing shell behavior.
+On **Buttons**, choose **Bind** to replace an action's inputs, **+** to add an
+input, or **Clear** to remove them. An action can have four inputs. Release the
+controls, press the input you want, then release it again to finish. Buttons and
+positive or negative axis directions can be bound. Escape, **Cancel binding**, or
+holding START cancels capture and preserves the previous binding. A short START
+press can itself be bound.
 
-## Verification, 2026-09-22
+On **Axes**, bind the direction named on each row. For example, choose **Move up**
+and move the stick upward. **Default** restores an axis's standard assignment.
+Calibrate again after changing an axis.
 
-- Release client builds. All 354 discovered native tests pass serially.
-- Profile tests cover an empty store, stable IDs/names, rejection of corrupt
-  profiles, explicit catalog-capacity failure, persistence, and existing input
-  application behavior.
-- Created a temporary profile through the UI, changed tap jump and attack-stick
-  mode, and saved it to port four. Independently inspected its persisted bytes:
-  tap jump off, tilt stick, and unchanged raw calibration values 8000/8000 and
-  31150/31150. Reloaded it through the picker after restarting the client.
-- Invalid calibration text displayed an error and left the saved bytes intact.
-- Inspected full-window Gameplay, Bindings, Calibration, picker, capture prompt,
-  validation error, and return-to-VS screenshots. An injected confirm press while
-  the editor was open did not enter character select.
-- The profile editor object contains no `.mstate` or `.maudio` section.
-- Removed the temporary test profile after verification.
-- A live GameCube adapter showed released SDL trigger axes at zero. The
-  previous profile conversion interpreted zero as half pressed; custom analog
-  trigger bindings now map 0 to 0 and 32767 to 255, matching Aurora's default
-  pad conversion. The default click threshold 31150 displays as 95.1% instead
-  of 97.5%. `calibration-live-final.png`,
-  `calibration-live-no-controller.png`, and `calibration-live-1280.png` were
-  inspected in the running client.
-  Focused tests check released, half, and full trigger travel plus invalid
-  thresholds. No physical trigger press was performed during this check.
-- Saved a test profile through the running client with an isolated LocalAppData
-  root, cancelled a delete, then confirmed it. The picker returned to New
-  profile and the test profile file was gone. The compact two-button
-  confirmation remained visible at 1440x810 (`profile-delete-confirm-final.png`;
-  `profile-delete-done.png` shows the result). The store test checks that
-  deletion rejects invalid IDs and leaves a second saved profile intact.
+## Calibration
 
-## Remaining acceptance
+The Calibration tab contains stick dead zones and trigger click thresholds as
+percentages. Click a field, edit it, then press Enter to confirm. Invalid values
+restore the previous value. The click setting chooses physical trigger clicks or
+clicks generated at the chosen analog threshold.
 
-The [2026-10-19 controls recheck](native_profile_controls_checkpoint.md) records
-the current UI, input-combination and optional gameplay checks.
-The [port-calibration check](native_profile_hotplug_checkpoint.md) adds actual
-SDL virtual-device coverage for connection, replacement and raw input mapping.
+Choose **Calibrate** for a guided capture:
 
-Physical-device capture through the new UI still needs hands-on verification;
-the native diagnostic pad override does not pretend to be a raw SDL controller.
-Capture prompt and cancellation are verified, not a complete physical rebind.
-Keyboard rebinding, dedicated menu/pause bindings, and controller-only
-navigation/text entry remain open.
-Assignment is explicit each session; saved profiles persist, port assignments
-do not. The picker currently reports a limit of 64 valid profiles. Narrow-window
-and high-DPI layouts need additional inspection; the normal rail launcher is
-hidden when the window has no room for sidebars.
+1. Release both sticks and triggers and leave the controller still.
+2. Move both sticks around their edges, visiting all four directions on each.
+3. Slowly squeeze the triggers. Drag each **Start** marker past its released
+   reading, and put **End** just before the physical click. A controller without
+   a separate click can use its full analog travel.
+4. Review the readings. **Test** disables hand movement and menu tilt while you
+   try the controls. Press START or click **Stop test** to finish testing.
 
-Home-flow recheck: START and stick input while Options was open stayed out of
-practice; Back returned to CSS (`home-options-return-verified.png`). Input
-suppression runs after Melee renews its copied controller status.
+Stick calibration takes effect on the trigger page. The display shows raw
+readings alongside calibrated values. Calibration estimates small dead zones
+from the resting capture; these remain adjustable on the Calibration tab.
+
+**Use calibration** returns to the profile with the measured values. **Save & use**
+saves and applies them. Cancelling calibration restores the controls that were
+active before the capture. Disconnecting or replacing the selected controller
+also ends capture. **Test controller** opens the review display for the current
+profile without taking new measurements.
+
+## Verification
+
+The current review is recorded in
+[native_ui_feedback_2026_11_15.md](native_ui_feedback_2026_11_15.md).
+`tools/review_native_profile_controls.py` uses hidden, muted clients, an SDL
+virtual gamepad and recorded gameplay inputs. Physical controller feel and rumble
+still benefit from a hands-on check. The earlier provider and input-policy work
+is recorded in [the controls checkpoint](native_profile_controls_checkpoint.md)
+and [the port-calibration checkpoint](native_profile_hotplug_checkpoint.md).

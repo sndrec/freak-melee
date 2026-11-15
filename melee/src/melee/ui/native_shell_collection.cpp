@@ -7,7 +7,6 @@
 #include "native_shell_costumes.h"
 #include "native_shell_workshop.h"
 #include <melee/ft/native_fighter_family_project.h>
-#include "native_shell_profiles.h"
 #include "native_shell_rules.h"
 
 #include <melee/gm/native_content_store.h>
@@ -279,7 +278,7 @@ void nativeShellCollection_Open()
         nativeHub_Notice("Return home to manage your collection.");
         return;
     }
-    nativeShellProfiles_Close();
+
     nativeShellRules_Close();
     status("");
     load_items();

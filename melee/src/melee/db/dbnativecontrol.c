@@ -6,6 +6,7 @@
 #include "dbnativecontrol.h"
 #include "dbnativecontrol_protocol.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,6 +24,7 @@
 #include <aurora/aurora.h>
 #include <melee/gm/native_studio.h>
 #include <sysdolphin/baselib/audio_capture.h>
+#include <SDL3/SDL.h>
 
 typedef struct DbNativePadState {
     u32 remaining_frames;
@@ -31,10 +33,63 @@ typedef struct DbNativePadState {
 
 static HANDLE control_channel = INVALID_HANDLE_VALUE;
 static DbNativePadState virtual_pads[PAD_MAX_CONTROLLERS];
+static struct { SDL_JoystickID id; SDL_Gamepad* gamepad; } devices[4];
+
+// These devices pass through SDL and the ordinary Aurora input provider. The
+// older PAD override remains useful for deterministic post-mapping input.
+static bool device_command(const char* command)
+{
+    unsigned slot, port, button, down; int values[6], end = 0;
+    if (sscanf(command,"attach,%u%n",&slot,&end)==1 && end && !command[end] && slot<4) {
+        if (devices[slot].id) return false;
+        SDL_VirtualJoystickDesc desc; SDL_INIT_INTERFACE(&desc);
+        desc.type=SDL_JOYSTICK_TYPE_GAMEPAD; desc.naxes=SDL_GAMEPAD_AXIS_COUNT;
+        desc.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
+        desc.axis_mask=(1u<<SDL_GAMEPAD_AXIS_COUNT)-1;
+        desc.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1;
+        desc.name="Freak Melee virtual controller";
+        SDL_JoystickID id=SDL_AttachVirtualJoystick(&desc);
+        SDL_Gamepad* pad=id?SDL_OpenGamepad(id):NULL;
+        if (!pad) { if (id) SDL_DetachVirtualJoystick(id); return false; }
+        devices[slot].id=id; devices[slot].gamepad=pad;
+        SDL_Joystick* joystick=SDL_GetGamepadJoystick(pad);
+        for (unsigned axis=0;axis<SDL_GAMEPAD_AXIS_COUNT;++axis)
+            SDL_SetJoystickVirtualAxis(joystick,axis,axis>=4?-32768:0);
+        SDL_UpdateGamepads(); return true;
+    }
+    end=0;
+    if (sscanf(command,"detach,%u%n",&slot,&end)==1 && end && !command[end] && slot<4 && devices[slot].id) {
+        SDL_CloseGamepad(devices[slot].gamepad); SDL_DetachVirtualJoystick(devices[slot].id);
+        devices[slot].gamepad=NULL; devices[slot].id=0; return true;
+    }
+    end=0;
+    if (sscanf(command,"port,%u,%u%n",&slot,&port,&end)==2 && end && !command[end] && slot<4 && port<4 && devices[slot].gamepad)
+        return SDL_SetGamepadPlayerIndex(devices[slot].gamepad,port);
+    end=0;
+    if (sscanf(command,"button,%u,%u,%u%n",&slot,&button,&down,&end)==3 && end && !command[end] && slot<4 &&
+        button<SDL_GAMEPAD_BUTTON_COUNT && down<2 && devices[slot].gamepad) {
+        bool ok=SDL_SetJoystickVirtualButton(SDL_GetGamepadJoystick(devices[slot].gamepad),button,down!=0);
+        SDL_UpdateGamepads(); return ok;
+    }
+    end=0;
+    if (sscanf(command,"axes,%u,%d,%d,%d,%d,%d,%d%n",&slot,values,values+1,values+2,values+3,values+4,values+5,&end)==7 &&
+        end && !command[end] && slot<4 && devices[slot].gamepad) {
+        for (unsigned i=0;i<6;++i) if (values[i]<-32768 || values[i]>32767) return false;
+        bool ok=true;
+        for (unsigned i=0;i<6;++i) ok=SDL_SetJoystickVirtualAxis(SDL_GetGamepadJoystick(devices[slot].gamepad),i,(Sint16)values[i]) && ok;
+        SDL_UpdateGamepads(); return ok;
+    }
+    return false;
+}
 
 static void apply_message(const DbNativeControlMessage* message)
 {
     if (message->magic != DB_NATIVE_CONTROL_MAGIC) {
+        return;
+    }
+    if (message->command==DB_NATIVE_CONTROL_DEVICE) {
+        if (memchr(message->text,0,sizeof(message->text)))
+            OSReport("[native-control] Device request accepted=%u\n",device_command(message->text));
         return;
     }
     if (message->command == DB_NATIVE_CONTROL_SCREENSHOT) {
@@ -224,6 +279,10 @@ void dbNativeControl_OnInputSample(void)
 
 void dbNativeControl_Shutdown(void)
 {
+    for (unsigned i=0;i<4;++i) if (devices[i].id) {
+        SDL_CloseGamepad(devices[i].gamepad); SDL_DetachVirtualJoystick(devices[i].id);
+        devices[i].gamepad=NULL; devices[i].id=0;
+    }
     PADClearAllVirtualStatus();
     if (control_channel != INVALID_HANDLE_VALUE) {
         CloseHandle(control_channel);

@@ -75,7 +75,7 @@ unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, f
     return end;
 }
 void nativeHub_Field(const char* id, const char* value, float x, float y,
-    float w, float h, HubAction action, bool secret, const char* placeholder)
+    float w, float h, HubAction action, bool secret, const char* placeholder, int action_value)
 {
     const bool focused = hub.field == value, multiline = h >= 40;
     char masked[2049];
@@ -109,5 +109,5 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
         float caret_x = prefix_width(value, caret_start, caret_end, 10) * scale;
         nativeMenuPaint_Rect(x + 7 + caret_x, y + 6 + (caret_line - first_line) * 13, .7f, 13, 0xD9B754FF);
     }
-    nativeHub_Region(id, x, y, w, h, action);
+    nativeHub_Region(id, x, y, w, h, action, action_value);
 }

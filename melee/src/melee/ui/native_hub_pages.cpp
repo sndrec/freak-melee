@@ -3,7 +3,7 @@
 #include <melee/gm/native_presentation.h>
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
-#include "native_hub_controls.h"
+#include "native_hub_profiles.h"
 #include "native_hub_settings.h"
 #include "native_hub_account.h"
 #include "native_hub_social.h"
@@ -372,6 +372,9 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_PlayerProfiles:
+    case NativeHubPage_ControllerCalibration:
+        nativeHubProfiles_Render(); break;
     case NativeHubPage_Controls:
     case NativeHubPage_Video:
     case NativeHubPage_Audio:

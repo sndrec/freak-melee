@@ -14,7 +14,6 @@
 #include "native_shell.h"
 #include "native_shell_collection.h"
 #include "native_shell_css_original.h"
-#include "native_shell_profiles.h"
 #include "native_shell_rules.h"
 #include "native_hub_portrait.h"
 #include "native_hub_catalog.h"
@@ -863,7 +862,6 @@ void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origi
         return;
     }
     if (opened && !confirm_discard()) return;
-    nativeShellProfiles_Close();
     nativeShellRules_Close();
     nativeShellCssOriginal_Close();
     nativeShellCollection_Close();

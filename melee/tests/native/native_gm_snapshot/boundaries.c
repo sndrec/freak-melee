@@ -26,7 +26,6 @@ void nativeMatchClasses_Initialize(void) {}
 #include <melee/lb/lb_0192.h>
 #include <melee/lb/lbheap.h>
 #include <melee/ui/native_shell.h>
-#include <melee/ui/native_shell_profiles.h>
 #include <melee/ui/native_shell_rules.h>
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
 #include <sysdolphin/baselib/controller.h>
@@ -146,7 +145,6 @@ void db_CheckScreenshot(void) {}
 void nativeHome_Tick(void) {}
 void nativeHome_ApplyResultsInput(void) {}
 bool nativeHome_IsSelection(void) { return false; }
-bool nativeShellProfiles_IsOpen(void) { return false; }
 bool nativeShellRules_IsOpen(void) { return false; }
 bool nativeShell_IsEditingText(void) { return false; }
 void nativeShell_Update(void) {}

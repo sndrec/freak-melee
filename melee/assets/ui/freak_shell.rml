@@ -2,7 +2,6 @@
 <head>
   <title>Freak Melee</title>
   <link type="text/rcss" href="freak_shell.rcss" />
-  <link type="text/rcss" href="freak_profiles.rcss" />
   <link type="text/rcss" href="freak_rules.rcss" />
   <link type="text/rcss" href="freak_css_original.rcss" />
   <link type="text/rcss" href="freak_costumes.rcss" />
@@ -484,81 +483,6 @@
         </div>
       </aside>
       <footer id="workshop-editor-footer"><span class="workshop-footer-dot"></span><span id="workshop-editor-status"></span><span class="workshop-footer-label">FREAK MELEE WORKSHOP</span></footer>
-    </section>
-    <section id="profiles-panel">
-      <header class="settings-header">
-        <button id="profile-close">‹ BACK</button>
-        <div class="settings-heading"><div class="eyebrow">OPTIONS</div><div class="settings-title">Player profiles</div></div>
-        <div class="settings-mark">FREAK<span>MELEE</span></div>
-      </header>
-      <div class="settings-body">
-        <aside class="profile-library">
-          <div class="eyebrow">LOCAL PROFILES</div>
-          <label for="profile-list" class="field-label">Saved profiles</label>
-          <select id="profile-list" class="room-input"></select>
-          <button id="profile-new" class="room-button">+ New profile</button>
-          <label for="profile-name" class="field-label">Name</label>
-          <input id="profile-name" class="room-input" type="text" maxlength="32" placeholder="Your name" />
-          <div class="field-label">Controller port</div>
-          <div class="local-counts profile-ports"><button id="profile-port-0" class="selected">1</button><button id="profile-port-1">2</button><button id="profile-port-2">3</button><button id="profile-port-3">4</button></div>
-          <p id="profile-controller" class="muted"></p>
-          <div class="profile-library-spacer"></div>
-          <p id="profile-status" class="profile-status"></p>
-          <button id="profile-save" class="room-button primary">Save &amp; use</button>
-          <button id="profile-unassign" class="room-button quiet">Use default controls</button>
-          <button id="profile-delete" class="room-button quiet" disabled>Delete saved profile</button>
-          <div id="profile-delete-confirm">
-            <button id="profile-delete-cancel" class="room-button quiet">Cancel</button>
-            <button id="profile-delete-yes" class="room-button">Confirm delete</button>
-          </div>
-        </aside>
-        <section class="profile-editor">
-          <nav class="profile-tabs"><button id="profile-play" class="selected">Gameplay</button><button id="profile-bind">Bindings</button><button id="profile-tune">Calibration</button></nav>
-          <div id="profile-play-panel" class="profile-page">
-            <div class="profile-page-title">Gameplay</div>
-            <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Tap jump</div><p class="muted">Jump by pushing the main stick up.</p></div><button id="profile-tap" class="profile-setting">On</button></div>
-            <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Action buffer</div><p class="muted">Remember early actions for up to 7 frames.</p></div><button id="profile-buffer" class="profile-setting">Off</button></div>
-            <div class="profile-option-row"><div class="profile-option-copy"><div class="profile-option-title">Attack stick</div><p class="muted">Choose smash attacks or tilts on the ground.</p></div><button id="profile-cstick" class="profile-setting">Smash</button></div>
-            <div class="profile-note-card"><div class="profile-option-title">Short hop</div><p class="muted">Assign a dedicated button in Bindings. Jump keeps its normal hold-and-release behavior.</p></div>
-          </div>
-          <div id="profile-bind-panel" class="profile-page">
-            <div class="profile-page-title">Bindings</div>
-            <p class="muted profile-note">Choose Bind, then press a button or move an axis. + keeps the existing binding and adds another.</p>
-            <div id="profile-actions" class="profile-binding-grid"></div>
-            <div class="eyebrow profile-note">ANALOG AXES</div>
-            <div id="profile-axes" class="profile-binding-grid"></div>
-          </div>
-          <div id="profile-tune-panel" class="profile-page">
-            <div class="profile-page-title">Calibration</div>
-            <div class="eyebrow profile-live-title">LIVE INPUT</div>
-            <div class="calibration-live-grid">
-              <div class="calibration-live-axis"><span class="live-label">Main X</span><div class="calibration-meter"><i id="profile-live-0" class="calibration-needle"></i></div><span id="profile-live-value-0" class="live-value">—</span></div>
-              <div class="calibration-live-axis"><span class="live-label">Main Y</span><div class="calibration-meter"><i id="profile-live-1" class="calibration-needle"></i></div><span id="profile-live-value-1" class="live-value">—</span></div>
-              <div class="calibration-live-axis"><span class="live-label">Attack X</span><div class="calibration-meter"><i id="profile-live-2" class="calibration-needle"></i></div><span id="profile-live-value-2" class="live-value">—</span></div>
-              <div class="calibration-live-axis"><span class="live-label">Attack Y</span><div class="calibration-meter"><i id="profile-live-3" class="calibration-needle"></i></div><span id="profile-live-value-3" class="live-value">—</span></div>
-              <div class="calibration-live-axis"><span class="live-label">Left trigger</span><div class="calibration-meter"><i id="profile-live-4" class="calibration-fill"></i></div><span id="profile-live-value-4" class="live-value">—</span></div>
-              <div class="calibration-live-axis"><span class="live-label">Right trigger</span><div class="calibration-meter"><i id="profile-live-5" class="calibration-fill"></i></div><span id="profile-live-value-5" class="live-value">—</span></div>
-            </div>
-            <div class="calibration-grid">
-              <section class="calibration-card">
-                <div class="profile-option-title">Sticks</div>
-                <div class="profile-option-row"><div class="field-label">Dead zones</div><button id="profile-deadzones" class="profile-setting">On</button></div>
-                <label for="profile-main-zone" class="field-label">Main stick dead zone (%)</label><input id="profile-main-zone" class="room-input" type="text" maxlength="5" />
-                <label for="profile-c-zone" class="field-label">Attack stick dead zone (%)</label><input id="profile-c-zone" class="room-input" type="text" maxlength="5" />
-                <p class="muted profile-note">Increase only as needed to stop stick drift.</p>
-              </section>
-              <section class="calibration-card">
-                <div class="profile-option-title">Triggers</div>
-                <div class="profile-option-row"><div class="field-label">Digital click</div><button id="profile-digital" class="profile-setting">Emulated</button></div>
-                <label for="profile-l-zone" class="field-label">Left trigger activation (%)</label><input id="profile-l-zone" class="room-input" type="text" maxlength="5" />
-                <label for="profile-r-zone" class="field-label">Right trigger activation (%)</label><input id="profile-r-zone" class="room-input" type="text" maxlength="5" />
-                <p class="muted profile-note">0–100% of analog travel. The default Shield binding preserves analog shield strength.</p>
-              </section>
-            </div>
-          </div>
-          <footer class="profile-editor-footer"><button id="profile-reset" class="room-button quiet">Reset draft controls</button><button id="profile-cancel" class="room-button">Cancel binding</button><span class="muted">Changes apply when you save.</span></footer>
-        </section>
-      </div>
     </section>
     <section id="rules-panel">
       <header class="settings-header">

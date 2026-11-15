@@ -182,6 +182,8 @@ u32 PADCount();
 const char* PADGetNameForControllerIndex(u32 idx);
 void PADSetPortForIndex(u32 index, u32 port);
 s32 PADGetIndexForPort(u32 port);
+// SDL device instance, stable until disconnect; zero means no device.
+u32 PADGetInstanceForPort(u32 port);
 void PADGetVidPid(u32 port, u32* vid, u32* pid);
 void PADClearPort(u32 port);
 const char* PADGetName(u32 port);
