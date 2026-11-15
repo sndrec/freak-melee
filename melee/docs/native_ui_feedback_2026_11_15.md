@@ -386,3 +386,18 @@ Verification, all with isolated hidden and muted clients:
 
 The Release client built successfully; the two CSS checks and eight graphics
 recording/presented-capture checks passed. The public updater is unchanged.
+
+
+Implementation commit: `c00eba7`, pushed to main. These five submissions and
+both attachments per submission were removed after the checks above on
+2026-11-15. Their local `removal.json` receipts report success. A fresh hosted
+query confirmed all five IDs absent. Eighteen submissions / 32 pinned notes
+are complete; the one native-settings submission remains in the fixed batch.
+
+| Removed submission | Verified result |
+| --- | --- |
+| `4a8f3006-0291-465a-ae8e-dfdfdf919fd6` | Five top-level Options categories, grouped existing controls, original Options presentation. |
+| `b1849c74-ba9f-47ee-a47c-b8b9668ec15c` | Standalone News reader, history/paging/scrolling and return path. |
+| `72281e7c-a55a-4fa3-9bf3-7a34f2071b3d` | Populated Inbox footer/count spacing at both reviewed sizes. |
+| `3645f09b-8b8c-4349-945e-b4016e04c9f8` | Persistent local-player setting in Controls and ticker fades inset within the frame. |
+| `162b2c34-722c-48c0-9c95-2a99a2a7f1ae` | All five earlier hub/font/ticker/F2 points checked on the current client. |
