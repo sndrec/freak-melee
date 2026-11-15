@@ -71,13 +71,6 @@ their own builds; their old "remaining" lists are not the current backlog.
   a credited Tom Nook costume alongside stock-color Falcos. Native capture and
   direction tools, source projects, takes and an editable cut recipe are kept
   for revisions. Startup playback integration follows the film review.
-- **Glim** is ready for review in the Workshop and installed character catalog.
-  The [fighter guide](characters/glim/README.md) covers its moves and rebuild
-  recipe; [authoring observations](characters/glim/WORKSHOP_NOTES.md) record
-  the UI checks, fixed bugs and remaining gaps. The follow-up authoring controls
-  are ready for the user's next dogfooding pass.
-  Save coherent progress in local Git commits. The active goal forbids upstream
-  pushes. Keep disc-derived assets and generated packages local.
 - Continue the native client and character-authoring platform.
 - Optimization is deferred at the user's request. Preserve the current
   interpreter, confirmed-checkpoint rollback and GPU-free reconstruction;

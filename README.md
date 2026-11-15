@@ -4,6 +4,8 @@ Private Windows native Melee client and character-authoring workshop. The full
 Melee decompilation is the game base, with our modified Aurora as the platform
 and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
 
+![Freak Melee main menu with Chatroom selected](docs/images/main-menu-chatroom.png)
+
 ## Source layout
 
 - `melee/`: game/HSD source, native interpreter, Workshop, UI, tools, tests,
@@ -16,7 +18,7 @@ and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
 
 This repository is a source snapshot, not a copy of the development machine.
 It excludes the ISO, extracted game assets, SDK/tool binaries, build products,
-screenshots, profiling archives and reference-only repositories. The initial
+bulk review captures, profiling archives and reference-only repositories. The initial
 commit preserves the project documents before their cleanup; current guides
 separate implemented features from remaining work and historical evidence.
 
