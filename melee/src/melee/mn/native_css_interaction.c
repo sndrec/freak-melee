@@ -526,7 +526,7 @@ bool nativeCssInteraction_SetLocalPlayers(unsigned count)
 
 bool nativeCssInteraction_CanReady(void)
 {
-    if (nativePlayMenu_RulesOpen() || !selection.css) {
+    if (nativeHub_IsVisible() || !selection.css) {
         return false;
     }
     unsigned active = 0;

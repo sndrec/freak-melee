@@ -377,6 +377,8 @@ void nativeHub_RenderPage(NativeHubPage page)
     switch (page) {
     case NativeHubPage_MatchRules:
     case NativeHubPage_ItemSwitch:
+    case NativeHubPage_AdditionalRules:
+    case NativeHubPage_LobbyRules:
         nativeHubRules_Render(page); break;
     case NativeHubPage_Costumes:
         nativeHubCostumes_Render(); break;

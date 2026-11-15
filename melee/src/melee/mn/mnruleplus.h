@@ -2,6 +2,8 @@
 #define MELEE_MN_RULEPLUS_H
 
 #include <melee/mn/forward.h>
+#include <melee/gm/forward.h>
+#include <stdbool.h>
 #include <sysdolphin/baselib/forward.h>
 
 #include <melee/mn/types.h>
@@ -34,11 +36,15 @@ typedef struct _MenuRulesPlusData {
     HSD_JObj* xC[10]; ///< layout tree?
     HSD_JObj* x34[6][7];
     HSD_Text* description;
+    GameRules* rules;
+    HSD_JObj* cursors[6];
+    bool descriptions, all_options;
 } MenuRulesPlusData;
 
 typedef struct mn_803ED1D0_t {
     u16 x0[7]; ///< option jobj mapping?
-    u16 xE[6]; ///< value jobj mapping?
+    u16 pad_E;
+    u16 x10[6]; ///< value jobj mapping?
     float text_start_frames[12];
     AnimLoopSettings x4C;
     AnimLoopSettings x58;
@@ -55,7 +61,7 @@ ASSERT_SIZE(mn_803ED1D0_t, 0xA0);
 /* 2327A4 */ void mn_802327A4(HSD_GObj*, u32, u32);
 /* 232D4C */ void mn_80232D4C(HSD_GObj*, u32, u32);
 /* 232F44 */ void fn_80232F44(HSD_GObj*);
-/* 233218 */ HSD_GObj* mn_80233218(MenuState);
+/* 233218 */ HSD_GObj* mn_80233218(MenuState, GameRules*, bool descriptions, bool all_options);
 /* 2339FC */ void mn_802339FC(void);
 
 #endif

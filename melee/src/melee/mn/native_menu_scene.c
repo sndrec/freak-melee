@@ -1,5 +1,6 @@
 #include "native_menu_scene.h"
 #include "native_menu_prize.h"
+#include "native_menu_rules.h"
 #include "mnassets.h"
 #include "mncamera.h"
 #include "native_menu_paint.h"
@@ -150,6 +151,7 @@ static void forget_camera(void* data)
 
 void nativeMenuScene_Unload(void)
 {
+    nativeMenuRules_Unload();
     nativeMenuPrize_Unload();
     MnMenuAssets assets = scene.assets;
     for (unsigned i = 0; i < 2; ++i)
@@ -370,7 +372,7 @@ static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index)
     return result;
 }
 
-bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
+bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame, GameRules* rules)
 {
     if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return false;
     scene.previous_camera = HSD_CObjGetCurrent();
@@ -381,7 +383,8 @@ bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
         // mnmain uses its gold point light for Options (mn_804D4B5C).
         if (light->flags & LOBJ_POINT)
             HSD_LObjSetColor(light, frame == NativeMenuFrame_Options ?
-                (GXColor){ 0xF0, 0xC8, 0x5A, 0xFF } : (GXColor){ 255, 255, 255, 255 });
+                (GXColor){ 0xF0, 0xC8, 0x5A, 0xFF } : frame == NativeMenuFrame_Rules ?
+                (GXColor){ 0xFF, 0x5A, 0x41, 0xFF } : (GXColor){ 255, 255, 255, 255 });
         HSD_LObjAddCurrent(light);
     }
     HSD_LObjSetupInit(camera);
@@ -394,11 +397,19 @@ bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
         // Main-menu panel: the scrolling decoration and main-page idle track.
         HSD_JObj* panel = scene.backdrop[1]->hsd_obj;
         HSD_JObjReqAnimAll(runtime_joint(panel, 4), tick % 800);
-        HSD_JObjReqAnimAll(runtime_joint(panel, 41), (frame == NativeMenuFrame_Options ? 900 : 100) + tick % 100);
+        HSD_JObjReqAnimAll(runtime_joint(panel, 41), (frame == NativeMenuFrame_Options ? 900 : frame == NativeMenuFrame_Rules ? 3100 : 100) + tick % 100);
         HSD_JObjAnimAll(panel);
         // Options uses caption joint 84; the main page uses joint 86.
         // Their authored tracks collapse the inactive caption horizontally.
-        const unsigned caption_index = frame == NativeMenuFrame_Options ? 84 : 86;
+        unsigned caption_index = frame == NativeMenuFrame_Options ? 84 : 86;
+        if (frame == NativeMenuFrame_Rules) {
+            float widest = 0;
+            for (unsigned i=82;i<=86;++i) {
+                HSD_JObj* joint=runtime_joint(panel,i);
+                float area=fabsf(joint->scale.x*joint->scale.y);
+                if (area>widest) { widest=area; caption_index=i; }
+            }
+        }
         if (scene.caption != runtime_joint(panel, caption_index)) prepare_caption(caption_index);
         // Joint 74 is the stock NEXT SCREEN lettering. It describes no action
         // in the native menus that reuse this backdrop.
@@ -425,6 +436,7 @@ bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
             168, 24, rgba, false, false);
         nativeMenuPaint_End();
     }
+    if (frame == NativeMenuFrame_Rules && rules) nativeMenuRules_Load(&scene.assets,rules);
     return true;
 }
 

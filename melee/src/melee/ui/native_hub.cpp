@@ -61,7 +61,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package", "Additional Rules", "Lobby settings" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -299,7 +299,7 @@ namespace {
         unsigned length = unsigned(std::strlen(field));
         hub.caret = std::min(hub.caret, length);
         if (key == SDLK_RETURN) {
-            if (nativeHubProfiles_OwnsField(field) || nativeHubRules_OwnsField(field)) { nativeHub_Focus(nullptr,0); return; }
+            if (nativeHubProfiles_OwnsField(field)) { nativeHub_Focus(nullptr,0); return; }
             HubAction action = HubAction::None;
             if (field == hub.letter_body) {
                 if (modifiers & SDL_KMOD_CTRL) action = HubAction::SendLetter;
@@ -400,7 +400,7 @@ namespace {
 }
 void nativeHub_Focus(char* field, unsigned capacity)
 {
-    if (hub.field != field) { nativeHubProfiles_CommitField(); nativeHubRules_CommitField(); }
+    if (hub.field != field) { nativeHubProfiles_CommitField(); }
     hub.field = field;
     hub.field_capacity = capacity;
     hub.caret = field ? unsigned(std::strlen(field)) : 0;
@@ -1094,7 +1094,7 @@ extern "C" void nativeHub_Tick(void)
             : placed ? "Fighter received and added to your roster."
                      : "Fighter received. Use Edit CSS to add its portrait.");
     }
-    if (selection && !tool && hub.dismissed && !nativeCssChat_Focused() && !nativePlayMenu_RulesOpen()) {
+    if (selection && !tool && hub.dismissed && !nativeCssChat_Focused() && !nativeHub_IsVisible()) {
         bool held = false, pressed = false;
         for (unsigned port = 0; port < 4; ++port) {
             held |= !HSD_PadCopyStatus[port].err &&
@@ -1238,8 +1238,8 @@ extern "C" void nativeHub_Draw(void)
     const bool settings_page = nativeHubSettings_Page(hub.page);
     const bool standalone = news_page || settings_page;
     NativeMenuFrame frame = nativeHubStartup.active || nativeHubPortrait_Editing() ? NativeMenuFrame_Bare
-        : news_page ? NativeMenuFrame_Backdrop : settings_page ? NativeMenuFrame_Options : NativeMenuFrame_Hub;
-    if (!nativeMenuScene_Begin(caption,frame)) return;
+        : news_page ? NativeMenuFrame_Backdrop : nativeHubRules_Page(hub.page) ? NativeMenuFrame_Rules : settings_page ? NativeMenuFrame_Options : NativeMenuFrame_Hub;
+    if (!nativeMenuScene_Begin(caption,frame,nativeHubRules_Data())) return;
     if (nativeHubStartup.active || nativeHubPortrait_Editing()) nativeMenuScenery_Draw();
     Mtx canvas; Mtx44 projection;
     nativeMenuScene_View(false, false, canvas, projection);

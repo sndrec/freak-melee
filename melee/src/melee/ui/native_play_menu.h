@@ -16,7 +16,6 @@ bool nativePlayMenu_Hand(float x, float y, uint32_t trigger);
 bool nativePlayMenu_Pointer(float u, float v, NativeCssPointerEvent event);
 bool nativePlayMenu_PointerActive(void);
 bool nativePlayMenu_TakeReadyRequest(void);
-bool nativePlayMenu_RulesOpen(void);
 bool nativePlayMenu_Inspect(const char* id);
 void nativePlayMenu_Shutdown(void);
 #ifdef __cplusplus

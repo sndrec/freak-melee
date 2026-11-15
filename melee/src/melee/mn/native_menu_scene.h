@@ -1,6 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <dolphin/mtx.h>
+#include <melee/gm/forward.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,8 +10,8 @@ extern "C" {
 void nativeMenuScene_Load(void);
 void nativeMenuScene_Inspect(void);
 void nativeMenuScene_Tick(bool allow_input);
-typedef enum NativeMenuFrame { NativeMenuFrame_Bare, NativeMenuFrame_Hub, NativeMenuFrame_Options, NativeMenuFrame_Backdrop } NativeMenuFrame;
-bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame);
+typedef enum NativeMenuFrame { NativeMenuFrame_Bare, NativeMenuFrame_Hub, NativeMenuFrame_Options, NativeMenuFrame_Backdrop, NativeMenuFrame_Rules } NativeMenuFrame;
+bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame, GameRules* rules);
 void nativeMenuScene_End(void);
 void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float y, float width,
                                 float height, bool selected, const char* label);

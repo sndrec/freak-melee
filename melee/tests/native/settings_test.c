@@ -58,7 +58,7 @@ int main(void)
     saved_rules.friendly_fire = 1;
     saved_rules.pause = 1;
     saved_rules.score_display = 1;
-    saved_rules.unk_xc = 1;
+    saved_rules.unk_xc = 2;
     struct GamePrefs saved_prefs = { 0 };
     saved_prefs.item_freq = UINT8_MAX;
     saved_prefs.item_mask = UINT64_C(0x123456789ABCDEF0);
@@ -79,7 +79,7 @@ int main(void)
                 loaded_rules.damage_ratio == 12 && loaded_rules.stage_sel == 2 &&
                 loaded_rules.stock_time_limit == 30 &&
                 loaded_rules.friendly_fire == 1 && loaded_rules.pause == 1 &&
-                loaded_rules.score_display == 1 && loaded_rules.unk_xc == 1 &&
+                loaded_rules.score_display == 1 && loaded_rules.unk_xc == 2 &&
                 loaded_prefs.item_freq == UINT8_MAX &&
                 loaded_prefs.item_mask == UINT64_C(0x123456789ABCDEF0) &&
                 loaded_prefs.stage_mask == UINT32_C(0xA55A27C3),

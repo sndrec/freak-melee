@@ -1,4 +1,5 @@
 #include "mnmainrule.h"
+#include <string.h>
 
 #include "inlines.h"
 #include "mnmain.h"
@@ -827,6 +828,7 @@ void mn_802307F8(struct mn_802307F8_t* arg0, s32 arg1, s32 arg2)
         HSD_SisLib_803A5CC4(arg0->text);
         arg0->text = NULL;
     }
+    if (!arg0->description) return;
     if ((arg1 == 1) && (arg0->x2 == 1)) {
         text_id = mn_StockCountTextId;
     } else if ((arg1 == 1) || (arg1 == 3) || ((u32) (arg1 - 5) <= 1U)) {
@@ -995,7 +997,7 @@ void fn_802309F0(HSD_GObj* arg0)
             ptr[2] = state;
         }
         data = arg0->user_data;
-        rules = gmMainLib_GetGameRules();
+        rules = data->rules;
         rules->mode = data->x2;
         rules->time_limit = data->x3;
         rules->handicap = data->x4;
@@ -1014,17 +1016,17 @@ s32 mn_80230D18(struct mn_802307F8_t* arg0, HSD_JObj* arg1, int arg2)
     arg0->x0 = mn_804A04F0.cur_menu;
     arg0->x1 = mn_804A04F0.hovered_selection;
 
-    rules = gmMainLib_GetGameRules();
+    rules = arg0->rules;
     arg0->x4 = rules->handicap;
-    if (mn_804D6BD4 == 0 && arg0->x4 == 1) {
+    if (!arg0->all_options && mn_804D6BD4 == 0 && arg0->x4 == 1) {
         arg0->x4 = 0;
     }
 
-    arg0->x5 = gmMainLib_GetGameRules()->damage_ratio;
-    arg0->x6 = gmMainLib_GetGameRules()->stage_sel;
-    arg0->x2 = gmMainLib_GetGameRules()->mode;
-    arg0->x9 = gmMainLib_GetGameRules()->stock_count;
-    arg0->x3 = gmMainLib_GetGameRules()->time_limit;
+    arg0->x5 = rules->damage_ratio;
+    arg0->x6 = rules->stage_sel;
+    arg0->x2 = rules->mode;
+    arg0->x9 = rules->stock_count;
+    arg0->x3 = rules->time_limit;
 
     if (gm_GetCurrentGameMode() == GM_TOURNAMENT && arg0->x3 == 0) {
         arg0->x3 = 0x63;
@@ -1061,7 +1063,7 @@ static inline s32 mn_80230E38_CountVisible(u8 limit)
     return count;
 }
 
-HSD_GObj* mn_80230E38(int arg0)
+HSD_GObj* mn_80230E38(int arg0, GameRules* rules, bool description, bool all_options)
 {
     u8 operand_pad[12];
     u16 jobj_map[17];
@@ -1105,6 +1107,8 @@ HSD_GObj* mn_80230E38(int arg0)
 
     user_data = HSD_MemAlloc(sizeof(*user_data));
     HSD_ASSERTREPORT(0x575, user_data, "Can't get user_data.\n");
+    memset(user_data,0,sizeof(*user_data));
+    user_data->rules = rules; user_data->description = description; user_data->all_options = all_options;
     GObj_InitUserData(gobj, 0, HSD_Free, user_data);
     mn_80230D18(user_data, root_jobj, arg0);
     if (user_data->x1 == 1 &&
@@ -1149,6 +1153,7 @@ HSD_GObj* mn_80230E38(int arg0)
         if (visible != 0) {
             desc = &MenMainCursorRl_Top;
             cursor_jobj = HSD_JObjLoadJoint(desc->joint);
+            user_data->cursors[i] = cursor_jobj;
             HSD_JObjAddAnimAll(cursor_jobj, desc->animjoint,
                                desc->matanim_joint, desc->shapeanim_joint);
             HSD_JObjReqAnimAll(cursor_jobj, 0.0f);
@@ -1309,7 +1314,7 @@ void mn_8023164C(void)
 
     proc = HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80), fn_8022F538, 0);
     proc->flags_3 = HSD_GObj_804D783C;
-    HSD_GObj_80390CD4(mn_80230E38(mode));
+    HSD_GObj_80390CD4(mn_80230E38(mode,gmMainLib_GetGameRules(),true,false));
 }
 
 void mn_80231714(void)
@@ -1337,7 +1342,7 @@ void mn_80231714(void)
 
     proc = HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80), fn_8022F538, 0);
     proc->flags_3 = HSD_GObj_804D783C;
-    HSD_GObj_80390CD4(mn_80230E38(mode));
+    HSD_GObj_80390CD4(mn_80230E38(mode,gmMainLib_GetGameRules(),true,false));
     mn_804D6BD4 = 1;
 }
 
@@ -1489,7 +1494,7 @@ void mn_80231804(HSD_Archive* archive, int arg1)
     mn_80229DC0();
     temp_r3 = HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80), fn_8022F538, 0);
     temp_r3->flags_3 = HSD_GObj_804D783C;
-    HSD_GObj_80390CD4(mn_80230E38(1));
+    HSD_GObj_80390CD4(mn_80230E38(1,gmMainLib_GetGameRules(),true,false));
     lbAudioAx_80023F28(gmMainLib_8015ECB0());
 }
 

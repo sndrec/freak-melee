@@ -26,6 +26,7 @@
 #include <melee/ui/native_hub_hand.h>
 #include <melee/mn/native_menu_scene.h>
 #include <melee/ui/native_play_menu.h>
+#include <melee/ui/native_hub.h>
 #endif
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lb_013B.h>
@@ -3796,7 +3797,7 @@ void fn_80262F44(HSD_GObj* gobj)
             HSD_JObjSetFlagsAll(jobj, JOBJ_HIDDEN);
             // Retain a clicked Ready request through the CSS entrance delay;
             // consuming it earlier loses the click before START is accepted.
-            if (nativePlayMenu_RulesOpen()) trigger &= ~HSD_PAD_START;
+            if (nativeHub_IsVisible()) trigger &= ~HSD_PAD_START;
             else if (mnCharSel_804D6CF2 == 0 && nativePlayMenu_TakeReadyRequest())
                 trigger |= HSD_PAD_START;
         }

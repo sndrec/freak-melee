@@ -35,7 +35,16 @@ def main():
   assert host_room,text
   host.wait_cards(2);guest.wait_cards(2);assert 'unavailable' in guest.inspect('quick-play')
   r['room']=host_room;r['screenshots']['cards']=str(host.screenshot());host.resize(960,540);r['screenshots']['cards-narrow']=str(host.screenshot())
-  r['checks']=['Create lobby leaves Quick Play immediately','confirmation creates a normal listed room','second client can join that room','four authored cards at two sizes'];r['status']='PASS'
+  host.click('play-rules'); host.click('rules-row-6'); host.click('rules-lobby')
+  r['screenshots']['lobby-rules-narrow']=str(host.screenshot()); host.resize(1440,900)
+  r['screenshots']['lobby-rules']=str(host.screenshot())
+  host.command('ui-move',*host.element('change-listing')); host.tap('A',frames=40)
+  wait(host,'match-rules',r'listed=0 ')
+  host.click('rotation-policy'); wait(host,'match-rules',r'rotation=1 '); host.click('lobby-seat-1-0'); wait(host,'match-rules',r'lobby-person row=1 active=0 waiting=1 '); host.click('rules-close'); host.click('rules-close'); host.click('rules-close')
+  guest.click('play-rules'); guest.click('rules-row-6'); guest.click('rules-lobby'); guest.click('lobby-seat-1-0'); wait(guest,'match-rules',r'lobby-person row=1 active=0 waiting=0 ')
+  r['screenshots']['guest-rules']=str(guest.screenshot())
+
+  r['checks']=['Create lobby leaves Quick Play immediately','confirmation creates a normal listed room','second client can join that room','four authored cards at two sizes','stock-styled lobby rows at two sizes','held A changes listing once','rotation policy changes','host overrides another seat','guest can change their own choice again'];r['status']='PASS'
  finally:
   for c in clients:
    if c.process.poll() is None:close_window(c.process.pid);c.process.wait(timeout=20)

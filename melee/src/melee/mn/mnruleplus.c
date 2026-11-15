@@ -1,4 +1,5 @@
 #include <Runtime/platform.h>
+#include <string.h>
 
 #include <sysdolphin/baselib/forward.h>
 
@@ -8,6 +9,7 @@
 #include "inlines.h"
 #include "mnmain.h"
 #include "mnmainrule.h"
+#include "mnruleplus.h"
 #include "mnstagesw.h"
 #include "types.h"
 #include <melee/gm/gm_1A3F.h>
@@ -36,39 +38,6 @@ extern StaticModelDesc MenMainNmRl_Top;
 extern MenuKindData mn_803EB6B0[];
 f32 mn_804D6BE4;
 HSD_GObj* mn_804D6BE0;
-
-typedef struct _MenuRulesPlusData {
-    MenuKind8 menu_kind;
-    u8 hovered_selection;
-    union {
-        struct {
-            u8 time_limit;
-            u8 friendly_fire;
-            u8 pause;
-            u8 score;
-            u8 sd_penalty;
-        };
-        u8 values[5];
-    } rule_values;
-    u8 x7;
-    MenuState8 state;
-    HSD_JObj* xC[10];
-    HSD_JObj* x34[6][7];
-    HSD_Text* description;
-} MenuRulesPlusData;
-
-typedef struct mn_803ED1D0_t {
-    u16 x0[7];
-    u16 pad_E;
-    u16 x10[6];
-    float text_start_frames[12];
-    AnimLoopSettings x4C;
-    AnimLoopSettings x58;
-    AnimLoopSettings x64[2];
-    AnimLoopSettings x7C[2];
-    AnimLoopSettings x94;
-} mn_803ED1D0_t;
-ASSERT_SIZE(mn_803ED1D0_t, 0xA0);
 
 mn_803ED1D0_t mn_803ED1D0 = {
     { 3, 4, 5, 6, 7, 8, 9 },
@@ -423,7 +392,7 @@ static inline void mn_802327A4_InitOptionRoots(HSD_JObj** option_roots,
             j = visible;
             for (; j < (s32) (u8) *i; j++) {
                 j8 = j;
-                if (mn_80231F80(j8) != 0) {
+                if (data->all_options || mn_80231F80(j8) != 0) {
                     visible++;
                 }
             }
@@ -579,6 +548,7 @@ void mn_802327A4(HSD_GObj* gobj, u32 arg1, u32 arg2)
         } else {
             visible = 1;
         }
+        if (data->all_options) visible=1;
         if (visible != 0) {
             AnimLoopSettings* als;
             lb_8001204C(option_roots[i], jobj_parts, jobj_map, 17);
@@ -607,6 +577,7 @@ const JObjIndices mn_804DBE48 = { 0x02030506 };
 void mn_80232D4C(HSD_GObj* gobj, u32 arg1, u32 arg2)
 {
     MenuRulesPlusData* data = gobj->user_data;
+    if (!data->descriptions) return;
     u32 raw_selection;
     u8 selection;
     u8 confirmed;
@@ -768,13 +739,13 @@ void fn_80232F44(HSD_GObj* gobj)
         data->rule_values.values[data->hovered_selection] =
             mn_804A04F0.confirmed_selection;
         data2 = gobj->user_data;
-        gmMainLib_GetGameRules()->stock_time_limit =
+        data2->rules->stock_time_limit =
             data2->rule_values.time_limit;
-        gmMainLib_GetGameRules()->friendly_fire =
+        data2->rules->friendly_fire =
             data2->rule_values.friendly_fire;
-        gmMainLib_GetGameRules()->pause = data2->rule_values.pause;
-        gmMainLib_GetGameRules()->score_display = data2->rule_values.score;
-        gmMainLib_GetGameRules()->unk_xc = data2->rule_values.sd_penalty;
+        data2->rules->pause = data2->rule_values.pause;
+        data2->rules->score_display = data2->rule_values.score;
+        data2->rules->unk_xc = data2->rule_values.sd_penalty;
     }
 }
 
@@ -804,10 +775,9 @@ static inline s32 mnRulePlus_CountVisibleBefore(u8 limit)
     return count;
 }
 
-HSD_GObj* mn_80233218(MenuState state)
+HSD_GObj* mn_80233218(MenuState state, GameRules* rules, bool descriptions, bool all_options)
 {
     u16* sub_count_ptr;
-    GameRules* rules;
     HSD_GObj* gobj;
     MenuRulesPlusData* user_data;
     u8 num_options;
@@ -853,16 +823,17 @@ HSD_GObj* mn_80233218(MenuState state)
         __assert(mn_803ED320, 0x3DFU, mn_803ED330);
     }
 
+    memset(user_data,0,sizeof(*user_data));
+    user_data->rules=rules; user_data->descriptions=descriptions; user_data->all_options=all_options;
     GObj_InitUserData(gobj, 0, HSD_Free, user_data);
     user_data->menu_kind = mn_804A04F0.cur_menu;
     user_data->hovered_selection = (u8) mn_804A04F0.hovered_selection;
     user_data->rule_values.time_limit =
-        gmMainLib_GetGameRules()->stock_time_limit;
+        rules->stock_time_limit;
     user_data->rule_values.friendly_fire =
-        gmMainLib_GetGameRules()->friendly_fire;
-    user_data->rule_values.pause = gmMainLib_GetGameRules()->pause;
-    user_data->rule_values.score = gmMainLib_GetGameRules()->score_display;
-    rules = gmMainLib_GetGameRules();
+        rules->friendly_fire;
+    user_data->rule_values.pause = rules->pause;
+    user_data->rule_values.score = rules->score_display;
     user_data->rule_values.sd_penalty = rules->unk_xc;
     user_data->state = (u8) state;
     user_data->description = NULL;
@@ -892,9 +863,10 @@ HSD_GObj* mn_80233218(MenuState state)
 
     sub_count_ptr = mn_803ED1D0.x10;
     for (i = 0; i < (s32) num_options; i++) {
-        vis_before = mnRulePlus_CountVisibleBefore((u8) i);
+        vis_before = !all_options ? mnRulePlus_CountVisibleBefore((u8)i) : i;
         option_jobj = user_data->xC[mn_803ED1D0.x0[(u8) vis_before]];
         mnRulePlus_CountAllVisible(6, &vis_total);
+        if (all_options) vis_total=6;
         HSD_JObjReqAnim(option_jobj, vis_total);
         HSD_JObjAnim(option_jobj);
 
@@ -916,9 +888,11 @@ HSD_GObj* mn_80233218(MenuState state)
             visible = 1;
         }
 
+        if (all_options) visible=1;
         if (visible != 0) {
             desc = &MenMainCursorRl_Top;
             cursor_jobj = HSD_JObjLoadJoint(desc->joint);
+            user_data->cursors[i]=cursor_jobj;
             HSD_JObjAddAnimAll(cursor_jobj, desc->animjoint,
                                desc->matanim_joint, desc->shapeanim_joint);
             HSD_JObjReqAnimAll(cursor_jobj, 0.0f);
@@ -1039,7 +1013,7 @@ HSD_GObj* mn_80233218(MenuState state)
         }
     }
 
-    {
+    if (descriptions) {
         HSD_Text* text;
         u8 desc_idx;
         confirmed = mn_804A04F0.confirmed_selection;
@@ -1075,7 +1049,7 @@ void mn_802339FC(void)
         break;
     }
 
-    mn_80233218(state);
+    mn_80233218(state,gmMainLib_GetGameRules(),true,false);
     think = HSD_GObj_SetupProc(GObj_Create(0U, 1U, 0x80U),
                                (void (*)(HSD_GObj*)) fn_8023201C, 0U);
     think->flags_3 = HSD_GObj_804D783C;

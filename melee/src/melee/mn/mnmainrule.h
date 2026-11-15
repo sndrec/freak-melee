@@ -4,6 +4,7 @@
 #include <sysdolphin/baselib/forward.h>
 
 #include <placeholder.h>
+#include <melee/gm/forward.h>
 
 struct mn_802307F8_t {
     /* 0x000 */ u8 x0;
@@ -27,6 +28,9 @@ struct mn_802307F8_t {
         };
     };
     /* 0x130 */ HSD_Text* text;
+    GameRules* rules;
+    HSD_JObj* cursors[7];
+    bool description, all_options;
 };
 
 struct mn_80231634_t {
@@ -44,7 +48,7 @@ struct mn_80231634_t {
 /* 2308F0 */ void mn_802308F0(HSD_GObj*, int, int);
 /* 2309F0 */ void fn_802309F0(HSD_GObj*);
 /* 230D18 */ s32 mn_80230D18(struct mn_802307F8_t*, HSD_JObj*, int);
-/* 230E38 */ HSD_GObj* mn_80230E38(int);
+/* 230E38 */ HSD_GObj* mn_80230E38(int, GameRules*, bool description, bool all_options);
 /* 231634 */ int mn_80231634(struct mn_80231634_t*);
 /* 23164C */ void mn_8023164C(void);
 /* 231714 */ UNK_RET mn_80231714(UNK_PARAMS);

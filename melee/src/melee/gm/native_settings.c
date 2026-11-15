@@ -63,7 +63,7 @@ static bool valid(const GameRules* rules, const struct GamePrefs* prefs)
            rules->stage_sel <= StageSelectMode_Loser &&
            rules->stock_time_limit <= 99 && rules->friendly_fire <= 1 &&
            rules->pause <= 1 && rules->score_display <= 1 &&
-           rules->unk_xc <= 1 &&
+           rules->unk_xc <= 2 &&
            (prefs->item_freq == UINT8_MAX || prefs->item_freq <= 4);
 }
 

@@ -23,26 +23,26 @@ def main():
     def shot(name): receipt['screenshots'][name]=str(client.screenshot())
     def inspect(name,pattern):
         text=client.inspect(name); assert re.search(pattern,text),(pattern,text); return text
-    def enter(name,value): client.enter(name,value); client.command('ui-key','enter'); time.sleep(.15)
     def game(): client.click('nav-6'); client.click('settings-category-2')
     try:
         client=Client(args.exe.resolve(),args.iso.resolve(),args.profile.resolve(),output/'client','Options suite',window_size=(1440,900))
         game(); client.click('settings-rules')
-        client.click('rules-mode-stock'); enter('rules-time','0'); enter('rules-stocks','5'); enter('rules-stock-time','8'); enter('rules-damage','120')
-        inspect('match-rules',r'mode=1 time=0 stock=5 timer=8 damage=120')
-        enter('rules-damage','121'); inspect('match-rules',r'damage=120 .*status=Damage ratio:')
-        client.command('ui-move',*client.element('rules-friendly')); before=client.inspect('match-rules')
+        client.click('rules-row-0-right')
+        for _ in range(2): client.click('rules-row-1-right'); client.click('rules-row-3-right')
+        client.click('rules-row-6')
+        for _ in range(8): client.click('rules-row-0-right')
+        inspect('match-rules',r'mode=1 time=2 stock=5 timer=8 damage=120')
+        client.command('ui-move',*client.element('rules-row-1-right')); before=client.inspect('match-rules')
         client.tap('A',frames=45); after=client.inspect('match-rules')
         assert int(re.search(r'friendly=(\d+)',before)[1]) != int(re.search(r'friendly=(\d+)',after)[1])
-        shot('rules'); client.click('rules-item-switch'); client.click('rules-item-none'); inspect('match-rules',r'freq=255 mask=0')
+        shot('additional-rules'); client.click('rules-close'); shot('rules'); client.click('rules-row-5'); client.click('rules-item-none'); inspect('match-rules',r'freq=255 mask=0')
         client.command('ui-move',*client.element('rules-item-0')); client.tap('A',frames=45); inspect('match-rules',r'mask=1 ')
         client.click('rules-items'); inspect('match-rules',r'freq=0 mask=1 ')
         client.click('rules-item-all'); inspect('match-rules',r'mask=efffffff '); shot('item-switch')
-        client.click('rules-save'); inspect('match-rules',r'status=Saved\.')
         client.tap('B',frames=40); inspect('match-rules',r'page=27 ')
         client.click('rules-close'); client.element('settings-rules'); client.click('settings-rules')
-        inspect('match-rules',r'mode=1 time=0 stock=5 timer=8 damage=120'); client.click('rules-close')
-        receipt['checks'] += ['rule fields confirm on Enter','invalid value restores prior value','held A toggles once','item frequency and 31 item switches','rule persistence after reopen','held B returns one level']
+        inspect('match-rules',r'mode=1 time=2 stock=5 timer=8 damage=120'); client.click('rules-close')
+        receipt['checks'] += ['stock animated rules confirm immediately','held A toggles once','item frequency and 31 item switches','rule persistence after reopen','held B returns one level']
         client.click('settings-packages'); text=inspect('packages',r'count=[1-9]'); shot('packages')
         assert 'kind=2' in text or 'kind=1' in text
         client.click('collection-next'); shot('packages-next'); client.click('collection-prev')
@@ -73,11 +73,11 @@ def main():
             receipt['checks'].append('compatible family outfit selected and reset through native menu')
         else: raise AssertionError('Use a fixture with a compatible installed outfit')
         client.resize(960,540); shot('costumes-narrow'); client.click('costume-close'); client.click('settings-rules'); shot('rules-narrow')
-        client.click('rules-item-switch'); shot('items-narrow'); client.click('rules-close'); client.click('rules-close'); client.click('settings-packages'); client.click('collection-installed'); shot('packages-narrow')
+        client.click('rules-row-5'); shot('items-narrow'); client.click('rules-close'); client.click('rules-close'); client.click('settings-packages'); client.click('collection-installed'); shot('packages-narrow')
         receipt['checks'] += ['CSS Match rules returns to CSS','two window sizes','ordinary controller-hand navigation']
         previous=client.folder/'appdata'; close_window(client.process.pid); client.process.wait(timeout=20)
         client=Client(args.exe.resolve(),args.iso.resolve(),previous,output/'reopened','Options suite',window_size=(960,540))
-        game(); client.click('settings-rules'); inspect('match-rules',r'mode=1 time=0 stock=5 timer=8 damage=120')
+        game(); client.click('settings-rules'); inspect('match-rules',r'mode=1 time=2 stock=5 timer=8 damage=120')
         receipt['checks'].append('saved rules survive process restart'); receipt['status']='PASS'
     finally:
         if client and client.process.poll() is None: close_window(client.process.pid); client.process.wait(timeout=20)
