@@ -323,3 +323,14 @@ those bounds for custom portraits and the P1 preview. The checked P1 quad is
 14.199951 by 18.999756 game units at (-30.192432, -4.400098). The image remains
 136x188; the small preview preserves the original quad's slight stretch while
 using the capture's camera aspect ratio. No original artwork is modified.
+
+
+Implementation commit: `e5c8246`. These submissions and both attachments per
+submission were removed after final verification on 2026-11-15. Their local
+`removal.json` receipts report success; a fresh hosted query confirmed both IDs
+absent. Six submissions remain in the fixed batch, covering ten pinned notes.
+
+| Removed submission | Verified result |
+| --- | --- |
+| `9feef587-6b44-4359-945a-f9f66d539859` | Custom portrait capture, saved 136x188 image, original-quad sizing in preview and CSS. |
+| `38278921-d4e2-4d4d-b6b6-21b41c8c3ae1` | Actual P1 preview, separate animation/frame/camera choices, black stock-style shadow and paired capture. |
