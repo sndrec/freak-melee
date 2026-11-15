@@ -34,15 +34,16 @@ pushing coherent changes. Client publication follows a separate release request.
 6. Finish a combined visual and interaction review. Update every report below
    with its completion evidence and confirm that completed entries are gone.
 
-Ask Twilight before resolving an ambiguous design choice. In particular, the
-local-player-count placement was explicitly requested for discussion. Continue
-independent work while a design question is pending.
+Ask Twilight before resolving an ambiguous design choice. Twilight confirmed
+that Players on this PC belongs in one persistent Controls setting, shared by
+lobby and Quick Play setup. Continue independent work while a design question
+is pending.
 
 ## Session navigation and lobby controls
 
 ### `a91be492-7eed-400a-b38b-45c3af0005e8` — persistent session indicator
 
-- [ ] Pin 1: Show a clear, persistent session indicator when returning to the
+- [x] Pin 1: Show a clear, persistent session indicator when returning to the
   hub while in a lobby or Quick Play queue. Provide the appropriate Leave lobby
   or Leave queue action and a return action. Use the area beneath the hub frame
   as the proposed starting point. Remove the permanent top-right Character
@@ -51,7 +52,7 @@ independent work while a design question is pending.
 
 ### `2c36642f-fa8f-4a1a-9be6-3bceb5e7405e` — Quick Play presentation
 
-- [ ] Pin 1: Entering Quick Play, including searching from its CSS, must leave
+- [x] Pin 1: Entering Quick Play, including searching from its CSS, must leave
   the Lobbies page showing its ordinary lobby browser. Quick Play should have
   its own visible identity even when shared networking infrastructure is used.
 
@@ -65,7 +66,7 @@ independent work while a design question is pending.
 - [ ] Pin 3: Put the necessary lobby actions on the lobby CSS or its rules menu,
   accessed through the original top-of-CSS match-rules area. Preserve the
   underlying actions while removing the redundant hub control cluster.
-- [ ] Pin 4: Remove the redundant subtitle in this position throughout hub
+- [x] Pin 4: Remove the redundant subtitle in this position throughout hub
   pages, including "Play together. Share your fighters."
 - [ ] Pin 5: Put lobby chat and Copy code on the CSS rather than this hub page.
 
@@ -78,8 +79,8 @@ independent work while a design question is pending.
 
 ### `3645f09b-8b8c-4349-945e-b4016e04c9f8` — browser layout
 
-- [ ] Pin 1: Discuss a better location for Players on this PC and its count,
-  then move them clear of the hub border.
+- [x] Pin 1: Move Players on this PC into one persistent Controls setting,
+  shared by lobby and Quick Play setup. Remove the duplicate lobby selectors.
 - [ ] Pin 2: Move the ticker's right fade boundary farther left to keep emerging
   text within the frame's usable interior.
 
@@ -134,18 +135,18 @@ independent work while a design question is pending.
 
 ### `32b76f1e-cc08-4f2e-8ed3-7dfa9a5f1c20` — Quick Play mode selection
 
-- [ ] Pin 1: Replace the two giant yellow mode buttons with large floating
+- [x] Pin 1: Replace the two giant yellow mode buttons with large floating
   italic menu-caption text for 1v1 and 2v2, highlighted on hover/selection.
 
 ### `10ad546f-a635-4baa-bac2-13de5a4e81f3` — chatroom player names
 
-- [ ] Pin 1: Increase player-name text to roughly 1.8 times its current size.
+- [x] Pin 1: Increase player-name text to roughly 1.8 times its current size.
   Present a simple list without the extra outline/background. Compress long
   names horizontally to fit rather than truncating them.
 
 ### `112f430f-d764-4fdd-af3b-8cbd73cc7c86` — chatroom status
 
-- [ ] Pin 1: Relocate or remove the overlapping Connected status text.
+- [x] Pin 1: Relocate or remove the overlapping Connected status text.
 
 ### `72281e7c-a55a-4fa3-9bf3-7a34f2071b3d` — inbox spacing
 
@@ -154,9 +155,9 @@ independent work while a design question is pending.
 
 ### Redundant subtitles — three separate submissions
 
-- [ ] `0941b5e8-0448-4933-b1ac-852afc72ffa4`, pin 1: remove Lobbies subtitle.
-- [ ] `efff1a7e-6b06-40d7-9aaa-08e1aeb15662`, pin 1: remove Workshop subtitle.
-- [ ] `1e4ec68e-9753-41d8-955a-e4d46e1e4abd`, pin 1: remove Settings subtitle.
+- [x] `0941b5e8-0448-4933-b1ac-852afc72ffa4`, pin 1: remove Lobbies subtitle.
+- [x] `efff1a7e-6b06-40d7-9aaa-08e1aeb15662`, pin 1: remove Workshop subtitle.
+- [x] `1e4ec68e-9753-41d8-955a-e4d46e1e4abd`, pin 1: remove Settings subtitle.
 
 Check other hub pages for the same redundant subtitle pattern, as requested in
 the five-pin lobby report. Keep useful operation results and error messages.
@@ -198,3 +199,33 @@ Complete this goal when all 33 notes have been addressed, the client builds,
 the relevant checks and visual review pass, and all 19 completed submissions
 have been removed from the hosted feedback list. Summarize changes and any
 remaining hardware or remote-player acceptance explicitly.
+
+## Implementation record
+
+### Session navigation and shared hub layout
+
+The first batch adds a persistent hub session strip, removes the top-right
+profile/character-select controls, keeps the lobby browser available during
+Quick Play, and enters CSS directly on lobby creation/join. Players on this PC
+is saved once under Controls and used by lobby and Quick Play setup; existing
+sessions keep their current participant count. Profile/binding editing still
+uses its existing desktop screen until the native settings migration is done.
+
+Quick Play mode choices use floating italic text. Chatroom player rows use
+larger plain names, compress long names to fit, and omit the redundant Connected
+label. Redundant page subtitles are removed. The inbox footer is raised and the
+ticker's right boundary is inset; those two adjustments still need their own
+populated visual review before their submissions can be cleared.
+
+Build: `melee/build/native/melee_native.exe`, successful 2026-11-15.
+Evidence: `.local/ui-feedback-review-697ac3/review.json` and its screenshots.
+Two hidden, muted clients used an isolated local signaling/chat service. The
+review verified persistence across clients, controller A activation of Quick
+Play, a 40-frame held A causing exactly one listing toggle, browser presentation
+before/during searching, session return/leave and direct CSS entry after lobby
+creation. Native screenshots were checked at 1440x900 and 960x540, including a
+31-character player name. Hosted removals are recorded below after verification.
+
+The feedback tool now supports explicit single-report deletion with a local
+retry receipt. An isolated test verified retry after an interrupted attachment
+delete and rejection of attachment keys belonging to another report.

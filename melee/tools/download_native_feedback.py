@@ -1,4 +1,4 @@
-"""Download feedback notes, screenshots and diagnostics using the owner's Wrangler login."""
+"""Download or remove reviewed feedback using the owner's Wrangler login."""
 import argparse
 import hashlib
 import json
@@ -51,6 +51,36 @@ def attachment(bucket, key, path, size, digest):
     pending.replace(path)
 
 
+def remove_report(report_id, bucket, output):
+    key = str(UUID(report_id))
+    rows = reports(key, None, 1)
+    folder = output / key
+    folder.mkdir(parents=True, exist_ok=True)
+    receipt = folder / 'removal.json'
+    if rows:
+        row = rows[0]
+        # Keep the attachment keys for retry if deletion is interrupted after
+        # the visible database record has been removed.
+        receipt.write_text(json.dumps({'report': row, 'deleted': False}, indent=2) + '\n', encoding='utf-8')
+    elif receipt.is_file():
+        row = json.loads(receipt.read_text(encoding='utf-8'))['report']
+    else:
+        raise RuntimeError('Report is absent; no local removal receipt is available.')
+    config = json.loads((SERVICE / 'wrangler.jsonc').read_text())
+    database = next(db['database_name'] for db in config['d1_databases'] if db['binding'] == 'COMMUNITY')
+    for field in ('screenshot_key', 'context_key'):
+        if not row[field].startswith('feedback/' + key + '/'):
+            raise RuntimeError('Attachment key does not belong to this report.')
+    wrangler('d1', 'execute', database, '--remote', '--json', '--command',
+             "DELETE FROM feedback WHERE id='" + key + "'")
+    for field in ('screenshot_key', 'context_key'):
+        wrangler('r2', 'object', 'delete', bucket + '/' + row[field], '--remote', '--force')
+    if reports(key, None, 1):
+        raise RuntimeError('Report is still present after deletion.')
+    receipt.write_text(json.dumps({'report': row, 'deleted': True}, indent=2) + '\n', encoding='utf-8')
+    print('Removed report and both attachments: ' + key)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group()
@@ -59,13 +89,19 @@ def main():
     parser.add_argument('--status', choices=['new', 'investigating', 'resolved'])
     parser.add_argument('--limit', type=int, default=1, help='Newest reports to download (default: 1)')
     parser.add_argument('--output', type=Path, default=SERVICE.parents[2] / '.local/feedback')
+    parser.add_argument('--delete', action='store_true', help='Remove one fully reviewed report and its attachments; requires --id')
     args = parser.parse_args()
     if args.limit < 1:
         parser.error('--limit must be positive')
+    if args.delete and not args.id:
+        parser.error('--delete requires a single --id')
     if not WRANGLER.is_file():
         parser.error('Install services/community dependencies with npm ci, then run wrangler login there.')
     config = json.loads((SERVICE / 'wrangler.jsonc').read_text())
     bucket = next(b['bucket_name'] for b in config['r2_buckets'] if b['binding'] == 'REPORTS')
+    if args.delete:
+        remove_report(args.id, bucket, args.output.resolve())
+        return
     rows = reports(args.id, args.status, 0 if args.all else args.limit)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)

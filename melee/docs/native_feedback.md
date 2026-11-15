@@ -74,6 +74,18 @@ metadata and pins, and `/screen` and `/context` download the attachments. Those
 routes use the website's Cloudflare Access sign-in. The local downloader uses
 Wrangler's existing administrative access instead.
 
+After every note in a report has been addressed and verified, remove that report
+and its stored screenshot and diagnostic capture with:
+
+```powershell
+python melee/tools/download_native_feedback.py --delete --id <report UUID> --output .local/feedback-review-2026-11-15
+```
+
+Deletion requires one explicit report ID. The tool writes a local removal receipt
+before removing the hosted record, deletes both attachments and checks that the
+record is absent. If interrupted, repeat the same command and output directory
+to finish from the receipt. Downloaded local evidence is kept.
+
 ## Reviews
 
 `tools/review_native_feedback.py` runs a hidden, muted client with copied user

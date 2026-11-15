@@ -3,12 +3,14 @@
 #include <melee/gm/native_presentation.h>
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
+#include "native_hub_controls.h"
 #include "native_hub_account.h"
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
 #include "native_hub_portrait.h"
 #include <melee/mn/native_menu_tile.h>
+#include <melee/mn/native_menu_skin.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_home.h>
@@ -65,12 +67,6 @@ namespace {
         }
         return result;
     }
-    void description(const char* subtitle)
-    {
-        if (subtitle) {
-            nativeMenuPaint_Text(subtitle, 175, 94, 420, 8, muted);
-        }
-    }
     void fighter_tile(unsigned index, float x, float y)
     {
         const NativeHubFighter& f = nativeHubFighters[index];
@@ -84,7 +80,6 @@ namespace {
     }
     void collection()
     {
-        description("Clone a fighter. Make it yours.");
         nativeHub_Button("clone-fighter", "Clone fighter", 175, 110, 100, 26,
                          HubAction::NewClone, 0, true, nativeHome_IsSelection());
         nativeHub_Button("import-fighter", "Import model / fighter", 282, 110,
@@ -187,7 +182,6 @@ namespace {
         if (nativeHubStartup.active)
             nativeMenuPaint_Text("Choose your first fighter", 105, 98, 430, 18, gold, NativeMenuFont_MenuOption, true);
         else {
-            description("Your copy owns its moves, scripts, animations and model.");
             nativeHub_Panel(175, 115, 430, 228);
         }
         unsigned number = 0;
@@ -214,19 +208,25 @@ namespace {
     }
     void quick_play()
     {
-        nativeHub_Button("quick-singles", "1 vs 1", 190, 157, 190, 109,
-                         HubAction::Singles, 0, true);
-        nativeHub_Button("quick-doubles", "2 vs 2", 397, 157, 190, 109,
-                         HubAction::Doubles, 0, true);
+        const char* ids[] = {"quick-singles", "quick-doubles"};
+        const char* labels[] = {"1 vs 1", "2 vs 2"};
+        for (unsigned i = 0; i < 2; ++i) {
+            const float x = 185 + i * 211;
+            const bool hover = nativeHub_Hover(x, 175, 195, 82);
+            nativeMenuPaint_Text(labels[i], x, 193, 195, 37,
+                                 hover ? 0xFFE36BFF : 0xD5CED9FF,
+                                 NativeMenuFont_MenuCaption, true, false);
+            nativeHub_Region(ids[i], x, 175, 195, 82,
+                             i ? HubAction::Doubles : HubAction::Singles);
+        }
     }
     void lobbies()
     {
-        description("Play together. Share your fighters.");
         auto state = nativeOnlineSession_State();
         const char* code = nativeOnlineSession_RoomCode();
         bool connected = state != NativeLobbySessionState_Disconnected &&
                          state != NativeLobbySessionState_Failed;
-        if (!connected) {
+        if (!connected || nativeOnlineSession_Quick()) {
             nativeHubLobbies_Render(false);
             return;
         }
@@ -309,10 +309,6 @@ namespace {
         unsigned people = room ? (presence ? presence->participant_count : 0) : global->player_count;
         unsigned count = room ? (lobby ? lobby->count : 0) : global->count;
         bool ready = room ? lobby && lobby->connected && lobby->ready : global->state == NativeChat_Online;
-        char label[80];
-        if (room) std::snprintf(label, sizeof(label), "Lobby %s - %u players", nativeOnlineSession_RoomCode() ? nativeOnlineSession_RoomCode() : "", people);
-        else std::snprintf(label, sizeof(label), "Global chat - %u online", global->online);
-        description(label);
         nativeHub_Panel(175, 116, 296, 234);
         nativeHub_Panel(479, 116, 126, 234);
         nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold, NativeMenuFont_MenuOption);
@@ -352,8 +348,13 @@ namespace {
             const char* peer = room ? presence->participants[i].peer_id : global->players[i].peer;
             const char* account = room ? presence->participants[i].account_handle : global->players[i].account_handle;
             char label[64]; std::snprintf(label, sizeof(label), *account ? "@%s" : "%s", *account ? account : name);
-            nativeHub_Button("chat-player", label, 487, 149 + (i - people_scroll) * 14, 108, 13,
-                *account ? HubAction::OpenAccount : HubAction::ShowProfile, 0, false, true, peer, name, account);
+            const float row_y = 149 + (i - people_scroll) * 14;
+            const bool hover = nativeHub_Hover(487, row_y, 108, 14);
+            nativeMenuPaint_Text(label, 487, row_y, 108, 10,
+                                 hover ? gold : 0xF2ECEDFF,
+                                 NativeMenuFont_Notice, false, false);
+            nativeHub_Region("chat-player", 487, row_y, 108, 14,
+                *account ? HubAction::OpenAccount : HubAction::ShowProfile, 0, true, peer, name, account);
         }
         if (people > 12) {
             nativeHub_Button("people-prev", "<", 489, 324, 28, 18, HubAction::PeopleScroll, -12, false, people_scroll > 0);
@@ -366,14 +367,13 @@ namespace {
         nativeHub_Button(room ? "send-lobby-chat" : "send-chat", "Send", 512, 362, 93, 28,
             room ? HubAction::SendRoomChat : HubAction::SendChat, 0, true,
             *(room ? hub.room_chat : hub.chat) && ready && !sending);
-        const char* status = sending ? "Sending..." : unconfirmed ? "Delivery is unconfirmed." : ready ? "Connected" : "Connecting...";
+        const char* status = sending ? "Sending..." : unconfirmed ? "Delivery is unconfirmed." : ready ? "" : "Connecting...";
         if (room && lobby && lobby->failure[0]) status = lobby->failure;
-        nativeMenuPaint_Text(status, 181, 396, room && unconfirmed ? 325 : 416, 8, muted);
+        if (*status) nativeMenuPaint_Text(status, 181, 396, room && unconfirmed ? 325 : 416, 8, muted);
         if (room && unconfirmed) nativeHub_Button("retry-lobby-chat", "Retry", 536, 393, 69, 14, HubAction::RetryRoomChat, 0, false, ready);
     }
     void settings()
     {
-        description("Your controls and profile.");
         nativeHub_Panel(175, 116, 430, 256);
         nativeHub_Button("controls", "Controls & bindings", 193, 135, 187, 36,
                          HubAction::Controls, 0, true, nativeHome_IsSelection());
@@ -399,7 +399,6 @@ namespace {
     }
     void profile()
     {
-        description(hub.profile_self ? "Your profile" : "Player profile");
         nativeHub_Panel(175, 118, 430, 240);
         nativeMenuPaint_Text("About", 194, 138, 370, 15, gold,
                             NativeMenuFont_MenuOption);
@@ -417,7 +416,6 @@ namespace {
     }
     void send()
     {
-        description("Choose someone in your lobby.");
         nativeHub_Panel(175, 117, 430, 252);
         nativeMenuPaint_Text(hub.gift_title, 191, 136, 335, 18, gold,
                             NativeMenuFont_MenuOption);
@@ -479,6 +477,8 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_Controls:
+        nativeHubControls_Render(); break;
     case NativeHubPage_News:
         nativeHubNews_Render(); break;
     case NativeHubPage_Portrait:
@@ -531,4 +531,26 @@ void nativeHub_RenderPage(NativeHubPage page)
         nativeHubQuickStage_Render();
         break;
     }
+}
+
+void nativeHub_RenderSession()
+{
+    const auto state = nativeOnlineSession_State();
+    if (state == NativeLobbySessionState_Disconnected || state == NativeLobbySessionState_Failed) return;
+    const auto* quick = nativeOnlineSession_Quick();
+    const auto* listing = nativeOnlineSession_Listing();
+    const char* code = nativeOnlineSession_RoomCode();
+    char label[112];
+    if (quick) std::snprintf(label, sizeof(label), "Quick Play %s%s",
+        quick->mode == NativeQuickMode_Doubles ? "2 vs 2" : "1 vs 1",
+        quick->state == NativeQuickState_Searching ? " - Searching" : "");
+    else std::snprintf(label, sizeof(label), "%s%s%s",
+        listing && *listing->title ? listing->title : "Lobby",
+        code && *code ? " - " : "", code ? code : "");
+    nativeMenuSkin_Panel(38, 437, 567, 33, 0xC2BEC7FF, 0x09080EDC);
+    nativeMenuPaint_Text(label, 48, 448, 260, 10, gold);
+    nativeHub_Button("return-session", quick ? "Return to Quick Play" : "Return to lobby",
+                     322, 442, 145, 24, HubAction::Selection);
+    nativeHub_Button("leave-session", quick ? "Leave queue" : "Leave lobby",
+                     476, 442, 119, 24, HubAction::Leave);
 }

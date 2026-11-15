@@ -49,7 +49,7 @@ enum class HubAction {
     Cancel,
     AcceptGift,
     DeclineGift,
-    Controls,
+    Controls, EditControls,
     SaveProfile,
     ToggleCustomModels,
     FieldName,
@@ -124,7 +124,7 @@ struct HubState {
     bool returning_from_tool, rename, select_all, send_from_css,
         profile_self = true;
     bool delete_confirmation;
-    bool opened_from_play;
+    bool opened_from_play, enter_lobby_css;
     bool consumes_input;
     bool passive_page;
     unsigned pending_action;
@@ -154,5 +154,6 @@ unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, f
 void nativeHub_Panel(float x, float y, float w, float h);
 void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);
 void nativeHub_RenderPage(NativeHubPage page);
+void nativeHub_RenderSession();
 void nativeHub_Activate(HubAction action, int value);
 bool nativeHub_SaveProfile();

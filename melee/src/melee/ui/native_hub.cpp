@@ -5,6 +5,7 @@
 #include "native_hub_internal.h"
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
+#include "native_hub_controls.h"
 #include "native_hub_account.h"
 #include "native_hub_notice.h"
 #include "native_hub_social.h"
@@ -58,7 +59,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -581,7 +582,7 @@ void nativeHub_Activate(HubAction action, int value)
             nativeHub_ChangePage(NativeHubPage_Inbox, true);
         } else if (hub.page == NativeHubPage_SocialProfile) {
             nativeHub_ChangePage(NativeHubPage_Friends, true);
-        } else if (hub.page == NativeHubPage_Account) {
+        } else if (hub.page == NativeHubPage_Account || hub.page == NativeHubPage_Controls) {
             nativeHub_ChangePage(NativeHubPage_Settings, true);
         } else if (hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) {
             nativeHub_ChangePage(hub.page == NativeHubPage_CreateLobby && *hub.lobby_invite_to ?
@@ -733,12 +734,16 @@ void nativeHub_Activate(HubAction action, int value)
         hub.visible = !hub.returning_from_tool;
         break;
     case HubAction::Controls:
+        nativeHub_ChangePage(NativeHubPage_Controls);
+        break;
+    case HubAction::EditControls:
         nativeShellProfiles_Open();
         hub.returning_from_tool = nativeShellProfiles_IsOpen();
         hub.visible = !hub.returning_from_tool;
         break;
     case HubAction::Selection:
-        if (nativeHome_ReturnToSelection()) {
+        if (nativeHome_IsSelection() || nativeHome_ReturnToSelection()) {
+            hub.enter_lobby_css = !nativeHome_IsSelection();
             hub.dismissed = true;
             hub.visible = false;
         }
@@ -838,7 +843,8 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     }
     case HubAction::LocalPlayers:
-        hub.local_players = std::clamp(value, 1, 4);
+        if (!nativeHubControls_SetPlayers(unsigned(value)))
+            nativeHub_Notice("Could not save the local player count.");
         break;
     case HubAction::Create:
     case HubAction::Join:
@@ -884,6 +890,8 @@ void nativeHub_Activate(HubAction action, int value)
                                       uint8_t(hub.local_players)))
         {
             nativeHub_Notice("The lobby is busy. Try again shortly.");
+        } else if (action == HubAction::Create || action == HubAction::Join) {
+            nativeHub_Activate(HubAction::Selection, 0);
         }
         break;
     }
@@ -1054,6 +1062,7 @@ extern "C" void nativeHub_Tick(void)
         !(nativeShellWorkshop_IsOpen() && nativeShellWorkshop_IsTesting());
     if (!hub.initialized && selection) {
         const bool has_profile = load_profile();
+        nativeHubControls_Load();
         std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
                       hub.name);
         reload_catalog();
@@ -1083,12 +1092,13 @@ extern "C" void nativeHub_Tick(void)
     }
     if (selection && !hub.selection_before && hub.initialized && !tool) {
         hub.opened_from_play = false;
-        if (nativeOnlineSession_Quick()) hub.dismissed = true;
+        if (nativeOnlineSession_Quick() || hub.enter_lobby_css) hub.dismissed = true;
         else {
             hub.dismissed = false;
             show();
         }
     }
+    if (selection) hub.enter_lobby_css = false;
     hub.selection_before = selection;
     if ((selection || practice) && !tool && nativeHubQuickStage_OpenRound()) {
         show();
@@ -1273,14 +1283,10 @@ extern "C" void nativeHub_Draw(void)
     GXSetProjection(projection, GX_PERSPECTIVE);
     nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
-    if (!nativeHubStartup.active && !nativeHubPortrait_Editing()) nativeHub_Button("your-profile", hub.name, 494, 21, 103, 19,
-                     HubAction::Profile);
-    if (!nativeHubStartup.active && !nativeHubPortrait_Editing())
-        nativeHub_Button("hub-close", nativeHome_IsPractice() ? "Return to practice" : "Character select",
-                         352, 21, 132, 19, HubAction::Close);
     for (unsigned i = 0; !nativeHubStartup.active && !nativeHubPortrait_Editing() && i < 7; ++i) {
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
+            (hub.page == NativeHubPage_Controls && i == NativeHubPage_Settings) ||
             ((hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) && i == NativeHubPage_Lobbies);
         bool hover = nativeHub_Hover(33, y, 127, 31);
         nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover, page_names[i]);
@@ -1315,6 +1321,8 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuPaint_Text(hub.notice, 175, 414, 425, 11, white);
     else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page)))
         nativeMenuPaint_Text(nativeHubAccount_Status(), 175, 414, 425, 11, white);
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation)
+        nativeHub_RenderSession();
     nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
     nativeMenuPaint_Begin(canvas);
@@ -1592,7 +1600,7 @@ extern "C" void nativeHub_Inspect(const char* id)
         std::fprintf(stderr, "[hub-inspect] hub-people chat-state=%u chat-count=%u room-count=%u\n",
             unsigned(chat->state), chat->player_count, room ? room->participant_count : 0);
         for (unsigned i = 0; i < chat->player_count; ++i)
-            std::fprintf(stderr, "[hub-person] chat=%u peer=%s account=%s\n", i, chat->players[i].peer, chat->players[i].account_handle);
+            std::fprintf(stderr, "[hub-person] chat=%u peer=%s account=%s name=%s\n", i, chat->players[i].peer, chat->players[i].account_handle, chat->players[i].name);
         for (unsigned i = 0; room && i < room->participant_count; ++i)
             std::fprintf(stderr, "[hub-person] room=%u peer=%s account=%s\n", i, room->participants[i].peer_id, room->participants[i].account_handle);
         return;

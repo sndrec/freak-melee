@@ -39,7 +39,7 @@ void nativeHubLobbies_Tick()
         if (nativeOnlineSession_SetListing(hub.lobby_title, hub.lobby_listed)) hub.pending_listing = false;
     } else if (hub.pending_listing && state == NativeLobbySessionState_Failed) hub.pending_listing = false;
     const bool visible = hub.visible && hub.page == NativeHubPage_Lobbies &&
-        (state == NativeLobbySessionState_Disconnected || state == NativeLobbySessionState_Failed);
+        (state == NativeLobbySessionState_Disconnected || state == NativeLobbySessionState_Failed || nativeOnlineSession_Quick());
     if (browser.thread_handle && !nativeSignalingClient_IsRunning(&browser)) {
         nativeSignalingClient_Stop(&browser);
         connected = pending = false;
@@ -96,13 +96,6 @@ void nativeHubLobbies_Render(bool create)
         char invitation[96]; std::snprintf(invitation, sizeof(invitation), "Invite @%s when the lobby is ready.", hub.lobby_invite_to);
         nativeMenuPaint_Text(*hub.lobby_invite_to ? invitation : hub.lobby_listed ? "Players can find and join your lobby." : "Give your code to the people you want to invite.",
             194, 250, 390, 9, muted);
-        nativeMenuPaint_Text("Players on this PC", 194, 283, 180, 10, gold);
-        for (unsigned players = 1; players <= 4; ++players) {
-            char label[2] = {char('0' + players), 0}, id[24];
-            std::snprintf(id, sizeof(id), "local-players-%u", players);
-            nativeHub_Button(id, label, 389 + (players - 1) * 48, 275, 42, 26,
-                HubAction::LocalPlayers, players, unsigned(hub.local_players) == players);
-        }
         nativeHub_Button("confirm-create-lobby", *hub.lobby_invite_to ? "Create & invite" : "Create lobby", 194, 322, 390, 30,
             HubAction::CreateNamedLobby, 0, true, hub.lobby_title[0] != 0);
         return;
@@ -135,13 +128,6 @@ void nativeHubLobbies_Render(bool create)
     nativeMenuPaint_Text("Lobby code", 181, 365, 85, 9, gold);
     nativeHub_Field("lobby-code", hub.code, 271, 360, 218, 25, HubAction::FieldCode);
     nativeHub_Button("join-lobby", "Join", 503, 360, 102, 25, HubAction::Join, 0, true, std::strlen(hub.code) >= 6);
-    nativeMenuPaint_Text("Players on this PC", 181, 395, 180, 9, gold);
-    for (unsigned players = 1; players <= 4; ++players) {
-        char label[2] = {char('0' + players), 0}, id[24];
-        std::snprintf(id, sizeof(id), "local-players-%u", players);
-        nativeHub_Button(id, label, 389 + (players - 1) * 48, 387, 42, 25,
-            HubAction::LocalPlayers, players, unsigned(hub.local_players) == players);
-    }
 }
 bool nativeHubLobbies_Activate(HubAction action, int value)
 {
@@ -165,7 +151,7 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
         if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Create, hub.public_name, "", uint8_t(hub.local_players))) {
             hub.pending_listing = true;
             hub.lobby_invite_queued = *hub.lobby_invite_to != 0;
-            nativeHub_ChangePage(NativeHubPage_Lobbies);
+            nativeHub_Activate(HubAction::Selection, 0);
         } else nativeHub_Notice("Could not create the lobby. Try again shortly.");
         return true;
     case HubAction::RefreshLobbies: request(page.offset); return true;

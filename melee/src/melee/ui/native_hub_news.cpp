@@ -170,7 +170,7 @@ void nativeHubNews_Input()
 }
 void nativeHubNews_Ticker()
 {
-    constexpr float x = 337, y = 57, width = 258, height = 21;
+    constexpr float x = 337, y = 57, width = 238, height = 21;
     const auto& headline = community.feed.headline;
     const char* text = *headline.ticker ? headline.ticker : headline.title;
     if (std::strcmp(ticker_text, text)) {

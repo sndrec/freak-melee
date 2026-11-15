@@ -232,7 +232,7 @@ void nativeHubSocial_Render(NativeHubPage page)
         nativeHub_Button("mail-sent", "Sent", 288, 116, 103, 27, HubAction::MailFolder, 1, folder == 1);
         nativeHub_Button("new-letter", "Write a letter", 403, 116, 202, 27, HubAction::ComposeLetter, 0, true, enabled);
     }
-    nativeHub_Panel(175, 152, 430, 226);
+    nativeHub_Panel(175, 152, 430, 216);
     const bool friends = page == NativeHubPage_Friends;
     if (!social.loaded || (friends ? social.friends_offset != friends_offset : social.folder != folder || social.offset != offset)) {
         nativeMenuPaint_Text(account.busy ? "Loading..." : "Refresh to load this page.", 194, 178, 370, 11, muted);
@@ -263,10 +263,10 @@ void nativeHubSocial_Render(NativeHubPage page)
     unsigned position = friends ? friends_offset : offset, total = friends ? social.friends_total : social.total;
     char count[96]; std::snprintf(count, sizeof(count), "%u %s%s", total,
         friends ? (total == 1 ? "contact" : "contacts") : (total == 1 ? "letter" : "letters"), friends || !social.unread ? "" : " | unread mail");
-    nativeMenuPaint_Text(count, 181, 389, 255, 9, muted);
-    nativeHub_Button("social-refresh", "Refresh", 431, 384, 82, 22, HubAction::SocialRefresh, 0, false, enabled);
-    nativeHub_Button("social-prev", "<", 523, 384, 35, 22, friends ? HubAction::FriendPage : HubAction::MailPage, -8, false, enabled && position > 0);
-    nativeHub_Button("social-next", ">", 568, 384, 35, 22, friends ? HubAction::FriendPage : HubAction::MailPage, 8, false, enabled && position + 8 < total);
+    nativeMenuPaint_Text(count, 181, 378, 240, 9, muted);
+    nativeHub_Button("social-refresh", "Refresh", 431, 373, 82, 22, HubAction::SocialRefresh, 0, false, enabled);
+    nativeHub_Button("social-prev", "<", 523, 373, 35, 22, friends ? HubAction::FriendPage : HubAction::MailPage, -8, false, enabled && position > 0);
+    nativeHub_Button("social-next", ">", 568, 373, 35, 22, friends ? HubAction::FriendPage : HubAction::MailPage, 8, false, enabled && position + 8 < total);
 }
 bool nativeHubSocial_Activate(HubAction action, int value)
 {
