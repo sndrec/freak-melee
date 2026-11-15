@@ -125,7 +125,7 @@ is pending.
 
 ### `88ed16a2-d996-41e7-bc97-5e02e95ab8a7` â€” native settings screens
 
-- [ ] Pin 1: Move ordinary settings, including player profiles, gameplay input
+- [x] Pin 1: Move ordinary settings, including player profiles, gameplay input
   options, bindings and calibration, into the native in-game interface. Use the
   original Options screens as direct design references and support controller
   navigation. Preserve the detailed Workshop's desktop editing interface.
@@ -500,3 +500,30 @@ All 12 selected settings, profile/provider, rumble, CSS, content-transfer,
 costume-package and stage-start checks passed in
 `.local/native-ui-feedback-final-contracts.log`. Final build and hosted removal
 are recorded below after the completion audit.
+
+
+### Batch completed — 2026-11-15
+
+Implementation commit: `ef3004d`; final review-tool update: `7a907be`.
+The final Release client/control-tool build passed in
+`.local/native-ui-feedback-final-build.log`. The final native Options review and
+local gift review both passed against that exact executable:
+`.local/native-options-final-review/review.json` and
+`.local/native-options-final-gifts/receipt.json`. Final screenshots were reviewed
+at 1440x900 and 960x540, including four populated package rows at the narrow size.
+All 12 selected checks passed in `.local/native-ui-feedback-final-contracts.log`.
+
+The final native-settings submission `88ed16a2-d996-41e7-bc97-5e02e95ab8a7` and
+both stored attachments were removed after verification. Its successful local
+`removal.json` receipt is retained with the original capture; the operation log
+is `.local/native-ui-feedback-final-removal.log`. A fresh hosted query returned
+zero submissions. All 19 captured reports now have successful removal receipts,
+and every one of the 33 pinned notes is checked above. The final audit is
+`.local/native-ui-feedback-completion.json`.
+
+The native menus were verified with mouse input and controller-hand input,
+including virtual raw-device calibration/binding checks recorded in the profile
+cohort. Twilight's physical adapter calibration review and real multi-PC play
+remain user acceptance checks; no new claims about those tests are made here.
+Detailed Workshop editing retains its desktop interface as requested. No build
+was published and the auto-updater channel was not changed.
