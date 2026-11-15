@@ -431,3 +431,35 @@ After the correction, a later snapshot had eight active driver entries and 52
 free low-level voices, and a new event after the former cutoff returned handle
 `0xDBA1`. This establishes sustained command allocation and completion beyond
 the failure window; final audible fidelity still requires listening acceptance.
+
+## Rollback voice interruptions (2026-11-15)
+
+Character voice routines stop their current audio track before starting a new
+utterance. Sound playback continues in real time while gameplay is rolled back.
+The start journal reused an utterance already playing from a predicted frame,
+but replayed track stops could cut it off before that frame was reached again.
+The reused handle then referred to a stopped voice.
+
+Each of the 96 AX command slots now records the exact generated handle and its
+start frame outside the gameplay snapshot. Replayed single, track-wide and
+global stops preserve voices whose starts have not yet been reached on the
+corrected timeline. Stops after a reached start still work, and reconciliation
+still cancels sounds absent from the corrected frame. Forward-play stops remain
+immediate. The stop check takes constant time and uses fixed storage.
+
+Start identity uses the sample, track, channel and occurrence order. A corrected
+volume or pan updates the existing voice. Match quality logs include a
+`protected-stops` counter alongside reused, new and canceled starts.
+
+The production-driver regression failed before this fix on an earlier replayed
+track stop. It now covers earlier and same-frame stops, genuine interruptions,
+canceled predictions, repeated corrections, changed spatial mix, newly corrected
+starts and pool-slot generations. The fixture compiles the actual AX start/stop
+functions with a counting synth boundary. All ten native audio tests pass.
+
+Hidden, muted two-peer runs with six frames of artificial outbound delay also
+completed more than 3,700 replay ticks per peer and more than 900 confirmed
+checksum comparisons without divergence. Both stock and scripted fighters
+produced non-silent PCM captures. These runs exercised start reconciliation but
+did not encounter the protected-stop branch; that branch is verified by the
+driver regression. Remote audible acceptance remains a separate check.

@@ -92,7 +92,9 @@ bool AXDriverKeyOff(int vid)
 
     v = &AXDriver_804C45A0[idx];
 
-    if (v->unk != vid || !(v->flags & SMSTATE_MASK)) {
+    if (v->unk != vid || !(v->flags & SMSTATE_MASK) ||
+        !HSD_AudioRollbackShouldStop(vid))
+    {
         return false;
     }
 
@@ -111,7 +113,7 @@ void HSD_AudioSFXKeyOffAll(void)
     PAD_STACK(8);
 
     while (v != NULL) {
-        if (v->flags & SMSTATE_MASK) {
+        if ((v->flags & SMSTATE_MASK) && HSD_AudioRollbackShouldStop(v->unk)) {
             if (v != NULL) {
                 tmp(v);
             }
@@ -125,7 +127,9 @@ void HSD_AudioSFXKeyOffTrack(int track)
     HSD_SM* v = AXDriver_804D7794;
 
     while (v != NULL) {
-        if ((v->flags & SMSTATE_MASK) && v->track == track) {
+        if ((v->flags & SMSTATE_MASK) && v->track == track &&
+            HSD_AudioRollbackShouldStop(v->unk))
+        {
             if (v != NULL) {
                 tmp(v);
             }
@@ -597,13 +601,16 @@ static int AXDriverStartSound(int sound_id, u8 volume, u8 pan, int track,
 int AXDriver_8038CFF4(int sound_id, u8 volume, u8 pan, int track, int channel)
 {
     int instance;
-    if (HSD_AudioRollbackReuseStart(sound_id, volume, pan, track, channel,
+    if (HSD_AudioRollbackReuseStart(sound_id, track, channel,
                                     &instance))
     {
+        // Position-dependent mix changes do not make this a different event.
+        AXDriver_8038D2B4(instance, pan);
+        AXDriver_8038D3B8(instance, volume);
         return instance;
     }
     instance = AXDriverStartSound(sound_id, volume, pan, track, channel);
-    HSD_AudioRollbackRecordStart(sound_id, volume, pan, track, channel,
+    HSD_AudioRollbackRecordStart(sound_id, track, channel,
                                  instance);
     return instance;
 }

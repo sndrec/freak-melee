@@ -16,8 +16,6 @@ typedef struct HSD_AudioRollbackStart {
     int track;
     int channel;
     int instance;
-    uint8_t volume;
-    uint8_t pan;
 } HSD_AudioRollbackStart;
 
 typedef struct HSD_AudioRollbackFrame {
@@ -27,9 +25,19 @@ typedef struct HSD_AudioRollbackFrame {
     HSD_AudioRollbackStart starts[AUDIO_ROLLBACK_START_CAPACITY];
 } HSD_AudioRollbackFrame;
 
+typedef struct HSD_AudioRollbackVoice {
+    // Playback survives snapshot restores. Keep the start frame for each exact
+    // pool generation so replayed commands cannot stop a future voice.
+    uint64_t frame;
+    int instance;
+    bool valid;
+} HSD_AudioRollbackVoice;
+
 static struct HSD_AudioRollbackState {
     HSD_AudioRollbackFrame frames[AUDIO_ROLLBACK_FRAME_CAPACITY];
     HSD_AudioRollbackFrame pending;
+    HSD_AudioRollbackVoice voices[HSD_AX_SOUND_CAPACITY];
+    uint64_t reached[(HSD_AX_SOUND_CAPACITY + 63) / 64];
     bool stable_used[AUDIO_ROLLBACK_START_CAPACITY];
     HSD_AudioRollbackFrame* stable;
     HSD_AudioRollbackStats stats;
@@ -39,10 +47,9 @@ static struct HSD_AudioRollbackState {
 } rollback_audio;
 
 static bool starts_match(const HSD_AudioRollbackStart* start, int sound_id,
-                         uint8_t volume, uint8_t pan, int track, int channel)
+                         int track, int channel)
 {
-    return start->sound_id == sound_id && start->volume == volume &&
-           start->pan == pan && start->track == track &&
+    return start->sound_id == sound_id && start->track == track &&
            start->channel == channel;
 }
 
@@ -76,6 +83,7 @@ bool HSD_AudioRollbackBeginFrame(uint64_t frame, bool resimulating)
     }
     rollback_audio.pending = (HSD_AudioRollbackFrame){ .frame = frame };
     memset(rollback_audio.stable_used, 0, sizeof(rollback_audio.stable_used));
+    memset(rollback_audio.reached, 0, sizeof(rollback_audio.reached));
     rollback_audio.stable = stable;
     rollback_audio.active = true;
     rollback_audio.resimulating = resimulating;
@@ -90,8 +98,31 @@ void HSD_AudioRollbackAbortFrame(void)
     rollback_audio.stable = NULL;
 }
 
-bool HSD_AudioRollbackReuseStart(int sound_id, uint8_t volume, uint8_t pan,
-                                 int track, int channel, int* instance)
+bool HSD_AudioRollbackShouldStop(int instance)
+{
+    unsigned slot = (unsigned)instance & 0x7f;
+    if (!rollback_audio.active || !rollback_audio.resimulating || instance < 0 ||
+        slot >= HSD_AX_SOUND_CAPACITY)
+    {
+        return true;
+    }
+    const HSD_AudioRollbackVoice* voice = &rollback_audio.voices[slot];
+    if (!voice->valid || voice->instance != instance ||
+        voice->frame < rollback_audio.pending.frame)
+    {
+        return true;
+    }
+    if (voice->frame == rollback_audio.pending.frame &&
+        (rollback_audio.reached[slot / 64] & (UINT64_C(1) << (slot % 64))))
+    {
+        return true;
+    }
+    ++rollback_audio.stats.protected_stops;
+    return false;
+}
+
+bool HSD_AudioRollbackReuseStart(int sound_id, int track, int channel,
+                                 int* instance)
 {
     if (!rollback_audio.active || !rollback_audio.resimulating ||
         instance == NULL)
@@ -101,12 +132,19 @@ bool HSD_AudioRollbackReuseStart(int sound_id, uint8_t volume, uint8_t pan,
     for (uint32_t i = 0; i < rollback_audio.stable->count; ++i) {
         HSD_AudioRollbackStart* stable = &rollback_audio.stable->starts[i];
         if (rollback_audio.stable_used[i] ||
-            !starts_match(stable, sound_id, volume, pan, track, channel))
+            !starts_match(stable, sound_id, track, channel))
         {
             continue;
         }
         rollback_audio.stable_used[i] = true;
         append_start(stable);
+        unsigned slot = (unsigned)stable->instance & 0x7f;
+        if (stable->instance >= 0 && slot < HSD_AX_SOUND_CAPACITY &&
+            rollback_audio.voices[slot].valid &&
+            rollback_audio.voices[slot].instance == stable->instance)
+        {
+            rollback_audio.reached[slot / 64] |= UINT64_C(1) << (slot % 64);
+        }
         *instance = stable->instance;
         ++rollback_audio.stats.reused_starts;
         return true;
@@ -114,8 +152,8 @@ bool HSD_AudioRollbackReuseStart(int sound_id, uint8_t volume, uint8_t pan,
     return false;
 }
 
-void HSD_AudioRollbackRecordStart(int sound_id, uint8_t volume, uint8_t pan,
-                                  int track, int channel, int instance)
+void HSD_AudioRollbackRecordStart(int sound_id, int track, int channel,
+                                  int instance)
 {
     if (!rollback_audio.active) {
         return;
@@ -125,10 +163,17 @@ void HSD_AudioRollbackRecordStart(int sound_id, uint8_t volume, uint8_t pan,
         .track = track,
         .channel = channel,
         .instance = instance,
-        .volume = volume,
-        .pan = pan,
     };
     append_start(&start);
+    unsigned slot = (unsigned)instance & 0x7f;
+    if (instance >= 0 && slot < HSD_AX_SOUND_CAPACITY) {
+        rollback_audio.voices[slot] = (HSD_AudioRollbackVoice){
+            .frame = rollback_audio.pending.frame,
+            .instance = instance,
+            .valid = true,
+        };
+        rollback_audio.reached[slot / 64] |= UINT64_C(1) << (slot % 64);
+    }
     if (rollback_audio.resimulating) {
         ++rollback_audio.stats.new_starts;
     }
@@ -140,6 +185,9 @@ bool HSD_AudioRollbackEndFrame(void)
         return false;
     }
     if (rollback_audio.resimulating) {
+        // These are reconciliation cancellations, not replayed game commands.
+        // They must stop starts that disappeared from the corrected frame.
+        rollback_audio.active = false;
         for (uint32_t i = 0; i < rollback_audio.stable->count; ++i) {
             if (!rollback_audio.stable_used[i] &&
                 rollback_audio.stable->starts[i].instance >= 0)

@@ -722,6 +722,19 @@ if(MELEE_BUILD_TESTS)
         src extern/dolphin/include)
     target_compile_definitions(native_audio_rollback_test PRIVATE MELEE_NATIVE=1)
     add_test(NAME native_audio_rollback COMMAND native_audio_rollback_test)
+    set(AUDIO_DRIVER_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/tests/generated/audio_rollback_driver.inc")
+    add_custom_command(OUTPUT "${AUDIO_DRIVER_FIXTURE}"
+        COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/prepare_audio_driver_fixture.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/sysdolphin/baselib/axdriver.c" "${AUDIO_DRIVER_FIXTURE}"
+        DEPENDS tests/native/prepare_audio_driver_fixture.py src/sysdolphin/baselib/axdriver.c
+        VERBATIM)
+    add_executable(native_audio_rollback_driver_test "${AUDIO_DRIVER_FIXTURE}"
+        tests/native/audio_rollback_driver_test.c
+        src/sysdolphin/baselib/audio_rollback.c)
+    target_include_directories(native_audio_rollback_driver_test PRIVATE src extern/dolphin/include
+        src/sysdolphin/baselib "${CMAKE_CURRENT_BINARY_DIR}/tests/generated")
+    target_compile_definitions(native_audio_rollback_driver_test PRIVATE MELEE_NATIVE=1)
+    add_test(NAME native_audio_rollback_driver COMMAND native_audio_rollback_driver_test)
     add_executable(native_stream_test tests/native/stream_test.c
         src/sysdolphin/baselib/sfxstream.c)
     target_include_directories(native_stream_test PRIVATE src extern/dolphin/include)

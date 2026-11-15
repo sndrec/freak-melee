@@ -3,7 +3,7 @@
 
 #include <sysdolphin/baselib/axdriver.h> // IWYU pragma: export
 
-static HSD_SM AXDriver_804C45A0[0x60];
+static HSD_SM AXDriver_804C45A0[HSD_AX_SOUND_CAPACITY];
 static HSD_SM* AXDriver_804C5920[0x40];
 
 static u8 AXDriver_804C5A20[2][0x10]; // unknown type

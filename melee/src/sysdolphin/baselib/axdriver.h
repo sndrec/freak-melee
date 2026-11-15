@@ -9,6 +9,8 @@
 #define SMSTATE_ACTIVE 0x40000000
 #define SMSTATE_SLEEP 0x80000000
 
+enum { HSD_AX_SOUND_CAPACITY = 0x60 };
+
 struct HSD_SM {
     /* 00 */ HSD_SM* prev;
     /* 04 */ HSD_SM* next;

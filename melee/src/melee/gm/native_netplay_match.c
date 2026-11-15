@@ -750,6 +750,9 @@ bool nativeNetplayMatch_Init(void)
 
 static void report_match_quality(FILE* stream)
 {
+    HSD_AudioRollbackStats audio = HSD_AudioRollbackGetStats();
+    fprintf(stream, "[netplay-audio] reused=%u new=%u canceled=%u protected-stops=%u\n",
+            audio.reused_starts, audio.new_starts, audio.canceled_starts, audio.protected_stops);
     fprintf(stream, "[netplay-quality] buffer=%u input_corrections=%u "
                     "depth_4_or_more=%u max_depth=%u checkpoint_refreshes=%u "
                     "late_samples_over_4ms=%u max_sample_late_ms=%.1f\n",

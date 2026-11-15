@@ -512,8 +512,10 @@ static void finish_resimulation(uint64_t sample)
         audio.reused_starts-=census.correction_audio.reused_starts;
         audio.new_starts-=census.correction_audio.new_starts;
         audio.canceled_starts-=census.correction_audio.canceled_starts;
+        audio.protected_stops-=census.correction_audio.protected_stops;
     }
-    fprintf(census.output,"[snapshot-census] resim-audio reused=%u new=%u canceled=%u\n",audio.reused_starts,audio.new_starts,audio.canceled_starts);
+    fprintf(census.output,"[snapshot-census] resim-audio reused=%u new=%u canceled=%u protected-stops=%u\n",
+        audio.reused_starts,audio.new_starts,audio.canceled_starts,audio.protected_stops);
     nativeSnapshotEndpoint_Restore(&census.endpoint);
     bool restored=nativeSnapshotEndpoint_Matches(&census.endpoint);
     census.endpoint_restores+=restored;census.resimulating=false;
