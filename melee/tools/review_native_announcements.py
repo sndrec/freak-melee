@@ -86,6 +86,7 @@ def main():
         assert state["pages"], "No older announcement page requested"
         shots.append(str(client.screenshot()))
         checks.append("unseen notice beyond newest 64")
+        wait_for(client, "hub-notice", "ready=1")
         client.command("ui-key", "x")
         wait_for(client, "hub-news", "article="+article["id"])
         # A second pending notice may temporarily cover the article.

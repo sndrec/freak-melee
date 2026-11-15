@@ -9,6 +9,7 @@
 
 namespace {
     constexpr unsigned page_rows = 4;
+    constexpr Uint64 dismiss_delay_ms = 2000;
     struct Notice {
         char title[481], message[1521];
         char id[37], action[49];
@@ -112,8 +113,9 @@ bool nativeHubNotice_BlocksInput()
 void nativeHubNotice_Dismiss(bool choose_action)
 {
     const Uint64 now = SDL_GetTicks();
-    // The press that submitted the request must not dismiss its response.
-    if (!count || now - opened_at < 350) return;
+    // Give each displayed notice two seconds before accepting dismissal or
+    // its linked action. The opening press is consumed during this interval.
+    if (!count || now - opened_at < dismiss_delay_ms) return;
     auto& notice = notices[first];
     choose_action = choose_action && *notice.action && notice.dismissed;
     if (!choose_action && notice.prepared && notice.first_row + page_rows < notice.row_count) {
@@ -147,7 +149,7 @@ void nativeHubNotice_Draw()
     prepare(notice);
     const unsigned rows = std::min(page_rows, notice.row_count - notice.first_row);
     nativeMenuPaint_Begin(nullptr);
-    nativeMenuPaint_Rect(0, 0, 640, 480, 0x000000FF);
+    nativeMenuPaint_Rect(0, 0, 640, 480, 0x00000080);
     nativeMenuPaint_End();
     // ifprize.c requests entrance frames 0..5, then holds its card at 10.
     // Use the actual retail mesh, texture animation and camera unchanged.
@@ -178,9 +180,9 @@ void nativeHubNotice_Draw()
 
 void nativeHubNotice_Inspect()
 {
-    std::fprintf(stderr, "[hub-inspect] hub-notice count=%u blocked=%d title=%s message=%s\n",
+    std::fprintf(stderr, "[hub-inspect] hub-notice count=%u blocked=%d title=%s message=%s ready=%d\n",
         count, nativeHubNotice_BlocksInput(), count ? notices[first].title : "",
-        count ? notices[first].message : "");
+        count ? notices[first].message : "", count && SDL_GetTicks() - opened_at >= dismiss_delay_ms);
 }
 
 void nativeHubNotice_Clear()

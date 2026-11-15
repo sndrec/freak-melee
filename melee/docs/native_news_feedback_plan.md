@@ -21,6 +21,10 @@ action occupy the card's existing text areas. The original `ifprize.c` remains
 unchanged. `menu-reference:milestone` displays the unmodified card in the native
 reference viewer for comparison. Notice delivery, expiry, seen IDs and deferral
 through matches retain their existing behavior.
+The screen behind a notice is dimmed by 50%. Dismissal and the linked News action
+become available after two seconds. The feed polls every 30 seconds; received
+notices appear on the first eligible tick, including while remaining on the same
+hub page.
 
 `tools/download_native_feedback.py` reads reports through the owner's existing
 Wrangler login and saves their notes, screenshot and diagnostics locally. See
