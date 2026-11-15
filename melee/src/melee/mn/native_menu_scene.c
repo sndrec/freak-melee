@@ -400,6 +400,9 @@ bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
         // Their authored tracks collapse the inactive caption horizontally.
         const unsigned caption_index = frame == NativeMenuFrame_Options ? 84 : 86;
         if (scene.caption != runtime_joint(panel, caption_index)) prepare_caption(caption_index);
+        // Joint 74 is the stock NEXT SCREEN lettering. It describes no action
+        // in the native menus that reuse this backdrop.
+        HSD_JObjSetFlags(runtime_joint(panel,74),JOBJ_HIDDEN);
         // Replace the baked page caption, keeping its panel and animation.
         for (unsigned i = 82; i <= 86; ++i)
             HSD_JObjSetFlags(runtime_joint(panel, i), JOBJ_HIDDEN);
@@ -481,9 +484,10 @@ void nativeMenuScene_DrawRibbon(unsigned slot, const Mtx canvas, float x, float 
 
 void nativeMenuScene_Inspect(void)
 {
-    fprintf(stderr, "[hub-inspect] menu-assets records=%u arena=%zu ribbons=%d camera=%d\n",
+    fprintf(stderr, "[hub-inspect] menu-assets records=%u arena=%zu ribbons=%d camera=%d next-screen-hidden=%d\n",
         (unsigned) scene.assets.import.record_count, scene.assets.import.arena_used,
-        scene.ribbons[0] != NULL, scene.camera != NULL);
+        scene.ribbons[0] != NULL, scene.camera != NULL,
+        scene.backdrop[1] && (runtime_joint(scene.backdrop[1]->hsd_obj,74)->flags & JOBJ_HIDDEN) != 0);
     if (!scene.ribbons[0]) return;
     for (unsigned i = 82; i <= 86; ++i) {
         HSD_JObj* j = runtime_joint(scene.backdrop[1]->hsd_obj,i); HSD_JObjSetupMatrix(j);

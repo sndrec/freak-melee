@@ -110,5 +110,26 @@ int main(void)
     HSD_AudioMixVoices(data, sizeof(data), &buses);
     check(buses.samples[0][0] == 1600 && buses.samples[0][31] == 1290);
     puts("Nine-bus routing, signed envelope, ramps, saturation and 64-voice accumulation verified");
+    // Independent local gains preserve voice playback and envelope advancement.
+    const unsigned levels[3][2] = {{0,100},{100,0},{40,75}};
+    for (unsigned music=0;music<2;++music) for (unsigned level=0;level<3;++level) {
+        HSD_AudioVoiceInit(); v=start(); v->music=music!=0;
+        v->envelope.currentVolume=32767;
+        memset(&mix,0,sizeof(mix)); mix.vL=mix.vR=32768;
+        HSD_AudioVoiceConfigureMix(v,&mix); reference=*v;
+        HSD_AudioVoiceResample(&reference,data,sizeof(data),samples,32);
+        HSD_AudioMixSetVolumes(levels[level][0],levels[level][1]);
+        HSD_AudioMixVoices(data,sizeof(data),&buses);
+        unsigned gain=levels[level][music]*32768/100;
+        for (u32 i=0;i<32;++i) {
+            s16 expected=clamp(((s32)samples[i]*32767)>>15);
+            expected=(s16)(((s32)expected*gain)>>15);
+            check(buses.samples[0][i]==expected && buses.samples[1][i]==expected);
+        }
+        check(v->envelope.currentVolume==32767);
+        check(v->decoder.cursor==reference.decoder.cursor);
+        check(!memcmp(v->decoder.history,reference.decoder.history,sizeof(v->decoder.history)));
+    }
+    HSD_AudioMixSetVolumes(100,100);
     return 0;
 }

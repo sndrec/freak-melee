@@ -10,14 +10,21 @@
 static SDL_AudioStream* output_stream;
 static bool polling;
 static bool muted;
+static float master_gain = 1.0f;
 
 void HSD_AudioOutputSetMuted(bool value)
 {
     muted = value;
     if (output_stream) {
-        bool applied = SDL_SetAudioStreamGain(output_stream, muted ? 0.0f : 1.0f);
+        bool applied = SDL_SetAudioStreamGain(output_stream, muted ? 0.0f : master_gain);
         HSD_ASSERTREPORT(0, applied, "Audio gain failed: %s", SDL_GetError());
     }
+}
+
+void HSD_AudioOutputSetMasterVolume(unsigned percent)
+{
+    master_gain = (percent > 100 ? 100 : percent) * .01f;
+    HSD_AudioOutputSetMuted(muted);
 }
 
 bool HSD_AudioOutputInit(void)

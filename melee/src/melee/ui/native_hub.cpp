@@ -316,7 +316,7 @@ namespace {
                 nativeHub_Focus(hub.letter_subject, sizeof(hub.letter_subject));
             } else if (field == hub.letter_subject) {
                 nativeHub_Focus(hub.letter_body, sizeof(hub.letter_body));
-            } else if (hub.page == NativeHubPage_Account) {
+            } else if (hub.page == NativeHubPage_Account || hub.page == NativeHubPage_OnlineSettings) {
                 action = HubAction::AccountSubmit;
             } else if (field == hub.chat) {
                 action = HubAction::SendChat;
@@ -459,7 +459,7 @@ void nativeHub_ChangePage(NativeHubPage page, bool backwards)
 {
     if (hub.page != page) {
         nativeHubProfiles_Leave(page);
-        if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
+        if ((hub.page == NativeHubPage_Account || hub.page == NativeHubPage_OnlineSettings)) nativeHubAccount_Leave();
         if (hub.page == NativeHubPage_CreateLobby && !hub.lobby_invite_queued)
             hub.lobby_invite_to[0] = 0;
         hub.motion_from = hub.page;
@@ -615,7 +615,7 @@ void nativeHub_Activate(HubAction action, int value)
         }
         break;
     case HubAction::Close:
-        if (hub.page == NativeHubPage_Account) nativeHubAccount_Leave();
+        if ((hub.page == NativeHubPage_Account || hub.page == NativeHubPage_OnlineSettings)) nativeHubAccount_Leave();
         if (hub.page == NativeHubPage_CreateLobby && !hub.lobby_invite_queued)
             hub.lobby_invite_to[0] = 0;
         hub.dismissed = true;
@@ -999,6 +999,7 @@ extern "C" void nativeHub_Tick(void)
         return;
     }
     hub.consumes_input = hub.visible;
+    if (!hub.visible) nativeHubSettings_Input();
     const bool selection = nativeHome_IsSelection();
     const bool practice = nativeHome_IsPractice();
     bool tool = nativeShellWorkshop_IsOpen() || nativeShellCssOriginal_IsEditing();
@@ -1211,6 +1212,7 @@ extern "C" void nativeHub_Tick(void)
         hub.pressed |= (pad.button & PAD_BUTTON_A) != 0;
         if (hub.page != NativeHubPage_QuickStage && !nativeHubStartup.active) break;
     }
+    nativeHubSettings_Input();
     nativeHubStartupTriggers_Update();
     nativeHubNews_Input();
     if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Placement) nativeHubStartupStamp_Move();
@@ -1245,17 +1247,20 @@ extern "C" void nativeHub_Draw(void)
     nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
     for (unsigned i = 0; !nativeHubStartup.active && !nativeHubPortrait_Editing() && !standalone && i < 7; ++i) {
+        const float positions[] = {21,33,18,29,41,21,31};
+        const float widths[] = {146,113,149,110,112,146,120};
+        const float heights[] = {31,32,30,33,30,34,31};
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
             (hub.page == NativeHubPage_Controls && i == NativeHubPage_Settings) ||
             ((hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) && i == NativeHubPage_Lobbies);
-        bool hover = nativeHub_Hover(33, y, 127, 31);
-        nativeMenuScene_DrawRibbon(i, canvas, 33, y, 127, 31, selected || hover, page_names[i]);
+        bool hover = nativeHub_Hover(positions[i],y,widths[i],heights[i]);
+        nativeMenuScene_DrawRibbon(i, canvas,positions[i],y,widths[i],heights[i], selected || hover, page_names[i]);
         nativeMenuPaint_Begin(canvas);
         char id[40];
         std::snprintf(id, sizeof(id), "nav-%u", i);
         nativeHub_Region(
-            id, 33, y, 124, 31,
+            id,positions[i],y,widths[i],heights[i],
             static_cast<HubAction>(unsigned(HubAction::QuickPlay) + i));
     }
     if (nativeMenuScene_Active()) {
@@ -1280,7 +1285,7 @@ extern "C" void nativeHub_Draw(void)
     if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
     else if (!nativeHubPortrait_Editing() && SDL_GetTicks() < hub.notice_until && *hub.notice)
         nativeMenuPaint_Text(hub.notice, standalone ? 40 : 175, standalone ? 470 : 414, standalone ? 560 : 425, 11, white);
-    else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page)))
+    else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || hub.page == NativeHubPage_OnlineSettings || nativeHubSocial_Page(hub.page)))
         nativeMenuPaint_Text(nativeHubAccount_Status(), 175, 414, 425, 11, white);
     if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation && !news_page && !nativeHubProfiles_Page(hub.page) && !nativeHubRules_Page(hub.page) &&
         hub.page != NativeHubPage_Costumes && !nativeHubPackages_Page(hub.page))

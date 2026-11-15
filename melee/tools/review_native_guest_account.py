@@ -32,7 +32,7 @@ def main():
     def sign_in(client):
         client.click('nav-6')
         client.click('settings-category-3')
-        client.click('settings-account')
+        client.element('settings-back')
         state = wait(client, 'hub-account', r'busy=0 signed-in=[01]')
         if 'signed-in=0' in state:
             client.click('account-submit')

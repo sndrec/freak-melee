@@ -61,6 +61,11 @@ void nativeOnlineMenu_Pump(void)
     if (action == NativeOnlineMenuAction_Create ||
         action == NativeOnlineMenuAction_Join)
     {
+        // A new player-created room replaces the current session, including a
+        // Quick Play assignment. The pending operation owns its copied inputs.
+        nativeHome_CancelStartMatch();
+        if (nativeOnlineSession_State() != NativeLobbySessionState_Disconnected)
+            nativeOnlineSession_Stop();
         if (nativeOnlineSession_State() ==
             NativeLobbySessionState_Disconnected)
         {

@@ -154,11 +154,13 @@ void nativeHubAccount_Tick()
 }
 void nativeHubAccount_Render()
 {
-    const float x = nativeHubStartup.active ? -70 : 0;
-    if (!nativeHubStartup.active) nativeHub_Panel(175, 116, 430, 286);
+    const float x = nativeHubStartup.active ? -70 : -130;
+    const float width = nativeHubStartup.active ? 390 : 520;
+    const float half = nativeHubStartup.active ? 187 : 246;
+    const float right = nativeHubStartup.active ? x+395 : 338;
     nativeMenuPaint_Text(account.signed_in ? account.name : nativeHubStartup.active ? "Online account" : "Your online account",
-        nativeHubStartup.active ? 65 : 194, nativeHubStartup.active ? 111 : 133,
-        nativeHubStartup.active ? 510 : 370, nativeHubStartup.active ? 33 : 17, gold,
+        nativeHubStartup.active ? 65 : 64, nativeHubStartup.active ? 111 : 133,
+        nativeHubStartup.active ? 510 : 340, nativeHubStartup.active ? 33 : 23, gold,
         nativeHubStartup.active ? NativeMenuFont_MenuCaption : NativeMenuFont_MenuOption);
     char handle[64]; std::snprintf(handle, sizeof(handle), "@%s", account.handle);
     if (!nativeHubStartup.active || account.signed_in)
@@ -170,6 +172,8 @@ void nativeHubAccount_Render()
     if (nativeHubStartup.active && !account.signed_in && !account.busy && !account.recovery_pending && mode == 3) {
         startup_choices(); return;
     }
+    if (!nativeHubStartup.active && !account.signed_in)
+        nativeHub_Button("account-profile","Your profile",429,124,155,27,HubAction::Profile);
     if (account.busy) {
         nativeMenuPaint_Text("Contacting the account service...", x + 194, 196, 370, 11, muted);
         if (account.cancellable) nativeHub_Button("account-cancel", "Cancel", x + 194, 236, 170, 31, HubAction::AccountCancel);
@@ -177,7 +181,7 @@ void nativeHubAccount_Render()
         nativeMenuPaint_Text("Save your recovery code", x + 194, 186, 370, 16, gold);
         nativeMenuPaint_Text("Use it to regain access if you lose your account keys.", x + 194, 216, 370, 10, muted);
         nativeMenuPaint_Text("Keep the file private and somewhere safe.", x + 194, 237, 370, 10, muted);
-        nativeHub_Button("account-save-recovery", "Save recovery code...", x + 194, 272, 390, 34, HubAction::AccountSaveRecovery, 0, true);
+        nativeHub_Button("account-save-recovery", "Save recovery code...", x + 194, 272, width, 34, HubAction::AccountSaveRecovery, 0, true);
         nativeMenuPaint_Text("The code stays protected on this PC until you save it.", x + 194, 324, 370, 9, muted);
     } else if (confirmation != HubAction::None) {
         const char* title = confirmation == HubAction::AccountLogout ? "Sign out on this PC?" :
@@ -189,32 +193,32 @@ void nativeHubAccount_Render()
             confirmation == HubAction::AccountLogout || confirmation == HubAction::AccountRevokeAll ? "You will also leave your current lobby." :
             confirmation == HubAction::AccountRemoveKey ? "You will need another account key to sign in." : "You can sign in again with an account key.",
             x + 194, 225, 370, 10, muted);
-        nativeHub_Button("account-confirm", "Confirm", x + 194, 280, 187, 32, HubAction::AccountConfirm, 1, true);
-        nativeHub_Button("account-keep", "Cancel", x + 395, 280, 189, 32, HubAction::AccountConfirm, 0);
+        nativeHub_Button("account-confirm", "Confirm", x + 194, 280, half, 32, HubAction::AccountConfirm, 1, true);
+        nativeHub_Button("account-keep", "Cancel", right, 280, half, 32, HubAction::AccountConfirm, 0);
     } else if (!account.signed_in) {
         if (nativeHubStartup.active) {
             nativeHub_Button("account-overview","< Account",75,171,124,27,HubAction::AccountMode,3);
             nativeMenuPaint_Text(mode==1?"Sign-Up":mode==2?"Recover":"Login",330,176,250,20,gold,NativeMenuFont_MenuOption);
         } else {
         float tab_height = 26;
-        nativeHub_Button("account-login-mode", "Sign in", x + 194, 179, 120, tab_height, HubAction::AccountMode, 0, mode == 0);
-        nativeHub_Button("account-create-mode", "Create account", x + 322, 179, 135, tab_height, HubAction::AccountMode, 1, mode == 1);
-        nativeHub_Button("account-recover-mode", "Recover", x + 465, 179, 119, tab_height, HubAction::AccountMode, 2, mode == 2);
+        nativeHub_Button("account-login-mode", "Sign in", 64, 179, 162, tab_height, HubAction::AccountMode, 0, mode == 0);
+        nativeHub_Button("account-create-mode", "Create account", 244, 179, 162, tab_height, HubAction::AccountMode, 1, mode == 1);
+        nativeHub_Button("account-recover-mode", "Recover", 426, 179, 158, tab_height, HubAction::AccountMode, 2, mode == 2);
         }
         if (mode == 0) {
             char saved[80]; std::snprintf(saved, sizeof(saved), "Saved account: @%s", account.handle);
             nativeMenuPaint_Text(account.has_key ? saved : "Have an account on another PC?", x + 194, 226, 370, 12, gold);
-            nativeHub_Button("account-import", "Import account-key file...", x + 194, 255, 390, 30, HubAction::AccountImportKey);
-            if (account.has_key) nativeHub_Button("account-export", "Export saved account key...", x + 194, 296, 390, 28, HubAction::AccountExportKey);
+            nativeHub_Button("account-import", "Import account-key file...", x + 194, 255, width, 30, HubAction::AccountImportKey);
+            if (account.has_key) nativeHub_Button("account-export", "Export saved account key...", x + 194, 296, width, 28, HubAction::AccountExportKey);
         } else {
             nativeMenuPaint_Text("Account name", x + 194, 220, 370, 10, gold);
-            nativeHub_Field("account-handle", hub.account_handle, x + 194, 237, 390, 27, HubAction::FieldAccountHandle);
+            nativeHub_Field("account-handle", hub.account_handle, x + 194, 237, width, 27, HubAction::FieldAccountHandle);
             nativeMenuPaint_Text(mode == 1 ? "Display name" : "Recovery code", x + 194, 277, 370, 10, gold);
-            if (mode == 1) nativeHub_Field("account-name", hub.name, x + 194, 293, 390, 27, HubAction::FieldName);
-            else nativeHub_Field("account-recovery", hub.account_recovery, x + 194, 293, 390, 27, HubAction::FieldAccountRecovery, true);
+            if (mode == 1) nativeHub_Field("account-name", hub.name, x + 194, 293, width, 27, HubAction::FieldName);
+            else nativeHub_Field("account-recovery", hub.account_recovery, x + 194, 293, width, 27, HubAction::FieldAccountRecovery, true);
         }
         nativeHub_Button("account-submit", mode == 1 ? "Create account" : mode == 2 ? "Recover account" : "Sign in",
-            x + 194, 346, 390, 32, HubAction::AccountSubmit, 0, true,
+            x + 194, 346, width, 32, HubAction::AccountSubmit, 0, true,
             started && account.available && (mode == 0 ? account.has_key : *hub.account_handle != 0));
     } else if (mode == 4 || mode == 5) {
         nativeHub_Button("account-overview", "< Account", x + 194, 178, 125, 25, HubAction::AccountMode, 0);
@@ -228,21 +232,21 @@ void nativeHubAccount_Render()
                 (mode == 4 ? account.keys[i].current : account.sessions[i].current) ? " (current)" : "");
             float y = 219 + (i - offset) * 28;
             nativeMenuPaint_Text(label, x + 194, y + 6, 275, 10, muted);
-            nativeHub_Button(id, mode == 4 ? "Remove" : "Sign out", x + 492, y, 92, 24,
+            nativeHub_Button(id, mode == 4 ? "Remove" : "Sign out", 492, y, 92, 24,
                 mode == 4 ? HubAction::AccountRemoveKey : HubAction::AccountRevokeSession, i, false, mode != 4 || total > 1);
         }
-        nativeHub_Button("account-prev", "<", x + 504, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 14 : 15, false, offset > 0);
-        nativeHub_Button("account-next", ">", x + 549, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 24 : 25, false, offset + 5 < total);
+        nativeHub_Button("account-prev", "<", 504, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 14 : 15, false, offset > 0);
+        nativeHub_Button("account-next", ">", 549, 369, 35, 22, HubAction::AccountMode, mode == 4 ? 24 : 25, false, offset + 5 < total);
     } else {
-        nativeHub_Button("account-export", "Export account-key file...", x + 194, 181, 390, 30, HubAction::AccountExportKey, 0, true);
-        nativeHub_Button("account-add-key", "New key for another PC", x + 194, 221, 187, 29, HubAction::AccountAddKey);
-        nativeHub_Button("account-keys", "Manage keys", x + 395, 221, 189, 29, HubAction::AccountMode, 4);
-        nativeHub_Button("account-devices", "Signed-in devices", x + 194, 260, 187, 29, HubAction::AccountMode, 5);
-        nativeHub_Button("account-all-out", "Sign out all devices", x + 395, 260, 189, 29, HubAction::AccountRevokeAll);
-        nativeHub_Button("account-rotate", "New recovery code", x + 194, 299, 187, 29, HubAction::AccountRotateRecovery);
-        nativeHub_Button("account-logout", "Sign out", x + 395, 299, 189, 29, HubAction::AccountLogout);
+        nativeHub_Button("account-export", "Export account-key file...", x + 194, 181, width, 30, HubAction::AccountExportKey, 0, true);
+        nativeHub_Button("account-add-key", "New key for another PC", x + 194, 221, half, 29, HubAction::AccountAddKey);
+        nativeHub_Button("account-keys", "Manage keys", right, 221, half, 29, HubAction::AccountMode, 4);
+        nativeHub_Button("account-devices", "Signed-in devices", x + 194, 260, half, 29, HubAction::AccountMode, 5);
+        nativeHub_Button("account-all-out", "Sign out all devices", right, 260, half, 29, HubAction::AccountRevokeAll);
+        nativeHub_Button("account-rotate", "New recovery code", x + 194, 299, half, 29, HubAction::AccountRotateRecovery);
+        nativeHub_Button("account-logout", "Sign out", right, 299, half, 29, HubAction::AccountLogout);
         nativeHub_Button("account-refresh", "Refresh", x + 194, 351, 130, 27, HubAction::AccountRefresh);
-        nativeHub_Button("account-profile", "Edit profile", x + 338, 351, 246, 27, HubAction::Profile);
+        nativeHub_Button("account-profile", "Edit profile", 282, 351, 302, 27, HubAction::Profile);
     }
 }
 const char* nativeHubAccount_Status()
@@ -251,12 +255,16 @@ const char* nativeHubAccount_Status()
 }
 bool nativeHubAccount_Activate(HubAction action, int value)
 {
+    if (action==HubAction::Back && hub.page==NativeHubPage_OnlineSettings) {
+        if (confirmation!=HubAction::None) { confirmation=HubAction::None; return true; }
+        if (mode==4 || mode==5 || (!account.signed_in && (mode==1 || mode==2))) { mode=offset=0; return true; }
+    }
     switch (action) {
     case HubAction::Account:
         mode = offset = 0; confirmation = HubAction::None;
-        nativeHub_ChangePage(NativeHubPage_Account); return true;
+        nativeHub_ChangePage(nativeHubStartup.active ? NativeHubPage_Account : NativeHubPage_OnlineSettings); return true;
     case HubAction::AccountMode:
-        nativeHub_ChangePage(NativeHubPage_Account);
+        nativeHub_ChangePage(nativeHubStartup.active ? NativeHubPage_Account : NativeHubPage_OnlineSettings);
         SDL_memset(hub.account_recovery, 0, sizeof(hub.account_recovery));
         if (value >= 20) offset += 5;
         else if (value >= 10) offset = offset >= 5 ? offset - 5 : 0;
@@ -286,6 +294,7 @@ bool nativeHubAccount_Activate(HubAction action, int value)
 }
 void nativeHubAccount_Leave()
 {
+    if (!nativeHubStartup.active) mode=offset=0;
     SDL_memset(hub.account_recovery, 0, sizeof(hub.account_recovery));
     confirmation = HubAction::None;
 }

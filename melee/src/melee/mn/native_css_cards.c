@@ -132,9 +132,12 @@ static void destroy(void* unused)
     nativeMenuFont_Release();
     memset(&cards, 0, sizeof(cards));
 }
+static const float online_card_scale = .8f;
+static const float online_card_shift_y = -4.02f;
 static float card_left(unsigned index)
 {
-    return -30.6f + index * 10.9f;
+    float left,right,top,bottom; nativeCssOriginal_Viewport(&left,&right,&top,&bottom);
+    return left + .75f + index * 12.2f;
 }
 static void flat_state(Mtx view)
 {
@@ -204,9 +207,9 @@ static void draw(HSD_GObj* object, int pass)
             CardArt* art = &cards.art[i];
             float x = card_left(i);
             Mtx shift, instance, parent;
-            C_MTXScale(shift, .7f, .7f, .7f);
-            shift[0][3] = x - art->original_left * .7f;
-            shift[1][3] = -4.25f;
+            C_MTXScale(shift,online_card_scale,online_card_scale,online_card_scale);
+            shift[0][3] = x - art->original_left * online_card_scale;
+            shift[1][3] = online_card_shift_y;
             C_MTXConcat(view, shift, instance);
             for (unsigned p = 0; p < PARTS; ++p) {
                 C_MTXConcat(instance, art->parts[p].parent, parent);
@@ -232,8 +235,8 @@ static void draw(HSD_GObj* object, int pass)
             float x = cards.people.online
                           ? card_left(i)
                           : cards.art[person->physical_port].original_left;
-            const float scale = cards.people.online ? .7f : 1;
-            const float y_shift = cards.people.online ? -4.25f : 0;
+            const float scale = cards.people.online ? online_card_scale : 1;
+            const float y_shift = cards.people.online ? online_card_shift_y : 0;
             if (art->portrait.pixels && person->choice.selected) {
                 // Preserve the original portrait quad, including its authored
                 // slight stretch of the 136x188 texture.
@@ -432,11 +435,11 @@ unsigned nativeCssCards_DisplayPort(unsigned physical_port)
 }
 const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
 {
-    if (!cards.people.online || y > -6 || y < -22.45f) {
+    if (!cards.people.online || y > -5.6f || y < -24.5f) {
         return NULL;
     }
     for (unsigned i = 0; i < cards.people.count; ++i) {
-        if (x >= card_left(i) && x < card_left(i) + 14.8f * .7f) {
+        if (x >= card_left(i) && x < card_left(i) + 14.8f * online_card_scale) {
             return cards.people.cards[i].kind == Gm_PKind_NA ? NULL : &cards.people.cards[i];
         }
     }
@@ -481,9 +484,9 @@ void nativeCssCards_Inspect(void)
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
                 "[css-card] display=%u peer=%s seat=%u physical=%u "
-                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14.1 portrait=%u title=%s outfit=%s\n",
+                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-15.0 portrait=%u title=%s outfit=%s\n",
                 i, p->peer, p->seat, p->physical_port, p->canonical_port,
-                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f * .7f,
+                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f * online_card_scale,
                 cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title, cards.art[i].outfit);
     }
 }

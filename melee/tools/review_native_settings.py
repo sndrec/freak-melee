@@ -17,7 +17,7 @@ def main():
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     for service in ('SERVICE', 'CHAT', 'COMMUNITY'):
-        os.environ['FREAK_MELEE_'+service+'_ENDPOINT'] = 'http://127.0.0.1:1'
+        os.environ['FREAK_MELEE_'+service+'_ENDPOINT'] = 'http://localhost:1'
     os.environ['FREAK_MELEE_MENU_MOTION'] = '0'
     result = {'status': 'RUNNING', 'screenshots': {}, 'checks': []}
     client = None
@@ -27,7 +27,7 @@ def main():
 
     def options():
         text = client.inspect('client-options')
-        match = re.search(r'fullscreen=(\d+) vsync=(\d+) mono=(\d+) balance=(-?\d+) page=(\d+)',text)
+        match = re.search(r'fullscreen=(\d+) vsync=(\d+) mono=(\d+) master=(\d+) effects=(\d+) music=(\d+) page=(\d+)',text)
         assert match, text
         return tuple(map(int,match.groups()))
 
@@ -46,14 +46,18 @@ def main():
         assert after[1] == 1-before[1],(before,after)
         shot('video')
         client.tap('B',frames=40)
-        assert options()[4] == 6
+        assert options()[6] == 6
         client.element('settings-category-1')
         client.click('settings-category-1')
         client.command('ui-move',*client.element('audio-channels'))
         client.tap('A',frames=40)
         assert options()[2] == 1-before[2]
-        client.click('audio-music')
-        assert options()[3] == min(before[3]+5,100)
+        for channel,percent in [('audio-master',25),('audio-effects',40),('audio-music',75)]:
+            text=client.inspect(channel)
+            x,y,w,h=map(float,re.search(r'origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)',text).groups())
+            start=(round(x+w/2),round(y+h/2));end=(round(x+(10+297*percent/100)*w/315),start[1])
+            client.command('ui-down',*start);time.sleep(.12);client.command('ui-move',*end);time.sleep(.2);client.command('ui-up',*end);time.sleep(.2)
+        assert all(abs(a-b)<=1 for a,b in zip(options()[3:6],(25,40,75))),options()
         shot('audio')
         client.click('settings-back')
         client.click('settings-category-2')
@@ -61,7 +65,7 @@ def main():
         shot('game')
         client.click('settings-back')
         client.click('settings-category-3')
-        client.element('settings-account')
+        client.element('settings-back')
         shot('online')
         client.click('settings-back')
         client.click('settings-category-4')
@@ -74,9 +78,9 @@ def main():
         shot('options-narrow')
         client.click('settings-back')
         client.element('news-ticker')
-        expected = options()[:4]
+        expected = options()[:6]
         result['checks'] += ['five native categories','held A toggles once','held B returns one level',
-                             'audio balance','controls local count','return to hub','two window sizes']
+                             'independent Master/Effects/Music sliders','controls local count','return to hub','two window sizes']
         close_window(client.process.pid)
         client.process.wait(timeout=20)
         saved = (client.data/'content/client-options.txt').read_text()
@@ -85,7 +89,7 @@ def main():
         client = Client(args.exe.resolve(),args.iso.resolve(),profile,args.output/'reopened',
                         'Settings review',window_size=(960,540))
         client.click('nav-6')
-        assert options()[:4] == expected,(options(),expected)
+        assert options()[:6] == expected,(options(),expected)
         client.click('settings-category-4')
         assert 'players=3' in client.inspect('hub-input')
         result['checks'].append('settings and local-player count survive restart')

@@ -1241,6 +1241,7 @@ void HSD_SynthPStreamHeaderCallback(int arg0, void* arg1, void* arg2,
         }
         node->x14 = 0.00003125f * (f32) info.sample_rate;
         for (i = 0; i < node->voice_count; i++) {
+            node->voice[i]->music = true;
             node->voice[i]->sample.address = info.address[i];
             node->voice[i]->sample.adpcm = info.adpcm[i];
         }
@@ -1300,6 +1301,7 @@ int HSD_Synth_8038B5AC(int entrynum, u8 vol, u8 vol2, int channel)
     }
     HSD_Synth_804D7764 = entrynum;
     voice = HSD_AudioVoiceAcquire(0x1D, dropcallback);
+    voice->music = true;
     idx = voice->index;
     voice_node = &hsd_SynthSFXNodes[idx];
     HSD_Synth_804D7750 += 0x40;

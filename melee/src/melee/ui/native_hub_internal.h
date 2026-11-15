@@ -47,7 +47,7 @@ enum class HubAction {
     Cancel,
     AcceptGift,
     DeclineGift,
-    EditControls, SettingsCategory, VideoFullscreen, VideoVsync, AudioChannels, AudioBalance,
+    EditControls, SettingsCategory, VideoFullscreen, VideoVsync, AudioChannels, AudioVolume,
     SaveProfile,
     ToggleCustomModels,
     FieldName,

@@ -7,7 +7,7 @@ typedef struct HSD_AudioVoice {
     u32 index, priority;
     u64 priority_order;
     void (*dropped)(void*);
-    bool allocated, running, streaming;
+    bool allocated, running, streaming, music;
     HSD_SfxVoice sample;
     AXPBSRC source;
     AXPBMIX mix;

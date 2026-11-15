@@ -6,4 +6,6 @@
 typedef struct HSD_AudioBuses { s32 samples[9][HSD_AUDIO_MS_SAMPLES]; } HSD_AudioBuses;
 // Render one millisecond at 32 kHz into cleared, unsaturated accumulation buses.
 void HSD_AudioMixVoices(const u8* storage, size_t size, HSD_AudioBuses* buses);
+// Local presentation gains, in percent. Voice timing and envelopes stay unchanged.
+void HSD_AudioMixSetVolumes(unsigned effects, unsigned music);
 #endif

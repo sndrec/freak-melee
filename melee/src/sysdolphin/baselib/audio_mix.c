@@ -2,6 +2,14 @@
 #include "audio_internal.h"
 #include <string.h>
 
+static u16 effects_gain = 32768, music_gain = 32768;
+
+void HSD_AudioMixSetVolumes(unsigned effects, unsigned music)
+{
+    effects_gain = (u16) ((effects > 100 ? 100 : effects) * 32768 / 100);
+    music_gain = (u16) ((music > 100 ? 100 : music) * 32768 / 100);
+}
+
 void HSD_AudioVoiceConfigureMix(HSD_AudioVoice* voice, const AXPBMIX* mix)
 {
     voice->mix = *mix;
@@ -54,6 +62,11 @@ void HSD_AudioMixVoices(const u8* storage, size_t size, HSD_AudioBuses* buses)
             volume = (u16) (volume + voice->envelope.currentDelta);
         }
         voice->envelope.currentVolume = volume;
+        u16 presentation_gain = voice->music ? music_gain : effects_gain;
+        if (presentation_gain != 32768) {
+            for (u32 i = 0; i < HSD_AUDIO_MS_SAMPLES; ++i)
+                samples[i] = (s16) (((s32) samples[i] * presentation_gain) >> 15);
+        }
         u16 mix[18];
         _Static_assert(sizeof(AXPBMIX) == sizeof(mix), "gain/delta pairs");
         memcpy(mix, &voice->mix, sizeof(mix));

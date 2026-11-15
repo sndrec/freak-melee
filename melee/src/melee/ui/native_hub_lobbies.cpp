@@ -1,5 +1,6 @@
 #include "native_hub_lobbies.h"
 #include <melee/gm/native_online_session.h>
+#include <melee/gm/native_home.h>
 #include <melee/gm/native_services.h>
 #include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL_timer.h>
@@ -132,6 +133,11 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
 {
     switch (action) {
     case HubAction::NewLobby:
+        if (nativeOnlineSession_Quick()) {
+            nativeHome_CancelStartMatch();
+            nativeOnlineSession_Stop();
+            hub.pending_listing = false;
+        }
         hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
         std::snprintf(hub.lobby_title, sizeof(hub.lobby_title), "%.32s's lobby", hub.public_name);
         nativeHub_ChangePage(NativeHubPage_CreateLobby);
