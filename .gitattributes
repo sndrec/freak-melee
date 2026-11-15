@@ -4,3 +4,5 @@
 *.webp binary
 *.bat text eol=crlf
 melee/extern/core-math/** whitespace=-blank-at-eol,-blank-at-eof
+# Retain upstream notice bytes and their recorded hashes on every platform.
+melee/licenses/*.txt -text whitespace=-blank-at-eol,-blank-at-eof
