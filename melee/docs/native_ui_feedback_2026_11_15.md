@@ -455,3 +455,6 @@ Physical GameCube controller feel and physical rumble remain hands-on checks.
 Submission `88ed16a2-d996-41e7-bc97-5e02e95ab8a7` stays open: match-rule editing,
 costume management and package management still need their native replacements.
 Eighteen submissions remain completed and removed; no release was published.
+
+Implementation commit: `72a53c7`, pushed to main. The native-settings report
+remains open until the three remaining desktop screens are replaced and checked.
