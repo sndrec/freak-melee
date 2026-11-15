@@ -231,8 +231,6 @@ uint32_t viewport_extent(float value) noexcept {
 
 } // namespace
 
-bool vsync_enabled() noexcept { return g_vsyncEnabled.load(std::memory_order_acquire); }
-
 wgpu::PresentMode select_present_mode(const wgpu::SurfaceCapabilities& capabilities) noexcept {
   const auto supports = [&capabilities](const wgpu::PresentMode candidate) {
     for (size_t i = 0; i < capabilities.presentModeCount; ++i) {
@@ -242,7 +240,7 @@ wgpu::PresentMode select_present_mode(const wgpu::SurfaceCapabilities& capabilit
     }
     return false;
   };
-  if (vsync_enabled()) {
+  if (aurora_vsync_enabled()) {
     if (supports(wgpu::PresentMode::FifoRelaxed)) {
       return wgpu::PresentMode::FifoRelaxed;
     }
@@ -1153,4 +1151,8 @@ void aurora_enable_vsync(const bool enabled) {
   aurora::webgpu::g_graphicsConfig.surfaceConfiguration.presentMode =
       aurora::webgpu::select_present_mode(aurora::webgpu::g_surfaceCapabilities);
   aurora::window::push_custom_event(aurora::window::CustomEvent::RefreshSurface);
+}
+
+bool aurora_vsync_enabled(void) {
+  return aurora::webgpu::g_vsyncEnabled.load(std::memory_order_acquire);
 }

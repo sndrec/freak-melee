@@ -129,6 +129,7 @@ def main():
         checks.append('Opening an inbox invitation checks it with the service, leaves the old lobby and joins the sender; lobby clicks open verified profiles')
 
         b.click('nav-6')
+        b.click('settings-category-3')
         b.click('settings-account')
         b.element('account-export')
         screenshots.append(str(b.screenshot()))

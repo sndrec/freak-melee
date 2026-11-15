@@ -12,6 +12,7 @@ import threading
 import time
 
 from review_native_css_room import Client
+from review_native_release import close_window
 
 
 def wait_for(client, element, expected, timeout=40):
@@ -103,15 +104,20 @@ def main():
         client.click("news-down")
         assert "scroll=5" in client.inspect("hub-news")
         shots.append(str(client.screenshot()))
+        client.resize(960, 540)
+        shots.append(str(client.screenshot()))
+        client.resize(1440, 900)
         client.click("news-history")
         wait_for(client, "hub-news", "page-count=25")
+        shots.append(str(client.screenshot()))
         client.click("news-down")
         assert "scroll=5" in client.inspect("hub-news")
         client.click("news-older")
         wait_for(client, "hub-news", "page-count=2")
         client.click("news-latest")
         wait_for(client, "hub-news", "page-count=25")
-        client.click("nav-5")
+        client.click("news-back")
+        client.element("edit-fighter")
         # The ordinary poll must publish a changed headline and new notice
         # without replacing the Workshop page or requiring a client restart.
         state["headline"] = {**rows[0], "title": "Updated while running", "ticker": "Fresh news", "revision": 2}
@@ -122,6 +128,7 @@ def main():
         wait_for(client, "hub-news", "headline=Updated while running")
         wait_for(client, "hub-notice", "title=News review notice")
         shots.append(str(client.screenshot()))
+        wait_for(client, "hub-notice", "ready=1")
         client.command("ui-key", "return")
         wait_for(client, "hub-notice", "count=0")
         time.sleep(.5)
@@ -130,7 +137,8 @@ def main():
         assert "count=0" in client.inspect("hub-notice")
         assert state["conditional"] > 0
     finally:
-        client.stop()
+        close_window(client.process.pid)
+        client.process.wait(timeout=20)
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
@@ -145,9 +153,10 @@ def main():
         assert "count=0" in offline.inspect("hub-notice")
         shots.append(str(offline.screenshot()))
     finally:
-        offline.stop()
+        close_window(offline.process.pid)
+        offline.process.wait(timeout=20)
     (args.output/"review.json").write_text(json.dumps({"screenshots": shots, "conditional_reads": state["conditional"],
-        "checks": ["ticker", "article scroll", "history pagination", "live update", "notice dismissal", "seen persistence", "offline cache"]}, indent=2))
+        "checks": ["standalone reader at two window sizes", "return to originating page", "ticker", "article scroll", "history pagination", "live update", "notice dismissal", "seen persistence", "offline cache"]}, indent=2))
     print("PASS native ticker, reader, live update, notice and offline-cache review")
 
 

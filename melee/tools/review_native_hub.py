@@ -185,6 +185,7 @@ def main():
             assert source_path.read_bytes() == expected_source
 
             click('nav-6')
+            click('settings-category-3')
             enter('display-name', 'Local Hub Reviewer')
             click('save-profile')
             wait_for(lambda: (data / 'content/hub-profile.txt').exists(), 'profile save')

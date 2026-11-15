@@ -52,6 +52,7 @@ static struct {
     Uint64 started;
     bool playing;
     Uint64 animated_tick;
+    NativeMenuFrame frame;
 } scene;
 
 static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index);
@@ -63,9 +64,9 @@ static float be_float(const u8* p)
     return value;
 }
 
-static void prepare_caption(void)
+static void prepare_caption(unsigned index)
 {
-    scene.caption = runtime_joint(scene.backdrop[1]->hsd_obj, 86);
+    scene.caption = runtime_joint(scene.backdrop[1]->hsd_obj, index);
     HSD_DObj* object = scene.caption->u.dobj;
     HSD_PObj* polygon = object->pobj;
     HSD_VtxDescList* vertices = polygon->verts;
@@ -240,7 +241,7 @@ void nativeMenuScene_Load(void)
     }
     model(&scene.backdrop[0], "MenMainBack_Top");
     model(&scene.backdrop[1], "MenMainPanel_Top");
-    prepare_caption();
+    prepare_caption(86);
     for (unsigned i = 0; i < 7; ++i) {
         model(&scene.ribbons[i], "MenMainCursor_Top");
         prepare_ribbon(i);
@@ -369,34 +370,44 @@ static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index)
     return result;
 }
 
-bool nativeMenuScene_Begin(const char* caption, bool decorated)
+bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame)
 {
     if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return false;
     scene.previous_camera = HSD_CObjGetCurrent();
     HSD_CObj* camera = scene.camera->hsd_obj;
     if (!HSD_CObjSetCurrent(camera)) return false;
     HSD_LObjDeleteCurrentAll(NULL);
-    for (HSD_LObj* light = scene.lights->hsd_obj; light; light = light->next)
+    for (HSD_LObj* light = scene.lights->hsd_obj; light; light = light->next) {
+        // mnmain uses its gold point light for Options (mn_804D4B5C).
+        if (light->flags & LOBJ_POINT)
+            HSD_LObjSetColor(light, frame == NativeMenuFrame_Options ?
+                (GXColor){ 0xF0, 0xC8, 0x5A, 0xFF } : (GXColor){ 255, 255, 255, 255 });
         HSD_LObjAddCurrent(light);
+    }
     HSD_LObjSetupInit(camera);
     HSD_CObjEraseScreen(camera, 1, 1, 1);
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
-    if (!decorated) return true;
+    if (frame == NativeMenuFrame_Bare) return true;
     const Uint64 tick = SDL_GetTicksNS() / 16666667;
-    if (tick != scene.animated_tick) {
+    if (tick != scene.animated_tick || frame != scene.frame) {
         HSD_JObjAnimAll(scene.backdrop[0]->hsd_obj);
         // Main-menu panel: the scrolling decoration and main-page idle track.
         HSD_JObj* panel = scene.backdrop[1]->hsd_obj;
         HSD_JObjReqAnimAll(runtime_joint(panel, 4), tick % 800);
-        HSD_JObjReqAnimAll(runtime_joint(panel, 41), 100 + tick % 100);
+        HSD_JObjReqAnimAll(runtime_joint(panel, 41), (frame == NativeMenuFrame_Options ? 900 : 100) + tick % 100);
         HSD_JObjAnimAll(panel);
+        // Options uses caption joint 84; the main page uses joint 86.
+        // Their authored tracks collapse the inactive caption horizontally.
+        const unsigned caption_index = frame == NativeMenuFrame_Options ? 84 : 86;
+        if (scene.caption != runtime_joint(panel, caption_index)) prepare_caption(caption_index);
         // Replace the baked page caption, keeping its panel and animation.
         for (unsigned i = 82; i <= 86; ++i)
             HSD_JObjSetFlags(runtime_joint(panel, i), JOBJ_HIDDEN);
-        scene.animated_tick = tick;
+        scene.animated_tick = tick; scene.frame = frame;
     }
     Mtx view; HSD_CObjGetViewingMtx(camera, view);
     HSD_JObjDispAll(scene.backdrop[0]->hsd_obj, view, HSD_TRSP_ALL, 0);
+    if (frame == NativeMenuFrame_Backdrop) return true;
     HSD_JObjDispAll(scene.backdrop[1]->hsd_obj, view, HSD_TRSP_ALL, 0);
     if (caption && *caption) {
         Mtx model, text_view;
@@ -474,6 +485,11 @@ void nativeMenuScene_Inspect(void)
         (unsigned) scene.assets.import.record_count, scene.assets.import.arena_used,
         scene.ribbons[0] != NULL, scene.camera != NULL);
     if (!scene.ribbons[0]) return;
+    for (unsigned i = 82; i <= 86; ++i) {
+        HSD_JObj* j = runtime_joint(scene.backdrop[1]->hsd_obj,i); HSD_JObjSetupMatrix(j);
+        fprintf(stderr,"[hub-inspect] menu-caption joint=%u scale=%f,%f pos=%f,%f alpha=%f\n",
+            i,j->scale.x,j->scale.y,j->translate.x,j->translate.y,j->u.dobj->mobj->mat->alpha);
+    }
     Vec3 eye; HSD_CObjGetEyePosition(scene.camera->hsd_obj, &eye);
     fprintf(stderr, "[hub-inspect] camera-eye=%.4f,%.4f,%.4f\n", eye.x, eye.y, eye.z);
     HSD_JObj* root = scene.ribbons[0]->hsd_obj;

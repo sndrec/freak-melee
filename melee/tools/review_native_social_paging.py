@@ -40,6 +40,7 @@ def main():
         # The preceding invitation review intentionally signs this account out.
         # Its original fixture session is revoked too; use its retained key.
         client.click('nav-6')
+        client.click('settings-category-3')
         client.click('settings-account')
         account = wait(r'busy=0 signed-in=[01]', tag='hub-account')
         if 'signed-in=0' in account:

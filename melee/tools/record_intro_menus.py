@@ -35,7 +35,7 @@ def main():
                     c.click('create-clone');time.sleep(2)
                     c.screenshot()
             else:
-                c.click('nav-6');c.element('settings-appearances');time.sleep(.8)
+                c.click('nav-6');c.click('settings-category-2');c.element('settings-appearances');time.sleep(.8)
                 with NativeVideo(c,root/'appearance-setting.mp4'):
                     time.sleep(1)
                     c.click('settings-appearances');time.sleep(1.8)

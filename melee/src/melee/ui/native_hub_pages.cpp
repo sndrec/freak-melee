@@ -4,6 +4,7 @@
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
 #include "native_hub_controls.h"
+#include "native_hub_settings.h"
 #include "native_hub_account.h"
 #include "native_hub_social.h"
 #include "native_hub_startup.h"
@@ -291,31 +292,6 @@ namespace {
         if (*status) nativeMenuPaint_Text(status, 181, 396, room && unconfirmed ? 325 : 416, 8, muted);
         if (room && unconfirmed) nativeHub_Button("retry-lobby-chat", "Retry", 536, 393, 69, 14, HubAction::RetryRoomChat, 0, false, ready);
     }
-    void settings()
-    {
-        nativeHub_Panel(175, 116, 430, 256);
-        nativeHub_Button("controls", "Controls & bindings", 193, 135, 187, 36,
-                         HubAction::Controls, 0, true, nativeHome_IsSelection());
-        nativeHub_Button("settings-account", "Online account", 391, 135, 194, 36,
-                         HubAction::Account);
-        nativeHub_Button("settings-appearances",nativePresentation_CustomModels()?"Custom fighter models: Show":"Custom fighter models: Neutral",
-                         193,175,392,18,HubAction::ToggleCustomModels);
-        nativeHub_Button("settings-rules", "Match rules", 193, 310, 187, 31,
-                         HubAction::Rules, 0, false, nativeHome_IsSelection());
-        nativeHub_Button("settings-costumes", "Costumes", 391, 310, 194, 31,
-                         HubAction::Costumes, 0, false, nativeHome_IsSelection());
-        nativeHub_Button("settings-packages", "Installed packages", 193, 347, 187, 21,
-                         HubAction::Packages, 0, false, nativeHome_IsSelection());
-        nativeHub_Button("settings-startup", "First startup", 391, 347, 194, 21,
-                         HubAction::Startup, 0, false, nativeHome_IsSelection());
-        nativeMenuPaint_Text("Display name", 194, 196, 360, 10, gold);
-        nativeHub_Field("display-name", hub.name, 193, 216, 392, 27,
-                        HubAction::FieldName);
-        nativeHub_Button("edit-profile", "Your profile", 193, 264, 187, 31,
-                         HubAction::Profile);
-        nativeHub_Button("save-profile", "Save settings", 391, 264, 194, 31,
-                         HubAction::SaveProfile, 0, true, *hub.name);
-    }
     void profile()
     {
         nativeHub_Panel(175, 118, 430, 240);
@@ -397,7 +373,11 @@ void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
     case NativeHubPage_Controls:
-        nativeHubControls_Render(); break;
+    case NativeHubPage_Video:
+    case NativeHubPage_Audio:
+    case NativeHubPage_Game:
+    case NativeHubPage_OnlineSettings:
+        nativeHubSettings_Render(page); break;
     case NativeHubPage_News:
         nativeHubNews_Render(); break;
     case NativeHubPage_Portrait:
@@ -435,7 +415,7 @@ void nativeHub_RenderPage(NativeHubPage page)
         nativeHubSocial_Render(page);
         break;
     case NativeHubPage_Settings:
-        settings();
+        nativeHubSettings_Render(page);
         break;
     case NativeHubPage_Profile:
         profile();

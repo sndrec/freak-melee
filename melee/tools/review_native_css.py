@@ -164,6 +164,7 @@ def main():
             # the game, including the close button inside the CSS viewport.
             click('play-workshop')
             click('nav-6')
+            click('settings-category-2')
             click('settings-costumes')
             click('costume-close')
             click('settings-rules')

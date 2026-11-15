@@ -6,6 +6,7 @@
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
 #include "native_hub_controls.h"
+#include "native_hub_settings.h"
 #include "native_css_chat.h"
 #include "native_hub_account.h"
 #include "native_hub_notice.h"
@@ -60,7 +61,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -551,6 +552,7 @@ void nativeHub_Activate(HubAction action, int value)
     if (nativeHubAccount_Activate(action,value)) return;
     if (nativeHubSocial_Activate(action,value)) return;
     if (nativeHubNews_Activate(action,value)) return;
+    if (nativeHubSettings_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
             unsigned(action) - unsigned(HubAction::QuickPlay)));
@@ -1022,6 +1024,7 @@ extern "C" void nativeHub_Tick(void)
     if (!hub.initialized && selection) {
         const bool has_profile = load_profile();
         nativeHubControls_Load();
+        nativeHubSettings_Load();
         std::snprintf(hub.public_name, sizeof(hub.public_name), "%s",
                       hub.name);
         reload_catalog();
@@ -1242,14 +1245,19 @@ extern "C" void nativeHub_Draw(void)
     const char* caption = nativeHubStartup.active ? "First startup" : nativeHubPortrait_Editing() ? "Portrait & CSS tile" : hub.page == NativeHubPage_Profile
         ? (hub.profile_self ? hub.name : hub.viewed_name)
         : page_names[unsigned(hub.page)];
-    if (!nativeMenuScene_Begin(caption, !nativeHubStartup.active && !nativeHubPortrait_Editing())) return;
+    const bool news_page = hub.page == NativeHubPage_News;
+    const bool settings_page = nativeHubSettings_Page(hub.page);
+    const bool standalone = news_page || settings_page;
+    NativeMenuFrame frame = nativeHubStartup.active || nativeHubPortrait_Editing() ? NativeMenuFrame_Bare
+        : news_page ? NativeMenuFrame_Backdrop : settings_page ? NativeMenuFrame_Options : NativeMenuFrame_Hub;
+    if (!nativeMenuScene_Begin(caption,frame)) return;
     if (nativeHubStartup.active || nativeHubPortrait_Editing()) nativeMenuScenery_Draw();
     Mtx canvas; Mtx44 projection;
     nativeMenuScene_View(false, false, canvas, projection);
     GXSetProjection(projection, GX_PERSPECTIVE);
     nativeMenuPaint_Begin(canvas);
     hub.region_count = 0;
-    for (unsigned i = 0; !nativeHubStartup.active && !nativeHubPortrait_Editing() && i < 7; ++i) {
+    for (unsigned i = 0; !nativeHubStartup.active && !nativeHubPortrait_Editing() && !standalone && i < 7; ++i) {
         float y = 88 + i * 38;
         bool selected = unsigned(hub.page) == i ||
             (hub.page == NativeHubPage_Controls && i == NativeHubPage_Settings) ||
@@ -1280,14 +1288,14 @@ extern "C" void nativeHub_Draw(void)
         hub.passive_page = false;
         nativeMenuPaint_Begin(canvas);
     } else nativeHub_RenderPage(hub.page);
-    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation)
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation && !standalone)
         nativeHubNews_Ticker();
     if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
     else if (!nativeHubPortrait_Editing() && SDL_GetTicks() < hub.notice_until && *hub.notice)
-        nativeMenuPaint_Text(hub.notice, 175, 414, 425, 11, white);
+        nativeMenuPaint_Text(hub.notice, standalone ? 40 : 175, standalone ? 470 : 414, standalone ? 560 : 425, 11, white);
     else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page)))
         nativeMenuPaint_Text(nativeHubAccount_Status(), 175, 414, 425, 11, white);
-    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation)
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation && !news_page)
         nativeHub_RenderSession();
     nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
@@ -1541,7 +1549,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_Controls || nativeHubStartup.active) {
+        page > NativeHubPage_OnlineSettings || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;
@@ -1582,6 +1590,7 @@ extern "C" void nativeHub_Inspect(const char* id)
             std::fprintf(stderr, "[hub-person] room=%u peer=%s account=%s\n", i, room->participants[i].peer_id, room->participants[i].account_handle);
         return;
     }
+    if (!std::strcmp(id, "client-options")) { nativeHubSettings_Inspect(); return; }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }

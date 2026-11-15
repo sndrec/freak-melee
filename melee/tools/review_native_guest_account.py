@@ -31,6 +31,7 @@ def main():
 
     def sign_in(client):
         client.click('nav-6')
+        client.click('settings-category-3')
         client.click('settings-account')
         state = wait(client, 'hub-account', r'busy=0 signed-in=[01]')
         if 'signed-in=0' in state:
@@ -96,7 +97,7 @@ def main():
         wait(b, 'hub-social', r'busy=0.*opened=1.*kind=room_invite')
         screenshots.append(str(b.screenshot()))
         checks.append('The newly attached host can send a verified lobby invitation without leaving')
-        a.click('nav-6'); a.click('settings-account')
+        a.click('nav-6'); a.click('settings-category-3'); a.click('settings-account')
         a.click('account-logout'); a.click('account-confirm')
         wait(a, 'hub-account', r'busy=0 signed-in=0')
         wait(b, 'hub-people', r'room-count=1')

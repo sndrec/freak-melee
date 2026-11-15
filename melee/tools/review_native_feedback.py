@@ -13,6 +13,7 @@ import time
 
 from PIL import Image
 from review_native_css_room import Client
+from review_native_release import close_window
 
 
 def wait_visible(client, name, timeout=30):
@@ -172,8 +173,9 @@ def main():
         result.update(status="FAIL", error=str(error))
         raise
     finally:
-        if client:
-            client.stop()
+        if client and client.process.poll() is None:
+            close_window(client.process.pid)
+            client.process.wait(timeout=20)
         server.shutdown()
         if previous is None:
             os.environ.pop("FREAK_MELEE_COMMUNITY_ENDPOINT", None)

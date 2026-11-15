@@ -157,7 +157,7 @@ def main():
         with Image.open(project / 'portrait.png') as picture:
             assert picture.size == (464, 248)
         checks.append('Editing the tile name changes the capture aspect ratio and preserves the independently edited player-card portrait')
-        client.click('nav-6'); client.click('settings-startup'); startup(0)
+        client.click('nav-6');client.click('settings-category-2'); client.click('settings-startup'); startup(0)
         checks.append('Completed setup stays completed on restart and can be rerun from Settings')
         (output / 'receipt.json').write_text(json.dumps({
             'checks': checks, 'screenshots': screens,

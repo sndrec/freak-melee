@@ -85,7 +85,7 @@ def main():
         # downloaded by the independent provisional-selection cache.
         receiver.click('play-ready')
         wait(lambda: '[css-selection] practice' in receiver.inspect('css-selection'), 'receiver practice')
-        sender.tap('b', 40); sender.click('nav-6'); sender.click('settings-packages')
+        sender.tap('b', 40); sender.click('nav-6');sender.click('settings-category-2'); sender.click('settings-packages')
         sender.click('collection-recipient'); sender.command('ui-key', 'down'); sender.command('ui-key', 'enter')
         assert re.search(r'\[ui-inspect-value\] collection-recipient: .*value=P[^ ]+', sender.inspect('collection-recipient')), 'Recipient was not selected'
         listing = cli(sender.data/'content', 'sender-list', 'list')

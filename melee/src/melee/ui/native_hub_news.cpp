@@ -37,6 +37,7 @@ namespace {
     Line lines[32001];
     char source_body[128001];
     NativeNewsText article_text;
+    constexpr float body_left = 55, body_width = 520, body_top = 176, body_bottom = 383;
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
 
     void date(uint64_t stamp, char (&output)[32])
@@ -90,7 +91,7 @@ namespace {
                     const unsigned next = character(body, end), length = next - start;
                     if (length >= sizeof(sample)) break;
                     std::memcpy(sample, body + start, length); sample[length] = 0;
-                    if (end > start && nativeMenuFont_Width(NativeMenuFont_Notice, sample, float(size)) > 386 - indent) {
+                    if (end > start && nativeMenuFont_Width(NativeMenuFont_Notice, sample, float(size)) > body_width - indent) {
                         if (space > start) end = space;
                         break;
                     }
@@ -109,7 +110,7 @@ namespace {
     {
         scroll_total = count; scroll_shown = shown;
         if (count <= shown) return;
-        const float top = 174, height = 178;
+        const float top = body_top, height = body_bottom - body_top;
         nativeMenuPaint_Round(590, top, 5, height, 2, 0x70646D88);
         const float thumb = std::max(10.f, height * shown / count);
         nativeMenuPaint_Round(590, top + (height - thumb) * offset / (count - shown), 5, thumb, 2, gold);
@@ -117,7 +118,7 @@ namespace {
     }
     void drag_scroll()
     {
-        const float amount = std::clamp((hub.pointer_y - 174) / 178, 0.f, 1.f);
+        const float amount = std::clamp((hub.pointer_y - body_top) / (body_bottom - body_top), 0.f, 1.f);
         const unsigned offset = unsigned(std::round(amount * (scroll_total > scroll_shown ? scroll_total - scroll_shown : 0)));
         if (article_open) article_offset = offset;
         else history_offset = offset;
@@ -190,27 +191,29 @@ void nativeHubNews_Ticker()
 }
 void nativeHubNews_Render()
 {
-    nativeHub_Panel(175, 97, 430, 302);
+    nativeMenuPaint_Text("News", 45, 45, 540, 30, gold, NativeMenuFont_MenuCaption);
+    nativeHub_Panel(40, 100, 560, 294);
+    nativeHub_Button("news-back", "< Back", 40, 407, 110, 28, HubAction::Back);
     if (article_open) {
         const bool valid = community.article.available && !std::strcmp(selected_article, community.article.headline.id);
-        nativeHub_Button("news-history", "News history", 188, 108, 104, 22, HubAction::NewsHistory);
-        nativeHub_Button("news-refresh", "Refresh", 511, 108, 79, 22, HubAction::NewsRefresh, 0, false, !community.busy);
+        nativeHub_Button("news-history", "News history", 55, 110, 130, 28, HubAction::NewsHistory);
+        nativeHub_Button("news-refresh", "Refresh", 490, 110, 95, 28, HubAction::NewsRefresh, 0, false, !community.busy);
         if (!valid) {
             nativeMenuPaint_Text((community.busy || awaiting_article) ? "Loading article..." : *community.article.error ? community.article.error : "Choose an article.",
-                193, 168, 390, 12, muted);
+                55, 180, 520, 12, muted);
             return;
         }
-        nativeMenuPaint_Text(community.article.headline.title, 191, 139, 395, 17, gold, NativeMenuFont_MenuOption);
+        nativeMenuPaint_Text(community.article.headline.title, 55, 144, 520, 17, gold, NativeMenuFont_MenuOption);
         char published[32]{}; date(community.article.headline.published_at, published);
-        nativeMenuPaint_Text(published, 193, 163, 385, 8, muted);
+        nativeMenuPaint_Text(published, 55, 164, 520, 8, muted);
         layout();
         article_offset = std::min(article_offset, line_count ? line_count - 1 : 0);
-        float y = 184; unsigned shown = 0, link_index = 0;
+        float y = body_top; unsigned shown = 0, link_index = 0;
         for (unsigned i = article_offset; i < line_count; ++i) {
             const auto& row = lines[i];
-            if (y + row.size > 355) break;
+            if (y + row.size > body_bottom) break;
             char text[512]; std::memcpy(text, article_text.body + row.start, row.length); text[row.length] = 0;
-            nativeMenuPaint_Text(text, 193 + row.indent, y, 386 - row.indent, row.size,
+            nativeMenuPaint_Text(text, body_left + row.indent, y, body_width - row.indent, row.size,
                 row.size > 10 ? gold : 0xF2ECEDFF);
             while (link_index < article_text.link_count &&
                 article_text.links[link_index].start + article_text.links[link_index].length <= row.start) ++link_index;
@@ -221,7 +224,7 @@ void nativeHubNews_Render()
                 if (end <= start) continue;
                 char prefix[512]; std::memcpy(prefix, text, start-row.start); prefix[start-row.start] = 0;
                 char label[512]; std::memcpy(label, article_text.body + start, end-start); label[end-start] = 0;
-                const float x = 193 + row.indent + nativeMenuFont_Width(NativeMenuFont_Notice, prefix, row.size);
+                const float x = body_left + row.indent + nativeMenuFont_Width(NativeMenuFont_Notice, prefix, row.size);
                 const float width = nativeMenuFont_Width(NativeMenuFont_Notice, label, row.size);
                 const bool hover = nativeHub_Hover(x, y-2, width, row.size+5);
                 nativeMenuPaint_Text(label, x, y, width+1, row.size, hover ? gold : 0xA6DCEAFF);
@@ -232,31 +235,31 @@ void nativeHubNews_Render()
             y += row.size + 5; ++shown;
         }
         scrollbar(line_count, shown, article_offset);
-        nativeHub_Button("news-up", "Up", 475, 367, 53, 21, HubAction::NewsScroll, -5, false, article_offset != 0);
-        nativeHub_Button("news-down", "Down", 535, 367, 53, 21, HubAction::NewsScroll, 5, false, article_offset + shown < line_count);
-        if (*community.article.error) nativeMenuPaint_Text("Offline copy", 193, 375, 270, 8, muted);
+        nativeHub_Button("news-up", "Up", 456, 407, 60, 28, HubAction::NewsScroll, -5, false, article_offset != 0);
+        nativeHub_Button("news-down", "Down", 525, 407, 75, 28, HubAction::NewsScroll, 5, false, article_offset + shown < line_count);
+        if (*community.article.error) nativeMenuPaint_Text("Offline copy", 170, 418, 270, 9, muted);
         return;
     }
-    nativeMenuPaint_Text("News & updates", 191, 110, 275, 20, gold, NativeMenuFont_MenuOption);
-    nativeHub_Button("news-latest", "Latest", 512, 108, 78, 23, HubAction::NewsLatest, 0, false, !community.busy);
+    nativeMenuPaint_Text("News history", 55, 116, 390, 18, gold, NativeMenuFont_MenuOption);
+    nativeHub_Button("news-latest", "Latest", 490, 110, 95, 28, HubAction::NewsLatest, 0, false, !community.busy);
     if (loading_page || !community.page.available) {
-        nativeMenuPaint_Text(community.busy ? "Loading news..." : *community.page.error ? community.page.error : "News is unavailable.", 193, 161, 390, 12, muted);
+        nativeMenuPaint_Text(community.busy ? "Loading news..." : *community.page.error ? community.page.error : "News is unavailable.", 55, 180, 520, 12, muted);
         return;
     }
     const unsigned end = std::min(community.page.count, history_offset + 8);
     for (unsigned i = history_offset; i < end; ++i) {
         const auto& row = community.page.entries[i];
-        const float y = 146 + (i - history_offset) * 25;
+        const float y = 150 + (i - history_offset) * 29;
         char published[32]{}; date(row.published_at, published);
-        nativeHub_Button("news-article", row.title, 190, y, 315, 23, HubAction::NewsArticle, int(i));
-        nativeMenuPaint_Text(published, 514, y + 9, 73, 7, muted);
+        nativeHub_Button("news-article", row.title, 55, y, 423, 26, HubAction::NewsArticle, int(i));
+        nativeMenuPaint_Text(published, 489, y + 9, 94, 8, muted);
     }
-    if (!community.page.count) nativeMenuPaint_Text("No news yet.", 193, 162, 390, 13, muted);
-    if (*community.page.error) nativeMenuPaint_Text("Offline copy", 193, 350, 270, 8, muted);
+    if (!community.page.count) nativeMenuPaint_Text("No news yet.", 55, 180, 520, 13, muted);
+    if (*community.page.error) nativeMenuPaint_Text("Offline copy", 170, 418, 140, 9, muted);
     scrollbar(community.page.count, 8, history_offset);
-    nativeHub_Button("news-up", "Up", 190, 366, 54, 22, HubAction::NewsScroll, -5, false, history_offset != 0);
-    nativeHub_Button("news-down", "Down", 252, 366, 54, 22, HubAction::NewsScroll, 5, false, end < community.page.count);
-    nativeHub_Button("news-older", "Older news", 476, 366, 112, 22, HubAction::NewsOlder, 0, false, !community.busy && *community.page.next);
+    nativeHub_Button("news-up", "Up", 331, 407, 60, 28, HubAction::NewsScroll, -5, false, history_offset != 0);
+    nativeHub_Button("news-down", "Down", 400, 407, 69, 28, HubAction::NewsScroll, 5, false, end < community.page.count);
+    nativeHub_Button("news-older", "Older news", 478, 407, 122, 28, HubAction::NewsOlder, 0, false, !community.busy && *community.page.next);
 }
 bool nativeHubNews_Activate(HubAction action, int value)
 {

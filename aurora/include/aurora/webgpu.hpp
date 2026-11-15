@@ -13,7 +13,4 @@ wgpu::Surface create_window_surface(const wgpu::Instance& instance, SDL_Window* 
 /// Selects a presentation mode from the surface's capabilities matching the current vsync mode.
 wgpu::PresentMode select_present_mode(const wgpu::SurfaceCapabilities& capabilities) noexcept;
 
-/// Returns the application's current vsync mode.
-bool vsync_enabled() noexcept;
-
 } // namespace aurora::webgpu

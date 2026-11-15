@@ -44,19 +44,19 @@ bool nativeHubControls_SetPlayers(unsigned count)
 
 void nativeHubControls_Render()
 {
-    nativeHub_Button("controls-back", "< Settings", 175, 112, 130, 26, HubAction::Settings);
-    nativeMenuPaint_Text("Players on this PC", 193, 175, 380, 18, 0xE5C361FF,
+    nativeHub_Button("controls-back", "< Settings", 40, 112, 130, 26, HubAction::Settings);
+    nativeMenuPaint_Text("Players on this PC", 65, 175, 518, 18, 0xE5C361FF,
                          NativeMenuFont_MenuOption);
     for (unsigned count = 1; count <= 4; ++count) {
         char label[2] = {char('0' + count), 0}, id[32];
         std::snprintf(id, sizeof(id), "local-players-%u", count);
-        nativeHub_Button(id, label, 193 + (count - 1) * 91, 214, 77, 32,
+        nativeHub_Button(id, label, 65 + (count - 1) * 133, 214, 119, 32,
                          HubAction::LocalPlayers, count, unsigned(hub.local_players) == count);
     }
-    nativeMenuPaint_Text("Used when joining lobbies and Quick Play.", 193, 260, 380, 10);
+    nativeMenuPaint_Text("Used when joining lobbies and Quick Play.", 65, 260, 518, 10);
     const auto state = nativeOnlineSession_State();
     if (state != NativeLobbySessionState_Disconnected && state != NativeLobbySessionState_Failed)
-        nativeMenuPaint_Text("Changes apply the next time you join.", 193, 280, 380, 10);
-    nativeHub_Button("edit-controls", "Player profiles & bindings", 193, 325, 365, 35,
+        nativeMenuPaint_Text("Changes apply the next time you join.", 65, 280, 518, 10);
+    nativeHub_Button("edit-controls", "Player profiles & bindings", 65, 325, 518, 35,
                      HubAction::EditControls, 0, false, nativeHome_IsSelection());
 }

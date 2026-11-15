@@ -55,6 +55,7 @@ def main():
             client = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
                 output / 'client', 'Twilight', window_size=(1280, 960))
             client.click('nav-6')
+            client.click('settings-category-3')
             client.element('settings-account')
             screenshots.append(str(client.screenshot()))
             client.click('settings-account')
@@ -86,6 +87,7 @@ def main():
             screenshots.append(str(client.screenshot()))
             checks.append('Recovery input is masked and excluded from font diagnostics; invalid codes are rejected')
             client.click('nav-6')
+            client.click('settings-category-3')
             client.element('settings-account')
             client.click('settings-account')
             client.element('account-login-mode')

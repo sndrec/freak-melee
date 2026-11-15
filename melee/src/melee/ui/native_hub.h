@@ -27,7 +27,8 @@ typedef enum NativeHubPage {
     NativeHubPage_Startup,
     NativeHubPage_Portrait,
     NativeHubPage_News,
-    NativeHubPage_Controls
+    NativeHubPage_Controls,
+    NativeHubPage_Video, NativeHubPage_Audio, NativeHubPage_Game, NativeHubPage_OnlineSettings
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

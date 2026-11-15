@@ -86,7 +86,7 @@ is pending.
 
 - [x] Pin 1: Move Players on this PC into one persistent Controls setting,
   shared by lobby and Quick Play setup. Remove the duplicate lobby selectors.
-- [ ] Pin 2: Move the ticker's right fade boundary farther left to keep emerging
+- [x] Pin 2: Move the ticker's right fade boundary farther left to keep emerging
   text within the frame's usable interior.
 
 ## Character select and portraits
@@ -119,7 +119,7 @@ is pending.
 
 ### `4a8f3006-0291-465a-ae8e-dfdfdf919fd6` — settings categories
 
-- [ ] Pin 1: Organize top-level Settings by broad categories such as Video,
+- [x] Pin 1: Organize top-level Settings by broad categories such as Video,
   Audio, Game, Online and Controls. Place the existing settings under the
   appropriate categories, keeping their functionality discoverable.
 
@@ -132,7 +132,7 @@ is pending.
 
 ### `b1849c74-ba9f-47ee-a47c-b8b9668ec15c` — News screen
 
-- [ ] Pin 1: Open News as its own menu outside the hub frame/navigation, similar
+- [x] Pin 1: Open News as its own menu outside the hub frame/navigation, similar
   in separation to First Startup. Preserve article history, reading controls
   and a clear return path.
 
@@ -155,7 +155,7 @@ is pending.
 
 ### `72281e7c-a55a-4fa3-9bf3-7a34f2071b3d` — inbox spacing
 
-- [ ] Pin 1: Raise the inbox's bottom buttons clear of the frame. Raise the
+- [x] Pin 1: Raise the inbox's bottom buttons clear of the frame. Raise the
   letter/unread count into the space between the list and the frame.
 
 ### Redundant subtitles — three separate submissions
@@ -174,13 +174,13 @@ the five-pin lobby report. Keep useful operation results and error messages.
 Current implementation is recorded in `native_news_feedback_plan.md` and commits
 `4a28ff8` and `30140f4`. Verify the current paths rather than reimplementing them.
 
-- [ ] Pin 1: Bottom description/controller-help panel is removed.
-- [ ] Pin 2: Ticker has no NEWS badge, scrolls right to left and fades at both
+- [x] Pin 1: Bottom description/controller-help panel is removed.
+- [x] Pin 2: Ticker has no NEWS badge, scrolls right to left and fades at both
   edges, using the smaller gold italic menu-caption face.
-- [ ] Pin 3: Confirm that the header font referenced by the pin is the ticker's
+- [x] Pin 3: Confirm that the header font referenced by the pin is the ticker's
   font reference. Preserve that face in the resulting ticker.
-- [ ] Pin 4: Long F2 notes remain visible and scrollable while editing.
-- [ ] Pin 5: Button outlines use a separate pass and labels are centered without
+- [x] Pin 4: Long F2 notes remain visible and scrollable while editing.
+- [x] Pin 5: Button outlines use a separate pass and labels are centered without
   the old atlas-padding offset.
 
 ## Verification and report removal
@@ -334,3 +334,55 @@ absent. Six submissions remain in the fixed batch, covering ten pinned notes.
 | --- | --- |
 | `9feef587-6b44-4359-945a-f9f66d539859` | Custom portrait capture, saved 136x188 image, original-quad sizing in preview and CSS. |
 | `38278921-d4e2-4d4d-b6b6-21b41c8c3ae1` | Actual P1 preview, separate animation/frame/camera choices, black stock-style shadow and paired capture. |
+
+
+### Categorized Options, standalone News and remaining hub review
+
+Settings now opens a separate Options page with Video, Audio, Game, Online and
+Controls. The original Options idle track selects the gold frame, its point-light
+color is taken from mnmain's Options palette, and the title uses the original
+Options caption joint. Category buttons use the original width-adjustable
+ribbons. Video exposes display mode and VSync; Audio exposes stereo/mono and
+music/effects balance, saved per installation. Existing settings are grouped
+under their corresponding categories. Players on this PC stays in Controls.
+
+News has its own full-width reader over the original animated menu backdrop,
+without the hub frame, navigation ribbons, ticker or session strip. It keeps
+article scrolling, links, history, pagination and return to the originating page.
+The persisted offline cache covers the headline feed and dismissed notices;
+article bodies still require the service after a client restart.
+
+The native profile/input/binding/calibration replacement remains open under
+`88ed16a2-d996-41e7-bc97-5e02e95ab8a7`. Profile editing, match-rule editing,
+costume management and package management still open their existing desktop
+screens from their categories. These are remaining work, not a completed native
+settings migration.
+
+Verification, all with isolated hidden and muted clients:
+
+- `.local/settings-feedback-review-2/review.json`: five categories, held A
+  toggling once, held B returning one level, audio balance, local-player count,
+  return to hub, restart persistence and screenshots at 1440x900 and 960x540.
+  The screenshots were compared with the original Options/Rumble/Sound captures
+  in `.local/retail-options-reference-1/`. Fullscreen switching was not exercised
+  automatically, to avoid disturbing the user's desktop.
+- `.local/news-feedback-review-3/review.json`: standalone reader at both sizes,
+  article scroll, history pagination, return to Workshop, live feed update,
+  notice delivery/dismissal, seen persistence and offline headline cache.
+- `.local/footer-feedback-review-2/review.json`: eight populated received-letter
+  rows, unread count, next/previous pages, both window sizes and a long ticker
+  sampled at multiple offsets. The footer/count sit between the list and frame;
+  the ticker fades inside the frame and uses the header's smaller gold face.
+  Its local HTTP fixture supplies isolated test account/mail data; this check
+  makes no authentication-service claim.
+- `.local/five-point-feedback-review-1/review.json` and `note-bubble.png`:
+  long note scrolling follows the caret, Home/End navigation, editing after
+  resize, pin removal, immutable F2 attachments and upload retry. The final
+  line remains visible. Native screenshots confirm removal of the old hub
+  description/help bar and centered, readable button lettering. The font
+  renderer draws all black coverage before all glyph fills, so neighboring
+  outlines cannot cover earlier fills. Earlier implementation commits are
+  `30140f4` and `4a28ff8`; this batch verifies their current paths.
+
+The Release client built successfully; the two CSS checks and eight graphics
+recording/presented-capture checks passed. The public updater is unchanged.
