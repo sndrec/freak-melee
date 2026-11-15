@@ -12,9 +12,10 @@ public. New checkouts need the private build inputs described in the README.
 - The supplied startup music is an ignored local build input. The owner
   confirmed distribution permission. Official updater builds can package it;
   source builds without it play the original ISO menu track.
-- Published branch and tag history is being cleaned of the former OTF inputs
-  and startup HPS. Old pull-request references and cached views require GitHub
-  action. A support request for the retained PR reference was submitted.
+- A fresh public clone confirms that published branch and tag history contains
+  neither the former OTF inputs nor the startup HPS. Old pull-request references
+  and cached views require GitHub action. A support request for the retained PR
+  reference was submitted.
 - Commit attribution, maintainer email addresses and historical local paths
   are retained at the owner's request. Their presence is intentional.
 
