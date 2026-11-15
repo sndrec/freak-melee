@@ -229,3 +229,26 @@ creation. Native screenshots were checked at 1440x900 and 960x540, including a
 The feedback tool now supports explicit single-report deletion with a local
 retry receipt. An isolated test verified retry after an interrupted attachment
 delete and rejection of attachment keys belonging to another report.
+
+Implementation commit: `744daa6`. The following submissions were fully verified
+and removed on 2026-11-15. Each has a successful `removal.json` receipt in its
+local capture directory, including the original attachment keys. Both stored
+attachments were deleted. A fresh hosted query confirmed all eight IDs absent;
+11 submissions remain. See `.local/ui-feedback-removal.log` and
+`.local/feedback-review-2026-11-15/remaining.json`.
+
+| Removed submission | Verified result |
+| --- | --- |
+| `a91be492-7eed-400a-b38b-45c3af0005e8` | Persistent session strip in hub pages, correct return/leave actions and removed top-right controls. |
+| `2c36642f-fa8f-4a1a-9be6-3bceb5e7405e` | Ordinary lobby browser while Quick Play is idle and searching. |
+| `32b76f1e-cc08-4f2e-8ed3-7dfa9a5f1c20` | Floating italic mode choices, hover highlight and controller A activation. |
+| `10ad546f-a635-4baa-bac2-13de5a4e81f3` | Larger plain player names, including a compressed 31-character name at narrow size. |
+| `112f430f-d764-4fdd-af3b-8cbd73cc7c86` | Connected chat has no overlapping Connected label; delivery and error statuses remain. |
+| `0941b5e8-0448-4933-b1ac-852afc72ffa4` | Lobbies subtitle removed. |
+| `efff1a7e-6b06-40d7-9aaa-08e1aeb15662` | Workshop subtitle removed. |
+| `1e4ec68e-9753-41d8-955a-e4d46e1e4abd` | Settings subtitle removed. |
+
+The larger CSS/lobby layout, portrait editing, native settings migration,
+standalone News, populated inbox/ticker review and earlier F2 review remain
+open. Creating a lobby already enters CSS, but the old hub lobby control cluster
+is retained until the replacement CSS/rules controls are implemented.
