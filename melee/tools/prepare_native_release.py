@@ -78,10 +78,10 @@ def main() -> None:
     scripts = Path(__file__).resolve().parent
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
-    payload.append((scripts.parent / "licenses/yyjson.txt", "licenses/yyjson.txt"))
-    payload.append((scripts.parent / "licenses/monocypher.txt", "licenses/monocypher.txt"))
-    payload.append((scripts.parent / "licenses/SDL3.txt", "licenses/SDL3.txt"))
-    payload.append((scripts.parent / "licenses/libusb.txt", "licenses/libusb.txt"))
+    notices = scripts.parent / "licenses"
+    for notice in sorted(notices.rglob("*")):
+        if notice.is_file():
+            payload.append((notice, "licenses/" + notice.relative_to(notices).as_posix()))
     payload.append((scripts.parents[1] / "LICENSE", "licenses/freak-melee.txt"))
     payload.append((scripts.parents[1] / "LICENSING.md", "licenses/sources.md"))
     payload.append((scripts.parents[1] / "aurora/LICENSE", "licenses/aurora.txt"))

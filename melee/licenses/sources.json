@@ -1,0 +1,106 @@
+[
+  {
+    "file": "abseil.txt",
+    "repository": "https://github.com/abseil/abseil-cpp",
+    "revision": "20240722.0",
+    "source": "LICENSE",
+    "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747"
+  },
+  {
+    "file": "fmt.txt",
+    "repository": "https://github.com/fmtlib/fmt",
+    "revision": "12.1.0",
+    "source": "LICENSE",
+    "sha256": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8"
+  },
+  {
+    "file": "freetype.txt",
+    "repository": "https://github.com/freetype/freetype",
+    "revision": "2.14.3",
+    "source": "docs/FTL.TXT",
+    "sha256": "5a5ee54c5001bbad1cdc1a57cc3dd4c42199b2da09d39c7ee41fab002d02967f"
+  },
+  {
+    "file": "freetype-licenses.txt",
+    "repository": "https://github.com/freetype/freetype",
+    "revision": "2.14.3",
+    "source": "LICENSE.TXT",
+    "sha256": "bd36c8b474855fa294c2ec5c184544478ef3720aad37d65a6296a4f264fd2d3b"
+  },
+  {
+    "file": "imgui.txt",
+    "repository": "https://github.com/ocornut/imgui",
+    "revision": "v1.91.9b-docking",
+    "source": "LICENSE.txt",
+    "sha256": "c80c5789748d955c4a650562baa0d750494e2c7128c2ca66aaebe2e3c4e198bf"
+  },
+  {
+    "file": "libjuice.txt",
+    "repository": "https://github.com/paullouisageneau/libjuice",
+    "revision": "3c40a3545b6b1b62c7adee7f8f2bd58aa290afd6",
+    "source": "LICENSE",
+    "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+  },
+  {
+    "file": "libpng.txt",
+    "repository": "https://github.com/pnggroup/libpng",
+    "revision": "v1.6.58",
+    "source": "LICENSE",
+    "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+  },
+  {
+    "file": "rmlui.txt",
+    "repository": "https://github.com/mikke89/RmlUi",
+    "revision": "0ae381e00d7426762bb5ed897973366358b16642",
+    "source": "LICENSE.txt",
+    "sha256": "64c049f65ec810b805457dc1f24745002203f919ea5a16b6fcd7ca5f45ea298e"
+  },
+  {
+    "file": "tracy.txt",
+    "repository": "https://github.com/wolfpld/tracy",
+    "revision": "6789e7d6f9a65ec98926b602097a33a9676d2606",
+    "source": "LICENSE",
+    "sha256": "27ab6b51e57f7e263a6e953d9c8984cd26e69d2f7606bde81e4b3048acf30732"
+  },
+  {
+    "file": "xxhash.txt",
+    "repository": "https://github.com/Cyan4973/xxHash",
+    "revision": "v0.8.3",
+    "source": "LICENSE",
+    "sha256": "6ffedbc0f7878612d2b23589f1ff2ab15633e1df7963a5d9fc750ec5500c7e7a"
+  },
+  {
+    "file": "zlib-ng.txt",
+    "repository": "https://github.com/zlib-ng/zlib-ng",
+    "revision": "2.3.3",
+    "source": "LICENSE.md",
+    "sha256": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee"
+  },
+  {
+    "file": "zstd.txt",
+    "repository": "https://github.com/facebook/zstd",
+    "revision": "v1.5.7",
+    "source": "LICENSE",
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  {
+    "file": "dawn.txt",
+    "repository": "https://github.com/encounter/dawn",
+    "revision": "1155e0ed531126f33a1279afa029349651ca1c93",
+    "source": "LICENSE",
+    "sha256": "0493f897193af1796d5054659f45ec7d4c5af648fa67a99f01d30e55cc805abc"
+  },
+  {
+    "file": "nod.txt",
+    "repository": "https://github.com/encounter/nod",
+    "revision": "v2.0.0-alpha.10",
+    "source": "LICENSE-MIT",
+    "sha256": "544ffe9befaefa6b59ab1fdde58789069ba7c1b65432bdea273a16b2117909b7"
+  },
+  {
+    "file": "magic_enum.txt",
+    "source": "aurora/include/magic_enum.hpp",
+    "revision": "0.7.2",
+    "sha256": "f7f0c3e11c66be810a1b40ec3650b4caa8bd5104e564efa8b5a5a442e7307620"
+  }
+]

@@ -58,6 +58,10 @@ class ReleasePayload(unittest.TestCase):
             self.assertIn('disc/audio/first_startup.hps', names)
             self.assertIn('ui/portraits/tile-frame.png', names)
             self.assertIn('licenses/monocypher.txt', names)
+            for notice in (ROOT/'licenses').rglob('*'):
+                if notice.is_file():
+                    self.assertEqual(archive.read('licenses/' + notice.relative_to(ROOT/'licenses').as_posix()),
+                                     notice.read_bytes())
             for notice in ['freak-melee.txt', 'sources.md', 'aurora.txt', 'cgltf.txt', 'core-math.txt']:
                 self.assertIn('licenses/' + notice, names)
             self.assertEqual(names.count('SDL3.dll'), 1)

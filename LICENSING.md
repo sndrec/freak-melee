@@ -15,7 +15,7 @@ The repository also contains work from other sources:
 | Aurora | MIT; see [aurora/LICENSE](aurora/LICENSE). Original changes written for Freak Melee use 0BSD; the upstream portions retain MIT. |
 | cgltf | MIT; see [its license](melee/extern/cgltf/LICENSE). |
 | CORE-MATH | MIT; see [its license](melee/extern/core-math/LICENSE). |
-| Native runtime dependencies | SDL3, libusb, yyjson and Monocypher notices are under [melee/licenses](melee/licenses) and included in prepared releases. Other downloaded dependencies retain the licenses in their source packages. |
+| Native runtime dependencies | Retained notices, FreeType credit, libjuice source link and version records are under [melee/licenses](melee/licenses) and included in prepared releases. That directory identifies the remaining prebuilt-component notice review. |
 | Imported development tools | Their existing LICENSE and COPYING files remain beside their sources. The package locks record service tool dependencies. |
 | Game textures, fonts, models and audio | Prepared from the player's ISO during the build. Each player supplies their own ISO. These assets are outside the original-code license. |
 | Supplied startup music | The project owner confirmed distribution permission on 2026-11-14. Distributed through official builds; the audio remains a local build input outside Git. This permission does not relicense the track under 0BSD. |

@@ -42,11 +42,12 @@ commits or other people's clones.
 ## Distribution
 
 Prepared packages include the original-code license, source-scope explanation,
-and retained notices for Aurora, cgltf, CORE-MATH, SDL, libusb, yyjson and
-Monocypher. Downloaded dependencies retain additional notices in their source
-packages. Review the complete transitive notice set before a general binary
-release; the prebuilt graphics and disc libraries need their bundled-component
-notices carried forward as well.
+and all files under `melee/licenses`, including dependency notices, version
+records, the FreeType credit and a source link for the MPL-covered libjuice.
+Aurora, cgltf and CORE-MATH notices are copied from their source directories.
+Review the complete transitive notice set before a general binary release;
+the prebuilt graphics and disc libraries and their bundled shader compiler
+need their bundled-component notices carried forward as well.
 
 The original game's code and assets have separate ownership. Publishing this
 repository under a license for our original work grants no additional rights
