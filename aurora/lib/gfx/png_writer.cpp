@@ -31,7 +31,14 @@ bool write_png(const char* path, const void* pixels, uint32_t width, uint32_t he
         const auto* pixel = source + size_t(x) * 4;
         auto* output = row + size_t(x) * channels;
         output[0] = pixel[bgra ? 2 : 0]; output[1] = pixel[1]; output[2] = pixel[bgra ? 0 : 2];
-        if (alpha) output[3] = pixel[3];
+        if (alpha) {
+          // Rendered RGBA is premultiplied; PNG stores straight-alpha colour.
+          const unsigned coverage = pixel[3]; output[3] = coverage;
+          for (unsigned c = 0; c < 3; ++c) {
+            const unsigned value = coverage ? (unsigned(output[c]) * 255 + coverage / 2) / coverage : 0;
+            output[c] = uint8_t(value > 255 ? 255 : value);
+          }
+        }
       }
       png_write_row(png, row);
     }

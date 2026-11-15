@@ -20,6 +20,7 @@
 #include <sysdolphin/baselib/gobjuserdata.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mobj.h>
+#include <sysdolphin/baselib/native_model_view.h>
 #include <sysdolphin/baselib/state.h>
 #include <sysdolphin/baselib/tev.h>
 #include <dolphin/gx.h>
@@ -45,6 +46,7 @@ typedef struct CardArt {
     NativeLobbyPlayerSelection loaded_choice;
     char outfit[NATIVE_CONTENT_TITLE_BYTES];
     float original_left;
+    NativeCssCardPreview original_portrait;
     unsigned appearance;
     bool attempted;
 } CardArt;
@@ -57,7 +59,7 @@ static struct {
     CSSData* css;
     HSD_GObj* owner;
     NativeCssParticipants people;
-    CardArt art[4];
+    CardArt art[4], preview;
     CarriedArt carried[4];
     bool invalidate;
     uint32_t cache_revision;
@@ -126,6 +128,7 @@ static void destroy(void* unused)
         nativeMenuPortrait_Free(&cards.art[i].portrait);
         nativeMenuPortrait_Free(&cards.carried[i].portrait);
     }
+    for (unsigned p = 0; p < PARTS; ++p) HSD_JObjRemoveAll(cards.preview.parts[p].joint);
     nativeMenuFont_Release();
     memset(&cards, 0, sizeof(cards));
 }
@@ -232,10 +235,12 @@ static void draw(HSD_GObj* object, int pass)
             const float scale = cards.people.online ? .7f : 1;
             const float y_shift = cards.people.online ? -4.25f : 0;
             if (art->portrait.pixels && person->choice.selected) {
-                // The stock player-card image is 136x188. Fit it to the same
-                // portrait area, independently of the square CSS tile framing.
-                image(&art->portrait, x + .3f * scale, -4.4f * scale + y_shift,
-                      13.6f * scale, 18.8f * scale);
+                // Preserve the original portrait quad, including its authored
+                // slight stretch of the 136x188 texture.
+                const CardArt* source = &cards.art[cards.people.online ? i : person->physical_port];
+                const NativeCssCardPreview* rect = &source->original_portrait;
+                image(&art->portrait, x + (rect->x - source->original_left) * scale,
+                      rect->y * scale + y_shift, rect->width * scale, rect->height * scale);
             }
             if (person->choice.selected)
                 nativeMenuFont_Draw(NativeMenuFont_ResultName, art->portrait.title,
@@ -299,8 +304,27 @@ void nativeCssCards_Begin(CSSData* css, CSSDoorsData* doors, HSD_JObj* menu,
         lb_80011E24(menu, &background, indices[BACK], -1);
         HSD_JObjSetupMatrix(background);
         cards.art[i].original_left = background->mtx[0][3];
+        HSD_JObj* costume = NULL; Vec3 low, high;
+        lb_80011E24(menu, &costume, doors->doors[i].costume_joint, -1);
+        if (!costume || !nativeModelView_MeshBounds(costume, HSD_JObjGetDObj(costume), &low, &high)) {
+            nativeCssCards_End(); return;
+        }
+        cards.art[i].original_portrait = (NativeCssCardPreview){low.x, high.y, high.x-low.x, high.y-low.y};
         cards.art[i].appearance = ~0U;
     }
+    const unsigned preview_indices[PARTS] = { doors->doors[0].bg_joint, doors->doors[0].emblem_joint,
+        doors->doors[0].door_joint, doors->doors[0].player_indicator_joint };
+    for (unsigned p = 0; p < PARTS; ++p) {
+        unsigned index = 0;
+        if (!find_part(&cards.preview.parts[p], preview_indices[p], &index, source->joint,
+                        source->animjoint, source->matanim_joint, menu)) {
+            nativeCssCards_End(); return;
+        }
+    }
+    cards.preview.original_left = cards.art[0].original_left;
+    cards.preview.original_portrait = cards.art[0].original_portrait;
+    pose(&cards.preview.parts[BACK], 2); pose(&cards.preview.parts[EMBLEM], 2);
+    pose(&cards.preview.parts[DOOR], 29); pose(&cards.preview.parts[INDICATOR], 1);
 }
 void nativeCssCards_End(void)
 {
@@ -449,6 +473,10 @@ void nativeCssCards_Inspect(void)
             progress.bytes_done, progress.bytes_total);
     fprintf(stderr, "[css-cards] online=%u count=%u\n", cards.people.online,
             cards.people.count);
+    if (cards.owner) {
+        const NativeCssCardPreview* rect = &cards.preview.original_portrait;
+        fprintf(stderr, "[css-cards] stock-portrait x=%.6f y=%.6f width=%.6f height=%.6f\n", rect->x,rect->y,rect->width,rect->height);
+    }
     for (unsigned i = 0; i < cards.people.count; ++i) {
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
@@ -458,4 +486,27 @@ void nativeCssCards_Inspect(void)
                 p->local, p->ready, p->choice.selected, card_left(i) + 7.4f * .7f,
                 cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title, cards.art[i].outfit);
     }
+}
+
+
+bool nativeCssCards_DrawPreview(Mtx canvas, float x, float y, float width,
+                                 NativeCssCardPreview* portrait)
+{
+    if (!cards.owner || width <= 0 || !portrait) return false;
+    const float scale = width / 14.8f, top = -2.5f;
+    Mtx shift, instance, parent;
+    C_MTXScale(shift, scale, scale, scale);
+    shift[0][3] = x - cards.preview.original_left * scale;
+    shift[1][3] = -y - top * scale;
+    C_MTXConcat(canvas, shift, instance);
+    HSD_StateInvalidate(-1);
+    for (unsigned pass = 0; pass < 3; ++pass)
+        for (unsigned p = 0; p < PARTS; ++p) {
+            C_MTXConcat(instance, cards.preview.parts[p].parent, parent);
+            HSD_JObjDispAll(cards.preview.parts[p].joint, parent, HSD_GObj_80390EB8(pass), 0);
+        }
+    const NativeCssCardPreview* rect = &cards.preview.original_portrait;
+    *portrait = (NativeCssCardPreview){ x + (rect->x - cards.preview.original_left) * scale,
+        y + (top - rect->y) * scale, rect->width * scale, rect->height * scale };
+    return true;
 }

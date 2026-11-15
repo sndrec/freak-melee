@@ -29,6 +29,10 @@ static u8 state_z_update;
 #ifdef MELEE_NATIVE
 static bool alpha_write_override;
 void HSD_StateSetAlphaWriteOverride(bool enabled) { alpha_write_override = enabled; }
+bool HSD_StateAlphaWriteOverride(void) { return alpha_write_override; }
+static bool silhouette_override;
+void HSD_StateSetSilhouetteOverride(bool enabled) { silhouette_override = enabled; }
+bool HSD_StateSilhouetteOverride(void) { return silhouette_override; }
 #endif
 static int state_alpha_comp0;
 static u8 state_alpha_ref0;

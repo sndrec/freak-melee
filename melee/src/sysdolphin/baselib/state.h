@@ -36,6 +36,10 @@ void HSD_SetupChannelMode(u32 arg0);
 #ifdef MELEE_NATIVE
 // Offscreen authoring captures retain material opacity in their alpha channel.
 void HSD_StateSetAlphaWriteOverride(bool enabled);
+bool HSD_StateAlphaWriteOverride(void);
+// Force black RGB while preserving the material and texture alpha computation.
+void HSD_StateSetSilhouetteOverride(bool enabled);
+bool HSD_StateSilhouetteOverride(void);
 #endif
 void HSD_SetupPEMode(u32 flags, HSD_PEDesc* pe);
 void HSD_SetupRenderModeWithCustomPE(u32 rendermode, HSD_PEDesc* pe);

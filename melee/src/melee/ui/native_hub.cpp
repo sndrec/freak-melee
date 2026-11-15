@@ -328,7 +328,7 @@ namespace {
                 action = HubAction::SocialLookup;
             } else if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Profile) {
                 action = HubAction::StartupNext;
-            } else if (field == nativeHubPortrait_TileName()) {
+            } else if ((field == nativeHubPortrait_TileName() || field == nativeHubPortrait_FrameText())) {
                 text_focus(nullptr,0);
             } else if (field == hub.letter_to) {
                 text_focus(hub.letter_subject, sizeof(hub.letter_subject));
@@ -797,6 +797,9 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::FieldTitle:
         text_focus(hub.title, sizeof(hub.title));
+        break;
+    case HubAction::PortraitFrame:
+        text_focus(nativeHubPortrait_FrameText(),32);
         break;
     case HubAction::PortraitTileName:
         text_focus(nativeHubPortrait_TileName(),64);
@@ -1582,7 +1585,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }
     if (!std::strcmp(id, "startup-roster")) { nativeHubStartupRoster_Inspect(); return; }
-    if (!std::strcmp(id, "startup-camera")) { nativeHubPortrait_Inspect(); return; }
+    if (!std::strcmp(id, "startup-camera") || !std::strcmp(id, "portrait-animations")) { nativeHubPortrait_Inspect(id); return; }
     if (!std::strcmp(id, "startup-stamp")) { nativeHubStartupStamp_Inspect(); return; }
     if (!std::strcmp(id, "defaults")) { nativeHubDefaults_Inspect(); return; }
     if (!std::strcmp(id, "startup-portrait-save")) { nativeHubStartupRoster_Capture(); return; }

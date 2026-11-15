@@ -380,6 +380,7 @@ struct GXState {
   bool depthUpdate = true;
   bool colorUpdate = true;
   bool alphaUpdate = true;
+  bool rgbaCapture = false;
   u8 numChans = 0;
   u8 numIndStages = 0;
   u8 numTevStages = 0;

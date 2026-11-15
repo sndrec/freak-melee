@@ -1,6 +1,7 @@
 #include <aurora/gfx.hpp>
 #include <aurora/gfx.h>
 #include "png_writer.hpp"
+#include "../gx/gx.hpp"
 #include <atomic>
 #include <cstring>
 
@@ -77,7 +78,15 @@ extern "C" bool aurora_export_render_png(const char* path, uint32_t width, uint3
   if (!draw || !path || !*path || !width || !height || width > 4096 || height > 4096 ||
       std::strlen(path) >= sizeof(job.path) || aurora_image_export_state() == AuroraImageExport_Pending ||
       !create_pass(width, height, true)) return false;
+  const bool previousAlpha = aurora::gx::g_gxState.rgbaCapture;
+  aurora::gx::g_gxState.rgbaCapture = alpha;
+  aurora::gx::g_gxState.dirty |= aurora::gx::DirtyPipeline;
   draw(userdata);
   ResolvedTargets image;
-  return resolve_pass({.color = true}, image) && queue_export(image, path, alpha);
+  // Both pass transitions drain FIFO decoding. Keep this policy active until
+  // the capture's queued draw commands have been decoded at resolve_pass().
+  const bool resolved = resolve_pass({.color = true}, image);
+  aurora::gx::g_gxState.rgbaCapture = previousAlpha;
+  aurora::gx::g_gxState.dirty |= aurora::gx::DirtyPipeline;
+  return resolved && queue_export(image, path, alpha);
 }

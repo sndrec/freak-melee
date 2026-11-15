@@ -328,8 +328,15 @@ wgpu::RenderPipeline build_pipeline(const PipelineConfig& config, ArrayRef<wgpu:
       .depthBiasSlopeScale = depthBiasSlopeScale,
       .depthBiasClamp = depthBiasClamp,
   };
-  const auto blendState =
+  auto blendState =
       to_blend_state(config.blendMode, config.blendFacSrc, config.blendFacDst, config.blendOp, config.dstAlpha);
+  // Transparent exports need coverage alpha, independent of RGB's source-alpha
+  // factor. The normal GX framebuffer keeps its original alpha blend equation.
+  if (config.rgbaCapture && config.dstAlpha == UINT32_MAX && config.blendMode == GX_BM_BLEND &&
+      config.blendFacSrc == GX_BL_SRCALPHA && config.blendFacDst == GX_BL_INVSRCALPHA) {
+    blendState.alpha.srcFactor = wgpu::BlendFactor::One;
+    blendState.alpha.dstFactor = wgpu::BlendFactor::OneMinusSrcAlpha;
+  }
   const std::array colorTargets{wgpu::ColorTargetState{
       .format = g_graphicsConfig.surfaceConfiguration.format,
       .blend = &blendState,
@@ -458,6 +465,7 @@ void populate_pipeline_config(PipelineConfig& config, GXPrimitive primitive, GXV
       .blendFacDst = g_gxState.blendFacDst,
       .blendOp = g_gxState.blendOp,
       .dstAlpha = g_gxState.dstAlpha,
+      .rgbaCapture = g_gxState.rgbaCapture,
       .polygonOffsetBits = std::bit_cast<uint32_t>(polygonOffset),
       .polygonOffsetScaleBits = std::bit_cast<uint32_t>(polygonOffsetScale),
       .polygonOffsetClampBits = std::bit_cast<uint32_t>(g_gxState.clamp),

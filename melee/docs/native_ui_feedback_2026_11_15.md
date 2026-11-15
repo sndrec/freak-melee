@@ -104,14 +104,14 @@ is pending.
 
 ### `9feef587-6b44-4359-945a-f9f66d539859` — custom card portraits
 
-- [ ] Pin 1: Make custom portraits fill the player card at the same scale as
+- [x] Pin 1: Make custom portraits fill the player card at the same scale as
   stock portraits. Check the capture, saved image and runtime placement paths.
 
 ### `38278921-d4e2-4d4d-b6b6-21b41c8c3ae1` — portrait capture
 
-- [ ] Pin 1: Make Card size preview the portrait on the actual P1 player-card
+- [x] Pin 1: Make Card size preview the portrait on the actual P1 player-card
   graphic at the appropriate size and proportions.
-- [ ] Pin 2: Allow selecting an animation and pose/frame for both CSS-tile and
+- [x] Pin 2: Allow selecting an animation and pose/frame for both CSS-tile and
   player-card captures. Apply the original player-card portrait drop shadow to
   the card presentation.
 
@@ -277,8 +277,8 @@ subsequent player choice, held A causing exactly one listing change, hub return,
 and dragging a fighter onto a compact remote card. Native screenshots were
 reviewed. CSS layout and participant unit tests passed; the Release client built.
 
-Portrait editing, native settings migration, standalone News, populated
-inbox/ticker review and the earlier F2 review remain open.
+Native settings migration, standalone News, populated inbox/ticker review
+and the earlier F2 review remain open.
 
 
 Implementation commit: `93038d0`. These submissions and both attachments per
@@ -291,3 +291,35 @@ absent. Eight submissions remain in the fixed batch.
 | `cc5d2f06-0fbe-45c2-b42f-998c0ff250b0` | Direct CSS entry, lobby controls inside CSS/rules, removed hub duplicates, CSS chat and Copy code. |
 | `d9f9bea8-673f-48af-af6b-845a73c18470` | Four compact authored cards, original N/A slots, chat above match buttons, no Workshop button on CSS. |
 | `91780dec-6922-4cc1-bea4-58aedfe4c4c5` | Original heading and Back artwork, removed player/status overlays and extra instruction/code strip, revised button placement. |
+
+
+### Portrait capture and original card framing
+
+Portrait capture now offers the fighter's animations and an exact frame field
+in both modes. Each mode remembers its own animation, frame and camera. A frozen
+preview clamps at the last frame. The small card preview uses the original P1
+card model, with the same portrait rectangle as CSS. The source archives and
+one import arena stay loaded while choosing poses.
+
+Stock portraits were compared directly: their shadow is black, offset down-left,
+with a main opacity of 3/7 (109/255). The new card capture uses that presentation.
+A depth prepass keeps overlapping meshes from darkening their own shadow, and
+both members of a pair draw before the foreground portraits. The shadow changes
+RGB only, preserving the texture-alpha calculation. RGBA export stores coverage
+alpha and writes straight-alpha PNGs. The export policy is changed only at the
+existing drained offscreen-pass boundaries.
+
+The final batch passed in `.local/portrait-feedback-review-6/review.json`.
+It verified independent poses, exact frame entry and save-on-blur, held-A frame
+stepping, reloading camera records, changed PNG contents and native CSS placement.
+The RGBA check confirms a black 109/255 shadow, rejecting colored shadow pixels.
+A paired Ice Climbers capture passed as well. Native screenshots were reviewed at
+1440x900 and 960x540; `comparison.png` shows the captured image beside extracted
+stock portraits. Eight graphics recording/presented-capture checks and both CSS
+layout/participant checks passed. The Release client built successfully.
+
+CSS now measures each original costume quad during menu construction and uses
+those bounds for custom portraits and the P1 preview. The checked P1 quad is
+14.199951 by 18.999756 game units at (-30.192432, -4.400098). The image remains
+136x188; the small preview preserves the original quad's slight stretch while
+using the capture's camera aspect ratio. No original artwork is modified.

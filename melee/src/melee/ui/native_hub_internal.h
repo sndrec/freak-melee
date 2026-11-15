@@ -81,7 +81,7 @@ enum class HubAction {
     OpenAccount, SendInvitation, JoinInvitation,
     Startup, StartupNext, StartupBack, StartupPort, StartupSkipController, StartupRetry,
     StartupTriggerRange, StartupTest, StartupFighterMove, StartupConfirmFighter,
-    PortraitReset, PortraitSave, PortraitTileName, StartupPlaceTile,
+    PortraitReset, PortraitSave, PortraitTileName, PortraitAnimation, PortraitAnimationPage, PortraitFrame, PortraitFrameStep, StartupPlaceTile,
     DefaultsOpen, DefaultsConfirm, DefaultsCancel, EditPortrait, PortraitMode,
     DeleteFighter, ConfirmDeleteFighter,
     News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink

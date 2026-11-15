@@ -231,9 +231,17 @@ int HSD_StateAssignTev(void)
 void HSD_StateSetNumTevStages(void)
 {
 #ifdef MELEE_NATIVE
-    if (nativeRenderGraphicsEnabled)
-#endif
+    if (nativeRenderGraphicsEnabled) {
+        if (HSD_StateSilhouetteOverride())
+            for (unsigned stage = 0; stage < current_tev; ++stage) {
+                GXSetTevColorIn(stage, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO);
+                GXSetTevColorOp(stage, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+            }
         GXSetNumTevStages(current_tev);
+    }
+#else
+    GXSetNumTevStages(current_tev);
+#endif
     current_tev = 0;
 }
 

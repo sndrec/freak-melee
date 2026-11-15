@@ -15,17 +15,18 @@ namespace {
         NativePortraitSubject subjects[NATIVE_MENU_FIGHTERS];
         unsigned generations[NATIVE_MENU_FIGHTERS], count, width, height;
         char path[1024];
-        bool queued, started, failed;
+        bool queued, started, failed, shadow;
     } capture;
 
     void render_portrait(void*)
     {
         HSD_StateSetAlphaWriteOverride(true);
+        for (unsigned pass = capture.shadow ? 0 : 1; pass < 2; ++pass)
         for (unsigned i = 0; i < capture.count; ++i) {
             const auto& subject = capture.subjects[i];
             const auto& camera = subject.camera;
             nativeMenuFighter_DrawCamera(subject.slot, camera.yaw, camera.pitch, camera.zoom, camera.pan_x, camera.pan_y, camera.frame,
-                float(capture.width)/capture.height);
+                float(capture.width)/capture.height, pass ? NativeMenuFighter_Normal : NativeMenuFighter_Shadow);
         }
         HSD_StateSetAlphaWriteOverride(false);
         HSD_StateInvalidate(-1);
@@ -45,7 +46,7 @@ NativePortraitCaptureState nativeMenuPortraitCapture_State()
 }
 
 bool nativeMenuPortraitCapture_Request(const NativePortraitSubject* subjects, unsigned count, const char* path,
-                                       unsigned width, unsigned height)
+                                       unsigned width, unsigned height, bool shadow)
 {
     auto state = nativeMenuPortraitCapture_State();
     if (state == NativePortraitCaptureState::Queued || state == NativePortraitCaptureState::Saving ||
@@ -59,7 +60,7 @@ bool nativeMenuPortraitCapture_Request(const NativePortraitSubject* subjects, un
         capture.generations[i] = generation;
     }
     std::memcpy(capture.subjects, subjects, count * sizeof(*subjects)); capture.count = count;
-    capture.width = width; capture.height = height;
+    capture.width = width; capture.height = height; capture.shadow = shadow;
     std::snprintf(capture.path, sizeof(capture.path), "%s", path);
     capture.queued = true; capture.started = capture.failed = false;
     return true;
@@ -106,7 +107,7 @@ void nativeMenuPortraitCapture_Stage(const char* specification)
 }
 
 void nativeMenuPortraitCapture_Preview(const NativePortraitSubject* subjects, unsigned count,
-                                       float x, float y, float preview_width, float preview_height)
+                                       float x, float y, float preview_width, float preview_height, bool shadow, float image_aspect)
 {
     float u0, v0, u1, v1;
     if (!subjects || !count || count > NATIVE_MENU_FIGHTERS || preview_width <= 0 || preview_height <= 0 ||
@@ -120,9 +121,10 @@ void nativeMenuPortraitCapture_Preview(const NativePortraitSubject* subjects, un
     float width = (u1 - u0) * viewport[2], height = (v1 - v0) * viewport[3];
     GXSetViewport(left, top, width, height, viewport[4], viewport[5]);
     GXSetScissor(unsigned(left), unsigned(top), unsigned(width), unsigned(height));
+    for (unsigned pass = shadow ? 0 : 1; pass < 2; ++pass)
     for (unsigned i = 0; i < count; ++i) {
         const auto& c = subjects[i].camera;
-        nativeMenuFighter_DrawCamera(subjects[i].slot, c.yaw, c.pitch, c.zoom, c.pan_x, c.pan_y, c.frame, preview_width/preview_height);
+        nativeMenuFighter_DrawCamera(subjects[i].slot, c.yaw, c.pitch, c.zoom, c.pan_x, c.pan_y, c.frame, image_aspect > 0 ? image_aspect : preview_width/preview_height, pass ? NativeMenuFighter_Normal : NativeMenuFighter_Shadow);
     }
     GXSetViewport(viewport[0], viewport[1], viewport[2], viewport[3], viewport[4], viewport[5]);
     GXSetScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
