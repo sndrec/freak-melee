@@ -1,5 +1,6 @@
 #include "native_menu_scenery.h"
 #include "native_menu_paint.h"
+#include "native_menu_prize.h"
 #include <melee/lb/lbfile.h>
 #include <sysdolphin/baselib/dat_import.h>
 #include <sysdolphin/baselib/debug.h>
@@ -25,7 +26,7 @@ static struct {
     HSD_ImageDesc* image;
     HSD_Fog* fog;
     unsigned live, object_count, light_count, model_count;
-    bool active;
+    bool active, prize_scene;
     Uint64 started;
     unsigned loop_frames;
 } reference;
@@ -44,6 +45,8 @@ static void forget(void* slot)
 
 void nativeMenuScenery_Unload(void)
 {
+    reference.active = false;
+    reference.prize_scene = false;
     // The same callbacks handle ordinary scene teardown.
     unsigned count = reference.object_count;
     for (unsigned i = 0; i < count; ++i)
@@ -157,6 +160,11 @@ void nativeMenuScenery_Load(const char* preset)
 {
     nativeMenuScenery_Unload();
     if (!strcmp(preset, "off")) return;
+    if (!strcmp(preset, "milestone")) {
+        nativeMenuPrize_Load();
+        reference.active = reference.prize_scene = true;
+        return;
+    }
     if (!strncmp(preset, "gallery-image-", 14)) {
         unsigned i = preset[14] - '0';
         if (i >= 3 || preset[15]) return;
@@ -212,6 +220,13 @@ void nativeMenuScenery_Load(const char* preset)
 bool nativeMenuScenery_Draw(void)
 {
     if (!reference.active) return false;
+    if (reference.prize_scene) {
+        nativeMenuPaint_Begin(NULL);
+        nativeMenuPaint_Rect(0, 0, 640, 480, 0x000000FF);
+        nativeMenuPaint_End();
+        nativeMenuPrize_Draw(10, 0);
+        return true;
+    }
     HSD_CObj* previous = HSD_CObjGetCurrent();
     if (reference.camera) {
         if (!HSD_CObjSetCurrent(reference.camera)) return true;

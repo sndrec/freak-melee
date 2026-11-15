@@ -116,6 +116,7 @@ def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False):
         if outline:
             fill=Image.new('L',(g.width+4,g.height+4));fill.paste(g,(2,2))
             g=Image.merge('LA',(fill,fill.filter(ImageFilter.MaxFilter(5))))
+            left-=2;top-=2
         if g.width>128 or g.height>96 or advance>160:raise ValueError('Oversized glyph '+ascii(c))
         if x+g.width+1>1024:
             x=1;y+=row_height+2;row_height=0

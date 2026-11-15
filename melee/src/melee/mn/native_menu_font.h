@@ -15,7 +15,8 @@ float nativeMenuFont_Width(NativeMenuFontFace face,const char* text,float height
 void nativeMenuFont_Inspect(const char* text);
 // Horizontal bounds are in the same canvas as Draw. left >= right disables
 // clipping. Glyph geometry and texture coordinates are clipped together.
-void nativeMenuFont_Clip(float left, float right);
+// fade gives each edge a transparent-to-opaque ramp in canvas units.
+void nativeMenuFont_Clip(float left, float right, float fade);
 // Keep ordinary fighter names on one compressed line. Very long names use
 // two balanced lines; the caller expands the name bar for those two lines.
 unsigned nativeMenuFont_LayoutTileName(const char* text, float width,

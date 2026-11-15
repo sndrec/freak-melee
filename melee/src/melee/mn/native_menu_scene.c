@@ -1,4 +1,5 @@
 #include "native_menu_scene.h"
+#include "native_menu_prize.h"
 #include "mnassets.h"
 #include "mncamera.h"
 #include "native_menu_paint.h"
@@ -148,6 +149,7 @@ static void forget_camera(void* data)
 
 void nativeMenuScene_Unload(void)
 {
+    nativeMenuPrize_Unload();
     MnMenuAssets assets = scene.assets;
     for (unsigned i = 0; i < 2; ++i)
         if (scene.owners[i]) HSD_GObjFree(scene.owners[i]);
@@ -207,6 +209,7 @@ void nativeMenuScene_Load(void)
     if (scene.owners[0] && scene.owners[1]) return;
     nativeMenuScene_Unload();
     mnAssets_Load(&scene.assets);
+    nativeMenuPrize_Load();
     HSD_Joint* root = mnAssets_Get(&scene.assets, "MenMainConTop_Top_joint");
     HSD_AnimJoint* anim = mnAssets_Get(&scene.assets, "MenMainConTop_Top_animjoint");
     HSD_CObjDesc* cam = mnAssets_Get(&scene.assets, "ScMenMain_cam_int1_camera");

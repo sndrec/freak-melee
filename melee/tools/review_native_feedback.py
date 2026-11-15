@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -96,9 +97,16 @@ def main():
         assert captured["hub_page"] >= 0 and isinstance(captured["menu_transition"], bool)
         # Notes, resize and the failed upload must never regenerate context.
         client.command("ui-click", 700, 420)
-        client.command("ui-text", "The preview needs a clearer origin.")
+        for line in range(12):
+            client.command("ui-text", f"Line {line}: a long feedback note that wraps across lines. ")
+        client.command("ui-text", "LAST LINE VISIBLE")
         wait_visible(client, "feedback-bubble")
+        scroll = re.search(r"scroll=[\d.]+,([\d.]+)", client.inspect("feedback-note"))
+        assert scroll and float(scroll[1]) > 0, "Long notes must scroll to the caret"
         picture(client, output / "note-bubble.png")
+        client.command("ui-key", "home", "ctrl")
+        assert "scroll=0.0,0.0" in client.inspect("feedback-note")
+        client.command("ui-key", "end", "ctrl")
         client.command("ui-key", "enter")
         time.sleep(.25)
         client.command("ui-click", 950, 500)

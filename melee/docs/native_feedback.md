@@ -45,6 +45,35 @@ worker streams the report to `/v1/feedback` and publishes upload progress at
 half-second intervals. The service stores report metadata in D1 and attachments
 in its private R2 bucket. Administration requires Cloudflare Access.
 
+## Download reports locally
+
+From the repository root:
+
+```powershell
+python melee/tools/download_native_feedback.py
+python melee/tools/download_native_feedback.py --all
+python melee/tools/download_native_feedback.py --id 162b2c34-722c-48c0-9c95-2a99a2a7f1ae
+```
+
+The default command downloads the newest report. Use `--limit 10` for the ten
+newest, or `--status new` to filter the results. `--all` downloads every matching
+report. Files go under `.local/feedback/<report UUID>/`; `--output` chooses another
+directory. Each report contains `notes.md`, complete metadata in `report.json`,
+`screen.png` and `context.json`. Pin positions use normalized screenshot coordinates.
+The tool checks each attachment's stored size and SHA-256 hash. Repeating a download
+reuses matching local attachments and refreshes the report's status and notes.
+
+Run `npm ci` and `npx wrangler login` in `melee/services/community` when setting
+up another developer PC. Downloads use that Cloudflare administrator login to read
+the existing D1 metadata and private R2 attachments. Reports remain unchanged on
+the service. No browser session is needed after login.
+
+The administration website also has authenticated read endpoints:
+`GET /admin/api/feedback` lists reports, `GET /admin/api/feedback/<id>` returns
+metadata and pins, and `/screen` and `/context` download the attachments. Those
+routes use the website's Cloudflare Access sign-in. The local downloader uses
+Wrangler's existing administrative access instead.
+
 ## Reviews
 
 `tools/review_native_feedback.py` runs a hidden, muted client with copied user

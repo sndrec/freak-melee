@@ -59,12 +59,6 @@ namespace {
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
                                  "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News" };
-    const char* descriptions[] = {
-        "Find someone to play",      "Create a lobby or join your friends",
-        "Talk with everyone online", "Find your friends",
-        "Letters and invitations",   "Clone, tweak and import fighters",
-        "Make yourself at home"
-    };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -1317,16 +1311,10 @@ extern "C" void nativeHub_Draw(void)
     if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation)
         nativeHubNews_Ticker();
     if (nativeHubStartup.active) nativeHubStartup_RenderFrame();
-    else if (!nativeHubPortrait_Editing()) {
-        nativeHub_Panel(38, 408, 565, 32);
-        const char* hint = SDL_GetTicks() < hub.notice_until ? hub.notice
-            : hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page) ? nativeHubAccount_Status()
-            : hub.page == NativeHubPage_News ? "Read news and updates"
-            : unsigned(hub.page) < 7 ? descriptions[unsigned(hub.page)] : "";
-        nativeMenuPaint_Text(hint, 48, 418, 425, 11, white);
-        nativeMenuPaint_Text("A Choose   B Back", 488, 419, 105, 8, gold,
-                            NativeMenuFont_Notice, true);
-    }
+    else if (!nativeHubPortrait_Editing() && SDL_GetTicks() < hub.notice_until && *hub.notice)
+        nativeMenuPaint_Text(hub.notice, 175, 414, 425, 11, white);
+    else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page)))
+        nativeMenuPaint_Text(nativeHubAccount_Status(), 175, 414, 425, 11, white);
     nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
     nativeMenuPaint_Begin(canvas);

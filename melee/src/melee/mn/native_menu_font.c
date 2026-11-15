@@ -6,6 +6,7 @@
 #include <dolphin/gx.h>
 #include <sysdolphin/baselib/tev.h>
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -191,10 +192,11 @@ unsigned nativeMenuFont_LayoutTileName(const char* text, float width,
     lines[0][split] = 0;
     return 2;
 }
-static float clip_left, clip_right;
-void nativeMenuFont_Clip(float left, float right)
+static float clip_left, clip_right, clip_fade;
+void nativeMenuFont_Clip(float left, float right, float fade)
 {
     clip_left = left; clip_right = right;
+    clip_fade = fade > 0 && right > left ? fminf(fade, (right-left)*.5f) : 0;
 }
 typedef struct FontVertex { float x, y, u, v; } FontVertex;
 static unsigned clip_edge(const FontVertex* input, unsigned count, FontVertex* output, float bound, bool minimum)
@@ -224,42 +226,62 @@ void nativeMenuFont_Draw(NativeMenuFontFace face,const char* text,
     float scale=height/font->cap_height;
     float horizontal=advance*scale>width?width/advance:scale;
     if(centered)x+=(width-advance*horizontal)*0.5f;
-    bool border=outline&&font->format==GX_TF_IA4;
-    GXTexObj texture;GXInitTexObj(&texture,!outline&&font->fill?font->fill:font->pixels,
-        font->width,font->height,border?GX_TF_IA4:GX_TF_I4,GX_CLAMP,GX_CLAMP,GX_FALSE);
-    GXLoadTexObj(&texture,GX_TEXMAP0);
+    const bool border=outline&&font->format==GX_TF_IA4;
+    const bool fading=clip_fade>0;
+    if (fading) {
+        GXSetNumChans(1);
+        GXSetChanCtrl(GX_COLOR0A0,GX_DISABLE,GX_SRC_REG,GX_SRC_VTX,GX_LIGHT_NULL,GX_DF_NONE,GX_AF_NONE);
+        GXSetVtxDesc(GX_VA_CLR0,GX_DIRECT);
+        GXSetVtxAttrFmt(GX_VTXFMT0,GX_VA_CLR0,GX_CLR_RGBA,GX_RGBA8,0);
+    }
+    GXSetTevOrder(GX_TEVSTAGE0,GX_TEXCOORD0,GX_TEXMAP0,fading?GX_COLOR0A0:GX_COLOR_NULL);
     GXSetTevColor(GX_TEVREG0,(GXColor){rgba>>24,rgba>>16,rgba>>8,rgba});
-    if(border)
-        GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_TEXC,GX_CC_C0,GX_CC_ZERO);
-    else GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,GX_CC_C0);
-    GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_TEXA,GX_CA_A0,GX_CA_ZERO);
+    GXSetTevAlphaIn(GX_TEVSTAGE0,GX_CA_ZERO,GX_CA_TEXA,fading?GX_CA_RASA:GX_CA_A0,GX_CA_ZERO);
     GXSetTevColorOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
     GXSetTevAlphaOp(GX_TEVSTAGE0,GX_TEV_ADD,GX_TB_ZERO,GX_CS_SCALE_1,GX_TRUE,GX_TEVPREV);
-    for(const u8* p=(const u8*)text;p!=end;) {
-        const Glyph* g=next_glyph(font,&p,end);
-        const float u=(float)g->x/font->width,v=(float)g->y/font->height;
-        const float r=(float)(g->x+g->w)/font->width,b=(float)(g->y+g->h)/font->height;
-        float w=g->w*horizontal,h=g->h*scale;
-        float left=x+g->left*horizontal,top=y-g->top*scale;
-        float shear=face==NativeMenuFont_ResultWinner?height*.22f:
-            face==NativeMenuFont_MenuCaption?(h+g->top*scale)*.30f:0;
-        FontVertex vertices[8] = {{left+shear,top,u,v},{left+w+shear,top,r,v},
-            {left+w,top-h,r,b},{left,top-h,u,b}};
-        unsigned count = 4;
-        if (clip_right > clip_left) {
-            FontVertex scratch[8];
-            count = clip_edge(vertices, count, scratch, clip_left, true);
-            if (count) count = clip_edge(scratch, count, vertices, clip_right, false);
-        }
-        if (count >= 3) {
-            GXBegin(GX_TRIANGLEFAN,GX_VTXFMT0,count);
-            for (unsigned i=0;i<count;++i) {
-                GXPosition3f32(vertices[i].x,vertices[i].y,z);
-                GXTexCoord2f32(vertices[i].u,vertices[i].v);
+    const float origin=x;
+    // Draw all black coverage first, then all coloured fill. Overlapping
+    // outlines must never paint over the neighbouring letter's fill.
+    for(unsigned pass=border?0:1;pass<2;++pass) {
+        x=origin;
+        GXTexObj texture;GXInitTexObj(&texture,pass&&font->fill?font->fill:font->pixels,
+            font->width,font->height,!pass?GX_TF_IA4:GX_TF_I4,GX_CLAMP,GX_CLAMP,GX_FALSE);
+        GXLoadTexObj(&texture,GX_TEXMAP0);
+        GXSetTevColorIn(GX_TEVSTAGE0,GX_CC_ZERO,GX_CC_ZERO,GX_CC_ZERO,pass?GX_CC_C0:GX_CC_ZERO);
+        for(const u8* p=(const u8*)text;p!=end;) {
+            const Glyph* g=next_glyph(font,&p,end);
+            const float u=(float)g->x/font->width,v=(float)g->y/font->height;
+            const float r=(float)(g->x+g->w)/font->width,b=(float)(g->y+g->h)/font->height;
+            float w=g->w*horizontal,h=g->h*scale;
+            float left=x+g->left*horizontal,top=y-g->top*scale;
+            float shear=face==NativeMenuFont_ResultWinner?height*.22f:
+                face==NativeMenuFont_MenuCaption?(h+g->top*scale)*.30f:0;
+            FontVertex vertices[8] = {{left+shear,top,u,v},{left+w+shear,top,r,v},
+                {left+w,top-h,r,b},{left,top-h,u,b}};
+            unsigned count = 4;
+            if (clip_right > clip_left) {
+                FontVertex scratch[8];
+                count = clip_edge(vertices, count, scratch, clip_left, true);
+                if (count) count = clip_edge(scratch, count, vertices, clip_right, false);
             }
-            GXEnd();
+            if (count >= 3) {
+                GXBegin(GX_TRIANGLEFAN,GX_VTXFMT0,count);
+                for (unsigned i=0;i<count;++i) {
+                    GXPosition3f32(vertices[i].x,vertices[i].y,z);
+                    if(fading) {
+                        float alpha=fminf(1,fminf((vertices[i].x-clip_left)/clip_fade,(clip_right-vertices[i].x)/clip_fade));
+                        GXColor4u8(255,255,255,(u8)((rgba&255)*fmaxf(0,alpha)));
+                    }
+                    GXTexCoord2f32(vertices[i].u,vertices[i].v);
+                }
+                GXEnd();
+            }
+            x+=g->advance*horizontal;
         }
-        x+=g->advance*horizontal;
+    }
+    if(fading) {
+        GXSetNumChans(0);GXSetVtxDesc(GX_VA_CLR0,GX_NONE);
+        GXSetTevOrder(GX_TEVSTAGE0,GX_TEXCOORD0,GX_TEXMAP0,GX_COLOR_NULL);
     }
 }
 #endif

@@ -573,6 +573,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/mn/native_menu_skin.c
     src/melee/mn/native_menu_scene.c
     src/melee/mn/native_menu_scenery.c
+    src/melee/mn/native_menu_prize.c
     src/melee/mn/native_menu_fighter.c
     src/melee/ui/native_hub_hand.c
     src/melee/ui/native_play_menu.cpp

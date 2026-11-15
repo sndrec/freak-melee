@@ -1,13 +1,14 @@
 #include "native_hub_notice.h"
 #include "native_hub_internal.h"
-#include <melee/mn/native_menu_skin.h>
+#include <melee/mn/native_menu_prize.h>
+#include <melee/mn/native_menu_scene.h>
 #include <SDL3/SDL_timer.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 
 namespace {
-    constexpr unsigned page_rows = 8;
+    constexpr unsigned page_rows = 4;
     struct Notice {
         char title[481], message[1521];
         char id[37], action[49];
@@ -33,7 +34,7 @@ namespace {
                 const unsigned length = next - start;
                 if (length >= sizeof(sample)) break;
                 std::memcpy(sample, notice.message + start, length); sample[length] = 0;
-                if (end > start && nativeMenuFont_Width(NativeMenuFont_Notice, sample, 12) > 420) {
+                if (end > start && nativeMenuFont_Width(NativeMenuFont_Notice, sample, 14) > 430) {
                     if (space > start) end = space;
                     break;
                 }
@@ -131,11 +132,9 @@ void nativeHubNotice_Click(float x, float y)
 {
     bool action = false;
     if (count) {
-        auto& notice = notices[first]; prepare(notice);
-        const unsigned rows = std::min(page_rows, notice.row_count - notice.first_row);
-        const float height = std::max(163.f, 90.f + rows * 17);
-        const float bottom = (480 + height) * .5f;
-        action = *notice.action && x >= 108 && x <= 238 && y >= bottom-34 && y <= bottom-12;
+        float u, v;
+        if (nativeMenuScene_Project(x, y, &u, &v)) { x = u * 640; y = v * 480; }
+        action = *notices[first].action && x >= 135 && x <= 285 && y >= 310 && y <= 338;
     }
     nativeHubNotice_Dismiss(action);
 }
@@ -143,32 +142,38 @@ void nativeHubNotice_Click(float x, float y)
 void nativeHubNotice_Draw()
 {
     if (!count) return;
-    float t = std::min(1.f, (SDL_GetTicks() - opened_at) / 260.f);
-    float x = 88 + 570 * (1 - t) * (1 - t) * (1 - t);
+    const float elapsed = (SDL_GetTicks() - opened_at) * .060f;
     auto& notice = notices[first];
     prepare(notice);
     const unsigned rows = std::min(page_rows, notice.row_count - notice.first_row);
-    const float height = std::max(163.f, 90.f + rows * 17);
-    const float top = (480 - height) * .5f;
-    nativeMenuPaint_Rect(0, 0, 640, 480, 0x00000090);
-    // Preserve the original main-menu border and caption lettering.
-    nativeMenuSkin_Panel(x, top, 464, height, 0xDFD8C5FF, 0x171318F9);
-    nativeMenuPaint_Gradient(x + 7, top + 7, 450, 36, 0x6C6357FF, 0x2F2929FF);
-    nativeMenuPaint_Text(notice.title, x + 20, top + 13, 424, 22,
-        0xFFE8A0FF, NativeMenuFont_MenuCaption);
+    nativeMenuPaint_Begin(nullptr);
+    nativeMenuPaint_Rect(0, 0, 640, 480, 0x000000FF);
+    nativeMenuPaint_End();
+    // ifprize.c requests entrance frames 0..5, then holds its card at 10.
+    // Use the actual retail mesh, texture animation and camera unchanged.
+    nativeMenuPrize_Draw(elapsed < 6 ? elapsed : 10, 0);
+    nativeMenuPaint_Begin(nullptr);
+    if (elapsed < 6) return;
+    nativeMenuPaint_Text(notice.title, 286, 133, 244, 20, 0x171008FF,
+        NativeMenuFont_MenuOption, true, false);
+    const float top = 202 + (4 - rows) * 9;
     for (unsigned row = 0; row < rows; ++row) {
         const unsigned index = notice.first_row + row, length = notice.lengths[index];
         char line[160]; std::memcpy(line, notice.message + notice.starts[index], length); line[length] = 0;
-        nativeMenuPaint_Text(line, x + 22, top + 57 + row * 17, 420, 12, 0xF2ECEDFF);
+        nativeMenuPaint_Text(line, 105, top + row * 18, 430, 14, 0xFFF4E0FF,
+            NativeMenuFont_Notice, true, false);
     }
-    if (*notice.action) nativeMenuSkin_Button(notice.action, x+20, top+height-34, 130, 22, 11,
-        nativeHub_Hover(x+20, top+height-34, 130, 22), true);
+    if (*notice.action) {
+        char label[64]; std::snprintf(label, sizeof(label), "X %s", notice.action);
+        nativeMenuPaint_Text(label, 140, 319, 145, 11, 0xFFEAB0FF,
+            NativeMenuFont_Notice, true, false);
+    }
     char prompt[64];
     if (notice.row_count > page_rows) std::snprintf(prompt, sizeof(prompt), "Press any button  %u / %u",
         notice.first_row / page_rows + 1, (notice.row_count + page_rows - 1) / page_rows);
-    else std::snprintf(prompt, sizeof(prompt), "%s", *notice.action ? "X Read news  /  A Dismiss" : "Press any button");
-    nativeMenuPaint_Text(prompt, x + 200, top + height - 23, 242, 10,
-        0xD9B754FF, NativeMenuFont_Notice, true);
+    else std::snprintf(prompt, sizeof(prompt), "%s", *notice.action ? "A Dismiss" : "Press any button");
+    nativeMenuPaint_Text(prompt, *notice.action ? 300 : 140, 319, *notice.action ? 200 : 360, 11,
+        0xC5B99EFF, NativeMenuFont_Notice, true, false);
 }
 
 void nativeHubNotice_Inspect()

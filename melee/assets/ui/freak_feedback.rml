@@ -9,7 +9,7 @@
   </div>
   <div id="feedback-bubble">
     <div class="bubble-title">Note <span id="feedback-note-number"></span></div>
-    <textarea id="feedback-note" maxlength="2048" rows="4"/>
+    <textarea id="feedback-note" maxlength="2048" rows="4" style="overflow-y: auto; overflow-x: hidden;"/>
     <div class="bubble-buttons"><button id="feedback-remove">Remove</button><button id="feedback-done">Done · Enter</button></div>
     <div class="bubble-tail"/>
   </div>

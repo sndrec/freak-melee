@@ -177,18 +177,15 @@ void nativeHubNews_Ticker()
         std::snprintf(ticker_text, sizeof(ticker_text), "%s", text); ticker_offset = 0;
     }
     const uint64_t now = SDL_GetTicks();
-    const bool hover = nativeHub_Hover(x, y, width, height);
-    const float text_width = nativeMenuFont_Width(NativeMenuFont_Notice, text, 10);
-    if (!hover && text_width > width - 46 && ticker_time)
-        ticker_offset = std::fmod(ticker_offset + std::min(100ULL, now - ticker_time) * .020f, text_width + 40);
+    const float text_width = nativeMenuFont_Width(NativeMenuFont_MenuCaption, text, 12);
+    const float period = std::max(width, text_width) + 55;
+    if (ticker_time)
+        ticker_offset = std::fmod(ticker_offset + std::min(100ULL, now - ticker_time) * .024f, period);
     ticker_time = now;
-    if (hover) nativeMenuPaint_Round(x, y, width, height, 4, 0xA8943D30);
-    nativeMenuPaint_Text("NEWS", x + 1, y + 7, 30, 8, gold);
-    nativeMenuFont_Clip(x + 37, x + width - 4);
-    nativeMenuPaint_Text(text, x + 37 - ticker_offset, y + 6, text_width + 1, 10, hover ? gold : 0xEEE9EDFF);
-    if (text_width > width - 46)
-        nativeMenuPaint_Text(text, x + 77 + text_width - ticker_offset, y + 6, text_width + 1, 10, hover ? gold : 0xEEE9EDFF);
-    nativeMenuFont_Clip(0, 0);
+    nativeMenuFont_Clip(x, x + width, 16);
+    nativeMenuPaint_Text(text, x + 16 - ticker_offset, y + 4, text_width + 1, 12, gold, NativeMenuFont_MenuCaption);
+    nativeMenuPaint_Text(text, x + 16 + period - ticker_offset, y + 4, text_width + 1, 12, gold, NativeMenuFont_MenuCaption);
+    nativeMenuFont_Clip(0, 0, 0);
     nativeHub_Region("news-ticker", x, y, width, height, HubAction::News);
 }
 void nativeHubNews_Render()

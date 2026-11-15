@@ -3,6 +3,36 @@
 Updated 2026-11-13. Implementation, hosted administration review and updater
 publication are complete. The milestones below record the delivered work.
 
+## Feedback review — 2026-11-14
+
+Report `162b2c34-722c-48c0-9c95-2a99a2a7f1ae` requested these changes:
+
+- Remove the hub's bottom description and controller-help bar. Keep useful
+  operation messages as text without that panel.
+- Remove the ticker's NEWS label. Scroll the headline from right to left in the
+  original italic menu-caption face, in gold, with transparent fades at both ends.
+- Keep long F2 notes visible while typing and allow scrolling back through them.
+- Draw button outlines behind the whole string and correct the outline padding
+  so labels sit in the center of their buttons.
+
+Notifications now use the original `IfPrize.usd` milestone card, camera, material
+tracks and entrance animation. The title, four-line body pages and optional News
+action occupy the card's existing text areas. The original `ifprize.c` remains
+unchanged. `menu-reference:milestone` displays the unmodified card in the native
+reference viewer for comparison. Notice delivery, expiry, seen IDs and deferral
+through matches retain their existing behavior.
+
+`tools/download_native_feedback.py` reads reports through the owner's existing
+Wrangler login and saves their notes, screenshot and diagnostics locally. See
+[Download reports locally](native_feedback.md#download-reports-locally).
+
+The hidden, muted feedback review passed long-note scrolling, resizing, editing,
+capture preservation and retry. The announcement review passed history paging,
+linked News, visible edits, withdrawal, expiry and malformed-feed recovery.
+Evidence is under `.local/community-ui-feedback-review-1` and
+`.local/community-ui-announcements-review-1`. Font-atlas and News-text checks
+also passed. These changes are for the next client release.
+
 ## Goal
 
 Let players delete their fighters, read current and historical news, receive
