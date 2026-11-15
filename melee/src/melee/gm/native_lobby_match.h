@@ -61,6 +61,7 @@ typedef struct NativeLobbyMatch {
     int8_t item_frequency;
     uint8_t handicap;
     uint8_t damage_ratio;
+    uint8_t sd_penalty;
     bool teams;
     bool friendly_fire;
     bool pause;

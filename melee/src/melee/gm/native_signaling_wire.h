@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "native_room_rules.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_QuickRejected,
     NativeSignalingServerMessage_Lobbies,
     NativeSignalingServerMessage_Listing,
+    NativeSignalingServerMessage_LobbyState,
 } NativeSignalingServerMessageType;
 
 typedef struct NativeLobbyListing {
@@ -150,6 +152,7 @@ typedef struct NativeSignalingServerMessage {
         NativeQuickAssignment quick;
         NativeLobbyListing listing;
         NativeLobbyDirectory directory;
+        NativeRoomLobbyState lobby;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
@@ -158,6 +161,8 @@ size_t nativeSignalingWire_EncodeListing(const char* title, bool listed,
                                          uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output,
                                         size_t capacity);
+size_t nativeSignalingWire_EncodeLobbyRules(const NativeRoomRules* rules, uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity);
 
 typedef struct NativeSignalingUpdate {
     const char* name;

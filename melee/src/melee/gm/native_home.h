@@ -109,6 +109,8 @@ bool nativeHome_RequestPreview(const NativeContentId* id, bool live_test);
 bool nativeHome_ReturnToWorkshopPreview(void);
 bool nativeHome_CanStartMatch(void);
 bool nativeHome_TeamsNeedOpponents(void);
+bool nativeHome_IsTeams(void);
+void nativeHome_SetTeams(bool teams);
 bool nativeHome_LocalRosterMatchesRoom(void);
 bool nativeHome_RoomRosterReady(bool* owner_requested,
                                 NativeContentId costume_packages[4],

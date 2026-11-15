@@ -10,6 +10,11 @@ Repository builds do not deploy the service automatically. The private deploymen
 is `https://freak-melee-signaling.sndrec32exe.workers.dev`. The 2026-10-19
 account-key/social/guest-lobby deployment is `8e1f76a3-9a77-4ade-8efe-7eee190a196a`. Native room protocol v5 includes seat
 assignments, owner overrides, match rotation, content controls and lobby chat.
+Clients subscribe to lobby state for shared rules and the automatic three-second
+ready countdown. The service stores the rules, deadline and stage history in
+SQLite and uses its alarm to advance the countdown after hibernation. Stage
+Selection supports On, Random, Ordered, Turns and Loser. See the
+[stage-selection guide](../../docs/native_lobby_stage_checkpoint.md).
 
 `/chat/connect?peer=<32 hex digits>` serves the separate global conversation.
 Its WebSocket carries recent chat history and the connected-player directory.
@@ -38,7 +43,7 @@ ends of the updated wire format. Local native checks set both
 `FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
 localhost service. The [social guide](../../docs/native_social_accounts.md)
 records social behavior and native verification. The current service suite
-passes 75 tests in eleven files. Two hidden/muted native clients also pass
+passes 82 tests in twelve files. Two hidden/muted native clients also pass
 the hosted account-key/profile/invitation/join/sign-out review:
 `.local/account-key-hosted-1/receipt.json`.
 

@@ -2,6 +2,7 @@ import { MAX_SELECTION_BYTES, RotationPolicy, validSeatMasks, isAccountIdentity 
 import type { Participant, RoomSnapshot } from "./protocol";
 import type { QuickState } from "./quick-play";
 import type { LobbyEntry } from "./lobby-directory";
+import { decodeLobbyRules, encodeLobbyRules, type LobbyRules, type LobbyState } from "./lobby-rules";
 
 const MAGIC = 0x464d5331;
 const VERSION = 5;
@@ -27,6 +28,8 @@ export const enum ClientMessageType {
   PickLobbyStage = 17,
   SetListing = 18,
   RequestLobbies = 19,
+  SetLobbyRules = 20,
+  RequestLobbyState = 21,
 }
 
 export const enum ServerMessageType {
@@ -42,6 +45,7 @@ export const enum ServerMessageType {
   QuickRejected = 0x8a,
   Lobbies = 0x8b,
   Listing = 0x8c,
+  LobbyState = 0x8d,
   Error = 0xff,
 }
 
@@ -63,6 +67,8 @@ export interface RoomChatEntry {
 }
 
 export type ClientMessage =
+  | { type: ClientMessageType.SetLobbyRules; rules: LobbyRules }
+  | { type: ClientMessageType.RequestLobbyState }
   | { type: ClientMessageType.SetListing; title: string; listed: boolean }
   | { type: ClientMessageType.RequestLobbies; offset: number }
   | {
@@ -92,6 +98,7 @@ export type ClientMessage =
   | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean; loserPort: number };
 
 export type ServerMessage =
+  | { type: ServerMessageType.LobbyState; lobby: LobbyState }
   | { type: ServerMessageType.Lobbies; offset: number; total: number; entries: LobbyEntry[] }
   | { type: ServerMessageType.Listing; title: string; listed: boolean }
   | {
@@ -275,6 +282,10 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.RequestLobbyState) { reader.finish(); return { type }; }
+  if (type === ClientMessageType.SetLobbyRules) {
+    const rules = decodeLobbyRules(reader.bytes16()); reader.finish(); return { type, rules };
+  }
   if (type === ClientMessageType.SetListing) {
     const title = reader.string8(), listed = reader.u8(); reader.finish();
     if (new TextEncoder().encode(title).length > 64 || !title.trim() || /[\x00-\x1f\x7f]/.test(title) || listed > 1)
@@ -405,6 +416,12 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
 
 export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ServerMessageType.LobbyState) {
+    const revision = reader.u64(), phase = reader.u8(), remainingMs = reader.u16(), bytes = reader.bytes16();
+    if (phase > 2 || remainingMs > 3000) throw new Error("Invalid lobby phase");
+    const rules = bytes.length ? decodeLobbyRules(bytes) : null;
+    reader.finish(); return { type, lobby: { revision, phase, remainingMs, rules } };
+  }
   if (type === ServerMessageType.Listing) {
     const title = reader.string8(), listed = reader.u8(); reader.finish();
     if (listed > 1) throw new Error("Invalid listing state");
@@ -769,6 +786,18 @@ export function encodeRequestLobbies(offset: number): ArrayBuffer {
 export function encodeListing(title: string, listed: boolean): ArrayBuffer {
   const writer = new Writer(ServerMessageType.Listing, 80);
   writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
+}
+export function encodeRequestLobbyState(maximumBytes: number): ArrayBuffer {
+  return new Writer(ClientMessageType.RequestLobbyState, maximumBytes).finish();
+}
+export function encodeSetLobbyRules(rules: LobbyRules, maximumBytes: number): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.SetLobbyRules, maximumBytes);
+  writer.bytes16(encodeLobbyRules(rules)); return writer.finish();
+}
+export function encodeLobbyState(lobby: LobbyState): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.LobbyState, 64);
+  writer.u64(lobby.revision); writer.u8(lobby.phase); writer.u16(lobby.remainingMs);
+  writer.bytes16(lobby.rules ? encodeLobbyRules(lobby.rules) : new Uint8Array()); return writer.finish();
 }
 export function encodeLobbyDirectory(offset: number, total: number, entries: LobbyEntry[]): ArrayBuffer {
   const writer = new Writer(ServerMessageType.Lobbies, 2048);

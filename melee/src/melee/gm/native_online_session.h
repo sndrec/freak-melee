@@ -29,6 +29,8 @@ const NativeQuickAssignment* nativeOnlineSession_Quick(void);
 const char* nativeOnlineSession_QuickError(void);
 uint16_t nativeOnlineSession_QuickCountdownMs(void);
 bool nativeOnlineSession_UnreadyQuick(void);
+const NativeRoomLobbyState* nativeOnlineSession_LobbyState(void);
+uint16_t nativeOnlineSession_LobbyCountdownMs(void);
 void nativeOnlineSession_Stop(void);
 bool nativeOnlineSession_Pump(void);
 bool nativeOnlineSession_BeginMatch(const NativeLobbyMatch* selection);

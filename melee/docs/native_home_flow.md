@@ -1,10 +1,13 @@
 # Home selection and practice flow
 
-Status: normal boot now reaches home CSS. START locks local choices and enters
-practice; the sidebar Start match button opens stage select with those choices.
-Local versus, online stage entry/cancellation, and a four-player Chef/Sheik/
-Ice Climbers action run have reached results. Broader online acceptance remains
-open.
+Current flow: START locks local choices and enters practice. Online practice
+uses START to pause/unready and resume/ready. All active lobby fighters readying
+starts a three-second countdown, followed by the shared Stage Selection policy.
+Waiting players and spectators are excluded. See the current
+[stage-selection guide](native_lobby_stage_checkpoint.md) and
+[CSS/practice controls](native_play_menu_checkpoint.md).
+
+The dated sections below record earlier implementations and their test evidence.
 
 ## Grid stage foundation (2026-09-22)
 

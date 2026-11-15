@@ -1,7 +1,12 @@
 # Stage selection in player-created lobbies
 
-The host starts each match. The previous game's loser chooses its stage. In
-teams, the lowest match-port index on the losing team chooses. Before the first
+When all active fighters are ready, a three-second countdown leads to stage
+selection. START pauses practice and unreadies; START resumes and readies.
+Waiting players and spectators do not count. Rules are shared by the lobby and
+edited by its host in the original Rules screen.
+
+Stage Selection defaults to **Loser**. The previous game's loser chooses its
+stage. In teams, the lowest match-port index on the losing team chooses. Before the first
 game, or when that player leaves or stops fighting, the lowest-index active
 player chooses. Match ports follow lobby join order and then local seat order;
 the CSS's local-first card display does not change this order.
@@ -11,29 +16,64 @@ chooses. A draw or cancelled match clears the previous loser and uses the active
 roster fallback. These rules apply to player-created lobbies. Quick Play keeps
 its separate random-first-stage and losing-side rematch flow.
 
+The other Stage Selection settings work as follows:
+
+- **On:** any active player can choose; the first accepted choice wins.
+- **Random:** the service chooses from the Random Stage Switch settings, with
+  the stock recent-stage and paired-stage cooldowns.
+- **Ordered:** stages cycle through the stock stage-select order.
+- **Turns:** active players take turns in canonical match-port order.
+
+Random and Ordered choose their stage when the countdown finishes. Their stage
+history advances when the match is committed, so cancelling a countdown does
+not consume a turn or stage.
+
 ## Match flow
 
-The host's Start match request opens the original stage-select scene on the
-fighting clients. Only the chosen player's assigned physical controller can
+The countdown opens the original stage-select scene on the fighting clients.
+For Loser and Turns, only the chosen player's assigned physical controller can
 move its cursor or select a stage, including the second or later controller on
 a shared PC. The service publishes that choice; the owner constructs the match
 with its rules and the active roster.
 
-A spectating owner stays in local practice while the active players choose and
-play. Its start request clears when the match is published, so a later match
-requires another press. Watching remains an explicit choice.
+A spectating owner can stay on CSS or keep practicing while the active players
+choose and play. A later game requires the active fighters to ready again.
+Watching remains an explicit choice.
 
 The service saves the losing player's peer identity and local seat. It resolves
 the next chooser against the current active roster. Stage choices carry the
 current match epoch. Changing the active roster, active character selection or
-the owner's pending start request advances that epoch and clears the pending
+the shared rules cancels the countdown and clears the pending
 stage. Stale choices and repeated result reports cannot change a newer round.
 The first accepted stage choice wins until that selection is cancelled.
 
 The native and service wire definitions change together. Use matching client
 and service builds.
 
-## Verification
+## Automatic-readiness verification (2026-11-15)
+
+The full signaling suite passes 82 tests in 12 files. Native wire, match and
+selection tests pass (3/3), including shared-rule records, SD penalties and empty
+inactive seats. The release client and control executable build successfully.
+
+Hidden, muted native reviews completed actual matches and returned through
+Results for every stage policy. The Loser review used three clients: the owner
+stayed on CSS, a shared PC used only its second controller, and the other PC
+lost the match and received the next stage pick. The inactive controller could
+not select a stage. All reviews cancelled and restarted a countdown with START,
+checked guest rule values, and preserved the guest's settings file. Ordered
+advanced from stage 4 to stage 11; Random respected the FD-only switch mask in
+the live test. Its full 29-stage selection and cooldown behavior is covered by
+the service tests.
+
+Evidence: `.local/native-ui-round2-lobby-flow-review-3/review.json`,
+`.local/native-ui-round2-lobby-flow-review-other-policies-1/review.json`,
+`.local/native-ui-round2-lobby-flow-full-tests.log`,
+`.local/native-ui-round2-lobby-flow-codec-tests.log` and
+`.local/native-ui-round2-lobby-flow-build-3.log`. These reviews use virtual
+controllers on one PC with local signaling.
+
+## Earlier verification, before automatic lobby readiness
 
 The native wire, roster and result tests pass. Result checks cover individual
 and team ranks, tied last place, vacant slots, draws and cancellations. The

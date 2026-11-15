@@ -9,7 +9,7 @@ enum {
     MATCH_FLAG_FRIENDLY_FIRE = 1 << 1,
     MATCH_FLAG_PAUSE = 1 << 2,
     MATCH_FLAG_SCORE_DISPLAY = 1 << 3,
-    MATCH_FLAG_ALL = (1 << 4) - 1,
+    MATCH_FLAG_ALL = (1 << 6) - 1,
 };
 
 typedef struct MatchWriter {
@@ -66,7 +66,7 @@ bool nativeLobbyMatch_Validate(const NativeLobbyMatch* match)
         match->stock_time_limit_minutes > 99 || match->stock_count == 0 ||
         match->stock_count > 99 || match->item_frequency < -1 ||
         match->item_frequency > 4 || match->handicap > 2 ||
-        match->damage_ratio < 5 || match->damage_ratio > 20 ||
+        match->damage_ratio < 5 || match->damage_ratio > 20 || match->sd_penalty>2 ||
         match->session_id == 0 || match->stage_id == 0 ||
         !has_content_digest ||
         ((match->mode == NativeLobbyMatchMode_Time ||
@@ -217,7 +217,7 @@ size_t nativeLobbyMatch_Encode(const NativeLobbyMatch* match, uint8_t* output,
     uint8_t flags = (match->teams ? MATCH_FLAG_TEAMS : 0) |
                     (match->friendly_fire ? MATCH_FLAG_FRIENDLY_FIRE : 0) |
                     (match->pause ? MATCH_FLAG_PAUSE : 0) |
-                    (match->score_display ? MATCH_FLAG_SCORE_DISPLAY : 0);
+                    (match->score_display ? MATCH_FLAG_SCORE_DISPLAY : 0) | (match->sd_penalty<<4);
     if (!write_raw(&writer, magic, sizeof(magic)) ||
         !write_u64(&writer, match->session_id) ||
         !write_raw(&writer, match->content_digest,
@@ -344,6 +344,7 @@ bool nativeLobbyMatch_Decode(NativeLobbyMatch* match, const uint8_t* bytes,
     decoded.friendly_fire = (flags & MATCH_FLAG_FRIENDLY_FIRE) != 0;
     decoded.pause = (flags & MATCH_FLAG_PAUSE) != 0;
     decoded.score_display = (flags & MATCH_FLAG_SCORE_DISPLAY) != 0;
+    decoded.sd_penalty=(flags>>4)&3;
     for (uint32_t i = 0; i < 4; ++i) {
         NativeLobbyMatchSlot* slot = &decoded.slots[i];
         if (!read_u8(&reader, &slot->kind) ||

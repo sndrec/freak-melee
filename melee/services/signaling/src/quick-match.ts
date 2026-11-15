@@ -1,49 +1,10 @@
+import { lockedChoices } from "./lobby-selection";
 import type { Participant } from "./protocol";
 import { QUICK_RULES, type QuickAllocation } from "./quick-play";
 
 export const QUICK_COUNTDOWN_MS = 3000;
 // Native St_Kind values, in QUICK_STAGES order.
 const STAGES = [0x1f, 0x20, 0x02, 0x1c, 0x03, 0x08];
-const EMPTY_PACKAGE = new Uint8Array(32);
-
-interface Choice {
-  character: bigint;
-  costume: bigint;
-  fighterPackage: Uint8Array;
-  costumePackage: Uint8Array;
-}
-
-// FMSL is the native lobby-selection format. Read every record before treating
-// confirmation as readiness; a flag in a truncated record grants no readiness.
-export function lockedChoices(bytes: Uint8Array, players: number): Choice[] | null {
-  if (players < 1 || players > 2 || bytes.length < 7 || bytes.length > 335) return null;
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (view.getUint32(0) !== 0x464d534c || bytes[4] !== 1 || bytes[5] !== players ||
-      (bytes[6] !== 1 && bytes[6] !== 3)) return null;
-  let offset = 7;
-  const choices: Choice[] = [];
-  for (let seat = 0; seat < players; ++seat) {
-    if (offset + 18 > bytes.length) return null;
-    const flags = bytes[offset++];
-    const team = bytes[offset++];
-    if (!(flags & 1) || flags & ~7 || team > 2) return null;
-    const character = view.getBigUint64(offset); offset += 8;
-    const costume = view.getBigUint64(offset); offset += 8;
-    const packages: Uint8Array[] = [];
-    for (const flag of [2, 4]) {
-      if (!(flags & flag)) { packages.push(EMPTY_PACKAGE); continue; }
-      if (offset + 32 > bytes.length) return null;
-      const id = bytes.slice(offset, offset + 32); offset += 32;
-      if (!id.some((byte) => byte !== 0)) return null;
-      packages.push(id);
-    }
-    if (flags & 2 ? character !== 0n || costume !== 0n || (flags & 4) !== 0
-                  : character === 0n || costume === 0n) return null;
-    choices.push({ character, costume, fighterPackage: packages[0], costumePackage: packages[1] });
-  }
-  return offset === bytes.length ? choices : null;
-}
-
 export function quickRosterComplete(allocation: QuickAllocation, people: Participant[]): boolean {
   return people.length === allocation.players.length && people.every((person) => {
     const assigned = allocation.players.find((player) => player.peerId === person.peerId);

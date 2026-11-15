@@ -223,6 +223,12 @@ static bool process_signaling(NativeNetplayConnection* connection)
             connection->listing = event.message.data.listing;
             continue;
         }
+        if (event.message.type == NativeSignalingServerMessage_LobbyState) {
+            connection->lobby=event.message.data.lobby;
+            connection->has_lobby=true;
+            ++connection->lobby_revision;
+            continue;
+        }
         if (connection->topology_locked &&
             event.message.type == NativeSignalingServerMessage_Presence)
         {

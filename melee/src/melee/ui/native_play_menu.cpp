@@ -30,7 +30,6 @@ namespace {
     enum class Action {
         Lobby,
         Ready,
-        Start,
         Watch,
         Selection,
         Accept,
@@ -94,9 +93,6 @@ namespace {
             break;
         case Action::Ready:
             menu.ready_requested = true;
-            break;
-        case Action::Start:
-            nativeHome_RequestStartMatch();
             break;
         case Action::Watch:
             if (nativeSpectatorMatch_State() == NativeSpectator_Requested)
@@ -209,8 +205,6 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         else if (compact && (can_watch || requesting_watch))
             add("play-watch", requesting_watch ? "Cancel viewing" : "Watch match",
                 451, 451, 177, 24, Action::Watch, true, true);
-        else if (compact) add("play-start", "Start match", 451, 451, 177, 24, Action::Start,
-                              nativeHome_CanStartMatch(), true);
         if (presence) {
             add("css-chat-history", "Lobby chat", 455, 278, 98, 17, Action::ChatHistory, true, false, true);
             add("css-chat-code", "Copy code", 565, 278, 59, 17, Action::CopyCode);
@@ -239,9 +233,8 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     } else if (state == NativeLobbySessionState_Failed) {
         status = "Connection failed. Open Lobbies to reconnect.";
     } else if (state == NativeLobbySessionState_Waiting && practice) {
-        status = nativeHome_CanStartMatch()      ? "Everyone ready"
-                 : nativeOnlineSession_IsOwner() ? "Waiting for ready players"
-                                                 : "Waiting for the host";
+        const auto* lobby=nativeOnlineSession_LobbyState();
+        status=lobby && lobby->phase==1 ? "Everyone ready" : "Waiting for ready players";
     }
     if (quick && state == NativeLobbySessionState_Waiting) {
         status = quick->phase == 3 ? (quick->chooser == quick->team ? "Your side picks the next stage" : "Waiting for the losing side's stage")
@@ -339,6 +332,7 @@ extern "C" void nativePlayMenu_DrawCss(Mtx view)
 extern "C" void nativePlayMenu_DrawCountdown(void)
 {
     uint16_t remaining = nativeOnlineSession_QuickCountdownMs();
+    if (!nativeOnlineSession_Quick()) remaining=nativeOnlineSession_LobbyCountdownMs();
     if (!remaining) return;
     char label[64];
     std::snprintf(label, sizeof(label), "Match starts in %u", (remaining + 999) / 1000);

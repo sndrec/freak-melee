@@ -1,0 +1,132 @@
+"""Review shared stock Rules, automatic readiness and stage policies in real local clients."""
+import argparse,json,os,re,secrets,shutil,struct,time
+from pathlib import Path
+from review_native_css_room import Client
+from review_native_release import close_window
+from review_native_outfit_matches import network,select_stage,wait
+from review_native_room_rotation import choose,role,room,session
+
+def main():
+ p=argparse.ArgumentParser(description=__doc__)
+ for key in ['exe','iso','profile','output']:p.add_argument('--'+key,type=Path,required=True)
+ p.add_argument('--endpoint',required=True);p.add_argument('--policies',default='4,0,1,2,3')
+ p.add_argument('--spectator-host',action='store_true');p.add_argument('--shared-couch',action='store_true');a=p.parse_args()
+ assert a.endpoint.startswith(('http://127.0.0.1:','http://localhost:')) or a.endpoint=='https://freak-melee-signaling.sndrec32exe.workers.dev'
+ out=a.output.resolve();out.mkdir(parents=True,exist_ok=False)
+ os.environ.update(FREAK_MELEE_SERVICE_ENDPOINT=a.endpoint,FREAK_MELEE_COMMUNITY_ENDPOINT='http://localhost:1',FREAK_MELEE_MENU_MOTION='0')
+ result={'status':'RUNNING','cases':[]};clients=[]
+ def inspect(c,kind,pattern,timeout=30):
+  return wait(lambda:(text if re.search(pattern,text:=c.inspect(kind)) else None),pattern,timeout)
+ def flow(c):
+  text=c.inspect('room-state');m=re.search(r'\[room-flow\] revision=(\d+) phase=(\d+) remaining=(\d+) rules=(\d+) mode=(\d+) stock=(\d+) timer=(\d+) stage_policy=(\d+) damage=(\d+) penalty=(\d+) teams=(\d+)',text)
+  assert m,text;return dict(zip(['revision','phase','remaining','rules','mode','stock','timer','stage_policy','damage','penalty','teams'],map(int,m.groups())))
+ def close():
+  for c in clients:
+   if c.process.poll() is None:close_window(c.process.pid);c.process.wait(timeout=20)
+  clients.clear()
+ def rules_menu(c):c.click('play-rules')
+ def finish_rules(c):c.click('rules-close')
+ def enter_practice(c,port):
+  c.tap('START',frames=4,port=port);inspect(c,'practice-state',r'practice=1 ready=1 paused=0',90)
+ try:
+  for policy in map(int,a.policies.split(',')):
+   case={'policy':policy,'screenshots':{}};result['cases'].append(case)
+   folder=out/str(policy);folder.mkdir();base=folder/'base';shutil.copytree(a.profile,base,ignore=shutil.ignore_patterns('projects'))
+   path=base/'Freak Melee/versus-settings.fms';data=bytearray(32);data[:4]=b'FMVS'
+   data[4:16]=bytes([1,2,1,0,10,4,0,0,1,0,1,255]);struct.pack_into('<I',data,24,0xffffffff)
+   if policy==1:struct.pack_into('<I',data,24,1<<25) # FD only; exercise the shared Random Stage Switch mask.
+   digest=2166136261
+   for value in data[:28]:digest=((digest^value)*16777619)&0xffffffff
+   struct.pack_into('<I',data,28,digest);path.write_bytes(data)
+   code=''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(10))
+   count=3 if a.spectator_host else 2
+   for index in range(count):
+    c=Client(a.exe.resolve(),a.iso.resolve(),base,folder/str(index),'Flow player '+str(index),window_size=(1440,900));clients.append(c)
+    if a.shared_couch and index==1:
+     c.click('nav-6');c.click('settings-category-4');c.click('local-players-2');c.click('controls-back');c.click('settings-back')
+    c.click('nav-1');c.enter('lobby-code',code);c.click('join-lobby')
+    wait(lambda:room(c)['count']==index+1,'joined lobby',25)
+    inspect(c,'room-state',r'\[room-flow\].*rules=1 ')
+   host=clients[0];wait(lambda:room(host)['count']==count,'complete presence',20)
+   peers=[room(c)['local'] for c in clients]
+   rules_menu(host)
+   for _ in range((policy-4)%5):host.click('rules-row-4-right')
+   host.click('rules-row-3-right') # 110% damage; guest must display this shared value.
+   host.click('rules-row-6');host.click('rules-row-4-right') # SD penalty 2.
+   host.click('rules-lobby')
+   if a.spectator_host:role(host,peers[0],0,'spectating')
+   if a.shared_couch:role(host,peers[1],0,'waiting')
+   host.click('rules-close');host.click('rules-close');finish_rules(host)
+   active=clients[1:] if a.spectator_host else clients
+   for c in active:
+    wait(lambda:flow(c)['stage_policy']==policy and flow(c)['damage']==11 and flow(c)['penalty']==2,'shared rules',20)
+   guest=clients[-1];guest_settings=(guest.data/'versus-settings.fms').read_bytes()
+   rules_menu(guest);inspect(guest,'match-rules',rf'editable=0 .*damage=110 .*stage={policy} ')
+   case['screenshots']['shared-rules']=str(guest.screenshot());finish_rules(guest)
+   for c in active:
+    port=1 if a.shared_couch and c is clients[1] else 0
+    if a.shared_couch and c is clients[1]:c.command('hold',0,'sx=0');c.command('hold',1,'sx=0')
+    raw=(c.data/'css-layout.bin').read_bytes();choose(c,raw[14:46].hex(),port)
+    assert 'origin=' not in c.inspect('play-start')
+   first=active[0];first_port=1 if a.shared_couch and first is clients[1] else 0
+   enter_practice(first,first_port)
+   assert flow(first)['phase']==0
+   # Pause the first fighter before the last fighter readies: no countdown.
+   inspect(first,'practice-state',r'hud=1');first.tap('START',frames=4,port=first_port)
+   inspect(first,'practice-state',r'ready=0 paused=2')
+   second=active[1];second_port=1 if a.shared_couch and second is clients[1] else 0
+   enter_practice(second,second_port);assert flow(first)['phase']==0
+   first.tap('START',frames=4,port=first_port)
+   wait(lambda:flow(first)['phase']==1,'authoritative countdown',20)
+   case['screenshots']['countdown']=str(first.screenshot())
+   # One press cancels the countdown, with B still available for gameplay.
+   first.tap('START',frames=4,port=first_port);inspect(first,'practice-state',r'ready=0 paused=2')
+   wait(lambda:flow(second)['phase']==0,'countdown cancellation',20)
+   time.sleep(.3);first.tap('START',frames=4,port=first_port)
+   wait(lambda:flow(first)['phase']==1,'restarted countdown',20)
+   if policy not in [1,2]:
+    for c in active:inspect(c,'sss-state',r'\[sss-cursor\]',90)
+    chooser=second if policy==0 else first;port=second_port if policy==0 else first_port
+    if policy!=0:assert 'physical=-1' in second.inspect('room-state')
+    if a.shared_couch and chooser is clients[1]:
+     before=re.search(r'\[sss-cursor\].*',chooser.inspect('sss-state'))[0];chooser.tap('A',frames=4,port=0)
+     assert re.search(r'\[sss-cursor\].*',chooser.inspect('sss-state'))[0]==before
+    select_stage(chooser,port)
+   sessions=[session(c,1) for c in active];assert sessions[0][:2]==sessions[1][:2]
+   wait(lambda:network(first).get('frame',0)>120,'live agreed match',90)
+   case['sessions']=sessions;case['screenshots']['match']=str(first.screenshot())
+   if a.spectator_host:assert '[sss-state] inactive' in host.inspect('sss-state') and '[netplay] Session ' not in (host.folder/'stdout.log').read_text(errors='replace')
+   # End a real one-stock game and verify the next loser/Turns picker.
+   second.command('hold',second_port,'sx=80')
+   wait(lambda:'[netplay] Compared ' in (second.folder/'stdout.log').read_text(errors='replace'),'completed match',90)
+   second.command('hold',second_port,'sx=0')
+   for c in active:
+    port=first_port if c is first else second_port
+    deadline=time.monotonic()+45
+    while time.monotonic()<deadline:
+     if '[css-selection] ready=' in c.inspect('css-selection'):break
+     c.tap('START',frames=4,port=port);time.sleep(.3)
+    else:raise AssertionError('Results did not return to CSS')
+   assert (guest.data/'versus-settings.fms').read_bytes()==guest_settings
+   for c in active:
+    if 'origin=' in c.inspect('return-session'):c.click('return-session')
+    enter_practice(c,first_port if c is first else second_port)
+   if policy not in [1,2]:
+    inspect(second,'sss-state',r'\[sss-cursor\]',90)
+    expected=second_port if policy in [3,4] else first_port
+    if policy in [3,4]:assert f'physical={expected}' in second.inspect('room-state')
+    case['screenshots']['next-stage']=str(second.screenshot())
+   else:
+    next_sessions=[session(c,2) for c in active];assert next_sessions[0][:2]==next_sessions[1][:2]
+    text=first.inspect('room-state');expected=32 if policy==1 else 11
+    assert re.search(rf'\[room-stage\].* stage={expected} ',text),text
+    case['rematch_sessions']=next_sessions
+   for c in clients:
+    text=(c.folder/'stdout.log').read_text(errors='replace')+c.stderr.read_text(errors='replace')
+    assert not re.search(r'\[netplay\] FAILED:|native panic stack|Fighter source VM failed',text),text[-2000:]
+   case['status']='PASS';close();(out/'review.json').write_text(json.dumps(result,indent=2))
+  result['status']='PASS'
+ finally:
+  close();(out/'review.json').write_text(json.dumps(result,indent=2))
+ print('PASS shared lobby rules, readiness and stage flow')
+if __name__=='__main__':main()

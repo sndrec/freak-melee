@@ -81,6 +81,7 @@ bool nativeMatchSelection_Build(NativeLobbyMatch* match,
         .friendly_fire = rules->friendly_fire,
         .pause = rules->pause,
         .score_display = rules->score_display,
+        .sd_penalty = rules->unk_xc,
     };
     memcpy(match->content_digest, nativeStockContent_Digest(),
            sizeof(match->content_digest));

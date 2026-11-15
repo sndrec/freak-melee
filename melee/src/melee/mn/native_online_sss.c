@@ -24,6 +24,12 @@ void nativeOnlineSss_Prepare(SSSData* sss)
          (nativeOnlineSession_Quick() &&
           (nativeOnlineSession_State() == NativeLobbySessionState_Starting ||
            nativeOnlineSession_State() == NativeLobbySessionState_Ready)));
+    if (online_sss.active && !nativeOnlineSession_Quick()) {
+        // The service owns automatic picks; local saved stage rules cannot
+        // bypass the shared stage-selection step.
+        sss->force_stage_id=-1;
+        sss->unk_stage=0;
+    }
 }
 
 bool nativeOnlineSss_IsActive(void)

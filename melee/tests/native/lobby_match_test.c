@@ -18,6 +18,7 @@ static NativeLobbyMatch example(void)
         .item_frequency = 2,
         .handicap = 0,
         .damage_ratio = 10,
+        .sd_penalty = 2,
         .teams = true,
         .friendly_fire = true,
         .pause = true,
@@ -106,6 +107,10 @@ int main(void)
     assert(!nativeLobbyMatch_Decode(&decoded, bytes, size + 1));
 
     NativeLobbyMatch invalid = original;
+    invalid.sd_penalty=3;
+    assert(!nativeLobbyMatch_Validate(&invalid));
+    assert(decoded.sd_penalty==2);
+    invalid=original;
     invalid.peers[1].port_mask = 0x5;
     assert(!nativeLobbyMatch_Validate(&invalid));
     invalid = original;

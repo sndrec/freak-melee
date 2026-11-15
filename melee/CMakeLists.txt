@@ -894,7 +894,7 @@ if(MELEE_BUILD_TESTS)
     add_test(NAME native_netplay_udp COMMAND native_netplay_udp_test)
     add_executable(native_signaling_wire_test
         tests/native/signaling_wire_test.c
-        src/melee/gm/native_signaling_wire.c)
+        src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
     target_include_directories(native_signaling_wire_test PRIVATE
         src extern/dolphin/include)
     target_compile_definitions(native_signaling_wire_test PRIVATE
@@ -904,7 +904,7 @@ if(MELEE_BUILD_TESTS)
         tests/native/room_chat_test.c
         src/melee/gm/native_room_chat.c
         src/melee/gm/native_signaling_client.c
-        src/melee/gm/native_signaling_wire.c)
+        src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
     target_include_directories(native_room_chat_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_room_chat_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(native_room_chat_test PRIVATE winhttp)
@@ -2228,7 +2228,7 @@ add_test(NAME native_samus_template_source COMMAND Python3::Interpreter
 add_executable(native_signaling_probe
     tools/native_signaling_probe.c
     src/melee/gm/native_signaling_client.c
-    src/melee/gm/native_signaling_wire.c)
+    src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
 target_include_directories(native_signaling_probe PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_signaling_probe PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
@@ -2261,7 +2261,7 @@ add_executable(native_connection_probe
     src/melee/gm/native_turn_credentials.c
     src/melee/gm/native_rollback_input.c
     src/melee/gm/native_signaling_client.c
-    src/melee/gm/native_signaling_wire.c)
+    src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
 target_include_directories(native_connection_probe PRIVATE
     src extern/dolphin/include)
 target_compile_definitions(native_connection_probe PRIVATE
@@ -2280,7 +2280,7 @@ add_executable(native_content_channel_probe
     src/melee/gm/native_netplay_connection_wire.c
     src/melee/gm/native_netplay_ice.c
     src/melee/gm/native_signaling_client.c
-    src/melee/gm/native_signaling_wire.c)
+    src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
 target_include_directories(native_content_channel_probe PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_content_channel_probe PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(native_content_channel_probe PRIVATE LibJuice::LibJuice winhttp bcrypt)

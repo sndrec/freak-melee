@@ -44,6 +44,9 @@ typedef struct NativeNetplayConnection {
     NativeSignalingPresence presence;
     NativeQuickAssignment quick;
     NativeLobbyListing listing;
+    NativeRoomLobbyState lobby;
+    uint32_t lobby_revision;
+    bool has_lobby;
     char quick_error[129];
     uint32_t quick_revision;
     NativeNetplayConnectionPeer

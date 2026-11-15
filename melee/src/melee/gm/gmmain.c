@@ -243,6 +243,7 @@ int main(int argc, char** argv)
     HSD_SisLib_803A6048(0xC000);
     gmMainLib_8015FBA4();
     if (!nativeMatchLaunch_IsDirect()) {
+        gmMainLib_GetGameRules()->stage_sel=StageSelectMode_Loser;
         if (nativeSettings_Load(gmMainLib_GetGameRules(),
                                 gmMainLib_GetGamePrefs()))
         {

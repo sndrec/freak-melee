@@ -1,9 +1,10 @@
+import { lockedChoices } from "../src/lobby-selection";
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { digest, choices, phase, setup, select, revision, prepare, expire } from "./quick-fixture";
 import { quickJoin } from "./quick-client";
 import { encodePrepareQuick, encodeRequestPresence, encodeUnreadyQuick, ServerMessageType } from "../src/wire";
-import { lockedChoices, buildQuickMatch } from "../src/quick-match";
+import { buildQuickMatch } from "../src/quick-match";
 import type { QuickAllocation } from "../src/quick-play";
 import { publicParticipant } from "../src/protocol";
 

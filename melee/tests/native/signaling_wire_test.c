@@ -386,6 +386,32 @@ static void test_lobby_directory(void)
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
 }
 
+static void test_shared_lobby_rules(void)
+{
+    NativeRoomRules rules={ .mode=1,.time=6,.stocks=4,.damage=10,.stage_policy=4,
+        .stock_time=6,.pause=1,.sd_penalty=2,.item_frequency=255,.teams=1,
+        .item_mask=UINT64_C(0x1122334455667788),.stage_mask=0x1FFFFFFF };
+    uint8_t record[NATIVE_ROOM_RULES_BYTES],bytes[128];
+    NativeRoomRules decoded_rules;
+    assert(nativeRoomRules_Encode(&rules,record));
+    assert(nativeRoomRules_Decode(&decoded_rules,record,sizeof(record)));
+    assert(decoded_rules.item_mask==rules.item_mask && decoded_rules.sd_penalty==2 && decoded_rules.stage_mask==rules.stage_mask);
+    assert(nativeSignalingWire_EncodeRequestLobbyState(bytes,sizeof(bytes))==8 && bytes[5]==21);
+    assert(nativeSignalingWire_EncodeLobbyRules(&rules,bytes,sizeof(bytes))==35 && bytes[5]==20);
+    assert(bytes[8]==0 && bytes[9]==25 && !memcmp(bytes+10,record,sizeof(record)));
+    size_t size=header(bytes,0x8D);
+    put_u64(bytes+size,17);size+=8;bytes[size++]=1;put_u16(bytes+size,3000);size+=2;
+    put_u16(bytes+size,sizeof(record));size+=2;memcpy(bytes+size,record,sizeof(record));size+=sizeof(record);finish(bytes,size);
+    NativeSignalingServerMessage decoded;
+    assert(nativeSignalingWire_DecodeServer(bytes,size,&decoded));
+    assert(decoded.type==NativeSignalingServerMessage_LobbyState && decoded.data.lobby.has_rules);
+    assert(decoded.data.lobby.phase==1 && decoded.data.lobby.remaining_ms==3000 && decoded.data.lobby.revision==17);
+    for (size_t cut=0;cut<size;++cut) assert(!nativeSignalingWire_DecodeServer(bytes,cut,&decoded));
+    bytes[size-25+5]=5;
+    assert(!nativeSignalingWire_DecodeServer(bytes,size,&decoded));
+    rules.stocks=0;assert(!nativeRoomRules_Encode(&rules,record));
+}
+
 int main(void)
 {
     test_client_encoding();
@@ -393,6 +419,7 @@ int main(void)
     test_chat_wire();
     test_quick_wire();
     test_lobby_directory();
+    test_shared_lobby_rules();
     puts("native signaling wire tests passed");
     return 0;
 }

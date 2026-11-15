@@ -82,8 +82,9 @@ toolchain. Configure a separate build directory rather than editing the cache.
 melee\build\native\melee_native.exe --iso "C:/local/Melee-USA-v1.02.iso"
 ```
 
-Normal boot reaches home character select. START enters grid practice; local
-and online Start match lead to stage select with locked-in choices. The local
+Normal boot reaches home character select. START enters grid practice. Online
+lobbies begin a three-second countdown when all active fighters are ready,
+then proceed to stage selection with locked-in choices. The local
 top-level batch launcher uses this workspace's build and sibling ISO.
 See [home flow](native_home_flow.md) and [diagnostic match options](native_match_launch.md).
 

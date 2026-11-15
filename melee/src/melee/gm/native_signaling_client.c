@@ -658,6 +658,24 @@ bool nativeSignalingClient_SetRotation(NativeSignalingClient* client,
     return queued;
 }
 
+bool nativeSignalingClient_SetLobbyRules(NativeSignalingClient* client, const NativeRoomRules* rules)
+{
+    uint8_t bytes[NATIVE_ROOM_RULES_BYTES+10];
+    size_t size=nativeSignalingWire_EncodeLobbyRules(rules,bytes,sizeof(bytes));
+    bool queued=client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands,bytes,size);
+    if (queued) SetEvent((HANDLE)client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_RequestLobbyState(NativeSignalingClient* client)
+{
+    uint8_t bytes[8];
+    size_t size=nativeSignalingWire_EncodeRequestLobbyState(bytes,sizeof(bytes));
+    bool queued=client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands,bytes,size);
+    if (queued) SetEvent((HANDLE)client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
                                        const char* winner_peer_id,

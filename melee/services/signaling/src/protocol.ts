@@ -31,6 +31,7 @@ export interface ConnectionAttachment extends Omit<Participant, "waitingRanks" |
   account?: import("./connection-account").ConnectionAccount;
   connectionId: string;
   chatSubscribed?: boolean;
+  lobbySubscribed?: boolean;
   chatLastPost?: number;
   chatHighestNonce?: number;
   chatLastHistory?: number;

@@ -16,6 +16,8 @@
 #include "native_match_selection.h"
 #include "gm_1601.h"
 #include "gmresult.h"
+#include "gmmain_lib.h"
+#include <sysdolphin/baselib/controller.h>
 #include "types.h"
 
 static struct NativeOnlineProcessSession {
@@ -26,6 +28,10 @@ static struct NativeOnlineProcessSession {
     uint8_t local_selection[NATIVE_LOBBY_SELECTION_MAX_WIRE_BYTES];
     uint16_t local_selection_size;
     uint8_t local_players;
+    uint8_t sent_rules[NATIVE_ROOM_RULES_BYTES];
+    uint32_t lobby_revision;
+    uint64_t lobby_countdown_end_ms;
+    bool lobby_requested, rules_sent, was_owner;
     bool active;
     bool launch_ready;
     bool match_claimed;
@@ -48,7 +54,7 @@ static struct NativeQuickSession {
     uint64_t unready_revision, unready_epoch;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-quick-return";
+static const char online_build[] = "freak-melee-native-dev-lobby-flow";
 const char* nativeOnlineSession_Build(void) { return online_build; }
 const NativeLobbyListing* nativeOnlineSession_Listing(void) {
     return online.active ? &online.lobby.room.connection.listing : NULL;
@@ -381,6 +387,49 @@ static bool pump_quick(void)
     return true;
 }
 
+const NativeRoomLobbyState* nativeOnlineSession_LobbyState(void)
+{
+    return online.active && !quick.assignment.mode && online.lobby.room.connection.has_lobby
+        ? &online.lobby.room.connection.lobby : NULL;
+}
+uint16_t nativeOnlineSession_LobbyCountdownMs(void)
+{
+    const NativeRoomLobbyState* state=nativeOnlineSession_LobbyState();
+    uint64_t now=GetTickCount64();
+    return state && state->phase==1 && online.lobby_countdown_end_ms>now
+        ? (uint16_t)(online.lobby_countdown_end_ms-now) : 0;
+}
+static void pump_lobby_rules(void)
+{
+    NativeNetplayConnection* connection=&online.lobby.room.connection;
+    if (quick.assignment.mode || !connection->has_presence) return;
+    if (!online.lobby_requested) online.lobby_requested=nativeSignalingClient_RequestLobbyState(&connection->signaling);
+    if (!connection->has_lobby) return;
+    if (online.lobby_revision!=connection->lobby_revision) {
+        online.lobby_revision=connection->lobby_revision;
+        online.lobby_countdown_end_ms=GetTickCount64()+connection->lobby.remaining_ms;
+    }
+    bool owner=nativeOnlineSession_IsOwner();
+    if (owner && !online.was_owner && connection->lobby.has_rules) {
+        nativeRoomRules_Apply(&connection->lobby.rules,gmMainLib_GetGameRules(),gmMainLib_GetGamePrefs());
+        nativeHome_SetTeams(connection->lobby.rules.teams);
+    }
+    online.was_owner=owner;
+    if (!owner) {
+        online.rules_sent=false;
+        if (connection->lobby.has_rules) nativeHome_SetTeams(connection->lobby.rules.teams);
+        return;
+    }
+    if (online.lobby.state!=NativeLobbySessionState_Waiting) return;
+    NativeRoomRules rules;
+    nativeRoomRules_Capture(&rules,gmMainLib_GetGameRules(),gmMainLib_GetGamePrefs(),nativeHome_IsTeams());
+    uint8_t bytes[NATIVE_ROOM_RULES_BYTES];
+    if (!nativeRoomRules_Encode(&rules,bytes) || (online.rules_sent && !memcmp(bytes,online.sent_rules,sizeof(bytes)))) return;
+    if (nativeSignalingClient_SetLobbyRules(&connection->signaling,&rules)) {
+        memcpy(online.sent_rules,bytes,sizeof(bytes)); online.rules_sent=true;
+    }
+}
+
 bool nativeOnlineSession_Pump(void)
 {
     if (!online.active || online.match_claimed) return false;
@@ -397,6 +446,7 @@ bool nativeOnlineSession_Pump(void)
             fail_launch("could not return to the Quick Play party");
     }
     bool pumped = nativeLobbySession_Pump(&online.lobby);
+    pump_lobby_rules();
     if (!pumped && online.lobby.room.connection.quick.state != NativeQuickState_Aborted) return false;
     if (online.accept_gift_requested) {
         online.accept_gift_requested = false;
@@ -666,6 +716,11 @@ void nativeOnlineSession_Inspect(void)
     if (failure) fprintf(stderr, "[room-failure] %s\n", failure);
     if (p) fprintf(stderr, "[room-stage] peer=%s seat=%u stage=%u physical=%d\n",
         p->stage_peer_id, p->stage_seat, p->stage, nativeOnlineSession_StagePort());
+    const NativeRoomLobbyState* flow=nativeOnlineSession_LobbyState();
+    if (flow) fprintf(stderr,"[room-flow] revision=%llu phase=%u remaining=%u rules=%u mode=%u stock=%u timer=%u stage_policy=%u damage=%u penalty=%u teams=%u\n",
+        (unsigned long long)flow->revision,flow->phase,nativeOnlineSession_LobbyCountdownMs(),flow->has_rules,
+        flow->rules.mode,flow->rules.stocks,flow->rules.stock_time,flow->rules.stage_policy,
+        flow->rules.damage,flow->rules.sd_penalty,flow->rules.teams);
     for (unsigned i = 0; p && i < p->participant_count; ++i) {
         const NativeSignalingParticipant* member = &p->participants[i];
         NativeLobbySelection selection = {0};
@@ -758,6 +813,21 @@ bool nativeOnlineSession_IsOwner(void)
 int nativeOnlineSession_StagePort(void)
 {
     const NativeSignalingPresence* p = nativeOnlineSession_Presence();
+    const NativeRoomLobbyState* state=nativeOnlineSession_LobbyState();
+    if (p && state && state->has_rules && state->phase==2 && state->rules.stage_policy==0) {
+        uint8_t mask=nativeOnlineSession_LocalActiveSeats();
+        int selected=-1;
+        for (unsigned seat=0;seat<online.local_players;++seat) {
+            if (!(mask&(1U<<seat))) continue;
+            int physical=nativeHome_PhysicalPortForLocalPlayer(seat);
+            if (physical<0 || physical>=4) continue;
+            const HSD_PadStatus* pad=&HSD_PadCopyStatus[physical];
+            if (pad->err) continue;
+            if (pad->trigger) return physical;
+            if (selected<0 || pad->stickX < -30 || pad->stickX > 30 || pad->stickY < -30 || pad->stickY > 30) selected=physical;
+        }
+        return selected;
+    }
     if (!p || quick.assignment.mode || p->stage_seat >= online.local_players ||
         strcmp(p->stage_peer_id, online.peer_id) != 0) return -1;
     return nativeHome_PhysicalPortForLocalPlayer(p->stage_seat);
@@ -767,11 +837,17 @@ bool nativeOnlineSession_PickStage(uint8_t stage)
 {
     const NativeSignalingPresence* p = nativeOnlineSession_Presence();
     uint8_t decoded;
+    uint8_t seat=p?p->stage_seat:UINT8_MAX;
+    const NativeRoomLobbyState* state=nativeOnlineSession_LobbyState();
+    if (state && state->has_rules && state->rules.stage_policy==0) {
+        uint8_t mask=nativeOnlineSession_LocalActiveSeats();
+        for (seat=0;seat<online.local_players && !(mask&(1U<<seat));++seat) {}
+    }
     return p && online.lobby.state == NativeLobbySessionState_Waiting &&
         nativeOnlineSession_StagePort() >= 0 && p->stage == UINT8_MAX &&
         nativeStockContent_StageFromId(nativeStockContent_StageId(stage), &decoded) &&
         decoded == stage && nativeSignalingClient_PickLobbyStage(
-            &online.lobby.room.connection.signaling, p->match_epoch, p->stage_seat, stage);
+            &online.lobby.room.connection.signaling, p->match_epoch, seat, stage);
 }
 
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy)

@@ -1,6 +1,6 @@
 # Native character-select and practice controls
 
-Updated: 2026-10-17.
+Updated: 2026-11-15.
 
 Character select and ready practice now use controls drawn by the game. The old
 room sidebars and sidebar chat presenter have been removed. The game keeps its
@@ -12,28 +12,30 @@ remain available from the hub.
 On character select, place each active player's cookie, then press START or
 choose **Ready / START** to enter practice. The button uses the same ready check
 and scene transition as START. Carrying a cookie or a fighter portrait prevents
-readiness. **Workshop** opens the fighter library; **Back** opens Lobbies. F1 or
-holding B also opens the hub.
+readiness. **Back** opens Lobbies. F1 or holding B also opens the hub. In 1v1
+Quick Play, the latest placed local token owns the single local seat. Enter the
+queue before readying into practice.
 
-Practice has a compact strip with **Lobby**, **Start match** and **Character
-select**. Start match enables when the existing local/room readiness rules allow
-it. In a lobby, the host starts the match. Character select exits through the
-game's normal match-abort path and clears readiness. The ordinary pause-and-exit
-combination remains available.
+Online practice has a status-only strip and incoming chat that fades away.
+START pauses and unreadies; START resumes and readies. The normal paused
+L+R+A+START exit returns to CSS. When all active lobby fighters are ready, a
+three-second countdown leads to stage selection. Waiting players and spectators
+are excluded. [Stage selection](native_lobby_stage_checkpoint.md) explains each
+policy. Offline practice keeps its Lobby and Character select buttons.
 
 Pause practice, then press Z to open the hub with a controller. F1 or the Lobby
 button also opens it. B or **Return to practice** closes it. Menu input stays out
 of the fighter controls, including the frame used to close the menu. Workshop's
 live Test Character mode keeps its gameplay input.
 
-Incoming fighters have native Accept fighter and No thanks buttons on both CSS
-and practice. Delivery progress and results appear in the same area. A received
+Incoming fighters have native Accept fighter and No thanks buttons on CSS.
+Delivery progress and results appear in the same area. A received
 fighter is added to the saved roster. The native hub's Workshop page also keeps
 its acceptance controls.
 
-Lobbies includes seat choices, host start, rotation policy, match rules and lobby
-chat. Its player list pages through larger rooms. [Chat](native_chat.md) describes
-its private-room delivery and history.
+CSS includes lobby chat, while Rules > Additional Rules > Lobby settings holds
+seat choices, rotation and listing controls. [Chat](native_chat.md) describes
+delivery and history.
 Settings opens bindings, rules, costumes and installed packages. Editing fighters
 and rules requires returning to character select. The costume selector is now a
 separate tool page, with the existing package-selection and DAT-import functions.

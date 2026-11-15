@@ -75,7 +75,6 @@ bool nativeLobbySelection_Validate(const NativeLobbySelection* selection)
             continue;
         }
         if (player->team > 2 ||
-            (selection->confirmed && !player->selected) ||
             (player->selected &&
              (player->character_id == 0 || player->costume_id == 0) &&
              !has_package_id(&player->character_package_id)) ||

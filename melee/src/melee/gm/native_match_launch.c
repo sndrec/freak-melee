@@ -1715,6 +1715,7 @@ static bool prepare_match(const NativeLobbyMatch* match)
     rules->friendly_fire = match->friendly_fire;
     rules->pause = match->pause;
     rules->score_display = match->score_display;
+    rules->unk_xc = match->sd_penalty;
     prefs->item_freq = match->item_frequency < 0
                            ? UINT8_MAX
                            : (uint8_t) match->item_frequency;

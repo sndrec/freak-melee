@@ -543,6 +543,21 @@ bool nativeCssInteraction_SetLocalPlayers(unsigned count)
     return true;
 }
 
+unsigned nativeCssInteraction_ReadyPorts(void)
+{
+    if (!selection.css) return 0;
+    int single=nativeHome_QuickSinglesPort();
+    if (single>=0) return 1U<<single;
+    bool online=nativeOnlineSession_Presence()!=NULL;
+    unsigned seats=nativeOnlineSession_LocalActiveSeats(),mask=0,seat=0;
+    for (unsigned port=0;port<4;++port) {
+        unsigned kind=selection.doors->doors[port].p_kind;
+        if (kind==Gm_PKind_NA) continue;
+        if (!online || (kind==Gm_PKind_Human && (seats ? seats&(1U<<seat) : chosen(port)))) mask|=1U<<port;
+        if (kind==Gm_PKind_Human) ++seat;
+    }
+    return mask;
+}
 bool nativeCssInteraction_CanReady(void)
 {
     if (nativeHub_IsVisible() || !selection.css) {
@@ -550,25 +565,20 @@ bool nativeCssInteraction_CanReady(void)
     }
     const NativeQuickAssignment* quick=nativeOnlineSession_Quick();
     if (quick && quick->state!=NativeQuickState_Searching && quick->state!=NativeQuickState_Assigned) return false;
-    int single=nativeHome_QuickSinglesPort();
-    unsigned active = 0;
+    unsigned ports=nativeCssInteraction_ReadyPorts();
     for (unsigned port = 0; port < 4; ++port) {
-        if (single>=0 && port!=(unsigned)single) continue;
+        if (!(ports&(1U<<port))) continue;
         if (selection.carrying[port]) {
             return false;
         }
     }
     for (unsigned slot = 0; slot < 4; ++slot) {
-        if (single>=0 && slot!=(unsigned)single) continue;
-        if (selection.doors->doors[slot].p_kind == Gm_PKind_NA) {
-            continue;
-        }
-        ++active;
+        if (!(ports&(1U<<slot))) continue;
         if (!chosen(slot) || selection.cookies[slot]->x5) {
             return false;
         }
     }
-    return active != 0;
+    return ports != 0;
 }
 void nativeCssInteraction_Inspect(void)
 {

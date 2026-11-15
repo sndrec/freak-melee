@@ -1462,6 +1462,16 @@ static void prepare_preload(const VsModeData* vs, bool practice)
     lbDvd_80018254();
 }
 
+bool nativeHome_IsTeams(void)
+{
+    return home.css ? home.css->vs.start.rules.is_teams : gmVsMelee_GetVsData()->start.rules.is_teams;
+}
+void nativeHome_SetTeams(bool teams)
+{
+    if (home.css) home.css->vs.start.rules.is_teams=teams;
+    gmVsMelee_GetVsData()->start.rules.is_teams=teams;
+}
+
 static bool has_opposing_teams(const PlayerInitData players[GM_MAX_PLAYERS])
 {
     unsigned teams = 0;
@@ -1593,6 +1603,11 @@ static bool collect_room_players(VsModeData* combined, bool* owner_requested,
         for (unsigned unused = port; unused < GM_MAX_PLAYERS; ++unused) {
             gm_SetupPlayerDefaults(&combined->start.players[unused]);
         }
+    }
+    const NativeRoomLobbyState* lobby=nativeOnlineSession_LobbyState();
+    if (lobby) {
+        *owner_requested=lobby->has_rules && lobby->phase==2;
+        if (combined && lobby->has_rules) combined->start.rules.is_teams=lobby->rules.teams;
     }
     return port >= 2;
 }
@@ -1851,6 +1866,12 @@ bool nativeHome_LockSelection(CSSData* css)
         }
         NativeLobbyPlayerSelection* choice =
             &home.selection.players[home.selection.player_count++];
+        if (!has_package_id(&home.fighter_packages[i]) && player->ckind>=CKind_Playable_Count) {
+            // Keep the local seat/physical mapping, but create no practice
+            // actor for an unselected waiting or spectating seat.
+            gm_SetupPlayerDefaults(&css->vs.start.players[i]);
+            continue;
+        }
         if (has_package_id(&home.fighter_packages[i])) {
             choice->character_package_id = home.fighter_packages[i];
         } else {
@@ -2080,6 +2101,13 @@ void nativeHome_Tick(void)
         }
         published.start_requested = home.start_requested;
         nativeOnlineSession_UpdateSelection(&published);
+    }
+    if (nativeHome_IsSelection() && !home.authoring && !home.preview_active &&
+        !nativeOnlineSession_Quick() && nativeOnlineSession_IsOwner() && !nativeOnlineSession_LocalActiveSeats()) {
+        const NativeSignalingPresence* presence=nativeOnlineSession_Presence();
+        const NativeRoomLobbyState* lobby=nativeOnlineSession_LobbyState();
+        if (presence && lobby && lobby->phase==2 && presence->stage!=UINT8_MAX && !presence->match_size)
+            nativeHome_PublishRoomMatch(presence->stage);
     }
     if (home.authoring || home.preview_active ||
         !nativeHome_IsPractice() || home.enter_stage_select) {

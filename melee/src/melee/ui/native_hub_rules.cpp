@@ -66,7 +66,7 @@ namespace {
         if (hub.page==NativeHubPage_MatchRules) {
             switch(row) {
             case 0: target=&rules.mode; high=2; break;
-            case 1: target=rules.mode==1?&rules.stock_count:&rules.time_limit; low=rules.mode==1; high=99; break;
+            case 1: target=rules.mode==1?&rules.stock_count:&rules.time_limit; low=1; high=99; break;
             case 2: target=&rules.handicap; high=2; break;
             case 3: target=&rules.damage_ratio; low=5; high=20; break;
             case 4: target=&rules.stage_sel; high=4; break;
@@ -158,6 +158,8 @@ void nativeHubRules_Open()
     if (!nativeHome_IsSelection()||nativeOnlineSession_Quick()) return;
     nativeHub_Focus(nullptr,0); nativeMenuRules_Unload();
     rules=*gmMainLib_GetGameRules(); prefs=*gmMainLib_GetGamePrefs();
+    const auto* lobby=nativeOnlineSession_LobbyState();
+    if (lobby && lobby->has_rules && !nativeOnlineSession_IsOwner()) nativeRoomRules_Apply(&lobby->rules,&rules,&prefs);
     status[0]=0; from_css=!hub.visible; return_page=hub.page; selected=people_offset=0;
     nativeHub_Open(NativeHubPage_MatchRules);
 }
@@ -213,6 +215,8 @@ bool nativeHubRules_Activate(HubAction action,int value)
 }
 void nativeHubRules_Render(NativeHubPage page)
 {
+    const auto* shared=nativeOnlineSession_LobbyState();
+    if (shared && shared->has_rules && !nativeOnlineSession_IsOwner()) nativeRoomRules_Apply(&shared->rules,&rules,&prefs);
     nativeHub_Button("rules-close","< Back",40,420,110,28,HubAction::Back);
     nativeMenuPaint_Text(status,40,461,555,11,muted);
     if (page==NativeHubPage_LobbyRules) { lobby(); return; }

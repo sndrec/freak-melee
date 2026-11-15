@@ -29,6 +29,8 @@ enum {
     CLIENT_PICK_LOBBY_STAGE = 17,
     CLIENT_SET_LISTING = 18,
     CLIENT_REQUEST_LOBBIES = 19,
+    CLIENT_SET_LOBBY_RULES = 20,
+    CLIENT_REQUEST_LOBBY_STATE = 21,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -41,6 +43,7 @@ enum {
     SERVER_QUICK_REJECTED = 0x8A,
     SERVER_LOBBIES = 0x8B,
     SERVER_LISTING = 0x8C,
+    SERVER_LOBBY_STATE = 0x8D,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -440,6 +443,22 @@ size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output, size_
     return writer_begin(&writer, output, capacity, CLIENT_REQUEST_LOBBIES) &&
         writer_u16(&writer, offset) ? writer_finish(&writer) : 0;
 }
+size_t nativeSignalingWire_EncodeLobbyRules(const NativeRoomRules* rules, uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    uint8_t bytes[NATIVE_ROOM_RULES_BYTES];
+    if (!nativeRoomRules_Encode(rules,bytes) ||
+        !writer_begin(&writer,output,capacity,CLIENT_SET_LOBBY_RULES) ||
+        !writer_bytes16(&writer,bytes,sizeof(bytes))) return 0;
+    return writer_finish(&writer);
+}
+
+size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return writer_begin(&writer,output,capacity,CLIENT_REQUEST_LOBBY_STATE) ? writer_finish(&writer) : 0;
+}
+
 size_t nativeSignalingWire_EncodeRequestPresence(uint8_t* output,
                                                  size_t output_capacity)
 {
@@ -591,6 +610,16 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_LOBBY_STATE: {
+        NativeRoomLobbyState* state=&output->data.lobby;
+        uint8_t bytes[NATIVE_ROOM_RULES_BYTES]; uint16_t size;
+        output->type=NativeSignalingServerMessage_LobbyState;
+        if (!reader_u64(&reader,&state->revision) || !reader_u8(&reader,&state->phase) || state->phase>2 ||
+            !reader_u16(&reader,&state->remaining_ms) || state->remaining_ms>3000 ||
+            !reader_bytes16(&reader,bytes,sizeof(bytes),&size) || !reader_finished(&reader)) return false;
+        state->has_rules=size!=0;
+        return !size || nativeRoomRules_Decode(&state->rules,bytes,size);
+    }
     case SERVER_LISTING:
         output->type = NativeSignalingServerMessage_Listing;
         return reader_string8(&reader, output->data.listing.title, sizeof(output->data.listing.title)) &&

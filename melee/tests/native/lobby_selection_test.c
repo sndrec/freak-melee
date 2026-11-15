@@ -141,6 +141,10 @@ int main(void)
     invalid.confirmed = false;
     invalid.players[1] = (NativeLobbyPlayerSelection) { 0 };
     assert(nativeLobbySelection_Validate(&invalid));
+    invalid.confirmed=true;
+    // Readiness for an empty inactive seat is checked with the room's active
+    // mask; the selection record alone does not assign fighting roles.
+    assert(nativeLobbySelection_Validate(&invalid));
 
     assert(!nativeLobbySelection_Decode(&decoded, bytes, size - 1));
     bytes[4] = 2;

@@ -3709,10 +3709,10 @@ void fn_80262F44(HSD_GObj* gobj)
     if (nativeHome_IsSelection()) {
         HSD_JObjSetFlagsAll(jobj,JOBJ_HIDDEN);
         bool ready=nativeCssInteraction_CanReady();
-        int single=nativeHome_QuickSinglesPort();
+        unsigned ports=nativeCssInteraction_ReadyPorts();
         u32 trigger=0;
         for (unsigned port=0;port<GM_MAX_PLAYERS;++port) {
-            if (single>=0 && port!=(unsigned)single) continue;
+            if (!(ports&(1U<<port))) continue;
             if (mnCharSel_803F0DFC.doors[port].p_kind==Gm_PKind_NA) continue;
             if (ready && mnCharSel_803F0E8C[port].data &&
                 mnCharSel_803F0E8C[port].data->state!=0) ready=false;
@@ -3723,7 +3723,7 @@ void fn_80262F44(HSD_GObj* gobj)
         if (!(trigger&HSD_PAD_START) && !nativePlayMenu_TakeReadyRequest()) return;
         mnCharSel_804D6CF6=1; mnCharSel_804D6CF2=0xFF;
         for (unsigned port=0;port<GM_MAX_PLAYERS;++port) {
-            if (single>=0 && port!=(unsigned)single) continue;
+            if (!(ports&(1U<<port))) continue;
             if (mnCharSel_803F0DFC.doors[port].p_kind==Gm_PKind_Human &&
                 gm_RumbleEnabledForPlayer(port,mnCharSel_804D6CB0->vs.start.players[port].nametag))
                 lb_80014574(port,0,0xB,0x1E);
