@@ -2,10 +2,7 @@
 <head>
   <title>Freak Melee</title>
   <link type="text/rcss" href="freak_shell.rcss" />
-  <link type="text/rcss" href="freak_rules.rcss" />
   <link type="text/rcss" href="freak_css_original.rcss" />
-  <link type="text/rcss" href="freak_costumes.rcss" />
-  <link type="text/rcss" href="freak_collection.rcss" />
   <link type="text/rcss" href="freak_workshop.rcss" />
   <link type="text/rcss" href="freak_workshop_model.rcss" />
 </head>
@@ -28,42 +25,6 @@
     </aside>
 
     <div id="css-original-overlay"><div id="css-original-handles"></div></div>
-    <section id="costume-panel">
-      <header class="settings-header">
-        <button id="costume-close">‹ BACK</button>
-        <div class="settings-heading"><div class="eyebrow">ON THIS PC</div><div class="settings-title">Costumes</div></div>
-      </header>
-      <section id="costume-section">
-        <div class="eyebrow">COSTUMES</div>
-        <div id="costume-players"></div>
-        <div id="costume-choices"></div>
-        <p id="costume-status"></p>
-      </section>
-    </section>
-    <section id="collection-panel">
-      <header class="settings-header">
-        <button id="collection-close">‹ BACK</button>
-        <div class="settings-heading"><div class="eyebrow">ON THIS PC</div><div class="settings-title">Collection</div></div>
-        <div class="settings-mark">FREAK<span>MELEE</span></div>
-      </header>
-      <div class="collection-body">
-        <div class="collection-main">
-          <button id="workshop-open" class="room-button workshop-entry">Open character workshop</button>
-          <div class="collection-heading"><div class="eyebrow">INSTALLED PACKAGES</div><span id="collection-count">0 installed</span></div>
-          <div id="collection-items"></div>
-          <div class="collection-heading"><div class="eyebrow">LOCAL DRAFTS</div></div>
-          <div id="collection-drafts"></div>
-        </div>
-        <aside class="collection-sharing">
-          <div class="eyebrow">SHARE WITH A FRIEND</div>
-          <p>Pick a room member, then send an installed fighter or costume. They choose whether to keep it.</p>
-          <label for="collection-recipient" class="field-label">Recipient</label>
-          <select id="collection-recipient" class="room-input"></select>
-          <p id="collection-status"></p>
-          <div id="collection-transfer"></div>
-        </aside>
-      </div>
-    </section>
     <section id="workshop-panel">
       <div id="workshop-delete-confirmation">
         <div id="workshop-delete-title"></div>
@@ -484,48 +445,7 @@
       </aside>
       <footer id="workshop-editor-footer"><span class="workshop-footer-dot"></span><span id="workshop-editor-status"></span><span class="workshop-footer-label">FREAK MELEE WORKSHOP</span></footer>
     </section>
-    <section id="rules-panel">
-      <header class="settings-header">
-        <button id="rules-close">‹ BACK</button>
-        <div class="settings-heading"><div class="eyebrow">VERSUS</div><div class="settings-title">Match rules</div></div>
-        <div class="settings-mark">FREAK<span>MELEE</span></div>
-      </header>
-      <div class="rules-content">
-        <aside class="rules-mode-column">
-          <div class="eyebrow">GAME TYPE</div>
-          <button id="rules-mode-time" class="rules-mode selected"><strong>Time</strong><span>Highest score wins.</span></button>
-          <button id="rules-mode-stock" class="rules-mode"><strong>Stock</strong><span>Last fighter standing wins.</span></button>
-          <button id="rules-mode-coin" class="rules-mode"><strong>Coin</strong><span>Collect the most coins.</span></button>
-          <div class="rules-mode-note">The host's rules apply to everyone in a room.</div>
-        </aside>
-        <div class="rules-fields">
-          <div class="eyebrow">MATCH SETUP</div>
-          <div class="rules-field-grid">
-            <div class="rules-field"><label for="rules-time">Time limit</label><div class="rules-input-row"><input id="rules-time" type="text" maxlength="2" /><span>min</span></div><p>1–99 for Time or Coin.</p></div>
-            <div class="rules-field"><label for="rules-stocks">Stocks</label><div class="rules-input-row"><input id="rules-stocks" type="text" maxlength="2" /><span>lives</span></div><p>1–99 for Stock.</p></div>
-            <div class="rules-field"><label for="rules-stock-time">Stock timer</label><div class="rules-input-row"><input id="rules-stock-time" type="text" maxlength="2" /><span>min</span></div><p>0 means no timer.</p></div>
-            <div class="rules-field"><label for="rules-damage">Damage ratio</label><div class="rules-input-row"><input id="rules-damage" type="text" maxlength="3" /><span>%</span></div><p>50–200 in steps of 10.</p></div>
-          </div>
-          <div class="eyebrow rules-secondary-heading">ITEMS &amp; PLAY</div>
-          <div class="rules-toggle-row"><div><strong>Items</strong><p>Spawn frequency for enabled items.</p></div><button id="rules-items">Medium</button></div>
-          <div class="rules-item-heading"><div><strong>Item switch</strong><span id="rules-item-count">0 selected</span></div><div class="rules-item-actions"><button id="rules-item-all">All</button><button id="rules-item-none">None</button></div></div>
-          <div id="rules-item-grid" class="rules-item-grid">
-            <button id="rules-item-0">Bob-omb</button><button id="rules-item-1">Home-Run Bat</button><button id="rules-item-2">Mr. Saturn</button><button id="rules-item-3">Fire Flower</button>
-            <button id="rules-item-4">Flipper</button><button id="rules-item-5">Food</button><button id="rules-item-6">Freezie</button><button id="rules-item-7">Green Shell</button>
-            <button id="rules-item-8">Hammer</button><button id="rules-item-9">Fan</button><button id="rules-item-10">Heart Container</button><button id="rules-item-11">Super Mushroom</button>
-            <button id="rules-item-12">Party Ball</button><button id="rules-item-13">Ray Gun</button><button id="rules-item-14">Lip's Stick</button><button id="rules-item-15">Poké Ball</button>
-            <button id="rules-item-16">Metal Box</button><button id="rules-item-17">Proximity Mine</button><button id="rules-item-18">Maxim Tomato</button><button id="rules-item-19">Cloaking Device</button>
-            <button id="rules-item-20">Parasol</button><button id="rules-item-21">Red Shell</button><button id="rules-item-22">Bunny Hood</button><button id="rules-item-23">Star Rod</button>
-            <button id="rules-item-24">Super Scope</button><button id="rules-item-25">Screw Attack</button><button id="rules-item-26">Starman</button><button id="rules-item-27">Beam Sword</button>
-            <button id="rules-item-29">Barrel Cannon</button><button id="rules-item-30">Warp Star</button><button id="rules-item-31">Poison Mushroom</button>
-          </div>
-          <div class="rules-toggle-row"><div><strong>Friendly fire</strong><p>Teammates can damage each other.</p></div><button id="rules-friendly">Off</button></div>
-          <div class="rules-toggle-row"><div><strong>Pause</strong><p>Allow players to pause a match.</p></div><button id="rules-pause">On</button></div>
-          <div class="rules-toggle-row"><div><strong>Score display</strong><p>Show live score in timed matches.</p></div><button id="rules-score">Off</button></div>
-        </div>
-      </div>
-      <footer class="rules-footer"><span id="rules-status"></span><button id="rules-save">Save rules</button></footer>
-    </section>
+
   </div>
 </body>
 </rml>

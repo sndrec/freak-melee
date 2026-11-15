@@ -13,7 +13,6 @@ void nativeMatchClasses_Initialize(void) {}
 #include <melee/gm/native_netplay_timing.h>
 #include <melee/gm/native_spectator_match.h>
 #include <melee/ui/native_hub.h>
-#include <melee/ui/native_shell_costumes.h>
 #include <melee/gm/native_rollback_benchmark.h>
 #include <melee/gm/native_rollback_probe.h>
 #include <melee/gm/native_rollback_census.h>
@@ -26,7 +25,6 @@ void nativeMatchClasses_Initialize(void) {}
 #include <melee/lb/lb_0192.h>
 #include <melee/lb/lbheap.h>
 #include <melee/ui/native_shell.h>
-#include <melee/ui/native_shell_rules.h>
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
 #include <sysdolphin/baselib/controller.h>
 #include <sysdolphin/baselib/perf.h>
@@ -145,7 +143,6 @@ void db_CheckScreenshot(void) {}
 void nativeHome_Tick(void) {}
 void nativeHome_ApplyResultsInput(void) {}
 bool nativeHome_IsSelection(void) { return false; }
-bool nativeShellRules_IsOpen(void) { return false; }
 bool nativeShell_IsEditingText(void) { return false; }
 void nativeShell_Update(void) {}
 void nativeFeedback_Update(void) {}
@@ -167,7 +164,6 @@ void nativeHome_HandleInput(void) {}
 void nativeHub_Tick(void) {}
 bool nativeHome_IsPractice(void) { return false; }
 bool nativeHub_ConsumesGameInput(void) { return false; }
-bool nativeShellCostumes_IsOpen(void) { return false; }
 void nativeHub_Draw(void) {}
 void aurora_enable_vsync(bool enabled) { (void)enabled; }
 const AuroraEvent* aurora_update(void) { return NULL; }

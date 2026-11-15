@@ -7,7 +7,7 @@
 #include "native_hub.h"
 #include "native_hub_hand.h"
 #include "native_css_chat.h"
-#include "native_shell_rules.h"
+#include "native_hub_rules.h"
 #include <aurora/rmlui.hpp>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
@@ -89,7 +89,7 @@ namespace {
         case Action::Settings:
             if (nativeOnlineSession_Presence() && !nativeOnlineSession_Quick())
                 menu.rules = !menu.rules;
-            else if (!nativeOnlineSession_Quick()) nativeShellRules_Open();
+            else if (!nativeOnlineSession_Quick()) nativeHubRules_Open();
             break;
         case Action::Listing: {
             const auto* listing = nativeOnlineSession_Listing();
@@ -103,7 +103,7 @@ namespace {
             if (p) nativeOnlineSession_SetRotation(NativeRoomRotationPolicy((p->rotation_policy + 1) % 3));
             break;
         }
-        case Action::MatchRules: nativeShellRules_Open(); break;
+        case Action::MatchRules: nativeHubRules_Open(); break;
         case Action::Seat:
             if (!nativeOnlineSession_ChooseSeat(b.peer, uint8_t(b.value & 3), NativeRoomSeatState(b.value >> 2)))
                 nativeHub_Notice("Could not change this player's seat.");

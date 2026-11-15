@@ -458,3 +458,45 @@ Eighteen submissions remain completed and removed; no release was published.
 
 Implementation commit: `72a53c7`, pushed to main. The native-settings report
 remains open until the three remaining desktop screens are replaced and checked.
+
+
+### Native Match rules, Costumes and installed packages
+
+The remaining ordinary desktop panels have been replaced with native Options
+pages. Match rules keeps its stock CSS entry point and returns to CSS when
+opened there; opening it from Game returns to Game. Numeric fields confirm on
+Enter or blur, reject invalid ranges, and retain the prior value. The mode,
+timers, stock count, damage ratio, friendly fire, pause, score display, item
+frequency and all 31 item switches remain available. Only the lobby host can
+change the next match's rules; Quick Play keeps its fixed rules.
+
+Costumes shows the active local players and each selected fighter's compatible
+outfits. The default outfit, paged installed choices and DAT import remain
+available. Family imports still request every required member model. Selection
+uses the same outfit catalog and CSS assignment path as X/Y cycling.
+
+Installed packages has separate installed/draft tabs, paging, refresh, a lobby
+recipient page, transfer status, and Workshop entry/return. Sending an outfit
+includes its missing fighter dependency through the existing gift flow. The old
+Rml panels, styles, handlers and input-ownership checks are removed. The native
+pages use the original gold Options frame, caption, buttons and controller hand.
+
+Verification: `.local/native-options-review-5/review.json` passed with isolated,
+hidden, muted clients. It covers Enter validation, held-A and held-B behavior,
+item switches, rule save/reopen/restart, CSS return, outfit selection/reset,
+package/draft paging, disabled sending without recipients, and screenshots at
+1440x900 and 960x540. The rule, item, outfit and package screenshots were reviewed.
+Old local source-package fixtures were replaced with freshly generated clones
+for the outfit checks; no compatibility path was added to the client.
+
+`.local/native-options-gifts-7/receipt.json` passed against an isolated local
+signaling service. A guest could not change host rules; Workshop returned to
+Packages; accepting an outfit installed the exact outfit and its missing fighter
+parent. Repeating the gift kept installed files and CSS layout unchanged. The
+shared CSS review helper now counts occupied cards among the four displayed
+slots, and the gift review uses the current native recipient page.
+
+All 12 selected settings, profile/provider, rumble, CSS, content-transfer,
+costume-package and stage-start checks passed in
+`.local/native-ui-feedback-final-contracts.log`. Final build and hosted removal
+are recorded below after the completion audit.

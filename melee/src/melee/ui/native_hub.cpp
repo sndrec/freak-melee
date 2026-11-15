@@ -21,12 +21,12 @@
 #include "native_menu_portrait_capture.h"
 #include "native_shell_workshop.h"
 #include "native_hub_profiles.h"
-#include "native_shell_rules.h"
+#include "native_hub_rules.h"
 #include "native_shell_css_original.h"
 #include "native_shell.h"
 #include "native_play_menu.h"
-#include "native_shell_collection.h"
-#include "native_shell_costumes.h"
+#include "native_hub_packages.h"
+#include "native_hub_costumes.h"
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_online_session.h>
@@ -61,7 +61,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -299,7 +299,7 @@ namespace {
         unsigned length = unsigned(std::strlen(field));
         hub.caret = std::min(hub.caret, length);
         if (key == SDLK_RETURN) {
-            if (nativeHubProfiles_OwnsField(field)) { nativeHub_Focus(nullptr,0); return; }
+            if (nativeHubProfiles_OwnsField(field) || nativeHubRules_OwnsField(field)) { nativeHub_Focus(nullptr,0); return; }
             HubAction action = HubAction::None;
             if (field == hub.letter_body) {
                 if (modifiers & SDL_KMOD_CTRL) action = HubAction::SendLetter;
@@ -400,7 +400,7 @@ namespace {
 }
 void nativeHub_Focus(char* field, unsigned capacity)
 {
-    if (hub.field != field) nativeHubProfiles_CommitField();
+    if (hub.field != field) { nativeHubProfiles_CommitField(); nativeHubRules_CommitField(); }
     hub.field = field;
     hub.field_capacity = capacity;
     hub.caret = field ? unsigned(std::strlen(field)) : 0;
@@ -558,6 +558,9 @@ void nativeHub_Activate(HubAction action, int value)
     if (nativeHubAccount_Activate(action,value)) return;
     if (nativeHubSocial_Activate(action,value)) return;
     if (nativeHubNews_Activate(action,value)) return;
+    if (nativeHubRules_Activate(action,value)) return;
+    if (nativeHubCostumes_Activate(action,value)) return;
+    if (nativeHubPackages_Activate(action,value)) return;
     if (nativeHubSettings_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
@@ -751,21 +754,6 @@ void nativeHub_Activate(HubAction action, int value)
             hub.dismissed = true;
             hub.visible = false;
         }
-        break;
-    case HubAction::Rules:
-        nativeShellRules_Open();
-        hub.returning_from_tool = nativeShellRules_IsOpen();
-        hub.visible = !hub.returning_from_tool;
-        break;
-    case HubAction::Costumes:
-        nativeShellCostumes_Open();
-        hub.returning_from_tool = nativeShellCostumes_IsOpen();
-        hub.visible = !hub.returning_from_tool;
-        break;
-    case HubAction::Packages:
-        nativeShellCollection_Open();
-        hub.returning_from_tool = nativeShellCollection_IsOpen();
-        hub.visible = !hub.returning_from_tool;
         break;
     case HubAction::FieldName:
         nativeHub_Focus(hub.name, sizeof(hub.name));
@@ -1013,10 +1001,7 @@ extern "C" void nativeHub_Tick(void)
     hub.consumes_input = hub.visible;
     const bool selection = nativeHome_IsSelection();
     const bool practice = nativeHome_IsPractice();
-    bool tool = nativeShellWorkshop_IsOpen() ||
-                nativeShellRules_IsOpen() ||
-                nativeShellCssOriginal_IsEditing() || nativeShellCollection_IsOpen() ||
-                nativeShellCostumes_IsOpen();
+    bool tool = nativeShellWorkshop_IsOpen() || nativeShellCssOriginal_IsEditing();
     hub.consumes_input |= tool &&
         !(nativeShellWorkshop_IsOpen() && nativeShellWorkshop_IsTesting());
     if (!hub.initialized && selection) {
@@ -1079,6 +1064,8 @@ extern "C" void nativeHub_Tick(void)
     nativeHubSocial_Tick();
     nativeHubStartup_Tick();
     nativeHubProfiles_Tick();
+    nativeHubCostumes_Tick();
+    nativeHubPackages_Tick();
     nativeHubDefaults_Tick();
     nativeHubNews_Tick();
     nativeCssInteraction_EnablePointer(selection && !tool && !hub.visible);
@@ -1295,7 +1282,8 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuPaint_Text(hub.notice, standalone ? 40 : 175, standalone ? 470 : 414, standalone ? 560 : 425, 11, white);
     else if (!nativeHubPortrait_Editing() && (hub.page == NativeHubPage_Account || nativeHubSocial_Page(hub.page)))
         nativeMenuPaint_Text(nativeHubAccount_Status(), 175, 414, 425, 11, white);
-    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation && !news_page && !nativeHubProfiles_Page(hub.page))
+    if (!nativeHubStartup.active && !nativeHubPortrait_Editing() && !hub.delete_confirmation && !news_page && !nativeHubProfiles_Page(hub.page) && !nativeHubRules_Page(hub.page) &&
+        hub.page != NativeHubPage_Costumes && !nativeHubPackages_Page(hub.page))
         nativeHub_RenderSession();
     nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
@@ -1451,8 +1439,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         !event->key.repeat && !nativeHubStartup.active && hub.initialized &&
         (nativeHome_IsSelection() || nativeHome_IsPractice()) &&
         !nativeShellWorkshop_IsOpen() &&
-        !nativeShellRules_IsOpen() && !nativeShellCssOriginal_IsEditing() &&
-        !nativeShellCostumes_IsOpen() && !nativeShellCollection_IsOpen())
+        !nativeShellCssOriginal_IsEditing())
     {
         if (hub.visible) {
             hub.dismissed = true;
@@ -1549,7 +1536,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_ControllerCalibration || nativeHubStartup.active) {
+        page > NativeHubPage_PackageRecipient || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;
@@ -1590,6 +1577,9 @@ extern "C" void nativeHub_Inspect(const char* id)
             std::fprintf(stderr, "[hub-person] room=%u peer=%s account=%s\n", i, room->participants[i].peer_id, room->participants[i].account_handle);
         return;
     }
+    if (!std::strcmp(id,"match-rules")) { nativeHubRules_Inspect(); return; }
+    if (!std::strcmp(id,"costumes")) { nativeHubCostumes_Inspect(); return; }
+    if (!std::strcmp(id,"packages")) { nativeHubPackages_Inspect(); return; }
     if (!std::strcmp(id,"controller-profile")) { nativeHubProfiles_Inspect(); return; }
     if (!std::strcmp(id, "client-options")) { nativeHubSettings_Inspect(); return; }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }

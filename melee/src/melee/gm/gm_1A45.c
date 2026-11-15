@@ -43,8 +43,6 @@
 #include <melee/db/dbnativecontrol.h>
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_hub.h>
-#include <melee/ui/native_shell_costumes.h>
-#include <melee/ui/native_shell_rules.h>
 #include <melee/if/ifcoget.h>
 #include <melee/lb/lb_013B.h>
 #include <melee/lb/lb_0195.h>
@@ -555,7 +553,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                     if (!rollback_active) nativeHub_Tick();
                     if ((nativeHome_IsSelection() || nativeHome_IsPractice()) &&
                         (nativeHub_ConsumesGameInput() ||
-                         nativeShellRules_IsOpen() || nativeShellCostumes_IsOpen() || nativeShell_IsEditingText()))
+                         nativeShell_IsEditingText()))
                     {
                         // Raw controller sampling remains available to rebinding;
                         // menu-owned inputs stay out of CSS and practice.

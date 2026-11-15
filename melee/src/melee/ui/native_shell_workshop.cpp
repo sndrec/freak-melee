@@ -12,9 +12,8 @@
 #include <commdlg.h>
 
 #include "native_shell.h"
-#include "native_shell_collection.h"
+#include "native_hub_packages.h"
 #include "native_shell_css_original.h"
-#include "native_shell_rules.h"
 #include "native_hub_portrait.h"
 #include "native_hub_catalog.h"
 
@@ -796,9 +795,7 @@ class WorkshopEvents final : public Rml::EventListener {
         if (nativeShellWorkshopEditor_Click(
                 id.c_str(), event.GetParameter<int>("shift_key", 0) != 0))
             return;
-        if (id == "workshop-open") {
-            nativeShellWorkshop_Open(nullptr, NativeWorkshopOrigin::Collection);
-        } else if (id == "workshop-close") {
+        if (id == "workshop-close") {
             nativeShellWorkshop_Close();
         } else if (id == "workshop-back-drafts") {
             if (return_destination == NativeWorkshopOrigin::Hub) nativeShellWorkshop_Close();
@@ -862,15 +859,13 @@ void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origi
         return;
     }
     if (opened && !confirm_discard()) return;
-    nativeShellRules_Close();
     nativeShellCssOriginal_Close();
-    nativeShellCollection_Close();
     refresh_drafts();
     return_destination = origin;
     opened = true;
     nativeHome_SetAuthoring(true);
     document->GetElementById("workshop-panel")->SetProperty("display", "block");
-    document->GetElementById("workshop-close")->SetInnerRML(origin == NativeWorkshopOrigin::Collection ? "&lt; BACK TO COLLECTION" : "&lt; BACK");
+    document->GetElementById("workshop-close")->SetInnerRML(origin == NativeWorkshopOrigin::Collection ? "&lt; BACK TO PACKAGES" : "&lt; BACK");
     document->GetElementById("workshop-back-drafts")->SetAttribute("title",
         origin == NativeWorkshopOrigin::Hub ? "Back to Workshop" : "Fighter drafts");
     input("workshop-new-name")->Focus(true);
@@ -898,10 +893,6 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
     testing = false;
     project_loaded = false;
     nativeShellWorkshopEditor_Init(shell);
-    document->GetElementById("workshop-open")
-        ->AddEventListener("click", &events);
-    document->GetElementById("workshop-open")
-        ->AddEventListener("keydown", &events);
     document->GetElementById("workshop-panel")
         ->AddEventListener("click", &events);
     document->GetElementById("workshop-panel")
@@ -972,7 +963,7 @@ void nativeShellWorkshop_Close()
         ->SetProperty("display", "none");
     nativeShell_Blur();
     if (return_destination == NativeWorkshopOrigin::Collection && (nativeHome_IsSelection() || nativeHome_IsPractice())) {
-        nativeShellCollection_Open();
+        nativeHubPackages_Open();
     }
 }
 

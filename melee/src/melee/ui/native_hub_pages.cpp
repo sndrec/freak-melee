@@ -1,3 +1,6 @@
+#include "native_hub_rules.h"
+#include "native_hub_costumes.h"
+#include "native_hub_packages.h"
 #include "native_hub_internal.h"
 #include "native_hub_news.h"
 #include <melee/gm/native_presentation.h>
@@ -372,6 +375,14 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_MatchRules:
+    case NativeHubPage_ItemSwitch:
+        nativeHubRules_Render(page); break;
+    case NativeHubPage_Costumes:
+        nativeHubCostumes_Render(); break;
+    case NativeHubPage_Packages:
+    case NativeHubPage_PackageRecipient:
+        nativeHubPackages_Render(page); break;
     case NativeHubPage_PlayerProfiles:
     case NativeHubPage_ControllerCalibration:
         nativeHubProfiles_Render(); break;

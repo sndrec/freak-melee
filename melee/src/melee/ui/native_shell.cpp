@@ -5,10 +5,7 @@
 #include "native_chat.h"
 #include "native_play_menu.h"
 #include "native_css_chat.h"
-#include "native_shell_collection.h"
-#include "native_shell_costumes.h"
 #include "native_shell_css_original.h"
-#include "native_shell_rules.h"
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_code.h"
 #include "native_shell_workshop_editor.h"
@@ -316,11 +313,8 @@ extern "C" bool nativeShell_Init(void)
     const char* chat_endpoint = SDL_GetEnvironmentVariable(
         SDL_GetEnvironment(), "FREAK_MELEE_CHAT_ENDPOINT");
     nativeChat_Start(chat_endpoint ? chat_endpoint : NATIVE_SERVICE_ENDPOINT);
-    nativeShellCollection_Init(document);
     nativeShellWorkshop_Init(document);
     nativeShellCssOriginal_Init(document);
-    nativeShellCostumes_Init(document);
-    nativeShellRules_Init(document);
     update_layout();
     return true;
 }
@@ -330,11 +324,8 @@ extern "C" void nativeShell_Update(void)
     if (document != nullptr) {
         nativeChat_Update();
         update_layout();
-        nativeShellCollection_Update();
         nativeShellWorkshop_Update();
         nativeShellCssOriginal_Update();
-        nativeShellCostumes_Update();
-        nativeShellRules_Update();
     }
 }
 
@@ -363,11 +354,8 @@ extern "C" void nativeShell_Shutdown(void)
     nativeHub_Shutdown();
     nativeChat_Stop();
     if (document != nullptr) {
-        nativeShellRules_Close();
         nativeShellWorkshop_Close();
-        nativeShellCollection_Close();
         nativeShellCssOriginal_Close();
-        nativeShellCostumes_Close();
         document->Close();
         document = nullptr;
     }
@@ -551,12 +539,6 @@ extern "C" bool nativeShell_CssPointerEvent(int x, int y,
                                             NativeCssPointerEvent event)
 {
     if (nativeFeedback_IsOpen()) return false;
-    if (document &&
-        document->GetElementById("collection-panel")->IsClassSet("open"))
-    {
-        nativeCssInteraction_EnablePointer(false);
-        return false;
-    }
     if (game_pointer_width <= 0 || game_pointer_height <= 0) {
         return false;
     }

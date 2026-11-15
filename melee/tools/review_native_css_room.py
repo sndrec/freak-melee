@@ -170,7 +170,8 @@ class Client:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             text = self.inspect('css-cards')
-            if f'online=1 count={count}' in text:
+            occupied=len(re.findall(r'\[css-card\] [^\r\n]*peer=\S+',text))
+            if 'online=1 count=4' in text and occupied == count:
                 return text
             time.sleep(.2)
         raise RuntimeError(f'{self.folder}: expected {count} room cards; {text}')

@@ -1,6 +1,8 @@
 #include "native_hub_settings.h"
 #include "native_hub_controls.h"
 #include "native_hub_profiles.h"
+#include "native_hub_rules.h"
+#include "native_hub_packages.h"
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_presentation.h>
 #include <melee/mn/native_menu_scene.h>
@@ -57,7 +59,7 @@ void nativeHubSettings_Load()
 }
 bool nativeHubSettings_Page(NativeHubPage page)
 {
-    return nativeHubProfiles_Page(page) || page == NativeHubPage_Settings || page == NativeHubPage_Controls ||
+    return nativeHubRules_Page(page) || nativeHubPackages_Page(page) || page == NativeHubPage_Costumes || nativeHubProfiles_Page(page) || page == NativeHubPage_Settings || page == NativeHubPage_Controls ||
         page == NativeHubPage_Video || page == NativeHubPage_Audio ||
         page == NativeHubPage_Game || page == NativeHubPage_OnlineSettings;
 }
