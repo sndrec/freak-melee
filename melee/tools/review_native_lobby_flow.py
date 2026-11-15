@@ -45,6 +45,7 @@ def main():
     if a.shared_couch and index==1:
      c.click('nav-6');c.click('settings-category-4');c.click('local-players-2');c.click('controls-back');c.click('settings-back')
     c.click('nav-1');c.enter('lobby-code',code);c.click('join-lobby')
+    inspect(c,'room-state',r'owner=\w+ revision=')
     wait(lambda:room(c)['count']==index+1,'joined lobby',25)
     inspect(c,'room-state',r'\[room-flow\].*rules=1 ')
    host=clients[0];wait(lambda:room(host)['count']==count,'complete presence',20)

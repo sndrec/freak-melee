@@ -1,6 +1,6 @@
 # Native UI feedback: second batch, 2026-11-15
 
-This fixed batch contains 11 submissions and 16 pinned notes. Captures and diagnostics are stored privately in `.local/feedback-review-2026-11-15-round-2/`.
+This fixed batch contains 11 submissions and 16 pinned notes. All are implemented, verified and removed from the hosted feedback list. Captures, diagnostics and removal receipts are stored privately in `.local/feedback-review-2026-11-15-round-2/`.
 
 ## Agreed behavior
 
@@ -18,7 +18,7 @@ This fixed batch contains 11 submissions and 16 pinned notes. Captures and diagn
 
 ### `62f5cda4-5002-42f0-afa2-50b352000345`
 
-- [ ] Pin 1: Why did we make a totally custom menu for these settings?! The vanilla game has a match rule settings menu! We should be extending that for lobby-related settings too.
+- [x] Pin 1: Why did we make a totally custom menu for these settings?! The vanilla game has a match rule settings menu! We should be extending that for lobby-related settings too.
 
 ### `cd377f53-d66a-4534-98c5-e07853fe5e8a`
 
@@ -56,11 +56,11 @@ We also probably want to have chat messages sent in the CSS by other players sho
 
 ### `424bbf0d-1bd4-426e-837b-c745889154be`
 
-- [ ] Pin 1: Again, the vanilla game has an existing menu for adjusting game rules like Stock/Coin/Time which is ordinarily what the vanilla game opens when you press the '4-man survival test!' text at the top of the menu here, and we should be extending it to include this lobby stuff here instead of making a brand new menu.
+- [x] Pin 1: Again, the vanilla game has an existing menu for adjusting game rules like Stock/Coin/Time which is ordinarily what the vanilla game opens when you press the '4-man survival test!' text at the top of the menu here, and we should be extending it to include this lobby stuff here instead of making a brand new menu.
 
 ### `d7c23f1d-e041-44ee-a77c-67419089f7a3`
 
-- [ ] Pin 1: On second thought, maybe what we *do* want is to have READY / START be the thing you do here, and have the match automatically begin when all players are ready (pre-empted by a 3 second countdown?)
+- [x] Pin 1: On second thought, maybe what we *do* want is to have READY / START be the thing you do here, and have the match automatically begin when all players are ready (pre-empted by a 3 second countdown?)
 
 ### `27282fcc-2c8e-48ee-8fd4-05c303d9278d`
 
@@ -87,7 +87,7 @@ Work in related batches: native menu presentation/settings; stock Rules and CSS 
 
 Verification: native release/control targets built successfully; audio mix/frame/resample tests passed (3/3). Hidden, muted client reviews passed for Settings (sliders, persistence, held-button input and two sizes), direct Online account controls (local fixture, not real-account authentication), and Quick Play to normal lobby with two clients. Uniform-card screenshots were inspected at 1440x900 and 960x540. Receipts: `.local/native-ui-round2-settings-review-1/`, `.local/native-ui-round2-online-review-1/`, `.local/native-ui-round2-lobby-review-uniform/`, `.local/native-ui-round2-audio-checks.log`. Actual stock Main, Versus and Rules captures: `.local/native-round2-retail-reference/`.
 
-Six submissions (11 pins) are complete in this batch. Their hosted records and attachments may now be removed; removal receipts stay in the private feedback directory. Five submissions remain open.
+The first batch completed six submissions (11 pins). Their hosted records and attachments were removed, leaving five submissions at that checkpoint. Removal receipts stay in the private feedback directory.
 
 ### Stock Rules and extended-row presentation
 
@@ -97,7 +97,7 @@ Lobby listing, rotation and fighter/waiting/spectator choices now live under Add
 
 Hidden, muted reviews: `.local/native-ui-round2-stock-rules-review-4/` passed ordinary rule edits, held-A/B input, items, persistence after reopen, CSS header/return and two sizes. `.local/native-ui-round2-lobby-rules-review-2/` passed listing changes, rotation changes, host seat override, and the guest changing their own choice afterward. Screenshots of main Rules, Additional Rules and Lobby settings were compared with the captured stock Rules screen. The initial added-text layout was replaced after Twilight's feedback about sizing and alignment.
 
-The two Rules submissions remain open until the agreed room stage-selection policies are functional and checked. Readiness/countdown, local 1v1 token handoff, and practice queue/chat work also remain open. No release has been published.
+The two Rules submissions were kept open for the stage-selection work below, alongside readiness/countdown, local 1v1 token handoff and practice queue/chat. No release was published.
 
 Final UI receipts for this pass: `.local/native-ui-round2-stock-rules-final-review/` and `.local/native-ui-round2-lobby-rules-final-review/` both passed on the rebuilt release client. Main Rules and Additional Rules constructors accept explicit edited rules and presentation options; original retail call sites retain their original visibility and SIS descriptions. The native menu exposes all additional options and retains Auto handicap after reopening. `native_settings` passed after rebuilding its test, including the third SD-penalty value. The six earlier report removals are confirmed by private receipts; a fresh hosted query found exactly the five pending submissions listed above.
 
@@ -109,7 +109,7 @@ Queue entry works through the controller hand. Ready and START remain unavailabl
 
 START readiness follows successful game pause/resume transitions: pause unreadies, resume readies. An input rejected during Ready/Go cannot change readiness by itself. B remains a gameplay button. The old B-countdown input module and its obsolete test were removed. The normal paused L+R+A+START exit returns to CSS, including after Quick Play assignment.
 
-The hidden, muted two-client suite passed in `.local/native-ui-round2-quick-handoff-review-7/review.json` on the release build from `.local/native-ui-round2-handoff-practice-build-8.log`. It exercised four local controllers, handoff/ejection, held A/START, queue gating, physical-controller practice entry, pause/resume both before and after assignment, incoming chat order/fade, and normal exit. Handoff, practice status, floating chat, faded chat and returned-CSS screenshots were inspected. Submissions `a7ebc9cd-2f3b-4a7a-813e-88a918169a5d` and `e944fc10-73be-41eb-99af-28dbed9a28fb` are complete. The three remaining submissions cover shared Rules, stage-selection policies and the authoritative lobby countdown; the goal remains active.
+The hidden, muted two-client suite passed in `.local/native-ui-round2-quick-handoff-review-7/review.json` on the release build from `.local/native-ui-round2-handoff-practice-build-8.log`. It exercised four local controllers, handoff/ejection, held A/START, queue gating, physical-controller practice entry, pause/resume both before and after assignment, incoming chat order/fade, and normal exit. Handoff, practice status, floating chat, faded chat and returned-CSS screenshots were inspected. Submissions `a7ebc9cd-2f3b-4a7a-813e-88a918169a5d` and `e944fc10-73be-41eb-99af-28dbed9a28fb` are complete. Three submissions remained after this batch: shared Rules, stage-selection policies and the authoritative lobby countdown.
 
 Both completed submissions and their attachments were removed; private `removal.json` receipts confirm each deletion. The production GM-loop snapshot fixture also passed after removing the old input hook: 2,019 state checks, 31,797 camera checks and a repeated 16-tick window (`A:/freak-melee-tests/native-ui-round2-pause-gm-loop-2026-11-15/receipt.json`). This fixture uses controlled external endpoints; the two-client review above supplies the live UI evidence.
 
@@ -121,4 +121,13 @@ Stage Selection supports On (any active player chooses), Random (Random Stage Sw
 
 The native client receives the rule set and countdown through a lobby-state subscription. The guest's Rules display uses those values without saving over personal preferences. Match proposals now carry the self-destruct penalty too. The normal lobby's separate Start match button was removed. Successful START pause/resume still controls readiness. A spectating owner can publish the agreed match while staying on CSS. Empty inactive local seats retain their controller mapping and create no practice actor.
 
-Current checks: the full signaling suite passed 82 tests in 12 files (`.local/native-ui-round2-lobby-flow-full-tests.log`). Native signaling-wire, match and selection tests passed (3/3) after rebuilding. The release/control targets built successfully in `.local/native-ui-round2-lobby-flow-build-3.log`. The complete three-client review passed in `.local/native-ui-round2-lobby-flow-review-3/`, with the owner spectating on CSS, an empty waiting seat on the shared PC, and its second controller fighting. The loser received the next stage pick. The other four policies passed real match/rematch checks in `.local/native-ui-round2-lobby-flow-review-other-policies-1/`. These reviews checked countdown cancellation/restart, read-only guest rules, personal-settings preservation and match agreement. Guest Rules and countdown screenshots were compared with the stock menu reference. These three submissions remain open pending service deployment and the final audit; no release has been published.
+Current checks: the full signaling suite passed 82 tests in 12 files (`.local/native-ui-round2-lobby-flow-full-tests.log`). Native signaling-wire, match and selection tests passed (3/3) after rebuilding. The release/control targets built successfully in `.local/native-ui-round2-lobby-flow-build-3.log`. The complete three-client review passed in `.local/native-ui-round2-lobby-flow-review-3/`, with the owner spectating on CSS, an empty waiting seat on the shared PC, and its second controller fighting. The loser received the next stage pick. The other four policies passed real match/rematch checks in `.local/native-ui-round2-lobby-flow-review-other-policies-1/`. These reviews checked countdown cancellation/restart, read-only guest rules, personal-settings preservation and match agreement. Guest Rules and countdown screenshots were compared with the stock menu reference. The final deployment and report-removal evidence is recorded below; no release has been published.
+
+
+### Final audit and deployment
+
+All 11 submissions (16 pinned notes) are complete. The final three hosted records and both attachments for each were removed only after the full live reviews passed. The private removal receipts confirm every deletion.
+
+The signaling service was deployed from implementation commit `96d9175` as Cloudflare version `fbfd0768-98a4-4430-8491-3ae67d8a4a2a`. Its health endpoint returned OK. Two hidden, muted native clients then passed the full match/rematch flow against the hosted service: `.local/native-ui-round2-lobby-flow-hosted-review-2/review.json`. This checked shared Rules, START pause/unready and resume/ready, countdown cancellation/restart, canonical match agreement, actual results, and the previous loser's next stage pick. It uses two clients on this PC, not separate-PC acceptance.
+
+The final service check passed 82 tests and the deployment dry run passed. Source changes and the local release executable are ready for Twilight's next review. The auto-updater channel and GitHub Releases were not changed. The goal is ready to pause after the final hosted-list and Git checks.

@@ -73,6 +73,11 @@ Evidence: `.local/native-ui-round2-lobby-flow-review-3/review.json`,
 `.local/native-ui-round2-lobby-flow-build-3.log`. These reviews use virtual
 controllers on one PC with local signaling.
 
+The same full match/rematch review also passed against the deployed signaling
+service in `.local/native-ui-round2-lobby-flow-hosted-review-2/review.json`.
+Deployment version: `fbfd0768-98a4-4430-8491-3ae67d8a4a2a`. Both clients ran on
+this PC; separate-PC acceptance remains a distinct check.
+
 ## Earlier verification, before automatic lobby readiness
 
 The native wire, roster and result tests pass. Result checks cover individual

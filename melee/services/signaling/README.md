@@ -15,6 +15,8 @@ ready countdown. The service stores the rules, deadline and stage history in
 SQLite and uses its alarm to advance the countdown after hibernation. Stage
 Selection supports On, Random, Ordered, Turns and Loser. See the
 [stage-selection guide](../../docs/native_lobby_stage_checkpoint.md).
+The 2026-11-15 shared-rules/countdown deployment is
+`fbfd0768-98a4-4430-8491-3ae67d8a4a2a` (implementation commit `96d9175`).
 
 `/chat/connect?peer=<32 hex digits>` serves the separate global conversation.
 Its WebSocket carries recent chat history and the connected-player directory.
