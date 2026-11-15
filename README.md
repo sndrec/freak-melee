@@ -47,8 +47,8 @@ cmake --build melee/build/native --target melee_native native_content_tool -j 4
 melee\build\native\melee_native.exe --iso "C:/local/Melee-USA-v1.02.iso"
 ```
 
-Menu glyph atlases are prepared from the verified ISO and the supplied private
-font/reference assets. See [font inputs](melee/assets/fonts/README.md).
+Menu glyph atlases are prepared from the verified ISO and the supplied CSS
+tile outlines. See [font sources](melee/assets/fonts/README.md).
 Starter-fighter portraits are also extracted from the ISO into the build's
 `ui/portraits` directory.
 

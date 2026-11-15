@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 import subprocess
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+from menu_font_image import FontAtlas
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
     parser.add_argument('--plates', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--recipe', type=Path)
+    parser.add_argument('--fonts', type=Path, required=True, help='Prepared native ui/fonts directory')
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--only', nargs='+', type=int, help='Rebuild these numbered segments before assembling.')
     args = parser.parse_args()
@@ -28,18 +30,18 @@ def main():
     root = args.output.resolve();root.mkdir(parents=True, exist_ok=True)
     plates = args.plates.resolve()
     width, height, fps = 960, 720, 60
-    heavy = source/'assets/fonts/FolkPro-Heavy.otf'
-    medium = source/'assets/fonts/FolkPro-Medium.otf'
+    heading = FontAtlas(args.fonts/'menu-heading.bin')
+    body = FontAtlas(args.fonts/'notice.bin')
 
     def run(command, label):
         with (root/(label+'.log')).open('w') as log:
             subprocess.run([args.ffmpeg, '-hide_banner', '-loglevel', 'warning', '-y', *command], stdout=log, stderr=log, check=True)
 
-    def lines(text, font, limit):
+    def lines(text, font, size, limit):
         rows, row = [], ''
         for word in text.split():
             attempt = (row+' '+word).strip()
-            if row and font.getlength(attempt)>limit:
+            if row and font.width(attempt,size)>limit:
                 rows.append(row);row=word
             else:row=attempt
         return rows+([row] if row else [])
@@ -49,14 +51,11 @@ def main():
         draw = ImageDraw.Draw(image)
         if segment.get('censor'):
             draw.rectangle((215, 255, 545, 510), fill=(0,0,0,255))
-            face = ImageFont.truetype(str(heavy), 42)
-            draw.text((380,382), 'CENSORED', font=face, anchor='mm', fill='white')
+            heading.draw(image,'CENSORED',380,382,42,centered=True)
         if segment.get('logo'):
             draw.rectangle((0,0,width,height), fill=(0,0,0,145))
-            face = ImageFont.truetype(str(heavy), 98)
-            draw.text((480,295), 'FREAK', font=face, anchor='mm', fill='white', stroke_width=3, stroke_fill='black')
-            face = ImageFont.truetype(str(heavy), 88)
-            draw.text((480,393), 'MELEE', font=face, anchor='mm', fill=(245,210,72), stroke_width=3, stroke_fill='black')
+            heading.draw(image,'FREAK',480,295,98,centered=True,outline=3)
+            heading.draw(image,'MELEE',480,393,88,(245,210,72),centered=True,outline=3)
         if segment.get('credits'):
             draw.rectangle((0,0,width,height), fill=(0,0,0,225))
             y=176
@@ -68,21 +67,21 @@ def main():
                 ('Melee assets / “How to Play” music',25,(245,210,72)),
                 ('Nintendo / HAL Laboratory',27,'white'),
             ]:
-                face=ImageFont.truetype(str(medium if size<40 else heavy),size)
-                draw.text((480,y),text,font=face,anchor='mm',fill=color)
+                face=body if size<40 else heading
+                face.draw(image,text,480,y,size,color,centered=True)
                 y += 70 if size==54 else 49
         if 'caption' in segment:
             text = captions[segment['caption']-1]
-            face = ImageFont.truetype(str(heavy),segment.get('font',46))
-            rows = lines(text, face, 860)
-            step = round(face.size*1.2)
+            size=segment.get('font',46)
+            rows = lines(text, heading, size, 860)
+            step = round(size*1.2)
             y = segment.get('caption_y',48)
             if segment.get('caption_scrim'):
                 for row in range(220):
                     draw.line((0,row,width,row),fill=(0,0,0,round(185*(1-row/220))))
             for row in rows:
-                draw.text(((width-face.getlength(row))/2,y), row, font=face,
-                          fill=(255,255,250), stroke_width=3, stroke_fill=(9,8,15))
+                heading.draw(image,row,(width-heading.width(row,size))/2,y,size,
+                             (255,255,250),outline=3,outline_color=(9,8,15))
                 y += step
         path = root/f'overlay-{number:02}.png';image.save(path)
         return path

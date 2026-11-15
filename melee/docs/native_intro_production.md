@@ -214,7 +214,7 @@ positions over time, so the hand and fighter tile visibly travel to the recipien
 Rebuild the cut and make review sheets:
 
 ```powershell
-python melee/tools/assemble_native_intro.py --plates .local/intro-production --output .local/intro-production/final-cut-1
+python melee/tools/assemble_native_intro.py --fonts melee/build/native/ui/fonts --plates .local/intro-production --output .local/intro-production/final-cut-1
 python melee/tools/audit_native_intro.py .local/intro-production/final-cut-1/freak-melee-intro-draft.mp4
 ```
 

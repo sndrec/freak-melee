@@ -1,51 +1,36 @@
-# Private menu-font inputs
+# Native menu fonts
 
-`FolkPro-Medium.otf` and `FolkPro-Heavy.otf` were supplied by the user from
-`FolkPro _Family.zip` on 2026-10-13. They are font assets, not project-authored
-or open-source code. Do not infer redistribution rights from the repository's
-code licenses.
+`tools/prepare_menu_fonts.py` creates the seven GX font atlases from a verified
+USA v1.02 Melee ISO and the supplied CSS tile outlines. Build inputs are the
+player's ISO, Python and Pillow. No installed desktop font is required.
 
-`tools/prepare_menu_fonts.py` builds separate GX atlases for notices, the CSS
-heading, CSS tile labels, results names and the results winner banner. The last
-two reuse glyphs from the verified original disc. Headings use the supplied
-Folk Heavy font; notices use Folk Medium. CSS tile labels use the user-supplied
-`assets/ui/fonts/angular_glyph_set.svg`.
-It contains outlined capital letters, digits, punctuation and additional symbols.
-The generator preserves the shared baseline and holes within letters, and
-rasterizes at a higher resolution before reducing to the atlas size. The earlier
-PNG alphabet remains a visual reference.
+| Face | Source |
+| --- | --- |
+| Notice and body text | The executable's original HSD glyph textures and proportional bearings |
+| CSS heading | Capitals from the same HSD text face |
+| Menu buttons | English `MnMaAll` option-name textures |
+| Italic page headings | `MnMaAll` panel-caption textures, with their shear removed during extraction |
+| Results names and winner banner | Separate `GmRst` lettering textures |
+| CSS tile names | The user-authored `assets/ui/fonts/angular_glyph_set.svg` |
 
-The atlases cover printable ASCII, accented Latin letters and common punctuation,
-including curly quotes, dashes and ellipses. Name and tile faces use uppercase
-forms. Notices and headings use Folk's own accented glyphs where available.
-Missing accents are built over that context's existing letters. Disc-derived
-faces also use their own letters as the bases for accents and ligatures.
-Remaining non-decomposable forms use the supplied Folk family at the matching
-cap height. Original ASCII artwork and spacing are preserved.
+The native renderer reapplies the page-heading shear. Menu buttons preserve
+their outlined face. Each recovered alphabet keeps its own letters, baseline
+and proportions. Missing letters, punctuation and accented forms are built from
+that face's strokes; the original HSD face supplies additional ASCII symbols.
+The CSS outline sheet contains capital letters, digits and punctuation. Its
+shared baseline and counters are preserved while rasterizing.
 
-The renderer measures and draws UTF-8 characters. Common precomposed and
-combining forms, such as `é` and `e` followed by an acute accent, select the same
-glyph. An unsupported character displays one question mark. Coverage is bounded;
-full international shaping and right-to-left layout remain future work.
-Reconstructed glyphs and their typography still need the user's visual review.
+The atlases support printable ASCII, accented Latin letters and common
+punctuation. Name and tile faces use uppercase forms. Common precomposed and
+combining forms, such as accented letters and their decomposed forms, select
+the same glyph. Unsupported characters display a question mark. Full
+international shaping and right-to-left layout remain future work.
 
-This tool requires Pillow in the build's Python environment. Generated atlases
-and PNG inspection sheets belong in the build output, not source control.
-`prepare_menu_unicode.py` supplies the accent composition and additional glyphs.
-The packed atlases store code points, glyph placement/spacing, vertical offsets
-and composition pairs. The native loader validates this data once when the
-fonts are acquired. Drawing uses fixed lookup tables and resident texture data.
+Generated `.bin` atlases and PNG inspection sheets belong in the build output.
+The packed data contains code points, glyph placement, spacing, vertical
+offsets and composition pairs. The native loader validates it once when fonts
+are acquired. Drawing uses fixed lookup tables and resident texture data.
 
-`menu-option` is a separate outlined face for the main-menu ribbons and hub
-buttons. `prepare_menu_lettering.py` extracts its letters from the English
-`MnMaAll` option-name textures. Letters absent from those names are reconstructed
-using the captured stroke width and proportions. Additional punctuation and
-digits use the supplied Folk family. The generated IA4 atlas keeps the dark
-outline and white fill in one texture; the other faces use I4 masks.
-
-`menu-caption` extracts the italic page-heading face from the main panel's
-caption textures. The generator removes the shared shear before separating
-letters, and the renderer reapplies it across each glyph. The resulting strings
-share a baseline. The hub places these captions through the original model
-joint and its material opacity. Reconstructed letters and punctuation remain
-part of the user's visual review.
+The intro-film tools draw these same prepared atlases with `menu_font_image.py`.
+Pass the build's `ui/fonts` directory using `--fonts` when staging or assembling
+the film. Their source text and edit recipes remain editable.

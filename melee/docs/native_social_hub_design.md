@@ -229,9 +229,10 @@ Visual references inspected for the revision:
 - [Original language menu](https://ssb.wiki.gallery/images/4/44/Language_NTSC_SSBM.png):
   rounded gold frame and selected/unselected panels.
 
-The local mockup embeds the supplied Folk fonts, the CSS tile glyphs generated
-from `angular_glyph_set.svg`, and screenshot-derived portraits. Review each text
-context against the original menus; the native font guide describes the faces.
+The original local browser mockup used desktop fonts and screenshot-derived
+portraits. The native client now derives its fonts from the ISO and uses
+`angular_glyph_set.svg` for CSS tile names. Review each text context against the
+original menus; the native font guide describes the faces.
 Roster tiles are compact. Tile lettering fills the name bar vertically and
 compresses horizontally to fit. Ganondorf stays on one line. Reserve taller,
 multiline bars for genuinely long names such as Mr. Game & Watch.

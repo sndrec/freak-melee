@@ -1,12 +1,12 @@
 # Build reproducible, context-specific GX glyph atlases. Source textures stay on
-# the user's disc; only the supplied reference sheet/fonts live in the project.
-import argparse, json, math, os, struct
+# the user's disc; the supplied CSS outline sheet is project-authored artwork.
+import argparse, math, struct
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageChops, ImageFilter
+from PIL import Image, ImageDraw, ImageChops, ImageFilter
 from prepare_menu_lettering import option_glyphs, caption_glyphs
 from prepare_menu_unicode import expand
 import re, xml.etree.ElementTree as ET
-from prepare_native_assets import extract_dol
+from prepare_disc_fonts import text_glyphs
 
 CAPS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -62,25 +62,6 @@ def complete_caps(glyphs):
     missing=set(CAPS)-glyphs.keys()
     if missing:raise ValueError('Unaccounted original glyphs '+str(missing))
 
-def raster_font(path, size):
-    font = ImageFont.truetype(str(path), size)
-    # Every glyph shares the same cap line and baseline. Cropping each letter
-    # to its ink bounds lifts lowercase letters and punctuation to the cap line.
-    baseline = -font.getbbox('H', anchor='ls')[1]
-    bottom = max(font.getbbox(chr(c), anchor='ls')[3] for c in range(32, 127))
-    glyphs = {}
-    for code in range(32, 127):
-        c = chr(code)
-        left, top, right, _ = font.getbbox(c, anchor='ls')
-        origin = -min(0, left)
-        width = max(1, math.ceil(font.getlength(c)) + origin, right + origin)
-        image = Image.new('L', (width, baseline + bottom))
-        ImageDraw.Draw(image).text((origin, baseline), c, font=font,
-                                  anchor='ls', fill=255)
-        glyphs[c] = image
-    return glyphs
-
-
 def angular_glyphs(path, cap_height=24):
     """Rasterize the provided angular outline glyphs with their shared baseline.
 
@@ -126,10 +107,8 @@ def angular_glyphs(path, cap_height=24):
     if missing:raise ValueError('Missing angular glyphs '+str(missing))
     return glyphs
 
-def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False,
-          font_path=None, font_size=24, raster=False):
-    glyphs, compositions = expand(glyphs, cap_height, tracking, caps,
-                                  font_path, font_size, raster)
+def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False):
+    glyphs, compositions = expand(glyphs, cap_height, tracking, caps)
     if len(glyphs)>512 or len(compositions)>256:raise ValueError('GX font metadata capacity')
     sheet=Image.new('LA' if outline else 'L',(1024,1024));metrics=[]
     x=y=1;row_height=0
@@ -165,20 +144,16 @@ def atlas(path, glyphs, cap_height, tracking, caps=False, outline=False,
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--iso',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args();root=Path(__file__).resolve().parents[1]
-    # Refuse a different disc revision before relying on texture descriptors.
-    import re
-    config=(root/'config/GALE01/config.yml').read_text()
-    expected=re.search(r'hash: ([0-9a-f]{40})',config).group(1);extract_dol(args.iso,expected)
+    # Extracting the HSD face also validates the original executable's hash.
+    fallback=text_glyphs(args.iso)
     data=disc_file(args.iso,'GmRst.usd')
     name_seeds=[(0x29d80,'KIRBY'),(0x29d98,'BOWSER'),(0x29dc8,'LUIGI'),(0x29de0,'MARIO'),(0x29df8,'MARTH'),(0x29e28,'NESS'),(0x29e40,'PEACH'),(0x29ed0,'ZELDA'),(0x29ee8,'FALCO'),(0x2a05c,'FOX')]
     winner_seeds=[(0x2ab5c,'KIRBY'),(0x2ab74,'BOWSER'),(0x2abbc,'MARIO'),(0x2abd4,'MARTH'),(0x2ac04,'NESS'),(0x2ac1c,'PEACH'),(0x2acac,'ZELDA'),(0x2ab2c,'FOX'),(0x2ac7c,'SAMUS'),(0x2aba4,'LUIGI'),(0x2ab14,'DK')]
-    fallback=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',24)
-    heavy=root/'assets/fonts/FolkPro-Heavy.otf'
     menu=disc_file(args.iso,'MnMaAll.usd')
     glyphs,height=option_glyphs(menu,fallback)
-    atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True,font_path=heavy)
+    atlas(args.output/'menu-option.bin',glyphs,height,0,outline=True)
     glyphs,height=caption_glyphs(menu,fallback)
-    atlas(args.output/'menu-caption.bin',glyphs,height,1,font_path=heavy)
+    atlas(args.output/'menu-caption.bin',glyphs,height,1)
     for face,seeds,height,tracking in [('result-name',name_seeds,15,4),('result-winner',winner_seeds,28,5)]:
         glyphs={}
         for offset,letters in seeds:collect(mask(data,offset),letters,glyphs)
@@ -188,12 +163,10 @@ if __name__=='__main__':
             if c not in glyphs:
                 h=height if c.isalnum() else min(height,im.height)
                 glyphs[c]=im.resize((max(1,round(im.width*h/im.height)),h),Image.Resampling.LANCZOS)
-        atlas(args.output/(face+'.bin'),glyphs,height,tracking,True,font_path=heavy)
-    # The home prompt is a menu notice. Use the supplied game notice family;
-    # the Melee logo's compressed lettering has a separate visual role.
-    heading=raster_font(root/'assets/fonts/FolkPro-Heavy.otf',32)
-    atlas(args.output/'menu-heading.bin',heading,24,1,font_path=heavy,font_size=32,raster=True)
-    folk=raster_font(root/'assets/fonts/FolkPro-Medium.otf',32)
-    atlas(args.output/'notice.bin',folk,24,1,font_path=root/'assets/fonts/FolkPro-Medium.otf',font_size=32,raster=True)
+        atlas(args.output/(face+'.bin'),glyphs,height,tracking,True)
+    # HSD is the original game's proportional body-text face. The CSS banner
+    # uses its capitals; menu ribbons, italic captions and results keep theirs.
+    atlas(args.output/'menu-heading.bin',fallback,24,1,True)
+    atlas(args.output/'notice.bin',fallback,24,1)
     glyphs=angular_glyphs(root/'assets/ui/fonts/angular_glyph_set.svg')
-    atlas(args.output/'css-tile.bin',glyphs,24,3,True,font_path=heavy)
+    atlas(args.output/'css-tile.bin',glyphs,24,3,True)

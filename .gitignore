@@ -23,6 +23,7 @@
 *.exe
 *.dll
 *.pdb
+*.otf
 *.log
 .env
 .env.*

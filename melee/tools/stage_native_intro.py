@@ -11,7 +11,8 @@ from pathlib import Path
 import subprocess
 import time
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+from menu_font_image import FontAtlas
 from review_native_css_room import Client
 
 
@@ -21,6 +22,7 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--music', type=Path)
+    parser.add_argument('--fonts', type=Path, required=True, help='Prepared native ui/fonts directory')
     args = parser.parse_args()
     setup = args.profile / 'Freak Melee/content/startup.txt'
     if not setup.is_file() or setup.read_text().splitlines()[0].split()[2] != '1':
@@ -33,27 +35,25 @@ def main():
              for scene in board['shots'] for i, cue in enumerate(scene['captions'])]
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     width, height = board['size']
-    font = lambda size: ImageFont.truetype(str(source / 'assets/fonts/FolkPro-Medium.otf'), size)
-    header, note_font = font(23), font(19)
-    caption_font = ImageFont.truetype(str(source / 'assets/fonts/FolkPro-Heavy.otf'), 46)
-    heavy = ImageFont.truetype(str(source / 'assets/fonts/FolkPro-Heavy.otf'), 65)
+    body = FontAtlas(args.fonts/'notice.bin')
+    heading = FontAtlas(args.fonts/'menu-heading.bin')
     empty = output / 'empty'; empty.mkdir()
     os.environ['FREAK_MELEE_SERVICE_ENDPOINT'] = 'http://localhost:1'
     client, images, captures = None, [], {}
 
-    def text_lines(text, limit, face):
+    def text_lines(text, limit, face, size):
         lines, line = [], ''
         for word in text.split():
             attempt = (line + ' ' + word).strip()
-            if line and face.getlength(attempt) > limit:
+            if line and face.width(attempt,size) > limit:
                 lines.append(line); line = word
             else:
                 line = attempt
         return lines + ([line] if line else [])
 
-    def centered(draw, text, y, face, color=(250, 250, 248)):
-        draw.text(((width-face.getlength(text))/2, y), text, font=face, fill=color,
-                  stroke_width=2, stroke_fill=(12, 10, 15))
+    def centered(image, text, y, face, size, color=(250, 250, 248)):
+        face.draw(image,text,(width-face.width(text,size))/2,y,size,color,
+                  outline=2,outline_color=(12,10,15))
 
     try:
         client = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
@@ -97,16 +97,16 @@ def main():
                 draw.ellipse((650, 190, 715, 255), outline=(215, 205, 235), width=3)
                 for a, b in [((680,255),(680,405)),((680,290),(615,360)),((680,290),(745,360)),((680,405),(625,555)),((680,405),(735,555))]:
                     draw.line((a,b), fill=(215,205,235), width=3)
-                draw.text((600,570), 'FILTER ACTOR: TO STAGE', font=note_font, fill=(183,175,195))
+                body.draw(image,'FILTER ACTOR: TO STAGE',600,570,19,(183,175,195))
             if shot['scene'] == 'end':
-                centered(draw, 'FREAK MELEE', 275, heavy, (238,203,88))
+                centered(image,'FREAK MELEE',275,heading,65,(238,203,88))
             draw.rectangle((0,0,width,65), fill=(20,17,28))
-            draw.text((28,18), f"{index+1:02}  /  {shot['id'].upper().replace('-', ' ')}", font=header, fill=(232,202,105))
-            draw.text((width-228,22), 'STORYBOARD / NATIVE POSES', font=font(12), fill=(178,166,190))
-            for line_number, line in enumerate(text_lines(shot['caption'], width-110, caption_font)):
-                centered(draw, line, shot.get('caption_y',90)+line_number*54, caption_font)
+            body.draw(image,f"{index+1:02}  /  {shot['id'].upper().replace('-', ' ')}",28,18,23,(232,202,105))
+            body.draw(image,'STORYBOARD / NATIVE POSES',width-228,22,12,(178,166,190))
+            for line_number, line in enumerate(text_lines(shot['caption'],width-110,heading,46)):
+                centered(image,line,shot.get('caption_y',90)+line_number*54,heading,46)
             if shot.get('pending'):
-                draw.text((28,670), 'FOOTAGE TO FILM', font=note_font, fill=(189,162,133))
+                body.draw(image,'FOOTAGE TO FILM',28,670,19,(189,162,133))
             path = output / f'{index+1:02}-{shot["id"]}.png'
             image.save(path); images.append((path, shot))
     finally:
@@ -117,8 +117,8 @@ def main():
     for i, (path, shot) in enumerate(images):
         with Image.open(path) as panel:
             contact.paste(panel.resize((320,240), Image.Resampling.LANCZOS), ((i%3)*320, (i//3)*300))
-        for line_index, line in enumerate(text_lines(shot['direction'], 300, font(12))[:3]):
-            draw.text(((i%3)*320+10,(i//3)*300+245+line_index*15),line,font=font(12),fill=(205,196,213))
+        for line_index, line in enumerate(text_lines(shot['direction'],300,body,12)[:3]):
+            body.draw(contact,line,(i%3)*320+10,(i//3)*300+245+line_index*15,12,(205,196,213))
     contact.save(output / 'storyboard.png')
     concat = output / 'boards.ffconcat'
     with concat.open('w', encoding='utf-8') as file:

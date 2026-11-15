@@ -190,8 +190,8 @@ def complete_alphabet(glyphs, fallback, cap):
     missing = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz') - glyphs.keys()
     if missing:
         raise ValueError('Missing menu option letters: ' + str(missing))
-    # Punctuation and digits beyond the original labels use the supplied notice
-    # family. Every alphabetic label uses captured or reconstructed menu glyphs.
+    # Punctuation and digits beyond the original labels use the original HSD
+    # text face. Alphabetic labels keep captured or reconstructed menu glyphs.
     for char, glyph in fallback.items():
         if char not in glyphs:
             glyphs[char] = glyph.resize((max(1, math.ceil(glyph.width * cap / glyph.height)), math.ceil(cap + 3)),

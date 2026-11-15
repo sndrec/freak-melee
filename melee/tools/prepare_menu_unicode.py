@@ -1,39 +1,12 @@
 """Accented Latin lettering and punctuation for the context-specific GX fonts."""
-import math
 import unicodedata
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+from prepare_font_symbols import complete_symbols
 
 
 EXTRA_CHARACTERS = (''.join(map(chr, range(0xA0, 0x180))) +
                     '\u2010\u2011\u2012\u2013\u2014\u2018\u2019\u201a\u201c\u201d\u201e\u2022\u2026\u2032\u2033\u20ac\u2122\ufffd')
-
-
-def raster_extended(path, size, tracking, cap=None):
-    font = ImageFont.truetype(str(path), size)
-    baseline = -font.getbbox('H', anchor='ls')[1]
-    bottom = max(font.getbbox(chr(c), anchor='ls')[3] for c in range(32, 127))
-    missing = font.getmask(chr(0x10FFFF))
-    missing = (missing.size, bytes(missing))
-    result = {}
-    for c in EXTRA_CHARACTERS:
-        mask = font.getmask(c)
-        if (mask.size, bytes(mask)) == missing:
-            continue
-        left, top, right, last = font.getbbox(c, anchor='ls')
-        top = min(0, baseline + top)
-        origin = -min(0, left)
-        width = max(1, math.ceil(font.getlength(c)) + origin, right + origin)
-        image = Image.new('L', (width, max(baseline + bottom, baseline + last) - top))
-        ImageDraw.Draw(image).text((origin, baseline - top), c, font=font,
-                                  anchor='ls', fill=255)
-        if cap:
-            scale = cap / baseline
-            image = image.resize((max(1, round(image.width * scale)),
-                                  max(1, round(image.height * scale))), Image.Resampling.LANCZOS)
-            top = round(top * scale)
-        result[c] = (image, 0, top, image.width + tracking)
-    return result
 
 
 def accent(base, mark, cap):
@@ -85,52 +58,67 @@ def accent(base, mark, cap):
     return image, -left, 0 if below else -margin
 
 
-def expand(glyphs, cap, tracking, caps, font_path=None, font_size=24, raster=False):
+def expand(glyphs, cap, tracking, caps):
+    glyphs = complete_symbols(glyphs, cap)
+    # The disc's Latin set has no sharp S. Draw the extension in the source
+    # face's cap height; accents and other extensions reuse its own letters.
+    sharp = Image.new('L', (round(cap*.7)*4, round(cap+5)*4))
+    points = [(2,24),(2,6),(4,2),(8,0),(12,2),(13,6),(11,9),
+              (8,11),(11,12),(15,16),(15,20),(12,23),(8,23),(6,21)]
+    ImageDraw.Draw(sharp).line([(x*cap/24*4,y*cap/24*4) for x,y in points],
+                               fill=255,width=max(1,round(cap/9*4)),joint='curve')
+    glyphs.setdefault('ß', sharp.resize((round(cap*.7),round(cap+5)),Image.Resampling.LANCZOS))
     result = {}
     for code in range(32, 127):
         c = chr(code)
         image = glyphs[c.upper() if caps and c.isalpha() else c]
         result[c] = (image, 0, 0, image.width + tracking)
-    fallback = raster_extended(font_path, font_size, tracking, None if raster else cap) if font_path else {}
-    # A real font supplies its own accented forms. Disc-derived faces compose
-    # accents over their own letters; only missing non-decomposable forms use Folk.
+    # Every face builds accented forms over its own recovered letters.
     for c in EXTRA_CHARACTERS:
         target = c.upper() if caps else c
         decomposition = unicodedata.normalize('NFD', target)
         composed = None
-        if not raster or target not in fallback:
-            ligature = {'Æ': 'AE', 'æ': 'ae', 'Œ': 'OE', 'œ': 'oe'}.get(target, target)
-            if len(ligature) > 1 and all(letter in glyphs for letter in ligature):
-                pieces = [glyphs[letter] for letter in ligature]
-                image = Image.new('L', (sum(p.width for p in pieces), max(p.height for p in pieces)))
-                x = 0
-                for piece in pieces:
-                    image.paste(piece, (x, 0)); x += piece.width
+        ligature = {'Æ': 'AE', 'æ': 'ae', 'Œ': 'OE', 'œ': 'oe'}.get(target, target)
+        if len(ligature) > 1 and all(letter in glyphs for letter in ligature):
+            pieces = [glyphs[letter] for letter in ligature]
+            image = Image.new('L', (sum(p.width for p in pieces), max(p.height for p in pieces)))
+            x = 0
+            for piece in pieces:
+                image.paste(piece, (x, 0)); x += piece.width
+            composed = image, 0, 0, image.width + tracking
+        elif len(decomposition) == 2 and decomposition[0] in glyphs:
+            base = glyphs[decomposition[0]]
+            marked = accent(base, decomposition[1], cap)
+            if marked:
+                composed = (*marked, base.width + tracking)
+        elif target in glyphs:
+            image = glyphs[target]
+            composed = image, 0, 0, image.width + tracking
+        else:
+            struck = {'Ø': 'O', 'ø': 'o', 'Ł': 'L', 'ł': 'l',
+                      'Ð': 'D', 'ð': 'd', 'Đ': 'D', 'đ': 'd',
+                      'Ħ': 'H', 'ħ': 'h', 'Ŧ': 'T', 'ŧ': 't'}
+            if target in struck and struck[target] in glyphs:
+                image = glyphs[struck[target]].copy()
+                draw = ImageDraw.Draw(image)
+                points = [(0, image.height * .65), (image.width - 1, image.height * .3)]
+                if target not in 'ØøŁł':
+                    points = [(0, image.height * .4), (image.width - 1, image.height * .4)]
+                draw.line(points, fill=255, width=max(1, round(cap / 12)))
                 composed = image, 0, 0, image.width + tracking
-            elif len(decomposition) == 2 and decomposition[0] in glyphs:
-                base = glyphs[decomposition[0]]
-                marked = accent(base, decomposition[1], cap)
-                if marked:
-                    composed = (*marked, base.width + tracking)
-            elif target in glyphs:
-                image = glyphs[target]
-                composed = image, 0, 0, image.width + tracking
-            else:
-                struck = {'Ø': 'O', 'ø': 'o', 'Ł': 'L', 'ł': 'l',
-                          'Ð': 'D', 'ð': 'd', 'Đ': 'D', 'đ': 'd',
-                          'Ħ': 'H', 'ħ': 'h', 'Ŧ': 'T', 'ŧ': 't'}
-                if target in struck and struck[target] in glyphs:
-                    image = glyphs[struck[target]].copy()
-                    draw = ImageDraw.Draw(image)
-                    points = [(0, image.height * .65), (image.width - 1, image.height * .3)]
-                    if target not in 'ØøŁł':
-                        points = [(0, image.height * .4), (image.width - 1, image.height * .4)]
-                    draw.line(points, fill=255, width=max(1, round(cap / 12)))
-                    composed = image, 0, 0, image.width + tracking
         if composed:
             result[c] = composed
-        elif target in fallback:
-            result[c] = fallback[target]
+        else:
+            aliases = {'ı':'i', 'ſ':'s', 'ĸ':'k', 'Ŋ':'N', 'ŋ':'n',
+                       'Þ':'Th', 'þ':'th', 'Ĳ':'IJ', 'ĳ':'ij', 'Ŀ':'L', 'ŀ':'l'}
+            letters = aliases.get(target, unicodedata.normalize('NFKD', target))
+            if letters != target and all(letter in glyphs for letter in letters):
+                pieces = [glyphs[letter] for letter in letters]
+                image = Image.new('L', (sum(p.width for p in pieces),max(p.height for p in pieces)))
+                x=0
+                for piece in pieces:
+                    image.paste(piece,(x,0));x+=piece.width
+                result[c] = image,0,0,image.width+tracking
     # Spaces and common punctuation reuse the context's own shapes.
     aliases = {'\u00a0': ' ', '\u2010': '-', '\u2011': '-', '\u2012': '-',
                '\u2018': "'", '\u2019': "'", '\u201a': ',',

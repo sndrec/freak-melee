@@ -75,6 +75,7 @@ client and closes only that client. For example, from the repository root:
 python melee/tools/stage_native_intro.py `
   --exe melee/build/native/melee_native.exe `
   --iso 'Super Smash Bros. Melee (USA) (v1.02).iso' `
+  --fonts melee/build/native/ui/fonts `
   --profile .local/startup-feedback-3-ui-review/resume/appdata `
   --output .local/intro-storyboard-6 `
   --music A:/randomfiles/mode_select.flac

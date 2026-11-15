@@ -184,8 +184,8 @@ including normally hidden accessories. Animation playback and Test Character
 use authored visibility. Materials expose lighting colors, render flags,
 blending/depth settings and attached texture layers, including texture
 transforms, filtering and custom color/alpha operations. Common attributes
-have readable labels, units and descriptions. The CSS heading uses the supplied
-FolkPro face at a smaller size.
+have readable labels, units and descriptions. The CSS heading uses the original
+HSD capital-letter face extracted from the ISO.
 
 This pass is ready for the user's next usability review. Authoring IK remains
 planned separately. Focused tests used an isolated Ganondorf draft and hidden,
