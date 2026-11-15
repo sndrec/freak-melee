@@ -27,6 +27,7 @@
 #include <melee/mn/native_menu_scene.h>
 #include <melee/ui/native_play_menu.h>
 #include <melee/ui/native_hub.h>
+#include <melee/gm/native_online_session.h>
 #endif
 #include <melee/lb/lb_00B0.h>
 #include <melee/lb/lb_013B.h>
@@ -2433,6 +2434,11 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
             if (HSD_PadCopyStatus[cursor->x4].err != 0
 #ifdef MELEE_NATIVE
                 && !nativeCssInteraction_PointerPort(cursor->x4)
+                // Room seats remain human when a controller disconnects.
+                && !(nativeHome_IsSelection() &&
+                     nativeOnlineSession_State()!=NativeLobbySessionState_Disconnected &&
+                     nativeOnlineSession_State()!=NativeLobbySessionState_Failed)
+
 #endif
             ) {
                 if (cursor->x5 != 3) {
@@ -3700,8 +3706,29 @@ void fn_80262F44(HSD_GObj* gobj)
     }
 
 #ifdef MELEE_NATIVE
-    if (nativeHome_IsSelection() && !nativeCssInteraction_CanReady()) {
-        goto hide;
+    if (nativeHome_IsSelection()) {
+        HSD_JObjSetFlagsAll(jobj,JOBJ_HIDDEN);
+        bool ready=nativeCssInteraction_CanReady();
+        int single=nativeHome_QuickSinglesPort();
+        u32 trigger=0;
+        for (unsigned port=0;port<GM_MAX_PLAYERS;++port) {
+            if (single>=0 && port!=(unsigned)single) continue;
+            if (mnCharSel_803F0DFC.doors[port].p_kind==Gm_PKind_NA) continue;
+            if (ready && mnCharSel_803F0E8C[port].data &&
+                mnCharSel_803F0E8C[port].data->state!=0) ready=false;
+            if (!HSD_PadCopyStatus[port].err) trigger|=HSD_PadCopyStatus[port].trigger;
+        }
+        mnCharSel_804D6CF7=ready;
+        if (!ready || mnCharSel_804D6CF2 || mnCharSel_804D6CF6) return;
+        if (!(trigger&HSD_PAD_START) && !nativePlayMenu_TakeReadyRequest()) return;
+        mnCharSel_804D6CF6=1; mnCharSel_804D6CF2=0xFF;
+        for (unsigned port=0;port<GM_MAX_PLAYERS;++port) {
+            if (single>=0 && port!=(unsigned)single) continue;
+            if (mnCharSel_803F0DFC.doors[port].p_kind==Gm_PKind_Human &&
+                gm_RumbleEnabledForPlayer(port,mnCharSel_804D6CB0->vs.start.players[port].nametag))
+                lb_80014574(port,0,0xB,0x1E);
+        }
+        return;
     }
 #endif
     if (mnCharSel_804D6CF5 == 1) {
@@ -3792,16 +3819,7 @@ void fn_80262F44(HSD_GObj* gobj)
             }
         }
 
-#ifdef MELEE_NATIVE
-        if (nativeHome_IsSelection()) {
-            HSD_JObjSetFlagsAll(jobj, JOBJ_HIDDEN);
-            // Retain a clicked Ready request through the CSS entrance delay;
-            // consuming it earlier loses the click before START is accepted.
-            if (nativeHub_IsVisible()) trigger &= ~HSD_PAD_START;
-            else if (mnCharSel_804D6CF2 == 0 && nativePlayMenu_TakeReadyRequest())
-                trigger |= HSD_PAD_START;
-        }
-#endif
+
         if (mnCharSel_804D6CF2 == 0 && (trigger & HSD_PAD_START)) {
             if (mnCharSel_804D6CF7 != 0) {
                 mnCharSel_804D6CF6 = 1;
@@ -5585,7 +5603,8 @@ void mnCharSel_Scene_OnFrame(void)
     switch (mnCharSel_804D6CF6) {
     case 1:
         for (i = 0; i < 4; i++) {
-            if (mnCharSel_803F0DFC.doors[i].p_kind != 3 &&
+            if (!nativeHome_IsSelection() &&
+                mnCharSel_803F0DFC.doors[i].p_kind != 3 &&
                 mnCharSel_804A0BD0[0]->x5 != 0)
             {
                 mnCharSel_804D6CF6 = 0;

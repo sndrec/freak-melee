@@ -14,6 +14,11 @@ namespace {
     unsigned caret, line_count;
     char room[13];
     uint64_t last_sequence = UINT64_MAX;
+    struct FloatingMessage { char text[580]; uint64_t received; } floating[8];
+    unsigned floating_count;
+    uint64_t floating_sequence=UINT64_MAX;
+    char floating_room[13];
+
 
     unsigned next(unsigned index)
     {
@@ -171,9 +176,47 @@ void nativeCssChat_Draw()
         nativeMenuPaint_Text(*chat->failure ? chat->failure : "Delivery unconfirmed", 457, 374, 165, 7, 0xF0A882FF);
 }
 
+void nativeCssChat_Tick(bool practice)
+{
+    const char* code=nativeOnlineSession_RoomCode();
+    if (!code) code="";
+    if (std::strcmp(code,floating_room)) {
+        std::snprintf(floating_room,sizeof(floating_room),"%s",code);
+        floating_count=0; floating_sequence=UINT64_MAX;
+    }
+    const NativeRoomChat* chat=nativeOnlineSession_Chat();
+    if (!chat || !chat->ready) return;
+    if (floating_sequence!=UINT64_MAX && practice) {
+        for (unsigned i=0;i<chat->count;++i) {
+            const auto& message=chat->messages[i]; if (message.sequence<=floating_sequence) continue;
+            if (floating_count==8) { std::memmove(floating,floating+1,7*sizeof(*floating)); --floating_count; }
+            auto& line=floating[floating_count++];
+            std::snprintf(line.text,sizeof(line.text),"%s: %s",message.name,message.text);
+            line.received=SDL_GetTicks();
+        }
+    }
+    floating_sequence=chat->last_sequence;
+}
+void nativeCssChat_DrawPractice()
+{
+    const uint64_t now=SDL_GetTicks(); float bottom=399;
+    for (unsigned i=floating_count;i>0;--i) {
+        const auto& message=floating[i-1]; uint64_t age=now-message.received;
+        if (age>=10000) continue;
+        unsigned alpha=age<=8200?255:unsigned((10000-age)*255/1800);
+        unsigned lines=std::min(3U,nativeHub_TextBlock(message.text,18,0,600,0,11,0xF2ECEDFF));
+        float height=lines*15;
+        if (bottom-height<65) break;
+        nativeHub_TextBlock(message.text,18,bottom-height,600,height,11,0xF2ECED00|alpha);
+        bottom-=height+5;
+    }
+}
+
 void nativeCssChat_Inspect()
 {
     const NativeRoomChat* chat = nativeOnlineSession_Chat();
     std::fprintf(stderr, "[play-menu] css-chat visible=%d focused=%d messages=%u draft=%s\n",
                  visible, focused, chat ? chat->count : 0, message);
+    unsigned active=0; for (unsigned i=0;i<floating_count;++i) active+=SDL_GetTicks()-floating[i].received<10000;
+    std::fprintf(stderr,"[play-menu] practice-chat messages=%u active=%u sequence=%llu\n",floating_count,active,(unsigned long long)floating_sequence);
 }

@@ -160,7 +160,7 @@ void nativeNetplayTiming_End(NativeNetplayTimingPhase phase) { (void)phase; abor
 void nativeNetplayTiming_Submitted(uint64_t frame, bool hidden) { (void)frame; (void)hidden; abort(); }
 void nativeCallbackProfile_SetFrame(uint64_t frame, bool resimulating) { (void)frame; (void)resimulating; abort(); }
 void nativeHub_Event(const union SDL_Event* event) { (void)event; }
-void nativeHome_HandleInput(void) {}
+bool nativeHome_SetReady(bool ready) { (void) ready; return false; }
 void nativeHub_Tick(void) {}
 bool nativeHome_IsPractice(void) { return false; }
 bool nativeHub_ConsumesGameInput(void) { return false; }

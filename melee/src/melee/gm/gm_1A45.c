@@ -548,7 +548,6 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (gm_80479D58.unk_10.unk_38_0) {
                 lb_80019900();
                 if (lb_80019A30(0)) {
-                    nativeHome_HandleInput();
                     nativeHome_ApplyResultsInput();
                     if (!rollback_active) nativeHub_Tick();
                     if ((nativeHome_IsSelection() || nativeHome_IsPractice()) &&

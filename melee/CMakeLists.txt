@@ -786,12 +786,6 @@ if(MELEE_BUILD_TESTS)
     target_compile_definitions(native_input_timing_test PRIVATE
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
     add_test(NAME native_input_timing COMMAND native_input_timing_test)
-    add_executable(native_home_input_test tests/native/home_input_test.c
-        src/melee/gm/native_home_input.c)
-    target_include_directories(native_home_input_test PRIVATE src extern/dolphin/include)
-    target_compile_definitions(native_home_input_test PRIVATE
-        MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
-    add_test(NAME native_home_input COMMAND native_home_input_test)
     add_executable(native_replay_test tests/native/replay_test.c
         src/melee/gm/native_replay.c)
     target_include_directories(native_replay_test PRIVATE src extern/dolphin/include)

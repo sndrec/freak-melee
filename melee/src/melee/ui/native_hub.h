@@ -45,6 +45,7 @@ void nativeHub_Open(NativeHubPage page);
 void nativeHub_Notice(const char* text);
 const char* nativeHub_NoticeText(void);
 const char* nativeHub_LocalName(void);
+unsigned nativeHub_LocalPlayers(void);
 bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
                                    const char* recipient);
 // Diagnostic input uses native client pixels, as ordinary mouse input does.

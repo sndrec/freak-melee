@@ -348,7 +348,8 @@ void nativeCssCards_Update(void)
     NativeCssLocalSlot local[4] = { 0 };
     for (unsigned port = 0; port < 4; ++port) {
         const PlayerInitData* player = &cards.css->vs.start.players[port];
-        local[port].kind = player->slot_type;
+        int single=nativeHome_QuickSinglesPort();
+        local[port].kind = single>=0 && port!=(unsigned)single?Gm_PKind_NA:player->slot_type;
         NativeLobbyPlayerSelection* choice = &local[port].choice;
         const NativeContentId* package = nativeHome_FighterPackage(port);
         if (package) {

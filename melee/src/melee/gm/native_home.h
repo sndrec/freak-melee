@@ -16,6 +16,11 @@ extern "C" {
 
 bool nativeHome_IsSelection(void);
 bool nativeHome_IsPractice(void);
+bool nativeHome_IsReady(void);
+bool nativeHome_SetReady(bool ready);
+// In 1v1 Quick Play, the latest placed local token owns the single local seat.
+int nativeHome_QuickSinglesPort(void);
+void nativeHome_ClaimQuickSinglesPort(unsigned port);
 typedef struct NativeHomePracticeWatch {
     unsigned motion_id;
     float animation_frame;
@@ -127,7 +132,6 @@ void nativeHome_EnterPractice(StartMeleeData* start);
 void nativeHome_ExitPractice(void);
 void nativeHome_EnterResults(void);
 void nativeHome_ApplyResultsInput(void);
-void nativeHome_HandleInput(void);
 void nativeHome_Tick(void);
 
 #ifdef __cplusplus

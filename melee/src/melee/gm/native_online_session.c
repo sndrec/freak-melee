@@ -44,7 +44,7 @@ static struct NativeQuickSession {
     uint32_t seen_revision;
     bool configure_sent, assigned_room, cancelling, cancel_sent;
     bool prepared_sent, prepared_value;
-    bool unready_pending, unready_accepted;
+    bool unready_pending;
     uint64_t unready_revision, unready_epoch;
 } quick;
 
@@ -217,7 +217,7 @@ static bool switch_quick_room(const char* room, const char* admission)
     quick.seen_revision = 0;
     quick.prepared_sent = false;
     quick.cancel_sent = false;
-    quick.unready_pending = quick.unready_accepted = false;
+    quick.unready_pending = false;
     return started;
 }
 
@@ -274,7 +274,7 @@ bool nativeOnlineSession_UnreadyQuick(void)
     if (!online.active || online.match_claimed || !quick.assigned_room ||
         quick.assignment.phase >= 2 ||
         online.lobby.state != NativeLobbySessionState_Waiting) return false;
-    if (quick.unready_pending || quick.unready_accepted) return true;
+    if (quick.unready_pending) return true;
     if (!nativeSignalingClient_UnreadyQuick(&online.lobby.room.connection.signaling,
                                             quick.assignment.completed_epoch)) return false;
     quick.unready_pending = true;
@@ -282,14 +282,6 @@ bool nativeOnlineSession_UnreadyQuick(void)
     quick.unready_epoch = quick.assignment.completed_epoch;
     return true;
 }
-
-bool nativeOnlineSession_TakeQuickUnready(void)
-{
-    bool accepted = quick.unready_accepted;
-    quick.unready_accepted = false;
-    return accepted;
-}
-
 static void prepare_quick(void)
 {
     NativeNetplayConnection* c = &online.lobby.room.connection;
@@ -351,7 +343,6 @@ static bool pump_quick(void)
                     nativeLobbySelection_Decode(&selected, peer->selection, peer->selection_size) &&
                     !selected.confirmed) {
                     quick.unready_pending = false;
-                    quick.unready_accepted = true;
                     break;
                 }
             }
@@ -385,7 +376,7 @@ static bool pump_quick(void)
         quick.heartbeat_ms = now;
     }
     if (quick.assigned_room && quick.assignment.phase < 2 &&
-        !quick.unready_pending && !quick.unready_accepted &&
+        !quick.unready_pending &&
         online.lobby.state == NativeLobbySessionState_Waiting) prepare_quick();
     return true;
 }

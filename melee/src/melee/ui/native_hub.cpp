@@ -479,6 +479,7 @@ extern "C" void nativeHub_Notice(const char* text)
     std::snprintf(hub.notice, sizeof(hub.notice), "%s", text ? text : "");
     hub.notice_until = SDL_GetTicks() + 8000;
 }
+extern "C" unsigned nativeHub_LocalPlayers(void) { return unsigned(hub.local_players); }
 extern "C" const char* nativeHub_LocalName(void)
 {
     return hub.public_name;
@@ -956,7 +957,7 @@ void nativeHub_Activate(HubAction action, int value)
             nativeHub_Notice("Could not open Quick Play.");
             break;
         }
-        nativeCssInteraction_SetLocalPlayers(players);
+        nativeCssInteraction_SetLocalPlayers(mode==NativeQuickMode_Singles?unsigned(hub.local_players):players);
         nativeHub_Notice("");
         hub.dismissed = true;
         hub.visible = false;
@@ -1113,7 +1114,7 @@ extern "C" void nativeHub_Tick(void)
     } else {
         hub.back_frames = 0;
     }
-    if (practice && !tool && !hub.visible && gm_GetDbPauseFlag(1)) {
+    if (practice && !tool && !hub.visible && !nativeOnlineSession_Quick() && gm_GetDbPauseFlag(1)) {
         for (unsigned port = 0; port < 4; ++port) {
             if (!HSD_PadCopyStatus[port].err &&
                 (HSD_PadCopyStatus[port].trigger & PAD_TRIGGER_Z)) {

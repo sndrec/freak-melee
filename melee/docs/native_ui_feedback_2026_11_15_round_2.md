@@ -6,7 +6,7 @@ This fixed batch contains 11 submissions and 16 pinned notes. Captures and diagn
 
 - 1v1 Quick Play uses all configured local hands and tokens. The most recently placed token claims the local seat; a handoff unreadies it and cancels a countdown.
 - Player-created lobbies automatically begin a three-second countdown when all active fighters are ready, followed by stage selection using the existing loser-picks policy. Waiting players and spectators do not count.
-- START toggles readiness and cancels the countdown. B retains its ordinary character-select and practice controls.
+- START toggles readiness and cancels the countdown. In online practice, START unreadies and pauses; another START resumes and readies. The normal paused L+R+A+START exit returns to CSS. B retains its ordinary character-select and practice controls.
 - Queue entry happens on CSS before START enters practice. Practice shows matchmaking status and fading incoming chat; the normal paused match-exit command returns to CSS.
 - Preserve the vanilla CSS card aspect ratio. Twilight chose to fill the row width, keep the existing top edge and chat width, and leave a small bottom gap.
 - Implement the stock stage-selection policies too; default to Loser to preserve the current lobby policy.
@@ -34,7 +34,7 @@ This fixed batch contains 11 submissions and 16 pinned notes. Captures and diagn
 
 ### `e944fc10-73be-41eb-99af-28dbed9a28fb`
 
-- [ ] Pin 1: There is no way to enter queue or press any of the buttons at the top of the screen here without using the mouse pointer. We probably don't want to even let the player do "READY / START" at the CSS until they've entered queue, and that way we don't need to permit any controls here except LRA+START to return to the CSS, and we can reserve the bar at the top of the screen for matchmaking status / etc.
+- [x] Pin 1: There is no way to enter queue or press any of the buttons at the top of the screen here without using the mouse pointer. We probably don't want to even let the player do "READY / START" at the CSS until they've entered queue, and that way we don't need to permit any controls here except LRA+START to return to the CSS, and we can reserve the bar at the top of the screen for matchmaking status / etc.
 
 We also probably want to have chat messages sent in the CSS by other players show up in this screen somewhere, like a source engine style chat (though stylize it like Melee obviously, just in the sense that the chat messages would appear floating, with newest messages appearing from the bottom and pushing older messages up, and then fade out after being on screen for long enough)
 
@@ -70,7 +70,7 @@ We also probably want to have chat messages sent in the CSS by other players sho
 
 ### `a7ebc9cd-2f3b-4a7a-813e-88a918169a5d`
 
-- [ ] Pin 1: If joining quick play 1 vs 1 with more than 1 local player on the client, we should have a way for the local client to pick which player is playing in the quick play match. Maybe give them all cursors on the screen and in the CSS they each have their own grabbable token, and then the active player is just whoever most recently placed their token (shoving whoever elses token was on a character off?) Worth figuring out.
+- [x] Pin 1: If joining quick play 1 vs 1 with more than 1 local player on the client, we should have a way for the local client to pick which player is playing in the quick play match. Maybe give them all cursors on the screen and in the CSS they each have their own grabbable token, and then the active player is just whoever most recently placed their token (shoving whoever elses token was on a character off?) Worth figuring out.
 
 ## Implementation and verification
 
@@ -100,3 +100,15 @@ Hidden, muted reviews: `.local/native-ui-round2-stock-rules-review-4/` passed or
 The two Rules submissions remain open until the agreed room stage-selection policies are functional and checked. Readiness/countdown, local 1v1 token handoff, and practice queue/chat work also remain open. No release has been published.
 
 Final UI receipts for this pass: `.local/native-ui-round2-stock-rules-final-review/` and `.local/native-ui-round2-lobby-rules-final-review/` both passed on the rebuilt release client. Main Rules and Additional Rules constructors accept explicit edited rules and presentation options; original retail call sites retain their original visibility and SIS descriptions. The native menu exposes all additional options and retains Auto handicap after reopening. `native_settings` passed after rebuilding its test, including the third SD-penalty value. The six earlier report removals are confirmed by private receipts; a fresh hosted query found exactly the five pending submissions listed above.
+
+### Local handoff and online practice
+
+Quick Play 1v1 now keeps every configured local controller's hand and token on CSS. The latest placed token owns the single network seat and ejects the previous token into empty space. Only the chosen controller can ready that seat. Disconnected room controllers remain human seats instead of silently becoming CPUs. The CSS card and practice fighter use the chosen physical controller; returning from practice restores all configured hands.
+
+Queue entry works through the controller hand. Ready and START remain unavailable until the client enters the queue. The native readiness check handles custom fighters and the selected seat directly; unused local tokens cannot block entry to practice. Online practice has a status-only top bar. Incoming lobby messages appear at the bottom, push older messages upward, and fade after ten seconds.
+
+START readiness follows successful game pause/resume transitions: pause unreadies, resume readies. An input rejected during Ready/Go cannot change readiness by itself. B remains a gameplay button. The old B-countdown input module and its obsolete test were removed. The normal paused L+R+A+START exit returns to CSS, including after Quick Play assignment.
+
+The hidden, muted two-client suite passed in `.local/native-ui-round2-quick-handoff-review-7/review.json` on the release build from `.local/native-ui-round2-handoff-practice-build-8.log`. It exercised four local controllers, handoff/ejection, held A/START, queue gating, physical-controller practice entry, pause/resume both before and after assignment, incoming chat order/fade, and normal exit. Handoff, practice status, floating chat, faded chat and returned-CSS screenshots were inspected. Submissions `a7ebc9cd-2f3b-4a7a-813e-88a918169a5d` and `e944fc10-73be-41eb-99af-28dbed9a28fb` are complete. The three remaining submissions cover shared Rules, stage-selection policies and the authoritative lobby countdown; the goal remains active.
+
+Both completed submissions and their attachments were removed; private `removal.json` receipts confirm each deletion. The production GM-loop snapshot fixture also passed after removing the old input hook: 2,019 state checks, 31,797 camera checks and a repeated 16-tick window (`A:/freak-melee-tests/native-ui-round2-pause-gm-loop-2026-11-15/receipt.json`). This fixture uses controlled external endpoints; the two-client review above supplies the live UI evidence.

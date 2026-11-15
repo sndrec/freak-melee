@@ -201,7 +201,7 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
     }
     if (nativeOnlineSession_State() != NativeLobbySessionState_Disconnected &&
         nativeOnlineSession_State() != NativeLobbySessionState_Failed)
-        nativeCssInteraction_SetLocalPlayers(nativeOnlineSession_LocalPlayers());
+        nativeCssInteraction_SetLocalPlayers(nativeHome_QuickSinglesPort()>=0?nativeHub_LocalPlayers():nativeOnlineSession_LocalPlayers());
 }
 void nativeCssInteraction_End(void)
 {
@@ -225,6 +225,23 @@ static void grab(CSSCursorData* hand, unsigned slot)
 }
 static void choose_tile(unsigned slot, const NativeCssTile* tile)
 {
+    if (nativeHome_QuickSinglesPort()>=0) {
+        nativeHome_ClaimQuickSinglesPort(slot);
+        float left,right,top,bottom; nativeCssOriginal_Viewport(&left,&right,&top,&bottom);
+        for (unsigned other=0;other<4;++other) {
+            if (other==slot || !chosen(other)) continue;
+            nativeHome_SelectFighterPackage(other,NULL);
+            selection.css->vs.start.players[other].ckind=ChKind_None;
+            CSSDoor* door=&selection.doors->doors[other];
+            door->sel_icon=25; door->selected_since_load=0;
+            CSSCharModel* cookie=selection.cookies[other];
+            cookie->x5=0; cookie->x8=cookie->x10=left+7+other*6; cookie->xC=cookie->x14=3;
+            for (unsigned port=0;port<4;++port)
+                if (selection.hands[port]->x5==1 && selection.hands[port]->x6==other) selection.hands[port]->x5=2;
+            mnCharSel_8025DB34(other);
+        }
+    }
+
     CSSDoor* door = &selection.doors->doors[slot];
     if (!tile->stock_character_id) {
         nativeHome_SelectFighterPackage(slot, &tile->fighter_package_id);
@@ -391,7 +408,9 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
             mnCharSel_CostumeChange(port, trigger);
             return true;
         }
-        return false;
+        // Online cards own token placement, including an ejected unchosen
+        // token. Retail would automatically reattach that token to its hand.
+        return nativeCssCards_Active();
     }
     // Pick up the closest permitted cookie. Human cookies stay with their
     // player; a local player can also position a configured CPU's cookie.
@@ -529,13 +548,18 @@ bool nativeCssInteraction_CanReady(void)
     if (nativeHub_IsVisible() || !selection.css) {
         return false;
     }
+    const NativeQuickAssignment* quick=nativeOnlineSession_Quick();
+    if (quick && quick->state!=NativeQuickState_Searching && quick->state!=NativeQuickState_Assigned) return false;
+    int single=nativeHome_QuickSinglesPort();
     unsigned active = 0;
     for (unsigned port = 0; port < 4; ++port) {
+        if (single>=0 && port!=(unsigned)single) continue;
         if (selection.carrying[port]) {
             return false;
         }
     }
     for (unsigned slot = 0; slot < 4; ++slot) {
+        if (single>=0 && slot!=(unsigned)single) continue;
         if (selection.doors->doors[slot].p_kind == Gm_PKind_NA) {
             continue;
         }
@@ -551,7 +575,7 @@ void nativeCssInteraction_Inspect(void)
     if (!selection.css) {
         NativeHomePracticeWatch watch;
         fprintf(stderr, "[css-selection] %s\n",
-                nativeHome_PracticeWatch(0, &watch) ? "practice" : "inactive");
+                nativeHome_IsPractice() ? "practice" : "inactive");
         return;
     }
     float left, right, top, bottom;

@@ -117,6 +117,7 @@ static struct {
     uint8_t result_local_seats[GM_MAX_PLAYERS];
     uint8_t physical_ports[GM_MAX_PLAYERS];
     uint8_t physical_count;
+    uint8_t quick_singles_port;
 } home;
 
 // A paused actor's FObjs borrow the decoded streams until its next pose.
@@ -1693,13 +1694,28 @@ void nativeHome_CancelStartMatch(void)
     home.selection.start_requested = false;
 }
 
+bool nativeHome_IsReady(void)
+{
+    return nativeHome_IsPractice() && home.selection.confirmed && !home.authoring && !home.preview_active;
+}
+bool nativeHome_SetReady(bool ready)
+{
+    if (!nativeHome_IsPractice() || home.authoring || home.preview_active || home.enter_stage_select ||
+        nativeOnlineSession_State()!=NativeLobbySessionState_Waiting) return false;
+    const NativeQuickAssignment* quick=nativeOnlineSession_Quick();
+    if (!ready && quick && quick->state==NativeQuickState_Assigned && !nativeOnlineSession_UnreadyQuick()) return false;
+    home.selection.confirmed=ready;
+    if (!ready) nativeHome_CancelStartMatch();
+    return true;
+}
+
 bool nativeHome_ReturnToSelection(void)
 {
     if (!nativeHome_IsPractice() || home.authoring || home.preview_active ||
         home.enter_stage_select) return false;
     const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
-    if (quick && quick->state == NativeQuickState_Assigned && quick->phase <= 2)
-        return nativeOnlineSession_UnreadyQuick();
+    if (quick && quick->state == NativeQuickState_Assigned && quick->phase <= 2 &&
+        !nativeOnlineSession_UnreadyQuick()) return false;
     home.selection.confirmed = false;
     home.start_requested = home.selection.start_requested = false;
     gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
@@ -1783,6 +1799,12 @@ bool nativeHome_LockSelection(CSSData* css)
         home.css = NULL;
         prepare_preload(&css->vs, true);
         return true;
+    }
+    int single=nativeHome_QuickSinglesPort();
+    if (single>=0) {
+        home.quick_singles_port=single;
+        for (unsigned port=0;port<GM_MAX_PLAYERS;++port)
+            if (port!=(unsigned)single) gm_SetupPlayerDefaults(&css->vs.start.players[port]);
     }
     if (nativeOnlineSession_Quick()) {
         unsigned humans = 0;
@@ -1882,8 +1904,30 @@ bool nativeHome_LockSelection(CSSData* css)
     return true;
 }
 
+int nativeHome_QuickSinglesPort(void)
+{
+    const NativeQuickAssignment* quick=nativeOnlineSession_Quick();
+    if (!quick || quick->mode!=NativeQuickMode_Singles) return -1;
+    if (home.css && home.css->vs.start.players[home.quick_singles_port].slot_type!=Gm_PKind_Human) {
+        for (unsigned port=0;port<GM_MAX_PLAYERS;++port)
+            if (home.css->vs.start.players[port].slot_type==Gm_PKind_Human) return port;
+        return -1;
+    }
+    return home.quick_singles_port;
+}
+void nativeHome_ClaimQuickSinglesPort(unsigned port)
+{
+    if (!home.css || port>=GM_MAX_PLAYERS || nativeHome_QuickSinglesPort()<0 ||
+        home.css->vs.start.players[port].slot_type!=Gm_PKind_Human) return;
+    home.quick_singles_port=port;
+    home.selection.confirmed=false;
+    nativeHome_CancelStartMatch();
+}
+
 int nativeHome_PhysicalPortForLocalPlayer(unsigned local_player)
 {
+    int single=nativeHome_QuickSinglesPort();
+    if (single>=0) return local_player==0?single:-1;
     return local_player < home.physical_count
                ? home.physical_ports[local_player]
                : -1;
@@ -1983,11 +2027,6 @@ void nativeHome_Tick(void)
         gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
         return;
     }
-    if (nativeHome_IsPractice() && nativeOnlineSession_TakeQuickUnready()) {
-        home.selection.confirmed = false;
-        home.start_requested = home.selection.start_requested = false;
-        gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
-    }
     if (nativeHome_IsSelection() && home.preview_restart &&
         home.css != NULL) {
         home.css->pending_scene_change = 1;
@@ -2019,6 +2058,8 @@ void nativeHome_Tick(void)
                 for (unsigned port = 0; port < GM_MAX_PLAYERS && seat < count; ++port) {
                     const PlayerInitData* player = &home.css->vs.start.players[port];
                     if (player->slot_type != Gm_PKind_Human) continue;
+                    int single=nativeHome_QuickSinglesPort();
+                    if (single>=0 && port!=(unsigned)single) continue;
                     NativeLobbyPlayerSelection* choice = &published.players[seat++];
                     const NativeContentId* package = nativeHome_FighterPackage(port);
                     if (package) {

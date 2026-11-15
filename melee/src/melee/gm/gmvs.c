@@ -1151,6 +1151,9 @@ void gm_DoPauseChecksAndRoutine(VsSceneController* arg0, int arg1)
                 gm_801A0FEC(pauser, var_r4);
             }
             gm_SetDbPauseFlag((s64) arg1);
+#ifdef MELEE_NATIVE
+            if (nativeHome_IsPractice()) nativeHome_SetReady(false);
+#endif
             if (arg0->start.x4_0) {
                 pauserSlot = gm_GetSlotByPlayerId(pauser);
                 if (arg0->start.on_pause_override != NULL) {
@@ -1220,6 +1223,9 @@ void gm_DoUnpauseChecksAndRoutine(VsSceneController* arg0, int arg1)
     if (i != -1 && i == arg0->pauser) {
         lbAudioAx_80024E84(0);
         gm_ClearDbPauseFlag(arg1);
+#ifdef MELEE_NATIVE
+        if (nativeHome_IsPractice()) nativeHome_SetReady(true);
+#endif
         ifAll_802F33CC();
         gm_801A10FC(i);
         HSD_PadRumbleUnpauseAll();

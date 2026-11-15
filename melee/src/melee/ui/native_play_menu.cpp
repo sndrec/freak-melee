@@ -21,6 +21,9 @@
 extern "C" {
 #include <melee/lb/lbaudio_ax.h>
 #include <sysdolphin/baselib/controller.h>
+#include <melee/gm/gm_1A45.h>
+#include <melee/gm/gmvs.h>
+#include <melee/gm/types.h>
 }
 
 namespace {
@@ -138,7 +141,8 @@ namespace {
         nativePlayMenu_DrawCountdown();
         if (menu.practice) {
             nativeMenuSkin_Panel(7, 5, 626, 32, 0xACA7B5FF, 0x09080EDC);
-            nativeMenuPaint_Text(menu.status, 220, 17, 275, 9, 0xEBDDAEFF);
+            nativeMenuPaint_Text(menu.status,18,16,604,11,0xEBDDAEFF);
+            nativeCssChat_DrawPractice();
         } else if (menu.show_status) {
             nativeMenuPaint_Text(menu.status, 451, 263, 177, 8, 0xEBDDAEFF);
         }
@@ -179,6 +183,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     menu.delivery[0] = 0;
     menu.show_status = false;
     nativeCssChat_SetVisible(selection && nativeOnlineSession_Presence());
+    nativeCssChat_Tick(practice);
     if (!(selection || practice)) {
         return;
     }
@@ -222,17 +227,9 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
             (right-17.3f)/(right-left)*640, header_height, Action::Lobby, true, false, true);
         add("play-rules", "Match rules", (-17-left)/(right-left)*640, 0,
             32/(right-left)*640, header_height, Action::Settings, !quick, false, true);
-    } else {
-        add("play-lobby", "Lobby", 13, 10, 88, 22, Action::Lobby);
-        if (quick) add("play-queue", queue_label, 109, 10, 104, 22, Action::Queue, can_queue, !searching);
-        else if (can_watch || requesting_watch)
-            add("play-watch", requesting_watch ? "Cancel viewing" : "Watch match",
-                109, 10, 104, 22, Action::Watch, true, true);
-        else add("play-start", "Start match", 109, 10, 104, 22, Action::Start,
-                 nativeHome_CanStartMatch(), true);
-        add("play-selection", "Character select", 507, 10, 119, 22,
-            Action::Selection);
-        if (stage_choice) add("play-stage", "Next stage", 302, 10, 120, 22, Action::Stage, true, true);
+    } else if (!quick && !presence) {
+        add("play-lobby","Lobby",13,10,88,22,Action::Lobby);
+        add("play-selection","Character select",507,10,119,22,Action::Selection);
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
     const char* status = selection ? "Choose a fighter. START to ready."
@@ -251,16 +248,17 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
                  : assigned ? "Match found. Connecting players..."
                  : searching ? "Searching for players..."
                  : quick->state == NativeQuickState_Aborted ? "Match cancelled. Leave to search again."
-                 : "START to practice. Enter queue when ready to search.";
+                 : "Enter queue, then START to ready and practice.";
         if (*nativeOnlineSession_QuickError()) status = nativeOnlineSession_QuickError();
     }
+    if (practice && (quick || presence) && !nativeHome_IsReady()) status="Not ready | START to resume and ready | Pause exit: L+R+A+START";
     if (quick && state == NativeLobbySessionState_Returning) status = "Agreeing the match result...";
     if (requesting_watch) status = nativeOnlineSession_WatchContentReady()
         ? "Preparing the match..." : "Receiving the match and fighters...";
     const char* code = nativeOnlineSession_RoomCode();
     menu.show_status = state == NativeLobbySessionState_Failed ||
         (quick && *nativeOnlineSession_QuickError());
-    if (code && *code && practice) {
+    if (code && *code && practice && !quick) {
         std::snprintf(menu.status, sizeof(menu.status), "%s  |  %s", code,
                       status);
     } else {
@@ -296,7 +294,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
                           : "Sending",
                       progress.package_index, progress.package_count);
     }
-    if (nativeOnlineSession_GiftStatus(true, &menu.gift) &&
+    if (selection && nativeOnlineSession_GiftStatus(true, &menu.gift) &&
         (menu.gift.state == NativeNetplayGift_Offered ||
          menu.gift.state == NativeNetplayGift_Receiving))
     {
@@ -346,7 +344,7 @@ extern "C" void nativePlayMenu_DrawCountdown(void)
     std::snprintf(label, sizeof(label), "Match starts in %u", (remaining + 999) / 1000);
     nativeMenuSkin_Panel(195, 112, 250, 74, 0xD6BC79FF, 0x09080EF5);
     nativeMenuPaint_Text(label, 210, 128, 220, 17, 0xFFF4E9FF, NativeMenuFont_MenuOption, true);
-    nativeMenuPaint_Text("B to unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
+    nativeMenuPaint_Text("START to pause and unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
 }
 
 extern "C" void nativePlayMenu_DrawPractice(void)
@@ -402,6 +400,11 @@ extern "C" bool nativePlayMenu_TakeReadyRequest(void)
 }
 extern "C" bool nativePlayMenu_Inspect(const char* id)
 {
+    if (!std::strcmp(id,"practice-state")) {
+        std::fprintf(stderr,"[practice-state] practice=%u ready=%u paused=%d quick-port=%d buttons=%u hud=%u status=%s\n",menu.practice,nativeHome_IsReady(),gm_GetDbPauseFlag(1),nativeHome_QuickSinglesPort(),menu.count,gmVs_GetController_0()->hud_enabled,menu.status);
+        nativeCssChat_Inspect(); return true;
+    }
+
     if (!std::strcmp(id,"quick-play")) {
         const auto* quick = nativeOnlineSession_Quick();
         if (quick) std::fprintf(stderr, "[quick-play] mode=%u state=%u generation=%llu team=%u stage=%u room=%s peer=%s phase=%u countdown=%u completed=%llu chooser=%u votes=%u,%u,%u,%u\n",
