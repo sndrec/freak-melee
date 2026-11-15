@@ -199,7 +199,8 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
             nativeCssInteraction_Random(port);
         }
     }
-    if (nativeOnlineSession_Quick())
+    if (nativeOnlineSession_State() != NativeLobbySessionState_Disconnected &&
+        nativeOnlineSession_State() != NativeLobbySessionState_Failed)
         nativeCssInteraction_SetLocalPlayers(nativeOnlineSession_LocalPlayers());
 }
 void nativeCssInteraction_End(void)
@@ -525,7 +526,7 @@ bool nativeCssInteraction_SetLocalPlayers(unsigned count)
 
 bool nativeCssInteraction_CanReady(void)
 {
-    if (!selection.css) {
+    if (nativePlayMenu_RulesOpen() || !selection.css) {
         return false;
     }
     unsigned active = 0;

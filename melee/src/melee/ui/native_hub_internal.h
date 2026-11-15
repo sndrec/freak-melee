@@ -22,13 +22,11 @@ enum class HubAction {
     LocalPlayers,
     Join,
     Leave,
-    CopyCode,
     Practice,
     Selection,
     Rules,
     Costumes,
     Packages,
-    Rotation,
     StartMatch,
     Edit,
     NewClone,
@@ -64,8 +62,6 @@ enum class HubAction {
     FieldRoomChat,
     SendRoomChat,
     RetryRoomChat,
-    LobbyScroll,
-    Seat,
     ShowProfile,
     WriteLetter,
     StageSeat,
@@ -74,7 +70,7 @@ enum class HubAction {
     WithdrawStage,
     LeaveQuick,
     NewLobby, FieldLobbyTitle, ToggleListing, CreateNamedLobby,
-    RefreshLobbies, BrowseLobbies, JoinListedLobby, ChangeListing,
+    RefreshLobbies, BrowseLobbies, JoinListedLobby,
     Account, AccountMode, AccountSubmit, FieldAccountHandle, FieldAccountRecovery,
     AccountExportKey, AccountImportKey, AccountAddKey, AccountRemoveKey, AccountRevokeSession,
     AccountRevokeAll, AccountRotateRecovery, AccountSaveRecovery, AccountLogout,
@@ -119,7 +115,7 @@ struct HubState {
     unsigned field_capacity, caret;
     int selected = -1, first_fighter = 0, template_kind = 0, local_players = 1,
         chat_scroll = 0, people_scroll = 0, recipient_scroll = 0,
-        room_chat_scroll = 0, room_people_scroll = 0, lobby_scroll = 0;
+        room_chat_scroll = 0, room_people_scroll = 0;
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
     bool returning_from_tool, rename, select_all, send_from_css,
         profile_self = true;

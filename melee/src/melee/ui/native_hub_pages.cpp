@@ -220,87 +220,6 @@ namespace {
                              i ? HubAction::Doubles : HubAction::Singles);
         }
     }
-    void lobbies()
-    {
-        auto state = nativeOnlineSession_State();
-        const char* code = nativeOnlineSession_RoomCode();
-        bool connected = state != NativeLobbySessionState_Disconnected &&
-                         state != NativeLobbySessionState_Failed;
-        if (!connected || nativeOnlineSession_Quick()) {
-            nativeHubLobbies_Render(false);
-            return;
-        }
-        char heading[96];
-        const auto* listing = nativeOnlineSession_Listing();
-        std::snprintf(heading, sizeof(heading), "%s", listing && listing->title[0] ? listing->title :
-                      code && *code ? code : "Connecting...");
-        nativeMenuPaint_Text(heading, 181, 119, 194, 17, gold,
-                            NativeMenuFont_MenuOption);
-        nativeHub_Button("lobby-chat", "Chat", 388, 115, 94, 25, HubAction::RoomChat);
-        nativeHub_Button("copy-code", "Copy code", 490, 115, 114, 25,
-                         HubAction::CopyCode);
-        nativeHub_Panel(175, 150, 430, 170);
-        if (listing && listing->title[0] && nativeOnlineSession_IsOwner() && !nativeOnlineSession_Quick())
-            nativeHub_Button("change-listing", listing->listed ? "Listed" : "Unlisted", 175, 400, 141, 17, HubAction::ChangeListing);
-        const NativeSignalingPresence* p = nativeOnlineSession_Presence();
-        const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
-        float y = 161;
-        hub.lobby_scroll = std::clamp(hub.lobby_scroll, 0, p && p->participant_count ? int((p->participant_count - 1) / 6 * 6) : 0);
-        if (p) {
-            for (unsigned i = unsigned(hub.lobby_scroll); i < p->participant_count && i < unsigned(hub.lobby_scroll + 6); ++i) {
-                const auto& person = p->participants[i];
-                char name[64]; std::snprintf(name, sizeof(name), *person.account_handle ? "@%s" : "%s", *person.account_handle ? person.account_handle : person.name);
-                nativeHub_Button("lobby-player", name, 187, y, 182, 19,
-                                 *person.account_handle ? HubAction::OpenAccount : HubAction::ShowProfile, 0, false, true,
-                                 person.peer_id, person.name, person.account_handle);
-                for (unsigned seat = 0;
-                     seat < person.local_players && seat < 4; ++seat)
-                {
-                    const char* label =
-                        (person.active_mask & (1U << seat))    ? "Fighting"
-                        : (person.waiting_mask & (1U << seat)) ? "Waiting"
-                                                               : "Spectating";
-                    char seat_id[32];
-                    std::snprintf(seat_id, sizeof(seat_id), "lobby-seat-%u-%u", i, seat);
-                    nativeHub_Button(seat_id, label, 381 + seat * 52, y,
-                                     50, 19, HubAction::Seat, int(seat), false,
-                                     true, person.peer_id, person.name);
-                }
-                y += 24;
-            }
-        }
-        if (!p || !p->participant_count) {
-            nativeMenuPaint_Text("Connecting to the lobby...", 190, 171, 380,
-                                11, muted);
-        }
-        if (p && p->participant_count > 6) {
-            char page[40];
-            std::snprintf(page, sizeof(page), "%d-%u / %u", hub.lobby_scroll + 1,
-                std::min(unsigned(hub.lobby_scroll + 6), unsigned(p->participant_count)), p->participant_count);
-            nativeMenuPaint_Text(page, 241, 308, 290, 8, muted);
-            nativeHub_Button("lobby-prev", "<", 187, 303, 35, 17, HubAction::LobbyScroll, -6, false, hub.lobby_scroll > 0);
-            nativeHub_Button("lobby-next", ">", 558, 303, 35, 17, HubAction::LobbyScroll, 6, false, hub.lobby_scroll + 6 < p->participant_count);
-        }
-        nativeHub_Button("lobby-ready", nativeHome_IsPractice() ? "Return to practice" : "Choose fighter", 175, 337, 141, 31,
-                         HubAction::Practice, 0, true);
-        const char* start_label = !quick ? "Start match"
-            : quick->state == NativeQuickState_Searching ? "Cancel search"
-            : quick->state == NativeQuickState_Idle ? "Enter queue" : "Leave match";
-        nativeHub_Button("start-match", start_label, 325, 337, 141, 31,
-                         HubAction::StartMatch, 0, false,
-                         quick ? (quick->state == NativeQuickState_Assigned || nativeOnlineSession_IsOwner())
-                               : nativeHome_CanStartMatch());
-        nativeHub_Button("leave-lobby", quick && quick->state >= NativeQuickState_Assigned
-            ? "Leave match" : "Leave lobby", 476, 337, 129, 31,
-                         HubAction::Leave);
-        nativeHub_Button("lobby-selection", "Character select", 175, 376, 141, 22,
-                         HubAction::Selection, 0, false, nativeHome_IsPractice());
-        const char* rotations[] = { "Manual", "Winner stays", "Winner out" };
-        nativeHub_Button("rotation-policy", quick ? "Quick Play" : p ? rotations[unsigned(p->rotation_policy)%3] : "Manual", 325, 376, 141, 22,
-                         HubAction::Rotation, 0, false, !quick && nativeOnlineSession_IsOwner());
-        nativeHub_Button("match-rules", "Match rules", 476, 376, 129, 22,
-                         HubAction::Rules, 0, false, !quick && nativeHome_IsSelection() && nativeOnlineSession_IsOwner());
-    }
     void chat(bool room = false)
     {
         const auto* global = nativeChat_View();
@@ -500,7 +419,7 @@ void nativeHub_RenderPage(NativeHubPage page)
         nativeHubLobbies_Render(true);
         break;
     case NativeHubPage_Lobbies:
-        lobbies();
+        nativeHubLobbies_Render(false);
         break;
     case NativeHubPage_RoomChat:
         chat(true);

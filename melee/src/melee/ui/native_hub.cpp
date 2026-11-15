@@ -6,6 +6,7 @@
 #include "native_hub_quick_stage.h"
 #include "native_hub_lobbies.h"
 #include "native_hub_controls.h"
+#include "native_css_chat.h"
 #include "native_hub_account.h"
 #include "native_hub_notice.h"
 #include "native_hub_social.h"
@@ -584,6 +585,9 @@ void nativeHub_Activate(HubAction action, int value)
             nativeHub_ChangePage(NativeHubPage_Friends, true);
         } else if (hub.page == NativeHubPage_Account || hub.page == NativeHubPage_Controls) {
             nativeHub_ChangePage(NativeHubPage_Settings, true);
+        } else if (hub.page == NativeHubPage_RoomChat && hub.opened_from_play) {
+            hub.dismissed = true;
+            hub.visible = false;
         } else if (hub.page == NativeHubPage_RoomChat || hub.page == NativeHubPage_CreateLobby) {
             nativeHub_ChangePage(hub.page == NativeHubPage_CreateLobby && *hub.lobby_invite_to ?
                 NativeHubPage_SocialProfile : NativeHubPage_Lobbies, true);
@@ -763,13 +767,6 @@ void nativeHub_Activate(HubAction action, int value)
         hub.returning_from_tool = nativeShellCollection_IsOpen();
         hub.visible = !hub.returning_from_tool;
         break;
-    case HubAction::Rotation: {
-        const auto* presence = nativeOnlineSession_Presence();
-        if (presence && !nativeOnlineSession_SetRotation(static_cast<NativeRoomRotationPolicy>(
-            (presence->rotation_policy+1)%(NativeRoomRotation_WinnerOut+1))))
-            nativeHub_Notice("Only the host can change rotation.");
-        break;
-    }
     case HubAction::FieldName:
         text_focus(hub.name, sizeof(hub.name));
         break;
@@ -836,12 +833,6 @@ void nativeHub_Activate(HubAction action, int value)
         if (!nativeRoomChat_Retry(nativeOnlineSession_Chat()))
             nativeHub_Notice("Chat is reconnecting. Try again shortly.");
         break;
-    case HubAction::LobbyScroll: {
-        const auto* presence = nativeOnlineSession_Presence();
-        int last = presence && presence->participant_count ? (presence->participant_count - 1) / 6 * 6 : 0;
-        hub.lobby_scroll = std::clamp(hub.lobby_scroll + value, 0, last);
-        break;
-    }
     case HubAction::LocalPlayers:
         if (!nativeHubControls_SetPlayers(unsigned(value)))
             nativeHub_Notice("Could not save the local player count.");
@@ -892,41 +883,6 @@ void nativeHub_Activate(HubAction action, int value)
             nativeHub_Notice("The lobby is busy. Try again shortly.");
         } else if (action == HubAction::Create || action == HubAction::Join) {
             nativeHub_Activate(HubAction::Selection, 0);
-        }
-        break;
-    }
-    case HubAction::CopyCode:
-        if (nativeOnlineSession_RoomCode() &&
-            SDL_SetClipboardText(nativeOnlineSession_RoomCode()))
-        {
-            nativeHub_Notice("Lobby code copied.");
-        }
-        break;
-    case HubAction::Seat: {
-        const auto* p = nativeOnlineSession_Presence();
-        unsigned seat = unsigned(value);
-        const NativeSignalingParticipant* person_ptr = nullptr;
-        for (unsigned i = 0; p && i < p->participant_count; ++i) {
-            if (!std::strcmp(p->participants[i].peer_id, hub.pending_peer)) {
-                person_ptr = &p->participants[i];
-            }
-        }
-        if (!person_ptr || seat >= person_ptr->local_players) {
-            break;
-        }
-        const auto& person = *person_ptr;
-        auto next = (person.active_mask & (1U << seat))
-                        ? NativeRoomSeatState_Waiting
-                    : (person.waiting_mask & (1U << seat))
-                        ? NativeRoomSeatState_Spectating
-                        : NativeRoomSeatState_Fighting;
-        if (!nativeOnlineSession_ChooseSeat(person.peer_id, uint8_t(seat),
-                                            next))
-        {
-            nativeHub_Notice(
-                "Only this player or the host can change this seat.");
-        } else {
-            nativeHome_CancelStartMatch();
         }
         break;
     }
@@ -1044,7 +1000,7 @@ extern "C" bool nativeHub_IsVisible(void)
 extern "C" NativeHubPage nativeHub_CurrentPage(void) { return hub.page; }
 extern "C" bool nativeHub_ConsumesGameInput(void)
 {
-    return hub.visible || hub.consumes_input;
+    return hub.visible || hub.consumes_input || nativeCssChat_Focused();
 }
 extern "C" void nativeHub_Tick(void)
 {
@@ -1145,7 +1101,7 @@ extern "C" void nativeHub_Tick(void)
             : placed ? "Fighter received and added to your roster."
                      : "Fighter received. Use Edit CSS to add its portrait.");
     }
-    if (selection && !tool && hub.dismissed) {
+    if (selection && !tool && hub.dismissed && !nativeCssChat_Focused() && !nativePlayMenu_RulesOpen()) {
         bool held = false, pressed = false;
         for (unsigned port = 0; port < 4; ++port) {
             held |= !HSD_PadCopyStatus[port].err &&
@@ -1175,6 +1131,13 @@ extern "C" void nativeHub_Tick(void)
     }
     nativePlayMenu_Tick(selection && !tool && !hub.visible,
                        practice && !tool && !hub.visible);
+    if (nativeCssChat_Focused()) {
+        hub.consumes_input = true;
+        for (unsigned port = 0; port < 4; ++port)
+            if (!HSD_PadCopyStatus[port].err &&
+                (HSD_PadCopyStatus[port].trigger & PAD_BUTTON_B))
+                nativeCssChat_Focus(false);
+    }
     hub.consumes_input |= hub.visible;
     update_pointer_cursor();
     if (!hub.visible) {
@@ -1366,6 +1329,11 @@ extern "C" void nativeHub_ClickAt(int x, int y, int button)
 extern "C" void nativeHub_EnterText(const char* text)
 {
     if (nativeHubNotice_BlocksInput()) return;
+    if (!hub.visible && text) {
+        SDL_Event event{}; event.type = SDL_EVENT_TEXT_INPUT; event.text.text = text;
+        nativeCssChat_Event(&event);
+        return;
+    }
     if (!hub.field || !text) {
         return;
     }
@@ -1437,9 +1405,14 @@ extern "C" void nativeHub_PressKey(const char* name, unsigned modifiers)
     } else if (*name && !name[1]) {
         code = *name;
     }
-    key(code, SDL_Keymod((modifiers & 1 ? SDL_KMOD_SHIFT : 0) |
-                         (modifiers & 2 ? SDL_KMOD_CTRL : 0) |
-                         (modifiers & 4 ? SDL_KMOD_ALT : 0)));
+    const auto mods = SDL_Keymod((modifiers & 1 ? SDL_KMOD_SHIFT : 0) |
+                                (modifiers & 2 ? SDL_KMOD_CTRL : 0) |
+                                (modifiers & 4 ? SDL_KMOD_ALT : 0));
+    if (!hub.visible) {
+        SDL_Event event{}; event.type = SDL_EVENT_KEY_DOWN;
+        event.key.key = code; event.key.mod = mods;
+        nativeCssChat_Event(&event);
+    } else key(code, mods);
 }
 extern "C" void nativeHub_ReleasePointer(void)
 {
@@ -1481,6 +1454,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
         return;
     }
     if (!hub.visible) {
+        if (nativeCssChat_Event(event)) return;
         if (event->type == SDL_EVENT_MOUSE_MOTION) {
             nativeHub_MovePointer(int(event->motion.x), int(event->motion.y));
             nativeShell_CssPointerEvent(int(event->motion.x),
@@ -1564,7 +1538,7 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_News || nativeHubStartup.active) {
+        page > NativeHubPage_Controls || nativeHubStartup.active) {
         return;
     }
     hub.opened_from_play = true;

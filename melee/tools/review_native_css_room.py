@@ -120,7 +120,7 @@ class Client:
         self.command('ui-inspect', element)
         for _ in range(30):
             time.sleep(.1)
-            with self.stderr.open('r', errors='replace') as file:
+            with self.stderr.open('r', encoding='utf-8', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
             if re.search(r'\[(?:css-cards|css-selection|hub-inspect|hub-lobbies|hub-account|hub-social|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback)\]', text):

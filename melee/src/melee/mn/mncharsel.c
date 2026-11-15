@@ -3796,7 +3796,8 @@ void fn_80262F44(HSD_GObj* gobj)
             HSD_JObjSetFlagsAll(jobj, JOBJ_HIDDEN);
             // Retain a clicked Ready request through the CSS entrance delay;
             // consuming it earlier loses the click before START is accepted.
-            if (mnCharSel_804D6CF2 == 0 && nativePlayMenu_TakeReadyRequest())
+            if (nativePlayMenu_RulesOpen()) trigger &= ~HSD_PAD_START;
+            else if (mnCharSel_804D6CF2 == 0 && nativePlayMenu_TakeReadyRequest())
                 trigger |= HSD_PAD_START;
         }
 #endif
@@ -4433,11 +4434,6 @@ s32 mnCharSel_802640A0(void)
     HSD_JObjAnimAll(mnCharSel_804D6CC0);
     HSD_ForeachAnim(mnCharSel_804D6CC0, JOBJ_TYPE, ALL_TYPE_MASK,
                     HSD_AObjStopAnim, AOBJ_ARG_AOV, 0, 0);
-    if (nativeHome_IsSelection()) {
-        HSD_JObj* back_prompt;
-        lb_80011E24(mnCharSel_804D6CC0, &back_prompt, 0x27, -1);
-        HSD_JObjSetFlagsAll(back_prompt, JOBJ_HIDDEN);
-    }
 
     if (gm_IsCKindUnlocked(CKind_Luigi) == 0) {
         row_a = 2;
@@ -5275,9 +5271,6 @@ s32 mnCharSel_802640A0(void)
         text->font_size.y = 0.07f;
         HSD_SisLib_803A6368(text, 0x4A);
         mnCharSel_8025BD30();
-        if (nativeHome_IsSelection()) {
-            text->hidden = 1;
-        }
         mt = mnCharSel_804D6CB0->match_type;
         if ((s32) mt < 3) {
             if ((s32) mt == 0) {

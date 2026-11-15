@@ -290,9 +290,6 @@ void nativeCssOriginal_Enter(CSSIcon* icons, HSD_JObj* menu,
         lb_80011E24(menu, &group, player_groups[i], -1);
         capture_portrait_joints(group, STOCK_ICONS);
     }
-    nativeMenuVisuals_Text(menu_visuals, menu, world_x(300), world_y(95), 0,
-                           (world_right-world_left)*0.50f,
-                           (world_top-world_bottom)*0.033f, NativeMenuFont_Heading, "CHOOSE A FIGHTER");
     make_defaults();
     bool missing = false;
     editable = nativeCssLayout_DefaultPath(layout_path, sizeof(layout_path));
@@ -490,10 +487,6 @@ bool nativeCssOriginal_DrawReference(bool filled)
         HSD_JObjDispAll(scene_background, view, HSD_GObj_80390EB8(pass), 0);
         HSD_JObjDispAll(scene_root, view, HSD_GObj_80390EB8(pass), 0);
     }
-    Mtx canvas; nativeCssOriginal_ViewMatrix(canvas);
-    nativeMenuPaint_Begin(canvas);
-    nativeMenuFont_Draw(NativeMenuFont_Heading, "CHOOSE A FIGHTER", world_x(300), world_y(95), 0,
-        (world_right-world_left)*.5f, (world_top-world_bottom)*.033f, 0xF5EFEAFF, true, true);
     for (unsigned i = 0; i < portrait_joint_count; ++i) portrait_joints[i].joint->flags = flags[i];
     apply_layout();
     HSD_StateInvalidate(-1);

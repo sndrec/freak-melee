@@ -554,6 +554,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_menu_portrait_capture.cpp
     src/melee/ui/native_hub_pages.cpp
     src/melee/ui/native_hub_controls.cpp
+    src/melee/ui/native_css_chat.cpp
     src/melee/ui/native_hub_lobbies.cpp
     src/melee/ui/native_hub_account.cpp
     src/melee/ui/native_hub_notice.cpp

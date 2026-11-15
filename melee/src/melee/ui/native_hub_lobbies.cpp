@@ -38,8 +38,7 @@ void nativeHubLobbies_Tick()
     if (hub.pending_listing && nativeOnlineSession_IsOwner()) {
         if (nativeOnlineSession_SetListing(hub.lobby_title, hub.lobby_listed)) hub.pending_listing = false;
     } else if (hub.pending_listing && state == NativeLobbySessionState_Failed) hub.pending_listing = false;
-    const bool visible = hub.visible && hub.page == NativeHubPage_Lobbies &&
-        (state == NativeLobbySessionState_Disconnected || state == NativeLobbySessionState_Failed || nativeOnlineSession_Quick());
+    const bool visible = hub.visible && hub.page == NativeHubPage_Lobbies;
     if (browser.thread_handle && !nativeSignalingClient_IsRunning(&browser)) {
         nativeSignalingClient_Stop(&browser);
         connected = pending = false;
@@ -161,12 +160,6 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
         std::snprintf(hub.code, sizeof(hub.code), "%.12s", hub.pending_peer);
         nativeHub_Activate(HubAction::Join, 0);
         return true;
-    case HubAction::ChangeListing: {
-        const auto* listing = nativeOnlineSession_Listing();
-        if (!listing || !listing->title[0] || !nativeOnlineSession_SetListing(listing->title, !listing->listed))
-            nativeHub_Notice("Could not change the lobby listing.");
-        return true;
-    }
     default: return false;
     }
 }

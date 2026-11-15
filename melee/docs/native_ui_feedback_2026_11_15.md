@@ -58,24 +58,29 @@ is pending.
 
 ### `cc5d2f06-0fbe-45c2-b42f-998c0ff250b0` — lobby setup and ownership
 
-- [ ] Pin 1: Move the listed/unlisted control into a suitable lobby settings
+- [x] Pin 1: Move the listed/unlisted control into a suitable lobby settings
   location, clear of the hub frame.
-- [ ] Pin 2: Creating a lobby goes directly to character select. Remove the
+- [x] Pin 2: Creating a lobby goes directly to character select. Remove the
   redundant Choose fighter and Character select controls from the hub lobby
   page once the persistent return controls are available.
-- [ ] Pin 3: Put the necessary lobby actions on the lobby CSS or its rules menu,
+- [x] Pin 3: Put the necessary lobby actions on the lobby CSS or its rules menu,
   accessed through the original top-of-CSS match-rules area. Preserve the
-  underlying actions while removing the redundant hub control cluster.
+  underlying actions while removing the redundant hub control cluster. The
+  rules view belongs to CSS, outside the hub frame; its stock Back control
+  returns to CSS. Manual rotation and Match rules live here. The hub keeps
+  only its persistent Return to lobby action, with no extra Character Select.
 - [x] Pin 4: Remove the redundant subtitle in this position throughout hub
   pages, including "Play together. Share your fighters."
-- [ ] Pin 5: Put lobby chat and Copy code on the CSS rather than this hub page.
+- [x] Pin 5: Put lobby chat and Copy code on the CSS rather than this hub page.
 
 ### `d9f9bea8-673f-48af-af6b-845a73c18470` — four lobby cards
 
-- [ ] Pin 1: Display four player cards on the lobby CSS, with N/A for unfilled
+- [x] Pin 1: Display four player cards on the lobby CSS, with N/A for unfilled
   slots. Fit the necessary controls and lobby chat alongside them. Start from
-  the suggested compact row of cards on the lower left and controls/chat on the
-  lower right; compare proportions with vanilla and check readable window sizes.
+  the suggested compact row of cards on the lower left. Twilight's subsequent
+  direction places a taller chat panel above the match controls on the right.
+  Workshop has no button on CSS. Compare proportions with vanilla and check
+  readable window sizes.
 
 ### `3645f09b-8b8c-4349-945e-b4016e04c9f8` — browser layout
 
@@ -88,14 +93,14 @@ is pending.
 
 ### `91780dec-6922-4cc1-bea4-58aedfe4c4c5` — original CSS presentation
 
-- [ ] Pin 1: Keep the player cards' presentation vanilla for this pass; remove
+- [x] Pin 1: Keep the player cards' presentation vanilla for this pass; remove
   the added player-name/status overlays from the cards.
-- [ ] Pin 2: Match the top CSS heading's size and placement to the original text
+- [x] Pin 2: Match the top CSS heading's size and placement to the original text
   in that region.
-- [ ] Pin 3: Remove the START to practice text and adjacent lobby code strip.
-- [ ] Pin 4: Move the awkward bottom controls upward and stack them beside the
-  player cards, coordinated with the lobby layout above.
-- [ ] Pin 5: Reuse the original CSS Back graphic at the top right.
+- [x] Pin 3: Remove the START to practice text and adjacent lobby code strip.
+- [x] Pin 4: Place match controls below the taller chat panel beside the player cards,
+  following Twilight's updated direction while this batch was in progress.
+- [x] Pin 5: Reuse the original CSS Back graphic at the top right.
 
 ### `9feef587-6b44-4359-945a-f9f66d539859` — custom card portraits
 
@@ -248,7 +253,29 @@ attachments were deleted. A fresh hosted query confirmed all eight IDs absent;
 | `efff1a7e-6b06-40d7-9aaa-08e1aeb15662` | Workshop subtitle removed. |
 | `1e4ec68e-9753-41d8-955a-e4d46e1e4abd` | Settings subtitle removed. |
 
-The larger CSS/lobby layout, portrait editing, native settings migration,
-standalone News, populated inbox/ticker review and earlier F2 review remain
-open. Creating a lobby already enters CSS, but the old hub lobby control cluster
-is retained until the replacement CSS/rules controls are implemented.
+### CSS-owned lobby controls and four-card layout
+
+The lobby browser now stays a browser. Lobby controls live on CSS and its rules
+view, opened through the original match-rules heading. Stock Back closes the
+rules view to CSS; from CSS it returns to the hub. Manual rotation, Match rules,
+Listed/Unlisted and participant roles live in that view. The redundant hub
+Character Select button is removed. Chat is taller and sits above Ready and
+Start match; Workshop is absent from CSS.
+
+Online cards reuse the original card models, with four compact slots at the
+lower left and original N/A presentation for empty slots. Player-name/status
+labels are removed. The original CSS rules heading and Back artwork are visible
+again. Custom player-card portraits now use the stock portrait rectangle;
+portrait capture and fresh-image validation remain open under their own reports.
+Joining from an already-open CSS also applies the configured local player count.
+
+Verification: `.local/css-feedback-review-7/review.json`, two hidden, muted
+clients using the local signaling service. The batch exercised both window
+sizes, four slots and local-first order, chat delivery/UTF-8/wrapping, original
+header/Back hit regions, modal START and B consumption, host role override and
+subsequent player choice, held A causing exactly one listing change, hub return,
+and dragging a fighter onto a compact remote card. Native screenshots were
+reviewed. CSS layout and participant unit tests passed; the Release client built.
+
+Portrait editing, native settings migration, standalone News, populated
+inbox/ticker review and the earlier F2 review remain open.

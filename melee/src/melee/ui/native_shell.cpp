@@ -4,6 +4,7 @@
 #include "native_hub.h"
 #include "native_chat.h"
 #include "native_play_menu.h"
+#include "native_css_chat.h"
 #include "native_shell_collection.h"
 #include "native_shell_costumes.h"
 #include "native_shell_css_original.h"
@@ -522,7 +523,7 @@ extern "C" void nativeShell_WheelAt(int x, int y, int steps)
 
 extern "C" void nativeShell_EnterText(const char* text)
 {
-    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && (nativeHub_IsVisible() || nativeCssChat_Focused())) {
         nativeHub_EnterText(text);
         return;
     }
@@ -581,7 +582,7 @@ extern "C" void nativeShell_PressKey(const char* name, unsigned modifiers)
         event.type = SDL_EVENT_KEY_UP; nativeFeedback_Event(&event);
         return;
     }
-    if (!nativeFeedback_IsOpen() && nativeHub_IsVisible()) {
+    if (!nativeFeedback_IsOpen() && (nativeHub_IsVisible() || nativeCssChat_Focused())) {
         nativeHub_PressKey(name, modifiers);
         return;
     }

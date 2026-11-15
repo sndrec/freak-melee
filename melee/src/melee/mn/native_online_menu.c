@@ -10,6 +10,7 @@
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/inlines.h>
+#include <melee/mn/native_css_interaction.h>
 #include <melee/ui/native_shell.h>
 
 static struct NativeOnlineMenu {
@@ -72,6 +73,9 @@ void nativeOnlineMenu_Pump(void)
             if (!started) {
                 nativeHub_Notice("Could not open the room.");
             } else {
+                // The configured local party also applies when joining from
+                // an already-open CSS, including mouse-only menu sessions.
+                nativeCssInteraction_SetLocalPlayers(menu.local_players);
                 sfxForward();
             }
         }

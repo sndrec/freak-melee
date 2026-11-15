@@ -131,7 +131,7 @@ static void destroy(void* unused)
 }
 static float card_left(unsigned index)
 {
-    return -(float) cards.people.count * 7.7f + index * 15.4f + .2f;
+    return -30.6f + index * 10.9f;
 }
 static void flat_state(Mtx view)
 {
@@ -201,7 +201,9 @@ static void draw(HSD_GObj* object, int pass)
             CardArt* art = &cards.art[i];
             float x = card_left(i);
             Mtx shift, instance, parent;
-            C_MTXTrans(shift, x - art->original_left, 0, 0);
+            C_MTXScale(shift, .7f, .7f, .7f);
+            shift[0][3] = x - art->original_left * .7f;
+            shift[1][3] = -4.25f;
             C_MTXConcat(view, shift, instance);
             for (unsigned p = 0; p < PARTS; ++p) {
                 C_MTXConcat(instance, art->parts[p].parent, parent);
@@ -227,33 +229,19 @@ static void draw(HSD_GObj* object, int pass)
             float x = cards.people.online
                           ? card_left(i)
                           : cards.art[person->physical_port].original_left;
-            if (art->portrait.pixels) {
-                float w = 13,
-                      h = w * art->portrait.height / art->portrait.width;
-                if (h > 13) {
-                    w *= 13 / h;
-                    h = 13;
-                }
-                image(&art->portrait, x + (14 - w) * .5f, -7 - (13 - h) * .5f,
-                      w, h);
+            const float scale = cards.people.online ? .7f : 1;
+            const float y_shift = cards.people.online ? -4.25f : 0;
+            if (art->portrait.pixels && person->choice.selected) {
+                // The stock player-card image is 136x188. Fit it to the same
+                // portrait area, independently of the square CSS tile framing.
+                image(&art->portrait, x + .3f * scale, -4.4f * scale + y_shift,
+                      13.6f * scale, 18.8f * scale);
             }
-            nativeMenuFont_Draw(NativeMenuFont_Notice, person->name, x + .4f,
-                                -4.8f, .8f, 13.2f, 1, 0xF5EFEAFF, true, true);
-            const char* title = person->kind == Gm_PKind_NA ? "Waiting for player"
-                                : person->choice.selected ? art->portrait.title
-                                                        : "Choose a fighter";
-            nativeMenuFont_Draw(NativeMenuFont_Tile, title, x + .4f, -20.5f,
-                                .8f, 13.2f, 1.15f, 0xF5EFEAFF, true, true);
-            if (art->outfit[0])
-                nativeMenuFont_Draw(NativeMenuFont_Notice, art->outfit,
-                    x + .4f, -23.2f, .8f, 13.2f, .65f, 0xF5EFEAFF, true, true);
-            nativeMenuFont_Draw(NativeMenuFont_Notice,
-                                person->kind == Gm_PKind_NA ? "Quick Play"
-                                : person->ready             ? "Ready"
-                                : person->choice.selected ? "Selected"
-                                                          : "Choosing...",
-                                x + .4f, -22, .8f, 13.2f, .75f,
-                                person->ready ? 0x99DEB2FF : 0xE3CF96FF, true, true);
+            if (person->choice.selected)
+                nativeMenuFont_Draw(NativeMenuFont_ResultName, art->portrait.title,
+                                    x + .4f * scale, -20.5f * scale + y_shift,
+                                    .8f, 13.2f * scale, 1.15f * scale,
+                                    0xF5EFEAFF, true, true);
         }
     }
     flat_state(view);
@@ -355,7 +343,7 @@ void nativeCssCards_Update(void)
     const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
     if (!nativeCssParticipants_Build(
             nativeOnlineSession_Presence(), nativeOnlineSession_LocalPeerId(),
-            nativeHub_LocalName(), local, quick ? quick->mode * 2 : 0,
+            nativeHub_LocalName(), local, quick ? quick->mode * 2 : nativeOnlineSession_Presence() ? 4 : 0,
             quick && quick->state == NativeQuickState_Searching, &cards.people))
     {
         memset(&cards.people, 0, sizeof(cards.people));
@@ -395,9 +383,9 @@ void nativeCssCards_Update(void)
                  person->kind == Gm_PKind_Human ? colors[i] : 7);
             pose(&art->parts[EMBLEM],
                  person->kind == Gm_PKind_Human ? colors[i] : 7);
-            pose(&art->parts[DOOR], 29);
+            pose(&art->parts[DOOR], person->kind == Gm_PKind_NA ? 0 : 29);
             pose(&art->parts[INDICATOR],
-                 person->kind == Gm_PKind_Human ? 1 : 0);
+                 person->kind == Gm_PKind_Human ? 1 : person->kind == Gm_PKind_NA ? 2 : 0);
             art->appearance = appearance;
         }
     }
@@ -420,11 +408,11 @@ unsigned nativeCssCards_DisplayPort(unsigned physical_port)
 }
 const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
 {
-    if (!cards.people.online || y > -2.5f || y < -26) {
+    if (!cards.people.online || y > -6 || y < -22.45f) {
         return NULL;
     }
     for (unsigned i = 0; i < cards.people.count; ++i) {
-        if (x >= card_left(i) && x < card_left(i) + 14.8f) {
+        if (x >= card_left(i) && x < card_left(i) + 14.8f * .7f) {
             return cards.people.cards[i].kind == Gm_PKind_NA ? NULL : &cards.people.cards[i];
         }
     }
@@ -465,9 +453,9 @@ void nativeCssCards_Inspect(void)
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
                 "[css-card] display=%u peer=%s seat=%u physical=%u "
-                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14 portrait=%u title=%s outfit=%s\n",
+                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-14.1 portrait=%u title=%s outfit=%s\n",
                 i, p->peer, p->seat, p->physical_port, p->canonical_port,
-                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f,
+                p->local, p->ready, p->choice.selected, card_left(i) + 7.4f * .7f,
                 cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title, cards.art[i].outfit);
     }
 }
