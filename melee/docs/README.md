@@ -33,6 +33,7 @@ sentences describe the work remaining at that time. Optimization is currently de
 | Received fighter editing | [Single-fighter delivery](native_received_fighter_authoring_checkpoint.md), [families and edited assets](native_family_content_checkpoint.md) |
 | Native CSS/practice controls | [Readiness, lobby access, delivery and tool return](native_play_menu_checkpoint.md) |
 | Prepare a friend build | [Release guide](native_release.md) |
+| Publish a coordinated update | [$publish-build workflow](../../.agents/skills/publish-build/SKILL.md) |
 | Find recorded evidence | [Checkpoint index](checkpoint_index.md) |
 
 Reference authors should follow the [documentation guidelines](documentation_guidelines.md).

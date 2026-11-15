@@ -1,4 +1,4 @@
-"""Upload a prepared release to R2, publishing latest.json only after verification."""
+"""Stage verified release archives in R2 and activate the update manifest."""
 
 from __future__ import annotations
 
@@ -36,8 +36,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("release_dir", type=Path,
                         help="Directory produced by prepare_native_release.py")
-    parser.add_argument("--dry-run", action="store_true",
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true",
                         help="Validate the prepared release without uploading")
+    mode.add_argument("--stage-only", action="store_true",
+                      help="Upload and verify archives without changing the live channel")
+    mode.add_argument("--activate-only", action="store_true",
+                      help="Verify staged remote archives and activate this manifest")
     args = parser.parse_args()
 
     release_dir = args.release_dir.resolve(strict=True)
@@ -123,13 +128,17 @@ def main() -> None:
             (setup_name, setup, digest(setup)),
         ):
             object_path = f"{BUCKET}/{filename}"
-            wrangler("r2", "object", "put", object_path, "--file", str(source),
-                     "--content-type", "application/zip", "--remote")
+            if not args.activate_only:
+                wrangler("r2", "object", "put", object_path, "--file", str(source),
+                         "--content-type", "application/zip", "--remote")
             verification = Path(directory) / filename
             wrangler("r2", "object", "get", object_path, "--file",
                      str(verification), "--remote")
             if digest(verification) != expected:
                 raise SystemExit(f"Remote {filename} verification failed; latest.json was not changed")
+    if args.stage_only:
+        print(f"Staged and verified {release}; latest.json was not changed.")
+        return
     wrangler("r2", "object", "put", f"{BUCKET}/latest.json", "--file",
              str(manifest_path), "--content-type", "application/json",
              "--cache-control", "no-store", "--remote")

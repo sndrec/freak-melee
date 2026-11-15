@@ -79,18 +79,159 @@ An explicit `-Channel <local latest.json>` supports isolated local update tests.
 
 ## Publish
 
-The private channel uses the `services/releases` Worker and the
-`freak-melee-releases` R2 bucket. The channel URL above is an unlisted invite link.
-Install its service dependencies with `npm ci` before publishing. For an approved
-build intended for friends, run:
+Use the repository's [$publish-build workflow](../../.agents/skills/publish-build/SKILL.md)
+when asking an agent to publish. This coordinates GitHub Releases, an unpublished
+News draft, and the public auto-update channel. Builds run on the maintainer's
+PC, where the private ISO and optional startup music are available. Creating or
+editing this workflow performs no publication.
+
+The channel uses the `services/releases` Worker and the `freak-melee-releases`
+R2 bucket. Install that service's dependencies with `npm ci`. GitHub publishing
+needs an authenticated tool, GitHub CLI or browser. News uses the existing
+[protected administration page](https://freak-melee-community.sndrec32exe.workers.dev/admin/).
+Use one publishing run at a time.
+
+### 1. Identify the shipped baseline
+
+Download and save the channel's current `latest.json` before changing anything.
+Its release ID identifies the previous shipped build. Obtain that build's
+`source_revision` from its GitHub `release-info.json` asset. Check that the
+record's archive hash matches the live manifest. Also check repository identity,
+the intended source revision and existing release tags.
+
+The current pre-workflow build has a verified baseline record at
+[releases/2026-11-13-community-1.json](releases/2026-11-13-community-1.json).
+Its original source revision was mapped through both history rewrites; the
+source trees match apart from the removed OTF/HPS inputs, and its executable
+hash matches the live channel. Use the mapped `source_revision` for comparisons.
+For a different older build without metadata, recover its source revision from
+build receipts or diagnostics. Resolve rewritten revisions through the rewrite
+maps. Ask for a baseline if it cannot be established; do not guess from dates
+or the previous Git push.
+
+### 2. Inspect changes and write patch notes
+
+Review the entire range from the previous shipped source to the intended source:
 
 ```powershell
-python tools/publish_native_release.py build/native/releases/2026-10-17-a
+git log --reverse --format="%h %s" <previous-source>..<source>
+git diff --stat <previous-source> <source>
+git diff <previous-source> <source>
 ```
 
-This uploads both ZIPs, downloads and hashes each, and publishes `latest.json`
-last. Share the setup URL ending in `freak-melee-setup-<release>.zip`.
-The channel's `latest.json` shows the current release.
+Inspect all changed files and relevant commits, including game code, scripts,
+Workshop, menus, assets, services, build tools, tests and documentation. Use
+commit messages as context and the final diff to establish what actually ships.
+Include packaged local asset changes when their content changed outside Git.
+
+Write `melee/docs/releases/<release>.md` with concise player-facing patch notes.
+Group changes under useful headings such as Gameplay, Workshop and Online;
+omit empty categories. Describe what changed for the player. Summarize or omit
+maintenance details that have no player-visible effect. Include known limitations
+that materially affect the release. Distinguish service changes already deployed
+from changes introduced by this client build. Do not dump commit subjects or
+claim improvements from reverted/unfinished work. Keep the News body within its
+32,000-character limit.
+
+Use that file verbatim as the GitHub release body and the initial News body.
+Commit the notes and intended source changes, push them, and pin the resulting
+full source commit. Do not modify the tracked build inputs after pinning it.
+
+### 3. Build, check and prepare
+
+Configure again after the source commit is pinned so the embedded diagnostic
+source revision is current. Build `melee_native` and `native_content_tool`, run
+checks appropriate to the changes, and review the prepared installation with a
+hidden, muted client. Ask or wait if the owner's running game locks the build.
+Check that the embedded/configured source identity matches the pinned commit
+and is not marked modified. Preserve the optional local startup HPS for official
+builds. Keep game data, account keys and player profiles out of the payload.
+
+Choose a new release ID; never reuse an ID for different bytes. Prepare both
+ZIPs with the hosted channel URL, then run the existing publication dry run.
+Store the captured old manifest, hashes and stage results in a local
+`publication-receipt.json` beside the prepared output. Receipts contain no tokens
+or account keys. Do not create an unrelated smoke test on the live channel.
+
+### 4. Stage the updater archives
+
+Check whether the chosen archive names already exist at the public download
+paths. Existing objects must match this run's expected sizes and hashes; stop
+and use a new release ID if they contain different bytes. Reusing an identical
+staged upload is safe when resuming the same release.
+
+From the `melee` directory:
+
+```powershell
+python tools/publish_native_release.py <prepared-directory> --stage-only
+```
+
+This uploads the setup/update ZIPs, downloads both and verifies their SHA-256
+hashes. It leaves `latest.json` unchanged. Record successful staging.
+
+### 5. Prepare GitHub and the News draft
+
+Create a GitHub draft release in `sndrec/freak-melee` using the release ID as its
+tag, the pinned source commit as its target, and the patch-notes file as its body.
+Upload the setup ZIP, update ZIP, `latest.json` and `patch-notes.md`. Verify asset
+names, sizes and hashes using GitHub's asset digests or authenticated downloads.
+Avoid autogenerated commit-log release notes.
+
+In the administration page, create a News article titled `Freak Melee <release>`.
+Its body starts with only the patch-notes file's text. Leave ticker text empty,
+Published unchecked, publication time empty and Archived unchecked. Save the
+article to the server and reopen it to verify the saved body and unpublished
+state. A form draft in browser storage alone is insufficient. Record the article
+ID when available, otherwise its exact unique title and admin URL. Create no
+announcement and do not publish or schedule News during this workflow.
+
+Write `release-info.json` beside the prepared output and attach it to the GitHub
+draft. Include `release`, `source_revision`, `previous_release`,
+`previous_source_revision`, `archive`, `size`, `sha256`, `setup_sha256`,
+`executable_sha256`, `patch_notes_sha256`, and the saved News draft's title/ID.
+Copy archive values from the validated manifest and hash the actual setup ZIP
+and notes file. This record identifies the shipped source for the next workflow.
+
+### 6. Publish GitHub, then activate the updater
+
+Publish the verified GitHub release. Confirm its tag resolves to the pinned
+source, its patch notes are correct, and its downloads are available. Re-read
+the live updater manifest: it must still match the captured previous manifest,
+or already match this exact release on a resumed run. If another release went
+live in the meantime, stop before replacing it.
+
+```powershell
+python tools/publish_native_release.py <prepared-directory> --activate-only
+```
+
+Activation downloads and verifies both staged remote archives again, then writes
+`latest.json` last. It does not upload replacement archive bytes. Re-read the
+public manifest and verify its release ID, archive name, size, hash and file list
+against the prepared manifest. Verify the public setup/update download paths
+and complete the receipt. Check that the saved News article remains unpublished
+unless the owner independently changed it.
+
+Return the GitHub release, setup download, source revision, updater status and
+the News draft title/admin link. The owner can now add personal notes and publish
+News at their convenience.
+
+### Failure and retry
+
+GitHub, News and R2 are separate services, so this is a staged operation rather
+than a single transaction. Before activation, failures leave the old updater
+manifest intact; uploaded ZIPs and drafts may remain. Save their identifiers and
+report the partial state. If GitHub publication succeeded but updater activation
+failed, say so explicitly and retry activation after verifying all prerequisites.
+
+Resume from the receipt. Verify existing release targets and asset hashes instead
+of creating duplicates or replacing different bytes. Reuse the recorded News
+article; preserve any personal edits or publication the owner has made. Never
+reset an existing article to the generated patch notes. A retry that is already
+fully live verifies the result and reports it without issuing another News post.
+
+Without a stage flag, the publisher still performs its complete R2 upload,
+verification and activation sequence. Coordinated releases use the staged
+procedure above so the GitHub release and News draft are ready first.
 
 ## Playtest desync reports
 

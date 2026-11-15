@@ -4,12 +4,14 @@ Synthetic files exercise packaging only. Native startup and Workshop acceptance
 are recorded separately against an extracted installation of the actual build.
 """
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -94,6 +96,49 @@ class ReleasePayload(unittest.TestCase):
         self.assertEqual(self.publish().returncode, 0)
         with zipfile.ZipFile(self.output/'freak-melee-test-a.zip') as archive:
             self.assertNotIn('disc/audio/first_startup.hps', archive.namelist())
+
+    def run_publisher_with_r2(self, mode, remote):
+        spec = importlib.util.spec_from_file_location('release_publisher', PUBLISH)
+        publisher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(publisher)
+        commands = []
+
+        def wrangler(*args):
+            commands.append(args)
+            filename = Path(args[args.index('--file') + 1])
+            key = args[3]
+            if args[2] == 'put':
+                remote[key] = filename.read_bytes()
+            else:
+                filename.write_bytes(remote[key])
+
+        # The local fake replaces only external R2 commands. Archive and
+        # manifest validation still run against the real packaging fixture.
+        with patch.object(publisher, 'wrangler', wrangler), \
+             patch.object(publisher, 'WRANGLER', Path(__file__)), \
+             patch.object(sys, 'argv', [str(PUBLISH), str(self.output), mode]):
+            publisher.main()
+        return commands
+
+    def test_staging_keeps_live_manifest_and_activation_writes_it_last(self):
+        self.assertEqual(self.prepare().returncode, 0)
+        remote = {'freak-melee-releases/latest.json': b'previous live manifest'}
+        staged = self.run_publisher_with_r2('--stage-only', remote)
+        self.assertEqual(remote['freak-melee-releases/latest.json'], b'previous live manifest')
+        self.assertEqual(sum(command[2] == 'put' for command in staged), 2)
+        activated = self.run_publisher_with_r2('--activate-only', remote)
+        self.assertEqual([command[2] for command in activated], ['get', 'get', 'put'])
+        self.assertEqual(activated[-1][3], 'freak-melee-releases/latest.json')
+        self.assertEqual(remote['freak-melee-releases/latest.json'], (self.output/'latest.json').read_bytes())
+
+    def test_activation_refuses_corrupt_staged_archive_without_changing_live_manifest(self):
+        self.assertEqual(self.prepare().returncode, 0)
+        remote = {'freak-melee-releases/latest.json': b'previous live manifest'}
+        self.run_publisher_with_r2('--stage-only', remote)
+        remote['freak-melee-releases/freak-melee-test-a.zip'] = b'corrupted upload'
+        with self.assertRaisesRegex(SystemExit, 'latest.json was not changed'):
+            self.run_publisher_with_r2('--activate-only', remote)
+        self.assertEqual(remote['freak-melee-releases/latest.json'], b'previous live manifest')
 
     def test_declared_missing_template_prevents_any_release(self):
         (self.build/'ui/yoshi_wip.fms').unlink()

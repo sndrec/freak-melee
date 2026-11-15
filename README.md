@@ -14,6 +14,7 @@ and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
   configuration obtains pinned third-party dependencies.
 - `melee/docs/README.md`: current guides and dated evidence index.
 - `melee/docs/development.md`: local tooling and build notes.
+- `.agents/skills/publish-build/`: coordinated release workflow and patch notes.
 
 This repository is a source snapshot, not a copy of the development machine.
 It excludes the ISO, extracted game assets, SDK/tool binaries, build products,

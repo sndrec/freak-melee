@@ -1,0 +1,11 @@
+{
+  "release": "2026-11-13-community-1",
+  "source_revision": "308c03f7aa88d645765cb7e717dc0998315d104b",
+  "original_source_revision": "6e491992b293f2d0c80959ef8983f3a586ee2a5a",
+  "archive": "freak-melee-2026-11-13-community-1.zip",
+  "size": 37387668,
+  "sha256": "48ae9942dc1b3af344a7b9957cd4d80833c381f2ad3c2e3f8534ead95289b7ab",
+  "manifest_sha256": "a45f01e6a056b6ba7c44f53a1d941f2d44bafc9734e2230699e46fc28e6987e8",
+  "executable_sha256": "0c0a817ed6d2348a29b68866afc60401a2514dfaec8076397534e9b6daec427c",
+  "provenance": "Original source revision and executable hash are recorded in native_release.md. Both history rewrite maps were applied to identify source_revision. Source trees match after excluding the removed OTF inputs and startup HPS. The live channel manifest and executable hash were verified on 2026-11-14."
+}
