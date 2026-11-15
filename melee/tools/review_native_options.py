@@ -1,5 +1,6 @@
 """Review native rule, outfit and package menus using an isolated installed roster."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,7 +19,7 @@ def main():
     args=parser.parse_args(); output=args.output.resolve(); output.mkdir(parents=True,exist_ok=False)
     for service in ('SERVICE','CHAT','COMMUNITY'): os.environ['FREAK_MELEE_'+service+'_ENDPOINT']='http://localhost:1'
     os.environ['FREAK_MELEE_MENU_MOTION']='0'
-    receipt={'status':'RUNNING','checks':[],'screenshots':{}}; client=None
+    receipt={'status':'RUNNING','checks':[],'screenshots':{},'inputs':{str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in (args.exe.resolve(),Path(__file__).resolve())}}; client=None
     def shot(name): receipt['screenshots'][name]=str(client.screenshot())
     def inspect(name,pattern):
         text=client.inspect(name); assert re.search(pattern,text),(pattern,text); return text
@@ -72,7 +73,7 @@ def main():
             receipt['checks'].append('compatible family outfit selected and reset through native menu')
         else: raise AssertionError('Use a fixture with a compatible installed outfit')
         client.resize(960,540); shot('costumes-narrow'); client.click('costume-close'); client.click('settings-rules'); shot('rules-narrow')
-        client.click('rules-item-switch'); shot('items-narrow'); client.click('rules-close'); client.click('rules-close'); client.click('settings-packages'); shot('packages-narrow')
+        client.click('rules-item-switch'); shot('items-narrow'); client.click('rules-close'); client.click('rules-close'); client.click('settings-packages'); client.click('collection-installed'); shot('packages-narrow')
         receipt['checks'] += ['CSS Match rules returns to CSS','two window sizes','ordinary controller-hand navigation']
         previous=client.folder/'appdata'; close_window(client.process.pid); client.process.wait(timeout=20)
         client=Client(args.exe.resolve(),args.iso.resolve(),previous,output/'reopened','Options suite',window_size=(960,540))
