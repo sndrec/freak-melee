@@ -279,3 +279,15 @@ reviewed. CSS layout and participant unit tests passed; the Release client built
 
 Portrait editing, native settings migration, standalone News, populated
 inbox/ticker review and the earlier F2 review remain open.
+
+
+Implementation commit: `93038d0`. These submissions and both attachments per
+submission were removed after verification on 2026-11-15; their local
+`removal.json` receipts report success. A fresh hosted query confirmed all three
+absent. Eight submissions remain in the fixed batch.
+
+| Removed submission | Verified result |
+| --- | --- |
+| `cc5d2f06-0fbe-45c2-b42f-998c0ff250b0` | Direct CSS entry, lobby controls inside CSS/rules, removed hub duplicates, CSS chat and Copy code. |
+| `d9f9bea8-673f-48af-af6b-845a73c18470` | Four compact authored cards, original N/A slots, chat above match buttons, no Workshop button on CSS. |
+| `91780dec-6922-4cc1-bea4-58aedfe4c4c5` | Original heading and Back artwork, removed player/status overlays and extra instruction/code strip, revised button placement. |
