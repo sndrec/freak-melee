@@ -4629,7 +4629,7 @@ s32 mnCharSel_802640A0(void)
                 struct CSSCharModel* model = HSD_MemAlloc(sizeof(*model));
                 HSD_GObjObject_80390A70(model_gobj, HSD_GObj_JObjKind, jobj);
                 GObj_InitUserData(model_gobj, 4, HSD_Free, model);
-                GObj_SetupGXLink(model_gobj, nativeCssInteraction_DrawLocalCursor, 2, 0x80);
+                GObj_SetupGXLink(model_gobj, nativeCssInteraction_DrawLocalToken, 2, 0x80);
                 HSD_GObj_SetupProc(model_gobj, fn_80262648, 2);
                 HSD_JObjAddAnimAll(jobj, css_models->token.animjoint,
                                    css_models->token.matanim_joint,

@@ -11,6 +11,7 @@ typedef enum {
     gmVsMode_State_Results,
     gmVsMode_State_Practice,
     gmVsMode_State_WatchPrepare,
+    gmVsMode_State_MatchPrepare,
     gmVsMode_State_Approach = (2 << 6),
     gmVsMode_State_ApproachVs,
     gmVsMode_State_Prize = (3 << 6),

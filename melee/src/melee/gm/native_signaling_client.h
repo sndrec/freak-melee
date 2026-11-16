@@ -112,6 +112,7 @@ bool nativeSignalingClient_SetRotation(NativeSignalingClient* client,
                                        uint8_t policy);
 bool nativeSignalingClient_SetLobbyRules(NativeSignalingClient* client, const NativeRoomRules* rules);
 bool nativeSignalingClient_RequestLobbyState(NativeSignalingClient* client);
+bool nativeSignalingClient_StageCursor(NativeSignalingClient* client, const NativeStageCursor* cursor);
 bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
                                        const char* winner_peer_id,

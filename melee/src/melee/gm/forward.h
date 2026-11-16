@@ -112,6 +112,7 @@ typedef enum GameSceneKind {
     /* +2B */ GS_STAFFROLL, ///< Credits
     /* +2C */ GS_CAMERA_VS,
     GS_NATIVE_WATCH_SETUP,
+    GS_NATIVE_MATCH_SETUP,
     GS_COUNT
 } GameSceneKind;
 

@@ -1,7 +1,7 @@
 import { runInDurableObject, evictDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { phase, setup, select, prepare, expire, revision } from "./quick-fixture";
-import { encodeReportQuick, encodeVoteQuickStage, encodeRequestPresence, ServerMessageType } from "../src/wire";
+import { encodeReportQuick, encodeVoteQuickStage, encodeRequestPresence, encodeStageCursor, ServerMessageType } from "../src/wire";
 
 async function launch(game: Awaited<ReturnType<typeof setup>>) {
   const before = await revision(game);
@@ -25,6 +25,13 @@ describe("Quick Play round results and next stage", () => {
       const choosing = await phase(game.clients[0], 3);
       expect(choosing.completedEpoch).toBe(epoch);
       expect(choosing.chooser).toBe(game.assigned[1].team);
+      const cursor={epoch,revision:0,sequence:1,x:-2000,y:1500,tile:3,seat:0};
+      // The winner cannot move the loser's cursor. The losing player's update
+      // is relayed to every PC, including before anyone confirms a stage.
+      game.clients[0].socket.send(encodeStageCursor({...cursor,sequence:99}));
+      game.clients[1].socket.send(encodeStageCursor(cursor));
+      for (const client of game.clients) expect(await client.next(ServerMessageType.StageCursor)).toEqual({
+        type:ServerMessageType.StageCursor,peerId:game.clients[1].peerId,cursor});
       game.clients[0].socket.send(encodeVoteQuickStage(epoch, 0, 5));
       await game.clients[0].next(ServerMessageType.QuickRejected);
       game.clients[1].socket.send(encodeVoteQuickStage(epoch - 1, 0, 5));

@@ -30,6 +30,7 @@ export const enum ClientMessageType {
   RequestLobbies = 19,
   SetLobbyRules = 20,
   RequestLobbyState = 21,
+  StageCursor = 22,
 }
 
 export const enum ServerMessageType {
@@ -46,6 +47,7 @@ export const enum ServerMessageType {
   Lobbies = 0x8b,
   Listing = 0x8c,
   LobbyState = 0x8d,
+  StageCursor = 0x8e,
   Error = 0xff,
 }
 
@@ -66,7 +68,18 @@ export interface RoomChatEntry {
   text: string;
 }
 
+export interface StageCursor {
+  epoch: number;
+  revision: number;
+  sequence: number;
+  x: number;
+  y: number;
+  tile: number;
+  seat: number;
+}
+
 export type ClientMessage =
+  | { type: ClientMessageType.StageCursor; cursor: StageCursor }
   | { type: ClientMessageType.SetLobbyRules; rules: LobbyRules }
   | { type: ClientMessageType.RequestLobbyState }
   | { type: ClientMessageType.SetListing; title: string; listed: boolean }
@@ -98,6 +111,7 @@ export type ClientMessage =
   | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean; loserPort: number };
 
 export type ServerMessage =
+  | { type: ServerMessageType.StageCursor; peerId: string; cursor: StageCursor }
   | { type: ServerMessageType.LobbyState; lobby: LobbyState }
   | { type: ServerMessageType.Lobbies; offset: number; total: number; entries: LobbyEntry[] }
   | { type: ServerMessageType.Listing; title: string; listed: boolean }
@@ -282,6 +296,9 @@ function readEnvelope(message: ArrayBuffer): { type: number; reader: Reader } {
 
 export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ClientMessageType.StageCursor) {
+    const cursor = readStageCursor(reader); reader.finish(); return { type, cursor };
+  }
   if (type === ClientMessageType.RequestLobbyState) { reader.finish(); return { type }; }
   if (type === ClientMessageType.SetLobbyRules) {
     const rules = decodeLobbyRules(reader.bytes16()); reader.finish(); return { type, rules };
@@ -416,6 +433,10 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
 
 export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   const { type, reader } = readEnvelope(message);
+  if (type === ServerMessageType.StageCursor) {
+    const peerId = reader.string8(), cursor = readStageCursor(reader);
+    reader.finish(); return { type, peerId, cursor };
+  }
   if (type === ServerMessageType.LobbyState) {
     const revision = reader.u64(), phase = reader.u8(), remainingMs = reader.u16(), bytes = reader.bytes16();
     if (phase > 2 || remainingMs > 3000) throw new Error("Invalid lobby phase");
@@ -787,6 +808,31 @@ export function encodeListing(title: string, listed: boolean): ArrayBuffer {
   const writer = new Writer(ServerMessageType.Listing, 80);
   writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
 }
+function readStageCursor(reader: Reader): StageCursor {
+  const epoch = reader.u64(), revision = reader.u64(), sequence = reader.u32();
+  const x = (reader.u16() << 16) >> 16, y = (reader.u16() << 16) >> 16;
+  const tile = reader.u8(), seat = reader.u8();
+  if (Math.abs(x) > 27 * 256 || Math.abs(y) > 19 * 256 || tile > 29 || seat > 3 || !sequence)
+    throw new Error("Invalid stage cursor");
+  return { epoch, revision, sequence, x, y, tile, seat };
+}
+
+function writeStageCursor(writer: Writer, cursor: StageCursor): void {
+  writer.u64(cursor.epoch); writer.u64(cursor.revision); writer.u32(cursor.sequence);
+  writer.u16(cursor.x & 65535); writer.u16(cursor.y & 65535);
+  writer.u8(cursor.tile); writer.u8(cursor.seat);
+}
+
+export function encodeStageCursor(cursor: StageCursor, maximumBytes = 64): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.StageCursor, maximumBytes);
+  writeStageCursor(writer, cursor); return writer.finish();
+}
+
+export function encodeStageCursorUpdate(peerId: string, cursor: StageCursor): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.StageCursor, 128);
+  writer.string8(peerId); writeStageCursor(writer, cursor); return writer.finish();
+}
+
 export function encodeRequestLobbyState(maximumBytes: number): ArrayBuffer {
   return new Writer(ClientMessageType.RequestLobbyState, maximumBytes).finish();
 }

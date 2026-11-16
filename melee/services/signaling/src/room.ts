@@ -7,7 +7,7 @@ import { encodeListing } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers, automaticLobbyStage, emptyLobbyStageHistory,
   lobbyReadySignature, type LobbyStageHistory } from "./lobby-stage";
 import { LOBBY_COUNTDOWN_MS, encodeLobbyRules, decodeLobbyRules, type LobbyRules } from "./lobby-rules";
-import { encodeLobbyState } from "./wire";
+import { encodeLobbyState, encodeStageCursorUpdate } from "./wire";
 import { buildQuickMatch, quickRosterComplete, QUICK_COUNTDOWN_MS } from "./quick-match";
 import { quickPorts, quickStageVotes, agreedQuickStage, type QuickPort, type QuickStageVote } from "./quick-round";
 import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
@@ -481,6 +481,9 @@ export class Room extends DurableObject<CloudflareBindings> {
         return;
       case ClientMessageType.PickLobbyStage:
         this.pickLobbyStage(socket, parsed);
+        return;
+      case ClientMessageType.StageCursor:
+        this.stageCursor(socket, parsed.cursor);
         return;
       }
     } finally {
@@ -1182,6 +1185,42 @@ export class Room extends DurableObject<CloudflareBindings> {
       "UPDATE room_policy SET rotation = ? WHERE id = 1", policy,
     );
     this.broadcastPresence(this.nextRevision());
+  }
+
+  private stageCursor(socket: WebSocket, cursor: import("./wire").StageCursor): void {
+    const sender = this.attachment(socket), flow = this.lobbyFlow();
+    if (!sender) return;
+    const quick = this.quickMatch();
+    if (quick) {
+      const round = this.quickRound();
+      const player = (JSON.parse(round.ports) as QuickPort[]).find(
+        p => p.peerId === sender.peerId && p.seat === cursor.seat);
+      if (quick.aborted || this.quickFlow().phase !== 3 || cursor.revision !== 0 ||
+          cursor.epoch !== round.completed_epoch || !player || player.team !== round.chooser) return;
+    } else {
+      if (!sender.lobbySubscribed || this.quickParty()?.mode || !flow.rules ||
+          flow.phase !== 2 || flow.revision !== cursor.revision) return;
+      const room = this.snapshot(this.currentRevision());
+      const rules = decodeLobbyRules(new Uint8Array(flow.rules));
+      if (room.match !== null || room.stage !== 255 || room.matchEpoch !== cursor.epoch ||
+          !(sender.activeMask & (1 << cursor.seat)) || ![0, 3, 4].includes(rules.stagePolicy) ||
+          (rules.stagePolicy !== 0 && (room.stagePeerId !== sender.peerId || room.stageSeat !== cursor.seat))) return;
+    }
+    const last = sender.stageCursor, now = Date.now();
+    if (last && last.epoch === cursor.epoch && last.revision === cursor.revision &&
+        cursor.sequence <= last.sequence) return;
+    const sameWindow = last && now - last.windowMs < 1000;
+    if (sameWindow && last.updates >= 64) return;
+    // Attachments survive hibernation. Motion never rewrites lobby SQL or
+    // readiness, and cannot confirm a stage or restart the match countdown.
+    socket.serializeAttachment({ ...sender, stageCursor: {
+      epoch: cursor.epoch, revision: cursor.revision, sequence: cursor.sequence,
+      windowMs: sameWindow ? last.windowMs : now, updates: sameWindow ? last.updates + 1 : 1,
+    } } satisfies ConnectionAttachment);
+    const bytes = encodeStageCursorUpdate(sender.peerId, cursor);
+    for (const target of this.ctx.getWebSockets())
+      if (target.readyState === WebSocket.OPEN && (quick || this.attachment(target)?.lobbySubscribed))
+        this.send(target, bytes);
   }
 
   private pickLobbyStage(socket: WebSocket,

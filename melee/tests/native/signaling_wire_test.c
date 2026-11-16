@@ -412,6 +412,28 @@ static void test_shared_lobby_rules(void)
     rules.stocks=0;assert(!nativeRoomRules_Encode(&rules,record));
 }
 
+static void test_stage_cursor(void)
+{
+    NativeStageCursor cursor = { .epoch=7, .revision=13, .sequence=41,
+                                 .x=-27*256, .y=19*256, .tile=29, .seat=1 };
+    uint8_t bytes[128], request[64];
+    size_t size = nativeSignalingWire_EncodeStageCursor(&cursor, request, sizeof(request));
+    assert(size == 34 && request[5] == 22 && request[28] == 0xE5 && request[29] == 0);
+    size_t length = header(bytes, 0x8E);
+    length = string8(bytes, length, "chooser");
+    memcpy(bytes+length, request+8, size-8); length += size-8; finish(bytes,length);
+    NativeSignalingServerMessage decoded;
+    assert(nativeSignalingWire_DecodeServer(bytes,length,&decoded));
+    assert(decoded.type == NativeSignalingServerMessage_StageCursor);
+    const NativeStageCursor* result = &decoded.data.stage_cursor;
+    assert(!strcmp(result->peer_id,"chooser") && result->sequence==41 &&
+           result->epoch==7 && result->revision==13 && result->seat==1 &&
+           result->x==-27*256 && result->y==19*256 && result->tile==29);
+    for(size_t cut=0;cut<length;++cut)assert(!nativeSignalingWire_DecodeServer(bytes,cut,&decoded));
+    bytes[length-2]=30;assert(!nativeSignalingWire_DecodeServer(bytes,length,&decoded));
+    cursor.sequence=0;assert(!nativeSignalingWire_EncodeStageCursor(&cursor,request,sizeof(request)));
+}
+
 int main(void)
 {
     test_client_encoding();
@@ -420,6 +442,7 @@ int main(void)
     test_quick_wire();
     test_lobby_directory();
     test_shared_lobby_rules();
+    test_stage_cursor();
     puts("native signaling wire tests passed");
     return 0;
 }

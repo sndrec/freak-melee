@@ -41,6 +41,7 @@ NativeHubPage nativeHub_CurrentPage(void);
 bool nativeHub_ConsumesGameInput(void);
 void nativeHub_Event(const union SDL_Event* event);
 void nativeHub_ReleasePointer(void);
+void nativeHub_ReturnToCss(void);
 void nativeHub_Open(NativeHubPage page);
 void nativeHub_Notice(const char* text);
 const char* nativeHub_NoticeText(void);

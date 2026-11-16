@@ -205,9 +205,10 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         else if (compact && (can_watch || requesting_watch))
             add("play-watch", requesting_watch ? "Cancel viewing" : "Watch match",
                 451, 451, 177, 24, Action::Watch, true, true);
+        else if (presence)
+            add("css-chat-code", "Copy connect code", 451, 451, 177, 24, Action::CopyCode);
         if (presence) {
             add("css-chat-history", "Lobby chat", 455, 278, 98, 17, Action::ChatHistory, true, false, true);
-            add("css-chat-code", "Copy code", 565, 278, 59, 17, Action::CopyCode);
             add("css-chat-input", "Message", 455, 385, 129, 22, Action::ChatInput, true, false, true);
             const auto* chat = nativeOnlineSession_Chat();
             add("css-chat-send", "Send", 589, 385, 35, 22, Action::ChatSend, chat && chat->ready);

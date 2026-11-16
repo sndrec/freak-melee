@@ -30,11 +30,23 @@ not consume a turn or stage.
 
 ## Match flow
 
-The countdown opens the original stage-select scene on the fighting clients.
+For manual choices, the countdown opens the original stage-select scene on the fighting clients.
 For Loser and Turns, only the chosen player's assigned physical controller can
 move its cursor or select a stage, including the second or later controller on
 a shared PC. The service publishes that choice; the owner constructs the match
 with its rules and the active roster.
+
+Everyone on that screen sees the shared cursor and hovered stage, with the
+choosing player's name below the stage grid. On a shared PC the label also
+identifies the local player. Cursor motion follows the same permissions as
+stage selection. With **On**, an active player moving their cursor takes over
+the shared pointer. Cursor updates never confirm a stage.
+
+Random and Ordered go straight from practice into match preparation. Quick
+Play's random first stage and agreed rematch stage use the same direct route.
+These starts do not load or display the native stage-select menu. Fighter assets
+are installed after practice retires its actors. Quick Play's six-stage rematch
+page also shows the choosing player's cursor to the other players.
 
 A spectating owner can stay on CSS or keep practicing while the active players
 choose and play. A later game requires the active fighters to ready again.
@@ -46,9 +58,30 @@ current match epoch. Changing the active roster, active character selection or
 the shared rules cancels the countdown and clears the pending
 stage. Stale choices and repeated result reports cannot change a newer round.
 The first accepted stage choice wins until that selection is cancelled.
+Cursor packets additionally carry the lobby-flow revision, so motion from a
+cancelled selection cannot move the next selection's pointer. They are relayed
+at up to 20 updates per second over the room's signaling connection.
 
 The native and service wire definitions change together. Use matching client
 and service builds.
+
+## Cursor and direct-start verification (2026-11-15)
+
+All five lobby stage policies pass a full native match and rematch in
+`.local/native-ui-round3-stage-review-1/review.json`. The review includes a
+spectating owner, a shared PC using its second controller, replicated cursor
+coordinates and hover, and the absence of a stage-select scene during Random
+and Ordered starts.
+
+Quick Play passes a four-stock match, losing-side cursor delivery and an agreed
+rematch in `.local/native-ui-round3-quick-stage-review-4/review.json`. Neither
+start opens stage select. Its normal-lobby check also verifies configured local
+hands, the copy-code button, and paused practice exit returning directly to CSS.
+
+The service suite passes 85 tests in 12 files. Cursor checks cover permissions,
+signed coordinates, stale rounds, cancellation, hibernation and adjacent
+packets arriving together. Native wire tests and the release build pass.
+The signaling deployment is `f973e205-f438-4782-aeb7-c9e32edd1bd0`.
 
 ## Automatic-readiness verification (2026-11-15)
 

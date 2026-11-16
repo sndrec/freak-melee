@@ -6,7 +6,8 @@ import { choices, select } from "./quick-fixture";
 import { automaticLobbyStage, emptyLobbyStageHistory, lobbyStageChooser, lobbyReadySignature, LOBBY_STAGES } from "../src/lobby-stage";
 import { decodeLobbyRules, encodeLobbyRules, type LobbyRules } from "../src/lobby-rules";
 import { encodeRequestLobbyState, encodeSetLobbyRules, encodePickLobbyStage, encodeSetMatch,
-  encodeReportMatch, encodeUpdate, ServerMessageType } from "../src/wire";
+  encodeReportMatch, encodeUpdate, encodeStageCursor, decodeClientMessage,
+  decodeServerMessage, encodeStageCursorUpdate, ClientMessageType, ServerMessageType } from "../src/wire";
 import type { Participant, RoomSnapshot } from "../src/protocol";
 import { buildQuickMatch } from "../src/quick-match";
 import type { QuickAllocation } from "../src/quick-play";
@@ -41,6 +42,64 @@ async function presence(game: Awaited<ReturnType<typeof setup>>): Promise<RoomSn
 }
 
 describe("shared lobby rules and stage flow",()=>{
+  it("encodes signed stage cursor coordinates and rejects malformed cursor packets",()=>{
+    const cursor={epoch:7,revision:13,sequence:41,x:-27*256,y:19*256,tile:29,seat:1};
+    const packet=encodeStageCursor(cursor);
+    expect(decodeClientMessage(packet)).toEqual({type:ClientMessageType.StageCursor,cursor});
+    expect(decodeServerMessage(encodeStageCursorUpdate("chooser",cursor))).toEqual({
+      type:ServerMessageType.StageCursor,peerId:"chooser",cursor});
+    for (const bad of [{x:27*256+1},{y:-19*256-1},{tile:30},{seat:4},{sequence:0}])
+      expect(()=>decodeClientMessage(encodeStageCursor({...cursor,...bad}))).toThrow();
+    for(let cut=0;cut<packet.byteLength;++cut)expect(()=>decodeClientMessage(packet.slice(0,cut))).toThrow();
+  });
+
+  it("relays only the authorized stage chooser's current round without changing readiness",async()=>{
+    const game=await setup();
+    try {
+      for(const client of game.clients)await select(client,1);await state(game.clients[0],1);await expire(game);
+      const room=await presence(game), revision=(await stored(game)).revision;
+      const cursor={epoch:room.matchEpoch,revision,sequence:1,x:-2048,y:512,tile:7,seat:0};
+      game.clients[0].socket.send(encodeStageCursor(cursor));
+      for(const client of game.clients) expect(await client.next(ServerMessageType.StageCursor)).toEqual({
+        type:ServerMessageType.StageCursor,peerId:game.clients[0].peerId,cursor});
+      // Network jitter can deliver two 20 Hz samples together. Keep the final
+      // position instead of dropping it because it arrived soon after another.
+      game.clients[0].socket.send(encodeStageCursor({...cursor,sequence:2,x:1024}));
+      for(const client of game.clients)expect((await client.next(ServerMessageType.StageCursor)).cursor.x).toBe(1024);
+      await evictDurableObject(game.room);
+      // Invalid senders, rounds, seats and duplicate packets are ignored.
+      game.clients[1].socket.send(encodeStageCursor({...cursor,sequence:2}));
+      for(const bad of [{epoch:cursor.epoch+1},{revision:revision+1},{seat:1},{sequence:1}])
+        game.clients[0].socket.send(encodeStageCursor({...cursor,sequence:2,...bad}));
+      game.clients[0].socket.send(encodeUpdate({name:"cursor barrier"},16384));
+      await expect.poll(async()=>(await presence(game)).participants[0].name).toBe("cursor barrier");
+      const attachments=await runInDurableObject(game.room,(_instance,ctx)=>ctx.getWebSockets().map(s=>s.deserializeAttachment()));
+      expect(attachments.find(p=>p.peerId===game.clients[0].peerId).stageCursor.sequence).toBe(2);
+      expect(attachments.find(p=>p.peerId===game.clients[1].peerId).stageCursor).toBeUndefined();
+      expect((await stored(game)).revision).toBe(revision);
+      expect((await presence(game)).stage).toBe(255);
+      await select(game.clients[1],1,false);await state(game.clients[0],0);
+      game.clients[0].socket.send(encodeStageCursor({...cursor,sequence:3}));
+      game.clients[0].socket.send(encodeUpdate({name:"cancel barrier"},16384));
+      await expect.poll(async()=>(await presence(game)).participants[0].name).toBe("cancel barrier");
+      expect((await stored(game)).phase).toBe(0);
+    } finally {await game.close();}
+  });
+
+  it("lets either active player move the shared cursor with stage policy On",async()=>{
+    const game=await setup(0);
+    try {
+      for(const client of game.clients)await select(client,1);await state(game.clients[0],1);await expire(game);
+      const room=await presence(game),revision=(await stored(game)).revision;
+      for(const sender of game.clients) {
+        const cursor={epoch:room.matchEpoch,revision,sequence:1,x:1536,y:-1024,tile:14,seat:0};
+        sender.socket.send(encodeStageCursor(cursor));
+        for(const client of game.clients)expect((await client.next(ServerMessageType.StageCursor)).peerId).toBe(sender.peerId);
+      }
+      expect((await presence(game)).stage).toBe(255);
+    }finally{await game.close();}
+  });
+
   it("validates rules and implements the full stock ordered/random catalogs",()=>{
     expect(decodeLobbyRules(encodeLobbyRules(rules))).toEqual(rules);
     const bad=encodeLobbyRules(rules);bad[5]=5;expect(()=>decodeLobbyRules(bad)).toThrow();

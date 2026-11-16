@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <SDL3/SDL.h>
+#include "native_hub_hand.h"
 
 namespace {
 constexpr const char* stages[] = {"Battlefield", "Final Destination",
@@ -13,6 +15,12 @@ struct StageChoice {
     unsigned stage = 255, seat = 0;
     bool local = false;
 };
+struct {
+    uint64_t sent_ms;
+    uint32_t sequence;
+    float x, y;
+    bool dirty;
+} cursor;
 
 StageChoice choice()
 {
@@ -51,7 +59,31 @@ bool nativeHubQuickStage_OpenRound()
     epoch = quick->completed_epoch;
     std::snprintf(room,sizeof(room),"%s",current);
     hub.stage_seat = 0;
+    cursor = {};
     return true;
+}
+
+void nativeHubQuickStage_Tick()
+{
+    const auto* quick = nativeOnlineSession_Quick();
+    if (!hub.visible || hub.page != NativeHubPage_QuickStage || !quick || quick->phase != 3 ||
+        quick->team != quick->chooser) return;
+    if (cursor.x != hub.pointer_x || cursor.y != hub.pointer_y) {
+        cursor.x = hub.pointer_x; cursor.y = hub.pointer_y; cursor.dirty = true;
+    }
+    uint64_t now = SDL_GetTicks();
+    if (!cursor.dirty || now - cursor.sent_ms < 50) return;
+    NativeStageCursor update{};
+    update.x = int16_t(std::clamp((cursor.x / 640.f * 54.f - 27.f) * 256.f, -6912.f, 6912.f));
+    update.y = int16_t(std::clamp((19.f - cursor.y / 480.f * 38.f) * 256.f, -4864.f, 4864.f));
+    update.tile = 29;
+    for (unsigned stage = 0; stage < 6; ++stage) {
+        float x = 175 + (stage % 2) * 220, y = 148 + (stage / 2) * 57;
+        if (cursor.x >= x && cursor.x < x+210 && cursor.y >= y && cursor.y < y+49) update.tile = stage;
+    }
+    update.seat = hub.stage_seat;
+    update.sequence = ++cursor.sequence;
+    if (nativeOnlineSession_PublishStageCursor(&update)) { cursor.dirty = false; cursor.sent_ms = now; }
 }
 
 void nativeHubQuickStage_Render()
@@ -105,6 +137,27 @@ void nativeHubQuickStage_Render()
         }
     }
     nativeHub_Button("stage-leave","Leave match",480,379,125,24,HubAction::LeaveQuick);
+    const auto* shared = nativeOnlineSession_StageCursor();
+    if (shared && std::strcmp(shared->peer_id, nativeOnlineSession_LocalPeerId())) {
+        const auto* presence = nativeOnlineSession_Presence();
+        for (unsigned i = 0; presence && i < presence->participant_count; ++i) {
+            const auto& person = presence->participants[i];
+            if (std::strcmp(person.peer_id, shared->peer_id)) continue;
+            char label[128];
+            std::snprintf(label, sizeof(label), "%s / P%u is choosing", person.name, shared->seat + 1);
+            nativeMenuPaint_Text(label, 175, 414, 430, 10, gold);
+            break;
+        }
+    }
+}
+
+void nativeHubQuickStage_DrawCursor(const Mtx canvas)
+{
+    if (hub.page != NativeHubPage_QuickStage) return;
+    const auto* shared = nativeOnlineSession_StageCursor();
+    if (!shared || !std::strcmp(shared->peer_id, nativeOnlineSession_LocalPeerId())) return;
+    nativeHubHand_Draw((shared->x / 256.f + 27.f) / 54.f * 640.f,
+                      (19.f - shared->y / 256.f) / 38.f * 480.f, false, canvas);
 }
 
 bool nativeHubQuickStage_Activate(HubAction action, int value)

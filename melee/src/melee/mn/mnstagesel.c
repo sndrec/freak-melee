@@ -316,6 +316,12 @@ void fn_8025A310(HSD_GObj* gobj)
         return;
     }
     HSD_JObjGetTranslation(jobj, &sp1C);
+#ifdef MELEE_NATIVE
+    uint8_t shared_tile;
+    if (nativeOnlineSss_ReadCursor(&sp1C.x, &sp1C.y, &shared_tile))
+        mnStageSel_804D6CAE = shared_tile;
+    bool moved = mnStageSel_804D6CAC != 0 || mnStageSel_804D6CAD != 0;
+#endif
     sp1C.x = 0.03f * mnStageSel_804D6CAC + sp1C.x;
     if (-27.0F > sp1C.x) {
         sp1C.x = -27.0F;
@@ -332,6 +338,9 @@ void fn_8025A310(HSD_GObj* gobj)
     }
 
     HSD_JObjSetTranslate(jobj, &sp1C);
+#ifdef MELEE_NATIVE
+    Vec3 local_cursor = sp1C;
+#endif
     lb_8000B1CC(jobj, NULL, &sp1C);
     for (i = 0; i < 0x1E; i++) {
         if (mnStageSel_803F06D0[i].x8 != 0) {
@@ -343,11 +352,15 @@ void fn_8025A310(HSD_GObj* gobj)
                     sp10.y + mnStageSel_803F06D0[i].x10 > sp1C.y)
                 {
                     mnStageSel_804D6CAE = i;
-                    return;
+                    break;
                 }
             }
         }
     }
+#ifdef MELEE_NATIVE
+    nativeOnlineSss_WriteCursor(local_cursor.x, local_cursor.y,
+                                mnStageSel_804D6CAE, moved);
+#endif
 }
 
 void fn_8025A560(HSD_GObj* gobj)
@@ -478,6 +491,9 @@ void mnStageSel_Scene_OnEnter(void* arg0)
     PAD_STACK(0xDC - 0x50);
 
     sss_data = (SSSData*) arg0;
+#ifdef MELEE_NATIVE
+    fprintf(stderr, "[stage-select] Entered native stage-select scene.\n");
+#endif
 
     if (sss_data->force_stage_id < 0) {
 #if defined(MELEE_NATIVE)
@@ -798,6 +814,12 @@ void mnStageSel_Scene_OnEnter(void* arg0)
         }
 
         lbAudioAx_80023F28(gmMainLib_8015ECB0());
+#ifdef MELEE_NATIVE
+        if (nativeOnlineSss_IsActive()) {
+            HSD_GObj* label = GObj_Create(0, 5, 0x80);
+            GObj_SetupGXLink(label, nativeOnlineSss_DrawChooser, 4, 0x88);
+        }
+#endif
     }
 }
 

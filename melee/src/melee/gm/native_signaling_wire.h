@@ -39,7 +39,16 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_Lobbies,
     NativeSignalingServerMessage_Listing,
     NativeSignalingServerMessage_LobbyState,
+    NativeSignalingServerMessage_StageCursor,
 } NativeSignalingServerMessageType;
+
+typedef struct NativeStageCursor {
+    char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    uint64_t epoch, revision;
+    uint32_t sequence;
+    int16_t x, y; // Original stage-menu coordinates, in units of 1/256.
+    uint8_t tile, seat;
+} NativeStageCursor;
 
 typedef struct NativeLobbyListing {
     char title[65];
@@ -153,6 +162,7 @@ typedef struct NativeSignalingServerMessage {
         NativeLobbyListing listing;
         NativeLobbyDirectory directory;
         NativeRoomLobbyState lobby;
+        NativeStageCursor stage_cursor;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
@@ -163,6 +173,8 @@ size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output,
                                         size_t capacity);
 size_t nativeSignalingWire_EncodeLobbyRules(const NativeRoomRules* rules, uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeStageCursor(const NativeStageCursor* cursor,
+                                             uint8_t* output, size_t capacity);
 
 typedef struct NativeSignalingUpdate {
     const char* name;

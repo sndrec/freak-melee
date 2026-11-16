@@ -73,6 +73,7 @@ static struct {
     bool have_local_players;
     bool start_requested;
     bool enter_stage_select;
+    bool enter_match_setup;
     bool online_match;
     bool watch_results;
     bool authoring;
@@ -1653,7 +1654,7 @@ bool nativeHome_CanStartMatch(void)
 {
     if (nativeOnlineSession_Quick()) return false;
     if (home.authoring || home.preview_active ||
-        !nativeHome_IsPractice() || home.enter_stage_select) {
+        !nativeHome_IsPractice() || home.enter_stage_select || home.enter_match_setup) {
         return false;
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
@@ -1715,7 +1716,7 @@ bool nativeHome_IsReady(void)
 }
 bool nativeHome_SetReady(bool ready)
 {
-    if (!nativeHome_IsPractice() || home.authoring || home.preview_active || home.enter_stage_select ||
+    if (!nativeHome_IsPractice() || home.authoring || home.preview_active || home.enter_stage_select || home.enter_match_setup ||
         nativeOnlineSession_State()!=NativeLobbySessionState_Waiting) return false;
     const NativeQuickAssignment* quick=nativeOnlineSession_Quick();
     if (!ready && quick && quick->state==NativeQuickState_Assigned && !nativeOnlineSession_UnreadyQuick()) return false;
@@ -1727,7 +1728,7 @@ bool nativeHome_SetReady(bool ready)
 bool nativeHome_ReturnToSelection(void)
 {
     if (!nativeHome_IsPractice() || home.authoring || home.preview_active ||
-        home.enter_stage_select) return false;
+        home.enter_stage_select || home.enter_match_setup) return false;
     const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
     if (quick && quick->state == NativeQuickState_Assigned && quick->phase <= 2 &&
         !nativeOnlineSession_UnreadyQuick()) return false;
@@ -1748,6 +1749,7 @@ void nativeHome_EnterSelection(CSSData* css)
     nativeMatchLaunch_ClearNetplay();
     home.start_requested = false;
     home.enter_stage_select = false;
+    home.enter_match_setup = false;
     home.online_match = false;
     home.result_local_ports = 0;
     home.selection.confirmed = false;
@@ -1979,12 +1981,15 @@ void nativeHome_ExitPractice(void)
         gm_SetNextGameModeStateId(gmVsMode_State_WatchPrepare);
         return;
     }
-    if (home.enter_stage_select) {
+    if (home.enter_match_setup || home.enter_stage_select) {
         prepare_preload(gmVsMelee_GetVsData(), false);
-        gm_SetNextGameModeStateId(gmVsMode_State_Sss);
+        gm_SetNextGameModeStateId(home.enter_match_setup
+                                     ? gmVsMode_State_MatchPrepare
+                                     : gmVsMode_State_Sss);
     } else {
         home.selection.confirmed = false;
         home.selection.start_requested = false;
+        nativeHub_ReturnToCss();
         gm_SetNextGameModeStateId(gmVsMode_State_Css);
     }
 }
@@ -2110,10 +2115,24 @@ void nativeHome_Tick(void)
             nativeHome_PublishRoomMatch(presence->stage);
     }
     if (home.authoring || home.preview_active ||
-        !nativeHome_IsPractice() || home.enter_stage_select) {
+        !nativeHome_IsPractice() || home.enter_stage_select || home.enter_match_setup) {
         return;
     }
-    if (nativeOnlineSession_Quick()) {
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    const NativeRoomLobbyState* lobby = nativeOnlineSession_LobbyState();
+    bool automatic_stage = lobby && lobby->has_rules &&
+        (lobby->rules.stage_policy == 1 || lobby->rules.stage_policy == 2);
+    bool selected_stage = lobby && lobby->phase == 2 && presence &&
+                          presence->stage != UINT8_MAX;
+    if (selected_stage && !presence->match_size &&
+        nativeOnlineSession_IsOwner()) {
+        nativeHome_PublishRoomMatch(presence->stage);
+    }
+    NativeLobbySessionState state = nativeOnlineSession_State();
+    // Another PC can finish a manual pick before this PC has left practice.
+    // Once a stage/proposal exists, retire practice and join setup directly.
+    if (nativeOnlineSession_Quick() || automatic_stage || selected_stage ||
+        state == NativeLobbySessionState_Starting || state == NativeLobbySessionState_Ready) {
         const NativeLobbyMatch* match = nativeOnlineSession_Match();
         if (match && (nativeOnlineSession_State() == NativeLobbySessionState_Starting ||
                       nativeOnlineSession_State() == NativeLobbySessionState_Ready)) {
@@ -2127,7 +2146,7 @@ void nativeHome_Tick(void)
                 for (unsigned port = 0; port < 4; ++port)
                     combined.start.players[port].team = match->slots[port].team;
                 *gmVsMelee_GetVsData() = combined;
-                home.enter_stage_select = home.online_match = true;
+                home.enter_match_setup = home.online_match = true;
                 gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
             }
         }

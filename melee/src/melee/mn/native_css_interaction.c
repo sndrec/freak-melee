@@ -21,13 +21,6 @@
 #include <string.h>
 #include <stdio.h>
 
-void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass)
-{
-    // Hub pages own their hand; the underlying CSS keeps its hand/token state.
-    if (!nativeHub_IsVisible())
-        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
-}
-
 static struct {
     CSSData* css;
     CSSDoorsData* doors;
@@ -46,6 +39,22 @@ static struct {
         bool enabled, active, down, moved, place_on_release;
     } pointer;
 } selection;
+
+void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass)
+{
+    const CSSCursorData* hand = HSD_GObjGetUserData(object);
+    if (!nativeHub_IsVisible() && selection.doors && hand->x4 < 4 &&
+        selection.doors->doors[hand->x4].p_kind == Gm_PKind_Human)
+        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
+}
+
+void nativeCssInteraction_DrawLocalToken(HSD_GObj* object, int pass)
+{
+    const CSSCharModel* token = HSD_GObjGetUserData(object);
+    if (!nativeHub_IsVisible() && selection.doors && token->x4 < 4 &&
+        selection.doors->doors[token->x4].p_kind != Gm_PKind_NA)
+        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
+}
 
 void nativeCssInteraction_EnablePointer(bool enabled)
 {
@@ -337,6 +346,10 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         return false;
     }
     unsigned port = hand->x4;
+    if (selection.doors->doors[port].p_kind != Gm_PKind_Human) {
+        *menu_trigger = 0;
+        return true;
+    }
     const HSD_PadStatus* pad = &HSD_PadCopyStatus[port];
     bool pointer = nativeCssInteraction_PointerPort(port);
     if (pad->err && !pointer) {

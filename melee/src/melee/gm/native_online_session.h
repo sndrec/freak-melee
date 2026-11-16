@@ -73,6 +73,8 @@ uint8_t nativeOnlineSession_LocalPlayers(void);
 uint8_t nativeOnlineSession_LocalActiveSeats(void);
 bool nativeOnlineSession_IsOwner(void);
 int nativeOnlineSession_StagePort(void);
+const NativeStageCursor* nativeOnlineSession_StageCursor(void);
+bool nativeOnlineSession_PublishStageCursor(NativeStageCursor* cursor);
 bool nativeOnlineSession_PickStage(uint8_t stage);
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy);
 struct MatchEnd;

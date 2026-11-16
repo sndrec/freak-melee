@@ -31,6 +31,7 @@ enum {
     CLIENT_REQUEST_LOBBIES = 19,
     CLIENT_SET_LOBBY_RULES = 20,
     CLIENT_REQUEST_LOBBY_STATE = 21,
+    CLIENT_STAGE_CURSOR = 22,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -44,6 +45,7 @@ enum {
     SERVER_LOBBIES = 0x8B,
     SERVER_LISTING = 0x8C,
     SERVER_LOBBY_STATE = 0x8D,
+    SERVER_STAGE_CURSOR = 0x8E,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -453,6 +455,22 @@ size_t nativeSignalingWire_EncodeLobbyRules(const NativeRoomRules* rules, uint8_
     return writer_finish(&writer);
 }
 
+size_t nativeSignalingWire_EncodeStageCursor(const NativeStageCursor* cursor,
+                                             uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    if (!cursor || !cursor->sequence || cursor->seat > 3 || cursor->tile > 29 ||
+        cursor->x < -27*256 || cursor->x > 27*256 ||
+        cursor->y < -19*256 || cursor->y > 19*256 ||
+        !writer_begin(&writer, output, capacity, CLIENT_STAGE_CURSOR) ||
+        !writer_u64(&writer, cursor->epoch) || !writer_u64(&writer, cursor->revision) ||
+        !writer_u32(&writer, cursor->sequence) ||
+        !writer_u16(&writer, (uint16_t) cursor->x) ||
+        !writer_u16(&writer, (uint16_t) cursor->y) ||
+        !writer_u8(&writer, cursor->tile) || !writer_u8(&writer, cursor->seat)) return 0;
+    return writer_finish(&writer);
+}
+
 size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity)
 {
     WireWriter writer;
@@ -610,6 +628,23 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_STAGE_CURSOR: {
+        NativeStageCursor* cursor = &output->data.stage_cursor;
+        uint16_t x, y;
+        output->type = NativeSignalingServerMessage_StageCursor;
+        if (!reader_string8(&reader, cursor->peer_id, sizeof(cursor->peer_id)) ||
+            !cursor->peer_id[0] || !reader_u64(&reader, &cursor->epoch) ||
+            !reader_u64(&reader, &cursor->revision) ||
+            !reader_u32(&reader, &cursor->sequence) || !cursor->sequence ||
+            !reader_u16(&reader, &x) || !reader_u16(&reader, &y) ||
+            !reader_u8(&reader, &cursor->tile) || cursor->tile > 29 ||
+            !reader_u8(&reader, &cursor->seat) || cursor->seat > 3 ||
+            !reader_finished(&reader)) return false;
+        cursor->x = (int16_t) x;
+        cursor->y = (int16_t) y;
+        return cursor->x >= -27*256 && cursor->x <= 27*256 &&
+               cursor->y >= -19*256 && cursor->y <= 19*256;
+    }
     case SERVER_LOBBY_STATE: {
         NativeRoomLobbyState* state=&output->data.lobby;
         uint8_t bytes[NATIVE_ROOM_RULES_BYTES]; uint16_t size;

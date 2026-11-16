@@ -92,10 +92,26 @@ def main():
     if a.shared_couch and chooser is clients[1]:
      before=re.search(r'\[sss-cursor\].*',chooser.inspect('sss-state'))[0];chooser.tap('A',frames=4,port=0)
      assert re.search(r'\[sss-cursor\].*',chooser.inspect('sss-state'))[0]==before
-    select_stage(chooser,port)
+    select_stage(chooser,port,confirm=False)
+    target=chooser.inspect('sss-state')
+    expected_cursor=list(map(float,re.search(r'\[sss-cursor\] x=([\d.-]+) y=([\d.-]+)',target).groups()))
+    expected_tile=re.search(r'\[sss-state\] selected=(\d+)',target)[1]
+    for observer in active:
+     if observer is chooser:continue
+     def synced():
+      text=observer.inspect('sss-state');cursor=re.search(r'\[sss-cursor\] x=([\d.-]+) y=([\d.-]+)',text)
+      return cursor and all(abs(float(v)-e)<.01 for v,e in zip(cursor.groups(),expected_cursor)) and 'selected='+expected_tile in text
+     wait(synced,'replicated original stage cursor and hover',20)
+     assert 'peer='+room(chooser)['local'] in inspect(observer,'room-state',r'\[room-cursor\]')
+    case['screenshots']['stage-observer']=str((second if chooser is first else first).screenshot())
+    chooser.tap('a',port=port)
    sessions=[session(c,1) for c in active];assert sessions[0][:2]==sessions[1][:2]
    wait(lambda:network(first).get('frame',0)>120,'live agreed match',90)
    case['sessions']=sessions;case['screenshots']['match']=str(first.screenshot())
+   if policy in [1,2]:
+    for c in active:
+     log=(c.folder/'stdout.log').read_text(errors='replace')+c.stderr.read_text(errors='replace')
+     assert '[match-setup] Automatic stage;' in log and '[stage-select] Entered' not in log,log[-3000:]
    if a.spectator_host:assert '[sss-state] inactive' in host.inspect('sss-state') and '[netplay] Session ' not in (host.folder/'stdout.log').read_text(errors='replace')
    # End a real one-stock game and verify the next loser/Turns picker.
    second.command('hold',second_port,'sx=80')

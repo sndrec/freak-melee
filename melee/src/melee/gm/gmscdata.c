@@ -1,6 +1,7 @@
 #include "gmscdata.h"
 #include "gm_1A45.h"
 #include "native_spectator_match.h"
+#include "native_online_match_setup.h"
 
 #include "gm_1A33.h"
 #include "gm_unsplit.h"
@@ -362,6 +363,13 @@ static GameScene scenes[] = {
         gm_Scene_CameraVs_OnFrame,
         gm_Scene_CameraVs_OnEnter,
         gm_Scene_CameraVs_OnExit,
+        NULL,
+    },
+    {
+        GS_NATIVE_MATCH_SETUP,
+        nativeOnlineMatchSetup_Tick,
+        nativeOnlineMatchSetup_Load,
+        NULL,
         NULL,
     },
     {

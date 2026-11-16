@@ -32,6 +32,7 @@ static struct NativeOnlineProcessSession {
     uint32_t lobby_revision;
     uint64_t lobby_countdown_end_ms;
     bool lobby_requested, rules_sent, was_owner;
+    int stage_port;
     bool active;
     bool launch_ready;
     bool match_claimed;
@@ -54,7 +55,7 @@ static struct NativeQuickSession {
     uint64_t unready_revision, unready_epoch;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-lobby-flow";
+static const char online_build[] = "freak-melee-native-dev-stage-cursor";
 const char* nativeOnlineSession_Build(void) { return online_build; }
 const NativeLobbyListing* nativeOnlineSession_Listing(void) {
     return online.active ? &online.lobby.room.connection.listing : NULL;
@@ -460,7 +461,7 @@ bool nativeOnlineSession_Pump(void)
     if (!pump_quick()) return fail_launch("could not connect to the Quick Play match");
     if (!pumped) return online.lobby.state != NativeLobbySessionState_Failed;
     if (online.lobby.state == NativeLobbySessionState_Ready &&
-        !online.launch_ready && (!quick.assignment.mode || !nativeHome_IsPractice()))
+        !online.launch_ready && !nativeHome_IsPractice())
     {
         if (!nativeMatchLaunch_AdoptLobbyRoom(&online.lobby.room)) {
             return fail_launch("could not apply the agreed room match");
@@ -716,6 +717,10 @@ void nativeOnlineSession_Inspect(void)
     if (failure) fprintf(stderr, "[room-failure] %s\n", failure);
     if (p) fprintf(stderr, "[room-stage] peer=%s seat=%u stage=%u physical=%d\n",
         p->stage_peer_id, p->stage_seat, p->stage, nativeOnlineSession_StagePort());
+    const NativeStageCursor* cursor = nativeOnlineSession_StageCursor();
+    if (cursor) fprintf(stderr, "[room-cursor] peer=%s seat=%u tile=%u x=%d y=%d sequence=%u epoch=%llu revision=%llu\n",
+        cursor->peer_id, cursor->seat, cursor->tile, cursor->x, cursor->y, cursor->sequence,
+        (unsigned long long)cursor->epoch, (unsigned long long)cursor->revision);
     const NativeRoomLobbyState* flow=nativeOnlineSession_LobbyState();
     if (flow) fprintf(stderr,"[room-flow] revision=%llu phase=%u remaining=%u rules=%u mode=%u stock=%u timer=%u stage_policy=%u damage=%u penalty=%u teams=%u\n",
         (unsigned long long)flow->revision,flow->phase,nativeOnlineSession_LobbyCountdownMs(),flow->has_rules,
@@ -816,21 +821,64 @@ int nativeOnlineSession_StagePort(void)
     const NativeRoomLobbyState* state=nativeOnlineSession_LobbyState();
     if (p && state && state->has_rules && state->phase==2 && state->rules.stage_policy==0) {
         uint8_t mask=nativeOnlineSession_LocalActiveSeats();
-        int selected=-1;
+        int selected=-1, moving=-1;
         for (unsigned seat=0;seat<online.local_players;++seat) {
             if (!(mask&(1U<<seat))) continue;
             int physical=nativeHome_PhysicalPortForLocalPlayer(seat);
             if (physical<0 || physical>=4) continue;
             const HSD_PadStatus* pad=&HSD_PadCopyStatus[physical];
             if (pad->err) continue;
-            if (pad->trigger) return physical;
-            if (selected<0 || pad->stickX < -30 || pad->stickX > 30 || pad->stickY < -30 || pad->stickY > 30) selected=physical;
+            if (pad->trigger) return online.stage_port=physical;
+            if (selected<0 || physical==online.stage_port) selected=physical;
+            if (pad->stickX < -30 || pad->stickX > 30 || pad->stickY < -30 || pad->stickY > 30) moving=physical;
         }
-        return selected;
+        return online.stage_port=moving>=0?moving:selected;
     }
     if (!p || quick.assignment.mode || p->stage_seat >= online.local_players ||
         strcmp(p->stage_peer_id, online.peer_id) != 0) return -1;
     return nativeHome_PhysicalPortForLocalPlayer(p->stage_seat);
+}
+
+const NativeStageCursor* nativeOnlineSession_StageCursor(void)
+{
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    const NativeRoomLobbyState* lobby = nativeOnlineSession_LobbyState();
+    const NativeStageCursor* cursor = &online.lobby.room.connection.stage_cursor;
+    if (quick.assignment.mode)
+        return quick.assignment.state == NativeQuickState_Assigned && quick.assignment.phase == 3 &&
+            cursor->sequence && !cursor->revision && cursor->epoch == quick.assignment.completed_epoch
+                ? cursor : NULL;
+    return presence && lobby && lobby->phase == 2 &&
+        presence->stage == UINT8_MAX && cursor->sequence &&
+        cursor->epoch == presence->match_epoch && cursor->revision == lobby->revision
+            ? cursor : NULL;
+}
+
+bool nativeOnlineSession_PublishStageCursor(NativeStageCursor* cursor)
+{
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    const NativeRoomLobbyState* lobby = nativeOnlineSession_LobbyState();
+    if (cursor && quick.assignment.mode) {
+        if (quick.assignment.state != NativeQuickState_Assigned || quick.assignment.phase != 3 ||
+            quick.assignment.team != quick.assignment.chooser || cursor->seat >= online.local_players) return false;
+        cursor->epoch = quick.assignment.completed_epoch;
+        cursor->revision = 0;
+        snprintf(cursor->peer_id, sizeof(cursor->peer_id), "%s", online.peer_id);
+        return nativeSignalingClient_StageCursor(&online.lobby.room.connection.signaling, cursor);
+    }
+    int port = nativeOnlineSession_StagePort();
+    if (!cursor || !presence || !lobby || lobby->phase != 2 ||
+        presence->stage != UINT8_MAX || port < 0 ||
+        online.lobby.state != NativeLobbySessionState_Waiting) return false;
+    unsigned seat;
+    for (seat = 0; seat < online.local_players; ++seat)
+        if (nativeHome_PhysicalPortForLocalPlayer(seat) == port) break;
+    if (seat == online.local_players) return false;
+    cursor->epoch = presence->match_epoch;
+    cursor->revision = lobby->revision;
+    cursor->seat = seat;
+    snprintf(cursor->peer_id, sizeof(cursor->peer_id), "%s", online.peer_id);
+    return nativeSignalingClient_StageCursor(&online.lobby.room.connection.signaling, cursor);
 }
 
 bool nativeOnlineSession_PickStage(uint8_t stage)

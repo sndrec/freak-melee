@@ -994,6 +994,14 @@ extern "C" bool nativeHub_ConsumesGameInput(void)
 {
     return hub.visible || hub.consumes_input || nativeCssChat_Focused();
 }
+extern "C" void nativeHub_ReturnToCss(void)
+{
+    hub.enter_lobby_css = true;
+    hub.dismissed = true;
+    hub.visible = false;
+    nativeHub_ReleasePointer();
+}
+
 extern "C" void nativeHub_Tick(void)
 {
     if (nativeMatchLaunch_IsDirect()) {
@@ -1216,6 +1224,7 @@ extern "C" void nativeHub_Tick(void)
     nativeHubSettings_Input();
     nativeHubStartupTriggers_Update();
     nativeHubNews_Input();
+    nativeHubQuickStage_Tick();
     if (nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Placement) nativeHubStartupStamp_Move();
 }
 extern "C" void nativeHub_Draw(void)
@@ -1293,6 +1302,7 @@ extern "C" void nativeHub_Draw(void)
         nativeHub_RenderSession();
     nativeHubDefaults_Render();
     nativeHubHand_Draw(hub.pointer_x, hub.pointer_y, hub.pressed, canvas);
+    nativeHubQuickStage_DrawCursor(canvas);
     nativeMenuPaint_Begin(canvas);
     nativePlayMenu_DrawCountdown();
     nativeHubNotice_Draw();

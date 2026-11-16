@@ -667,6 +667,17 @@ bool nativeSignalingClient_SetLobbyRules(NativeSignalingClient* client, const Na
     return queued;
 }
 
+bool nativeSignalingClient_StageCursor(NativeSignalingClient* client,
+                                       const NativeStageCursor* cursor)
+{
+    uint8_t bytes[34];
+    size_t size = nativeSignalingWire_EncodeStageCursor(cursor, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+                  command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_RequestLobbyState(NativeSignalingClient* client)
 {
     uint8_t bytes[8];

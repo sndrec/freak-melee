@@ -56,7 +56,7 @@ def choose(client, fighter, title, port):
     raise RuntimeError('Installed outfit could not be selected: '+text)
 
 
-def select_stage(client, port=0):
+def select_stage(client, port=0, confirm=True):
     text = wait(lambda: (s if '[sss-cursor]' in (s := client.inspect('sss-state')) else None), 'stage select')
     tile = re.search(r'\[sss-tile\] index=(\d+) stage=32 x=([\d.-]+) y=([\d.-]+)', text)
     assert tile, text
@@ -82,7 +82,8 @@ def select_stage(client, port=0):
             raise RuntimeError('Stage cursor failed to reach '+axis)
     text = client.inspect('sss-state')
     assert 'selected='+index in text, text
-    client.tap('a', port=port)
+    if confirm:
+        client.tap('a', port=port)
 
 
 def session(client):

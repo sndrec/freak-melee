@@ -108,6 +108,10 @@ GameModeState gm_Mode_Vs_States[] = {
         { GS_NATIVE_WATCH_SETUP, NULL, NULL },
     },
     {
+        gmVsMode_State_MatchPrepare, lbDvdPreload_3, 0, NULL, NULL,
+        { GS_NATIVE_MATCH_SETUP, NULL, NULL },
+    },
+    {
         gmVsMode_State_Approach,
         lbDvdPreload_2,
         0,
