@@ -8,12 +8,14 @@
 #include <windows.h>
 
 #include <melee/gm/native_signaling_client.h>
+#include "native_probe_identity.h"
 
 typedef struct ProbePeer {
     NativeSignalingClient client;
     const char* id;
     bool connected;
     bool welcomed;
+    unsigned welcome_count;
     bool saw_both;
     bool saw_assignment;
     bool saw_host_override;
@@ -44,6 +46,7 @@ static bool consume(ProbePeer* peer)
         }
         switch (event.message.type) {
         case NativeSignalingServerMessage_Welcome:
+            ++peer->welcome_count;
             printf("%s welcome revision %llu\n", peer->id,
                    (unsigned long long) event.message.data.welcome.revision);
             fflush(stdout);
@@ -150,12 +153,14 @@ static bool consume(ProbePeer* peer)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <http-or-https-signaling-origin>\n", argv[0]);
+    if (argc != 2 && !(argc == 4 && !strcmp(argv[2], "--hold"))) {
+        fprintf(stderr, "usage: %s <http-or-https-signaling-origin> [--hold SECONDS]\n", argv[0]);
         return 2;
     }
     static ProbePeer first = { .id = "peer_one" };
     static ProbePeer second = { .id = "peer_two" };
+    char guest_keys[2][65];
+    if (!nativeProbeGuestKey(guest_keys[0]) || !nativeProbeGuestKey(guest_keys[1])) return 2;
     char room_id[10];
     snprintf(room_id, sizeof(room_id), "P%08lX",
              (unsigned long) GetCurrentProcessId());
@@ -163,6 +168,7 @@ int main(int argc, char** argv)
         .endpoint = argv[1],
         .room_id = room_id,
         .peer_id = first.id,
+        .guest_key = guest_keys[0],
         .name = "Alice Local",
         .build = "native-probe-build",
         .local_players = 3,
@@ -171,6 +177,7 @@ int main(int argc, char** argv)
         .endpoint = argv[1],
         .room_id = room_id,
         .peer_id = second.id,
+        .guest_key = guest_keys[1],
         .name = "Bob Local",
         .build = "native-probe-build",
         .local_players = 3,
@@ -287,6 +294,17 @@ int main(int argc, char** argv)
                   first.signal_acknowledged && second.signal_received &&
                   first.saw_rotation && second.saw_rotation &&
                   first.saw_rotated && second.saw_rotated;
+    if (passed && argc == 4) {
+        uint64_t held_until = GetTickCount64() + (uint64_t) atoi(argv[3]) * 1000;
+        while (passed && GetTickCount64() < held_until) {
+            passed = consume(&first) && consume(&second);
+            Sleep(10);
+        }
+        uint64_t now = GetTickCount64();
+        passed = passed && now - atomic_load(&first.client.last_receive_ms) < 15000 &&
+            now - atomic_load(&second.client.last_receive_ms) < 15000;
+        printf("hold welcomes=%u,%u heartbeat-fresh=%d\n", first.welcome_count, second.welcome_count, passed);
+    }
     nativeSignalingClient_Stop(&first.client);
     nativeSignalingClient_Stop(&second.client);
     if (!passed) {

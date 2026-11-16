@@ -1,9 +1,11 @@
+import { guestHeaders } from "./guest";
 import { exports } from "cloudflare:workers";
 import { decodeServerMessage, ServerMessageType, type ServerMessage,
   encodeConfigureQuick, encodeQueueQuick, encodeRequestQuick } from "../src/wire";
 import type { QuickState } from "../src/quick-play";
 const worker = exports.default as unknown as Fetcher;
 export class QuickClient {
+  pongs = 0;
   peerId = "";
   connectionId = "";
   presenceRevision = 0;
@@ -15,6 +17,7 @@ export class QuickClient {
     socket.addEventListener("message", (event) => {
       this.receiving = this.receiving.then(async () => {
         const data: unknown = event.data;
+        if (data === "pong") { ++this.pongs; return; }
         let bytes: ArrayBuffer;
         if (ArrayBuffer.isView(data)) bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice().buffer;
         else if (typeof data === "object" && data !== null && "arrayBuffer" in data && typeof data.arrayBuffer === "function") bytes = await data.arrayBuffer() as ArrayBuffer;
@@ -67,7 +70,7 @@ export async function quickConnect(room: string, peer: string, players = 1,
   const query = new URLSearchParams({ peer, name: peer, build, players: String(players) });
   if (admission) query.set("admission", admission);
   return worker.fetch(`https://test/v1/rooms/${room}/connect?${query}`, { headers: {
-    Upgrade: "websocket", ...(connection ? { "X-Freak-Connection": connection } : {}),
+    Upgrade: "websocket", ...guestHeaders(peer), ...(connection ? { "X-Freak-Connection": connection } : {}),
   } });
 }
 export async function quickJoin(room: string, peer: string, players = 1, build = "quick-test", admission?: string, connection?: string): Promise<QuickClient> {

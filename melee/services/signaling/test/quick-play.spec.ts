@@ -59,8 +59,7 @@ describe("Quick Play assembly", () => {
         joined.socket.send(encodeSetMatch(new Uint8Array([1,2,3]), 16384));
         await joined.next(ServerMessageType.QuickRejected);
       } finally { await joined.close(); }
-      await a.search();
-      expect((await a.state(2)).matchRoom).toBe(first.matchRoom);
+      expect(a.socket.readyState).not.toBe(WebSocket.OPEN);
     } finally { await a.close(); await b.close(); }
   });
 
@@ -138,20 +137,20 @@ describe("Quick Play assembly", () => {
     } finally { await a.close(); await b.close(); }
   });
 
-  it("separates builds and prevents a peer from searching in two parties", async () => {
+  it("moves a player to the newest party and keeps other builds separate", async () => {
     const a = await quickJoin("QBUILDAA", "same_peer");
+    await a.configure(1); await a.search(); await a.state(1);
     const duplicate = await quickJoin("QDUPLIAA", "same_peer");
     const other = await quickJoin("QBUILDBB", "other_peer", 1, "other-build");
     try {
-      await a.configure(1); await duplicate.configure(1); await other.configure(1);
-      await a.search(); await a.state(1);
-      await duplicate.search(); await duplicate.next(ServerMessageType.QuickRejected); await duplicate.state(0);
+      expect(a.socket.readyState).not.toBe(WebSocket.OPEN);
+      await duplicate.configure(1); await other.configure(1);
+      await duplicate.search(); await duplicate.state(1);
       await other.search(); await other.state(1);
       expect(await runInDurableObject(queue(1), async (_instance, state) =>
         state.storage.sql.exec("SELECT * FROM queue_entries").toArray().length)).toBe(1);
       expect(await runInDurableObject(queue(1, "other-build"), async (_instance, state) =>
         state.storage.sql.exec("SELECT * FROM queue_entries").toArray().length)).toBe(1);
-      await a.cancel(); await duplicate.search(); await duplicate.state(1);
     } finally { await a.close(); await duplicate.close(); await other.close(); }
   });
 

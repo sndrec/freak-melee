@@ -1,3 +1,4 @@
+import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
@@ -28,7 +29,7 @@ function messages(socket: WebSocket) {
   };
 }
 async function connect(path: string) {
-  const response = await worker.fetch(`https://signal.test${path}`, { headers: { Upgrade: "websocket" } });
+  const response = await worker.fetch(`https://signal.test${path}`, { headers: { Upgrade: "websocket", ...guestHeaders(new URL(path, "https://test").searchParams.get("peer") ?? "browser") } });
   expect(response.status).toBe(101);
   const socket = response.webSocket!;
   const next = messages(socket);

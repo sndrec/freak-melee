@@ -4,6 +4,13 @@ export interface FighterChoice {
 }
 const EMPTY_PACKAGE = new Uint8Array(32);
 
+export function unreadySelection(selection: Uint8Array): Uint8Array {
+  const result = selection.slice();
+  if (result.length >= 7 && new DataView(result.buffer).getUint32(0) === 0x464d534c && result[4] === 1)
+    result[6] &= ~3;
+  return result;
+}
+
 // Decode the complete FMSL record before accepting readiness. Inactive local
 // seats may be empty; every fighting seat must have a selected fighter.
 export function lockedChoices(bytes: Uint8Array, players: number,

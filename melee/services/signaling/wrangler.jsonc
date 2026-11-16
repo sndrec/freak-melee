@@ -17,6 +17,10 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "PLAYER_SESSIONS",
+        "class_name": "PlayerSession"
+      },
+      {
         "name": "ROOMS",
         "class_name": "Room"
       },
@@ -76,6 +80,10 @@
     {
       "tag": "social-mailboxes",
       "new_sqlite_classes": ["SocialMailbox", "SocialFriendship"]
+    },
+    {
+      "tag": "player-sessions",
+      "new_sqlite_classes": ["PlayerSession"]
     }
   ],
   "observability": {

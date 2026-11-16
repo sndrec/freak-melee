@@ -279,7 +279,7 @@ static void run_connection(ChatConnection* c)
 {
     size_t buffered = 0;
     bool receiving = false;
-    uint64_t last_receive = GetTickCount64(), next_ping = last_receive + 20000;
+    uint64_t last_receive = GetTickCount64(), next_ping = last_receive + 10000;
     HANDLE handles[] = { network.stop, c->ws.read_done, network.wake };
     for (;;) {
         if (!receiving) {
@@ -301,7 +301,12 @@ static void run_connection(ChatConnection* c)
         uint64_t now = GetTickCount64();
         if (event == WAIT_OBJECT_0 + 1) {
             receiving = false;
-            last_receive = now;
+            if (c->ws.type == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
+                USHORT code = 0; DWORD reason_size = 0; char reason[128];
+                if (WinHttpWebSocketQueryCloseStatus(c->socket, &code, reason, sizeof(reason), &reason_size) == ERROR_SUCCESS &&
+                    (code == 4001 || code == 4002 || code == 1008 || code == 4006)) SetEvent(network.stop);
+                return;
+            }
             if (c->ws.type != WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE &&
                 c->ws.type != WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE)
             {
@@ -320,10 +325,11 @@ static void run_connection(ChatConnection* c)
                 if (packet.type != 0x84 && !push_event(&packet)) {
                     return;
                 }
+                if (packet.type == 0x84) last_receive = now;
                 buffered = 0;
             }
         }
-        if (now - last_receive > 60000) {
+        if (now - last_receive > 45000) {
             return;
         }
         while (pop_command(&c->send)) {
@@ -344,7 +350,7 @@ static void run_connection(ChatConnection* c)
             {
                 return;
             }
-            next_ping = now + 20000;
+            next_ping = now + 10000;
         }
     }
 }

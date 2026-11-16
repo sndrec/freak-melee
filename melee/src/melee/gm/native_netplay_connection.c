@@ -205,8 +205,8 @@ static bool process_signaling(NativeNetplayConnection* connection)
         if (event.type == NativeSignalingClientEvent_Disconnected) {
             connection->signaling_connected = false;
             connection->connection_id[0] = '\0';
-            if (connection->topology_locked ||
-                connection->quick.state == NativeQuickState_Aborted) {
+            if (!event.terminal && (connection->topology_locked ||
+                connection->quick.state == NativeQuickState_Aborted)) {
                 continue;
             }
             fail(connection, event.detail[0] == '\0'

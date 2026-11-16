@@ -1,3 +1,4 @@
+import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
@@ -50,7 +51,7 @@ class Client {
 }
 async function join(room: string, peer: string, name: string): Promise<Client> {
   const query = new URLSearchParams({ peer, name, players: "0", build: "room-chat-test", active: "0", waiting: "0" });
-  const response = await worker.fetch(`https://test/v1/rooms/${room}/connect?${query}`, { headers: { Upgrade: "websocket" } });
+  const response = await worker.fetch(`https://test/v1/rooms/${room}/connect?${query}`, { headers: { Upgrade: "websocket", ...guestHeaders(peer) } });
   expect(response.status).toBe(101);
   const client = new Client(response.webSocket!);
   await client.next(ServerMessageType.Welcome);

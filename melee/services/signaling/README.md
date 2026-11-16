@@ -1,6 +1,6 @@
 # Freak Melee signaling service
 
-## Operator cleanup and disconnect follow-up
+## Connection recovery and operator cleanup
 
 Account-owned Worker bindings can inspect a room with `maintenanceState()`
 and close that exact revision with `closeLobby(revision)`. Closing removes the
@@ -10,10 +10,20 @@ the last received message (including heartbeat), and
 `disconnectPlayer(peer, expectedLastMessageAt)` refuses a stale cleanup request
 if that player has sent another message.
 
-Automatic cleanup after an internet outage remains to be implemented. Add
-server-enforced connection leases to rooms and chat, expire dead sockets even
-when no close event arrives, update lobby listings and chat presence immediately,
-and cover reconnects without removing a player's replacement connection.
+Clients send heartbeats independently of gameplay. After 45 seconds without
+activity, chat hides the missing player and a wholly unreachable lobby is hidden
+from browsing. Seats and lobby state remain reserved for another two minutes.
+Persistent alarms then remove expired connections, even without a close event.
+A remaining participant keeps the lobby alive. The newest connection takes over
+the player's old lobby membership and chat presence.
+
+Signed-in players use their account identity. Guests send a private, persistent
+256-bit installation key in `X-Freak-Guest`; the service stores its SHA-256 hash.
+Display names can be shared by different players. Replacing a connection uses
+connection IDs so late cleanup cannot remove the replacement. See
+[connection recovery](../../docs/native_connection_recovery.md) for checks and
+rollout requirements. Deploy the service together with the matching client;
+old guest clients do not supply an installation key.
 
 This Worker is the low-frequency rendezvous path for native rooms. One
 Cloudflare Durable Object coordinates each room ID. It keeps hibernatable

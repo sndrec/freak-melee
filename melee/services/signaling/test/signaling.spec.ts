@@ -1,3 +1,4 @@
+import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
@@ -113,7 +114,7 @@ async function connect(
     url.searchParams.set("waiting", String(role === "waiting" ? (1 << players) - 1 : 0));
   }
   const response = await worker.fetch(url.toString(), {
-    headers: { Upgrade: "websocket" },
+    headers: { Upgrade: "websocket", ...guestHeaders(url.searchParams.get("peer") ?? "guest") },
   });
   expect(response.status).toBe(101);
   expect(response.webSocket).not.toBeNull();

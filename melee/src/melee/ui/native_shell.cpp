@@ -1,5 +1,7 @@
 #include "native_shell.h"
 #include <melee/gm/native_feedback.h>
+#include <melee/gm/native_account_transport.h>
+#include "native_hub_catalog.h"
 
 #include "native_hub.h"
 #include "native_chat.h"
@@ -310,6 +312,10 @@ extern "C" bool nativeShell_Init(void)
             ->SetProperty("font-family", "Segoe UI");
     }
     document->Show();
+    char guest_root_buffer[512];
+    const char* guest_root = nativeHubCatalog_Root(guest_root_buffer);
+    const char* service_endpoint = SDL_GetEnvironmentVariable(SDL_GetEnvironment(), "FREAK_MELEE_SERVICE_ENDPOINT");
+    if (guest_root) nativeAccountTransport_InitGuest(guest_root, service_endpoint ? service_endpoint : NATIVE_SERVICE_ENDPOINT);
     const char* chat_endpoint = SDL_GetEnvironmentVariable(
         SDL_GetEnvironment(), "FREAK_MELEE_CHAT_ENDPOINT");
     nativeChat_Start(chat_endpoint ? chat_endpoint : NATIVE_SERVICE_ENDPOINT);

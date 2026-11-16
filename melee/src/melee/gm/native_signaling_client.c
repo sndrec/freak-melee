@@ -12,22 +12,28 @@
 #include <string.h>
 
 enum {
-    RECEIVE_TIMEOUT_MS = 50,
     CONNECT_TIMEOUT_MS = 5000,
     SEND_TIMEOUT_MS = 2000,
+    HEARTBEAT_MS = 10000,
+    HEARTBEAT_TIMEOUT_MS = 45000,
 };
 
-typedef struct SignalingConnection {
-    HINTERNET session;
-    HINTERNET connection;
-    HINTERNET request;
-    HINTERNET socket;
-} SignalingConnection;
+typedef struct SignalingIO {
+    HANDLE read_done, write_done, closed;
+    _Atomic DWORD error;
+    DWORD received;
+    WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
+} SignalingIO;
 
-typedef struct SignalingSenderContext {
-    NativeSignalingClient* client;
-    HINTERNET socket;
-} SignalingSenderContext;
+typedef struct SignalingConnection {
+    HINTERNET session, connection, request, socket;
+    SignalingIO http, ws;
+    bool request_callback, socket_callback;
+    bool send_pending;
+    wchar_t headers[192];
+    uint8_t receive[NATIVE_SIGNALING_MAX_MESSAGE_BYTES];
+    NativeSignalingCommandSlot send;
+} SignalingConnection;
 
 static bool copy_bounded(char* output, size_t capacity, const char* input)
 {
@@ -140,6 +146,7 @@ static void push_lifecycle(NativeSignalingClient* client,
     NativeSignalingClientEvent event = {
         .type = type,
         .error_code = error_code,
+        .terminal = error_code == ERROR_ACCESS_DENIED,
     };
     if (detail != NULL) {
         snprintf(event.detail, sizeof(event.detail), "%s", detail);
@@ -200,185 +207,176 @@ static bool build_url(const NativeSignalingClient* client, wchar_t* wide_url,
     return wide_length > 0;
 }
 
-static void close_connection(SignalingConnection* connection)
+static void CALLBACK http_callback(HINTERNET handle, DWORD_PTR context,
+                                   DWORD status, void* info, DWORD size)
 {
-    if (connection->socket != NULL) {
-        WinHttpCloseHandle(connection->socket);
+    (void) handle;
+    SignalingIO* io = (SignalingIO*) context;
+    if (!io) {
+        return;
     }
-    if (connection->request != NULL) {
-        WinHttpCloseHandle(connection->request);
+    switch (status) {
+    case WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING:
+        SetEvent(io->closed);
+        break;
+    case WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE:
+    case WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE:
+    case WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE:
+    case WINHTTP_CALLBACK_STATUS_SHUTDOWN_COMPLETE:
+        SetEvent(io->write_done);
+        break;
+    case WINHTTP_CALLBACK_STATUS_READ_COMPLETE:
+        if (size == sizeof(WINHTTP_WEB_SOCKET_STATUS)) {
+            WINHTTP_WEB_SOCKET_STATUS* result = info;
+            io->received = result->dwBytesTransferred;
+            io->type = result->eBufferType;
+            SetEvent(io->read_done);
+        }
+        break;
+    case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
+        if (size >= sizeof(WINHTTP_ASYNC_RESULT)) {
+            atomic_store_explicit(&io->error,
+                                  ((WINHTTP_ASYNC_RESULT*) info)->dwError,
+                                  memory_order_release);
+            SetEvent(io->read_done);
+            SetEvent(io->write_done);
+        }
+        break;
     }
-    if (connection->connection != NULL) {
-        WinHttpCloseHandle(connection->connection);
-    }
-    if (connection->session != NULL) {
-        WinHttpCloseHandle(connection->session);
-    }
-    *connection = (SignalingConnection) { 0 };
 }
 
-static DWORD open_connection(const NativeSignalingClient* client,
-                             SignalingConnection* output)
+static bool init_io(SignalingIO* io)
 {
-    wchar_t url[1536];
-    if (!build_url(client, url, sizeof(url) / sizeof(url[0]))) {
-        return ERROR_INVALID_PARAMETER;
-    }
-    URL_COMPONENTS components = {
-        .dwStructSize = sizeof(components),
-        .dwHostNameLength = (DWORD) -1,
-        .dwUrlPathLength = (DWORD) -1,
-        .dwExtraInfoLength = (DWORD) -1,
-    };
-    if (!WinHttpCrackUrl(url, 0, 0, &components)) {
-        DWORD error = GetLastError();
-        return error == ERROR_SUCCESS ? ERROR_INVALID_PARAMETER : error;
-    }
-    if (components.nScheme != INTERNET_SCHEME_HTTP &&
-        components.nScheme != INTERNET_SCHEME_HTTPS)
-    {
-        return ERROR_INVALID_PARAMETER;
-    }
-    wchar_t host[256];
-    wchar_t object[1280];
-    if (components.dwHostNameLength >= sizeof(host) / sizeof(host[0]) ||
-        components.dwUrlPathLength + components.dwExtraInfoLength >=
-            sizeof(object) / sizeof(object[0]))
-    {
-        return ERROR_INSUFFICIENT_BUFFER;
-    }
-    memcpy(host, components.lpszHostName,
-           components.dwHostNameLength * sizeof(wchar_t));
-    host[components.dwHostNameLength] = L'\0';
-    memcpy(object, components.lpszUrlPath,
-           components.dwUrlPathLength * sizeof(wchar_t));
-    if (components.dwExtraInfoLength != 0) {
-        memcpy(object + components.dwUrlPathLength, components.lpszExtraInfo,
-               components.dwExtraInfoLength * sizeof(wchar_t));
-    }
-    object[components.dwUrlPathLength + components.dwExtraInfoLength] = L'\0';
-
-    SignalingConnection connection = { 0 };
-    connection.session = WinHttpOpen(
-        L"Freak Melee/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (connection.session == NULL) {
-        return GetLastError();
-    }
-    if (!WinHttpSetTimeouts(connection.session, CONNECT_TIMEOUT_MS,
-                            CONNECT_TIMEOUT_MS, SEND_TIMEOUT_MS,
-                            RECEIVE_TIMEOUT_MS))
-    {
-        DWORD error = GetLastError();
-        close_connection(&connection);
-        return error;
-    }
-    connection.connection =
-        WinHttpConnect(connection.session, host, components.nPort, 0);
-    if (connection.connection == NULL) {
-        DWORD error = GetLastError();
-        close_connection(&connection);
-        return error;
-    }
-    DWORD flags = components.nScheme == INTERNET_SCHEME_HTTPS
-                      ? WINHTTP_FLAG_SECURE
-                      : 0;
-    connection.request = WinHttpOpenRequest(
-        connection.connection, L"GET", object, NULL, WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
-    wchar_t headers[192] = { 0 };
-    if (!client->directory) nativeAccountTransport_Headers(url, headers, 192);
-    DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
-    DWORD disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
-    if (connection.request == NULL ||
-        !WinHttpSetOption(connection.request, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects)) ||
-        !WinHttpSetOption(connection.request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled)) ||
-        !WinHttpSetOption(connection.request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
-                          NULL, 0) ||
-        !WinHttpSendRequest(connection.request, headers, (DWORD) -1,
-                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
-        !WinHttpReceiveResponse(connection.request, NULL))
-    {
-        DWORD error = GetLastError();
-        SecureZeroMemory(headers, sizeof(headers));
-        close_connection(&connection);
-        return error;
-    }
-    SecureZeroMemory(headers, sizeof(headers));
-    DWORD status = 0;
-    DWORD status_size = sizeof(status);
-    if (!WinHttpQueryHeaders(
-            connection.request,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size,
-            WINHTTP_NO_HEADER_INDEX) ||
-        status != 101)
-    {
-        DWORD error = status == 0 ? GetLastError() : ERROR_BAD_NET_RESP;
-        close_connection(&connection);
-        return error;
-    }
-    connection.socket =
-        WinHttpWebSocketCompleteUpgrade(connection.request, 0);
-    if (connection.socket == NULL) {
-        DWORD error = GetLastError();
-        close_connection(&connection);
-        return error;
-    }
-    WinHttpCloseHandle(connection.request);
-    connection.request = NULL;
-    *output = connection;
-    return ERROR_SUCCESS;
+    io->read_done = CreateEventW(NULL, FALSE, FALSE, NULL);
+    io->write_done = CreateEventW(NULL, FALSE, FALSE, NULL);
+    io->closed = CreateEventW(NULL, FALSE, FALSE, NULL);
+    return io->read_done && io->write_done && io->closed;
 }
 
-static DWORD send_commands(NativeSignalingClient* client, HINTERNET socket)
+static void free_io(SignalingIO* io)
 {
-    NativeSignalingCommandSlot command;
-    while (command_pop(&client->commands, &command)) {
-        DWORD result = WinHttpWebSocketSend(
-            socket, WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
-            command.bytes, command.size);
-        if (result != ERROR_SUCCESS) {
-            return result;
+    if (io->read_done) {
+        CloseHandle(io->read_done);
+    }
+    if (io->write_done) {
+        CloseHandle(io->write_done);
+    }
+    if (io->closed) {
+        CloseHandle(io->closed);
+    }
+}
+
+static bool set_callback(HINTERNET handle, SignalingIO* io)
+{
+    DWORD_PTR context = (DWORD_PTR) io;
+    return WinHttpSetOption(handle, WINHTTP_OPTION_CONTEXT_VALUE, &context,
+                            sizeof(context)) &&
+           WinHttpSetStatusCallback(handle, http_callback,
+                                    WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS |
+                                        WINHTTP_CALLBACK_FLAG_HANDLES,
+                                    0) != WINHTTP_INVALID_STATUS_CALLBACK;
+}
+
+static void close_connection(SignalingConnection* c)
+{
+    // Async handle closure cancels pending operations. HANDLE_CLOSING is the
+    // last callback, so buffers and events remain alive until it has arrived.
+    if (c->socket) {
+        WinHttpCloseHandle(c->socket);
+        if (c->socket_callback) {
+            WaitForSingleObject(c->ws.closed, INFINITE);
         }
     }
-    return ERROR_SUCCESS;
+    if (c->request) {
+        WinHttpCloseHandle(c->request);
+        if (c->request_callback) {
+            WaitForSingleObject(c->http.closed, INFINITE);
+        }
+    }
+    if (c->connection) {
+        WinHttpCloseHandle(c->connection);
+    }
+    if (c->session) {
+        WinHttpCloseHandle(c->session);
+    }
+    free_io(&c->ws);
+    free_io(&c->http);
 }
 
-static DWORD receive_message(NativeSignalingClient* client, HINTERNET socket,
-                             uint8_t* buffer, size_t* buffered)
+static DWORD wait_write(NativeSignalingClient* client, SignalingIO* io, bool closing)
 {
-    if (*buffered >= NATIVE_SIGNALING_MAX_MESSAGE_BYTES) {
-        return ERROR_INSUFFICIENT_BUFFER;
+    HANDLE handles[] = { io->write_done, (HANDLE) client->wake_event };
+    uint64_t deadline = GetTickCount64() + (closing ? 1000 : 5000);
+    for (;;) {
+        DWORD event = WaitForMultipleObjects(2, handles, FALSE, 1000);
+        DWORD error = atomic_load_explicit(&io->error, memory_order_acquire);
+        if (error) return error;
+        if (event == WAIT_OBJECT_0) return ERROR_SUCCESS;
+        if (event == WAIT_FAILED) return GetLastError();
+        if (!closing && atomic_load_explicit(&client->stop_requested, memory_order_acquire)) return ERROR_CANCELLED;
+        if (GetTickCount64() >= deadline) return ERROR_TIMEOUT;
     }
-    DWORD received = 0;
-    WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
-    DWORD result = WinHttpWebSocketReceive(
-        socket, buffer + *buffered,
-        (DWORD) (NATIVE_SIGNALING_MAX_MESSAGE_BYTES - *buffered), &received,
-        &type);
-    if (result != ERROR_SUCCESS) {
-        return result;
-    }
-    if (type == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
-        return ERROR_CONNECTION_ABORTED;
-    }
-    if (type != WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE &&
-        type != WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE)
-    {
-        return ERROR_INVALID_DATA;
-    }
-    *buffered += received;
-    if (type == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
-        return ERROR_MORE_DATA;
-    }
+}
+
+static DWORD open_connection(NativeSignalingClient* client, SignalingConnection* c)
+{
+    if (!init_io(&c->http) || !init_io(&c->ws)) return ERROR_NOT_ENOUGH_MEMORY;
+    wchar_t url[1536], host[256], path[1536];
+    if (!build_url(client, url, sizeof(url) / sizeof(url[0]))) return ERROR_INVALID_PARAMETER;
+    URL_COMPONENTS parts = { .dwStructSize = sizeof(parts), .dwHostNameLength = (DWORD) -1,
+        .dwUrlPathLength = (DWORD) -1, .dwExtraInfoLength = (DWORD) -1 };
+    if (!WinHttpCrackUrl(url, 0, 0, &parts) ||
+        (parts.nScheme != INTERNET_SCHEME_HTTP && parts.nScheme != INTERNET_SCHEME_HTTPS) || parts.dwHostNameLength >= 256 ||
+        parts.dwUrlPathLength + parts.dwExtraInfoLength >= 1536) return ERROR_INVALID_PARAMETER;
+    memcpy(host, parts.lpszHostName, parts.dwHostNameLength * sizeof(wchar_t)); host[parts.dwHostNameLength] = 0;
+    memcpy(path, parts.lpszUrlPath, parts.dwUrlPathLength * sizeof(wchar_t));
+    if (parts.dwExtraInfoLength) memcpy(path + parts.dwUrlPathLength, parts.lpszExtraInfo, parts.dwExtraInfoLength * sizeof(wchar_t));
+    path[parts.dwUrlPathLength + parts.dwExtraInfoLength] = 0;
+    c->session = WinHttpOpen(L"Freak Melee Signaling", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC);
+    if (!c->session) return GetLastError();
+    WinHttpSetTimeouts(c->session, CONNECT_TIMEOUT_MS, CONNECT_TIMEOUT_MS, SEND_TIMEOUT_MS, 5000);
+    c->connection = WinHttpConnect(c->session, host, parts.nPort, 0);
+    if (!c->connection) return GetLastError();
+    c->request = WinHttpOpenRequest(c->connection, L"GET", path, NULL, WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES, parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0);
+    if (!c->request) return GetLastError();
+    c->request_callback = set_callback(c->request, &c->http);
+    DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+    DWORD disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
+    if (!c->request_callback ||
+        !WinHttpSetOption(c->request, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects)) ||
+        !WinHttpSetOption(c->request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled)) ||
+        !WinHttpSetOption(c->request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, NULL, 0)) return GetLastError();
+    if (!client->directory) nativeAccountTransport_Headers(url, c->headers, 192);
+    if (*client->guest_key) swprintf_s(c->headers, 192, L"X-Freak-Guest: %hs\r\n", client->guest_key);
+    bool sent = WinHttpSendRequest(c->request, c->headers, (DWORD) -1, WINHTTP_NO_REQUEST_DATA, 0, 0, (DWORD_PTR) &c->http);
+    if (!sent) return GetLastError();
+    DWORD result = wait_write(client, &c->http, false);
+    SecureZeroMemory(c->headers, sizeof(c->headers));
+    if (result != ERROR_SUCCESS) return result;
+    if (!WinHttpReceiveResponse(c->request, NULL)) return GetLastError();
+    result = wait_write(client, &c->http, false);
+    if (result != ERROR_SUCCESS) return result;
+    DWORD status = 0, size = sizeof(status);
+    if (!WinHttpQueryHeaders(c->request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+        WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX)) return GetLastError();
+    if (status != 101) return status >= 400 && status < 500 ? ERROR_ACCESS_DENIED : ERROR_BAD_NET_RESP;
+    c->socket = WinHttpWebSocketCompleteUpgrade(c->request, (DWORD_PTR) &c->ws);
+    if (!c->socket) return GetLastError();
+    c->socket_callback = set_callback(c->socket, &c->ws);
+    return c->socket_callback ? ERROR_SUCCESS : GetLastError();
+}
+
+static DWORD dispatch_message(NativeSignalingClient* client, uint8_t* buffer, size_t size)
+{
     NativeSignalingClientEvent event = {
         .type = NativeSignalingClientEvent_Message,
     };
-    if (!nativeSignalingWire_DecodeServer(buffer, *buffered, &event.message)) {
+    if (!nativeSignalingWire_DecodeServer(buffer, size, &event.message)) {
         return ERROR_INVALID_DATA;
     }
-    *buffered = 0;
+    atomic_store_explicit(&client->last_receive_ms, GetTickCount64(), memory_order_release);
     if (event.message.type == NativeSignalingServerMessage_Chat) {
         NativeSignalingChatQueue* queue = &client->chat;
         uint32_t write = atomic_load_explicit(&queue->write, memory_order_relaxed);
@@ -397,95 +395,100 @@ static DWORD receive_message(NativeSignalingClient* client, HINTERNET socket,
     return ERROR_SUCCESS;
 }
 
-static DWORD WINAPI signaling_sender_thread(void* context)
+static DWORD run_connection(NativeSignalingClient* client, SignalingConnection* c)
 {
-    SignalingSenderContext* sender = context;
-    NativeSignalingClient* client = sender->client;
-    HANDLE wake = (HANDLE) client->wake_event;
-    DWORD result = ERROR_SUCCESS;
-    for (;;) {
-        WaitForSingleObject(wake, INFINITE);
-        bool stopping = atomic_load_explicit(&client->stop_requested,
-                                             memory_order_acquire);
-        result = send_commands(client, sender->socket);
-        if (result != ERROR_SUCCESS) {
-            atomic_store_explicit(&client->worker_error, result,
-                                  memory_order_release);
-            atomic_store_explicit(&client->stop_requested, true,
-                                  memory_order_release);
-            CancelSynchronousIo((HANDLE) client->thread_handle);
-            break;
+    uint8_t* buffer = c->receive;
+    size_t buffered = 0;
+    bool receiving = false;
+    uint64_t last_heartbeat = GetTickCount64(), next_ping = last_heartbeat + HEARTBEAT_MS;
+    HANDLE handles[] = { c->ws.read_done, (HANDLE) client->wake_event };
+    while (!atomic_load_explicit(&client->stop_requested, memory_order_acquire)) {
+        if (!receiving) {
+            if (buffered == sizeof(c->receive)) return ERROR_INSUFFICIENT_BUFFER;
+            DWORD result = WinHttpWebSocketReceive(c->socket, buffer + buffered, (DWORD) (sizeof(c->receive) - buffered), NULL, NULL);
+            if (result) return result;
+            receiving = true;
         }
-        if (stopping) {
-            break;
+        DWORD event = WaitForMultipleObjects(2, handles, FALSE, 1000);
+        DWORD error = atomic_load_explicit(&c->ws.error, memory_order_acquire);
+        if (error) return error;
+        if (event == WAIT_FAILED) return GetLastError();
+        if (event == WAIT_OBJECT_0) {
+            receiving = false;
+            if (c->ws.type == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
+                USHORT code = 0; DWORD reason_size = 0; char reason[128];
+                if (WinHttpWebSocketQueryCloseStatus(c->socket, &code, reason, sizeof(reason), &reason_size) == ERROR_SUCCESS &&
+                    (code == 1000 || code == 1008 || code == 4001 || code == 4002 || code == 4005 || code == 4006)) return ERROR_ACCESS_DENIED;
+                return ERROR_CONNECTION_ABORTED;
+            }
+            if (c->ws.type == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE && !buffered && c->ws.received == 4 && !memcmp(buffer, "pong", 4)) {
+                last_heartbeat = GetTickCount64();
+                atomic_store_explicit(&client->last_receive_ms, last_heartbeat, memory_order_release);
+            } else {
+                if (c->ws.type != WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE &&
+                    c->ws.type != WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) return ERROR_INVALID_DATA;
+                buffered += c->ws.received;
+                if (c->ws.type == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE) {
+                    DWORD result = dispatch_message(client, buffer, buffered);
+                    if (result) return result;
+                    buffered = 0;
+                }
+            }
+        }
+        while (command_pop(&client->commands, &c->send)) {
+            DWORD result = WinHttpWebSocketSend(c->socket, WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE, c->send.bytes, c->send.size);
+            if (!result) { c->send_pending = true; result = wait_write(client, &c->ws, false); }
+            if (result) return result;
+            c->send_pending = false;
+        }
+        uint64_t now = GetTickCount64();
+        if (now - last_heartbeat >= HEARTBEAT_TIMEOUT_MS) return ERROR_TIMEOUT;
+        if (now >= next_ping) {
+            DWORD result = WinHttpWebSocketSend(c->socket, WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE, "ping", 4);
+            if (!result) { c->send_pending = true; result = wait_write(client, &c->ws, false); }
+            if (result) return result;
+            c->send_pending = false;
+            next_ping = now + HEARTBEAT_MS;
         }
     }
-    return result;
+    return ERROR_SUCCESS;
 }
 
 static DWORD WINAPI signaling_thread(void* context)
 {
     NativeSignalingClient* client = context;
-    SignalingConnection connection = { 0 };
-    DWORD result = open_connection(client, &connection);
-    if (result != ERROR_SUCCESS) {
-        push_lifecycle(client, NativeSignalingClientEvent_Disconnected, result,
-                       "WebSocket connection failed");
-        atomic_store_explicit(&client->running, false, memory_order_release);
-        return result;
-    }
-    push_lifecycle(client, NativeSignalingClientEvent_Connected, 0,
-                   "Room signaling connected");
-
-    SignalingSenderContext sender_context = {
-        .client = client,
-        .socket = connection.socket,
-    };
-    HANDLE sender = CreateThread(NULL, 0, signaling_sender_thread,
-                                 &sender_context, 0, NULL);
-    if (sender == NULL) {
-        result = GetLastError();
+    DWORD result = ERROR_SUCCESS;
+    uint64_t recovery_deadline = 0;
+    bool had_connection = false;
+    for (;;) {
+        SignalingConnection connection = { 0 };
+        result = open_connection(client, &connection);
+        if (result == ERROR_SUCCESS) {
+            had_connection = true;
+            push_lifecycle(client, NativeSignalingClientEvent_Connected, 0, "Room signaling connected");
+            atomic_store_explicit(&client->last_receive_ms, GetTickCount64(), memory_order_release);
+            uint64_t connected_at = GetTickCount64();
+            result = run_connection(client, &connection);
+            if (atomic_load_explicit(&client->last_receive_ms, memory_order_acquire) > connected_at + HEARTBEAT_MS)
+                recovery_deadline = 0;
+            if (atomic_load_explicit(&client->stop_requested, memory_order_acquire)) {
+                if (connection.send_pending) wait_write(client, &connection.ws, true);
+                if (WinHttpWebSocketShutdown(connection.socket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, NULL, 0) == ERROR_SUCCESS)
+                    wait_write(client, &connection.ws, true);
+            }
+        }
         close_connection(&connection);
-        push_lifecycle(client, NativeSignalingClientEvent_Disconnected, result,
-                       "Could not start signaling send lane");
-        atomic_store_explicit(&client->running, false, memory_order_release);
-        return result;
+        if (atomic_load_explicit(&client->stop_requested, memory_order_acquire)) { result = ERROR_SUCCESS; break; }
+        if (!had_connection || client->directory || result == ERROR_ACCESS_DENIED || result == ERROR_INVALID_DATA) break;
+        if (!recovery_deadline) recovery_deadline = GetTickCount64() + 120000;
+        if (GetTickCount64() >= recovery_deadline) break;
+        if (WaitForSingleObject((HANDLE) client->wake_event, 1000) == WAIT_FAILED) break;
     }
-    SetEvent((HANDLE) client->wake_event);
-
-    uint8_t receive_buffer[NATIVE_SIGNALING_MAX_MESSAGE_BYTES];
-    size_t buffered = 0;
-    while (!atomic_load_explicit(&client->stop_requested,
-                                 memory_order_acquire))
-    {
-        result = receive_message(client, connection.socket, receive_buffer,
-                                 &buffered);
-        if (result == ERROR_MORE_DATA) {
-            continue;
-        }
-        if (result != ERROR_SUCCESS) {
-            break;
-        }
-    }
-    bool requested = atomic_load_explicit(&client->stop_requested,
-                                          memory_order_acquire);
-    atomic_store_explicit(&client->stop_requested, true, memory_order_release);
-    SetEvent((HANDLE) client->wake_event);
-    WaitForSingleObject(sender, INFINITE);
-    CloseHandle(sender);
-    uint32_t sender_error = atomic_load_explicit(&client->worker_error,
-                                                 memory_order_acquire);
-    if (sender_error != ERROR_SUCCESS) {
-        result = sender_error;
-        requested = false;
-    }
-    close_connection(&connection);
-    push_lifecycle(client, NativeSignalingClientEvent_Disconnected,
-                   requested ? 0 : result,
-                   requested ? "Room signaling stopped"
-                             : "Room signaling disconnected");
+    push_lifecycle(client, NativeSignalingClientEvent_Disconnected, result,
+        result == ERROR_SUCCESS ? "Room signaling stopped" :
+        result == ERROR_ACCESS_DENIED ? "This lobby connection was closed or replaced" : "Room signaling disconnected");
     atomic_store_explicit(&client->running, false, memory_order_release);
-    return requested ? ERROR_SUCCESS : result;
+    return result;
 }
 
 bool nativeSignalingClient_Start(NativeSignalingClient* client,
@@ -504,6 +507,14 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
         return false;
     }
     client->admission[0] = 0;
+    client->guest_key[0] = 0;
+    if (config->guest_key) {
+        if (strnlen(config->guest_key, 65) != 64) return false;
+        for (unsigned i = 0; i < 64; ++i)
+            if (!isxdigit((unsigned char) config->guest_key[i]) ||
+                (config->guest_key[i] >= 'A' && config->guest_key[i] <= 'F')) return false;
+        memcpy(client->guest_key, config->guest_key, 65);
+    }
     if (config->admission && config->admission[0]) {
         if (strnlen(config->admission, 33) != 32) return false;
         for (unsigned i = 0; i < 32; ++i) {
@@ -519,8 +530,6 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     client->directory = config->directory;
     if (client->directory) client->room_id[0] = client->peer_id[0] = 0;
     atomic_store_explicit(&client->stop_requested, false, memory_order_relaxed);
-    atomic_store_explicit(&client->worker_error, ERROR_SUCCESS,
-                          memory_order_relaxed);
     atomic_store_explicit(&client->running, true, memory_order_release);
     HANDLE wake = CreateEventW(NULL, FALSE, FALSE, NULL);
     if (wake == NULL) {
@@ -543,12 +552,6 @@ void nativeSignalingClient_Stop(NativeSignalingClient* client)
 {
     if (client == NULL || client->thread_handle == 0) {
         return;
-    }
-    uint8_t wake_message[8];
-    size_t wake_size = nativeSignalingWire_EncodeRequestPresence(
-        wake_message, sizeof(wake_message));
-    if (wake_size != 0) {
-        command_push(&client->commands, wake_message, wake_size);
     }
     atomic_store_explicit(&client->stop_requested, true, memory_order_release);
     SetEvent((HANDLE) client->wake_event);

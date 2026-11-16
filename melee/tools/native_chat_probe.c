@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include <melee/ui/native_chat.h>
+#include <melee/gm/native_account_transport.h>
 
 int main(int argc, char** argv)
 {
@@ -16,6 +17,10 @@ int main(int argc, char** argv)
         return 2;
     }
     const bool presence = strcmp(argv[1], "--presence") == 0;
+    char temporary[MAX_PATH], identity_root[MAX_PATH];
+    if (!GetTempPathA(sizeof(temporary), temporary)) return 2;
+    snprintf(identity_root, sizeof(identity_root), "%sFreakMeleeChatProbe-%lu", temporary, (unsigned long) GetCurrentProcessId());
+    if (!nativeAccountTransport_InitGuest(identity_root, presence ? argv[2] : argv[1])) return 2;
     const char* name = presence ? argv[3] : argv[2];
     if (!nativeChat_Start(presence ? argv[2] : argv[1])) {
         return 2;

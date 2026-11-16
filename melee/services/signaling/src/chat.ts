@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { connectionAccount, currentConnectionAccount, type ConnectionAccount } from "./connection-account";
+import { HEARTBEAT_MS, CONNECTION_LIFETIME_MS, CONNECTION_TIMEOUT_MS, playerIdentity } from "./connection-lease";
 
 // This is one shared conversation for the private client, independent of Rooms.
 export const CHAT_HISTORY = 64;
@@ -9,7 +10,7 @@ export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES + 2 + 43
 export const CHAT_PLAYERS = 128;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-interface ChatIdentity { peer: string; name: string; account?: ConnectionAccount; lastMessageAt?: number }
+interface ChatIdentity { peer: string; name: string; playerIdentity: string; account?: ConnectionAccount; lastMessageAt: number; uncertain: boolean }
 function accountBytes(id: string, handle: string): Uint8Array {
   const bytes = new Uint8Array(2 + id.length + handle.length);
   bytes.set([id.length, handle.length]); bytes.set(encoder.encode(id), 2);
@@ -101,6 +102,11 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       if (!columns.some(column => column.name === "account_handle"))
         ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN account_handle TEXT NOT NULL DEFAULT ''");
       ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS chat_accounts (peer TEXT PRIMARY KEY, account_id TEXT NOT NULL)");
+      for (const socket of ctx.getWebSockets()) {
+        const identity = socket.deserializeAttachment() as ChatIdentity;
+        if (!identity.playerIdentity || !Number.isFinite(identity.lastMessageAt) || typeof identity.uncertain !== "boolean")
+          socket.close(4002, "Connection protocol updated; reconnect with the current client");
+      }
     });
   }
 
@@ -111,15 +117,23 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       return new Response("Expected WebSocket", { status: 426 });
     }
     const account = connectionAccount(request);
+    const identity = await playerIdentity(request, account?.profile.id);
+    if (!identity) return new Response("Missing guest installation key", { status: 400 });
     const binding = this.ctx.storage.sql.exec<{ account_id: string }>("SELECT account_id FROM chat_accounts WHERE peer=?", peer).toArray()[0];
     if (binding && binding.account_id !== account?.profile.id) return new Response("This connection belongs to another account", { status: 403 });
-    for (const old of this.ctx.getWebSockets(peer)) old.close(4001, "Reconnected");
+    for (const old of this.ctx.getWebSockets()) {
+      const attached = old.deserializeAttachment() as ChatIdentity;
+      if (attached.peer === peer && attached.playerIdentity !== identity)
+        return new Response("This connection belongs to another player", { status: 403 });
+      if (attached.playerIdentity === identity) old.close(4001, "Reconnected from another client");
+    }
     if (this.connections().length >= CHAT_PLAYERS) {
       return new Response("Chatroom is full", { status: 503 });
     }
     const pair = new WebSocketPair();
     if (account) this.ctx.storage.sql.exec("INSERT OR IGNORE INTO chat_accounts VALUES (?,?)", peer, account.profile.id);
-    pair[1].serializeAttachment({ peer, name: account?.profile.name ?? "Player", account } satisfies ChatIdentity);
+    pair[1].serializeAttachment({ peer, name: account?.profile.name ?? "Player", account,
+      playerIdentity: identity, lastMessageAt: Date.now(), uncertain: false } satisfies ChatIdentity);
     this.ctx.acceptWebSocket(pair[1], [peer]);
     const rows = this.ctx.storage.sql.exec<ChatRow>(
       "SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?", CHAT_HISTORY,
@@ -127,12 +141,12 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     for (const row of rows) this.send(pair[1], encodeEntry(row));
     this.send(pair[1], countPacket(0x82, this.connections().length));
     this.presence();
+    await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     const initial = socket.deserializeAttachment() as ChatIdentity;
-    socket.serializeAttachment({ ...initial, lastMessageAt: Date.now() });
     let release: (() => void) | undefined, lane: Promise<void> | undefined;
     if (initial.account) {
       const previous = this.accountMessages.get(initial.peer);
@@ -143,12 +157,14 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     try {
       if (socket.readyState !== WebSocket.OPEN) return;
       const identity = socket.deserializeAttachment() as ChatIdentity;
+      socket.serializeAttachment({ ...identity, lastMessageAt: Date.now(), uncertain: false });
+      if (identity.uncertain) this.presence();
       if (identity.account) {
         const profile = await currentConnectionAccount(identity.account, this.env);
         if (!profile) { socket.close(1008, "Account sign-in expired"); return; }
         if (socket.readyState !== WebSocket.OPEN) return;
         identity.account.profile = profile;
-        socket.serializeAttachment(identity);
+        socket.serializeAttachment({ ...identity, lastMessageAt: Date.now(), uncertain: false });
         this.identify(socket, profile.name);
       }
       if (typeof message === "string" || message.byteLength > CHAT_PACKET_BYTES) throw new Error();
@@ -212,7 +228,28 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
   }
 
   private connections(): WebSocket[] {
-    return this.ctx.getWebSockets().filter((socket) => socket.readyState === WebSocket.OPEN);
+    return this.ctx.getWebSockets().filter(socket => socket.readyState === WebSocket.OPEN &&
+      !(socket.deserializeAttachment() as ChatIdentity).uncertain);
+  }
+
+  async alarm(): Promise<void> {
+    let changed = false, remaining = false;
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const identity = socket.deserializeAttachment() as ChatIdentity;
+      const age = Date.now() - identity.lastMessageAt;
+      if (age >= CONNECTION_LIFETIME_MS) {
+        socket.close(4008, "Heartbeat timed out"); changed = true;
+      } else {
+        remaining = true;
+        const uncertain = age >= CONNECTION_TIMEOUT_MS;
+        if (identity.uncertain !== uncertain) {
+          socket.serializeAttachment({ ...identity, uncertain }); changed = true;
+        }
+      }
+    }
+    if (changed) this.presence();
+    if (remaining) await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
   }
 
   // Operator RPC only. Heartbeat timestamps distinguish disconnected ghosts

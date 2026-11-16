@@ -1,7 +1,9 @@
+import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
-import { evictDurableObject } from "cloudflare:test";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { CHAT_HISTORY, encodeChatPost, encodeChatIdentity } from "../src/chat";
+import { CONNECTION_TIMEOUT_MS, CONNECTION_LIFETIME_MS } from "../src/connection-lease";
 
 const worker = exports.default as unknown as Fetcher;
 const firstPeer = "11111111111111111111111111111111";
@@ -10,7 +12,7 @@ const decoder = new TextDecoder();
 
 async function connect(target: Fetcher, peer: string) {
   const response = await target.fetch(`https://chat.test/chat/connect?peer=${peer}`, {
-    headers: { Upgrade: "websocket" },
+    headers: { Upgrade: "websocket", ...guestHeaders(peer) },
   });
   expect(response.status).toBe(101);
   const socket = response.webSocket!;
@@ -71,6 +73,31 @@ async function players(connection: Awaited<ReturnType<typeof connect>>) {
 }
 
 describe("global chat", () => {
+  it("hides stale presence, recovers on heartbeat, and expires an abandoned socket", async () => {
+    const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
+    const a = await connect(stub, firstPeer), b = await connect(stub, secondPeer);
+    try {
+      await a.next(0x82); await b.next(0x82);
+      await runInDurableObject(stub, (_instance, state) => {
+        const socket = state.getWebSockets(firstPeer)[0];
+        socket.serializeAttachment({ ...socket.deserializeAttachment()!, lastMessageAt: Date.now() - CONNECTION_TIMEOUT_MS - 1 });
+      });
+      await runDurableObjectAlarm(stub);
+      expect((await stub.connectedPlayers()).map(peer => peer.peer)).toEqual([secondPeer]);
+      await evictDurableObject(stub);
+      a.socket.send(new Uint8Array([2])); await a.next(0x84);
+      expect(await stub.connectedPlayers()).toHaveLength(2);
+      await runInDurableObject(stub, (_instance, state) => {
+        const socket = state.getWebSockets(firstPeer)[0];
+        socket.serializeAttachment({ ...socket.deserializeAttachment()!, lastMessageAt: Date.now() - CONNECTION_LIFETIME_MS - 1 });
+      });
+      await runDurableObjectAlarm(stub);
+      expect(a.socket.readyState).not.toBe(WebSocket.OPEN);
+      expect(b.socket.readyState).toBe(WebSocket.OPEN);
+      expect((await stub.connectedPlayers()).map(peer => peer.peer)).toEqual([secondPeer]);
+    } finally { a.socket.close(); b.socket.close(); }
+  });
+
   it("removes a ghost peer without removing a player who sent a newer heartbeat", async () => {
     const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
     const a = await connect(stub, firstPeer), b = await connect(stub, secondPeer);
@@ -78,7 +105,8 @@ describe("global chat", () => {
       await a.next(0x82); await b.next(0x82);
       a.socket.send(new Uint8Array([2])); await a.next(0x84);
       expect(await stub.disconnectPlayer(firstPeer, 0)).toBe(false);
-      expect(await stub.disconnectPlayer(secondPeer, 0)).toBe(true);
+      const stale = (await stub.connectedPlayers()).find(peer => peer.peer === secondPeer)!;
+      expect(await stub.disconnectPlayer(secondPeer, stale.lastMessageAt)).toBe(true);
       expect(await stub.connectedPlayers()).toEqual([
         expect.objectContaining({ peer: firstPeer, lastMessageAt: expect.any(Number) }),
       ]);

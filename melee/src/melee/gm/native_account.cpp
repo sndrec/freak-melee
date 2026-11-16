@@ -241,7 +241,8 @@ bool nativeAccount_Start(const char* root, const char* endpoint)
         MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, root, -1, directory, 900);
     if (ok) {
         CreateDirectoryW(directory, nullptr);
-        ok = swprintf_s(w->path, L"%s/account-session.bin", directory) > 0;
+        ok = nativeAccountTransport_InitGuest(root, endpoint) &&
+            swprintf_s(w->path, L"%s/account-session.bin", directory) > 0;
     }
     w->view.available = true;
     w->session = WinHttpOpen(L"FreakMelee/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,

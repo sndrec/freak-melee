@@ -160,5 +160,20 @@ int main(int argc, char** argv)
     assert(loaded.signed_out && !*loaded.token && !std::strcmp(loaded.seed, original.seed));
     assert(nativeAccount_Delete(path));
     std::printf("account contracts passed: RFC 8032, portable key file, protected sign-in, endpoint isolation\n");
+    char guest_root[MAX_PATH]; wchar_t guest_file[MAX_PATH];
+    assert(WideCharToMultiByte(CP_UTF8, 0, path, -1, guest_root, sizeof(guest_root), nullptr, nullptr));
+    assert(nativeAccountTransport_InitGuest(guest_root, "https://guest.example.com"));
+    wchar_t first_guest_headers[192], second_guest_headers[192];
+    assert(nativeAccountTransport_Headers(L"https://guest.example.com/chat/connect", first_guest_headers, 192));
+    assert(wcsstr(first_guest_headers, L"X-Freak-Guest: ") == first_guest_headers);
+    const auto guest_generation = nativeAccountTransport_Generation();
+    assert(nativeAccountTransport_InitGuest(guest_root, "https://guest.example.com"));
+    assert(nativeAccountTransport_Generation() == guest_generation);
+    assert(nativeAccountTransport_Headers(L"https://guest.example.com/v1/rooms/TEST777/connect", second_guest_headers, 192));
+    assert(!wcscmp(first_guest_headers, second_guest_headers));
+    assert(!nativeAccountTransport_Headers(L"https://other.example.com/chat/connect", second_guest_headers, 192));
+    swprintf_s(guest_file, L"%s/guest-identity.bin", path);
+    assert(DeleteFileW(guest_file) && RemoveDirectoryW(path));
+    std::puts("guest identity contracts passed: persistence, stable generation, endpoint isolation");
     return 0;
 }

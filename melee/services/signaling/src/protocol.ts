@@ -28,6 +28,11 @@ export interface Participant {
 }
 
 export interface ConnectionAttachment extends Omit<Participant, "waitingRanks" | "accountId" | "accountHandle"> {
+  playerIdentity: string;
+  lastSeenAt: number;
+  lastAuthorityCheckAt: number;
+  uncertain: boolean;
+  superseded?: boolean;
   account?: import("./connection-account").ConnectionAccount;
   connectionId: string;
   chatSubscribed?: boolean;

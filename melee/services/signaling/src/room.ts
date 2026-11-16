@@ -1,6 +1,7 @@
-import { lockedChoices } from "./lobby-selection";
+import { lockedChoices, unreadySelection } from "./lobby-selection";
 import { DurableObject } from "cloudflare:workers";
 import type { LobbyEntry } from "./lobby-directory";
+import { HEARTBEAT_MS, CONNECTION_LIFETIME_MS, connectionExpired, connectionUncertain, playerIdentity } from "./connection-lease";
 import { connectionAccount, currentConnectionAccount, type ConnectionAccount } from "./connection-account";
 import { equalHash } from "./account-protocol";
 import { encodeListing } from "./wire";
@@ -113,6 +114,7 @@ function waitingOrderForChange(
 
 export class Room extends DurableObject<CloudflareBindings> {
   private accountMessages = new Map<string, Promise<void>>();
+  private pendingConnections = new Map<string, boolean>();
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -181,13 +183,13 @@ export class Room extends DurableObject<CloudflareBindings> {
         CREATE TABLE IF NOT EXISTS room_listing (
           id INTEGER PRIMARY KEY CHECK(id=1), title TEXT NOT NULL, listed INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS room_recovery (
+          connection TEXT PRIMARY KEY, expires INTEGER NOT NULL, attachment TEXT NOT NULL
+        );
       `);
       const history = JSON.stringify(emptyLobbyStageHistory());
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO lobby_flow VALUES (1,NULL,0,0,0,'',?,?)", history, history);
     });
-    this.ctx.setWebSocketAutoResponse(
-      new WebSocketRequestResponsePair("ping", "pong"),
-    );
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -198,6 +200,8 @@ export class Room extends DurableObject<CloudflareBindings> {
     const url = new URL(request.url);
     const peerId = url.searchParams.get("peer") ?? "";
     const account = connectionAccount(request);
+    const identity = await playerIdentity(request, account?.profile.id);
+    if (!identity) return new Response("Missing guest installation key", { status: 400 });
     const name = account?.profile.name ?? url.searchParams.get("name") ?? "";
     const build = url.searchParams.get("build") ?? "";
     const localPlayers = parseBoundedInteger(url.searchParams.get("players"), 0, 4);
@@ -226,6 +230,10 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
     const quick = this.quickParty();
     const current = this.snapshot(this.currentRevision());
+    if (!current.participants.length && !this.recovering().length && this.currentMatch().payload !== null) {
+      this.invalidateMatch();
+      this.clearEmptyLobby();
+    }
     const replacement = current.participants.find((peer) => peer.peerId === peerId);
     const returning = quick?.state === 3 && (JSON.parse(quick.roster) as QuickOffer).build === build &&
       (JSON.parse(quick.roster) as QuickOffer).members.some((member) =>
@@ -236,20 +244,25 @@ export class Room extends DurableObject<CloudflareBindings> {
           current.participants.some((peer) => peer.build !== build))
         return new Response("Quick Play party is unavailable or full", { status: 409 });
     }
-    const previousConnections = this.ctx.getWebSockets(`peer:${peerId}`);
+    const previousConnections = this.ctx.getWebSockets().filter(socket => {
+      const peer = this.attachment(socket);
+      return socket.readyState === WebSocket.OPEN && !peer?.superseded &&
+        (peer?.peerId === peerId || peer?.playerIdentity === identity);
+    });
     // A public peer ID cannot prove ownership of an active guest connection.
     // Guests sign in through attachAccount using their private Welcome ID.
     const reconnectId = request.headers.get("X-Freak-Connection") ?? "";
     if (previousConnections.some((socket) => {
       const previous = this.attachment(socket);
-      return socket.readyState === WebSocket.OPEN && !previous?.account &&
+      return socket.readyState === WebSocket.OPEN && previous?.playerIdentity !== identity && !previous?.account &&
         (!previous || reconnectId.length !== previous.connectionId.length ||
           !equalHash(reconnectId, previous.connectionId));
     }))
       return new Response("This guest connection is already active", { status: 409 });
     if (
       previousConnections.length === 0 &&
-      this.ctx.getWebSockets().length >= MAX_PARTICIPANTS
+      current.participants.length >= MAX_PARTICIPANTS &&
+      !this.recovering().some(peer => peer.playerIdentity === identity)
     ) {
       return new Response("Room is full", { status: 409 });
     }
@@ -258,8 +271,11 @@ export class Room extends DurableObject<CloudflareBindings> {
       if (previousConnections.includes(connected) || connected.readyState !== WebSocket.OPEN) continue;
       occupied += countActive(this.attachment(connected)?.activeMask ?? 0);
     }
+    for (const reserved of this.recovering())
+      if (reserved.playerIdentity !== identity) occupied += countActive(reserved.activeMask);
+    const recovery = this.recovering().find(peer => peer.playerIdentity === identity);
     const previous = previousConnections.length !== 0
-      ? this.attachment(previousConnections[0]) : null;
+      ? this.attachment(previousConnections[0]) : recovery ?? null;
     const free = Math.max(0, MAX_ACTIVE_PLAYERS - occupied);
     const requestedActive = activeQuery !== null
       ? parseBoundedInteger(activeQuery, 0, 15) : null;
@@ -295,6 +311,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       `)
       .one();
     const attachment: ConnectionAttachment = {
+      playerIdentity: identity, lastSeenAt: Date.now(), lastAuthorityCheckAt: Date.now(), uncertain: false,
       account,
       connectionId: crypto.randomUUID(),
       peerId,
@@ -304,13 +321,34 @@ export class Room extends DurableObject<CloudflareBindings> {
       activeMask,
       waitingMask,
       ready: false,
-      selection: new Uint8Array(),
-      joinOrder: counters.join_order,
+      selection: previous ? unreadySelection(previous.selection) : new Uint8Array(),
+      joinOrder: previous?.joinOrder ?? counters.join_order,
       waitingOrder: waitingOrderForChange(
         previous?.localPlayers === localPlayers ? previous : null,
         waitingMask, counters.revision,
       ),
     };
+
+    this.pendingConnections.set(attachment.connectionId, false);
+    let admitted: boolean;
+    try {
+      admitted = await this.env.PLAYER_SESSIONS.getByName(identity).enter(this.ctx.id.toString(), attachment.connectionId);
+      admitted &&= !this.pendingConnections.get(attachment.connectionId);
+    } finally { this.pendingConnections.delete(attachment.connectionId); }
+    if (!admitted) return new Response("A newer lobby connection replaced this request", { status: 409 });
+    if (recovery) this.ctx.storage.sql.exec("DELETE FROM room_recovery WHERE connection=?", recovery.connectionId);
+    const displaced = this.ctx.getWebSockets().filter(socket => socket.readyState === WebSocket.OPEN &&
+      this.attachment(socket)?.playerIdentity === identity);
+    for (const socket of displaced) attachment.joinOrder = Math.min(attachment.joinOrder, this.attachment(socket)!.joinOrder);
+    // Membership claims await another object; recheck seats after that yield.
+    const others = this.ctx.getWebSockets().filter(socket => socket.readyState === WebSocket.OPEN &&
+      this.attachment(socket)?.playerIdentity !== identity).map(socket => this.attachment(socket)!).filter(Boolean);
+    others.push(...this.recovering().filter(peer => peer.playerIdentity !== identity &&
+      !others.some(live => live.playerIdentity === peer.playerIdentity)));
+    if (others.length >= MAX_PARTICIPANTS || others.reduce((sum, peer) => sum + countActive(peer.activeMask), 0) + countActive(activeMask) > MAX_ACTIVE_PLAYERS) {
+      await this.env.PLAYER_SESSIONS.getByName(identity).leave(attachment.connectionId);
+      return new Response("Lobby seats changed while joining; please try again", { status: 409 });
+    }
 
     const pair = new WebSocketPair();
     const client = pair[0];
@@ -318,7 +356,13 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (account) this.ctx.storage.sql.exec("INSERT OR IGNORE INTO room_accounts VALUES (?,?)", peerId, account.profile.id);
     server.serializeAttachment(attachment);
     this.ctx.acceptWebSocket(server, [`peer:${peerId}`]);
-    for (const oldSocket of previousConnections) {
+    if (previous && previous.peerId !== peerId && !this.quickMatch()) {
+      this.invalidateMatch();
+      this.resetLobbyReadiness();
+    }
+    for (const oldSocket of new Set([...previousConnections, ...displaced])) {
+      const old = this.attachment(oldSocket);
+      if (old) this.ctx.waitUntil(this.env.PLAYER_SESSIONS.getByName(old.playerIdentity).leave(old.connectionId));
       oldSocket.close(4001, "Replaced by a newer connection");
     }
     if (previousConnections.length === 0 && activeMask !== 0) {
@@ -335,6 +379,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     await this.refreshQuickCountdown();
     await this.refreshLobbyCountdown();
     if (quick?.mode || admission) this.sendQuick(server);
+    await this.scheduleAlarm();
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -351,10 +396,16 @@ export class Room extends DurableObject<CloudflareBindings> {
         "SELECT account_id FROM room_accounts WHERE peer=?", current.peerId).toArray()[0];
       if ((current.account && current.account.profile.id !== profile.id) ||
           (binding && binding.account_id !== profile.id)) return false;
+      const identity = `account:${profile.id}`;
+      if (!await this.env.PLAYER_SESSIONS.getByName(identity).enter(this.ctx.id.toString(), current.connectionId)) return false;
+      if (socket.readyState !== WebSocket.OPEN) return false;
+      const oldIdentity = current.playerIdentity;
+      current.playerIdentity = identity;
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO room_accounts VALUES (?,?)", current.peerId, profile.id);
       current.account = { ...account, profile };
       current.name = profile.name;
       socket.serializeAttachment(current);
+      if (oldIdentity !== identity) await this.env.PLAYER_SESSIONS.getByName(oldIdentity).leave(current.connectionId);
       this.broadcastPresence(this.nextRevision());
       return true;
     }
@@ -385,6 +436,11 @@ export class Room extends DurableObject<CloudflareBindings> {
           this.broadcastPresence(this.nextRevision());
         }
       }
+      if (message === "ping") {
+        await this.touchConnection(socket);
+        if (socket.readyState === WebSocket.OPEN) socket.send("pong");
+        return;
+      }
       if (typeof message === "string" || message.byteLength > MAX_MESSAGE_BYTES) {
         this.error(socket, "Messages must use the bounded binary room protocol");
         return;
@@ -405,6 +461,9 @@ export class Room extends DurableObject<CloudflareBindings> {
         this.error(socket, "Malformed room message");
         return;
       }
+
+      await this.touchConnection(socket);
+      if (socket.readyState !== WebSocket.OPEN) return;
 
       switch (parsed.type) {
       case ClientMessageType.RequestLobbyState: {
@@ -492,10 +551,21 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
   }
 
-  async webSocketClose(socket: WebSocket): Promise<void> {
-    this.removeParticipant(socket);
+  async webSocketClose(socket: WebSocket, code: number): Promise<void> {
+    const peer = this.attachment(socket);
+    if (peer?.superseded) return;
+    const replacement = peer && this.ctx.getWebSockets().some(other => other !== socket &&
+      other.readyState === WebSocket.OPEN && this.attachment(other)?.playerIdentity === peer.playerIdentity);
+    if (!replacement && code !== 1000 && code !== 4001 && code !== 4006 && code !== 4008 && peer && !connectionExpired(peer)) {
+      this.reserveConnection(peer);
+      socket.serializeAttachment({ ...peer, superseded: true });
+      this.broadcastPresence(this.nextRevision(), socket);
+    } else {
+      this.removeParticipant(socket);
+    }
     await this.refreshQuickCountdown();
     await this.refreshLobbyCountdown();
+    await this.scheduleAlarm();
     socket.close(1000, "Lobby connection closed");
   }
   async invitationFor(accountId: string): Promise<{ room: string; title: string; expires: number } | null> {
@@ -512,10 +582,17 @@ export class Room extends DurableObject<CloudflareBindings> {
   }
 
   async webSocketError(socket: WebSocket): Promise<void> {
-    this.removeParticipant(socket);
+    const peer = this.attachment(socket);
+    if (peer?.superseded) return;
+    if (peer && !connectionExpired(peer)) {
+      this.reserveConnection(peer);
+      socket.serializeAttachment({ ...peer, superseded: true });
+    }
+    else this.removeParticipant(socket);
     await this.refreshQuickCountdown();
     await this.refreshLobbyCountdown();
     socket.close(1011, "Lobby connection failed");
+    await this.scheduleAlarm();
   }
 
   private lobbyFlow(): LobbyFlowRow {
@@ -552,7 +629,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     const host = this.ctx.getWebSockets().find((socket) => socket.readyState === WebSocket.OPEN &&
       this.attachment(socket)?.peerId === room.ownerPeerId);
     const rules = flow.rules ? decodeLobbyRules(new Uint8Array(flow.rules)) : null;
-    const signature = host && this.attachment(host)?.lobbySubscribed && rules
+    const signature = !this.hasUncertainConnections() && host && this.attachment(host)?.lobbySubscribed && rules
       ? lobbyReadySignature(room.participants, rules) : null;
     if (!signature) {
       if (flow.phase || flow.signature) {
@@ -566,7 +643,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       const deadline = Date.now()+LOBBY_COUNTDOWN_MS;
       this.ctx.storage.sql.exec("UPDATE lobby_flow SET phase=1, deadline=?, signature=?, revision=revision+1 WHERE id=1", deadline, signature);
       this.ctx.storage.sql.exec("UPDATE room_stage SET stage=255 WHERE id=1");
-      await this.ctx.storage.setAlarm(deadline);
+      await this.scheduleAlarm();
       this.broadcastPresence(this.nextRevision()); this.sendLobbyState();
     } else if (flow.phase === 1 && flow.deadline <= Date.now()) {
       const history = JSON.parse(flow.history) as LobbyStageHistory;
@@ -578,7 +655,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.ctx.storage.sql.exec("UPDATE room_stage SET stage=? WHERE id=1", stage);
       this.broadcastPresence(this.nextRevision()); this.sendLobbyState();
     } else if (flow.phase === 1) {
-      await this.ctx.storage.setAlarm(flow.deadline);
+      await this.scheduleAlarm();
     }
   }
 
@@ -628,7 +705,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     const allocation = JSON.parse(match.allocation) as QuickAllocation;
     const revision = this.currentRevision();
     const people = this.snapshot(revision).participants;
-    if (!quickRosterComplete(allocation, people)) return null;
+    if (this.hasUncertainConnections() || !quickRosterComplete(allocation, people)) return null;
     let digest: Uint8Array | undefined;
     for (const person of people) {
       const socket = this.ctx.getWebSockets(`peer:${person.peerId}`).find((peer) => peer.readyState === WebSocket.OPEN);
@@ -648,7 +725,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (!prepared) {
       if (flow.phase === 1) {
         this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=0, deadline=0, revision=0 WHERE id=1");
-        await this.ctx.storage.deleteAlarm();
+        await this.scheduleAlarm();
         this.sendQuick();
       }
       return;
@@ -656,11 +733,11 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (flow.phase === 1 && flow.revision === prepared.revision) return;
     const deadline = Date.now() + QUICK_COUNTDOWN_MS;
     this.ctx.storage.sql.exec("UPDATE quick_flow SET phase=1, deadline=?, revision=? WHERE id=1", deadline, prepared.revision);
-    await this.ctx.storage.setAlarm(deadline);
+    await this.scheduleAlarm();
     this.sendQuick();
   }
 
-  async alarm(): Promise<void> {
+  private async advanceCountdown(): Promise<void> {
     if (!this.quickMatch()) { await this.refreshLobbyCountdown(); return; }
     const flow = this.quickFlow();
     if (flow.phase !== 1) return;
@@ -670,7 +747,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       return;
     }
     if (Date.now() < flow.deadline) {
-      await this.ctx.storage.setAlarm(flow.deadline);
+      await this.scheduleAlarm();
       return;
     }
     const proposal = buildQuickMatch(prepared.allocation, prepared.people, prepared.digest);
@@ -687,6 +764,115 @@ export class Room extends DurableObject<CloudflareBindings> {
 
   private quickParty(): QuickPartyRow | null {
     return this.ctx.storage.sql.exec<QuickPartyRow>("SELECT * FROM quick_party WHERE id=1").toArray()[0] ?? null;
+  }
+
+  private recovering(): ConnectionAttachment[] {
+    return this.ctx.storage.sql.exec<{ attachment: string }>(
+      "SELECT attachment FROM room_recovery WHERE expires>?", Date.now()).toArray().map(row => {
+      const peer = JSON.parse(row.attachment) as ConnectionAttachment;
+      peer.selection = new Uint8Array(peer.selection);
+      return peer;
+    });
+  }
+
+  private reserveConnection(peer: ConnectionAttachment): void {
+    const saved = { ...peer, ready: false, uncertain: true, selection: [...unreadySelection(peer.selection)] };
+    this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_recovery VALUES (?,?,?)",
+      peer.connectionId, peer.lastSeenAt + CONNECTION_LIFETIME_MS, JSON.stringify(saved));
+  }
+
+  private hasUncertainConnections(): boolean {
+    return this.recovering().length !== 0 || this.ctx.getWebSockets().some(socket =>
+      socket.readyState === WebSocket.OPEN && this.attachment(socket)?.uncertain);
+  }
+
+  private clearEmptyLobby(): void {
+    this.ctx.storage.sql.exec("DELETE FROM room_chat");
+    this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
+    this.ctx.storage.sql.exec("UPDATE room_stage SET loser_peer='', loser_seat=255, stage=255 WHERE id=1");
+    const history = JSON.stringify(emptyLobbyStageHistory());
+    this.ctx.storage.sql.exec("UPDATE lobby_flow SET rules=NULL, phase=0, deadline=0, signature='', revision=revision+1, history=?, next_history=? WHERE id=1", history, history);
+  }
+
+  async evictConnection(connectionId: string, preserveRoom = false): Promise<void> {
+    if (this.pendingConnections.has(connectionId)) this.pendingConnections.set(connectionId, true);
+    this.ctx.storage.sql.exec("DELETE FROM room_recovery WHERE connection=?", connectionId);
+    for (const socket of this.ctx.getWebSockets()) {
+      if (this.attachment(socket)?.connectionId !== connectionId) continue;
+      if (preserveRoom) socket.serializeAttachment({ ...this.attachment(socket)!, superseded: true });
+      socket.close(4001, "Player moved to another lobby");
+      if (!preserveRoom) this.removeParticipant(socket);
+    }
+    if (preserveRoom) return;
+    if (!this.snapshot(this.currentRevision()).participants.length) this.clearEmptyLobby();
+    this.broadcastPresence(this.nextRevision());
+    await this.refreshQuickCountdown();
+    await this.refreshLobbyCountdown();
+    await this.scheduleAlarm();
+  }
+
+  private async touchConnection(socket: WebSocket): Promise<void> {
+    const peer = this.attachment(socket);
+    if (!peer) return;
+    const checkAuthority = peer.uncertain || Date.now() - peer.lastAuthorityCheckAt >= HEARTBEAT_MS;
+    if (checkAuthority &&
+        !await this.env.PLAYER_SESSIONS.getByName(peer.playerIdentity).owns(peer.connectionId)) {
+      await this.evictConnection(peer.connectionId);
+      return;
+    }
+    if (socket.readyState !== WebSocket.OPEN) return;
+    const latest = this.attachment(socket)!;
+    socket.serializeAttachment({ ...latest, lastSeenAt: Date.now(), uncertain: false,
+      lastAuthorityCheckAt: checkAuthority ? Date.now() : latest.lastAuthorityCheckAt });
+    if (latest.uncertain) {
+      this.broadcastPresence(this.nextRevision());
+      await this.refreshQuickCountdown();
+      await this.refreshLobbyCountdown();
+    }
+  }
+
+  private async scheduleAlarm(): Promise<void> {
+    const deadlines: number[] = [];
+    if (this.ctx.getWebSockets().some(socket => socket.readyState === WebSocket.OPEN) || this.recovering().length)
+      deadlines.push(Date.now() + HEARTBEAT_MS);
+    const quick = this.quickFlow(), lobby = this.lobbyFlow();
+    if (this.quickMatch() && quick.phase === 1) deadlines.push(quick.deadline);
+    if (!this.quickMatch() && !this.quickParty()?.mode && lobby.phase === 1) deadlines.push(lobby.deadline);
+    if (deadlines.length) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, Math.min(...deadlines)));
+    else await this.ctx.storage.deleteAlarm();
+  }
+
+  async alarm(): Promise<void> {
+    let changed = false;
+    for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const peer = this.attachment(socket);
+      if (!peer) continue;
+      if (connectionExpired(peer)) {
+        socket.close(4008, "Heartbeat timed out");
+        this.removeParticipant(socket);
+        changed = true;
+      } else if (peer.uncertain !== connectionUncertain(peer)) {
+        socket.serializeAttachment({ ...peer, uncertain: connectionUncertain(peer), ready: false,
+          selection: unreadySelection(peer.selection) });
+        changed = true;
+      }
+    }
+    const expired = this.ctx.storage.sql.exec<{ connection: string; attachment: string }>(
+      "DELETE FROM room_recovery WHERE expires<=? RETURNING connection, attachment", Date.now()).toArray();
+    for (const row of expired) {
+      const peer = JSON.parse(row.attachment) as ConnectionAttachment;
+      await this.env.PLAYER_SESSIONS.getByName(peer.playerIdentity).leave(row.connection);
+      changed = true;
+    }
+    if (changed) {
+      if (!this.snapshot(this.currentRevision()).participants.length) this.clearEmptyLobby();
+      this.broadcastPresence(this.nextRevision());
+      await this.refreshQuickCountdown();
+      await this.refreshLobbyCountdown();
+    }
+    await this.advanceCountdown();
+    await this.scheduleAlarm();
   }
   private quickRound(): QuickRoundRow {
     return this.ctx.storage.sql.exec<QuickRoundRow>("SELECT completed_epoch, chooser, ports FROM quick_round WHERE id=1").one();
@@ -1427,9 +1613,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     for (const socket of this.ctx.getWebSockets()) {
       const peer = this.attachment(socket);
       if (!peer || socket.readyState !== WebSocket.OPEN || peer.selection.length < 7) continue;
-      const bytes = peer.selection;
-      if (new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getUint32(0)!==0x464d534c || bytes[4]!==1) continue;
-      const selection = peer.selection.slice(); selection[6] &= ~3;
+      const selection = unreadySelection(peer.selection);
       socket.serializeAttachment({ ...peer, ready: false, selection } satisfies ConnectionAttachment);
     }
     this.sendLobbyState();
@@ -1437,28 +1621,34 @@ export class Room extends DurableObject<CloudflareBindings> {
 
   private removeParticipant(socket: WebSocket): void {
     const departing = this.attachment(socket);
+    if (!departing) {
+      if (!this.snapshot(this.currentRevision()).participants.length) {
+        this.invalidateMatch(); this.clearEmptyLobby();
+      }
+      return;
+    }
+    if (departing?.superseded) return;
+    if (departing) socket.serializeAttachment({ ...departing, superseded: true });
     const replacement = departing !== null &&
-      this.ctx.getWebSockets(`peer:${departing.peerId}`).some(
-        (candidate) => candidate !== socket && candidate.readyState === WebSocket.OPEN,
-      );
+      this.ctx.getWebSockets().some(candidate => candidate !== socket && candidate.readyState === WebSocket.OPEN &&
+        this.attachment(candidate)?.playerIdentity === departing.playerIdentity);
+    if (replacement) return;
+    if (departing) this.ctx.waitUntil(this.env.PLAYER_SESSIONS.getByName(departing.playerIdentity).leave(departing.connectionId));
     if (!replacement) this.invalidateQuickSearch();
     if (!replacement && departing?.activeMask !== 0 && !this.quickMatch()) {
       this.invalidateMatch(socket);
     }
-    if (!this.ctx.getWebSockets().some((other) => other !== socket && other.readyState === WebSocket.OPEN)) {
-      this.ctx.storage.sql.exec("DELETE FROM room_chat");
-      this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
-      this.ctx.storage.sql.exec("UPDATE room_stage SET loser_peer='', loser_seat=255, stage=255 WHERE id=1");
-      const history = JSON.stringify(emptyLobbyStageHistory());
-      this.ctx.storage.sql.exec("UPDATE lobby_flow SET rules=NULL, phase=0, deadline=0, signature='', revision=revision+1, history=?, next_history=? WHERE id=1", history, history);
-    }
+    if (!this.ctx.getWebSockets().some(other => other !== socket && other.readyState === WebSocket.OPEN) && !this.recovering().length)
+      this.clearEmptyLobby();
     this.broadcastPresence(this.nextRevision(), socket);
   }
 
   private attachment(socket: WebSocket): ConnectionAttachment | null {
     try {
       const attachment = socket.deserializeAttachment() as ConnectionAttachment;
-      if (!validSeatMasks(attachment.localPlayers, attachment.activeMask,
+      if (typeof attachment.playerIdentity !== "string" || !attachment.playerIdentity ||
+          !Number.isFinite(attachment.lastSeenAt) || !Number.isFinite(attachment.lastAuthorityCheckAt) || typeof attachment.uncertain !== "boolean" ||
+          !validSeatMasks(attachment.localPlayers, attachment.activeMask,
                           attachment.waitingMask) ||
           !Array.isArray(attachment.waitingOrder) ||
           attachment.waitingOrder.length !== 4 ||
@@ -1477,19 +1667,16 @@ export class Room extends DurableObject<CloudflareBindings> {
   private snapshot(revision: number, excluded?: WebSocket): RoomSnapshot {
     const participants: Participant[] = [];
     const waiting: { participant: Participant; seat: number; order: number }[] = [];
-    for (const socket of this.ctx.getWebSockets()) {
-      if (socket === excluded || socket.readyState !== WebSocket.OPEN) {
-        continue;
-      }
-      const attachment = this.attachment(socket);
-      if (attachment !== null) {
-        const participant = publicParticipant(attachment);
-        participants.push(participant);
-        for (let seat = 0; seat < 4; ++seat) {
-          if ((attachment.waitingMask & (1 << seat)) !== 0) {
-            waiting.push({ participant, seat,
-                           order: attachment.waitingOrder[seat] });
-          }
+    const attached = this.ctx.getWebSockets().filter(socket => socket !== excluded && socket.readyState === WebSocket.OPEN)
+      .map(socket => this.attachment(socket)).filter((peer): peer is ConnectionAttachment => peer !== null);
+    attached.push(...this.recovering().filter(peer => !attached.some(live => live.playerIdentity === peer.playerIdentity)));
+    for (const attachment of attached) {
+      const participant = publicParticipant(attachment);
+      participants.push(participant);
+      for (let seat = 0; seat < 4; ++seat) {
+        if ((attachment.waitingMask & (1 << seat)) !== 0) {
+          waiting.push({ participant, seat,
+                         order: attachment.waitingOrder[seat] });
         }
       }
     }
@@ -1549,14 +1736,16 @@ export class Room extends DurableObject<CloudflareBindings> {
   private advertise(revision: number, excluded?: WebSocket): void {
     const code = this.ctx.id.name;
     if (!code) return;
-    const listed = !!this.listing()?.listed && !this.quickParty()?.mode && !this.quickMatch() &&
-      this.snapshot(revision, excluded).participants.length !== 0;
+    const listed = !!this.directoryEntry() && this.ctx.getWebSockets().some(socket => socket !== excluded &&
+      socket.readyState === WebSocket.OPEN && !this.attachment(socket)?.uncertain);
     this.ctx.waitUntil(this.env.LOBBY_DIRECTORY.getByName("public").advertise(code, revision, listed));
   }
   directoryEntry(): LobbyEntry | null {
     const listing = this.listing();
     const people = this.snapshot(this.currentRevision()).participants;
-    if (!listing?.listed || !people.length || this.quickParty()?.mode || this.quickMatch()) return null;
+    const reachable = this.ctx.getWebSockets().some(socket => socket.readyState === WebSocket.OPEN &&
+      !this.attachment(socket)?.uncertain);
+    if (!listing?.listed || !people.length || !reachable || this.quickParty()?.mode || this.quickMatch()) return null;
     return { code: this.ctx.id.name ?? "", title: listing.title, host: people[0].name, build: people[0].build,
       fighting: people.reduce((n,p) => n + countActive(p.activeMask), 0),
       waiting: people.reduce((n,p) => n + countActive(p.waitingMask), 0),
@@ -1570,8 +1759,9 @@ export class Room extends DurableObject<CloudflareBindings> {
   }
 
   async closeLobby(expectedRevision: number): Promise<boolean> {
-    if (this.currentRevision() !== expectedRevision || !this.directoryEntry()) return false;
+    if (this.currentRevision() !== expectedRevision || !this.listing() || this.quickParty()?.mode || this.quickMatch()) return false;
     this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
+    this.ctx.storage.sql.exec("DELETE FROM room_recovery");
     this.invalidateMatch();
     for (const socket of this.ctx.getWebSockets()) socket.close(4006, "Lobby closed by administrator");
     const revision = this.nextRevision();

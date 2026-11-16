@@ -1,3 +1,4 @@
+import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
@@ -14,7 +15,7 @@ const peerId = () => crypto.randomUUID().replaceAll("-", "");
 const roomId = () => peerId().slice(0, 12).toUpperCase();
 function request(path: string, account?: Account, headers: Record<string, string> = {}) {
   return exports.default.fetch(new Request(`https://signal.test${path}`, { headers: {
-    Upgrade: "websocket", ...(account ? { Authorization: `Bearer ${account.grant.token}`, "X-Freak-Account": account.handle } : {}), ...headers,
+    Upgrade: "websocket", ...guestHeaders(crypto.randomUUID()), ...(account ? { Authorization: `Bearer ${account.grant.token}`, "X-Freak-Account": account.handle } : {}), ...headers,
   } }), env);
 }
 async function room(account: Account | undefined, code: string, peer = peerId()) {

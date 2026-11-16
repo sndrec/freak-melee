@@ -10,6 +10,7 @@ export { LobbyDirectory } from "./lobby-directory";
 export { Account } from "./account";
 export { SocialMailbox } from "./social";
 export { SocialFriendship } from "./social-friendship";
+export { PlayerSession } from "./player-session";
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });

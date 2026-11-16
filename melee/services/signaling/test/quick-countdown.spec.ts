@@ -29,7 +29,7 @@ describe("Quick Play ready countdown", () => {
         expect(peer.quickRevision).toBeUndefined();
         expect(state.storage.sql.exec<{revision: number}>("SELECT revision FROM room_counter").one().revision).toBeGreaterThan(before);
         expect(state.storage.sql.exec<{payload: ArrayBuffer | null}>("SELECT payload FROM room_match").one().payload).toBeNull();
-        expect(await state.storage.getAlarm()).toBeNull();
+        expect(await state.storage.getAlarm()).not.toBeNull();
       });
       await select(game.clients[0], 1);
       await prepare(game); await expire(game); await phase(game.clients[0], 2);
@@ -91,7 +91,7 @@ describe("Quick Play ready countdown", () => {
       expect((await game.clients[0].refresh()).phase).toBe(1);
       await select(game.clients[1], 1, false);
       await phase(game.clients[0], 0);
-      await runInDurableObject(game.room, async (_i, state) => expect(await state.storage.getAlarm()).toBeNull());
+      await runInDurableObject(game.room, async (_i, state) => expect(await state.storage.getAlarm()).not.toBeNull());
       game.clients[1].socket.send(encodePrepareQuick(current, true, digest));
       expect((await game.clients[1].refresh()).phase).toBe(0);
       await select(game.clients[1], 1);

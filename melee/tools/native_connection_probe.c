@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include <melee/gm/native_lobby_session.h>
+#include "native_probe_identity.h"
 
 enum {
     PROBE_TIMEOUT_MS = 10000,
@@ -149,6 +150,8 @@ static bool pump_packets(NativeRollbackInputHistory* first_inputs,
 
 int main(int argc, char** argv)
 {
+    char guest_keys[3][65];
+    for (unsigned i = 0; i < 3; ++i) if (!nativeProbeGuestKey(guest_keys[i])) return 2;
     const bool inactive_owner = argc == 3 && !strcmp(argv[2], "--inactive-owner");
     if (argc != 2 && !inactive_owner) {
         fprintf(stderr, "usage: %s <http-or-https-signaling-origin> [--inactive-owner]\n",
@@ -165,6 +168,7 @@ int main(int argc, char** argv)
             .endpoint = argv[1],
             .room_id = room_id,
             .peer_id = "peer_one",
+            .guest_key = guest_keys[0],
             .name = "Alice Local",
             .build = "native-room-probe",
             .local_players = 1,
@@ -175,6 +179,7 @@ int main(int argc, char** argv)
             .endpoint = argv[1],
             .room_id = room_id,
             .peer_id = "peer_two",
+            .guest_key = guest_keys[1],
             .name = "Bob Local",
             .build = "native-room-probe",
             .local_players = 1,
@@ -184,6 +189,7 @@ int main(int argc, char** argv)
     if (inactive_owner) {
         NativeNetplayConnectionConfig config = first_config;
         config.signaling.peer_id = "probe_spectator";
+        config.signaling.guest_key = guest_keys[2];
         spectator_started = nativeLobbySession_Start(&spectator, &config);
         owner_ready = spectator_started && wait_for_owner(&spectator, "probe_spectator");
         const NativeSignalingUpdate update = { .has_active_mask = true, .active_mask = 0 };
