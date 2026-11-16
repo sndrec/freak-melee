@@ -180,6 +180,8 @@ typedef struct PADDefaultMapping {
 u32 PADCount();
 /* Returns the controller name for the given index into the controller map */
 const char* PADGetNameForControllerIndex(u32 idx);
+// SDL device instance for an enumerated controller, including unassigned ones.
+u32 PADGetInstanceForControllerIndex(u32 idx);
 void PADSetPortForIndex(u32 index, u32 port);
 s32 PADGetIndexForPort(u32 port);
 // SDL device instance, stable until disconnect; zero means no device.

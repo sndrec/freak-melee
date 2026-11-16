@@ -61,7 +61,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package", "Additional Rules", "Lobby settings" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package", "Additional Rules", "Lobby settings", "Choose controller" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -1594,6 +1594,7 @@ extern "C" void nativeHub_Inspect(const char* id)
     if (!std::strcmp(id,"costumes")) { nativeHubCostumes_Inspect(); return; }
     if (!std::strcmp(id,"packages")) { nativeHubPackages_Inspect(); return; }
     if (!std::strcmp(id,"controller-profile")) { nativeHubProfiles_Inspect(); return; }
+    if (!std::strcmp(id,"controller-picker")) { nativeHubProfileDevices_Inspect(); return; }
     if (!std::strcmp(id, "client-options")) { nativeHubSettings_Inspect(); return; }
     if (!std::strcmp(id, "hub-fonts")) { nativeMenuFont_Inspect(hub.field && hub.field != hub.account_recovery && hub.field != hub.letter_body ? hub.field : hub.name); return; }
     if (!std::strcmp(id, "hub-assets") || !std::strcmp(id, "hub-camera")) { nativeMenuScene_Inspect(); return; }

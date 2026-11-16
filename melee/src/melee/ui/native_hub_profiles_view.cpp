@@ -86,6 +86,7 @@ void nativeHubProfiles_Render()
 {
     const auto& s = nativeProfileEditor;
     if (hub.page == NativeHubPage_ControllerCalibration) { nativeHubProfileCalibration_Render(); return; }
+    if (hub.page == NativeHubPage_ControllerPicker) { nativeHubProfileDevices_Render(); return; }
     nativeHub_Button("profile-close","< Controls",40,106,120,27,HubAction::Back);
     nativeMenuPaint_Text("Controller port",316,114,112,11,gold);
     for (unsigned i=0;i<4;++i) {
@@ -113,8 +114,11 @@ void nativeHubProfiles_Render()
     nativeHub_Button("profile-save","Save & use",40,402,154,28,HubAction::ProfileSave,0,true,!capturing);
     nativeHub_Button("profile-reset","Reset",204,402,86,28,HubAction::ProfileReset,0,false,!capturing);
     nativeHub_Button("profile-delete","Delete",300,402,86,28,HubAction::ProfileDelete,0,false,!capturing && *s.id);
-    nativeHub_Button(capturing?"profile-cancel":"profile-unassign",capturing?"Cancel binding":"Use defaults",396,402,204,28,
-        capturing?HubAction::ProfileCancelBinding:HubAction::ProfileDefault);
+    if (capturing) nativeHub_Button("profile-cancel","Cancel binding",396,402,204,28,HubAction::ProfileCancelBinding);
+    else {
+        nativeHub_Button("profile-controller","Controller",396,402,108,28,HubAction::ProfileChooseController);
+        nativeHub_Button("profile-unassign","Use defaults",514,402,86,28,HubAction::ProfileDefault);
+    }
     const char* controller = PADGetIndexForPort(s.port)<0 ? "No controller" : PADGetName(s.port);
     nativeMenuPaint_Text(controller?controller:"Controller",40,439,560,9,muted);
     nativeMenuPaint_Text(s.status,40,459,560,10,muted);

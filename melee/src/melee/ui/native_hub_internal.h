@@ -86,6 +86,7 @@ enum class HubAction {
     ProfileNew, ProfileSelect, ProfileListPage, ProfilePort, ProfileTab, ProfileSave, ProfileDelete, ProfileDeleteConfirm,
     ProfileDefault, ProfileReset, ProfileOption, ProfileField, ProfileBind, ProfileAdd, ProfileClear, ProfileAxis, ProfileAxisDefault,
     ProfileCancelBinding, ProfileCalibrate, ProfileTest, ProfileCalibrationNext, ProfileCalibrationCancel, ProfileCalibrationRange,
+    ProfileChooseController, ProfileControllerSelect, ProfileControllerNone, ProfileControllerPage,
     RuleAdjust, RuleItems, RuleRate, RuleItem, RuleAll, RuleAdditional, RuleLobby, RuleListing, RuleRotation, RuleSeat, RulePeoplePage,
     CostumePort, CostumePage, CostumeDefault, CostumeChoose, CostumeImport,
     PackageTab, PackagePage, PackageRefresh, PackageEdit, PackageSend, PackageRecipient, PackageRecipientPage, PackageConfirm,

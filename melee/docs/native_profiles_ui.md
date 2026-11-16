@@ -8,6 +8,14 @@ show more saved profiles. Choose the controller port at the top of the screen.
 **Save & use** saves the profile and assigns it to that port for this launch.
 First startup also remembers its chosen profile and port for future launches.
 
+Choose **Controller**, beside **Use defaults**, to select the physical controller
+for that player slot. The picker lists connected controllers and their current
+slots, and updates as controllers connect or disconnect. Selecting a controller
+from another occupied slot swaps the two controllers; each player slot keeps its
+assigned controls. **No controller** clears the selected slot. Device assignments
+are remembered for future launches. **Back** returns without changing the device
+or the profile being edited.
+
 **Use defaults** gives the chosen port its default controls. **Reset** resets the
 profile being edited. **Delete** asks for confirmation before removing a saved
 profile. Assigned controls stay active until you choose another profile or use
@@ -16,7 +24,7 @@ the defaults.
 ## Gameplay
 
 - **Tap jump** lets you jump by pushing the main stick up.
-- **Action buffer** remembers early actions for 0–7 frames. Off uses zero frames.
+- **Action buffer** remembers early actions for 0-7 frames. Off uses zero frames.
 - **Attack stick** selects smash attacks or tilts for grounded C-stick attacks.
 - A dedicated **Short hop** input can be assigned on the Buttons page.
 
@@ -69,3 +77,9 @@ virtual gamepad and recorded gameplay inputs. Physical controller feel and rumbl
 still benefit from a hands-on check. The earlier provider and input-policy work
 is recorded in [the controls checkpoint](native_profile_controls_checkpoint.md)
 and [the port-calibration checkpoint](native_profile_hotplug_checkpoint.md).
+
+`tools/review_native_controller_picker.py` checks the picker through hidden,
+muted clients with two distinct SDL virtual controllers. It covers assignment,
+occupied-slot swapping while profiles stay in place, held-A input, hotplug,
+restart with reversed connection order, persistent clearing, and the empty list.
+It also captures the profile footer and picker at normal and narrow sizes.

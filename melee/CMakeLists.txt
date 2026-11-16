@@ -557,6 +557,7 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_hub_controls.cpp
     src/melee/ui/native_hub_profiles.cpp
     src/melee/ui/native_hub_profiles_view.cpp
+    src/melee/ui/native_hub_profile_devices.cpp
     src/melee/ui/native_hub_profile_calibration.cpp
     src/melee/ui/native_css_chat.cpp
     src/melee/ui/native_hub_lobbies.cpp

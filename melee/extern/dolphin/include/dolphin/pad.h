@@ -114,6 +114,11 @@ void PADSetReadCallback(PADReadCallback callback);
 PADDeadZones* PADGetDeadZones(u32 port);
 void PADSetPortDeadZones(u32 port, const PADDeadZones* dead_zones);
 const char* PADGetName(u32 port);
+u32 PADCount(void);
+const char* PADGetNameForControllerIndex(u32 index);
+u32 PADGetInstanceForControllerIndex(u32 index);
+void PADSetPortForIndex(u32 index, u32 port);
+void PADClearPort(u32 port);
 s32 PADGetIndexForPort(u32 port);
 // SDL device instance, stable until disconnect; zero means no device.
 u32 PADGetInstanceForPort(u32 port);

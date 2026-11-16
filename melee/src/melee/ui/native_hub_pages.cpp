@@ -385,6 +385,7 @@ void nativeHub_RenderPage(NativeHubPage page)
         nativeHubPackages_Render(page); break;
     case NativeHubPage_PlayerProfiles:
     case NativeHubPage_ControllerCalibration:
+    case NativeHubPage_ControllerPicker:
         nativeHubProfiles_Render(); break;
     case NativeHubPage_Controls:
     case NativeHubPage_Video:

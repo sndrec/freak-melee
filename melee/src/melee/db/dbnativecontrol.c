@@ -50,7 +50,10 @@ static bool device_command(const char* command)
         desc.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
         desc.axis_mask=(1u<<SDL_GAMEPAD_AXIS_COUNT)-1;
         desc.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1;
-        desc.name="Freak Melee virtual controller";
+        static const char* names[]={"Freak Melee virtual controller 1","Freak Melee virtual controller 2",
+            "Freak Melee virtual controller 3","Freak Melee virtual controller 4"};
+        desc.name=names[slot];
+        desc.vendor_id=0x1209; desc.product_id=0xf000+slot;
         SDL_JoystickID id=SDL_AttachVirtualJoystick(&desc);
         SDL_Gamepad* pad=id?SDL_OpenGamepad(id):NULL;
         if (!pad) { if (id) SDL_DetachVirtualJoystick(id); return false; }

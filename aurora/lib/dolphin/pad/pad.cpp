@@ -443,6 +443,11 @@ void PADSetPortForIndex(const u32 idx, const u32 port) {
   aurora::input::persist_controller_for_player(port, ctrl);
 }
 
+u32 PADGetInstanceForControllerIndex(const u32 idx) {
+  const auto* controller = __PADGetControllerForIndex(idx);
+  return controller ? controller->m_index : 0;
+}
+
 int32_t PADGetIndexForPort(const u32 port) {
   const auto* ctrl = aurora::input::get_controller_for_player(port);
   if (ctrl == nullptr) {

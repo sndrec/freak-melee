@@ -65,7 +65,8 @@ namespace {
 }
 bool nativeHubProfiles_Page(NativeHubPage page)
 {
-    return page == NativeHubPage_PlayerProfiles || page == NativeHubPage_ControllerCalibration;
+    return page == NativeHubPage_PlayerProfiles || page == NativeHubPage_ControllerCalibration ||
+        page == NativeHubPage_ControllerPicker;
 }
 void nativeHubProfiles_FormatZones()
 {
@@ -211,6 +212,7 @@ bool nativeHubProfiles_Activate(HubAction action,int value)
     auto& s = nativeProfileEditor;
     if (action == HubAction::EditControls) { nativeHubProfiles_Open(); return true; }
     if (!nativeHubProfiles_Page(hub.page)) return false;
+    if (hub.page == NativeHubPage_ControllerPicker) return nativeHubProfileDevices_Activate(action,value);
     if (hub.page == NativeHubPage_ControllerCalibration) return nativeHubProfileCalibration_Activate(action,value);
     if (s.deleting) {
         if (action == HubAction::ProfileDeleteConfirm) {
@@ -238,6 +240,8 @@ bool nativeHubProfiles_Activate(HubAction action,int value)
     case HubAction::ProfileTab: nativeHub_Focus(nullptr,0); if (unsigned(value)<4) s.tab = unsigned(value); return true;
     case HubAction::ProfileSave: save(); return true;
     case HubAction::ProfileDefault: nativeProfileInput_Clear(s.port); message("This port now uses default controls."); return true;
+    case HubAction::ProfileChooseController:
+        return nativeHubProfileDevices_Activate(action,value);
     case HubAction::ProfileDelete: s.deleting = *s.id != 0; return true;
     case HubAction::ProfileReset: {
         nativeHub_Focus(nullptr,0); char name[33]; std::memcpy(name,s.draft.name,33);
