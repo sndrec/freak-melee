@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <melee/ft/fighter.h>
+#include <melee/ft/ft_0DF1.h>
 #include <melee/ft/kinds/ftCommon/ftCo_Attack100.h>
 #include <melee/ft/kinds/ftCommon/ftCo_SpecialS.h>
 #include <melee/ft/types.h>
@@ -58,14 +59,12 @@ void nativeActionBuffer_Record(Fighter* fp, unsigned frames)
     const HSD_Pad held = fp->input.held_buttons[0];
     const HSD_Pad pressed = held & ~fp->input.held_buttons[1];
     const Vec2 cstick = fp->input.cstick[0];
-    const Vec2 last_cstick = fp->input.cstick[1];
-    const float cstick_x_threshold = p_ftCommonData->xDC;
-    const float cstick_y_threshold = p_ftCommonData->xE0;
-    const bool cstick_edge =
-        (fabsf(cstick.x) >= cstick_x_threshold &&
-         fabsf(last_cstick.x) < cstick_x_threshold) ||
-        (fabsf(cstick.y) >= cstick_y_threshold &&
-         fabsf(last_cstick.y) < cstick_y_threshold);
+    // A flick can cross the aerial threshold before reaching smash strength.
+    // Remember the later grounded edge too, so replaying the weaker sample
+    // cannot hide a valid smash (or a ground attack on a tilt-stick profile).
+    const bool cstick_edge = ftCo_800DF478(fp) ||
+        (fp->ground_or_air == GA_Ground &&
+         (ftCo_800DF1C8(fp) || ftCo_800DF2D8(fp) || ftCo_800DF3A8(fp)));
     if ((pressed & ActionButtons) || fp->trigger_analog_timer == 0 || cstick_edge) {
         pending->direction = now;
         // Use a pending direction with a button when the main stick is neutral.
