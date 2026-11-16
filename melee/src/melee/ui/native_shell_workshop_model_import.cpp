@@ -220,7 +220,8 @@ bool import_click(const char* id)
         return true;
     }
 
-    if (!std::strcmp(id,"workshop-model-import") || !std::strcmp(id,"workshop-model-reimport")) {
+    if (!std::strcmp(id,"workshop-model-import") || !std::strcmp(id,"workshop-fighter-import-model") ||
+        !std::strcmp(id,"workshop-model-reimport")) {
         active->reimport=!std::strcmp(id,"workshop-model-reimport");
         active->reimport_whole=false;active->reimport_plan={};
         active->import_replace_material=false;

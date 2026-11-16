@@ -23,7 +23,7 @@ const char* nativeHubCatalog_Root(char buffer[512])
            : nativeContentStore_DefaultRoot(buffer, 512) ? buffer
                                                          : nullptr;
 }
-static bool read_file(const char* path, unsigned char** bytes, size_t* size)
+static bool read_file(const char* path, unsigned char** bytes, size_t* size, size_t maximum)
 {
     FILE* f = std::fopen(path, "rb");
     if (!f) {
@@ -31,7 +31,7 @@ static bool read_file(const char* path, unsigned char** bytes, size_t* size)
     }
     long length = 0;
     bool ok = std::fseek(f, 0, SEEK_END) == 0 &&
-              (length = std::ftell(f)) > 0 && length <= 16 * 1024 * 1024 &&
+              (length = std::ftell(f)) > 0 && size_t(length) <= maximum &&
               std::fseek(f, 0, SEEK_SET) == 0;
     *bytes = ok ? static_cast<unsigned char*>(std::malloc(length)) : nullptr;
     ok = *bytes && std::fread(*bytes, 1, length, f) == size_t(length);
@@ -125,7 +125,7 @@ bool nativeHubCatalog_Load(void)
                           drafts[i].path);
             unsigned char* png = nullptr;
             size_t size = 0;
-            if (read_file(path, &png, &size)) {
+            if (read_file(path, &png, &size, 16 * 1024 * 1024)) {
                 entry->pixels = nativeGxImage_Decode(
                     png, unsigned(size), &entry->width, &entry->height);
             }
@@ -152,10 +152,10 @@ bool nativeHubCatalog_PublishDraft(const char* path, NativeHubPublish policy, Na
     std::snprintf(png_path, sizeof(png_path), "%s/portrait.png", path);
     unsigned char* portrait = nullptr;
     size_t portrait_size = 0;
-    if (!read_file(png_path, &portrait, &portrait_size)) {
+    if (!read_file(png_path, &portrait, &portrait_size, 16 * 1024 * 1024)) {
         std::snprintf(png_path, sizeof(png_path),
                       "%sui/workshop_draft_portrait.png", SDL_GetBasePath());
-        if (!read_file(png_path, &portrait, &portrait_size)) {
+        if (!read_file(png_path, &portrait, &portrait_size, 16 * 1024 * 1024)) {
             return false;
         }
         FILE* out = nullptr;
@@ -273,6 +273,19 @@ bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512])
     std::free(packet);
     return ok;
 }
+bool nativeHubCatalog_ImportFighter(const char* package_path, char draft[512])
+{
+    uint8_t* bytes = nullptr;
+    size_t size = 0;
+    NativeFighterPackage fighter;
+    NativeFighterPackageData data;
+    bool ok = read_file(package_path, &bytes, &size, NATIVE_CONTENT_MAX_PACKAGE_BYTES) &&
+        nativeContentStore_ParseFighter(bytes, size, &fighter, &data) && new_path(draft) &&
+        nativeFighterFamilyProject_CreateFromPackage(draft, fighter.title, bytes, size);
+    std::free(bytes);
+    return ok;
+}
+
 bool nativeHubCatalog_MakeEditable(unsigned index, char draft[512])
 {
     if (index >= nativeHubFighterCount) {

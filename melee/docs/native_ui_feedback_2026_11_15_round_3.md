@@ -11,15 +11,15 @@ This batch contains six submissions and eleven pinned notes. Captures and diagno
 
 ### `9c946ef7-1a04-44b8-86cc-ecc670ec5965`
 
-- [ ] Pin 1: Should say 'Duplicate' to separate its functionality from 'Clone Fighter'.
+- [x] Pin 1: Should say 'Duplicate' to separate its functionality from 'Clone Fighter'.
 
-- [ ] Pin 2: Should probably say "Clone Vanilla Fighter"
+- [x] Pin 2: Should probably say "Clone Vanilla Fighter"
 
-- [ ] Pin 3: This should be a button in the workshop editor itself, not here.
+- [x] Pin 3: This should be a button in the workshop editor itself, not here.
 
 ### `65e41944-be3d-48f6-8f03-402142d6a3b4`
 
-- [ ] Pin 1: NONE of these buttons should live in the Attributes menu! Especially Build & Install, which should be visible at the top hotbar with the Save and Test buttons.
+- [x] Pin 1: NONE of these buttons should live in the Attributes menu! Especially Build & Install, which should be visible at the top hotbar with the Save and Test buttons.
 
 ### `003b62dd-fc4c-4637-a90c-70849010d87d`
 
@@ -31,7 +31,7 @@ This batch contains six submissions and eleven pinned notes. Captures and diagno
 
 - [ ] Pin 2: Same for this icon - by default it's the smash bros logo, but we want to let the player define or upload it in the workshop or somewhere similar.
 
-- [ ] Pin 3: Main body of percentage is dark? At 0% it should be white not grey
+- [x] Pin 3: Main body of percentage is dark? At 0% it should be white not grey
 
 ### `f7b8b1bd-f8cf-4d72-9774-07772335af81`
 
@@ -99,3 +99,35 @@ No client release or updater publication was made. The two completed reports
 `f7b8b1bd-f8cf-4d72-9774-07772335af81` and
 `b7ce2c09-b253-48b4-873f-88c6167bb64f` were removed with both attachments;
 their private `removal.json` receipts have `deleted: true`.
+
+The final native cursor review also passes against the deployed service:
+`.local/native-ui-round3-stage-hosted-review-1/review.json`. It uses two clients
+on this PC, including a shared-PC guest with only controller 2 active, and
+completes a match/rematch. Separate-PC acceptance remains a distinct check.
+
+### Workshop commands and imports
+
+The library distinguishes **Duplicate** from **Clone Vanilla Fighter**. Import
+now lives in the editor Fighter menu. Fighter packages open as separate editable
+drafts; model imports modify the current draft. Attributes contains common
+fighter attributes. Save, Build & Install and Test Character are in the header,
+with two rows at narrower widths. Build & Install validates changed scripts
+without switching workspaces. Appearance commands moved into Fighter.
+
+The hidden, muted review passes at 960, 1440 and 1920 pixel widths, with captures
+inspected: .local/native-ui-round3-workshop-review-4/review.json. It verifies
+header bounds, the model import dialog, Attributes, script validation/install,
+separate fighter import, preservation of the original draft, rejection of an
+invalid package, and live testing of the imported fighter. The existing family
+project suite passes 118 checks across three family modes and two stock pairs:
+.local/native-ui-round3-family-project-review.log. Release client/control build
+receipt: .local/native-ui-round3-workshop-build-4.log.
+
+Reports 9c946ef7-1a04-44b8-86cc-ecc670ec5965 and
+65e41944-be3d-48f6-8f03-402142d6a3b4 were removed with both attachments after
+verification. Their private removal receipts report deleted: true.
+
+The HUD's RGB conversion now uses unsigned bytes. The prior signed conversion
+clamped 255 to 127 under the native compiler settings. A compiler probe reproduced
+that result, and the live Test Character capture above verifies white 0% digits.
+The report containing that note remains open for its stock-icon and emblem work.

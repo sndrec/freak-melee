@@ -674,9 +674,6 @@ void nativeHub_Activate(HubAction action, int value)
                 "Could not open an editable copy of this fighter.");
         }
         break;
-    case HubAction::OpenImport:
-        open_editor(nullptr);
-        break;
     case HubAction::CopyFighter:
         if (hub.selected >= 0) {
             char name[64];

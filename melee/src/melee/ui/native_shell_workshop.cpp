@@ -60,11 +60,20 @@ bool project_loaded;
 bool attributes_dirty[NATIVE_FIGHTER_FAMILY_MEMBERS];
 bool discard_pending;
 bool package_open;
+bool fighter_menu_open;
 bool build_cached_candidate(bool save_project, bool persist_portrait,
                             bool require_built_script, NativeContentId* result);
 void enter_draft_preview();
 
 void status(const char* id, const char* message);
+bool build_script(bool show_script);
+
+void show_fighter_menu(bool show)
+{
+    fighter_menu_open = show;
+    document->GetElementById("workshop-fighter-menu")->SetProperty("display", show ? "block" : "none");
+    document->GetElementById("workshop-fighter-toggle")->SetClass("selected", show);
+}
 
 void close_project()
 {
@@ -82,6 +91,7 @@ void close_project()
     std::fill_n(attributes_dirty, NATIVE_FIGHTER_FAMILY_MEMBERS, false);
     discard_pending = false;
     package_open = false;
+    show_fighter_menu(false);
 }
 
 bool confirm_discard()
@@ -302,9 +312,8 @@ void select_draft(size_t index)
         document->GetElementById("workshop-draft-" + std::to_string(i))
             ->SetClass("selected", i == index);
     }
-    status("workshop-save-status", "");
+    status("workshop-editor-status", "");
     input("workshop-portrait-path")->SetValue("");
-    status("workshop-install-status", "");
     status("workshop-library-status", "");
     document->GetElementById("workshop-editor-title")->SetInnerRML(
         Rml::StringUtilities::EncodeRml(drafts[index].title));
@@ -398,11 +407,10 @@ bool save_draft()
     if (saved) {
         select_member(previous_member);
         discard_pending = false;
-        status("workshop-save-status", "Draft saved.");
         status("workshop-editor-status", family_script_changed()
             ? "Draft saved. Build behavior before preview." : "Draft saved.");
     } else {
-        status("workshop-save-status", "Could not save this member. Its edits are retained.");
+        status("workshop-editor-status", "Could not save this member. Its edits are retained.");
     }
     return saved;
 }
@@ -421,6 +429,21 @@ void browse_portrait()
     if (GetOpenFileNameA(&picker)) {
         input("workshop-portrait-path")->SetValue(path);
     }
+}
+
+void import_fighter()
+{
+    if (!project_loaded) return;
+    char file[PATH_CAPACITY] = {};
+    OPENFILENAMEA picker = {};
+    picker.lStructSize = sizeof(picker);
+    picker.hwndOwner = GetActiveWindow();
+    picker.lpstrTitle = "Import fighter as a new draft";
+    picker.lpstrFilter = "Freak Melee fighter packages (*.fmc)\0*.fmc\0All files (*.*)\0*.*\0";
+    picker.lpstrFile = file;
+    picker.nMaxFile = sizeof(file);
+    picker.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (GetOpenFileNameA(&picker)) nativeShellWorkshop_ImportFighter(file);
 }
 
 bool read_portrait(const char* path, uint8_t** bytes, size_t* size)
@@ -455,8 +478,6 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
         return false;
     }
     if (require_built_script && family_script_changed()) {
-        status("workshop-install-status", "Build the changed behavior script "
-               "before preview or install.");
         status("workshop-editor-status", "Build the changed behavior script "
                "before preview or install.");
         return false;
@@ -467,7 +488,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
     int length = std::snprintf(saved_portrait, sizeof(saved_portrait),
                                "%s\\portrait.png", path);
     if (length <= 0 || length >= sizeof(saved_portrait)) {
-        status("workshop-install-status", "Project path is too long.");
+        status("workshop-editor-status", "Project path is too long.");
         return false;
     }
     char fallback_portrait[MAX_PATH] = {};
@@ -528,7 +549,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
     }
     if (!built) {
         std::free(portrait);
-        status("workshop-install-status",
+        status("workshop-editor-status",
                active_family.member_count > 1
                    ? "Could not prepare both source members. Validate each member's behavior and owned assets; the current preview is retained."
                    : "Could not prepare this source fighter. Validate its behavior and assets, and check the portrait.");
@@ -550,7 +571,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
     std::free(package);
     std::free(portrait);
     if (!valid) {
-        status("workshop-install-status", cached && !valid
+        status("workshop-editor-status", cached && !valid
             ? "Source fighter validation failed. Validate its behavior, parameter values and owned assets."
             : "Could not build this fighter.");
         return false;
@@ -603,6 +624,7 @@ void preview_draft()
 
 void install_draft()
 {
+    if (family_script_changed() && !build_script(false)) return;
     NativeContentId id;
     if (!build_cached_candidate(true, true, true, &id)) {
         return;
@@ -616,7 +638,7 @@ void install_draft()
     NativeContentId replaced = {};
     if (root == nullptr || !nativeFighterProject_Install(
                                drafts[selected].path, root, &id, &replaced)) {
-        status("workshop-install-status", "Could not install this fighter.");
+        status("workshop-editor-status", "Could not install this fighter.");
         return;
     }
     const NativeContentId empty = {};
@@ -625,30 +647,28 @@ void install_draft()
         nativeCssOriginal_ReloadInstalledFighters();
     }
     nativeShellCssOriginal_RefreshInstalledFighters();
-    char hex[65];
-    nativeContentStore_IdHex(&id, hex);
-    std::string message = "Installed " + std::string(hex, 12) +
-                          ". Add it in Edit CSS.";
-    status("workshop-install-status", message.c_str());
+    status("workshop-editor-status", std::memcmp(&replaced, &empty, sizeof(empty))
+        ? "Installed. Your character-select tiles now use this build."
+        : "Installed. Add this fighter to character select with Edit CSS.");
 }
 
-void build_script()
+bool build_script(bool show_script)
 {
     if (!project_loaded || selected < 0 ||
-        size_t(selected) >= draft_count) return;
+        size_t(selected) >= draft_count) return false;
     const unsigned previous_member = active_member;
-    if (!save_draft()) return;
+    if (!save_draft()) return false;
     for (unsigned member = 0; member < active_family.member_count; ++member) {
         if (!select_member(member) ||
             !nativeShellWorkshopEditor_BuildScript(active_family.paths[member])) {
-            status("workshop-editor-status", "Family build stopped at this member. No new family was published.");
-            return;
+            status("workshop-editor-status", "Could not build this fighter's script. Open Scripting for details.");
+            return false;
         }
     }
     NativeFighterFamilyProject replacement;
     if (!nativeFighterFamilyProject_Open(drafts[selected].path, &replacement)) {
-        status("workshop-editor-status", "Source validated, but the complete draft could not be reopened. The current preview is retained.");
-        return;
+        status("workshop-editor-status", "Could not reopen the saved draft. Your current edits are still open.");
+        return false;
     }
     // Keep editor project addresses and DAT allocations stable. Building
     // behavior must not discard either member's model/animation undo history.
@@ -666,7 +686,8 @@ void build_script()
     nativeFighterFamilyProject_Close(&replacement);
     select_member(previous_member);
     nativeShellWorkshopEditor_RefreshScriptOutline();
-    nativeShellWorkshopEditor_Click("workshop-mode-script");
+    if (show_script) nativeShellWorkshopEditor_Click("workshop-mode-script");
+    return true;
 }
 
 class WorkshopEvents final : public Rml::EventListener {
@@ -715,9 +736,9 @@ class WorkshopEvents final : public Rml::EventListener {
                     saved = value;
                     attributes_dirty[active_member] = true;
                     discard_pending = false;
-                    status("workshop-save-status", "Attribute updated.");
+                    status("workshop-editor-status", "Attribute updated.");
                 } else if (value != saved) {
-                    status("workshop-save-status", "Enter a valid attribute value.");
+                    status("workshop-editor-status", "Enter a valid attribute value.");
                 }
                 control->Blur();
                 event.StopPropagation();
@@ -726,6 +747,11 @@ class WorkshopEvents final : public Rml::EventListener {
         }
         if (event.GetType() == "keydown") {
             const int key = event.GetParameter<int>("key_identifier", 0);
+            if (key == Rml::Input::KI_ESCAPE && fighter_menu_open) {
+                show_fighter_menu(false);
+                event.StopPropagation();
+                return;
+            }
             if (key == Rml::Input::KI_ESCAPE &&
                 (nativeWorkshopDocs_Close() || nativeShellWorkshopEditor_Shortcut(key))) {
                 event.StopPropagation();
@@ -770,7 +796,7 @@ class WorkshopEvents final : public Rml::EventListener {
             return;
         }
         if (id == "workshop-script-build") {
-            build_script();
+            build_script(true);
             return;
         }
         if (id == "workshop-return-editor") {
@@ -790,6 +816,12 @@ class WorkshopEvents final : public Rml::EventListener {
         }
         if (id != "workshop-back-drafts" && id != "workshop-close")
             discard_pending = false;
+        if (id == "workshop-fighter-toggle") {
+            show_fighter_menu(!fighter_menu_open);
+            return;
+        }
+        if (id != "workshop-portrait-path" && id != "workshop-portrait-browse")
+            show_fighter_menu(false);
         if (nativeShellWorkshopEditor_ScrubTimeline(id.c_str(),
                 event.GetParameter<int>("mouse_x", 0))) return;
         if (nativeShellWorkshopEditor_Click(
@@ -810,18 +842,19 @@ class WorkshopEvents final : public Rml::EventListener {
                 ->SetClass("selected", package_open);
         } else if (id == "workshop-create") {
             create_stock_clone();
-        } else if (id == "workshop-save" || id == "workshop-save-top") {
+        } else if (id == "workshop-save-top") {
             save_draft();
         } else if (id == "workshop-portrait-browse") {
             browse_portrait();
+        } else if (id == "workshop-fighter-import-package") {
+            import_fighter();
         } else if (id == "workshop-portrait-edit") {
             if (!project_loaded || !save_draft()) return;
             char path[PATH_CAPACITY]; std::snprintf(path,sizeof(path),"%s",active_family.paths[0]);
             unsigned member=active_member;
             nativeShellWorkshop_Close();
             if (!opened) nativeHubPortrait_Open(path,member,true);
-        } else if (id == "workshop-preview" ||
-                   id == "workshop-test-character") {
+        } else if (id == "workshop-test-character") {
             preview_draft();
         } else if (id == "workshop-install") {
             install_draft();
@@ -836,6 +869,30 @@ class WorkshopEvents final : public Rml::EventListener {
 } events;
 
 } // namespace
+
+extern "C" bool nativeShellWorkshop_ImportFighter(const char* file)
+{
+    if (!opened || testing || !project_loaded || !file || !*file) return false;
+    if (draft_count >= MAX_DRAFTS) {
+        status("workshop-editor-status", "The Workshop draft library is full.");
+        return false;
+    }
+    if (!save_draft()) return false;
+    char draft[PATH_CAPACITY];
+    if (!nativeHubCatalog_ImportFighter(file, draft)) {
+        status("workshop-editor-status", "Could not import this fighter package. Your current draft is still open.");
+        return false;
+    }
+    refresh_drafts();
+    for (size_t i = 0; i < draft_count; ++i) {
+        if (std::strcmp(drafts[i].path, draft)) continue;
+        select_draft(i);
+        status("workshop-editor-status", "Fighter imported as a new draft.");
+        return true;
+    }
+    status("workshop-library-status", "The fighter was imported, but its draft could not be opened.");
+    return false;
+}
 
 bool nativeShellWorkshop_RefreshPreview()
 {

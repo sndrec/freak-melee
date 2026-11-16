@@ -36,6 +36,7 @@ typedef enum DbNativeControlCommand {
     DB_NATIVE_CONTROL_UI_DOWN = 19,
     DB_NATIVE_CONTROL_UI_UP = 20,
     DB_NATIVE_CONTROL_DEVICE = 21,
+    DB_NATIVE_CONTROL_WORKSHOP_IMPORT = 22,
 } DbNativeControlCommand;
 
 typedef struct DbNativeControlMessage {
@@ -58,7 +59,7 @@ typedef struct DbNativeControlMessage {
     s32 ui_end_x;
     s32 ui_end_y;
     u32 rotation_policy;
-    char text[128];
+    char text[512];
 } DbNativeControlMessage;
 
 bool dbNativeControl_FormatChannel(

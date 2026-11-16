@@ -46,10 +46,23 @@
         </nav>
         <button id="workshop-undo" class="workshop-header-tool" disabled="disabled" title="Undo workshop edit">Undo</button>
         <button id="workshop-redo" class="workshop-header-tool" disabled="disabled" title="Redo workshop edit">Redo</button>
+        <button id="workshop-fighter-toggle" class="workshop-header-tool" title="Fighter appearance and imports">Fighter</button>
         <button id="workshop-package-toggle" class="workshop-header-tool" title="Edit common fighter attributes and package settings">Attributes</button>
         <button id="workshop-save-top" class="room-button">Save</button>
+        <button id="workshop-install" class="room-button" title="Save and install this fighter for character select and online play">Build &amp; Install</button>
         <button id="workshop-test-character" class="room-button primary">Test Character</button>
       </header>
+      <div id="workshop-fighter-menu">
+        <div class="eyebrow">APPEARANCE</div>
+        <button id="workshop-portrait-edit" class="room-button">Portrait &amp; CSS tile</button>
+        <label for="workshop-portrait-path" class="field-label">Portrait PNG</label>
+        <input id="workshop-portrait-path" class="room-input" type="text" maxlength="511" placeholder="Use the saved portrait" />
+        <button id="workshop-portrait-browse" class="room-button">Choose portrait PNG...</button>
+        <div class="workshop-divider"></div>
+        <div class="eyebrow">IMPORT</div>
+        <button id="workshop-fighter-import-model" class="room-button" title="Import meshes into the current fighter">Import model...</button>
+        <button id="workshop-fighter-import-package" class="room-button" title="Save this draft and open a fighter package as a separate editable draft">Import fighter...</button>
+      </div>
       <div id="workshop-editor-context">
         <div id="workshop-context-action">Select an action</div><span>/</span>
         <div id="workshop-context-phase">Main</div><span>/</span>
@@ -429,18 +442,6 @@
         <div id="workshop-attributes">
           <div class="eyebrow">COMMON ATTRIBUTES</div>
           <div id="workshop-common-attributes"></div>
-          <button id="workshop-save" class="room-button primary">Save draft</button>
-          <p id="workshop-save-status" class="workshop-status"></p>
-          <div class="workshop-divider"></div>
-          <div class="eyebrow">INSTALL</div>
-          <label for="workshop-portrait-path" class="field-label">Portrait PNG</label>
-          <input id="workshop-portrait-path" class="room-input" type="text" maxlength="511" placeholder="Choose a PNG, or use the saved one" />
-          <button id="workshop-portrait-browse" class="room-button">Browse</button>
-          <button id="workshop-portrait-edit" class="room-button">Portrait &amp; CSS tile editor</button>
-          <button id="workshop-preview" class="room-button">Preview in practice</button>
-          <button id="workshop-install" class="room-button primary">Build &amp; install</button>
-          <p id="workshop-install-status" class="workshop-status"></p>
-          <p class="workshop-muted">Preview uses your current edits without saving or installing. Add installed fighters through Edit CSS.</p>
         </div>
       </aside>
       <footer id="workshop-editor-footer"><span class="workshop-footer-dot"></span><span id="workshop-editor-status"></span><span class="workshop-footer-label">FREAK MELEE WORKSHOP</span></footer>

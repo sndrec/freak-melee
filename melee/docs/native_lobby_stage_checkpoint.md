@@ -82,6 +82,9 @@ The service suite passes 85 tests in 12 files. Cursor checks cover permissions,
 signed coordinates, stale rounds, cancellation, hibernation and adjacent
 packets arriving together. Native wire tests and the release build pass.
 The signaling deployment is `f973e205-f438-4782-aeb7-c9e32edd1bd0`.
+The same cursor and full match/rematch review passes against that deployment in
+`.local/native-ui-round3-stage-hosted-review-1/review.json`. Both clients ran on
+this PC; the guest's active local fighter used controller 2.
 
 ## Automatic-readiness verification (2026-11-15)
 

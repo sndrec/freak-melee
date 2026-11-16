@@ -1,6 +1,16 @@
 #pragma once
 
 #ifdef __cplusplus
+extern "C" {
+#else
+#include <stdbool.h>
+#endif
+bool nativeShellWorkshop_ImportFighter(const char* package_path);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
 namespace Rml {
 class ElementDocument;
 }

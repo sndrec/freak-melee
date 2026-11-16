@@ -92,6 +92,18 @@ User data under `%LOCALAPPDATA%\Freak Melee` is separate from replaceable builds
 profiles, installed collection markers, cached packages and the CSS layout.
 For tests use isolated stores, hidden/muted launches and the native input channel.
 
+With an editor draft open, the native control tool can import a fighter package
+as a separate draft:
+
+```bat
+melee\build\native\melee_native_control.exe --id review workshop-import "C:/local/fighter.fmc"
+```
+
+Use the control ID supplied when launching that client. Import saves the open
+draft, opens the imported fighter for editing, and leaves installation to
+**Build & Install**. The editor's **Fighter** menu offers the same import command;
+**Import model** opens the model importer for the current draft.
+
 ## Verification
 
 Build the selected test targets before running their CTests:

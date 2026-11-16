@@ -38,7 +38,6 @@ enum class HubAction {
     CopyFighter,
     RenameFighter,
     ApplyRename,
-    OpenImport,
     EditLayout,
     SendFighter,
     Recipient,

@@ -19,6 +19,7 @@
 #include <melee/gr/grpstadium.h>
 #include <melee/mn/mnstagesel.h>
 #include <melee/ui/native_shell.h>
+#include <melee/ui/native_shell_workshop.h>
 #include <sysdolphin/baselib/debug.h>
 #include <dolphin/pad.h>
 #include <aurora/aurora.h>
@@ -101,6 +102,12 @@ static void apply_message(const DbNativeControlMessage* message)
         if (message->command==DB_NATIVE_CONTROL_VIDEO_STOP) accepted=aurora_request_video_capture(NULL);
         else if (memchr(message->text,0,sizeof(message->text))) accepted=aurora_request_video_capture(message->text);
         OSReport("[native-control] Video request accepted=%u\n",accepted);
+        return;
+    }
+    if (message->command==DB_NATIVE_CONTROL_WORKSHOP_IMPORT) {
+        bool ok = memchr(message->text, 0, sizeof(message->text)) &&
+                  nativeShellWorkshop_ImportFighter(message->text);
+        OSReport("[native-control] Workshop fighter import accepted=%u\n", ok);
         return;
     }
     if (message->command==DB_NATIVE_CONTROL_STUDIO) {

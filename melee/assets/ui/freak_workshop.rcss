@@ -88,6 +88,13 @@
 #workshop-editor-header #workshop-save-top { width: 82dp; flex-shrink: 0;
   margin: 0 7dp 0 0; }
 #workshop-test-character { width: 132dp; flex-shrink: 0; margin: 0; }
+#workshop-editor-header #workshop-install { width: 120dp; flex-shrink: 0; margin: 0 7dp 0 0; }
+#workshop-fighter-toggle { width: 66dp; }
+#workshop-fighter-menu { display: none; position: absolute; right: 15dp; top: 66dp;
+  width: 280dp; max-height: 70%; overflow-y: auto; padding: 15dp; z-index: 20; pointer-events: auto;
+  background-color: #22232c; border: 1dp #64505f; border-radius: 4dp; }
+#workshop-fighter-menu .field-label { display: block; margin-top: 14dp; }
+#workshop-fighter-menu .room-button { width: 100%; margin-top: 8dp; }
 .workshop-header-tool { width: 74dp; flex-shrink: 0; margin-right: 7dp;
   padding: 9dp 7dp; color: #cdd1db; background-color: #252832;
   border: 1dp #343743; font-size: 11dp; }
@@ -103,6 +110,7 @@
 #workshop-panel.compact-header #workshop-mode-tabs { position: absolute;
   left: 15dp; right: 15dp; top: 66dp; height: 35dp; margin: 0; }
 #workshop-panel.compact-header #workshop-mode-tabs button { flex: 1; min-width: 0; }
+#workshop-panel.compact-header #workshop-fighter-menu { top: 108dp; }
 #workshop-panel.compact-header #workshop-editor-context { top: 108dp; }
 #workshop-panel.compact-header #workshop-inspector.workshop-package-open { top: 108dp; }
 #workshop-editor-context { display: none; position: absolute; left: 0;

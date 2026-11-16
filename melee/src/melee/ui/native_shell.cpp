@@ -125,7 +125,7 @@ namespace {
                                    ? (workshopScript ? 0 : editorRightWidth)
                                : workshop ? workshopWidth
                                           : 0;
-        const bool compactHeader = dimensions.x < int(1440 * density);
+        const bool compactHeader = dimensions.x < int(1680 * density);
         const int editorTop = int((compactHeader ? 156 : 114) * density);
         document->GetElementById("workshop-panel")->SetClass("compact-header", compactHeader);
         for (const char* id : { "workshop-editor-browser", "workshop-editor-inspector",

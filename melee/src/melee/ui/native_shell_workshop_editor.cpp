@@ -841,6 +841,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         open_delete_confirmation();
         return true;
     }
+    if (!std::strcmp(id, "workshop-fighter-import-model")) select_mode(WorkshopMode::Model);
     if (session->mode == WorkshopMode::Model &&
         nativeShellWorkshopModel_Click(id, shift))
     {

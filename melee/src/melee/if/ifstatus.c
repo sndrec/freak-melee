@@ -30,7 +30,8 @@
 /* 2F491C */ static void
 ifStatus_PercentOnDeathAnimationThink(IfDamageState* state);
 
-/* Color endpoints for damage percentage interpolation (extern from .sdata2) */
+/* RGB channels span 0..255. Keep interpolation unsigned: a signed-byte
+ * float conversion saturates at 127 on the native compiler. */
 /* Start color (low damage) */
 static u8 ifStatus_804D57A8[] = { 0xFF, 0xFF, 0xFF, 0xFF };
 /* End color (high damage) */
@@ -250,13 +251,13 @@ static inline void ifStatus_UpdateDamageDisplay(IfDamageState* state,
                 clamped_damage = 0;
             }
             factor = 1.0F - ((f32) clamped_damage / 100.0F);
-            stamina_color->r = (s8) (factor * (f32) (ifStatus_804D57AC[0] -
+            stamina_color->r = (u8) (factor * (f32) (ifStatus_804D57AC[0] -
                                                      ifStatus_804D57A8[0]) +
                                      (f32) ifStatus_804D57A8[0]);
-            stamina_color->g = (s8) (factor * (f32) (ifStatus_804D57AC[1] -
+            stamina_color->g = (u8) (factor * (f32) (ifStatus_804D57AC[1] -
                                                      ifStatus_804D57A8[1]) +
                                      (f32) ifStatus_804D57A8[1]);
-            stamina_color->b = (s8) (factor * (f32) (ifStatus_804D57AC[2] -
+            stamina_color->b = (u8) (factor * (f32) (ifStatus_804D57AC[2] -
                                                      ifStatus_804D57A8[2]) +
                                      (f32) ifStatus_804D57A8[2]);
             stamina_color->a = 255;
@@ -269,13 +270,13 @@ static inline void ifStatus_UpdateDamageDisplay(IfDamageState* state,
                 clamped_damage = 0;
             }
             factor = (f32) clamped_damage / 300.0F;
-            normal_color->r = (s8) (factor * (f32) (ifStatus_804D57AC[0] -
+            normal_color->r = (u8) (factor * (f32) (ifStatus_804D57AC[0] -
                                                     ifStatus_804D57A8[0]) +
                                     (f32) ifStatus_804D57A8[0]);
-            normal_color->g = (s8) (factor * (f32) (ifStatus_804D57AC[1] -
+            normal_color->g = (u8) (factor * (f32) (ifStatus_804D57AC[1] -
                                                     ifStatus_804D57A8[1]) +
                                     (f32) ifStatus_804D57A8[1]);
-            normal_color->b = (s8) (factor * (f32) (ifStatus_804D57AC[2] -
+            normal_color->b = (u8) (factor * (f32) (ifStatus_804D57AC[2] -
                                                     ifStatus_804D57A8[2]) +
                                     (f32) ifStatus_804D57A8[2]);
             normal_color->a = 255;

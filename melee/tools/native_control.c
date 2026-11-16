@@ -28,6 +28,7 @@ static void usage(const char* executable)
             "  %s [--id NAME] ui-click <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1> [left|right|middle] [shift|ctrl|alt]...\n"
             "  ui-wheel <x> <y> <steps>\n"
+            "  workshop-import <fighter-package.fmc>\n"
             "  ui-down / ui-up <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
@@ -273,9 +274,16 @@ int wmain(int argc, wchar_t** arguments)
             else if (!_stricmp(command[i], "alt")) message.extensions |= 4;
             else return 1;
         }
+    } else if (_stricmp(command[0], "workshop-import") == 0 && command_args == 2) {
+        if (!*command[1] || strlen(command[1]) >= sizeof(message.text)) {
+            fprintf(stderr, "Fighter package path is limited to 511 bytes.\n");
+            return 1;
+        }
+        message.command = DB_NATIVE_CONTROL_WORKSHOP_IMPORT;
+        memcpy(message.text, command[1], strlen(command[1]) + 1);
     } else if (_stricmp(command[0], "ui-text") == 0 && command_args == 2) {
         if (strlen(command[1]) >= sizeof(message.text)) {
-            fprintf(stderr, "UI text is limited to 127 bytes.\n");
+            fprintf(stderr, "UI text is limited to 511 bytes.\n");
             return 1;
         }
         message.command = DB_NATIVE_CONTROL_UI_TEXT;

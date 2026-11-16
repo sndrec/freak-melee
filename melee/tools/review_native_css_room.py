@@ -152,11 +152,11 @@ class Client:
     def enter(self, name, text):
         self.click(name)
         self.command('ui-key', 'a', 'ctrl')
-        # The native control protocol carries 127 UTF-8 bytes per text event.
+        # The native control protocol carries 511 UTF-8 bytes per text event.
         # Keep code points intact, as ordinary SDL text events do.
         chunk = ''
         for character in text:
-            if len((chunk + character).encode('utf-8')) > 127:
+            if len((chunk + character).encode('utf-8')) > 511:
                 self.command('ui-text', chunk)
                 chunk = ''
             chunk += character

@@ -84,10 +84,8 @@ namespace {
     }
     void collection()
     {
-        nativeHub_Button("clone-fighter", "Clone fighter", 175, 110, 100, 26,
+        nativeHub_Button("clone-fighter", "Clone Vanilla Fighter", 175, 110, 175, 26,
                          HubAction::NewClone, 0, true, nativeHome_IsSelection());
-        nativeHub_Button("import-fighter", "Import model / fighter", 282, 110,
-                         135, 26, HubAction::OpenImport, 0, false, nativeHome_IsSelection());
         nativeHub_Panel(175, 148, 430, 210);
         unsigned end =
             std::min(nativeHubFighterCount, unsigned(hub.first_fighter + 14));
@@ -115,9 +113,9 @@ namespace {
                                 194, 313, 240, 8, muted);
             nativeHub_Button("edit-fighter", "Edit fighter", 465, 285, 122, 36,
                              HubAction::Edit, 0, true, nativeHome_IsSelection());
-            nativeHub_Button("copy-fighter", "Clone", 194, 332, 49, 21,
+            nativeHub_Button("copy-fighter", "Duplicate", 194, 332, 62, 21,
                              HubAction::CopyFighter, 0, false, f.installed && nativeHome_IsSelection());
-            nativeHub_Button("rename-fighter", "Rename", 249, 332, 64, 21,
+            nativeHub_Button("rename-fighter", "Rename", 262, 332, 56, 21,
                              HubAction::RenameFighter, 0, false, nativeHome_IsSelection());
             nativeHub_Button("send-fighter", "Send fighter", 320, 332, 81, 21,
                              HubAction::SendFighter, 0, false, f.installed);
