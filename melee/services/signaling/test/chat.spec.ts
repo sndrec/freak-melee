@@ -71,6 +71,20 @@ async function players(connection: Awaited<ReturnType<typeof connect>>) {
 }
 
 describe("global chat", () => {
+  it("removes a ghost peer without removing a player who sent a newer heartbeat", async () => {
+    const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
+    const a = await connect(stub, firstPeer), b = await connect(stub, secondPeer);
+    try {
+      await a.next(0x82); await b.next(0x82);
+      a.socket.send(new Uint8Array([2])); await a.next(0x84);
+      expect(await stub.disconnectPlayer(firstPeer, 0)).toBe(false);
+      expect(await stub.disconnectPlayer(secondPeer, 0)).toBe(true);
+      expect(await stub.connectedPlayers()).toEqual([
+        expect.objectContaining({ peer: firstPeer, lastMessageAt: expect.any(Number) }),
+      ]);
+    } finally { a.socket.close(); b.socket.close(); }
+  });
+
   it("routes everyone without a room or build requirement", async () => {
     const a = await connect(worker, firstPeer);
     await a.next(0x82);

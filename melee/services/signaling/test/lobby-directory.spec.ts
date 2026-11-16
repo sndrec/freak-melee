@@ -47,6 +47,22 @@ async function closeAll(sockets: WebSocket[]) {
 }
 
 describe("native lobby browser", () => {
+  it("closes only the lobby revision inspected by an operator", async () => {
+    const host = await connect("/v1/rooms/ADMIN777/connect?peer=host0000&name=Host&build=admin-build&players=1");
+    const room = env.ROOMS.getByName("ADMIN777");
+    try {
+      await host.next(ServerMessageType.Welcome);
+      host.socket.send(encodeSetListing("Stale lobby", true));
+      await host.next(ServerMessageType.Listing);
+      const state = await room.maintenanceState();
+      expect(state.lobby?.title).toBe("Stale lobby");
+      expect(await room.closeLobby(state.revision - 1)).toBe(false);
+      expect(await room.directoryEntry()).not.toBeNull();
+      expect(await room.closeLobby(state.revision)).toBe(true);
+      expect(await room.directoryEntry()).toBeNull();
+    } finally { await closeAll([host.socket]); }
+  });
+
   it("lists real seats, protects host settings, filters builds and removes empty lobbies", async () => {
     const host = await connect("/v1/rooms/BROWSE77/connect?peer=host0000&name=Host&build=browser-build&players=2");
     const guest = await connect("/v1/rooms/BROWSE77/connect?peer=guest000&name=Guest&build=browser-build&players=1");

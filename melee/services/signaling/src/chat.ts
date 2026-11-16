@@ -9,7 +9,7 @@ export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES + 2 + 43
 export const CHAT_PLAYERS = 128;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-interface ChatIdentity { peer: string; name: string; account?: ConnectionAccount }
+interface ChatIdentity { peer: string; name: string; account?: ConnectionAccount; lastMessageAt?: number }
 function accountBytes(id: string, handle: string): Uint8Array {
   const bytes = new Uint8Array(2 + id.length + handle.length);
   bytes.set([id.length, handle.length]); bytes.set(encoder.encode(id), 2);
@@ -132,6 +132,7 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     const initial = socket.deserializeAttachment() as ChatIdentity;
+    socket.serializeAttachment({ ...initial, lastMessageAt: Date.now() });
     let release: (() => void) | undefined, lane: Promise<void> | undefined;
     if (initial.account) {
       const previous = this.accountMessages.get(initial.peer);
@@ -212,6 +213,26 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
 
   private connections(): WebSocket[] {
     return this.ctx.getWebSockets().filter((socket) => socket.readyState === WebSocket.OPEN);
+  }
+
+  // Operator RPC only. Heartbeat timestamps distinguish disconnected ghosts
+  // from players who are connected but have not posted chat messages.
+  connectedPlayers(): { peer: string; name: string; lastMessageAt: number }[] {
+    return this.connections().map(socket => {
+      const identity = socket.deserializeAttachment() as ChatIdentity;
+      return { peer: identity.peer, name: identity.name, lastMessageAt: identity.lastMessageAt ?? 0 };
+    });
+  }
+
+  disconnectPlayer(peer: string, expectedLastMessageAt: number): boolean {
+    const socket = this.connections().find(socket => {
+      const identity = socket.deserializeAttachment() as ChatIdentity;
+      return identity.peer === peer && (identity.lastMessageAt ?? 0) === expectedLastMessageAt;
+    });
+    if (!socket) return false;
+    socket.close(4006, "Disconnected connection removed by administrator");
+    this.presence();
+    return true;
   }
 
   private presence(): void {

@@ -1564,6 +1564,21 @@ export class Room extends DurableObject<CloudflareBindings> {
       participants: people.length, playing: this.currentMatch().payload !== null };
   }
 
+  // Operator RPC only: the public Worker exposes no route to these methods.
+  maintenanceState(): { revision: number; lobby: LobbyEntry | null } {
+    return { revision: this.currentRevision(), lobby: this.directoryEntry() };
+  }
+
+  async closeLobby(expectedRevision: number): Promise<boolean> {
+    if (this.currentRevision() !== expectedRevision || !this.directoryEntry()) return false;
+    this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
+    this.invalidateMatch();
+    for (const socket of this.ctx.getWebSockets()) socket.close(4006, "Lobby closed by administrator");
+    const revision = this.nextRevision();
+    await this.env.LOBBY_DIRECTORY.getByName("public").advertise(this.ctx.id.name!, revision, false);
+    return true;
+  }
+
   private error(socket: WebSocket, message: string): void {
     this.send(socket, encodeError(message, MAX_MESSAGE_BYTES));
   }

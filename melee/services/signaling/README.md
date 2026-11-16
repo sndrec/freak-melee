@@ -1,5 +1,20 @@
 # Freak Melee signaling service
 
+## Operator cleanup and disconnect follow-up
+
+Account-owned Worker bindings can inspect a room with `maintenanceState()`
+and close that exact revision with `closeLobby(revision)`. Closing removes the
+listing and disconnects its sockets. There is no public HTTP or client message
+route for operator cleanup. Chat provides `connectedPlayers()` with the time of
+the last received message (including heartbeat), and
+`disconnectPlayer(peer, expectedLastMessageAt)` refuses a stale cleanup request
+if that player has sent another message.
+
+Automatic cleanup after an internet outage remains to be implemented. Add
+server-enforced connection leases to rooms and chat, expire dead sockets even
+when no close event arrives, update lobby listings and chat presence immediately,
+and cover reconnects without removing a player's replacement connection.
+
 This Worker is the low-frequency rendezvous path for native rooms. One
 Cloudflare Durable Object coordinates each room ID. It keeps hibernatable
 WebSockets for presence and directed connection-setup messages; gameplay input
