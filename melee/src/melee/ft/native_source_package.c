@@ -36,6 +36,7 @@ static bool stable(const NativeSourcePackage* package)
 static bool discard(NativeSourcePackage* package)
 {
     if(!nativeSourceItemVisuals_Release(&package->visuals))return false;
+    nativeSourceHud_Release(&package->hud);
     nativeSourceEntityAssets_Release(&package->entities);
     nativeSourceAssets_Release(&package->assets);nativeSourceBank_Release(&package->compiler);free(package->input_memory);
     memset(package,0,sizeof(*package));
@@ -82,6 +83,7 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
     if(!copy_inputs(package,input,d))goto failure;
     if(!nativeSourceResources_Read(package->owned_input.resources,package->owned_input.resource_bytes,
                                    &package->resources,d->message,sizeof(d->message)))goto failure;
+    if(!nativeSourceHud_Prepare(&package->hud,&package->resources,d->message,sizeof(d->message)))goto failure;
     if(!nativeSourceBank_Allocate(&package->compiler,d))goto failure;
     package->compiler.bank.tree.source=package->owned_input.source;
     package->compiler.bank.tree.source_bytes=(uint32_t)package->owned_input.source_bytes;

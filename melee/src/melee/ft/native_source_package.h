@@ -5,6 +5,7 @@
 #include "native_source_parameters.h"
 #include "native_script_fighter.h"
 #include "native_source_resources.h"
+#include "native_source_hud.h"
 #include "native_source_entity_assets.h"
 #include <melee/it/native_source_item_visual.h>
 
@@ -27,6 +28,7 @@ typedef struct NativeSourcePackage {
     NativeSourceBank compiler;
     NativeSourceParameters parameters;
     NativeSourceResources resources;
+    NativeSourceHud hud;
     NativeSourceItemVisuals visuals;
     NativeSourceEntityAssets entities;
     NativeScriptItemMetadataContext metadata;

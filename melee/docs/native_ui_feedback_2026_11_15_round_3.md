@@ -27,9 +27,9 @@ This batch contains six submissions and eleven pinned notes. Captures and diagno
 
 ### `78d0b72e-6e83-4a31-99ff-d35305207382`
 
-- [ ] Pin 1: Wrong stock icons? I think we need to make sure that the correct stock icons are picked when cloning a character from a vanilla character. We also need a way for the player to upload or create these stock icons.
+- [x] Pin 1: Wrong stock icons? I think we need to make sure that the correct stock icons are picked when cloning a character from a vanilla character. We also need a way for the player to upload or create these stock icons.
 
-- [ ] Pin 2: Same for this icon - by default it's the smash bros logo, but we want to let the player define or upload it in the workshop or somewhere similar.
+- [x] Pin 2: Same for this icon - by default it's the smash bros logo, but we want to let the player define or upload it in the workshop or somewhere similar.
 
 - [x] Pin 3: Main body of percentage is dark? At 0% it should be white not grey
 
@@ -130,4 +130,44 @@ verification. Their private removal receipts report deleted: true.
 The HUD's RGB conversion now uses unsigned bytes. The prior signed conversion
 clamped 255 to 127 under the native compiler settings. A compiler probe reproduced
 that result, and the live Test Character capture above verifies white 0% digits.
-The report containing that note remains open for its stock-icon and emblem work.
+The stock-icon and emblem work is recorded below.
+
+### Owned stock icons and HUD emblems
+
+New vanilla clones copy their original stock icons and series emblems from the
+disc into owned PNG resources. Paired fighters own separate art for each member.
+The Fighter menu imports replacement PNGs; Twilight chose image import for this
+pass rather than additional camera-capture targets. Decoding happens when a
+package is prepared. HUD drawing uses those immutable images without per-frame
+decoding or allocation. Original material geometry and player-color styling stay
+in use. Existing drafts can import their desired images and Build & Install.
+
+The hidden, muted review verifies a fresh Ganondorf clone's owned disc artwork,
+live stock and emblem rendering, custom PNG import and installation, and
+preservation of both images after an invalid import:
+`.local/native-ui-round3-hud-review-1/review.json`. Captures were inspected.
+The source-package suite passes 32 checks, including decoded HUD image lifetime
+and rejection preserving an accepted package; the family project suite passes
+118 checks. Receipts: `.local/native-ui-round3-hud-package-contract.log` and
+`.local/native-ui-round3-hud-family-contract.log`.
+
+Report `78d0b72e-6e83-4a31-99ff-d35305207382` was removed with both attachments
+after verification. Its private removal receipt reports `deleted: true`.
+
+### Practice shadows and cape investigation
+
+The practice floor now receives fighter shadows during gameplay. The editor's
+empty preview continues to omit them. Fractionally scaled EFB texture copies
+were including an unwritten edge row or column through outward scissor
+rounding. Texture clamping then stretched those black edge pixels across the
+stage. Copy rectangles now round their physical edges to covered pixels.
+The inspected capture in `.local/native-ui-round3-render-after-2/review.json`
+shows the complete practice grid with cast fighter shadows.
+
+The cape issue also reproduces with stock Ganondorf, a fresh scripted clone and
+the exact reported package. Their costume, animation and dynamics coefficients
+match. The shared solver remains under investigation; report
+`003b62dd-fc4c-4637-a90c-70849010d87d` remains open. Replays exercise three actual
+Warlock Punches and return to idle, rather than relying on a synthetic pose.
+Evidence: `.local/native-ui-round3-cape-practice-parity-1/review.json` and
+`.local/native-ui-round3-reported-cape-replay-1/review.json`.

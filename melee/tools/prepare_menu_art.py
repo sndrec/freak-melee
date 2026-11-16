@@ -17,7 +17,7 @@ def indexed_image(data, image, palette):
     def word(offset):
         return struct.unpack_from('>I', data, 32 + offset)[0]
     pixels, width, height, fmt = struct.unpack_from('>IHHI', data, 32 + image)
-    if fmt != 9 or word(palette + 4) != 2 or width % 8 or height % 4:
+    if fmt not in (8, 9) or word(palette + 4) != 2 or width % 8 or height % (8 if fmt == 8 else 4):
         raise ValueError('Unexpected indexed menu image format')
     colors = []
     palette_pixels = word(palette)
@@ -34,12 +34,15 @@ def indexed_image(data, image, palette):
         colors.append(color)
     result = Image.new('RGBA', (width, height))
     position = 32 + pixels
-    for by in range(0, height, 4):
+    tile_height = 8 if fmt == 8 else 4
+    for by in range(0, height, tile_height):
         for bx in range(0, width, 8):
-            for y in range(4):
+            for y in range(tile_height):
                 for x in range(8):
+                    value = data[position + (y * 8 + x) // 2] if fmt == 8 else data[position + y * 8 + x]
+                    index = (value >> (4 if x % 2 == 0 else 0)) & 15 if fmt == 8 else value
                     result.putpixel((bx + x, by + y),
-                                    colors[data[position + y * 8 + x]])
+                                    colors[index])
             position += 32
     return result
 
@@ -133,6 +136,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    from prepare_hud_art import write_hud_art
+    write_hud_art(args.iso, args.output, Path(__file__).resolve().parents[1])
     for kind, image, tile, card in portraits(args.iso, Path(__file__).resolve().parents[1]):
         image.save(args.output / f'stock-{kind}.png')
         card.save(args.output / f'card-{kind}.png')

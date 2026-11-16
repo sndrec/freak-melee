@@ -23,6 +23,7 @@
 #include <sysdolphin/baselib/gobjproc.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mobj.h>
+#include <melee/ft/native_source_hud.h>
 #include <sysdolphin/baselib/mtx.h>
 #include <sysdolphin/baselib/random.h>
 #include <sysdolphin/baselib/tobj.h>
@@ -613,6 +614,8 @@ void ifStatus_802F5E50(HSD_GObj* gobj, s32 arg1)
 {
     IfDamageState* player = getPlayerByNext(gobj);
     if (!player->flags.hide_all_digits) {
+        HSD_JObj* root = GET_JOBJ(gobj);
+        nativeSourceHud_Apply(player->player_slot, root->child->u.dobj->mobj->tobj, NativeSourceHud_Emblem);
         HSD_GObj_JObjCallback(gobj, arg1);
     }
 }

@@ -104,6 +104,12 @@ draft, opens the imported fighter for editing, and leaves installation to
 **Build & Install**. The editor's **Fighter** menu offers the same import command;
 **Import model** opens the model importer for the current draft.
 
+The Fighter menu also imports transparent PNGs for **Stock icon** and **HUD
+emblem**. These belong to the selected family member. Original stock icons are
+24×24 pixels. White emblem artwork takes the HUD's player color. Use Build &
+Install after importing. The control equivalents are `workshop-image stock
+"C:/local/icon.png"` and `workshop-image emblem "C:/local/emblem.png"`.
+
 ## Verification
 
 Build the selected test targets before running their CTests:

@@ -37,6 +37,7 @@ typedef enum DbNativeControlCommand {
     DB_NATIVE_CONTROL_UI_UP = 20,
     DB_NATIVE_CONTROL_DEVICE = 21,
     DB_NATIVE_CONTROL_WORKSHOP_IMPORT = 22,
+    DB_NATIVE_CONTROL_WORKSHOP_IMAGE = 23,
 } DbNativeControlCommand;
 
 typedef struct DbNativeControlMessage {

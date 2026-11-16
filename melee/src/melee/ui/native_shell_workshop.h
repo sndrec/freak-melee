@@ -6,6 +6,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 bool nativeShellWorkshop_ImportFighter(const char* package_path);
+bool nativeShellWorkshop_ImportHudImage(unsigned target, const char* png_path);
 #ifdef __cplusplus
 }
 #endif

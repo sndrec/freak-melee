@@ -29,6 +29,7 @@ static void usage(const char* executable)
             "  %s [--id NAME] ui-drag <x0> <y0> <x1> <y1> [left|right|middle] [shift|ctrl|alt]...\n"
             "  ui-wheel <x> <y> <steps>\n"
             "  workshop-import <fighter-package.fmc>\n"
+            "  workshop-image <stock|emblem> <image.png>\n"
             "  ui-down / ui-up <x> <y> [right|middle]\n"
             "  %s [--id NAME] ui-text <text>\n"
             "  %s [--id NAME] ui-move <x> <y>\n"
@@ -281,6 +282,12 @@ int wmain(int argc, wchar_t** arguments)
         }
         message.command = DB_NATIVE_CONTROL_WORKSHOP_IMPORT;
         memcpy(message.text, command[1], strlen(command[1]) + 1);
+    } else if (_stricmp(command[0], "workshop-image") == 0 && command_args == 3) {
+        if ((_stricmp(command[1], "stock") && _stricmp(command[1], "emblem")) ||
+            !*command[2] || strlen(command[2]) >= sizeof(message.text)) { usage(argv[0]); return 1; }
+        message.command = DB_NATIVE_CONTROL_WORKSHOP_IMAGE;
+        message.port = !_stricmp(command[1], "emblem");
+        memcpy(message.text, command[2], strlen(command[2]) + 1);
     } else if (_stricmp(command[0], "ui-text") == 0 && command_args == 2) {
         if (strlen(command[1]) >= sizeof(message.text)) {
             fprintf(stderr, "UI text is limited to 511 bytes.\n");

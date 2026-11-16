@@ -21,6 +21,7 @@
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
+#include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_match_launch.h>
@@ -446,6 +447,20 @@ void import_fighter()
     if (GetOpenFileNameA(&picker)) nativeShellWorkshop_ImportFighter(file);
 }
 
+void browse_hud_image(unsigned target)
+{
+    char file[PATH_CAPACITY] = {};
+    OPENFILENAMEA picker = {};
+    picker.lStructSize = sizeof(picker);
+    picker.hwndOwner = GetActiveWindow();
+    picker.lpstrTitle = target ? "Import HUD emblem" : "Import stock icon";
+    picker.lpstrFilter = "PNG image (*.png)\0*.png\0";
+    picker.lpstrFile = file;
+    picker.nMaxFile = sizeof(file);
+    picker.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (GetOpenFileNameA(&picker)) nativeShellWorkshop_ImportHudImage(target, file);
+}
+
 bool read_portrait(const char* path, uint8_t** bytes, size_t* size)
 {
     FILE* file = std::fopen(path, "rb");
@@ -846,6 +861,8 @@ class WorkshopEvents final : public Rml::EventListener {
             save_draft();
         } else if (id == "workshop-portrait-browse") {
             browse_portrait();
+        } else if (id == "workshop-stock-icon-browse" || id == "workshop-emblem-browse") {
+            browse_hud_image(id == "workshop-emblem-browse");
         } else if (id == "workshop-fighter-import-package") {
             import_fighter();
         } else if (id == "workshop-portrait-edit") {
@@ -869,6 +886,37 @@ class WorkshopEvents final : public Rml::EventListener {
 } events;
 
 } // namespace
+
+extern "C" bool nativeShellWorkshop_ImportHudImage(unsigned target, const char* file)
+{
+    if (!opened || testing || !project_loaded || target > 1 || !file || !*file) return false;
+    uint8_t* bytes = nullptr; size_t size = 0;
+    uint16_t width = 0, height = 0;
+    bool valid = read_portrait(file, &bytes, &size) &&
+        nativeSourceResources_PNG(bytes, size, &width, &height, nullptr, 0);
+    unsigned char* pixels = valid ? nativeGxImage_Decode(bytes, unsigned(size), &width, &height) : nullptr;
+    valid = valid && pixels;
+    nativeGxImage_Free(pixels);
+    const char* name = target ? "ui/emblem.png" : "ui/stock-icon.png";
+    if (!valid || !save_draft() || !nativeFighterProject_SetResource(
+            active_family.paths[active_member], name, NativeSourceResource_PNG, bytes, size)) {
+        std::free(bytes);
+        status("workshop-editor-status", "Could not import this PNG. The previous HUD image is retained.");
+        return false;
+    }
+    std::free(bytes);
+    NativeFighterProject saved{};
+    if (!nativeFighterProject_Open(active_family.paths[active_member], &saved)) {
+        status("workshop-editor-status", "Image saved, but could not reopen the draft. Reopen it before building.");
+        return false;
+    }
+    std::swap(active_project->resources, saved.resources);
+    std::swap(active_project->resource_size, saved.resource_size);
+    nativeFighterProject_Close(&saved);
+    status("workshop-editor-status", target ? "HUD emblem imported. Build & Install to use it in matches."
+                                          : "Stock icon imported. Build & Install to use it in matches.");
+    return true;
+}
 
 extern "C" bool nativeShellWorkshop_ImportFighter(const char* file)
 {

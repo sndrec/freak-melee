@@ -10,6 +10,7 @@
 #include "ifstatus.h"
 #include "types.h"
 #include <melee/ef/efsync.h>
+#include <melee/ft/native_source_hud.h>
 #include <melee/gm/gm_unsplit.h>
 #include <melee/gm/gmregclear.h>
 #include <melee/gm/types.h>
@@ -467,6 +468,10 @@ void fn_802F94E0(HSD_GObj* gobj, int renderpass)
     struct IfStockUserData* p = GET_IFSTOCK(gobj);
     struct HudIndex* x = ifStatus_GetHUDInfo();
     if (!x->players[p->player].flags.hide_all_digits) {
+        for (unsigned i = 1; i <= 7; ++i) {
+            HSD_JObj* icon = if_stock_state.hud.player[p->player].x4[i];
+            nativeSourceHud_Apply(p->player, icon->u.dobj->mobj->tobj, NativeSourceHud_Stock);
+        }
         HSD_GObj_JObjCallback(gobj, renderpass);
     }
 }

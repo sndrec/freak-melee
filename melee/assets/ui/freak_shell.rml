@@ -58,6 +58,8 @@
         <label for="workshop-portrait-path" class="field-label">Portrait PNG</label>
         <input id="workshop-portrait-path" class="room-input" type="text" maxlength="511" placeholder="Use the saved portrait" />
         <button id="workshop-portrait-browse" class="room-button">Choose portrait PNG...</button>
+          <button id="workshop-stock-icon-browse" class="room-button" title="Import a transparent PNG for this member's stock icons. Original icons are 24 by 24 pixels.">Import stock icon PNG...</button>
+          <button id="workshop-emblem-browse" class="room-button" title="Import a transparent PNG for the emblem behind this member's damage percentage. White artwork takes the player color.">Import HUD emblem PNG...</button>
         <div class="workshop-divider"></div>
         <div class="eyebrow">IMPORT</div>
         <button id="workshop-fighter-import-model" class="room-button" title="Import meshes into the current fighter">Import model...</button>

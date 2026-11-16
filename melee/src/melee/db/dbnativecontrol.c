@@ -17,6 +17,7 @@
 #include <melee/gm/native_signaling_wire.h>
 #include <melee/gm/native_netplay_match.h>
 #include <melee/gr/grpstadium.h>
+#include <melee/lb/lbshadow.h>
 #include <melee/mn/mnstagesel.h>
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_shell_workshop.h>
@@ -110,6 +111,12 @@ static void apply_message(const DbNativeControlMessage* message)
         OSReport("[native-control] Workshop fighter import accepted=%u\n", ok);
         return;
     }
+    if (message->command==DB_NATIVE_CONTROL_WORKSHOP_IMAGE) {
+        bool ok = memchr(message->text, 0, sizeof(message->text)) &&
+                  nativeShellWorkshop_ImportHudImage(message->port, message->text);
+        OSReport("[native-control] Workshop HUD image import accepted=%u\n", ok);
+        return;
+    }
     if (message->command==DB_NATIVE_CONTROL_STUDIO) {
         if (memchr(message->text,0,sizeof(message->text))) nativeStudio_Command(message->text);
         return;
@@ -185,6 +192,7 @@ static void apply_message(const DbNativeControlMessage* message)
     if (message->command == DB_NATIVE_CONTROL_UI_INSPECT) {
         if (memchr(message->text, '\0', sizeof(message->text))) {
             if (!strcmp(message->text,"stadium-state")) grStadium_Inspect();
+            else if (!strcmp(message->text,"shadow-state")) lbShadow_Inspect();
             else if (!strcmp(message->text,"netplay-state")) nativeNetplayMatch_Inspect();
             else if (!strcmp(message->text,"costume-state")) nativeCostumeRuntime_Inspect();
             else if (!strcmp(message->text,"sss-state")) mnStageSel_Inspect();

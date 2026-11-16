@@ -244,6 +244,22 @@ bool nativeHubCatalog_CreateStockDraft(FighterKind kind, const char* title,
     bool card_ok=card && nativeFighterProject_SetResource(draft,"ui/player-card.png",NativeSourceResource_PNG,card,card_size);
     SDL_free(card);
     if (!card_ok) return false;
+    for (unsigned member = 0; member < (partner == Ft_Kind_None ? 1u : 2u); ++member) {
+        char member_path[560];
+        std::snprintf(member_path, sizeof(member_path), "%s%s", draft, member ? "/partner" : "");
+        const FighterKind member_kind = member ? partner : kind;
+        const char* assets[] = {"stock", "emblem"};
+        const char* resources[] = {"ui/stock-icon.png", "ui/emblem.png"};
+        for (unsigned asset = 0; asset < 2; ++asset) {
+            std::snprintf(source, sizeof(source), "%sui/portraits/hud-%s-%u.png",
+                          SDL_GetBasePath(), assets[asset], unsigned(member_kind));
+            size_t size = 0; void* bytes = SDL_LoadFile(source, &size);
+            const bool copied = bytes && nativeFighterProject_SetResource(member_path,
+                resources[asset], NativeSourceResource_PNG, bytes, size);
+            SDL_free(bytes);
+            if (!copied) return false;
+        }
+    }
     if (partner != Ft_Kind_None) {
         char partner_path[560];
         std::snprintf(partner_path, sizeof(partner_path), "%s/partner", draft);
