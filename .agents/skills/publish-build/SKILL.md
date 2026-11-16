@@ -33,10 +33,18 @@ last, after the GitHub release and News draft are verified. Keep a local receipt
 of completed stages so a retry can resume without duplicate articles or releases.
 Preserve any personal edits made to an existing News draft.
 
-Use the existing protected admin interface for News. Do not add an automation
-login or broaden administrative access. Prefer a suitable connected GitHub tool;
-otherwise use authenticated GitHub CLI or the browser. Do not extract browser
-credentials. Missing authentication is a setup issue to resolve with the owner.
+Save News with `melee/tools/save_native_news_draft.py`, using the release ID as
+its stable key, the patch-notes file as its body and a receipt beside the prepared
+release. This uses the owner's existing Wrangler login. Read the saved receipt:
+the body must match, ticker must be empty, publication time must be null, and
+Published and Archived must be false on first creation. Retries preserve the
+owner's edits and publication state; review any difference instead of overwriting.
+
+Use a suitable connected GitHub tool or authenticated GitHub CLI for release
+creation, uploads, verification and publication. The procedure includes CLI
+commands for every stage. Computer use is optional for owner review, not a
+publication prerequisite. Do not extract browser credentials or add an alternate
+admin login. Missing owner authentication is a setup issue to resolve.
 
 Build locally with the private ISO and optional music input. Package neither the
 ISO nor user data. If an executable is locked, ask or wait for the owner to close

@@ -31,6 +31,26 @@ Administration requires a Cloudflare Access assertion even in local development.
 Tests sign their own temporary assertions and supply a test verification key;
 the service has no alternate login path.
 
+## News drafts from the command line
+
+Maintainers can save an unpublished article using their existing Wrangler owner
+login. Run from `melee`, after installing this service's dependencies:
+
+```powershell
+python tools/save_native_news_draft.py --key my-update --title "My update" --body-file docs/releases/my-update.md --receipt .local/my-update-news.json
+```
+
+Use the release ID as the key when writing patch notes. The command inserts a
+draft into the same D1 database the website uses, then reads it back and records
+its ID, revision and publication state. It leaves ticker text empty and publication
+time unset. It creates no announcement. The key and receipt identify the article
+on a retry, which preserves existing text and any edits or publication by the
+owner. `body_matches` reports whether the saved title and text match the input.
+
+This requires D1 access through the owner's Cloudflare credentials, just like
+`download_native_feedback.py`. It adds no network route or login method. The owner
+can edit and publish the saved draft through the usual administration page.
+
 ## Deployment
 
 The D1 database and private R2 bucket named in `wrangler.jsonc` were created on

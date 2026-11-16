@@ -65,3 +65,5 @@ add_dependencies(melee_native melee_native_ui)
 
 add_test(NAME native_release_payload COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/release_payload_test.py")
+add_test(NAME native_news_draft COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/news_draft_test.py")
