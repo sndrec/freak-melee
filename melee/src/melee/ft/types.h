@@ -1355,15 +1355,7 @@ struct Fighter {
         Vec3 x20;
     } x1614[2];
     /* fp+166C */ u8 x166C; ///< number of valid entries in x1670 array
-    /* fp+1670 */ struct Fighter_x1670_t {
-        /* +00 */ Vec3 v1;
-        /* +0C */ float v2;
-        /* +10 */ HSD_JObj* jobj;
-        /* +14 */ float x14;
-        /* +18 */ Vec3 x18;
-        /* +24 */ int x24;
-    } x1670[1]; ///< @todo figure out proper size
-    /* fp+1674 */ u8 filler_x1674[0x1828 - 0x1670 - 0x28];
+    /* fp+1670 */ DynamicsCollider x1670[11];
     /* fp+1828 */ enum_t x1828;
     /* fp+182C */ struct dmg {
         /* fp+182C */ float x182c_behavior;

@@ -2534,7 +2534,7 @@ bool lbColl_8000A244(HurtCapsule* hurt, u32 arg1, Mtx arg2, float arg3)
     return false;
 }
 
-bool lbColl_8000A460(Fighter_x1670_t* hurt, u32 arg1)
+bool lbColl_8000A460(DynamicsCollider* hurt, u32 arg1)
 {
     u32 var_r0;
 
@@ -2547,9 +2547,9 @@ bool lbColl_8000A460(Fighter_x1670_t* hurt, u32 arg1)
         var_r0 = 2;
     }
     if (var_r0 == arg1) {
-        HSD_JObjSetupMatrix(hurt->jobj);
-        lbColl_800096B4(HSD_JObjGetMtxPtr(hurt->jobj), hurt->v1, hurt->v1, r31,
-                        r30, hurt->v2);
+        HSD_JObjSetupMatrix(hurt->joint);
+        lbColl_800096B4(HSD_JObjGetMtxPtr(hurt->joint), hurt->offset, hurt->offset, r31,
+                        r30, hurt->radius);
         return true;
     }
     return false;

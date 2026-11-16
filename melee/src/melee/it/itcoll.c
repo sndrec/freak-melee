@@ -1041,14 +1041,14 @@ void it_8027163C(Item_GObj* item_gobj)
         item->xB68 = dynamics->collision_bone_count;
         index = 0;
         while (cnt < dynamics->collision_bone_count) {
-            struct xB6C_t* vars = &item->xB6C_vars[cnt];
+            DynamicsCollider* vars = &item->xB6C_vars[cnt];
             ItemCollisionDynamicsDesc* bone_dyn_desc =
                 &dynamics->collision_bones[index];
-            vars->xB90 = bone_dyn_desc->bone_id;
-            vars->xB7C =
+            vars->bone_index = bone_dyn_desc->bone_id;
+            vars->joint =
                 item->xBBC_dynamicBoneTable->bones[bone_dyn_desc->bone_id];
-            vars->xB6C = bone_dyn_desc->offset;
-            vars->xB78 = bone_dyn_desc->size;
+            vars->offset = bone_dyn_desc->offset;
+            vars->radius = bone_dyn_desc->size;
             index++;
             cnt++;
         }
@@ -1341,8 +1341,8 @@ void it_80272304(Item_GObj* item_gobj)
     u32 i;
     Item* item = GET_ITEM(item_gobj);
     for (i = 0; i < item->xB68; i++) {
-        struct xB6C_t* tmp = &item->xB6C_vars[i];
-        lb_8000B1CC(tmp->xB7C, &tmp->xB6C, &tmp->xB84);
+        DynamicsCollider* collider = &item->xB6C_vars[i];
+        lb_8000B1CC(collider->joint, &collider->offset, &collider->position);
     }
 }
 

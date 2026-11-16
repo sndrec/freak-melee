@@ -18,6 +18,7 @@
 #include <melee/gm/native_netplay_match.h>
 #include <melee/gr/grpstadium.h>
 #include <melee/lb/lbshadow.h>
+#include <melee/lb/lb_00F9.h>
 #include <melee/mn/mnstagesel.h>
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_shell_workshop.h>
@@ -193,6 +194,7 @@ static void apply_message(const DbNativeControlMessage* message)
         if (memchr(message->text, '\0', sizeof(message->text))) {
             if (!strcmp(message->text,"stadium-state")) grStadium_Inspect();
             else if (!strcmp(message->text,"shadow-state")) lbShadow_Inspect();
+            else if (!strcmp(message->text,"dynamics-state")) lbDynamics_Inspect();
             else if (!strcmp(message->text,"netplay-state")) nativeNetplayMatch_Inspect();
             else if (!strcmp(message->text,"costume-state")) nativeCostumeRuntime_Inspect();
             else if (!strcmp(message->text,"sss-state")) mnStageSel_Inspect();

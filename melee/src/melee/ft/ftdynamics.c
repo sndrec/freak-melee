@@ -550,7 +550,7 @@ void ftCo_8009DD94(Fighter_GObj* gobj, bool arg1)
                     NativeScriptFighter_DynamicsInteractionStart,arguments,2, NULL,&result);
                 if(status!=NativeScriptVM_Ok || result.type!=NativeScriptType_I32 ||
                    !nativeDynamics_Current(&saved))goto dynamics_abort;
-                lb_8001044C(&dyn->dyn_desc,&fp->x1670,fp->x166C,fp->cur_pos.y,
+                lb_8001044C(&dyn->dyn_desc,fp->x1670,fp->x166C,fp->cur_pos.y,
                            arg1,dyn->bone_id,(int32_t)result.as.i64,ret_B0);
                 if(!nativeDynamics_Current(&saved))goto dynamics_abort;
             }
@@ -559,7 +559,7 @@ void ftCo_8009DD94(Fighter_GObj* gobj, bool arg1)
                 int first_active = definition->on_dynamics_interaction_start(
                     gobj, (int)i, (int)dynamics_num);
                 if(!nativeDynamics_Current(&saved))goto dynamics_abort;
-                lb_8001044C(&dyn->dyn_desc, &fp->x1670, fp->x166C,
+                lb_8001044C(&dyn->dyn_desc, fp->x1670, fp->x166C,
                             fp->cur_pos.y, arg1, dyn->bone_id, first_active, ret_B0);
                 if(!nativeDynamics_Current(&saved))goto dynamics_abort;
             }
@@ -567,19 +567,19 @@ void ftCo_8009DD94(Fighter_GObj* gobj, bool arg1)
 #endif
         if (fp->kind == Ft_Kind_Peach) {
             for (i = 0; i < dynamics_num - 1; i++, dyn++) {
-                lb_8001044C(&dyn->dyn_desc, &fp->x1670, fp->x166C,
+                lb_8001044C(&dyn->dyn_desc, fp->x1670, fp->x166C,
                             fp->cur_pos.y, arg1, dyn->bone_id, 3, ret_B0);
             }
-            lb_8001044C(&dyn->dyn_desc, &fp->x1670, fp->x166C, fp->cur_pos.y,
+            lb_8001044C(&dyn->dyn_desc, fp->x1670, fp->x166C, fp->cur_pos.y,
                         arg1, dyn->bone_id, 0, ret_B0);
         } else if (fp->kind == Ft_Kind_Mewtwo) {
             for (i = 0; i < dynamics_num; i++, dyn++) {
-                lb_8001044C(&dyn->dyn_desc, &fp->x1670, fp->x166C,
+                lb_8001044C(&dyn->dyn_desc, fp->x1670, fp->x166C,
                             fp->cur_pos.y, arg1, dyn->bone_id, 8, ret_B0);
             }
         } else {
             for (i = 0; i < dynamics_num; i++, dyn++) {
-                lb_8001044C(&dyn->dyn_desc, &fp->x1670, fp->x166C,
+                lb_8001044C(&dyn->dyn_desc, fp->x1670, fp->x166C,
                             fp->cur_pos.y, arg1, dyn->bone_id, 0, ret_B0);
             }
         }

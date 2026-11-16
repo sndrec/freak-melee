@@ -12,6 +12,9 @@
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/initialize.h>
 #include <sysdolphin/baselib/lobj.h>
+#include <sysdolphin/baselib/dobj.h>
+#include <sysdolphin/baselib/mobj.h>
+#include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/perf.h>
 #include <sysdolphin/baselib/pobj.h>
 #include <sysdolphin/baselib/shadow.h>
@@ -558,6 +561,41 @@ void lbShadow_8000F38C(s32 arg0)
 
         ftDrawCommon_80081168();
     }
+}
+
+static unsigned shadow_receiver_count(HSD_JObj* joint)
+{
+    unsigned count = 0;
+    for (; joint; joint = joint->next) {
+        if (!(joint->flags & (JOBJ_PTCL | JOBJ_SPLINE)))
+            for (HSD_DObj* mesh = joint->u.dobj; mesh; mesh = mesh->next)
+                if (mesh->mobj && (mesh->mobj->rendermode & RENDER_SHADOW)) ++count;
+        count += shadow_receiver_count(joint->child);
+    }
+    return count;
+}
+
+void lbShadow_Inspect(void)
+{
+    for (HSD_GObj* actor = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]; actor; actor = actor->next) {
+        Fighter* fighter = actor->user_data;
+        LbShadow* state = &fighter->x20A4;
+        HSD_Shadow* shadow = state->shadow;
+        OSReport("[shadow-state] player=%u kind=%u active=%u flags=%u%u%u%u%u%u drawn=%u model=%u objects=%u intensity=%u colliders=%u\n",
+            fighter->player_id, fighter->kind, shadow ? shadow->active : 0,
+            state->x0_b0, state->x0_b1, state->x0_b2, state->x0_b3, state->x0_b4, state->x0_b5,
+            fighter->x21FC_flag.b7, fighter->x5AC.xC[1] != NULL,
+            shadow && shadow->objects != NULL, shadow ? shadow->intensity : 0, fighter->x166C);
+        for (unsigned i=0; i<fighter->x166C; ++i) {
+            const DynamicsCollider* collider = &fighter->x1670[i];
+            OSReport("[dynamics-collider] index=%u bone=%d radius=%.3f position=%.3f,%.3f,%.3f\n",
+                i, collider->bone_index, collider->radius, collider->position.x, collider->position.y, collider->position.z);
+        }
+    }
+    unsigned receivers=0;
+    for (HSD_GObj* object=HSD_GObjGXLinkHead[3]; object; object=object->next_gx)
+        if (object->obj_kind==HSD_GObj_JObjKind) receivers+=shadow_receiver_count(GET_JOBJ(object));
+    OSReport("[shadow-state] ground-receivers=%u\n", receivers);
 }
 
 const f32 lbShadow_804D7B70 = 0.0F;

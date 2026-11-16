@@ -3067,8 +3067,8 @@ void ftColl_8007AF60(Fighter_GObj* gobj)
     int i;
 
     for (i = 0; i < (unsigned) fp->x166C; i++) {
-        Fighter_x1670_t* temp_r4 = &fp->x1670[i];
-        lb_8000B1CC(temp_r4->jobj, &temp_r4->v1, &temp_r4->x18);
+        DynamicsCollider* collider = &fp->x1670[i];
+        lb_8000B1CC(collider->joint, &collider->offset, &collider->position);
     }
 }
 
@@ -3220,12 +3220,12 @@ void ftColl_8007B320(Fighter_GObj* gobj)
 
     fp->x166C = dyn->x4;
     for (i = 0; i < (u32) dyn->x4; i++) {
-        Fighter_x1670_t* dst = &fp->x1670[i];
+        DynamicsCollider* dst = &fp->x1670[i];
         struct ftData_x38* init = &dyn->x8[i];
-        dst->x24 = init->x0;
-        dst->jobj = fp->parts[init->x0].joint;
-        dst->v1 = init->x4;
-        dst->v2 = init->x10;
+        dst->bone_index = init->x0;
+        dst->joint = fp->parts[init->x0].joint;
+        dst->offset = init->x4;
+        dst->radius = init->x10;
     }
 }
 

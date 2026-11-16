@@ -35,7 +35,20 @@ aurora::Vec2<uint32_t> scale_copy_dst(u32 logicalWidth, u32 logicalHeight) {
 
 namespace aurora::gx {
 void copy_tex(const void* dest, GXBool clear) noexcept {
-  const auto rect = map_logical_scissor(g_gxState.texCopySrc);
+  const auto& logical = g_gxState.texCopySrc;
+  const auto mapped = map_logical_viewport({.left=static_cast<float>(logical.x),
+      .top=static_cast<float>(logical.y), .width=static_cast<float>(logical.width),
+      .height=static_cast<float>(logical.height)});
+  const auto [targetWidth, targetHeight] = gfx::get_render_target_size();
+  // Copy only complete pixels inside the logical rectangle. Outward scissor
+  // rounding can include an unwritten edge; nearest rounding can still include
+  // partially covered MSAA pixels at fractional scales. Projected textures
+  // clamp to those edge colors outside their bounds.
+  const auto left = std::clamp(static_cast<int32_t>(std::ceil(mapped.left)), 0, static_cast<int32_t>(targetWidth));
+  const auto top = std::clamp(static_cast<int32_t>(std::ceil(mapped.top)), 0, static_cast<int32_t>(targetHeight));
+  const auto right = std::clamp(static_cast<int32_t>(std::floor(mapped.left+mapped.width)), left, static_cast<int32_t>(targetWidth));
+  const auto bottom = std::clamp(static_cast<int32_t>(std::floor(mapped.top+mapped.height)), top, static_cast<int32_t>(targetHeight));
+  const gfx::ClipRect rect{left, top, right-left, bottom-top};
   const auto [dstWidth, dstHeight] = scale_copy_dst(g_gxState.texCopyDstWidth, g_gxState.texCopyDstHeight);
   const auto texCopyFmt = g_gxState.texCopyFmt;
 

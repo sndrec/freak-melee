@@ -1,6 +1,8 @@
 #ifndef MELEE_LB_FORWARD_H
 #define MELEE_LB_FORWARD_H
 
+typedef struct DynamicsCollider DynamicsCollider;
+
 #include <Runtime/platform.h>
 
 #define HSD_GOBJ_CLASS_SISLIB_UNK 9

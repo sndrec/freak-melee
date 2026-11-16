@@ -1,6 +1,6 @@
 # Build and launch the Windows native client
 
-Updated: 2026-11-08. The full gameplay/HSD tree builds as the runnable
+Updated: 2026-11-15. The full gameplay/HSD tree builds as the runnable
 `melee_native` client; the initial compile/link bring-up is finished.
 This guide describes the current source layout. Old compile-audit history is
 preserved in the private repository's pre-cleanup commit, not a work list.
@@ -109,6 +109,11 @@ emblem**. These belong to the selected family member. Original stock icons are
 24×24 pixels. White emblem artwork takes the HUD's player color. Use Build &
 Install after importing. The control equivalents are `workshop-image stock
 "C:/local/icon.png"` and `workshop-image emblem "C:/local/emblem.png"`.
+
+For rendering and bone-physics diagnostics, `ui-inspect shadow-state` reports
+fighter shadows, receiving stage materials and bone collision spheres.
+`ui-inspect dynamics-state` reports active wind fields and their remaining
+lifetime. These commands inspect the running scene without changing it.
 
 ## Verification
 

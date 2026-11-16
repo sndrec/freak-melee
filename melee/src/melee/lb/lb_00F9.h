@@ -14,12 +14,13 @@
 
 /* 00F9F8 */ void lb_8000F9F8(HSD_JObj* jobj);
 void lbDynamics_Reset(void);
+void lbDynamics_Inspect(void);
 /* 00FD18 */ void lb_8000FD18(DynamicsDesc*);
 /* 00FD48 */ void lb_8000FD48(HSD_JObj*, DynamicsDesc*, size_t);
 /* 0100B0 */ struct lb_80011A50_t* lb_800100B0(struct lb_80011A50_t*, float);
 /* 0101C8 */ float lb_800101C8(Vec3*, Vec3*);
 /* 0103B8 */ float lb_800103B8(Vec3*, Vec3*);
-/* 01044C */ void lb_8001044C(DynamicsDesc*, UNK_T, int, float pos_y, bool,
+/* 01044C */ void lb_8001044C(DynamicsDesc*, const DynamicsCollider*, int, float pos_y, bool,
                               Fighter_Part part, int, bool);
 /* 0115F4 */ void lb_800115F4(void);
 /* 011710 */ void lb_80011710(DynamicsDesc*, DynamicsDesc*);

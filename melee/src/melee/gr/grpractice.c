@@ -3,6 +3,7 @@
 #include "grdatfiles.h"
 #include "inlines.h"
 #include <melee/lb/lbheap.h>
+#include <melee/lb/lb_00F9.h>
 #include <melee/mp/types.h>
 #include <sysdolphin/baselib/dobj.h>
 #include <sysdolphin/baselib/pobj.h>
@@ -312,7 +313,8 @@ static void load_assets(UnkArchiveStruct* archive)
     make_grid_texture(stage);
     stage->material = (HSD_Material){ .diffuse = {255,255,255,255}, .alpha = 1 };
     stage->material_desc = (HSD_MObjDesc){
-        .rendermode = RENDER_VERTEX | RENDER_TEX0, .mat = &stage->material,
+        .rendermode = RENDER_VERTEX | RENDER_TEX0 | (editor_preview ? 0 : RENDER_SHADOW),
+        .mat = &stage->material,
         .texdesc = &stage->texture,
     };
     stage->mesh = (HSD_DObjDesc){ .mobjdesc = &stage->material_desc,
@@ -330,7 +332,15 @@ static void load_assets(UnkArchiveStruct* archive)
     stage_info.quake_model_set = NULL;
 }
 
-static StageCallbacks callbacks[1];
+static void update(Ground_GObj* map)
+{
+    Ground_801C2FE0(map);
+    // Retail stages age and retire move-created wind here. Practice needs the
+    // same tick so temporary gusts cannot keep driving bone chains forever.
+    lb_800115F4();
+}
+
+static StageCallbacks callbacks[] = {{ .gobj_proc = update }};
 static void init(void)
 {
     Ground_GObj* map = Ground_GetStageGObj(0);

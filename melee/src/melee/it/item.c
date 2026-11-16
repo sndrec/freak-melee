@@ -2380,7 +2380,7 @@ static void Item_8026A788(HSD_GObj* gobj)
 
     it_80272304(gobj);
     for (i = 0; i < dynamicBonesNum; i++, dynamicBones++) {
-        lb_8001044C(&dynamicBones->dyn_desc, &item_data->xB6C_vars[0].xB6C.x,
+        lb_8001044C(&dynamicBones->dyn_desc, item_data->xB6C_vars,
                     item_data->xB68, 0.0f, 0, dynamicBones->flags, 0, 1);
     }
 }

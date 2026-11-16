@@ -23,7 +23,7 @@ This batch contains six submissions and eleven pinned notes. Captures and diagno
 
 ### `003b62dd-fc4c-4637-a90c-70849010d87d`
 
-- [ ] Pin 1: After doing Warlock Punch (neutral special) ganon's cape starts flipping the fuck out. I think generally the code for these kinds of physically integrated joint chains seems off? Also I just realized that the render texture shadows for characters are also completely broken and missing LOL
+- [x] Pin 1: After doing Warlock Punch (neutral special) ganon's cape starts flipping the fuck out. I think generally the code for these kinds of physically integrated joint chains seems off? Also I just realized that the render texture shadows for characters are also completely broken and missing LOL
 
 ### `78d0b72e-6e83-4a31-99ff-d35305207382`
 
@@ -160,14 +160,45 @@ The practice floor now receives fighter shadows during gameplay. The editor's
 empty preview continues to omit them. Fractionally scaled EFB texture copies
 were including an unwritten edge row or column through outward scissor
 rounding. Texture clamping then stretched those black edge pixels across the
-stage. Copy rectangles now round their physical edges to covered pixels.
-The inspected capture in `.local/native-ui-round3-render-after-2/review.json`
-shows the complete practice grid with cast fighter shadows.
+stage. Copy rectangles now include only complete physical pixels. Filtered
+copies clamp sampling to the crop's texel centers so neighboring EFB pixels
+cannot bleed into its edges when source and destination sizes differ.
+The final scale review in `.local/native-ui-round3-shadow-scales-2/review.json`
+checks 960x720, 1100x850, 1280x960, 1440x810 and 1920x1080 windows. Its captures
+show the complete practice grid with cast fighter shadows, including the
+fractional-size case that exposed partially covered copy edges. A floor-region
+pixel check detects the original black projection artifact. Final build:
+`.local/native-ui-round3-shadow-filter-build-2.log`.
 
-The cape issue also reproduces with stock Ganondorf, a fresh scripted clone and
-the exact reported package. Their costume, animation and dynamics coefficients
-match. The shared solver remains under investigation; report
-`003b62dd-fc4c-4637-a90c-70849010d87d` remains open. Replays exercise three actual
-Warlock Punches and return to idle, rather than relying on a synthetic pose.
-Evidence: `.local/native-ui-round3-cape-practice-parity-1/review.json` and
-`.local/native-ui-round3-reported-cape-replay-1/review.json`.
+The cape issue reproduced with stock Ganondorf, a fresh scripted clone and the
+exact reported package. The practice stage had no per-tick update for temporary
+wind fields. Unlike retail stages, it never aged or retired Warlock Punch's
+gusts, leaving them to drive the cape after the move ended. Practice now runs
+the same ground update and wind lifecycle as retail stages. The fighter's move
+code and original dynamics coefficients remain intact.
+
+The investigation also found that the shared bone solver used a padded
+GameCube collider layout to read native fighter and item arrays. Its position
+offset and array stride were wrong with 64-bit joint pointers. Fighters, items
+and the solver now use one typed `DynamicsCollider` array, including all eleven
+fighter slots. This repair is separate from Ganondorf's wind issue: his model
+has no collision spheres. Fox and Donkey Kong each exercise one live sphere.
+
+The final hidden, muted review passes with inspected captures:
+`.local/native-ui-round3-practice-final-3/review.json`. Stock Ganondorf, a fresh
+clone and the exact reported package each perform three actual Warlock Punches.
+Wind fields expire and the cape settles back to hanging after each move. Fox
+and Donkey Kong also complete the replay with valid sphere radii and world-space
+positions. Build receipt: `.local/native-ui-round3-practice-wind-build.log`.
+
+The current confirmed-checkpoint path passes a two-client delayed-input match
+with the reported Ganondorf and stock Fox/Donkey Kong:
+`.local/native-ui-round3-checkpoint-pair-4/review.json`. Each peer compares 671
+confirmed checksums; the clients perform 664 and 673 restores, respectively,
+with matching gameplay state. This is same-PC acceptance. The older page-history
+correction diagnostic refused input at frame zero and was not used as the
+rollback acceptance path.
+
+Report `003b62dd-fc4c-4637-a90c-70849010d87d` and both attachments were removed;
+its private removal receipt reports `deleted: true`. All six reports in this
+batch have removal receipts. No client release or updater publication was made.

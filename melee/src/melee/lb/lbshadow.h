@@ -16,5 +16,6 @@
 /* 00EFEC */ void lbShadow_8000EFEC(void);
 /* 00F214 */ void lbShadow_8000F214(HSD_Shadow*);
 /* 00F38C */ void lbShadow_8000F38C(s32);
+void lbShadow_Inspect(void);
 
 #endif

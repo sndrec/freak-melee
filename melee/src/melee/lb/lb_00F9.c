@@ -28,14 +28,6 @@
 #include <sysdolphin/baselib/quatlib.h>
 #include <sysdolphin/baselib/tobj.h>
 
-struct lb_Collider {
-    /* 0x00 */ char pad_00[0x0C];
-    /* 0x0C */ f32 radius;
-    /* 0x10 */ char pad_10[0x08];
-    /* 0x18 */ Vec3 position;
-    /* 0x24 */ char pad_24[0x04];
-};
-
 const struct {
     Vec3 v0;
     Vec3 v1;
@@ -99,6 +91,19 @@ void lbDynamics_Reset(void)
     dynamics_state.active_wind = NULL;
     dynamics_state.wind_status = 0;
     nativeDynamics_BeginScene();
+}
+
+void lbDynamics_Inspect(void)
+{
+    unsigned active = 0;
+    for (const struct lb_80011A50_t* wind = dynamics_state.active_wind;
+         wind != NULL; wind = wind->next) {
+        OSReport("[dynamics-wind] index=%u type=%u remaining=%d age=%d strength=%.6f decay=%.6f\n",
+            active++, wind->x0, wind->unk_count0, wind->unk_angle_int,
+            wind->unk_scale, wind->x24);
+    }
+    OSReport("[dynamics-state] active-wind=%u status=%d disabled=%u\n",
+        active, dynamics_state.wind_status, dynamics_state.disabled);
 }
 
 void lb_8000FD18(DynamicsDesc* desc)
@@ -385,7 +390,7 @@ static inline float groundHeight(struct DynamicsData* data, Vec3* floor_point)
     return absf(data->desc.lb_unk0.unk_2C.y - floor_point->y);
 }
 
-void lb_8001044C(DynamicsDesc* desc, void* colliders_raw, int num_colliders,
+void lb_8001044C(DynamicsDesc* desc, const DynamicsCollider* colliders, int num_colliders,
                  float pos_y, bool use_floor_fn, Fighter_Part part,
                  int first_active, bool ground_check)
 {
@@ -411,7 +416,7 @@ void lb_8001044C(DynamicsDesc* desc, void* colliders_raw, int num_colliders,
 
     struct DynamicsData* cur;
     HSD_JObj* jobj;
-    struct lb_Collider* collider;
+    const DynamicsCollider* collider;
     s32 on_ground;
     s32 loop_index;
 
@@ -624,7 +629,7 @@ void lb_8001044C(DynamicsDesc* desc, void* colliders_raw, int num_colliders,
             /* Collider avoidance */
             if (num_colliders != 0) {
                 lbVector_Normalize(&link_dir);
-                collider = colliders_raw;
+                collider = colliders;
                 {
                     s32 ci;
                     for (ci = 0; ci < num_colliders; ci++) {

@@ -12,6 +12,17 @@
 #include <dolphin/gx.h>
 #include <dolphin/mtx.h>
 
+// Runtime collision spheres used by physically integrated bone chains.
+// The joint pointer makes this wider than its 40-byte GameCube runtime layout.
+typedef struct DynamicsCollider {
+    Vec3 offset;
+    float radius;
+    HSD_JObj* joint;
+    float scale;
+    Vec3 position;
+    int bone_index;
+} DynamicsCollider;
+
 struct HitResult {
     HSD_JObj* bone;
 
