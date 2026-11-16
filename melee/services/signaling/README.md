@@ -63,14 +63,15 @@ profiles and expiring lobby invitations. Its account socket upgrade uses
 The service supplies public account metadata in presence and chat records.
 Signing in from a guest lobby uses authenticated `POST /v1/accounts/<name>/lobby/attach`
 with its room code and private Welcome connection ID. The service preserves the
-live socket and lobby state. Replacing an active guest socket requires its private
-Welcome ID in `X-Freak-Connection`; a public peer ID alone is insufficient.
+live socket and lobby state. Replacing an active guest socket requires its
+installation key or its private Welcome ID in `X-Freak-Connection`; a public
+peer ID alone is insufficient.
 Update the service and client together: the new presence records require both
 ends of the updated wire format. Local native checks set both
 `FREAK_MELEE_SERVICE_ENDPOINT` and `FREAK_MELEE_CHAT_ENDPOINT` to the same
 localhost service. The [social guide](../../docs/native_social_accounts.md)
 records social behavior and native verification. The current service suite
-passes 82 tests in twelve files. Two hidden/muted native clients also pass
+passes 98 tests in thirteen files. Two hidden/muted native clients also pass
 the hosted account-key/profile/invitation/join/sign-out review:
 `.local/account-key-hosted-1/receipt.json`.
 

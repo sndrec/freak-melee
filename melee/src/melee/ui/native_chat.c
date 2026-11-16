@@ -370,7 +370,7 @@ static DWORD WINAPI chat_worker(void* unused)
         ChatCommand discarded;
         while (pop_command(&discarded)) {
         }
-        NativeChatPacket disconnected = { .type = 0xff };
+        NativeChatPacket disconnected = { .type = WaitForSingleObject(network.stop, 0) == WAIT_OBJECT_0 ? 0xfe : 0xff };
         push_event(&disconnected);
         if (was_connected) {
             retry_ms = 1000;
@@ -445,8 +445,8 @@ void nativeChat_Update(void)
         atomic_load_explicit(&network.event_write, memory_order_acquire);
     for (; r != w; ++r) {
         const NativeChatPacket* packet = &network.events[r % EVENT_COUNT];
-        if (packet->type == 0xff) {
-            view.state = NativeChat_Reconnecting;
+        if (packet->type == 0xff || packet->type == 0xfe) {
+            view.state = packet->type == 0xfe ? NativeChat_Offline : NativeChat_Reconnecting;
             view.online = view.player_count = 0;
             view.presence_ready = false;
             incoming_presence = false;

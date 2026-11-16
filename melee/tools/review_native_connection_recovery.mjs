@@ -65,15 +65,16 @@ try {
   timer = setTimeout(() => child.kill(), 100000);
   const code = await new Promise((resolve, reject) => { child.on('exit', resolve); child.on('error', reject); });
   const result = /hold welcomes=(\d+),(\d+) heartbeat-fresh=1/.exec(log);
-  const passed = replaced ? opened === (chat ? 1 : 2) && code === (chat ? 0 : 1) :
-    chat ? code === 0 && opened >= 2 && dropped > 0 :
+  const passed = replaced ? opened === (chat ? 1 : 2) && code === (chat ? 0 : 1) && (!chat || /state=3 online=0/.test(log)) :
+    chat ? code === 0 && opened >= 2 && (log.match(/state=1 online=/g)?.length ?? 0) >= 2 && dropped > 0 :
       code === 0 && result && +result[1] >= 2 && +result[2] >= 2 && dropped > 0;
   await writeFile(resolve(output, 'probe.log'), log);
   await writeFile(resolve(output, 'review.json'), JSON.stringify({ passed: !!passed, exit: code,
     welcomes: result?.slice(1).map(Number), connectionsOpened: opened, replaced, chat,
     droppedMessages: dropped, source: fileURLToPath(import.meta.url) }, null, 2));
   if (!passed) throw new Error(`Native recovery probe failed; see ${output}/probe.log`);
-  console.log(replaced ? 'PASS: replaced clients did not reconnect.' : 'PASS: both native clients reconnected; heartbeats resumed.');
+  console.log(replaced ? 'PASS: replaced clients did not reconnect.' :
+    chat ? 'PASS: native chat reconnected; heartbeats resumed.' : 'PASS: both native clients reconnected; heartbeats resumed.');
 } finally {
   clearTimeout(timer);
   clearTimeout(replacementTimer);

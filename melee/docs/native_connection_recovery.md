@@ -45,8 +45,10 @@ node melee/tools/review_native_connection_recovery.mjs `
   --endpoint http://localhost:8798 --output .local/connection-outage
 ```
 
-The native outage check passed with two reconnections and fresh replies from
-both clients. Replacement checks also passed for lobby and chat transports;
+The full service suite passes 98 tests. In the native outage check, both lobby
+clients reconnected once and received fresh heartbeat replies. A separate native
+chat client also recovered from a 55-second outage. Replacement checks passed
+for lobby and chat transports;
 neither client attempted to reclaim a replaced connection. Guest-key persistence
 and origin restrictions pass in `native_account_test`.
 
