@@ -128,9 +128,19 @@ Accepted 2026-11-17. Implementation is in progress.
   PATH, including the real UI Add hitbox button, undo, preview, practice,
   installation and export. Paired build/save fixtures now explicitly construct
   both Zelda and Sheik and verify two-member coverage; legacy clone-stock creates
-  only one member. Remaining work includes action labels/visibility and larger
-  edit batches, other asset domains, structured clone/import, controlled test
+  only one member. Remaining work includes other asset domains, structured clone/import, controlled test
   evidence and full packaged acceptance. No public build was uploaded.
+- Action property updates now accept up to 256 distinct events as one atomic
+  edit and one live undo step. Handles refer to the original inspected revision;
+  shared-command localization preserves their targets. Replies include requested
+  changes and actual quantized properties. Action labels and editor visibility
+  are readable/editable through the same operation as the UI controls, persist
+  through the journal and whole-family Save, and share the existing label undo.
+  Native checks cover shared-script isolation, duplicate handles, a later invalid
+  entry, no-op metadata, label rejection and paired-member metadata paths.
+  All thirteen core checks pass. Extracted-package CLI/MCP/launcher and real
+  hidden/muted Workshop checks pass with a Windows-only PATH, including grouped
+  undo/redo, label visibility in the UI and labels saved through build/install.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted

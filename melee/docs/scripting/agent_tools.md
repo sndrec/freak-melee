@@ -199,12 +199,32 @@ the original archive.
 
 | `operation` | Arguments and result |
 | --- | --- |
+| `metadata` | Set an action's editor `label` and/or `hidden` flag. An empty label restores its default display name. |
 | `playback` | Set `loop`, `root_motion`, or the supported `animation_flags` bits. |
 | `own_hitboxes` | Convert proven hitbox lifetimes from clear events into editable durations. `converted_hitboxes` reports the count. Unresolved patterns keep their original commands. |
 | `create` | Supply `kind`, `frame` and optional `properties` from the types view. Creates a new event directly, including an action's first event script. |
 | `update` | Supply `event_id` and a `properties` object. Update damage, element, radius, attachment, knockback, eligibility and other fields returned by the event view. |
 | `timing` | Supply `event_id`, either `frame` or `delta`, and an optional hitbox `duration`. Moves all repetitions together while preserving the loop pattern and other event times. |
 | `delete` | Supply `event_id` to remove that authored event and its repetitions. |
+
+To edit several events together, use `operation: "update"` with `updates`:
+
+```json
+{
+  "updates": [
+    {"event_id": "<first inspected event>", "properties": {"damage": 10, "element": 2}},
+    {"event_id": "<second inspected event>", "properties": {"damage": 8, "radius": 3.5}}
+  ]
+}
+```
+
+Include the usual project/instance, action ID, revision and live summary. Each
+handle comes from that same revision. A batch accepts up to 256 distinct events
+in one action. It commits as one edit; an invalid entry preserves the whole
+draft. Use one entry per event, combining that event's properties there.
+`updated_events` returns the previous and new handles, requested changes and
+applied properties, including quantized values. For one event, `event_id` and
+`properties` remain the shorter form.
 
 Hitboxes created here own their duration. `refresh_hit_eligibility` controls
 whether replacing a hitbox permits another hit on an opponent it already hit.

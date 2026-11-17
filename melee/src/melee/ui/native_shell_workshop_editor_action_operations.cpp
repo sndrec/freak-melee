@@ -27,6 +27,19 @@ void nativeShellWorkshopEditor_Actions(const char* method, yyjson_val* args,
     const int frame =
         session->selected_action == (int) action ? session->timeline_frame : 0;
     if (!std::strcmp(method, "edit")) {
+        const bool metadata = !std::strcmp(
+            yyjson_get_str(yyjson_obj_get(args, "operation")), "metadata");
+        EditHistoryEntry label{};
+        if (metadata) {
+            label.label_edit = true;
+            label.label_action = action;
+            label.rig_revision = session->project->rig_edit_revision;
+            const char* previous = nativeFighterAuthoring_Name(
+                session->project, NativeAuthoring_Action, action);
+            label.before_name = previous ? previous : "";
+            label.before_hidden =
+                nativeFighterAuthoring_Hidden(session->project, action);
+        }
         const size_t size = session->project->fighter_size;
         std::vector<uint8_t> before(session->project->fighter_dat,
                                     session->project->fighter_dat + size);
@@ -34,7 +47,23 @@ void nativeShellWorkshopEditor_Actions(const char* method, yyjson_val* args,
             return;
         }
         if (yyjson_mut_get_bool(yyjson_mut_obj_get(reply.result, "changed"))) {
-            record_structural_edit(false, before.data(), size);
+            if (metadata) {
+                const char* current = nativeFighterAuthoring_Name(
+                    session->project, NativeAuthoring_Action, action);
+                label.after_name = current ? current : "";
+                label.after_hidden =
+                    nativeFighterAuthoring_Hidden(session->project, action);
+                session->edit_history.erase(session->edit_history.begin() +
+                                                session->edit_cursor,
+                                            session->edit_history.end());
+                if (session->edit_history.size() == 32) {
+                    session->edit_history.erase(session->edit_history.begin());
+                }
+                session->edit_history.push_back(std::move(label));
+                session->edit_cursor = session->edit_history.size();
+            } else {
+                record_structural_edit(false, before.data(), size);
+            }
             session->action_dirty = true;
             const char* summary =
                 yyjson_get_str(yyjson_obj_get(args, "summary"));
@@ -46,6 +75,8 @@ void nativeShellWorkshopEditor_Actions(const char* method, yyjson_val* args,
     }
     select_mode(WorkshopMode::Action);
     select_action(action);
+    nativeShellWorkshopEditor_FilterActions();
+    nativeShellWorkshopEditor_FilterClips();
     session->timeline_frame =
         std::clamp(yyjson_obj_get(args, "frame")
                        ? (int) yyjson_get_uint(yyjson_obj_get(args, "frame"))
@@ -70,7 +101,9 @@ void nativeShellWorkshopEditor_Actions(const char* method, yyjson_val* args,
     show_action_timeline();
     set_text("workshop-editor-status",
              wanted ? "Action event changed in the draft."
-                    : "Action selected.");
+             : yyjson_mut_get_bool(yyjson_mut_obj_get(reply.result, "changed"))
+                 ? "Action updated."
+                 : "Action selected.");
 }
 
 namespace WorkshopEditor {

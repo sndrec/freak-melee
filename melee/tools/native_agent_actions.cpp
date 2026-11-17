@@ -1,5 +1,9 @@
+#include <cstdlib>
+#include <cstring>
+
 #include "native_agent_project.h"
 #include <melee/ft/native_action_authoring.h>
+#include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_draft_access.h>
 
 namespace NativeAgent {
@@ -40,6 +44,21 @@ namespace NativeAgent {
                 { file, std::string((const char*) member.fighter_dat,
                                     member.fighter_size) }
             };
+            if (!std::strcmp(string(args, "operation"), "metadata")) {
+                uint8_t* bytes = nullptr;
+                size_t size = 0;
+                if (!nativeFighterAuthoring_Encode(&member, &bytes, &size)) {
+                    reply.fail("save_failed",
+                               "Could not encode the action labels.");
+                    return;
+                }
+                files.push_back(
+                    { project->member ? "partner/workshop_names.txt"
+                                      : "workshop_names.txt",
+                      std::string(size ? (const char*) bytes : "", size),
+                      !size });
+                std::free(bytes);
+            }
             std::string after;
             if (!NativeDraftAccess::apply(project->family.paths[0],
                                           project->revision, files, after,

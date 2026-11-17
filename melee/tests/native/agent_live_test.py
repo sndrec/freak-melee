@@ -330,10 +330,13 @@ def main():
         events = call('session.actions.read', dict(target, view='events', action_id=dair))
         hit = next(row for row in events['events'] if row['kind'] == 'hitbox')
         previous = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=hit['event_id']))
+        other_hit = next(row for row in events['events'] if row['kind'] == 'hitbox' and row['event_id'] != hit['event_id'])
+        other_previous = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=other_hit['event_id']))
         action_disk = snapshot(project)
         action_edit = call('session.actions.edit', dict(target, revision=previous['revision'], action_id=dair,
-            operation='update', event_id=hit['event_id'], summary='Edit aerial damage and element',
-            properties={'damage': previous['properties']['damage'] + 1, 'element': 2}))
+            operation='update', summary='Edit aerial damage and element together', updates=[
+                {'event_id': hit['event_id'], 'properties': {'damage': previous['properties']['damage'] + 1, 'element': 2}},
+                {'event_id': other_hit['event_id'], 'properties': {'damage': other_previous['properties']['damage'] + 2}}]))
         assert action_edit['workspace'] == 'action' and action_edit['can_undo'] and action_edit['dirty']
         assert not action_edit['saved'] and not action_edit['installed']
         updated = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=action_edit['event_id']))
@@ -342,6 +345,7 @@ def main():
         reverted_action = call('session.undo', dict(target, revision=updated['revision']))
         restored = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=hit['event_id']))
         assert restored['properties'] == previous['properties']
+        assert call('session.actions.read', dict(target, view='event', action_id=dair, event_id=other_hit['event_id']))['properties'] == other_previous['properties']
         reverted = call('session.redo', dict(target, revision=reverted_action['revision']))
         assert call('session.actions.read', dict(target, view='event', action_id=dair,
             event_id=action_edit['event_id']))['properties']['element'] == 2
@@ -362,10 +366,20 @@ def main():
             control('screenshot')
             reverted = call('session.undo', dict(target, revision=properties['revision']))
             assert call('session.actions.read', dict(target, view='events', action_id=dair))['total'] == before_events['total']
+        labeled = call('session.actions.edit', dict(target, revision=reverted['revision'], action_id=dair,
+            operation='metadata', label='Orbital kicks', hidden=True, summary='Name and hide an action'))
+        assert labeled['dirty'] and labeled['label'] == 'Orbital kicks' and labeled['hidden']
+        assert snapshot(project) == action_disk
+        if args.control: assert ui_text('workshop-context-action') == 'Orbital kicks'
+        undone_label = call('session.undo', dict(target, revision=labeled['revision']))
+        assert not call('session.actions.read', dict(target, view='metadata', action_id=dair))['hidden']
+        reverted = call('session.redo', dict(target, revision=undone_label['revision']))
+        assert call('session.actions.read', dict(target, view='metadata', action_id=dair))['label'] == 'Orbital kicks'
         built = call('session.build', dict(target, revision=reverted['revision']))
         assert built['accepted'] and built['saved'] and not built['installed'] and not built['dirty'], built
         assert built['loaded_preview_package_id'] == initial_package and not built['preview_matches_fighter'], built
         assert all(row['accepted'] for row in built['member_reports'])
+        assert call('actions.read', dict(saved, action_id=dair, view='metadata'))['label'] == 'Orbital kicks'
         accepted_disk = snapshot(project)
         preview_text = final_text + '# unsaved preview snapshot\n'
         draft = call('session.scripts.update', dict(target, revision=built['revision'], summary='Preview unsaved source',

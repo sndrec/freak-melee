@@ -139,6 +139,8 @@ namespace NativeActionAuthoring {
             if (label) {
                 add_string(r, r.result, "label", label);
             }
+            yyjson_mut_obj_add_bool(r.document, r.result, "hidden",
+                                    nativeFighterAuthoring_Hidden(&p, a.id));
             yyjson_mut_obj_add_uint(r.document, r.result, "animation_flags",
                                     m.animation_flags);
             yyjson_mut_obj_add_bool(r.document, r.result, "loop",
@@ -209,8 +211,12 @@ namespace NativeActionAuthoring {
             std::string required = live ? "\"instance\"" : "\"project\"";
             if (editing) {
                 fields +=
-                    R"(,"revision":{"type":"string","minLength":64,"maxLength":64},"summary":{"type":"string","minLength":1,"maxLength":300},"operation":{"type":"string","enum":["playback","own_hitboxes","create","update","timing","delete"]},"kind":{"type":"string","minLength":1,"maxLength":64},"frame":{"type":"integer","minimum":0,"maximum":1000},"delta":{"type":"integer","minimum":-1000,"maximum":1000},"duration":{"type":"number","minimum":0.00390625,"maximum":1000},"loop":{"type":"boolean"},"root_motion":{"type":"boolean"},"animation_flags":{"type":"integer","minimum":0,"maximum":4294967295},"properties":)" +
+                    R"(,"revision":{"type":"string","minLength":64,"maxLength":64},"summary":{"type":"string","minLength":1,"maxLength":300},"operation":{"type":"string","enum":["metadata","playback","own_hitboxes","create","update","timing","delete"]},"label":{"type":"string","maxLength":63},"hidden":{"type":"boolean"},"kind":{"type":"string","minLength":1,"maxLength":64},"frame":{"type":"integer","minimum":0,"maximum":1000},"delta":{"type":"integer","minimum":-1000,"maximum":1000},"duration":{"type":"number","minimum":0.00390625,"maximum":1000},"loop":{"type":"boolean"},"root_motion":{"type":"boolean"},"animation_flags":{"type":"integer","minimum":0,"maximum":4294967295},"properties":)" +
                     NativeActionProperties::schema();
+                fields +=
+                    R"(,"updates":{"type":"array","minItems":1,"maxItems":256,"items":{"type":"object","properties":{"event_id":{"type":"string","minLength":14,"maxLength":14},"properties":)" +
+                    NativeActionProperties::schema() +
+                    R"(},"required":["event_id","properties"],"additionalProperties":false}})";
                 required += ",\"action_id\",\"revision\",\"operation\"";
                 if (live) {
                     required += ",\"summary\"";
@@ -273,6 +279,9 @@ namespace NativeActionAuthoring {
             if (label) {
                 add_string(r, row, "label", label);
             }
+            yyjson_mut_obj_add_bool(
+                r.document, row, "hidden",
+                nativeFighterAuthoring_Hidden(&p, a.index));
             yyjson_mut_obj_add_bool(r.document, row, "has_events",
                                     a.has_script);
         }
@@ -363,9 +372,9 @@ namespace NativeActionAuthoring {
                                                   &hit) &&
                     hit.timed)
                 {
-                    yyjson_mut_obj_add_real(r.document, row, "duration_end_frame",
-                                            o.frame + double(hit.duration256) /
-                                                          256.);
+                    yyjson_mut_obj_add_real(
+                        r.document, row, "duration_end_frame",
+                        o.frame + double(hit.duration256) / 256.);
                 }
             }
         } else {
@@ -397,16 +406,21 @@ namespace NativeActionAuthoring {
 
     bool edit(NativeFighterProject& p, yyjson_val* args, Reply& r)
     {
+        const char* op = text(args, "operation");
+        const bool editing_metadata = !std::strcmp(op, "metadata");
         Action before;
-        if (!before.load(p, args, r)) {
+        if (!before.load(p, args, r, !editing_metadata)) {
             return false;
         }
-        const char* op = text(args, "operation");
         struct Candidate {
             NativeFighterProject p;
+            bool owns_authoring = false;
             ~Candidate()
             {
                 std::free(p.fighter_dat);
+                if (owns_authoring) {
+                    std::free(p.authoring);
+                }
             }
         } candidate{ p };
         candidate.p.fighter_dat = (uint8_t*) std::malloc(p.fighter_size);
@@ -418,8 +432,46 @@ namespace NativeActionAuthoring {
         auto& next = candidate.p;
         std::string error;
         bool ok = false;
+        bool metadata_changed = false;
         uint32_t source = 0;
-        if (!std::strcmp(op, "playback")) {
+        if (editing_metadata) {
+            const char* old = nativeFighterAuthoring_Name(
+                &p, NativeAuthoring_Action, before.id);
+            const char* label = yyjson_obj_get(args, "label")
+                                    ? text(args, "label")
+                                    : (old ? old : "");
+            const bool hidden =
+                yyjson_obj_get(args, "hidden")
+                    ? yyjson_get_bool(yyjson_obj_get(args, "hidden"))
+                    : nativeFighterAuthoring_Hidden(&p, before.id);
+            if (!yyjson_obj_get(args, "label") &&
+                !yyjson_obj_get(args, "hidden"))
+            {
+                r.fail("missing_metadata", "Supply a label, hidden, or both.");
+                return false;
+            }
+            metadata_changed =
+                std::strcmp(old ? old : "", label) ||
+                hidden != nativeFighterAuthoring_Hidden(&p, before.id);
+            ok = true;
+            if (metadata_changed) {
+                next.authoring = (NativeFighterAuthoring*) std::calloc(
+                    1, sizeof(NativeFighterAuthoring));
+                candidate.owns_authoring = true;
+                if (!next.authoring) {
+                    r.fail("allocation_failed",
+                           "Could not stage the action label.");
+                    return false;
+                }
+                if (p.authoring) {
+                    *next.authoring = *p.authoring;
+                }
+                ok =
+                    nativeFighterAuthoring_SetName(
+                        &next, NativeAuthoring_Action, before.id, label) &&
+                    nativeFighterAuthoring_SetHidden(&next, before.id, hidden);
+            }
+        } else if (!std::strcmp(op, "playback")) {
             NativeFighterActionMetadata m{};
             ok = nativeFighterAction_GetMetadata(&next, before.id, &m);
             uint32_t flags = yyjson_obj_get(args, "animation_flags")
@@ -461,6 +513,110 @@ namespace NativeActionAuthoring {
                 next, before.id,
                 (unsigned) yyjson_get_uint(yyjson_obj_get(args, "frame")),
                 *kind, yyjson_obj_get(args, "properties"), source, error);
+        } else if (!std::strcmp(op, "update")) {
+            auto* updates = yyjson_obj_get(args, "updates");
+            if (updates && (yyjson_obj_get(args, "event_id") ||
+                            yyjson_obj_get(args, "properties")))
+            {
+                r.fail("ambiguous_updates",
+                       "Use updates for a batch, or event_id and properties "
+                       "for one event.");
+                return false;
+            }
+            struct Update {
+                size_t ordinal;
+                yyjson_val* properties;
+                std::string previous;
+            };
+            std::vector<Update> edits;
+            const auto collect = [&](yyjson_val* entry) {
+                const char* wanted = text(entry, "event_id");
+                const auto* command = before.event(wanted);
+                if (!command ||
+                    !NativeActionProperties::type(
+                        command->opcode, word(p, command->source_offset)))
+                {
+                    r.fail("unknown_event",
+                           "Choose an editable event from this action's "
+                           "inspected revision.");
+                    return false;
+                }
+                auto* properties = yyjson_obj_get(entry, "properties");
+                if (!yyjson_is_obj(properties)) {
+                    r.fail("missing_properties",
+                           "Supply the event properties to change.");
+                    return false;
+                }
+                const size_t ordinal = command - before.commands.data();
+                for (const auto& edit : edits) {
+                    if (edit.ordinal == ordinal) {
+                        r.fail("duplicate_event",
+                               "Combine each event's property changes in one "
+                               "updates entry.");
+                        return false;
+                    }
+                }
+                edits.push_back({ ordinal, properties, wanted });
+                return true;
+            };
+            if (updates) {
+                size_t i, count;
+                yyjson_val* entry;
+                yyjson_arr_foreach(updates, i, count,
+                                   entry) if (!collect(entry)) return false;
+            } else if (!collect(args)) {
+                return false;
+            }
+            ok = !edits.empty();
+            for (const auto& edit : edits) {
+                Action current;
+                if (!ok || !current.load(next, args, r, false)) {
+                    return false;
+                }
+                // Property edits preserve command order and count.
+                // Localization copies the action's command range in that same
+                // source order.
+                if (current.commands.size() != before.commands.size()) {
+                    r.fail("command_graph_changed",
+                           "The property edit changed this action's command "
+                           "graph.");
+                    return false;
+                }
+                source = current.commands[edit.ordinal].source_offset;
+                unsigned users = 0;
+                ok = nativeFighterAction_Users(&next, source, &users) && users;
+                if (ok && users > 1) {
+                    ok = nativeFighterAction_LocalizeCommand(&next, before.id,
+                                                             source, &source);
+                }
+                if (ok) {
+                    ok = NativeActionProperties::update(
+                        next, before.id, source, edit.properties, error);
+                }
+                if (!ok) {
+                    break;
+                }
+            }
+            if (ok) {
+                Action after;
+                if (!after.load(next, args, r)) {
+                    return false;
+                }
+                auto* changed = yyjson_mut_arr(r.document);
+                yyjson_mut_obj_add_val(r.document, r.result, "updated_events",
+                                       changed);
+                for (const auto& edit : edits) {
+                    const auto& command = after.commands[edit.ordinal];
+                    auto* row = yyjson_mut_obj(r.document);
+                    yyjson_mut_arr_append(changed, row);
+                    add_string(r, row, "previous_event_id", edit.previous);
+                    event(next, after, command, r, row, true);
+                    yyjson_mut_obj_add_val(
+                        r.document, row, "requested",
+                        yyjson_val_mut_copy(r.document, edit.properties));
+                }
+                source = after.commands[edits[0].ordinal].source_offset;
+            }
         } else {
             const auto* c = before.event(text(args, "event_id"));
             if (!c) {
@@ -499,22 +655,11 @@ namespace NativeActionAuthoring {
                 ok = nativeFighterAction_EditEventTiming(
                     &next, before.id, source, delta,
                     (uint32_t) std::lround(duration * 256), &source);
-            } else if (!std::strcmp(op, "update")) {
-                unsigned users = 0;
-                ok = nativeFighterAction_Users(&next, source, &users) && users;
-                if (ok && users > 1) {
-                    ok = nativeFighterAction_LocalizeCommand(&next, before.id,
-                                                             source, &source);
-                }
-                if (ok) {
-                    ok = NativeActionProperties::update(
-                        next, before.id, source,
-                        yyjson_obj_get(args, "properties"), error);
-                }
             }
         }
         if (!ok ||
-            ((before.info.has_script || !std::strcmp(op, "create")) &&
+            (!editing_metadata &&
+             (before.info.has_script || !std::strcmp(op, "create")) &&
              !nativeFighterAction_HitboxIntervalsValid(&next, before.id)))
         {
             r.fail("action_edit_rejected",
@@ -525,14 +670,28 @@ namespace NativeActionAuthoring {
                        : error);
             return false;
         }
-        bool changed =
+        bool archive_changed =
             p.fighter_size != next.fighter_size ||
             std::memcmp(p.fighter_dat, next.fighter_dat, p.fighter_size) != 0;
-        if (changed) {
+        if (archive_changed) {
             std::free(p.fighter_dat);
             p.fighter_dat = next.fighter_dat;
             p.fighter_size = next.fighter_size;
             next.fighter_dat = nullptr;
+        }
+        if (metadata_changed) {
+            std::free(p.authoring);
+            p.authoring = next.authoring;
+            candidate.owns_authoring = false;
+        }
+        bool changed = archive_changed || metadata_changed;
+        if (editing_metadata) {
+            const char* label = nativeFighterAuthoring_Name(
+                &p, NativeAuthoring_Action, before.id);
+            add_string(r, r.result, "label", label ? label : "");
+            yyjson_mut_obj_add_bool(
+                r.document, r.result, "hidden",
+                nativeFighterAuthoring_Hidden(&p, before.id));
         }
         yyjson_mut_obj_add_bool(r.document, r.result, "changed", changed);
         add_string(r, r.result, "status",

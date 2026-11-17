@@ -92,6 +92,39 @@ def main():
                 event_id=changed['event_id'], properties=properties), expected=False)
             assert rejected['code'] in ('invalid_arguments', 'action_edit_rejected'), rejected
             assert snapshot(project) == kept
+        hit_ids = [row['event_id'] for row in read('events', action_id=dair)['events'] if row['kind'] == 'hitbox']
+        batch = [{'event_id': event_id, 'properties': {'damage': 12 + i, 'radius': 3.14159}}
+                 for i, event_id in enumerate(hit_ids)]
+        grouped = edit('update', action_id=dair, updates=batch)
+        assert len(grouped['updated_events']) == 3
+        for i, event in enumerate(grouped['updated_events']):
+            assert event['previous_event_id'] == hit_ids[i] and event['requested']['radius'] == 3.14159
+            assert event['properties']['damage'] == 12 + i
+            assert event['first_frame'] == original['frames'][0] and event['occurrences'] == len(original['frames'])
+            assert abs(event['properties']['radius'] - 3.14159) <= event['fields']['radius']['quantum']
+        kept = snapshot(project)
+        fresh_hits = [row['event_id'] for row in read('events', action_id=dair)['events'] if row['kind'] == 'hitbox']
+        for bad_properties in ({'damage': 1024}, {'gfx_id': 123}):
+            invalid = [{'event_id': fresh_hits[0], 'properties': {'damage': 77}},
+                       {'event_id': fresh_hits[1], 'properties': bad_properties}]
+            rejected = call('actions.edit', dict(target, revision=grouped['revision'], operation='update', action_id=dair, updates=invalid), expected=False)
+            assert rejected['code'] in ('action_edit_rejected', 'invalid_arguments') and snapshot(project) == kept
+        duplicate = [{'event_id': fresh_hits[0], 'properties': {'damage': n}} for n in (1, 2)]
+        rejected = call('actions.edit', dict(target, revision=grouped['revision'], operation='update', action_id=dair, updates=duplicate), expected=False)
+        assert rejected['code'] == 'duplicate_event' and snapshot(project) == kept
+        fighter_hash = hashlib.sha256((project / 'fighter.dat').read_bytes()).digest()
+        named = edit('metadata', action_id=dair, label='Orbital kicks', hidden=True)
+        metadata = read('metadata', action_id=dair)
+        assert metadata['label'] == 'Orbital kicks' and metadata['hidden']
+        assert hashlib.sha256((project / 'fighter.dat').read_bytes()).digest() == fighter_hash
+        assert call('actions.list', dict(target, query='Orbital kicks'))['actions'][0]['hidden']
+        kept = snapshot(project)
+        assert not edit('metadata', action_id=dair, label='Orbital kicks', hidden=True)['changed']
+        assert snapshot(project) == kept
+        rejected = call('actions.edit', dict(target, revision=named['revision'], operation='metadata', action_id=dair,
+            label='Invalid\nlabel', hidden=False), expected=False)
+        assert rejected['code'] == 'action_edit_rejected' and snapshot(project) == kept
+        edit('metadata', action_id=dair, label='', hidden=False)
         # A repeated sound moves as one authored event. The hitbox pattern and
         # every repetition count remain unchanged.
         sounds = [row for row in read('events', action_id=dair, limit=200)['events'] if row['kind'] == 'sound']
@@ -188,6 +221,12 @@ def main():
         assert call('actions.edit', dict(other, revision=old, operation='update', action_id=chosen,
             event_id=event['event_id'], properties={'damage': 17}))['changed']
         assert hashlib.sha256((family / 'fighter.dat').read_bytes()).digest() == main_hash
+        main_names = (family / 'workshop_names.txt').read_bytes() if (family / 'workshop_names.txt').exists() else None
+        call('actions.edit', dict(other, revision=call('project.inspect', other)['revision'],
+            action_id=chosen, operation='metadata', label='Partner aerial', hidden=True))
+        assert call('actions.read', dict(other, action_id=chosen, view='metadata'))['label'] == 'Partner aerial'
+        assert (family / 'partner/workshop_names.txt').exists()
+        assert ((family / 'workshop_names.txt').read_bytes() if (family / 'workshop_names.txt').exists() else None) == main_names
         # Effect attachment uses this rig's size, including indices beyond
         # Mario's 61 joints. The old effect setter hardcoded Mario's limit.
         if members[1]['part_slots'] > 61:
@@ -210,6 +249,27 @@ def main():
         path.write_bytes(data)
         trace = call('actions.read', dict(project=str(fixture), action_id=dair, view='timeline'))
         assert [o['frame'] for o in trace['occurrences']] == [5, 5, 6], trace
+        # Sharing an entire script forces first-update localization. Every
+        # batch handle still addresses its original event after that copy.
+        shared = root / 'Shared script'
+        result = run('clone-stock', iso, 'Mario', shared, 'Shared script')
+        assert result.returncode == 0, result.stderr
+        path = shared / 'fighter.dat'
+        data = bytearray(path.read_bytes())
+        table = action_table(data)
+        source = struct.unpack_from('>I', data, 32 + table + dair * 24 + 12)[0]
+        struct.pack_into('>I', data, 32 + table + (dair - 1) * 24 + 12, source)
+        path.write_bytes(data)
+        copied = {'project': str(shared)}
+        original_events = call('actions.read', dict(copied, action_id=dair, view='events'))['events']
+        hits = [row['event_id'] for row in original_events if row['kind'] == 'hitbox']
+        assert len(hits) == 3
+        original = [call('actions.read', dict(copied, action_id=dair - 1, view='event', event_id=h))['properties'] for h in hits]
+        updates = [{'event_id': h, 'properties': {'damage': 30 + i}} for i, h in enumerate(hits)]
+        changed = call('actions.edit', dict(copied, action_id=dair, operation='update', updates=updates,
+            revision=call('project.inspect', copied)['revision']))
+        assert [row['properties']['damage'] for row in changed['updated_events']] == [30, 31, 32]
+        assert [call('actions.read', dict(copied, action_id=dair - 1, view='event', event_id=h))['properties'] for h in hits] == original
         print('PASS: typed action fields, atomic rejection, repeated timing, direct event creation, duration, deletion, playback, timer debt and paired member isolation')
 
 

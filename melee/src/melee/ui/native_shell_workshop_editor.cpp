@@ -756,59 +756,22 @@ bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x)
 
 bool WorkshopEditor::edit_action_label(bool rename)
 {
-    if (session->selected_action < 0) {
-        return true;
-    }
-    const unsigned action = (unsigned) session->selected_action;
-    EditHistoryEntry edit = {};
-    edit.label_edit = true;
-    edit.rig_revision = session->project->rig_edit_revision;
-    edit.label_action = action;
-    const char* previous = nativeFighterAuthoring_Name(
-        session->project, NativeAuthoring_Action, action);
-    edit.before_name = previous ? previous : "";
-    edit.before_hidden =
-        nativeFighterAuthoring_Hidden(session->project, action);
-    bool ok = rename
-                  ? nativeFighterAuthoring_SetName(
-                        session->project, NativeAuthoring_Action, action,
-                        field("workshop-action-name")->GetValue().c_str())
-                  : nativeFighterAuthoring_SetHidden(
-                        session->project, action,
-                        !nativeFighterAuthoring_Hidden(session->project,
-                                                       action));
-    if (ok) {
-        const char* current = nativeFighterAuthoring_Name(
-            session->project, NativeAuthoring_Action, action);
-        edit.after_name = current ? current : "";
-        edit.after_hidden =
-            nativeFighterAuthoring_Hidden(session->project, action);
-        session->edit_history.erase(session->edit_history.begin() +
-                                        session->edit_cursor,
-                                    session->edit_history.end());
-        if (session->edit_history.size() == 32) {
-            session->edit_history.erase(session->edit_history.begin());
-            --session->edit_cursor;
-        }
-        session->edit_history.push_back(std::move(edit));
-        session->edit_cursor = session->edit_history.size();
-        update_history_buttons();
-    }
-    nativeShellWorkshopEditor_FilterActions();
-    nativeShellWorkshopEditor_FilterClips();
-    const char* name = nativeFighterAuthoring_Name(
-        session->project, NativeAuthoring_Action, action);
-    set_text("workshop-context-action",
-             name && *name
-                 ? name
-                 : WorkshopLabels::action(session->actions[action].name));
-    set_text("workshop-action-hide",
-             nativeFighterAuthoring_Hidden(session->project, action)
-                 ? "Show action in editor"
-                 : "Hide action in editor");
-    field("workshop-action-name")->SetValue(name ? name : "");
-    set_text("workshop-editor-status", ok ? "Action updated." :
-                                              "Could not update the action.");
+    if (!session->project || session->selected_action < 0) return true;
+    auto* document = yyjson_mut_doc_new(nullptr);
+    if (!document) return true;
+    auto* args = yyjson_mut_obj(document);
+    yyjson_mut_doc_set_root(document, args);
+    yyjson_mut_obj_add_uint(document, args, "action_id", (unsigned)session->selected_action);
+    yyjson_mut_obj_add_str(document, args, "operation", "metadata");
+    yyjson_mut_obj_add_str(document, args, "summary", rename ? "Rename action" : "Change action visibility");
+    if (rename) yyjson_mut_obj_add_strcpy(document, args, "label", field("workshop-action-name")->GetValue().c_str());
+    else yyjson_mut_obj_add_bool(document, args, "hidden", !nativeFighterAuthoring_Hidden(session->project, (unsigned)session->selected_action));
+    auto* input = yyjson_mut_doc_imut_copy(document, nullptr);
+    NativeAuthoring::Reply reply(document);
+    if (input) nativeShellWorkshopEditor_Actions("edit", yyjson_doc_get_root(input), reply);
+    if (!reply.ok) set_text("workshop-editor-status", yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "message")));
+    yyjson_doc_free(input);
+    yyjson_mut_doc_free(document);
     return true;
 }
 
