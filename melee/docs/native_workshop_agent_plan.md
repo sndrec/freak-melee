@@ -126,6 +126,7 @@ command catalog; this table defines their required coverage.
 | Resources | Inspect/import textures, articles, item definitions, sounds and effects through the supported authoring facilities; report remaining asset-format limits. |
 | Presentation | Frame/capture portraits and CSS tiles, edit tile text, import stock icons/emblems and optionally place the finished tile. |
 | Delivery | Validate/build, install a specific result, inspect the installed revision and export an `.fmc` to a requested path. |
+| Feedback | Prepare and submit a bug report or feature request through the existing F2 feedback backend, then retrieve its submission status. |
 
 Resolve names against the actual fighter. Return candidate matches when a name
 is ambiguous. Raw DAT offsets may appear in expert diagnostics, but ordinary
@@ -209,6 +210,36 @@ structured diagnostic format. Expensive checks run on request. Tests finish
 with the draft and installed fighter unchanged unless installation was requested.
 Hidden/muted launches are the default for automated checks.
 
+### Report obstacles through the existing feedback system
+
+Teach agents to report reproducible bugs, confusing authoring behavior and
+missing capabilities they encounter while building a fighter. In particular,
+if a desired move needs a scripting primitive the game does not provide, the
+report should explain the desired behavior, the available operations considered
+and the generic capability that would unblock it. An unsupported operation is
+a useful feature request; it is not evidence that a supported operation is
+broken. Agents should continue independent work after recording the obstacle.
+
+Expose prepare, inspect, submit and status operations using the existing F2
+feedback submission backend, storage, retry behavior and administration queue.
+Label the report as agent-authored and distinguish bugs from feature requests.
+Do not create another reporting service or require owner administration access.
+
+Capture context when the agent records the problem, matching F2's capture-time
+semantics. Include build/source identity, affected draft revision, relevant
+operation and diagnostics, expected/observed behavior and a minimal repro when
+available. Screenshots, annotation pins and bounded traces can be attached when
+useful; a missing scripting feature should also be reportable without an open
+preview. Keep account keys and authentication data excluded. Include fighter
+source/assets only when the player has chosen to share those attachments.
+
+Document when to report, how to inspect the report before submission and how to
+identify a successful submission. Suppress repeated reports of the same obstacle
+within an agent task and keep a returned report ID so retries cannot create
+duplicates. Give the player visibility into agent-authored reports alongside
+the existing feedback flow. The tool's submission permission should follow the
+agent host's normal tool controls rather than requiring a separate login.
+
 ## 6. Prove the packaged workflow
 
 Run acceptance from an extracted release in a clean environment with no repo,
@@ -233,6 +264,9 @@ Complete these exercises in batches:
 7. Exercise unsaved UI edits, stale requests, concurrent agents, undo, an
    interrupted operation and failed validation. Confirm no successful edit is
    silently lost and no partial batch is committed.
+8. Record an agent bug report and a missing scripting capability request. Check
+   that capture-time diagnostics, attachments and report type reach the existing
+   feedback queue, failed uploads can retry and retries preserve the report ID.
 
 Finish with an agent-driven custom fighter change spanning scripts, actions,
 animation and model presentation. Keep the source draft, exported package and
@@ -264,7 +298,8 @@ searchable documentation and schemas, structured native CLI commands and a
 native stdio MCP mode, live Workshop session editing with revision checks and
 undo, complete access to the current editor's fighter-authoring capabilities,
 and preview/practice verification tools. Keep CLI, MCP and Workshop editing on
-the same native operations. Verify the full clone/edit/test/install/export
+the same native operations. Include agent bug/feature reporting through the
+existing F2 feedback backend. Verify the full clone/edit/test/install/export
 workflow from an extracted release without the repository or developer tools.
 Preserve existing user work and keep all extensions generic. Pause for user
 review once the packaged workflow is ready; do not publish automatically.
