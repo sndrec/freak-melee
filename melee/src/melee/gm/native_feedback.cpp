@@ -2,30 +2,22 @@
 #include "native_feedback_context.h"
 #include "native_feedback_input.h"
 #include "native_community.h"
-#include "native_services.h"
 #include "native_online_session.h"
 #include <melee/ui/native_feedback_view.h>
-#include <melee/ui/native_hub_catalog.h>
 #include <melee/ui/native_hub.h>
-#include <melee/ui/native_shell_workshop.h>
-#include <melee/ui/native_shell_workshop_editor.h>
-#include <melee/mn/native_menu_scene.h>
 #include <melee/mn/native_css_interaction.h>
 extern "C" {
 #include <melee/lb/lb_0195.h>
 #include <sysdolphin/baselib/controller.h>
 }
 #include <aurora/rmlui.hpp>
-#include <RmlUi/Core/Element.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_keyboard.h>
-#include <yyjson.h>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include <bcrypt.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -38,60 +30,6 @@ bool open, online, context_ready, context_complete, submitted, sending, complete
 bool suppressed_keys[SDL_SCANCODE_COUNT];
 unsigned suppressed_mouse;
 unsigned shown_revision;
-#ifdef NATIVE_NETPLAY_DIAGNOSTICS_BUILD
-constexpr const char* build = NATIVE_NETPLAY_DIAGNOSTICS_BUILD;
-#else
-constexpr const char* build = "development";
-#endif
-
-bool directory(const char* path)
-{ return CreateDirectoryA(path, nullptr) || GetLastError() == ERROR_ALREADY_EXISTS; }
-bool new_id(char (&id)[37])
-{
-    unsigned char bytes[16];
-    if (BCryptGenRandom(nullptr, bytes, sizeof(bytes), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) return false;
-    bytes[6] = (bytes[6] & 15) | 0x40; bytes[8] = (bytes[8] & 63) | 0x80;
-    std::snprintf(id, sizeof(id), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-        bytes[0],bytes[1],bytes[2],bytes[3],bytes[4],bytes[5],bytes[6],bytes[7],
-        bytes[8],bytes[9],bytes[10],bytes[11],bytes[12],bytes[13],bytes[14],bytes[15]);
-    return true;
-}
-bool metadata()
-{
-    auto* doc = yyjson_mut_doc_new(nullptr);
-    if (!doc) return false;
-    auto* root = yyjson_mut_obj(doc); yyjson_mut_doc_set_root(doc, root);
-    yyjson_mut_obj_add_strcpy(doc, root, "id", draft.id);
-    yyjson_mut_obj_add_strcpy(doc, root, "capture_at", draft.captured_at);
-    yyjson_mut_obj_add_str(doc, root, "build", build);
-    yyjson_mut_obj_add_bool(doc, root, "context_complete", context_complete);
-    auto* pins = yyjson_mut_arr(doc); yyjson_mut_obj_add_val(doc, root, "pins", pins);
-    for (unsigned i = 0; i < draft.count; ++i) {
-        const auto& pin = draft.pins[i]; auto* row = yyjson_mut_obj(doc); yyjson_mut_arr_append(pins, row);
-        yyjson_mut_obj_add_uint(doc, row, "id", pin.id);
-        yyjson_mut_obj_add_real(doc, row, "x", pin.x); yyjson_mut_obj_add_real(doc, row, "y", pin.y);
-        yyjson_mut_obj_add_strcpy(doc, row, "text", pin.text);
-    }
-    size_t length = 0; char* bytes = yyjson_mut_write(doc, 0, &length);
-    FILE* file = bytes && length <= 512 * 1024 ? std::fopen(upload.metadata, "wb") : nullptr;
-    bool ok = file && std::fwrite(bytes, 1, length, file) == length;
-    if (file) ok = std::fclose(file) == 0 && ok;
-    std::free(bytes); yyjson_mut_doc_free(doc); return ok;
-}
-bool unavailable_context()
-{
-    // Only generated UUID, UTC and validated build-label characters enter the
-    // JSON strings. A retry uses this original capture header, never live state.
-    FILE* file = std::fopen(draft.context_path, "wb");
-    if (!file) return false;
-    const bool written = std::fprintf(file,
-        "{\"id\":\"%s\",\"captured_at\":\"%s\",\"build\":\"%s\","
-        "\"context_complete\":false,\"error\":\"Gameplay diagnostics could not be collected.\","
-        "\"displayed_frame\":%llu,\"presented_at_ns\":%llu,\"image_width\":%u,\"image_height\":%u}",
-        draft.id, draft.captured_at, build, (unsigned long long)draft.image.displayed_frame,
-        (unsigned long long)draft.image.presented_at_ns, draft.image.width, draft.image.height) > 0;
-    return std::fclose(file) == 0 && written;
-}
 void close(bool discard)
 {
     // Release RmlUi's pressed state while the feedback document still owns
@@ -121,7 +59,7 @@ void close(bool discard)
 void send()
 {
     AuroraPresentedCapture capture{}; aurora_presented_capture_status(&capture);
-    if (!context_ready && !(context_ready = unavailable_context())) {
+    if (!context_ready && !(context_ready = NativeFeedbackCapture::fallback(draft))) {
         nativeFeedbackView_Status("Could not save the diagnostic capture. Free some disk space, then press Enter to retry. Your screenshot and notes are retained.", false, false, false); return;
     }
     if (capture.capture_id != draft.image.capture_id || capture.status != AURORA_CAPTURE_READY) {
@@ -132,16 +70,13 @@ void send()
         nativeFeedbackView_Status(capture.status == AURORA_CAPTURE_FAILED ? capture.error : "The screenshot is still being saved. Please try again in a moment.", false, false, false);
         return;
     }
-    if (!submitted && !metadata()) {
+    if (!submitted && !NativeFeedbackCapture::notes(draft, upload, context_complete)) {
         nativeFeedbackView_Status("Could not save your notes. Check free disk space, then try again.", false, false, false); return;
     }
     // The first send seals the metadata too. A retry reuses all three files
     // and the same report ID; it never reads the current simulation again.
     submitted = true;
-    char root[512]; const char* content = nativeHubCatalog_Root(root);
-    const char* endpoint = std::getenv("FREAK_MELEE_COMMUNITY_ENDPOINT");
-    if (!content || !nativeCommunity_Start(content, endpoint && *endpoint ? endpoint : NATIVE_COMMUNITY_ENDPOINT) ||
-        !nativeCommunity_RequestUpload(upload)) {
+    if (!NativeFeedbackCapture::submit(upload)) {
         nativeFeedbackView_Status("The feedback service is busy or unavailable. Your report is saved on this PC; retry sends the same capture.", true, true, false); return;
     }
     sending = true; shown_revision = 0;
@@ -152,36 +87,9 @@ void send()
 extern "C" bool nativeFeedback_Open(void)
 {
     if (open) return false;
-    draft = {}; upload = {}; receipt = {};
-    char root[512], folder[1024];
-    const char* content = nativeHubCatalog_Root(root);
-    if (!content || !new_id(draft.id) || std::snprintf(folder, sizeof(folder), "%s/feedback", content) >= sizeof(folder) || !directory(folder)) return false;
-    std::snprintf(draft.image_path, sizeof(draft.image_path), "%s/%s.png", folder, draft.id);
-    std::snprintf(draft.context_path, sizeof(draft.context_path), "%s/%s.context.json", folder, draft.id);
-    std::snprintf(upload.metadata, sizeof(upload.metadata), "%s/%s.notes.json", folder, draft.id);
-    std::snprintf(upload.id, sizeof(upload.id), "%s", draft.id);
-    std::snprintf(upload.image, sizeof(upload.image), "%s", draft.image_path);
-    std::snprintf(upload.context, sizeof(upload.context), "%s", draft.context_path);
-    SYSTEMTIME time; GetSystemTime(&time);
-    std::snprintf(draft.captured_at, sizeof(draft.captured_at), "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ",
-        time.wYear,time.wMonth,time.wDay,time.wHour,time.wMinute,time.wSecond,time.wMilliseconds);
-    // Reserve the displayed pixels and collect diagnostics before hiding UI,
-    // changing input, pausing, or letting another simulation tick run.
-    if (!aurora_capture_presented(draft.image_path, true, &draft.image)) return false;
-    auto* context = aurora::rmlui::get_context();
-    const auto* focused = context ? context->GetFocusElement() : nullptr;
-    const bool workshop = nativeShellWorkshop_IsOpen();
-    NativeFeedbackInterface interface_state{};
-    interface_state.workspace = workshop ? "Workshop" : nativeHub_IsVisible() ? "Hub" : "Game";
-    interface_state.mode = !workshop ? "" : nativeShellWorkshop_IsTesting() ? "Test Character" :
-        nativeShellWorkshopEditor_IsModelMode() ? "Model" : nativeShellWorkshopEditor_IsAnimationMode() ? "Animation" :
-        nativeShellWorkshopEditor_IsScriptMode() ? "Scripting" : "Action Editor";
-    interface_state.hub_page = nativeHub_IsVisible() ? int(nativeHub_CurrentPage()) : -1;
-    interface_state.menu_transition = nativeMenuScene_Active();
-    interface_state.focused_control = focused ? focused->GetId().c_str() : "";
-    context_complete = nativeFeedbackContext_Write(draft.context_path, draft.id, draft.captured_at, &draft.image,
-        &interface_state);
-    context_ready = context_complete || unavailable_context();
+    receipt = {};
+    if (!NativeFeedbackCapture::create(draft, upload, true, context_complete)) return false;
+    context_ready = context_complete || NativeFeedbackCapture::fallback(draft);
     if (!nativeFeedbackView_Open(draft)) {
         aurora_release_presented_capture();
         DeleteFileA(draft.context_path); DeleteFileA(draft.image_path);

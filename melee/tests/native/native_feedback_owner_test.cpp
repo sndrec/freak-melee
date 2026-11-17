@@ -1,4 +1,6 @@
 #include <melee/gm/native_feedback.h>
+#include <melee/gm/native_feedback_agent.h>
+#include <melee/gm/native_content_store.h>
 #include <melee/gm/native_feedback_context.h>
 #include <melee/gm/native_feedback_input.h>
 #include <melee/gm/native_community.h>
@@ -17,6 +19,7 @@ extern "C" {
 #include <SDL3/SDL.h>
 #include <yyjson.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -32,7 +35,7 @@ NativeCommunityUpload request;
 NativeCommunityReceipt receipt;
 NativeFeedbackAction action;
 AuroraPresentedCapture picture;
-bool accept_picture=true, accept_view=true, block_context, receipt_ready, shown;
+bool accept_picture=true, accept_view=true, block_context, receipt_ready, shown, picture_pending;
 unsigned collections, uploads, releases, checks;
 std::string read(const char* path) {
     std::ifstream file(path,std::ios::binary);
@@ -60,7 +63,7 @@ void handle_event(SDL_Event&) noexcept {}
 bool aurora_capture_presented(const char* path,bool,AuroraPresentedCapture* output) {
     if (!accept_picture) return false;
     picture={};picture.capture_id=1;picture.displayed_frame=42;picture.presented_at_ns=100;
-    picture.width=640;picture.height=480;picture.status=AURORA_CAPTURE_READY;*output=picture;
+    picture.width=640;picture.height=480;picture.status=picture_pending?AURORA_CAPTURE_PENDING:AURORA_CAPTURE_READY;*output=picture;
     FILE* file=std::fopen(path,"wb");if (file) {std::fputs("owned image bytes",file);std::fclose(file);}
     return true;
 }
@@ -100,6 +103,8 @@ bool nativeCommunity_PollReceipt(NativeCommunityReceipt& value) {
     if (!receipt_ready)return false;
     receipt_ready=false;value=receipt;return true;
 }
+// This owner test uses the production hash helpers but never reads packages.
+extern "C" bool nativeContentStore_ParseFighter(const void*, size_t, NativeFighterPackage*, NativeFighterPackageData*) { std::abort(); }
 
 int main(int argc,char** argv)
 {
@@ -128,6 +133,56 @@ int main(int argc,char** argv)
     receipt.revision=2;receipt.stored=true;receipt_ready=true;nativeFeedback_Update();
     CHECK(!std::filesystem::exists(request.context) && !std::filesystem::exists(request.metadata));
     action=NativeFeedbackAction::Close;nativeFeedback_Update();CHECK(!shown && !nativeFeedback_IsOpen());
+    // Agent reports share the F2 owner, capture-time fallback and uploader.
+    auto invoke = [&](const char* method, const std::string& arguments, bool expected = true) {
+        auto* input = yyjson_read(arguments.data(), arguments.size(), 0);
+        auto* doc = yyjson_mut_doc_new(nullptr); NativeAuthoring::Reply reply(doc);
+        auto* snapshot = yyjson_mut_obj(doc);
+        yyjson_mut_obj_add_str(doc, snapshot, "revision", "captured-revision");
+        NativeFeedbackAgent::handle(method, yyjson_doc_get_root(input), snapshot, reply);
+        ++checks;
+        if (reply.ok != expected) { std::fprintf(stderr, "Agent operation failed: %s\n", method); std::exit(1); }
+        size_t size = 0; char* bytes = yyjson_mut_val_write(reply.result, 0, &size);
+        std::string result(bytes ? bytes : "", size); std::free(bytes); yyjson_doc_free(input); yyjson_mut_doc_free(doc);
+        return result;
+    };
+    const std::string prepared = invoke("feedback.prepare", R"({"task_id":"test-task","issue_key":"missing-test-operation","category":"feature_request","summary":"Test capability","expected":"An operation is available","observed":"The operation is missing","capability":"A generic operation","alternatives":"Reviewed available tools"})");
+    auto* prepared_doc = yyjson_read(prepared.data(), prepared.size(), 0);
+    const std::string report_id = yyjson_get_str(yyjson_obj_get(yyjson_doc_get_root(prepared_doc), "id"));
+    const std::string report_context = yyjson_get_str(yyjson_obj_get(yyjson_doc_get_root(prepared_doc), "context"));
+    const std::string report_notes = yyjson_get_str(yyjson_obj_get(yyjson_doc_get_root(prepared_doc), "notes"));
+    yyjson_doc_free(prepared_doc);
+    CHECK(read(report_context.c_str()).find("captured-revision") != std::string::npos);
+    CHECK(read(report_notes.c_str()).find("Agent feature_request") != std::string::npos);
+    const auto captures = collections;
+    CHECK(invoke("feedback.prepare", R"({"task_id":"test-task","issue_key":"missing-test-operation","category":"bug","summary":"Changed description","expected":"changed","observed":"changed"})").find("\"duplicate\":true") != std::string::npos);
+    CHECK(collections == captures);
+    const std::string selected = "{\"report_id\":\"" + report_id + "\"}";
+    CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos);
+    const auto agent_uploads = uploads;
+    CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos && uploads == agent_uploads);
+    receipt = {}; std::snprintf(receipt.id, sizeof(receipt.id), "%s", report_id.c_str());
+    receipt.revision = 3; std::snprintf(receipt.error, sizeof(receipt.error), "Retry test"); receipt_ready = true;
+    CHECK(invoke("feedback.status", selected).find("retry") != std::string::npos);
+    CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos && uploads == agent_uploads + 1);
+    receipt.revision = 4; receipt.stored = true; receipt_ready = true;
+    CHECK(invoke("feedback.status", selected).find("\"stored\":true") != std::string::npos);
+    CHECK(invoke("feedback.submit", selected).find("\"stored\":true") != std::string::npos && uploads == agent_uploads + 1);
+    CHECK(invoke("feedback.discard", selected).find("discarded_local") != std::string::npos);
+    CHECK(!std::filesystem::exists(report_context));
+    // An unconfirmed screenshot file must not become uploadable merely because
+    // another capture replaced the renderer's owner (or the process restarted).
+    picture_pending=true;
+    const std::string incomplete=invoke("feedback.prepare", R"({"task_id":"test-task","issue_key":"unfinished-capture","category":"bug","summary":"Unfinished screenshot","expected":"Complete pixels","observed":"Readback pending"})");
+    CHECK(incomplete.find("\"attachments_ready\":false")!=std::string::npos);
+    auto id_of=[](const std::string& json) {auto* doc=yyjson_read(json.data(),json.size(),0);std::string id=yyjson_get_str(yyjson_obj_get(yyjson_doc_get_root(doc),"id"));yyjson_doc_free(doc);return id;};
+    const std::string unfinished="{\"report_id\":\""+id_of(incomplete)+"\"}";
+    picture_pending=false;
+    const std::string confirmed=invoke("feedback.prepare", R"({"task_id":"test-task","issue_key":"finished-capture","category":"bug","summary":"Finished screenshot","expected":"Complete pixels","observed":"Ready"})");
+    CHECK(confirmed.find("\"image_complete\":true")!=std::string::npos);
+    CHECK(invoke("feedback.submit",unfinished,false).find("capture_pending")!=std::string::npos);
+    CHECK(invoke("feedback.discard",unfinished).find("discarded_local")!=std::string::npos);
+    CHECK(invoke("feedback.discard","{\"report_id\":\""+id_of(confirmed)+"\"}").find("discarded_local")!=std::string::npos);
     CHECK(RemoveDirectoryA((root+"/feedback").c_str()));CHECK(RemoveDirectoryA(root.c_str()));
     std::printf("{\"status\":\"PASS\",\"checks\":%u}\n",checks);
 }

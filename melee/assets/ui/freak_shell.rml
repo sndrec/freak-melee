@@ -76,6 +76,9 @@
         <button id="workshop-agent-disable" class="room-button">Disconnect agent access</button>
         <button id="workshop-agent-enable" class="room-button">Enable agent access</button>
         <div class="field-label">Recent requests</div><div id="workshop-agent-recent"></div>
+        <div class="field-label">Agent feedback</div>
+        <button id="workshop-agent-feedback-refresh" class="room-button">Refresh reports</button>
+        <div id="workshop-agent-feedback"></div>
       </section>
       <div id="workshop-editor-context">
         <div id="workshop-context-action">Select an action</div><span>/</span>

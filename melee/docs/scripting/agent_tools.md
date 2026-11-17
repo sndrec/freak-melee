@@ -167,6 +167,57 @@ supporting examples. They are also available as MCP resources under
 these files. Links marked **developer reference, online** provide optional
 implementation notes on GitHub.
 
+## Report a bug or missing capability
+
+Use the feedback tools when an authoring operation fails reproducibly or a
+fighter needs a capability that the available scripting operations cannot
+express. For a feature request, describe the behavior you want, the operations
+you considered, and the generic capability that would help other fighters too.
+Continue independent work after recording the obstacle.
+
+1. Call `feedback.prepare` on the running instance. Supply a unique `task_id`
+   for this authoring task and a short `issue_key` for this obstacle. Choose
+   `bug` or `feature_request`, and describe the expected and observed behavior.
+   Optional fields include `operation`, `reproduction`, `diagnostics`,
+   `capability`, `alternatives` and screenshot annotation `pins`.
+2. Inspect the returned `id` with `feedback.inspect`, using it as `report_id`.
+   The local `screenshot`, `context` and `notes` paths contain the captured
+   evidence. Wait for `attachments_ready: true` before submitting. The
+   screenshot's completed write is recorded locally at this point; inspect it
+   before closing the game so an interrupted capture stays distinguishable
+   from a complete one. The
+   `agent_report.captured_workshop` fields identify the draft and preview at
+   capture time. Supplying `revision` to prepare requires that exact live
+   revision; omit it when reporting a problem without an open draft.
+3. Call `feedback.submit` with that `report_id`. This sends the original capture
+   through the same F2 service and admin feedback queue used by players. The
+   agent host controls permission for this network operation. Check
+   `feedback.status` until `stored: true` confirms receipt. A `retry` status
+   retains the files and error; call submit again with the same ID.
+
+Preparation captures the displayed screen and gameplay diagnostics immediately.
+Submission and retries keep those bytes, even after you change the fighter.
+Reusing a task and issue key returns its original report instead of capturing
+or sending another copy. Agents should keep that ID when an operation times out.
+Use `feedback.list` to recover it after reconnecting or restarting the program.
+If an upload's outcome is uncertain, resubmitting its sealed capture resolves it
+without creating a second report.
+
+Reports are marked as agent-authored in their notes and diagnostic context.
+Players can read their categories, descriptions and status in Workshop → Fighter
+→ Agent tools → Agent feedback. The local collection holds up to 16 reports,
+with a 128 MiB storage limit. After inspection, `feedback.discard` removes a
+local copy; a report already received by the server stays in the admin queue.
+Discarding removes its local duplicate-detection record too. Keep submitted
+report IDs in your task notes so you can refer to the original report later.
+
+Automatic diagnostics exclude authentication data and account keys. Fighter
+source files and assets are not attached by these operations. Include only the
+smallest relevant diagnostic text in your description; omit credentials and
+private content from text and screenshots. Reporting works from the hub even
+without a draft or preview. Finish an open F2 annotation session before asking
+the agent to capture another report.
+
 ## Connect through MCP
 
 For a setup installation, configure your agent's MCP client to start:

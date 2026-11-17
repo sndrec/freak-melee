@@ -231,6 +231,8 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
     yyjson_mut_obj_add_strcpy(doc,root,"focused_control",interface_state->focused_control);
     yyjson_mut_obj_add_sint(doc,root,"hub_page",interface_state->hub_page);
     yyjson_mut_obj_add_bool(doc,root,"menu_transition",interface_state->menu_transition);
+    if (interface_state->agent_report)
+        yyjson_mut_obj_add_val(doc,root,"agent_report",yyjson_val_mut_copy(doc,interface_state->agent_report));
     yyjson_mut_obj_add_uint(doc,root,"backend",aurora_get_backend());
     yyjson_mut_obj_add_str(doc,root,"platform","Windows PC");
     yyjson_mut_obj_add_uint(doc,root,"pointer_bytes",sizeof(void*));

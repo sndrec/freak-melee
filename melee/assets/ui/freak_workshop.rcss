@@ -705,3 +705,7 @@ button:focus { border-color: #f59e82; }
 #workshop-agent-status { font-size: 18px; margin: 8px 0 14px; }
 #workshop-agent-instance { font-family: Consolas; font-size: 12px; margin: 8px 0 16px; }
 #workshop-agent-recent { max-height: 180px; overflow-y: auto; font-size: 12px; line-height: 19px; }
+#workshop-agent-panel { max-height: 75%; overflow-y: auto; }
+#workshop-agent-feedback { max-height: 260px; overflow-y: auto; }
+#workshop-agent-feedback .room-button { display: block; width: 100%; height: auto; margin: 5px 0; }
+.agent-report-detail { white-space: pre-wrap; font-size: 12px; line-height: 18px; padding: 8px; }

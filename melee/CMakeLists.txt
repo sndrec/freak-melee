@@ -459,7 +459,7 @@ if(NATIVE_NETPLAY_DIAGNOSTICS_BUILD)
     if(NOT NATIVE_NETPLAY_DIAGNOSTICS_BUILD MATCHES "^[A-Za-z0-9._-]+$")
         message(FATAL_ERROR "The client build label must contain letters, numbers, dots, underscores or dashes")
     endif()
-    set_property(SOURCE src/melee/gm/native_feedback.cpp src/melee/gm/native_feedback_context.c
+    set_property(SOURCE src/melee/gm/native_feedback_capture.cpp src/melee/gm/native_feedback_context.c
         APPEND PROPERTY COMPILE_DEFINITIONS
         "NATIVE_NETPLAY_DIAGNOSTICS_BUILD=\"${NATIVE_NETPLAY_DIAGNOSTICS_BUILD}\"")
 endif()
@@ -567,6 +567,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/gm/native_community.cpp
     src/melee/gm/native_community_upload.cpp
     src/melee/gm/native_feedback.cpp
+    src/melee/gm/native_feedback_capture.cpp
+    src/melee/gm/native_feedback_agent.cpp
     src/melee/gm/native_feedback_input.c
     src/melee/ui/native_feedback_view.cpp
     src/melee/gm/native_feedback_context.c
@@ -2261,7 +2263,9 @@ target_include_directories(native_feedback_input_test PRIVATE src extern/dolphin
 target_compile_definitions(native_feedback_input_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_feedback_input COMMAND native_feedback_input_test)
 add_executable(native_feedback_owner_test tests/native/native_feedback_owner_test.cpp
-    src/melee/gm/native_feedback.cpp)
+    src/melee/gm/native_feedback.cpp src/melee/gm/native_feedback_capture.cpp
+    src/melee/gm/native_feedback_agent.cpp src/melee/gm/native_content_store.c
+    src/melee/ft/native_authoring_reply.cpp)
 target_include_directories(native_feedback_owner_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_feedback_owner_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(native_feedback_owner_test PRIVATE aurora_core yyjson bcrypt)

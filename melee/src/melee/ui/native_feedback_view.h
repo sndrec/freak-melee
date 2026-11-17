@@ -1,14 +1,7 @@
 #pragma once
-#include <aurora/aurora.h>
+#include <melee/gm/native_feedback_capture.h>
 
 enum class NativeFeedbackAction { None, ConfirmSend, ConfirmDiscard, Send, Retry, Discard, Close };
-struct NativeFeedbackPin { unsigned id; float x, y; char text[8193]; };
-struct NativeFeedbackDraft {
-    char id[37], captured_at[40], image_path[1024], context_path[1024];
-    AuroraPresentedCapture image;
-    NativeFeedbackPin pins[64];
-    unsigned count, next_pin;
-};
 bool nativeFeedbackView_Open(NativeFeedbackDraft& draft);
 void nativeFeedbackView_Close();
 void nativeFeedbackView_Update();

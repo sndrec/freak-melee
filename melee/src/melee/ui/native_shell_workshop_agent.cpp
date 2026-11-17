@@ -7,6 +7,7 @@
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_home.h>
+#include <melee/gm/native_feedback_agent.h>
 #include <RmlUi/Core.h>
 #include <array>
 #include <cstdio>
@@ -21,6 +22,7 @@ Rml::ElementDocument* document;
 std::array<std::string, 16> recent;
 unsigned recent_count;
 bool panel_open;
+std::string selected_report;
 std::string connection_error;
 
 const char* string(yyjson_val* object, const char* key)
@@ -102,6 +104,27 @@ void render_panel()
     for (unsigned i = 0; i < std::min(recent_count, 16u); ++i)
         rows += "<div>" + Rml::StringUtilities::EncodeRml(recent[(recent_count - 1 - i) % 16]) + "</div>";
     document->GetElementById("workshop-agent-recent")->SetInnerRML(rows.empty() ? "No requests yet." : rows);
+    auto* report_doc = yyjson_mut_doc_new(nullptr);
+    if (!report_doc) return;
+    Reply reports(report_doc); NativeFeedbackAgent::list(reports);
+    rows.clear();
+    size_t index, count; yyjson_mut_val* report;
+    yyjson_mut_arr_foreach(yyjson_mut_obj_get(reports.result, "reports"), index, count, report) {
+        const auto get = [](yyjson_mut_val* row, const char* field) {
+            const char* value = yyjson_mut_get_str(yyjson_mut_obj_get(row, field)); return value ? value : "";
+        };
+        auto* details = yyjson_mut_obj_get(report, "agent_report");
+        rows += "<button class='room-button' id='workshop-agent-report-" + std::string(get(report, "id")) + "'>" +
+            Rml::StringUtilities::EncodeRml(std::string(get(details, "category")) + ": " + get(details, "summary") + " — " + get(report, "status")) + "</button>";
+        if (selected_report == get(report, "id")) {
+            std::string body = std::string("Report: ") + selected_report + "\nCaptured: " + get(report, "capture_at");
+            for (const char* field : {"operation", "expected", "observed", "reproduction", "capability", "alternatives", "diagnostics"})
+                if (*get(details, field)) body += std::string("\n\n") + field + ": " + get(details, field);
+            rows += "<div class='agent-report-detail'>" + Rml::StringUtilities::EncodeRml(body) + "</div>";
+        }
+    }
+    document->GetElementById("workshop-agent-feedback")->SetInnerRML(rows.empty() ? "No agent reports." : rows);
+    yyjson_mut_doc_free(report_doc);
 }
 
 void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
@@ -109,88 +132,109 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     const auto* command = NativeWorkshopAgent::find(method);
     if (!command) { reply.fail("unknown_tool", "Unknown live Workshop operation."); return; }
     if (!NativeWorkshopAgent::validate(*command, arguments, reply)) return;
-    // State replies and their revision are produced from the live owner rather
-    // than reopening its disk files. A completed reply describes this boundary.
-    if (!describe(reply)) return;
-    const auto state = nativeShellWorkshop_LiveState();
-    const std::string revision = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "revision"));
-    if (!command->read_only) reply.result = yyjson_mut_obj(reply.document);
-    if (yyjson_obj_get(arguments, "revision") && revision != string(arguments, "revision")) {
-        reply.fail("revision_conflict", "The live Workshop changed. Inspect it before editing.");
-        add_string(reply, reply.result, "revision", revision);
-    } else if (!command->read_only && std::strcmp(method, "session.disconnect") && std::strcmp(method, "session.practice.stop") &&
-               (!state.allowed || nativeShellWorkshopEditor_AgentBusy())) {
-        reply.fail("editor_busy", "Editing is unavailable during gameplay, preview transitions or an active edit gesture.");
-    } else if (!std::strcmp(method, "session.inspect")) {
-        // The description above is the whole result.
-    } else if (!std::strcmp(method, "session.disconnect")) {
-        // Finish this reply and its acknowledgment before closing the pipe.
-        server.enabled = false;
-        add_string(reply, reply.result, "status", "disconnected");
-    } else if (!std::strcmp(method, "session.open")) {
-        if (state.dirty) reply.fail("unsaved_edits", "Save or discard the current Workshop edits before opening another draft.");
-        if (reply.ok) {
-            nativeHub_OpenWorkshop(string(arguments, "project"));
-            const auto opened = nativeShellWorkshop_LiveState();
-            char full[512];
-            DWORD size = GetFullPathNameA(string(arguments, "project"), sizeof(full), full, nullptr);
-            if (!opened.family || !size || size >= sizeof(full) || _stricmp(opened.family->paths[0], full))
-                reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
-        }
-    } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
-    else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
-    else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
-    else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);
-    else if (!std::strcmp(method, "session.practice.start")) nativeShellWorkshop_RequestPreview(true, &reply);
-    else if (!std::strcmp(method, "session.practice.stop")) nativeShellWorkshop_StopTest(reply);
-    else if (!std::strcmp(method, "session.scripts.check")) {
-        if (!state.allowed || nativeShellWorkshopEditor_AgentBusy())
-            reply.fail("editor_busy", "Finish gameplay, preview loading or the current edit gesture before checking a draft.");
-        else nativeShellWorkshop_Check(reply);
-    }
-    else if (!std::strcmp(method, "session.save")) {
-        std::string error;
-        if (!nativeShellWorkshop_Save(&error)) reply.fail("save_failed", error);
+    if (!std::strncmp(method, "feedback.", 9)) {
+        auto* document = yyjson_mut_doc_new(nullptr);
+        if (!document) { reply.fail("capture_failed", "Could not allocate capture metadata."); return; }
+        Reply state(document);
+        bool available = describe(state);
+        const char* expected = string(arguments, "revision");
+        if (*expected && (!available || std::strcmp(expected, yyjson_mut_get_str(yyjson_mut_obj_get(state.result, "revision")))))
+            reply.fail("revision_conflict", "Inspect the current Workshop before capturing that draft revision.");
         else {
-            add_string(reply, reply.result, "status", "saved_draft");
-            yyjson_mut_obj_add_bool(reply.document, reply.result, "saved", true);
-            yyjson_mut_obj_add_bool(reply.document, reply.result, "installed", false);
-        }
-    }
-    else if (!std::strcmp(method, "session.workspace.select")) nativeShellWorkshopEditor_AgentWorkspace(string(arguments, "workspace"));
-    else if (!std::strcmp(method, "session.member.select")) {
-        unsigned member = 0;
-        for (; member < state.family->member_count; ++member)
-            if (!std::strcmp(state.family->keys[member], string(arguments, "member"))) break;
-        if (member == state.family->member_count) reply.fail("unknown_member", "Choose a member key returned by session.inspect.");
-        else if (!nativeShellWorkshop_SelectMember(member, true)) reply.fail("member_unavailable", "Could not open this member's editor.");
-    } else if (!std::strcmp(method, "session.scripts.list")) nativeShellWorkshopEditor_AgentSources(nullptr, reply);
-    else if (!std::strcmp(method, "session.scripts.read")) nativeShellWorkshopEditor_AgentSources(string(arguments, "file"), reply);
-    else if (!std::strcmp(method, "session.scripts.select")) nativeShellWorkshopEditor_AgentSelectSource(string(arguments, "file"), reply);
-    else if (!std::strcmp(method, "session.scripts.update")) nativeShellWorkshopEditor_AgentUpdateSources(arguments, reply);
-    else if (!std::strcmp(method, "session.undo") || !std::strcmp(method, "session.redo"))
-        nativeShellWorkshopEditor_AgentUndo(!std::strcmp(method, "session.redo"), reply);
-    else reply.fail("unknown_tool", "Unknown live Workshop operation.");
-    // Preserve operation results while refreshing their state/revision fields.
-    if (reply.ok && !command->read_only) {
-        yyjson_mut_obj_remove_str(reply.result, "revision");
-        if (!yyjson_mut_obj_get(reply.result, "committed")) yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
-        auto* state_doc = yyjson_mut_doc_new(nullptr);
-        if (state_doc) {
-            Reply after(state_doc);
-            if (describe(after)) {
-                size_t index, count; yyjson_mut_val *key, *value;
-                yyjson_mut_obj_foreach(after.result, index, count, key, value) {
-                    const char* name = yyjson_mut_get_str(key);
-                    yyjson_mut_obj_remove_str(reply.result, name);
-                    yyjson_mut_obj_add_val(reply.document, reply.result, name, yyjson_mut_val_mut_copy(reply.document, value));
-                }
-            } else {
-                yyjson_mut_obj_add_null(reply.document, reply.result, "revision");
-                add_string(reply, reply.result, "state_diagnostic", "Edit completed, but state refresh failed. Inspect the instance again.");
+            // A broken draft must remain reportable even when full inspection
+            // fails. The normal F2 capture still collects gameplay diagnostics.
+            if (!available) {
+                add_string(state, state.result, "build_identity", NativeAuthoring::build_identity());
+                add_string(state, state.result, "source_revision", NativeAuthoring::source_revision());
+                add_string(state, state.result, "build", NativeAuthoring::release_label());
             }
-            yyjson_mut_doc_free(state_doc);
-        } else yyjson_mut_obj_add_null(reply.document, reply.result, "revision");
+            NativeFeedbackAgent::handle(method, arguments, state.result, reply);
+        }
+        yyjson_mut_doc_free(document);
+    } else {
+        // State replies and their revision are produced from the live owner rather
+        // than reopening its disk files. A completed reply describes this boundary.
+        if (!describe(reply)) return;
+        const auto state = nativeShellWorkshop_LiveState();
+        const std::string revision = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "revision"));
+        if (!command->read_only) reply.result = yyjson_mut_obj(reply.document);
+        if (yyjson_obj_get(arguments, "revision") && revision != string(arguments, "revision")) {
+            reply.fail("revision_conflict", "The live Workshop changed. Inspect it before editing.");
+            add_string(reply, reply.result, "revision", revision);
+        } else if (!command->read_only && std::strcmp(method, "session.disconnect") && std::strcmp(method, "session.practice.stop") &&
+                   (!state.allowed || nativeShellWorkshopEditor_AgentBusy())) {
+            reply.fail("editor_busy", "Editing is unavailable during gameplay, preview transitions or an active edit gesture.");
+        } else if (!std::strcmp(method, "session.inspect")) {
+            // The description above is the whole result.
+        } else if (!std::strcmp(method, "session.disconnect")) {
+            // Finish this reply and its acknowledgment before closing the pipe.
+            server.enabled = false;
+            add_string(reply, reply.result, "status", "disconnected");
+        } else if (!std::strcmp(method, "session.open")) {
+            if (state.dirty) reply.fail("unsaved_edits", "Save or discard the current Workshop edits before opening another draft.");
+            if (reply.ok) {
+                nativeHub_OpenWorkshop(string(arguments, "project"));
+                const auto opened = nativeShellWorkshop_LiveState();
+                char full[512];
+                DWORD size = GetFullPathNameA(string(arguments, "project"), sizeof(full), full, nullptr);
+                if (!opened.family || !size || size >= sizeof(full) || _stricmp(opened.family->paths[0], full))
+                    reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
+            }
+        } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+        else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
+        else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
+        else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);
+        else if (!std::strcmp(method, "session.practice.start")) nativeShellWorkshop_RequestPreview(true, &reply);
+        else if (!std::strcmp(method, "session.practice.stop")) nativeShellWorkshop_StopTest(reply);
+        else if (!std::strcmp(method, "session.scripts.check")) {
+            if (!state.allowed || nativeShellWorkshopEditor_AgentBusy())
+                reply.fail("editor_busy", "Finish gameplay, preview loading or the current edit gesture before checking a draft.");
+            else nativeShellWorkshop_Check(reply);
+        }
+        else if (!std::strcmp(method, "session.save")) {
+            std::string error;
+            if (!nativeShellWorkshop_Save(&error)) reply.fail("save_failed", error);
+            else {
+                add_string(reply, reply.result, "status", "saved_draft");
+                yyjson_mut_obj_add_bool(reply.document, reply.result, "saved", true);
+                yyjson_mut_obj_add_bool(reply.document, reply.result, "installed", false);
+            }
+        }
+        else if (!std::strcmp(method, "session.workspace.select")) nativeShellWorkshopEditor_AgentWorkspace(string(arguments, "workspace"));
+        else if (!std::strcmp(method, "session.member.select")) {
+            unsigned member = 0;
+            for (; member < state.family->member_count; ++member)
+                if (!std::strcmp(state.family->keys[member], string(arguments, "member"))) break;
+            if (member == state.family->member_count) reply.fail("unknown_member", "Choose a member key returned by session.inspect.");
+            else if (!nativeShellWorkshop_SelectMember(member, true)) reply.fail("member_unavailable", "Could not open this member's editor.");
+        } else if (!std::strcmp(method, "session.scripts.list")) nativeShellWorkshopEditor_AgentSources(nullptr, reply);
+        else if (!std::strcmp(method, "session.scripts.read")) nativeShellWorkshopEditor_AgentSources(string(arguments, "file"), reply);
+        else if (!std::strcmp(method, "session.scripts.select")) nativeShellWorkshopEditor_AgentSelectSource(string(arguments, "file"), reply);
+        else if (!std::strcmp(method, "session.scripts.update")) nativeShellWorkshopEditor_AgentUpdateSources(arguments, reply);
+        else if (!std::strcmp(method, "session.undo") || !std::strcmp(method, "session.redo"))
+            nativeShellWorkshopEditor_AgentUndo(!std::strcmp(method, "session.redo"), reply);
+        else reply.fail("unknown_tool", "Unknown live Workshop operation.");
+        // Preserve operation results while refreshing their state/revision fields.
+        if (reply.ok && !command->read_only) {
+            yyjson_mut_obj_remove_str(reply.result, "revision");
+            if (!yyjson_mut_obj_get(reply.result, "committed")) yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
+            auto* state_doc = yyjson_mut_doc_new(nullptr);
+            if (state_doc) {
+                Reply after(state_doc);
+                if (describe(after)) {
+                    size_t index, count; yyjson_mut_val *key, *value;
+                    yyjson_mut_obj_foreach(after.result, index, count, key, value) {
+                        const char* name = yyjson_mut_get_str(key);
+                        yyjson_mut_obj_remove_str(reply.result, name);
+                        yyjson_mut_obj_add_val(reply.document, reply.result, name, yyjson_mut_val_mut_copy(reply.document, value));
+                    }
+                } else {
+                    yyjson_mut_obj_add_null(reply.document, reply.result, "revision");
+                    add_string(reply, reply.result, "state_diagnostic", "Edit completed, but state refresh failed. Inspect the instance again.");
+                }
+                yyjson_mut_doc_free(state_doc);
+            } else yyjson_mut_obj_add_null(reply.document, reply.result, "revision");
+        }
     }
     recent[recent_count++ % 16] = std::string(method) + (reply.ok ? " — completed" : " — failed") +
         (*string(arguments, "summary") ? " — " + std::string(string(arguments, "summary")) : "") +
@@ -206,12 +250,17 @@ void nativeWorkshopAgent_Init(Rml::ElementDocument* owner)
 }
 extern "C" void nativeShell_UpdateAuthoring(void)
 {
+    NativeFeedbackAgent::update();
     NativeWorkshopConnection::poll(server);
 }
 void nativeWorkshopAgent_Shutdown() { NativeWorkshopConnection::shutdown(server); document = nullptr; }
 bool nativeWorkshopAgent_Click(const char* id)
 {
-    if (!std::strcmp(id, "workshop-agent-show")) {
+    if (!std::strncmp(id, "workshop-agent-report-", 22)) {
+        selected_report = id + 22; render_panel();
+    } else if (!std::strcmp(id, "workshop-agent-feedback-refresh")) {
+        render_panel();
+    } else if (!std::strcmp(id, "workshop-agent-show")) {
         panel_open = true; document->GetElementById("workshop-agent-panel")->SetProperty("display", "block"); render_panel();
     } else if (!std::strcmp(id, "workshop-agent-close")) {
         panel_open = false; document->GetElementById("workshop-agent-panel")->SetProperty("display", "none");

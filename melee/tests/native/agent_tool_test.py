@@ -63,10 +63,13 @@ def main():
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
         mutations = {'scripts.update', 'project.build', 'packages.export', 'session.build', 'session.install',
+                     'feedback.prepare', 'feedback.submit', 'feedback.discard',
                      'session.preview.refresh', 'session.practice.start', 'session.practice.stop',
                      'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',
                      'session.scripts.select', 'session.save', 'session.undo', 'session.redo', 'session.disconnect'}
         assert all(item['annotations']['readOnlyHint'] == (item['name'] not in mutations) for item in tools)
+        assert all(item['annotations']['openWorldHint'] == (item['name'] == 'feedback.submit') for item in tools)
+        assert all(item['annotations']['destructiveHint'] == (item['name'] == 'feedback.discard') for item in tools)
         assert call('environment.describe')['installation'] == str(tool.parent)
         assert call('projects.list')['total'] == 0
         assert call('unknown', expected=1)['code'] == 'unknown_tool'

@@ -79,8 +79,8 @@ yyjson_mut_val* list_tools(yyjson_mut_doc* document)
         yyjson_mut_obj_add_val(document, item, "outputSchema", output);
         auto* annotations = yyjson_mut_obj(document);
         yyjson_mut_obj_add_bool(document, annotations, "readOnlyHint", tool.read_only);
-        yyjson_mut_obj_add_bool(document, annotations, "destructiveHint", false);
-        yyjson_mut_obj_add_bool(document, annotations, "openWorldHint", false);
+        yyjson_mut_obj_add_bool(document, annotations, "destructiveHint", !std::strcmp(tool.name, "feedback.discard"));
+        yyjson_mut_obj_add_bool(document, annotations, "openWorldHint", !std::strcmp(tool.name, "feedback.submit"));
         yyjson_mut_obj_add_val(document, item, "annotations", annotations);
         yyjson_mut_arr_add_val(result, item);
     }

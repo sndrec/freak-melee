@@ -2,6 +2,7 @@
 #include <aurora/aurora.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <yyjson.h>
 #include "native_feedback_history.h"
 
 #ifdef __cplusplus
@@ -17,6 +18,7 @@ typedef struct NativeFeedbackInterface {
     const char* focused_control;
     int hub_page;
     bool menu_transition;
+    yyjson_val* agent_report;
 } NativeFeedbackInterface;
 bool nativeFeedbackContext_Write(const char* path, const char* id, const char* captured_at,
                                  const AuroraPresentedCapture* image,

@@ -92,6 +92,26 @@ Accepted 2026-11-17. Implementation is in progress.
   build/preview/practice/install/export and CLI/MCP/launcher checks with a
   Windows-only PATH. No public build was uploaded. Domain editing, controlled
   tests/capture, agent feedback and full packaged acceptance remain open.
+- Agent bug and feature reporting now uses the existing F2 capture code,
+  binary uploader and administration queue. Prepare captures pixels and bounded
+  gameplay diagnostics immediately; inspect exposes the original evidence and
+  draft/preview identity. Submit/status reuse sealed files and a durable report
+  ID across failures and process restarts. Local task/issue keys suppress repeat
+  captures, while random report IDs avoid collisions between players. Reports
+  persist confirmed screenshot completion and image hashes, so a partial file
+  left by an interrupted capture cannot be mistaken for a completed screenshot.
+  Reports
+  carry agent/category labels, descriptions, repro steps and optional pins;
+  source files and assets are excluded. The Workshop Agent tools panel lists
+  their descriptions and status. The native owner tests cover F2 behavior,
+  partial diagnostics, duplicate suppression, retry and receipt handling. A real
+  hidden/muted client passes the F2 wire-format roundtrip against a private test
+  endpoint, including failure, restart recovery, altered-attachment refusal and
+  successful receipt. That test and CLI/MCP/launcher checks also pass from the
+  extracted setup with a Windows-only PATH; all twelve related regression
+  checks pass. No test report or build was sent to the public service. Remaining
+  work includes the domain editing tools, structured clone/import, controlled
+  preview/practice evidence and full packaged acceptance exercises.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted
