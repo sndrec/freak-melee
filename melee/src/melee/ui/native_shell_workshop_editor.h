@@ -8,6 +8,7 @@
 namespace Rml { class ElementDocument; }
 struct NativeFighterProject;
 struct NativeFighterModelEditor;
+namespace NativeFighterSources { struct Session; }
 
 void nativeShellWorkshopEditor_RegisterGraph();
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* document);
@@ -22,10 +23,11 @@ void nativeShellWorkshopEditor_FilterActions();
 void nativeShellWorkshopEditor_FilterClips();
 void nativeShellWorkshopEditor_RefreshScriptOutline();
 void nativeShellWorkshopEditor_Update();
-bool nativeShellWorkshopEditor_SaveScriptDraft();
+NativeFighterSources::Session* nativeShellWorkshopEditor_CaptureSources();
 bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member);
 void nativeShellWorkshopEditor_MarkAssetsSaved();
-bool nativeShellWorkshopEditor_BuildScript(const char* path);
+bool nativeShellWorkshopEditor_BuildScript(const char* path, const char* family_root,
+                                           std::string& disk_revision);
 bool nativeShellWorkshopEditor_ScriptChanged(unsigned member);
 bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* source,
                                              std::string* parameters);

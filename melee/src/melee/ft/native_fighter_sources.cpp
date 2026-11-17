@@ -347,9 +347,22 @@ bool save(Session& session)
 bool save_batch(Session& session, const std::string& expected,
                 const std::string* parameters, std::string& after)
 {
-    if (session.files.empty() || compose(session).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY ||
-        (parameters && parameters->size() > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY)) {
+    if (parameters && parameters->size() > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY) {
         session.error = "Source set or parameter text exceeds its capacity."; return false;
+    }
+    std::vector<NativeDraftAccess::FileEdit> edits;
+    if (!stage_save(session, edits)) return false;
+    if (parameters) edits.push_back({"fighter_parameters.fmp", *parameters});
+    if (!NativeDraftAccess::apply(session.root, expected, edits, after, session.error)) return false;
+    if (parameters) session.parameters = *parameters;
+    mark_saved(session);
+    return true;
+}
+
+bool stage_save(Session& session, std::vector<NativeDraftAccess::FileEdit>& edits)
+{
+    if (session.files.empty() || compose(session).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
+        session.error = "Source set exceeds its capacity."; return false;
     }
     if (!session.disk_sources) {
         WIN32_FIND_DATAA item{};
@@ -370,23 +383,28 @@ bool save_batch(Session& session, const std::string& expected,
             return false;
         }
     }
-    std::vector<NativeDraftAccess::FileEdit> edits;
     for (const auto& file : session.files) {
+        if (file.path.size() <= session.root.size() ||
+            file.path.compare(0, session.root.size(), session.root) ||
+            (file.path[session.root.size()] != '/' && file.path[session.root.size()] != '\\')) {
+            session.error = "Source file belongs to another project."; return false;
+        }
         std::string relative = file.path.substr(session.root.size() + 1);
         std::replace(relative.begin(), relative.end(), '\\', '/');
         edits.push_back({relative, file.text});
     }
-    if (parameters) edits.push_back({"fighter_parameters.fmp", *parameters});
     if (GetFileAttributesA((session.root + "\\behavior.draft.fms").c_str()) != INVALID_FILE_ATTRIBUTES)
         edits.push_back({"behavior.draft.fms", "", true});
-    if (!NativeDraftAccess::apply(session.root, expected, edits, after, session.error)) return false;
+    return true;
+}
+
+void mark_saved(Session& session)
+{
     for (auto& file : session.files) file.saved = file.text;
     session.disk_sources = true;
     session.origin = Session::SeparateFiles;
-    if (parameters) session.parameters = *parameters;
     source_revision(session.root, session.saved_source_revision);
     session.error.clear();
-    return true;
 }
 
 bool dirty(const Session& session)

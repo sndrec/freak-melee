@@ -238,6 +238,35 @@ def main():
             target = {'instance': instance}
             connected = call('session.inspect', target)
             assert connected['project'] == str(project) and connected['revision'] == reverted['revision']
+        # Save owns the whole family transaction. External edits are detected
+        # against the revision captured when this draft opened, not accepted
+        # silently as a new baseline immediately before writing.
+        state = call('session.inspect', target)
+        external = project / 'external-note.txt'
+        external.write_text('Preserve this external change.\n', encoding='utf-8')
+        external_snapshot = snapshot(project)
+        refused = call('session.save', dict(target, revision=state['revision']), expected=False)
+        assert refused['code'] == 'save_failed' and 'outside' in refused['message'], refused
+        assert snapshot(project) == external_snapshot
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        external.unlink()
+        assert snapshot(project) == baseline
+        final_text = changed_text + '# saved live transaction\n'
+        edited = call('session.scripts.update', dict(target, revision=state['revision'],
+            summary='Save a complete live draft', files=[{'file': first, 'text': final_text}],
+            parameters=replacement_parameters))
+        saved_live = call('session.save', dict(target, revision=edited['revision']))
+        assert saved_live['saved'] and not saved_live['installed'] and not saved_live['dirty'], saved_live
+        assert (project / first).read_text(encoding='utf-8') == final_text
+        assert (project / 'fighter_parameters.fmp').read_text(encoding='utf-8') == replacement_parameters
+        assert snapshot(project)['behavior.fms'] == baseline['behavior.fms'], 'Save changed accepted behavior'
+        assert not (project / '.workshop-transaction').exists()
+        assert call('project.inspect', saved)['revision'] == saved_live['saved_disk_revision']
+        undone = call('session.undo', dict(target, revision=saved_live['revision']))
+        assert undone['dirty'], undone
+        reverted = call('session.redo', dict(target, revision=undone['revision']))
+        assert not reverted['dirty'], reverted
+        assert call('session.scripts.read', dict(target, file=first))['text'] == final_text
         disconnected = call('session.disconnect', target)
         assert disconnected['status'] == 'disconnected' and not disconnected['agent_access_enabled']
         assert process.poll() is None, 'Disconnect closed the game'
@@ -248,7 +277,7 @@ def main():
         report = json.loads((output / 'result.json').read_text())
         report['manual_input_checked'] = manual_input_checked
         (output / 'result.json').write_text(json.dumps(report, indent=2))
-        print('PASS: real live Workshop, matching build, unsaved sources, atomic edits, stale/conflicting writers, undo/redo and disconnect')
+        print('PASS: real live Workshop, matching build, unsaved sources, atomic edits/save, disk conflicts, undo/redo and disconnect')
     finally:
         if process and process.poll() is None:
             close_window(process.pid)

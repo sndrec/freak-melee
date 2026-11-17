@@ -21,6 +21,8 @@ static const Command commands[] = {
     {"session.scripts.update", "Change live source files and optional parameter text as one Workshop undo step. Does not save, validate, install or restart preview.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
         R"(,"summary":{"type":"string","minLength":1,"maxLength":200},"files":{"type":"array","maxItems":128,"items":{"type":"object","properties":{"file":{"type":"string","minLength":1,"maxLength":400},"text":{"type":"string","maxLength":524288}},"required":["file","text"],"additionalProperties":false}},"parameters":{"type":"string","maxLength":65536}},"required":["instance","revision","summary","files"],"additionalProperties":false})", false},
+    {"session.save", "Save the whole live fighter family, editable sources and parameters as one recoverable disk transaction. Refuses external disk changes. Does not build behavior, refresh preview or install the fighter.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.undo", "Undo one edit in the current Workshop member and workspace. Requires the inspected live revision.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.redo", "Redo one edit in the current Workshop member and workspace. Requires the inspected live revision.",

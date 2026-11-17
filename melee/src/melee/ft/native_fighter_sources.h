@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 struct NativeFighterProject;
+namespace NativeDraftAccess { struct FileEdit; }
 
 namespace NativeFighterSources {
 struct SourceFile {
@@ -49,6 +50,10 @@ bool save(Session& session);
 // Caller holds an authoring lease and supplies the inspected disk revision.
 bool save_batch(Session&, const std::string& expected_revision,
                 const std::string* parameters, std::string& after_revision);
+// Encode managed sources for a larger project transaction without writing files.
+bool stage_save(Session&, std::vector<NativeDraftAccess::FileEdit>&);
+// Called only after the complete transaction has committed.
+void mark_saved(Session&);
 bool dirty(const Session& session);
 bool loaded_from_files(const Session& session);
 bool locate_line(const Session& session, unsigned combined_line,

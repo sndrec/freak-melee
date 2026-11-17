@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include "native_shell_workshop.h"
 #include <melee/lb/native_math_functions.h>
 #include "native_shell_workshop_docs.h"
 #include <melee/ft/native_fighter_model_editor.h>
@@ -1294,7 +1295,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-parameters-save") == 0) {
-        nativeShellWorkshopParameters_Save(document, session->project, session->project_path);
+        nativeShellWorkshop_Save();
         return true;
     }
     if (std::strcmp(id, "workshop-graph-focus") == 0) {
@@ -1570,11 +1571,14 @@ void nativeShellWorkshopEditor_MarkAssetsSaved()
     session->animation_dirty = false;
 }
 
-bool nativeShellWorkshopEditor_SaveScriptDraft()
+NativeFighterSources::Session* nativeShellWorkshopEditor_CaptureSources()
 {
-    if (!session->script_loaded) return true;
+    show_script();
+    if (!session->script_loaded) return nullptr;
     combined_script();
-    return NativeFighterSources::save(session->script_files);
+    session->parameter_source = nativeShellWorkshopParameters_Text();
+    session->script_files.parameters = session->parameter_source;
+    return &session->script_files;
 }
 
 bool nativeShellWorkshopEditor_IsScriptMode()

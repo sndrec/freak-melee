@@ -2198,6 +2198,17 @@ target_compile_definitions(native_workshop_connection_test PRIVATE MELEE_NATIVE=
 target_link_libraries(native_workshop_connection_test PRIVATE melee_runtime)
 target_link_options(native_workshop_connection_test PRIVATE "LINKER:/opt:ref")
 add_test(NAME native_workshop_connection COMMAND native_workshop_connection_test)
+add_executable(native_fighter_snapshot_test tests/native/fighter_snapshot_test.cpp)
+target_include_directories(native_fighter_snapshot_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_fighter_snapshot_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(native_fighter_snapshot_test PRIVATE
+    melee_runtime aurora_os aurora_gx aurora_vi aurora_pad aurora_mtx
+    aurora_dvd aurora_card aurora_thp)
+target_link_options(native_fighter_snapshot_test PRIVATE "LINKER:/opt:ref")
+aurora_copy_runtime_dlls(native_fighter_snapshot_test)
+add_test(NAME native_fighter_snapshot COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/fighter_snapshot_test.py"
+    "$<TARGET_FILE:native_content_tool>" "$<TARGET_FILE:native_fighter_snapshot_test>" "${MELEE_ISO}")
 add_test(NAME native_fighter_module_load COMMAND native_content_tool
     module-probe "$<TARGET_FILE:native_fighter_module_fixture>")
 add_test(NAME native_fighter_animation_edit_roundtrip COMMAND

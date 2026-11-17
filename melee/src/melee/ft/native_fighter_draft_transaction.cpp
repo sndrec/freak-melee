@@ -10,7 +10,7 @@
 
 namespace NativeDraftAccess {
 namespace {
-constexpr size_t MaxFiles = 256, MaxBytes = 256 * 1024 * 1024;
+constexpr size_t MaxFiles = 512, MaxBytes = 256 * 1024 * 1024;
 const char* Journal = ".workshop-transaction";
 const char* JournalOwner = "Freak Melee authoring transaction\n";
 struct Original { std::string file; bool exists; };
@@ -174,7 +174,7 @@ bool apply(const std::string& root, const std::string& expected,
     std::string current;
     if (!revision(root, current, error)) return false;
     if (current != expected) { after = current; return fail(error, "Draft revision changed. Inspect it before editing."); }
-    if (edits.empty() || edits.size() > MaxFiles) return fail(error, "An edit batch needs 1-256 files.");
+    if (edits.empty() || edits.size() > MaxFiles) return fail(error, "An edit batch needs 1-512 files.");
     std::vector<std::string> names;
     size_t bytes = 0;
     for (const auto& edit : edits) {

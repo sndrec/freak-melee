@@ -54,6 +54,7 @@ bool describe(Reply& reply)
         nativeHome_IsPractice() ? "practice" : nativeHome_IsSelection() ? "character_select" : "other");
     if (state.family) {
         add_string(reply, reply.result, "project", state.family->paths[0]);
+        add_string(reply, reply.result, "saved_disk_revision", state.saved_disk_revision);
         add_string(reply, reply.result, "member", state.family->keys[state.member]);
         auto* members = yyjson_mut_arr(reply.document);
         yyjson_mut_obj_add_val(reply.document, reply.result, "members", members);
@@ -136,6 +137,15 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
                 reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
         }
     } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+    else if (!std::strcmp(method, "session.save")) {
+        std::string error;
+        if (!nativeShellWorkshop_Save(&error)) reply.fail("save_failed", error);
+        else {
+            add_string(reply, reply.result, "status", "saved_draft");
+            yyjson_mut_obj_add_bool(reply.document, reply.result, "saved", true);
+            yyjson_mut_obj_add_bool(reply.document, reply.result, "installed", false);
+        }
+    }
     else if (!std::strcmp(method, "session.workspace.select")) nativeShellWorkshopEditor_AgentWorkspace(string(arguments, "workspace"));
     else if (!std::strcmp(method, "session.member.select")) {
         unsigned member = 0;

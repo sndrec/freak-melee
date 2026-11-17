@@ -327,16 +327,17 @@ bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* sourc
     return !source->empty() && source->size() <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY;
 }
 
-bool nativeShellWorkshopEditor_BuildScript(const char* output_path)
+bool nativeShellWorkshopEditor_BuildScript(const char* output_path, const char* family_root,
+                                           std::string& disk_revision)
 {
-    if (session->project == nullptr || output_path == nullptr) return false;
-    if (!nativeShellWorkshopParameters_Save(document, session->project, output_path)) return false;
+    if (session->project == nullptr || output_path == nullptr || family_root == nullptr) return false;
     const std::string source = combined_script();
     if (source.empty() || source.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
         set_text("workshop-script-status", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");return false;
     }
     std::string diagnostics, expected;unsigned line = 0;
-    if (!NativeDraftAccess::revision(output_path, expected, diagnostics)) {
+    if (!NativeDraftAccess::revision(family_root, expected, diagnostics) || expected != disk_revision) {
+        if (diagnostics.empty()) diagnostics = "Draft changed outside the Workshop. Reopen before building behavior.";
         set_text("workshop-script-status", diagnostics); return false;
     }
     set_text("workshop-script-status", "Validating source and fighter assets...");
@@ -350,14 +351,16 @@ bool nativeShellWorkshopEditor_BuildScript(const char* output_path)
             "<button id='workshop-script-problem-line-" + number(line) + "'>" + Rml::StringUtilities::EncodeRml(message) + "</button>");
         return false;
     }
-    std::vector<NativeDraftAccess::FileEdit> edits{{"behavior.fms", source}};
+    const std::string prefix = _stricmp(family_root, output_path) ? "partner/" : "";
+    std::vector<NativeDraftAccess::FileEdit> edits{{prefix + "behavior.fms", source}};
     const std::string draft_path = std::string(output_path) + "\\behavior.draft.fms";
     if (GetFileAttributesA(draft_path.c_str()) != INVALID_FILE_ATTRIBUTES)
-        edits.push_back({"behavior.draft.fms", "", true});
+        edits.push_back({prefix + "behavior.draft.fms", "", true});
     std::string after;
-    if (!NativeDraftAccess::apply(output_path, expected, edits, after, diagnostics)) {
+    if (!NativeDraftAccess::apply(family_root, expected, edits, after, diagnostics)) {
         set_text("workshop-script-status", diagnostics); return false;
     }
+    disk_revision = std::move(after);
     set_text("workshop-script-status", "Source validated and saved to this draft. Apply a preview to test it.");
     set_text("workshop-script-problems", "No problems found.");return true;
 }

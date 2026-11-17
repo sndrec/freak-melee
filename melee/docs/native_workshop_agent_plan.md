@@ -43,7 +43,6 @@ Accepted 2026-11-17. Implementation is in progress.
   read-only, parameter, family, pose, reference and release-payload checks pass.
   Read and write CLI/MCP checks also pass from an extracted setup ZIP with a
   Windows-only PATH. No public update was uploaded.
-  Whole-project transactions are still open.
 - Same-user asynchronous named pipes now connect the tool to an explicit live
   instance. Discovery returns the executable and source/build identity. A shared
   source/configuration fingerprint rejects mismatched binaries before requests
@@ -58,7 +57,17 @@ Accepted 2026-11-17. Implementation is in progress.
   checks verify these operations with a Windows-only PATH, including in-game
   access disable/re-enable and a separate run using only the shipped tools.
   Live validation,
-  save/build/install, other asset domains and preview/testing operations remain.
+  build/install, other asset domains and preview/testing operations remain.
+- The Save button and `session.save` now capture the whole fighter family and
+  commit assets, source files and parameters through one recovery journal.
+  Saved-disk revisions guard raw external edits; successful saves retain undo.
+  Parameters and HUD-image imports use the same save path. Native checks cover
+  single and paired fighters, invalid candidates, a blocked mid-save write,
+  journal recovery and disk conflicts. A real hidden/muted client verifies
+  source/parameter save, unchanged accepted behavior and undo/redo after saving.
+  The same live save checks and CLI/MCP/launcher checks pass from an extracted
+  release using a Windows-only PATH.
+  Build/install and live validation remain separate work.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted

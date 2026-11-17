@@ -41,6 +41,9 @@ bool acquire_directory(const char* path, NativeFighterDraftLease& lease, std::st
 
 bool ignored(const std::string& name)
 {
+    // Installation receipts track a published build, independently of edits
+    // to the source draft. Installing it must not invalidate a saved source revision.
+    if (name == "installed.id") return true;
     return name == ".workshop-transaction" || name == ".workshop-history" ||
         (name.size() >= 9 && name.compare(name.size() - 9, 9, ".previous") == 0) ||
         (name.size() >= 4 && name.compare(name.size() - 4, 4, ".tmp") == 0) ||

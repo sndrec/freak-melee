@@ -7,6 +7,7 @@ struct NativeWorkshopLiveState {
     unsigned member = 0;
     uint64_t generation = 0;
     bool open = false, testing = false, loading = false, allowed = false, dirty = false;
+    const char* saved_disk_revision = "";
 };
 NativeWorkshopLiveState nativeShellWorkshop_LiveState();
 bool nativeShellWorkshop_SelectMember(unsigned member, bool restart_preview = false);

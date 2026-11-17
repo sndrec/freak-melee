@@ -97,8 +97,17 @@ creates one Workshop undo step. `session.undo` and `session.redo` use the curren
 member/workspace's history. Source history preserves intervening manual text
 edits by refusing to overwrite a different source set.
 
-Live source edits change the working draft. Save, behavior validation, preview
-refresh and installation remain separate operations. `preview_scene` describes
+Live source edits change the working draft. `session.save` saves every member's
+assets, source files and parameters together, while keeping the Workshop undo
+history. It compares disk files with the revision observed when the draft opened
+or last saved. A conflict preserves both the external files and your unsaved
+edits. `saved_disk_revision` identifies the saved project; `revision` identifies
+the current live editor state.
+Installing a build updates its receipt separately from the draft's saved revision.
+
+Behavior validation, preview refresh and installation are separate operations.
+Saving editable source preserves the last accepted behavior until you build it.
+`preview_scene` describes
 the currently loaded scene; a source edit's `preview_status: "refresh_required"`
 means that behavior has not been applied to the running preview.
 `scripts.check` checks saved files. Current live checks use the Workshop's

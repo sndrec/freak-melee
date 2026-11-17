@@ -22,6 +22,7 @@
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_draft_access.h>
+#include <melee/ft/native_fighter_snapshot.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_gx_image.h>
@@ -41,6 +42,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -56,6 +58,7 @@ bool preview_loading;
 NativeWorkshopOrigin return_destination;
 NativeFighterFamilyProject active_family;
 NativeFighterDraftLease active_lease{};
+std::string saved_disk_revision;
 NativeFighterProject* active_project;
 unsigned active_member;
 bool updating_member_selector;
@@ -91,6 +94,7 @@ void close_project()
     nativeShellWorkshopEditor_Close();
     if (project_loaded) nativeFighterFamilyProject_Close(&active_family);
     nativeFighterDraft_Release(&active_lease);
+    saved_disk_revision.clear();
     active_project = nullptr;
     active_member = 0;
     std::fill_n(member_opened, NATIVE_FIGHTER_FAMILY_MEMBERS, false);
@@ -264,6 +268,10 @@ void select_draft(size_t index)
     if (!candidate_lease.acquire(drafts[index].path, lease_error)) {
         status("workshop-library-status", lease_error.c_str()); return;
     }
+    std::string disk_revision;
+    if (!NativeDraftAccess::revision(drafts[index].path, disk_revision, lease_error)) {
+        status("workshop-library-status", lease_error.c_str()); return;
+    }
     NativeFighterFamilyProject family;
     if (!nativeFighterFamilyProject_Open(drafts[index].path, &family)) {
         status("workshop-library-status", "Could not open that complete fighter draft.");
@@ -287,6 +295,9 @@ void select_draft(size_t index)
             values[member][i] = text;
         }
     }
+    std::string opened_revision;
+    valid = valid && NativeDraftAccess::revision(drafts[index].path, opened_revision, lease_error) &&
+        opened_revision == disk_revision;
     if (!valid) {
         nativeFighterFamilyProject_Close(&family);
         status("workshop-library-status", "Could not read that draft's member attributes.");
@@ -294,6 +305,7 @@ void select_draft(size_t index)
     }
     close_project();
     active_lease = candidate_lease.value;
+    saved_disk_revision = std::move(disk_revision);
     candidate_lease.value = {};
     document->GetElementById("workshop-panel")->SetClass("library", false);
     active_family = family;
@@ -399,40 +411,51 @@ void create_stock_clone()
     status("workshop-library-status", "Fighter clone saved as a separate draft.");
 }
 
-bool save_draft()
+} // namespace
+
+bool nativeShellWorkshop_Save(std::string* error)
 {
     if (!project_loaded || selected < 0 ||
         size_t(selected) >= draft_count) {
+        if (error) *error = "Open a fighter draft first.";
         return false;
     }
     const unsigned previous_member = active_member;
-    bool saved = true;
+    NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
+    std::string message;
+    bool ready = true;
     for (unsigned member = 0; member < active_family.member_count; ++member) {
-        if (!nativeShellWorkshop_SelectMember(member)) { saved = false; break; }
-        const char* path = active_family.paths[member];
-        char asset_error[256] = {};
-        if (!nativeFighterProject_SaveAssets(path, active_project,
-                                              asset_error, sizeof(asset_error)) ||
-            !nativeShellWorkshopParameters_Save(document, active_project, path) ||
-            !nativeShellWorkshopEditor_SaveScriptDraft()) {
-            if (*asset_error) std::fprintf(stderr, "[workshop-assets] %s\n", asset_error);
-            saved = false;
+        if (!nativeShellWorkshop_SelectMember(member) ||
+            !(sources[member] = nativeShellWorkshopEditor_CaptureSources())) {
+            message = "Could not capture this member's editable source files.";
+            ready = false;
             break;
         }
-        nativeShellWorkshopEditor_MarkAssetsSaved();
-        nativeShellWorkshopModel_MarkSaved(member);
-        attributes_dirty[member] = false;
     }
+    nativeShellWorkshop_SelectMember(previous_member);
+    std::string after;
+    const bool saved = ready && NativeFighterSnapshot::save(active_family, sources,
+        saved_disk_revision, after, message);
     if (saved) {
+        saved_disk_revision = std::move(after);
+        for (unsigned member = 0; member < active_family.member_count; ++member) {
+            nativeShellWorkshop_SelectMember(member);
+            nativeShellWorkshopEditor_MarkAssetsSaved();
+            nativeShellWorkshopModel_MarkSaved(member);
+            attributes_dirty[member] = false;
+        }
         nativeShellWorkshop_SelectMember(previous_member);
         discard_pending = false;
         status("workshop-editor-status", family_script_changed()
             ? "Draft saved. Build behavior before preview." : "Draft saved.");
     } else {
-        status("workshop-editor-status", "Could not save this member. Its edits are retained.");
+        status("workshop-editor-status", message.c_str());
     }
+    if (error) *error = message;
     return saved;
 }
+
+namespace {
 
 void browse_portrait()
 {
@@ -559,7 +582,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
     std::string preview_source[NATIVE_FIGHTER_FAMILY_MEMBERS];
     std::string preview_parameters[NATIVE_FIGHTER_FAMILY_MEMBERS];
     if (opened_project) {
-        bool valid = !save_project || save_draft();
+        bool valid = !save_project || nativeShellWorkshop_Save();
         NativeFighterFamilyProject candidate = active_family;
         const unsigned previous_member = active_member;
         for (unsigned member = 0; valid && !require_built_script &&
@@ -599,7 +622,12 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
                                &id, root);
     if (valid && persist_portrait && !chosen.empty() &&
         _stricmp(chosen.c_str(), saved_portrait) != 0) {
-        valid = CopyFileA(chosen.c_str(), saved_portrait, 0) != 0;
+        std::string after, error;
+        std::vector<NativeDraftAccess::FileEdit> edits{{"portrait.png",
+            std::string((const char*)portrait, portrait_size)}};
+        valid = NativeDraftAccess::apply(path, saved_disk_revision, edits, after, error);
+        if (valid) saved_disk_revision = std::move(after);
+        else status("workshop-editor-status", error.c_str());
     }
     std::free(package);
     std::free(portrait);
@@ -669,6 +697,12 @@ void install_draft()
         root = default_root;
     }
     NativeContentId replaced = {};
+    std::string current_revision, disk_error;
+    if (!NativeDraftAccess::revision(drafts[selected].path, current_revision, disk_error) ||
+        current_revision != saved_disk_revision) {
+        status("workshop-editor-status", "Draft changed outside the Workshop. Reopen before installing; your edits are retained.");
+        return;
+    }
     if (root == nullptr || !nativeFighterProject_Install(
                                drafts[selected].path, root, &id, &replaced)) {
         status("workshop-editor-status", "Could not install this fighter.");
@@ -690,10 +724,11 @@ bool build_script(bool show_script)
     if (!project_loaded || selected < 0 ||
         size_t(selected) >= draft_count) return false;
     const unsigned previous_member = active_member;
-    if (!save_draft()) return false;
+    if (!nativeShellWorkshop_Save()) return false;
     for (unsigned member = 0; member < active_family.member_count; ++member) {
         if (!nativeShellWorkshop_SelectMember(member) ||
-            !nativeShellWorkshopEditor_BuildScript(active_family.paths[member])) {
+            !nativeShellWorkshopEditor_BuildScript(active_family.paths[member],
+                active_family.paths[0], saved_disk_revision)) {
             status("workshop-editor-status", "Could not build this fighter's script. Open Scripting for details.");
             return false;
         }
@@ -829,7 +864,7 @@ class WorkshopEvents final : public Rml::EventListener {
             return;
         }
         if (id == "workshop-script-validate") {
-            if (save_draft()) nativeShellWorkshopEditor_Click(id.c_str());
+            if (nativeShellWorkshop_Save()) nativeShellWorkshopEditor_Click(id.c_str());
             return;
         }
         if (id == "workshop-script-build") {
@@ -880,7 +915,7 @@ class WorkshopEvents final : public Rml::EventListener {
         } else if (id == "workshop-create") {
             create_stock_clone();
         } else if (id == "workshop-save-top") {
-            save_draft();
+            nativeShellWorkshop_Save();
         } else if (id == "workshop-portrait-browse") {
             browse_portrait();
         } else if (id == "workshop-stock-icon-browse" || id == "workshop-emblem-browse") {
@@ -888,7 +923,7 @@ class WorkshopEvents final : public Rml::EventListener {
         } else if (id == "workshop-fighter-import-package") {
             import_fighter();
         } else if (id == "workshop-portrait-edit") {
-            if (!project_loaded || !save_draft()) return;
+            if (!project_loaded || !nativeShellWorkshop_Save()) return;
             char path[PATH_CAPACITY]; std::snprintf(path,sizeof(path),"%s",active_family.paths[0]);
             unsigned member=active_member;
             nativeShellWorkshop_Close();
@@ -920,21 +955,15 @@ extern "C" bool nativeShellWorkshop_ImportHudImage(unsigned target, const char* 
     valid = valid && pixels;
     nativeGxImage_Free(pixels);
     const char* name = target ? "ui/emblem.png" : "ui/stock-icon.png";
-    if (!valid || !save_draft() || !nativeFighterProject_SetResource(
-            active_family.paths[active_member], name, NativeSourceResource_PNG, bytes, size)) {
+    if (!valid || !nativeFighterProject_EditResource(
+            active_project, name, NativeSourceResource_PNG, bytes, size)) {
         std::free(bytes);
         status("workshop-editor-status", "Could not import this PNG. The previous HUD image is retained.");
         return false;
     }
     std::free(bytes);
-    NativeFighterProject saved{};
-    if (!nativeFighterProject_Open(active_family.paths[active_member], &saved)) {
-        status("workshop-editor-status", "Image saved, but could not reopen the draft. Reopen it before building.");
-        return false;
-    }
-    std::swap(active_project->resources, saved.resources);
-    std::swap(active_project->resource_size, saved.resource_size);
-    nativeFighterProject_Close(&saved);
+    attributes_dirty[active_member] = true;
+    if (!nativeShellWorkshop_Save()) return false;
     status("workshop-editor-status", target ? "HUD emblem imported. Build & Install to use it in matches."
                                           : "Stock icon imported. Build & Install to use it in matches.");
     return true;
@@ -947,7 +976,7 @@ extern "C" bool nativeShellWorkshop_ImportFighter(const char* file)
         status("workshop-editor-status", "The Workshop draft library is full.");
         return false;
     }
-    if (!save_draft()) return false;
+    if (!nativeShellWorkshop_Save()) return false;
     char draft[PATH_CAPACITY];
     if (!nativeHubCatalog_ImportFighter(file, draft)) {
         status("workshop-editor-status", "Could not import this fighter package. Your current draft is still open.");
@@ -1073,7 +1102,7 @@ void nativeShellWorkshop_Update()
         !nativeHome_PracticeTransitioning()) {
         if (project_loaded &&
             family_has_unsaved_edits() &&
-            !save_draft()) return;
+            !nativeShellWorkshop_Save()) return;
         nativeShellWorkshop_Close();
     }
 }
@@ -1110,7 +1139,7 @@ NativeWorkshopLiveState nativeShellWorkshop_LiveState()
     return {project_loaded ? &active_family : nullptr, active_member, project_generation,
         opened, testing, preview_loading,
         !nativeFeedback_IsOpen() && !testing && !preview_loading && nativeHome_CanOpenWorkshop() &&
-        (nativeHome_IsSelection() || nativeHome_IsPractice()), family_has_unsaved_edits()};
+        (nativeHome_IsSelection() || nativeHome_IsPractice()), family_has_unsaved_edits(), saved_disk_revision.c_str()};
 }
 
 #endif

@@ -95,6 +95,9 @@ bool nativeFighterProject_SetTileName(const char* path, const char* tile_name);
 // Add or replace an owned named resource; NULL+0 removes it.
 bool nativeFighterProject_SetResource(const char* path, const char* name,
     NativeSourceResourceKind kind, const void* bytes, size_t size);
+// Edit the live bundle without touching disk. Failure preserves its bytes.
+bool nativeFighterProject_EditResource(NativeFighterProject*, const char* name,
+    NativeSourceResourceKind kind, const void* bytes, size_t size);
 bool nativeFighterProject_Open(const char* path, NativeFighterProject* project);
 bool nativeFighterProject_GetAttribute(const NativeFighterProject* project,
                                        size_t property, double* value);
