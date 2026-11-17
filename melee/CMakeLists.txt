@@ -1567,7 +1567,7 @@ add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/
     tools/native_agent_tool.cpp tools/native_agent_catalog.cpp
     tools/native_agent_read.cpp tools/native_agent_mcp.cpp tools/native_agent_actions.cpp tools/native_agent_animations.cpp
     tools/native_agent_project.cpp tools/native_agent_validation.cpp tools/native_agent_build.cpp
-    tools/native_agent_creation.cpp tools/native_agent_library.cpp tools/native_agent_install.cpp
+    tools/native_agent_creation.cpp tools/native_agent_library.cpp tools/native_agent_install.cpp tools/native_agent_models.cpp
     tools/native_agent_parameters.cpp tools/native_agent_examples.cpp tools/native_agent_attributes.cpp
     tools/native_agent_script_edit.cpp tools/native_agent_live.cpp)
 
@@ -2236,6 +2236,9 @@ add_test(NAME native_agent_attributes COMMAND Python3::Interpreter
     "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
 add_test(NAME native_agent_creation COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_creation_test.py"
+    "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
+add_test(NAME native_agent_models COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_models_test.py"
     "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
 add_test(NAME native_fighter_normal_copy_roundtrip COMMAND
     Python3::Interpreter

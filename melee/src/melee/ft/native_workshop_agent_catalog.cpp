@@ -2,11 +2,14 @@
 #include "native_action_authoring.h"
 #include "native_animation_authoring.h"
 #include "native_attribute_authoring.h"
+#include "native_model_authoring.h"
 #include <cstring>
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
 static const Command commands[] = {
+    {"session.models.read", "Inspect the live member's unsaved meshes, skeleton, bind-space vertices and weights, materials, texture sequences and source-aware reimport plan.", NativeModelAuthoring::read_schema(true), true},
+    {"session.models.edit", "Atomically edit the live model: GLB/glTF import/reimport, compensated rest transforms, weight painting, materials, texture images, labels, mesh assignments or extra bones. Shares one Model Undo step and reloads frozen preview; leaves disk and installed fighters unchanged.", NativeModelAuthoring::edit_schema(true), false},
     {"session.attributes.list", "Read the live member's unsaved common attributes, names, types, descriptions and native limits.", NativeAttributeAuthoring::list_schema(true), true},
     {"session.attributes.edit", "Edit common attributes by name as one atomic Workshop undo step. Returns requested and applied values; leaves disk and installed fighters unchanged.", NativeAttributeAuthoring::edit_schema(true), false},
     {"session.animations.read", "Read unsaved clips, bones, tracks, keys, local poses and native evaluated samples.", NativeAnimationAuthoring::read_schema(true), true},

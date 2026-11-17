@@ -2,6 +2,7 @@
 #include <melee/ft/native_fighter_gltf_import.h>
 #include <melee/ft/native_fighter_model_editor.h>
 #include <melee/ft/native_fighter_core_asset_state.h>
+#include <melee/ft/native_model_authoring.h>
 #include <melee/ft/native_fighter_action_editor.h>
 #include <melee/gm/native_home.h>
 #include <memory>
@@ -22,8 +23,7 @@ struct RigView {
     bool pose_changed[NATIVE_MODEL_MAX_JOINTS]={};
     NativeHomeWorkshopBoneLocal pose[NATIVE_MODEL_MAX_JOINTS]={};
 };
-struct RigChange {
-    NativeFighterCoreAssetState before,after;
+struct CoreAssetChange : NativeModelAuthoring::History {
     RigView before_view,after_view;
 };
 struct Change {
@@ -37,7 +37,7 @@ struct Change {
     bool labels_saved = false;
     std::vector<uint8_t> before_labels, after_labels;
     std::vector<uint8_t> before_fighter,after_fighter;
-    std::unique_ptr<RigChange> rig;
+    std::unique_ptr<CoreAssetChange> core;
     uint64_t rig_revision = 0;
 };
 

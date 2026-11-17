@@ -112,20 +112,38 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         (redo ? active->change_cursor == active->changes.size() : active->change_cursor == 0))
         return false;
     const Change& change = active->changes[redo ? active->change_cursor : active->change_cursor - 1];
-    if(change.rig) {
+    if(change.core) {
         auto before=std::make_unique<NativeFighterModelEditor>(active->model);
+        NativeFighterAuthoring* names=nullptr;
+        if(change.core->labels_saved) {
+            const auto& expected=redo?change.core->before_labels:change.core->after_labels;
+            const auto& replacement=redo?change.core->after_labels:change.core->before_labels;
+            const auto* current=active->project->authoring;
+            if((expected.empty() && current) || (!expected.empty() &&
+                (!current || expected.size()!=sizeof(*current) || std::memcmp(expected.data(),current,expected.size())))) {
+                status("Model labels or import metadata changed. Undo those edits first.");return false;
+            }
+            if(!replacement.empty()) {
+                names=(NativeFighterAuthoring*)std::malloc(replacement.size());
+                if(!names) {status("Could not reserve model metadata for Undo.");return false;}
+                std::memcpy(names,replacement.data(),replacement.size());
+            }
+        }
+        const uint64_t previous_rig=active->project->rig_edit_revision;
         char error[256];
         if(!nativeFighterCoreAssets_Restore(*active->project,
-            redo?change.rig->before:change.rig->after,
-            redo?change.rig->after:change.rig->before,error,sizeof(error))) {
-            status(error);return false;
+            redo?change.core->before:change.core->after,
+            redo?change.core->after:change.core->before,error,sizeof(error))) {
+            std::free(names);status(error);return false;
         }
+        if(change.core->labels_saved) {std::free(active->project->authoring);active->project->authoring=names;}
         if(redo) ++active->change_cursor;else --active->change_cursor;
         playing=false;
-        reopen_model(redo?&change.rig->after_view:&change.rig->before_view);
-        nativeShellWorkshopEditor_RigChanged(*before,active->model);
+        reopen_model(redo?&change.core->after_view:&change.core->before_view);
+        if(previous_rig!=active->project->rig_edit_revision)
+            nativeShellWorkshopEditor_RigChanged(*before,active->model);
         nativeShellWorkshop_RequestPreview(false);nativeHome_WorkshopPoseInvalidate();buttons();
-        status(redo?"Reapplied bone edit.":"Undid bone edit.");return true;
+        status(std::string(redo?"Redid: ":"Undid: ")+(change.summary.empty()?"Model edit":change.summary));return true;
     }
     if(change.rig_revision != active->project->rig_edit_revision) {
         status("Undo the bone edits in Model before restoring this edit.");

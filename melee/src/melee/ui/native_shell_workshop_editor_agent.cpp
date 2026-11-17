@@ -1,6 +1,7 @@
 #include "native_shell_workshop_agent.h"
 #include "native_shell_workshop_editor_internal.h"
 #include "native_shell_workshop_model_internal.h"
+#include "native_shell_workshop_model.h"
 #include <melee/gm/native_content_store.h>
 
 using NativeAuthoring::Reply;
@@ -47,7 +48,7 @@ bool nativeShellWorkshopEditor_AgentBusy()
 {
     using namespace WorkshopEditor;
     return session->graph_drag_active || action_timeline_events.Active() || nativeWorkshopTransform_IsActive() ||
-        WorkshopModelInternal::active->import_visible;
+        nativeShellWorkshopModel_IsBusy();
 }
 
 void nativeShellWorkshopEditor_AgentWorkspace(const char* workspace)

@@ -64,7 +64,7 @@ def main():
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
         mutations = {'scripts.update', 'project.build', 'packages.export', 'session.build', 'session.install',
                      'project.clone_stock', 'project.clone_installed', 'project.import', 'project.rename', 'project.install',
-                     'attributes.edit', 'session.attributes.edit',
+                     'attributes.edit', 'session.attributes.edit', 'models.edit', 'session.models.edit',
                      'actions.edit', 'session.actions.edit', 'session.actions.select',
                        'animations.edit', 'session.animations.edit', 'session.animations.select',
                      'feedback.prepare', 'feedback.submit', 'feedback.discard',

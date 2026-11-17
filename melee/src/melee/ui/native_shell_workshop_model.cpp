@@ -1508,4 +1508,9 @@ int nativeShellWorkshopModel_SelectedClip()
     return active->selected_clip;
 }
 
+bool nativeShellWorkshopModel_IsBusy()
+{
+    return stroke.active || active->import_visible;
+}
+
 #endif

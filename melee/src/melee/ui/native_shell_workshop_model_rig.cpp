@@ -69,7 +69,7 @@ struct Candidate {
 
 void edit_rig(const NativeFighterRigEdit& edit) try
 {
-    auto change=std::make_unique<RigChange>();
+    auto change=std::make_unique<CoreAssetChange>();
     if(!nativeFighterCoreAssets_Capture(*active->project,change->before)) {
         status("Could not reserve storage for bone Undo.");return;
     }
@@ -111,13 +111,13 @@ void edit_rig(const NativeFighterRigEdit& edit) try
     // successful hierarchy edit without its Undo entry.
     active->changes.reserve(64);
     auto before_model=std::make_unique<NativeFighterModelEditor>(active->model);
-    Change entry={};entry.rig=std::move(change);
+    Change entry={};entry.core=std::move(change);
     active->changes.erase(active->changes.begin()+active->change_cursor,active->changes.end());
     if(active->changes.size()==64) active->changes.erase(active->changes.begin());
     active->changes.push_back(std::move(entry));active->change_cursor=active->changes.size();
     candidate.publish(*active->project);
     playing=false;
-    reopen_model(&active->changes.back().rig->after_view);
+    reopen_model(&active->changes.back().core->after_view);
     nativeShellWorkshopEditor_RigChanged(*before_model,active->model);
     nativeShellWorkshop_RequestPreview(false);nativeHome_WorkshopPoseInvalidate();buttons();
     status(edit.kind==NativeRigEdit_Add?"Added bone. Save the draft to keep it.":

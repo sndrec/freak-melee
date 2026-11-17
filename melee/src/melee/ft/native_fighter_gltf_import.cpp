@@ -1247,14 +1247,13 @@ bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
     const uint32_t image = read32(dat.data.data() + texture + 76);
     const uint32_t mobj = existing.materials[material].offset;
     if (sequence) {
-        NativeMaterialTextureSequence entries[128];
-        unsigned n =
-            nativeFighterMaterial_Sequences(&existing, material, entries, 128);
         bool found = false;
-        for (unsigned i = 0; i < n; ++i) {
-            if (entries[i].offset == sequence && frame < entries[i].frames) {
-                found = true;
-            }
+        for (unsigned capacity = 64; !found && capacity <= 32768; capacity *= 2) {
+            std::vector<NativeMaterialTextureSequence> entries(capacity);
+            const unsigned n = nativeFighterMaterial_Sequences(&existing, material, entries.data(), capacity);
+            for (unsigned i = 0; i < n; ++i)
+                if (entries[i].offset == sequence && frame < entries[i].frames) found = true;
+            if (n < capacity) break;
         }
         u32 table = 0;
         const char* external;
@@ -1297,6 +1296,11 @@ bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
     if(!nativeFighterModel_Open(&changed,&candidate)||!nativeFighterModel_RemapSelectors(&existing,&changed,&candidate)) {
         fail(error,error_size,"Could not retain the material's expression references.");return false;
     }
+    for(unsigned mesh=0;mesh<changed.mesh_count;++mesh)
+        if(changed.meshes[mesh].material==material &&
+           !nativeFighterModel_MaterialInputs(&changed,mesh,material,changed.materials[material].render_mode)) {
+            fail(error,error_size,"A mesh using this material lacks the image's required UV coordinates. Import UVs before adding this texture.");return false;
+        }
     uint8_t* owned = (uint8_t*) std::malloc(converted.size());
     if (!owned) return false;
     std::memcpy(owned, converted.data(), converted.size());

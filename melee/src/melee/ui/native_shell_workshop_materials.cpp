@@ -2,6 +2,7 @@
 #include "native_shell_workshop_textures.h"
 
 #include <melee/ft/native_asset_dat.h>
+#include <melee/ft/native_fighter_material_render.h>
 extern "C" {
 #include <sysdolphin/baselib/displayfunc.h>
 #include <sysdolphin/baselib/jobj.h>
@@ -14,25 +15,6 @@ extern "C" {
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 
 namespace {
-    struct Flag {
-        unsigned bit;
-        const char* name;
-        const char* hint;
-    };
-    const Flag flags[] = {
-        { RENDER_DIFFUSE, "Diffuse lighting",
-          "Apply scene lights to the diffuse surface." },
-        { RENDER_SPECULAR, "Specular highlights",
-          "Enable highlights using specular tint and shininess." },
-        { RENDER_TOON, "Toon shading", "Use the engine's toon shading path." },
-        { RENDER_SHADOW, "Shadow rendering", "Use the shadow render path." },
-        { RENDER_ZMODE_ALWAYS, "Always pass depth test",
-          "Draw regardless of existing depth." },
-        { RENDER_NO_ZUPDATE, "Disable depth writes",
-          "Do not occlude subsequently drawn geometry." },
-        { RENDER_XLU, "Translucent surface",
-          "Classify this material for transparent rendering." },
-    };
     std::string checkbox(const std::string& id, const char* label, bool on,
                          const char* hint = "")
     {
@@ -53,39 +35,6 @@ namespace {
                       "</option>";
         }
         return result + "</select>";
-    }
-    void read_pe(const NativeFighterModelEditor& model,
-                 const NativeModelMaterial& mat, unsigned char pe[12],
-                 bool* present)
-    {
-        u32 target;
-        const char* external;
-        *present = HSD_DatResolve(&model.dat, mat.offset + 20, &target,
-                                  &external) == HSD_DAT_REF_LOCAL &&
-                   HSD_DatBytes(&model.dat, target, 12) != nullptr;
-        if (*present) {
-            std::memcpy(pe, HSD_DatBytes(&model.dat, target, 12), 12);
-        } else {
-            const bool blend = (mat.render_mode & RENDER_XLU) != 0;
-            const bool write = (mat.render_mode & RENDER_NO_ZUPDATE) == 0;
-            const unsigned char defaults[12] = {
-                (unsigned char) (1 | 16 | (write ? 32 : 0) |
-                                 (!write || !blend ? 8 : 0)),
-                0,
-                0,
-                0,
-                (unsigned char) (blend ? 1 : 0),
-                4,
-                5,
-                15,
-                (unsigned char) (mat.render_mode & RENDER_ZMODE_ALWAYS ? 7
-                                                                       : 3),
-                (unsigned char) (write && blend ? 4 : 7),
-                0,
-                (unsigned char) (write && blend ? 4 : 7)
-            };
-            std::memcpy(pe, defaults, 12);
-        }
     }
     const char* const compare[] = { "Never",
                                     "Less",
@@ -120,13 +69,7 @@ namespace {
         "Inverse copy", "Inverse or",   "Nand",        "Set"
     };
     const char* const alpha_op[] = { "And", "Or", "Xor", "Equivalent" };
-    const Flag pe_flags[] = { { 1, "Write color", "" },
-                              { 2, "Write alpha", "" },
-                              { 4, "Override destination alpha", "" },
-                              { 8, "Depth test before alpha test", "" },
-                              { 16, "Enable depth test", "" },
-                              { 32, "Write depth", "" },
-                              { 64, "Dither", "" } };
+
 }
 
 std::string
@@ -156,10 +99,10 @@ nativeWorkshopMaterials_Controls(const NativeFighterModelEditor& model,
                    mat.render_mode & 3, color, 4);
     html += choice("workshop-material-alpha-source", "Opacity source",
                    (mat.render_mode >> 13) & 3, color, 4);
-    for (unsigned i = 0; i < std::size(flags); ++i) {
+    for (unsigned i = 0; i < std::size(nativeMaterialRenderFlags); ++i) {
         html += checkbox("workshop-material-flag-" + std::to_string(i),
-                         flags[i].name, (mat.render_mode & flags[i].bit) != 0,
-                         flags[i].hint);
+                         nativeMaterialRenderFlags[i].label, (mat.render_mode & nativeMaterialRenderFlags[i].bit) != 0,
+                         nativeMaterialRenderFlags[i].description);
     }
     for (unsigned i = 0; i < 8; ++i) {
         std::string label = "Texture layer " + std::to_string(i + 1);
@@ -171,15 +114,16 @@ nativeWorkshopMaterials_Controls(const NativeFighterModelEditor& model,
     }
     html += "</div><div class='workshop-model-inspector-section'><div "
             "class='eyebrow'>BLENDING AND DEPTH</div>";
-    unsigned char pe[12];
-    bool present;
-    read_pe(model, mat, pe, &present);
+    NativeMaterialRenderState rendering;
+    if (!nativeFighterMaterial_ReadRender(model, material, rendering)) return {};
+    const uint8_t* pe = rendering.pixel_engine;
+    const bool present = rendering.custom_pixel_engine;
     html += checkbox(
         "workshop-material-custom-pe", "Custom blending and depth", present,
         "Override the render-mode defaults with the settings below.");
-    for (unsigned i = 0; i < std::size(pe_flags); ++i) {
+    for (unsigned i = 0; i < std::size(nativeMaterialPixelFlags); ++i) {
         html += checkbox("workshop-material-pe-flag-" + std::to_string(i),
-                         pe_flags[i].name, (pe[0] & pe_flags[i].bit) != 0);
+                         nativeMaterialPixelFlags[i].label, (pe[0] & nativeMaterialPixelFlags[i].bit) != 0);
     }
     html +=
         choice("workshop-material-pe-4", "Blend operation", pe[4], blend, 4);
@@ -263,75 +207,26 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
         return false;
     }
     mode = (mode & ~(3u | RENDER_ALPHA_BITS)) | color | (alpha << 13);
-    for (unsigned i = 0; i < std::size(flags); ++i) {
+    for (unsigned i = 0; i < std::size(nativeMaterialRenderFlags); ++i) {
         mode = checked("workshop-material-flag-" + std::to_string(i))
-                   ? mode | flags[i].bit
-                   : mode & ~flags[i].bit;
+                   ? mode | nativeMaterialRenderFlags[i].bit
+                   : mode & ~nativeMaterialRenderFlags[i].bit;
     }
     for (unsigned i = 0; i < 8; ++i) {
         mode = checked("workshop-material-texture-" + std::to_string(i))
                    ? mode | (RENDER_TEX0 << i)
                    : mode & ~(RENDER_TEX0 << i);
     }
-    if ((mode & RENDER_NO_ZUPDATE) && !(mode & RENDER_XLU)) {
-        *error = "The no-depth-write render flag requires a translucent "
-                 "surface. For an opaque surface, use Custom blending and "
-                 "depth and uncheck Write depth.";
-        return false;
-    }
-    dat.word(mat.offset + 4, mode);
-    // Melee routes draw calls using the owning joints' transparency masks as
-    // well as the material. Keep both in agreement when changing surface type.
-    if ((mode ^ mat.render_mode) & RENDER_BLENDING) {
-        bool affected[NATIVE_MODEL_MAX_JOINTS] = {};
-        unsigned passes[NATIVE_MODEL_MAX_JOINTS] = {};
-        for (unsigned m = 0; m < model.mesh_count; ++m) {
-            const auto& mesh = model.meshes[m];
-            if (mesh.material == material) {
-                affected[mesh.joint] = true;
-            }
-            if (mesh.material >= model.material_count) {
-                continue;
-            }
-            unsigned render = mesh.material == material
-                                  ? mode
-                                  : model.materials[mesh.material].render_mode;
-            passes[mesh.joint] |=
-                (render & RENDER_XLU)
-                    ? ((render & RENDER_NO_ZUPDATE) ? JOBJ_TEXEDGE : JOBJ_XLU)
-                    : JOBJ_OPA;
-        }
-        // Do not enable unrelated, deliberately dormant joint geometry.
-        // Only owners of the edited material change their local draw passes.
-        unsigned flags[NATIVE_MODEL_MAX_JOINTS];
-        for (unsigned j = 0; j < model.joint_count; ++j) {
-            flags[j] = model.joints[j].flags;
-            if (affected[j]) {
-                flags[j] = (flags[j] & ~(JOBJ_OPA | JOBJ_XLU | JOBJ_TEXEDGE)) |
-                           passes[j];
-            }
-        }
-        for (unsigned j = 0; j < model.joint_count; ++j) {
-            if (!affected[j]) {
-                continue;
-            }
-            for (int parent = model.joints[j].parent; parent >= 0;
-                 parent = model.joints[parent].parent)
-            {
-                flags[parent] |= passes[j] << 10;
-            }
-        }
-        for (unsigned j = 0; j < model.joint_count; ++j) {
-            if (flags[j] != model.joints[j].flags) {
-                dat.word(model.joints[j].offset + 4, flags[j]);
-            }
-        }
-    }
-    unsigned char pe[12] = {};
+    NativeMaterialRenderState rendering;
+    if (!nativeFighterMaterial_ReadRender(model, material, rendering)) return false;
+    rendering.mode = mode;
+    rendering.custom_pixel_engine = checked("workshop-material-custom-pe");
+    auto* pe = rendering.pixel_engine;
+    pe[0] &= ~127u;
     if (checked("workshop-material-custom-pe")) {
-        for (unsigned i = 0; i < std::size(pe_flags); ++i) {
+        for (unsigned i = 0; i < std::size(nativeMaterialPixelFlags); ++i) {
             if (checked("workshop-material-pe-flag-" + std::to_string(i))) {
-                pe[0] |= pe_flags[i].bit;
+                pe[0] |= nativeMaterialPixelFlags[i].bit;
             }
         }
         const unsigned limits[] = {
@@ -347,22 +242,8 @@ bool nativeWorkshopMaterials_Apply(Rml::ElementDocument* document,
             }
             pe[i] = (unsigned char) n;
         }
-        u32 target;
-        const char* external;
-        if (HSD_DatResolve(&model.dat, mat.offset + 20, &target, &external) !=
-                HSD_DAT_REF_LOCAL ||
-            !HSD_DatBytes(&model.dat, target, 12))
-        {
-            target = dat.allocate(12);
-        }
-        if (target == UINT32_MAX) {
-            return false;
-        }
-        std::memcpy(dat.data.data() + target, pe, 12);
-        dat.link(mat.offset + 20, target);
-    } else {
-        dat.link(mat.offset + 20, 0);
     }
+    if (!nativeFighterMaterial_StageRender(model, material, rendering, dat, *error)) return false;
     std::vector<uint8_t> result;
     if (!dat.finish(&result)) {
         return false;

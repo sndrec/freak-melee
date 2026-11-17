@@ -195,6 +195,32 @@ Accepted 2026-11-17. Implementation is in progress.
   creation guide. No public upload occurred. Model/resource/presentation tools,
   controlled preview/practice evidence and full acceptance remain open.
 
+- Saved/live model tools now inspect meshes, stable skeleton identities, local
+  rest transforms, actual bind-space vertices and weights, materials, texture
+  sequences and source-aware reimport plans. They apply GLB/glTF import batches,
+  matched reimport, compensated rest batches, weight strokes, material/render
+  properties, assignments, image embedding, labels and extra-bone edits through
+  the native authoring operations. Rejected candidates preserve the complete
+  original assets and metadata. Saved edits use the family lease and journal;
+  live edits reserve whole-asset Undo/Redo before publication and reload preview.
+  Active weight strokes now prevent concurrent agent mutations.
+  The UI and tools share material draw-pass/pixel-engine encoding. Material
+  assignment also updates joint draw flags. A live test exposed textured
+  geometry without required UVs reaching a fatal renderer path; the native
+  assignment/texture/render operations now reject that combination with a
+  diagnostic. Texture-image replacement can resolve inspected sequences beyond
+  its former fixed 128-entry buffer.
+  All eighteen core checks pass. Native and extracted-package checks cover
+  imports, reordered reimport, retained painted weights and bind-space geometry,
+  extra bones, late-batch failure, member isolation and no-op revisions. Hidden,
+  muted live clients verify whole-asset/metadata Undo/Redo, preview reload,
+  unchanged disk before Save, saved build and existing authoring/install/export
+  behavior. Extracted CLI/MCP/launcher checks pass with a Windows-only PATH.
+  The bundled reference contains 91 pages. Advanced texture pipeline fields,
+  editor-only model selection/visibility, resources, presentation assets,
+  controlled test evidence and final acceptance remain open. No public upload
+  occurred.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

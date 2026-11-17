@@ -3,6 +3,7 @@
 #include <melee/ft/native_action_authoring.h>
 #include <melee/ft/native_animation_authoring.h>
 #include <melee/ft/native_attribute_authoring.h>
+#include <melee/ft/native_model_authoring.h>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -11,6 +12,9 @@ namespace NativeAgent {
 #define PAGE_FIELDS R"("query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200})"
 #define PROJECT_FIELDS R"("project":{"type":"string","minLength":1,"maxLength":500},"member":{"type":"string","maxLength":31})"
 static const Tool offline_tools[] = {
+    {"models.scan", "Inspect a GLB/glTF file's named primitives, source identities, geometry counts and skin/texture availability without editing a draft.", NativeModelAuthoring::scan_schema(), scan_model, true},
+    {"models.read", "Inspect this member's actual model, meshes, stable bone identities, materials, vertex weights, import sources, texture sequences or a source-aware reimport plan. Lists are paged; positions use bind-space game units and rotations use radians.", NativeModelAuthoring::read_schema(false), read_models, true},
+    {"models.edit", "Atomically import/reimport meshes, compensate rest transforms, paint weights, edit materials/rendering, assign mesh materials, replace texture images, label elements or edit extra-bone hierarchy. Preserves a rejected draft and saves all affected assets together.", NativeModelAuthoring::edit_schema(false), edit_models, false},
     {"stock.list", "Discover editable stock fighters and their complete family layout. fighter_id is used by project.clone_stock; template_available reflects this installation.",
         "{\"type\":\"object\",\"properties\":{" PAGE_FIELDS "},\"additionalProperties\":false}", stock_fighters, true},
     {"fighters.installed", "List installed complete fighter packages, names and family sizes. Package IDs identify exact content and can be cloned independently.",

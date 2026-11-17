@@ -1,7 +1,7 @@
 # Create fighters with an AI agent
 
 Freak Melee includes `native_content_tool.exe` beside the game. It can inspect
-your fighter drafts, edit scripts, tuning, actions and animations, validate and
+your fighter drafts, edit scripts, tuning, actions, animations and models, validate and
 build fighters, and read the installed scripting reference. Run `agent list` to see the operations
 available in your installed build.
 
@@ -48,6 +48,10 @@ collected together. Locations refer to the text returned by `scripts.read`.
 The check leaves the draft and accepted behavior unchanged.
 
 ## Edit a saved draft
+
+For geometry, materials, rigging and skin weights, see
+[Model authoring](agent_models.md). For curves and posing, see
+[Animation authoring](agent_animation.md).
 
 To make a new draft, see [Create a fighter draft](agent_projects.md). The
 structured tools clone stock or installed fighters, import `.fmc` packages and

@@ -23,6 +23,7 @@ void nativeShellWorkshopModel_Update();
 bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member);
 void nativeShellWorkshopModel_MarkSaved(unsigned member);
 bool nativeShellWorkshopModel_Undo(bool redo);
+bool nativeShellWorkshopModel_IsBusy();
 int nativeShellWorkshopModel_SelectedClip();
 void nativeShellWorkshopModel_Inspect();
 

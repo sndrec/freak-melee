@@ -22,3 +22,4 @@ void nativeShellWorkshopEditor_AgentUpdateSources(yyjson_val*, NativeAuthoring::
 bool nativeShellWorkshopEditor_AgentUndo(bool redo, NativeAuthoring::Reply&);
 bool nativeShellWorkshopEditor_AgentBusy();
 void nativeShellWorkshopEditor_AgentWorkspace(const char* workspace);
+void nativeShellWorkshopModel_Agent(const char* method, yyjson_val*, NativeAuthoring::Reply&);
