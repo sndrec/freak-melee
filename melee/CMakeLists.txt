@@ -427,6 +427,34 @@ if(NATIVE_FEEDBACK_SOURCE_REVISION MATCHES "^[0-9a-f]+$")
     set_property(SOURCE src/melee/gm/native_feedback_context.c APPEND PROPERTY COMPILE_DEFINITIONS
         "NATIVE_FEEDBACK_SOURCE_REVISION=\"${NATIVE_FEEDBACK_SOURCE_REVISION}\"")
 endif()
+# Both endpoints carry the same source/configuration fingerprint. Watching the
+# source contents also refreshes it for ordinary incremental builds, including
+# edits to untracked authoring files during development.
+file(GLOB_RECURSE _native_authoring_identity_inputs CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../aurora/lib/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../aurora/lib/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../aurora/include/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/../aurora/include/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/native_agent*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/tools/native_agent*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake")
+list(APPEND _native_authoring_identity_inputs "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt")
+list(SORT _native_authoring_identity_inputs)
+set(_native_authoring_identity_material "${NATIVE_FEEDBACK_SOURCE_REVISION}")
+foreach(_input IN LISTS _native_authoring_identity_inputs)
+    file(SHA256 "${_input}" _hash)
+    string(APPEND _native_authoring_identity_material "${_input}:${_hash}\n")
+endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_native_authoring_identity_inputs})
+get_cmake_property(_native_authoring_cache CACHE_VARIABLES)
+list(SORT _native_authoring_cache)
+foreach(_variable IN LISTS _native_authoring_cache)
+    string(APPEND _native_authoring_identity_material "${_variable}=${${_variable}}\n")
+endforeach()
+string(SHA256 _native_authoring_build_id "${_native_authoring_identity_material}")
+set_property(SOURCE src/melee/ft/native_authoring_reply.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    "NATIVE_AUTHORING_BUILD_ID=\"${_native_authoring_build_id}\""
+    "NATIVE_AUTHORING_SOURCE_REVISION=\"${NATIVE_FEEDBACK_SOURCE_REVISION}\""
+    "NATIVE_AUTHORING_RELEASE=\"${NATIVE_NETPLAY_DIAGNOSTICS_BUILD}\"")
 if(NATIVE_NETPLAY_DIAGNOSTICS_BUILD)
     if(NOT NATIVE_NETPLAY_DIAGNOSTICS_BUILD MATCHES "^[A-Za-z0-9._-]+$")
         message(FATAL_ERROR "The client build label must contain letters, numbers, dots, underscores or dashes")
@@ -1538,7 +1566,7 @@ add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/
     tools/native_agent_read.cpp tools/native_agent_mcp.cpp
     tools/native_agent_project.cpp tools/native_agent_validation.cpp
     tools/native_agent_parameters.cpp tools/native_agent_examples.cpp
-    tools/native_agent_script_edit.cpp)
+    tools/native_agent_script_edit.cpp tools/native_agent_live.cpp)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.
 add_executable(native_script_reference_exporter tests/native/script_reference_exporter.c
@@ -2164,6 +2192,12 @@ add_test(NAME native_agent_tool COMMAND Python3::Interpreter
 add_test(NAME native_agent_edit COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_edit_test.py"
     "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
+add_executable(native_workshop_connection_test tests/native/workshop_connection_test.cpp)
+target_include_directories(native_workshop_connection_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_workshop_connection_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(native_workshop_connection_test PRIVATE melee_runtime)
+target_link_options(native_workshop_connection_test PRIVATE "LINKER:/opt:ref")
+add_test(NAME native_workshop_connection COMMAND native_workshop_connection_test)
 add_test(NAME native_fighter_module_load COMMAND native_content_tool
     module-probe "$<TARGET_FILE:native_fighter_module_fixture>")
 add_test(NAME native_fighter_animation_edit_roundtrip COMMAND
@@ -2205,7 +2239,7 @@ add_test(NAME native_fighter_installed_clone_roundtrip COMMAND
 # Build it by default so source changes also refresh the playable client.
 target_link_libraries(melee_game PRIVATE yyjson melee_account_crypto aurora_main aurora_core
     LibJuice::LibJuice)
-target_link_libraries(melee_runtime PUBLIC melee_math LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32)
+target_link_libraries(melee_runtime PUBLIC melee_math LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32 advapi32)
 
 add_executable(native_feedback_input_test tests/native/native_feedback_input_test.c
     src/melee/gm/native_feedback_input.c)

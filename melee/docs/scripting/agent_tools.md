@@ -72,6 +72,43 @@ Successful edits return `committed: true`, `status: "saved_draft"` and the new
 returned revision for your next edit. The tool keeps recovery backups during a
 batch; the next exclusive open restores an interrupted edit before loading it.
 
+## Work with the running Workshop
+
+Use `instances.list` to find running clients and their executable/build identity.
+Choose the instance you intend to edit, then call `session.inspect` with its
+`instance` value. A client still loading a scene may temporarily report
+`available: false`; wait for that same process rather than launching a duplicate.
+Live editing requires the authoring tool built with that client. When
+`build_matches` is false, use the `native_content_tool.exe` beside the returned
+game executable.
+
+`session.open` opens a saved draft in the chosen client. `session.member.select`
+switches the edited member of a family, and `session.workspace.select` selects
+Action, Scripting, Animation or Model. Each takes the current live `revision`.
+Open refuses to discard existing unsaved edits. A real online match, preview
+transition or active edit gesture prevents live mutations.
+
+`session.scripts.list` and `session.scripts.read` return the selected member's
+live source files, including unsaved text. `session.scripts.select` shows a file
+in the Scripting pane. To change source contents, use
+`session.scripts.update` with its live revision, a short `summary`, the same
+`files` array used for offline edits, and optional `parameters` text. One batch
+creates one Workshop undo step. `session.undo` and `session.redo` use the current
+member/workspace's history. Source history preserves intervening manual text
+edits by refusing to overwrite a different source set.
+
+Live source edits change the working draft. Save, behavior validation, preview
+refresh and installation remain separate operations. `preview_scene` describes
+the currently loaded scene; a source edit's `preview_status: "refresh_required"`
+means that behavior has not been applied to the running preview.
+`scripts.check` checks saved files. Current live checks use the Workshop's
+validation controls after saving; a live validation operation is still being built.
+
+Fighter → Agent tools shows the instance and recent operations. Its Disconnect
+button, or `session.disconnect`, closes agent access while keeping the game and
+draft open. Enable access there again when desired. This creates a new instance
+identity, so discover it again before attaching.
+
 `examples.list` and `examples.read` expose the installed FMS templates and
 supporting examples. They are also available as MCP resources under
 `freak-melee://examples/`. The installed reference links to local copies of

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <yyjson.h>
+#include <melee/ft/native_authoring_reply.h>
 #include <string>
 #include <vector>
 
@@ -10,13 +11,8 @@ struct Context {
     std::string content_root;
     std::string projects_root;
 };
-struct Reply {
-    yyjson_mut_doc* document;
-    yyjson_mut_val* result;
-    bool ok = true;
-    explicit Reply(yyjson_mut_doc* owner);
-    void fail(const char* code, const std::string& message);
-};
+using NativeAuthoring::Reply;
+using NativeAuthoring::add_string;
 using Handler = void (*)(const Context&, yyjson_val*, Reply&);
 struct Tool {
     const char* name;
@@ -24,6 +20,7 @@ struct Tool {
     const char* schema;
     Handler handler;
     bool read_only;
+    bool live = false;
 };
 
 bool initialize(Context&, std::string& error);
@@ -32,7 +29,6 @@ yyjson_mut_val* list_tools(yyjson_mut_doc*);
 bool call(const Context&, const char* name, yyjson_val* arguments, Reply&);
 int mcp(const Context&);
 std::string serialize(yyjson_mut_doc*);
-void add_string(Reply&, yyjson_mut_val*, const char*, const std::string&);
 const char* string(yyjson_val*, const char*);
 unsigned page_offset(yyjson_val*);
 unsigned page_limit(yyjson_val*);
@@ -57,4 +53,6 @@ void documentation(const Context&, yyjson_val*, Reply&);
 void documentation_page(const Context&, yyjson_val*, Reply&);
 void examples(const Context&, yyjson_val*, Reply&);
 void example(const Context&, yyjson_val*, Reply&);
+void running_instances(const Context&, yyjson_val*, Reply&);
+void live_command(const char* name, yyjson_val*, Reply&);
 }

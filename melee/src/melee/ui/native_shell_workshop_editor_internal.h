@@ -83,6 +83,9 @@ struct EditHistoryEntry {
     unsigned label_action = 0;
     std::string before_name, after_name;
     uint64_t rig_revision = 0;
+    bool source_edit = false;
+    std::vector<std::string> before_sources, after_sources;
+    std::string before_parameters, after_parameters, summary;
 };
 enum class GraphTool { Move, Box, Rotate, Scale };
 enum class WorkshopMode { Action, Script, Animation, Model };
@@ -275,6 +278,7 @@ private:
 extern GraphNavigationEvents graph_navigation_events;
 class ActionTimelineEvents final : public Rml::EventListener {
 public:
+    bool Active() const { return active; }
     void Reset();
     void Update();
     void ProcessEvent(Rml::Event& event) override;
@@ -334,6 +338,7 @@ extern TimelineSplitterEvents timeline_splitter_events;
 Rml::ElementFormControlInput* field(const char* id);
 void set_text(const char* id, const std::string& value);
 void update_history_buttons();
+bool apply_source_history(const EditHistoryEntry&, bool redo);
 void record_edit(bool animation, const uint8_t* before);
 void record_structural_edit(bool animation, const uint8_t* before, size_t size,
                             const uint8_t* before_fighter = nullptr,

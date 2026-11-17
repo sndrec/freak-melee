@@ -64,7 +64,19 @@
         <div class="eyebrow">IMPORT</div>
         <button id="workshop-fighter-import-model" class="room-button" title="Import meshes into the current fighter">Import model...</button>
         <button id="workshop-fighter-import-package" class="room-button" title="Save this draft and open a fighter package as a separate editable draft">Import fighter...</button>
+        <div class="workshop-divider"></div>
+        <button id="workshop-agent-show" class="room-button">Agent tools...</button>
       </div>
+      <section id="workshop-agent-panel">
+        <button id="workshop-agent-close" class="room-button">Close</button>
+        <div class="eyebrow">AGENT TOOLS</div>
+        <h2 id="workshop-agent-status">Agent access enabled</h2>
+        <p>Connect your agent to native_content_tool.exe with the argument <b>mcp</b>. START_HERE.md beside the game includes installation setup and available operations.</p>
+        <div class="field-label">This instance</div><div id="workshop-agent-instance"></div>
+        <button id="workshop-agent-disable" class="room-button">Disconnect agent access</button>
+        <button id="workshop-agent-enable" class="room-button">Enable agent access</button>
+        <div class="field-label">Recent requests</div><div id="workshop-agent-recent"></div>
+      </section>
       <div id="workshop-editor-context">
         <div id="workshop-context-action">Select an action</div><span>/</span>
         <div id="workshop-context-phase">Main</div><span>/</span>

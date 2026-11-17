@@ -27,6 +27,12 @@ struct Session {
     bool imported_parameters = false;
     enum Origin { Validated, Draft, Template, SeparateFiles } origin = Validated;
 };
+struct SourceEdit { std::string file, text; };
+struct EditResult { bool ok; const char* code; std::string message; };
+// Stage and publish a complete in-memory source/parameter batch. Failure leaves
+// the session unchanged. Source syntax may remain unfinished for later checking.
+EditResult edit(Session&, const NativeFighterProject&,
+                const std::vector<SourceEdit>&, const std::string* parameters);
 
 bool open_project(Session&, const char* project_path, const NativeFighterProject&);
 // Copy stock import declarations into owned values without changing disk files.

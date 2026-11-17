@@ -266,6 +266,39 @@ bool import_parameters(Session& session, const NativeFighterProject& project)
     return true;
 }
 
+EditResult edit(Session& session, const NativeFighterProject& project,
+                 const std::vector<SourceEdit>& edits, const std::string* parameters)
+{
+    if (edits.empty() && !parameters) return {false, "empty_edit", "Supply source edits or parameter text."};
+    Session candidate = session;
+    std::vector<size_t> selected;
+    for (const auto& edit : edits) {
+        std::string requested = edit.file;
+        std::replace(requested.begin(), requested.end(), '\\', '/');
+        size_t index = 0;
+        for (; index < candidate.files.size(); ++index) {
+            std::string relative = candidate.files[index].path.substr(candidate.root.size() + 1);
+            std::replace(relative.begin(), relative.end(), '\\', '/');
+            if (requested == relative) break;
+        }
+        if (index == candidate.files.size()) return {false, "unknown_source", "Use a file returned by source inspection: " + requested};
+        if (std::find(selected.begin(), selected.end(), index) != selected.end()) return {false, "duplicate_source", "A batch may edit each source once."};
+        if (edit.text.find('\0') != std::string::npos) return {false, "invalid_source", "Source files cannot contain NUL bytes."};
+        selected.push_back(index);
+        candidate.files[index].text = edit.text;
+        candidate.files[index].text.erase(std::remove(candidate.files[index].text.begin(), candidate.files[index].text.end(), '\r'), candidate.files[index].text.end());
+    }
+    if (compose(candidate).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY)
+        return {false, "source_too_large", "Combined source exceeds " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT "."};
+    if (parameters) candidate.parameters = *parameters;
+    if (!import_parameters(candidate, project)) return {false, "parameter_import", candidate.error};
+    NativeFighterParameters parsed{}; unsigned line = 0;
+    if (!nativeFighterParameters_Parse(candidate.parameters.data(), candidate.parameters.size(), &parsed, &line))
+        return {false, "invalid_parameters", "Invalid parameter text at line " + std::to_string(line) + "."};
+    session = std::move(candidate);
+    return {true, nullptr, {}};
+}
+
 void close(Session& session)
 {
     session.files.clear();

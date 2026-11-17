@@ -23,5 +23,6 @@ void nativeWorkshopTransform_Update(const char* viewport,
                                     unsigned active, uint64_t revision,
                                     NativeWorkshopTransformCommit commit);
 void nativeWorkshopTransform_Clear();
+bool nativeWorkshopTransform_IsActive();
 
 #endif

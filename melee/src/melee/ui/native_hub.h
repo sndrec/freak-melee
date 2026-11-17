@@ -44,6 +44,7 @@ void nativeHub_Event(const union SDL_Event* event);
 void nativeHub_ReleasePointer(void);
 void nativeHub_ReturnToCss(void);
 void nativeHub_Open(NativeHubPage page);
+void nativeHub_OpenWorkshop(const char* path);
 void nativeHub_Notice(const char* text);
 const char* nativeHub_NoticeText(void);
 const char* nativeHub_LocalName(void);

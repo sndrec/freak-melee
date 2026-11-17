@@ -21,38 +21,15 @@ void update_scripts(const Context&, yyjson_val* arguments, Reply& reply)
     NativeFighterSources::Session sources;
     if (!load_sources(*project, sources, reply)) return;
     size_t index, count; yyjson_val* item;
-    std::vector<size_t> selected;
+    std::vector<NativeFighterSources::SourceEdit> edits;
     yyjson_arr_foreach(yyjson_obj_get(arguments, "files"), index, count, item) {
-        std::string requested = string(item, "file");
-        std::replace(requested.begin(), requested.end(), '\\', '/');
-        size_t file_index = 0;
-        for (; file_index < sources.files.size(); ++file_index) {
-            auto relative = sources.files[file_index].path.substr(sources.root.size() + 1);
-            std::replace(relative.begin(), relative.end(), '\\', '/');
-            if (requested == relative) break;
-        }
-        if (file_index == sources.files.size()) { reply.fail("unknown_source", "Use a file returned by scripts.list: " + requested); return; }
-        if (std::find(selected.begin(), selected.end(), file_index) != selected.end()) {
-            reply.fail("duplicate_source", "A batch may edit each source once."); return;
-        }
-        selected.push_back(file_index);
-        sources.files[file_index].text = string(item, "text");
+        edits.push_back({string(item, "file"), string(item, "text")});
     }
     auto* parameters = yyjson_obj_get(arguments, "parameters");
-    if (selected.empty() && !parameters) { reply.fail("empty_edit", "Supply source edits or parameter text."); return; }
-    if (parameters) sources.parameters = string(arguments, "parameters");
-    // Re-run imports after the proposed edits, allowing the agent to repair an
-    // invalid override instead of making that broken file impossible to edit.
-    const auto& member = project->family.members[project->member];
-    if (!NativeFighterSources::import_parameters(sources, member)) {
-        reply.fail("parameter_import", sources.error); return;
-    }
-    std::string parameter_text = sources.parameters;
-    NativeFighterParameters parsed{}; unsigned line = 0;
-    if (!nativeFighterParameters_Parse(parameter_text.data(), parameter_text.size(), &parsed, &line)) {
-        reply.fail("invalid_parameters", "Invalid parameter text.");
-        yyjson_mut_obj_add_uint(reply.document, reply.result, "line", line); return;
-    }
+    std::string parameter_text = parameters ? string(arguments, "parameters") : "";
+    auto staged = NativeFighterSources::edit(sources, project->family.members[project->member], edits, parameters ? &parameter_text : nullptr);
+    if (!staged.ok) { reply.fail(staged.code, staged.message); return; }
+    parameter_text = sources.parameters;
     // A selected member has its own transaction root; the supplied revision
     // still describes the complete family, so an edit to either member conflicts.
     const std::string member_root = project->family.paths[project->member];
@@ -77,7 +54,7 @@ void update_scripts(const Context&, yyjson_val* arguments, Reply& reply)
     }
     add_string(reply, reply.result, "status", "saved_draft");
     yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
-    yyjson_mut_obj_add_uint(reply.document, reply.result, "edited_files", selected.size());
+    yyjson_mut_obj_add_uint(reply.document, reply.result, "edited_files", edits.size());
     yyjson_mut_obj_add_bool(reply.document, reply.result, "validated", false);
     yyjson_mut_obj_add_bool(reply.document, reply.result, "installed", false);
     source_status(sources, project->family.members[project->member], reply);

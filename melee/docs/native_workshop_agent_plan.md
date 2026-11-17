@@ -18,7 +18,7 @@ Accepted 2026-11-17. Implementation is in progress.
   It also passes against an extracted setup ZIP with a Windows-only PATH and
   the packaged launcher. The game/tool build, family-package regression and
   release-payload checks pass. This verifies the read-only foundation only.
-- Complete editing coverage, live Workshop IPC, authoring schemas,
+- Complete editing coverage, live asset operations, authoring schemas,
   visual/practice tools, agent feedback and full
   repository-free acceptance remain to be implemented. The remaining practical
   authoring guides are also open.
@@ -43,7 +43,22 @@ Accepted 2026-11-17. Implementation is in progress.
   read-only, parameter, family, pose, reference and release-payload checks pass.
   Read and write CLI/MCP checks also pass from an extracted setup ZIP with a
   Windows-only PATH. No public update was uploaded.
-  Live unsaved editing, undo and whole-project transactions are still open.
+  Whole-project transactions are still open.
+- Same-user asynchronous named pipes now connect the tool to an explicit live
+  instance. Discovery returns the executable and source/build identity. A shared
+  source/configuration fingerprint rejects mismatched binaries before requests
+  reach the editor. Both endpoints use the same schemas and result types.
+- Live source and parameter edits run at the editor boundary and share its undo
+  history. Member/workspace/source selection, unsaved inspection, revision
+  guards, gesture/gameplay refusal, recent operations and disconnect controls
+  are implemented. The real hidden/muted client passes read/write/undo/redo,
+  manual textarea input, stale and offline-writer conflicts, atomic failure,
+  build mismatch and disconnect checks; draft files remain unchanged. Pipe
+  framing/partial/large-message/cancellation checks also pass. Extracted-package
+  checks verify these operations with a Windows-only PATH, including in-game
+  access disable/re-enable and a separate run using only the shipped tools.
+  Live validation,
+  save/build/install, other asset domains and preview/testing operations remain.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted

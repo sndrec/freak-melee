@@ -62,8 +62,9 @@ def main():
         names = {item['name'] for item in tools}
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
-        assert all(item['annotations']['readOnlyHint'] for item in tools if item['name'] != 'scripts.update')
-        assert not next(item for item in tools if item['name'] == 'scripts.update')['annotations']['readOnlyHint']
+        mutations = {'scripts.update', 'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',
+                     'session.scripts.select', 'session.undo', 'session.redo', 'session.disconnect'}
+        assert all(item['annotations']['readOnlyHint'] == (item['name'] not in mutations) for item in tools)
         assert call('environment.describe')['installation'] == str(tool.parent)
         assert call('projects.list')['total'] == 0
         assert call('unknown', expected=1)['code'] == 'unknown_tool'
@@ -235,7 +236,9 @@ def main():
             version = installation / 'versions' / build
             version.mkdir(parents=True)
             for file in [tool, *tool.parent.glob('*.dll')]:
-                os.link(file, version / file.name)
+                # Real installations have independent files. Hardlinks couple
+                # cleanup to another running client's mapped DLLs on Windows.
+                shutil.copyfile(file, version / file.name)
             (installation / 'state.json').write_text(json.dumps({'current': build}))
             replies = asyncio.run(launcher_exchange([str(powershell), '-NoProfile', '-NonInteractive',
                 '-ExecutionPolicy', 'Bypass', '-File', str(installation / 'freak_launcher.ps1'), '-AgentMcp'],

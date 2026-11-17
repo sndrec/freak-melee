@@ -960,6 +960,13 @@ void apply_history(bool redo)
     }
     const EditHistoryEntry& edit = session->edit_history[redo ? session->edit_cursor :
                                                      session->edit_cursor - 1];
+    if (edit.source_edit) {
+        if (apply_source_history(edit, redo)) {
+            if (redo) ++session->edit_cursor; else --session->edit_cursor;
+            update_history_buttons();
+        }
+        return;
+    }
     if(edit.rig_revision != session->project->rig_edit_revision) {
         set_text("workshop-editor-status", "Undo the bone edits in Model before restoring this edit.");
         return;

@@ -4,6 +4,8 @@
 #include "native_shell_workshop_editor.h"
 #include "native_shell_workshop_model.h"
 #include "native_shell_workshop_parameters.h"
+#include "native_shell_workshop_agent.h"
+#include <melee/gm/native_feedback.h>
 
 #ifdef MELEE_NATIVE
 
@@ -60,6 +62,7 @@ bool updating_member_selector;
 bool member_opened[NATIVE_FIGHTER_FAMILY_MEMBERS];
 std::string attribute_text[NATIVE_FIGHTER_FAMILY_MEMBERS][NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT];
 bool project_loaded;
+uint64_t project_generation;
 bool attributes_dirty[NATIVE_FIGHTER_FAMILY_MEMBERS];
 bool discard_pending;
 bool package_open;
@@ -80,6 +83,7 @@ void show_fighter_menu(bool show)
 
 void close_project()
 {
+    ++project_generation;
     testing = false;
     preview_loading = false;
     while (nativeWorkshopDocs_Close()) {}
@@ -211,7 +215,9 @@ bool family_has_unsaved_edits()
     return false;
 }
 
-bool select_member(unsigned member, bool restart_preview = false)
+} // namespace
+
+bool nativeShellWorkshop_SelectMember(unsigned member, bool restart_preview)
 {
     if (!project_loaded || member >= active_family.member_count) return false;
     // Editor restoration can immediately apply a pose. Select its actual actor
@@ -245,6 +251,8 @@ bool select_member(unsigned member, bool restart_preview = false)
     }
     return true;
 }
+
+namespace {
 
 void select_draft(size_t index)
 {
@@ -400,7 +408,7 @@ bool save_draft()
     const unsigned previous_member = active_member;
     bool saved = true;
     for (unsigned member = 0; member < active_family.member_count; ++member) {
-        if (!select_member(member)) { saved = false; break; }
+        if (!nativeShellWorkshop_SelectMember(member)) { saved = false; break; }
         const char* path = active_family.paths[member];
         char asset_error[256] = {};
         if (!nativeFighterProject_SaveAssets(path, active_project,
@@ -416,7 +424,7 @@ bool save_draft()
         attributes_dirty[member] = false;
     }
     if (saved) {
-        select_member(previous_member);
+        nativeShellWorkshop_SelectMember(previous_member);
         discard_pending = false;
         status("workshop-editor-status", family_script_changed()
             ? "Draft saved. Build behavior before preview." : "Draft saved.");
@@ -556,7 +564,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
         const unsigned previous_member = active_member;
         for (unsigned member = 0; valid && !require_built_script &&
              member < candidate.member_count; ++member) {
-            valid = select_member(member) &&
+            valid = nativeShellWorkshop_SelectMember(member) &&
                 nativeShellWorkshopEditor_PreviewSource(member, &preview_source[member],
                                                         &preview_parameters[member]);
             if (valid) {
@@ -567,7 +575,7 @@ bool build_cached_candidate(bool save_project, bool persist_portrait,
                 part.parameter_size = preview_parameters[member].size();
             }
         }
-        select_member(previous_member);
+        nativeShellWorkshop_SelectMember(previous_member);
         built = valid && nativeFighterFamilyProject_Build(
                              &candidate, portrait, portrait_size,
                              &package, &package_size, &id);
@@ -684,7 +692,7 @@ bool build_script(bool show_script)
     const unsigned previous_member = active_member;
     if (!save_draft()) return false;
     for (unsigned member = 0; member < active_family.member_count; ++member) {
-        if (!select_member(member) ||
+        if (!nativeShellWorkshop_SelectMember(member) ||
             !nativeShellWorkshopEditor_BuildScript(active_family.paths[member])) {
             status("workshop-editor-status", "Could not build this fighter's script. Open Scripting for details.");
             return false;
@@ -709,7 +717,7 @@ bool build_script(bool show_script)
         std::swap(current.script_size, built.script_size);
     }
     nativeFighterFamilyProject_Close(&replacement);
-    select_member(previous_member);
+    nativeShellWorkshop_SelectMember(previous_member);
     nativeShellWorkshopEditor_RefreshScriptOutline();
     if (show_script) nativeShellWorkshopEditor_Click("workshop-mode-script");
     return true;
@@ -730,7 +738,7 @@ class WorkshopEvents final : public Rml::EventListener {
             if (id == "workshop-family-member") {
                 if (updating_member_selector) return;
                 const std::string value = static_cast<Rml::ElementFormControlSelect*>(target)->GetValue();
-                if (value == "0" || value == "1") select_member(unsigned(value[0] - '0'), true);
+                if (value == "0" || value == "1") nativeShellWorkshop_SelectMember(unsigned(value[0] - '0'), true);
             } else if (id == "workshop-action-search") {
                 nativeShellWorkshopEditor_FilterActions();
             } else if (id == "workshop-animation-search") {
@@ -741,6 +749,10 @@ class WorkshopEvents final : public Rml::EventListener {
             } else {
                 discard_pending = false;
             }
+            return;
+        }
+        if (event.GetType() == "click" && nativeWorkshopAgent_Click(id.c_str())) {
+            if (id == "workshop-agent-show") show_fighter_menu(false);
             return;
         }
         if (project_loaded && id.compare(0, 19, "workshop-attribute-") == 0 &&
@@ -1008,6 +1020,7 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
     testing = false;
     project_loaded = false;
     nativeShellWorkshopEditor_Init(shell);
+    nativeWorkshopAgent_Init(shell);
     document->GetElementById("workshop-panel")
         ->AddEventListener("click", &events);
     document->GetElementById("workshop-panel")
@@ -1090,6 +1103,14 @@ bool nativeShellWorkshop_IsOpen()
 bool nativeShellWorkshop_IsTesting()
 {
     return opened && testing;
+}
+
+NativeWorkshopLiveState nativeShellWorkshop_LiveState()
+{
+    return {project_loaded ? &active_family : nullptr, active_member, project_generation,
+        opened, testing, preview_loading,
+        !nativeFeedback_IsOpen() && !testing && !preview_loading && nativeHome_CanOpenWorkshop() &&
+        (nativeHome_IsSelection() || nativeHome_IsPractice()), family_has_unsaved_edits()};
 }
 
 #endif

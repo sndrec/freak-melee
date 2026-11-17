@@ -9,6 +9,7 @@
 #include "native_css_chat.h"
 #include "native_shell_css_original.h"
 #include "native_shell_workshop.h"
+#include "native_shell_workshop_agent.h"
 #include "native_shell_workshop_code.h"
 #include "native_shell_workshop_editor.h"
 #include "native_shell_workshop_model.h"
@@ -356,6 +357,7 @@ extern "C" bool nativeShell_IsEditingText(void)
 
 extern "C" void nativeShell_Shutdown(void)
 {
+    nativeWorkshopAgent_Shutdown();
     nativeFeedback_Shutdown();
     nativeHub_Shutdown();
     nativeChat_Stop();

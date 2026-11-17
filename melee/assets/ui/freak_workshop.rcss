@@ -695,3 +695,13 @@ button:focus { border-color: #f59e82; }
 #workshop-delete-confirmation .room-button { margin-right: 5dp; }
 
 #workshop-dope-rows { drag: drag; }
+#workshop-agent-panel {
+    display: none; position: absolute; z-index: 80; right: 24px; top: 90px;
+    width: 460px; max-width: 85%; padding: 20px; background: #20212c;
+    border-width: 1px; border-color: #665765; color: #e5dfe8;
+    pointer-events: auto;
+}
+#workshop-agent-close { float: right; width: 70px; margin-left: 12px; }
+#workshop-agent-status { font-size: 18px; margin: 8px 0 14px; }
+#workshop-agent-instance { font-family: Consolas; font-size: 12px; margin: 8px 0 16px; }
+#workshop-agent-recent { max-height: 180px; overflow-y: auto; font-size: 12px; line-height: 19px; }

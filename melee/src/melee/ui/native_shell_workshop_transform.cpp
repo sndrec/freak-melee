@@ -717,3 +717,4 @@ void nativeWorkshopTransform_Update(const char* id, const unsigned* joints,
     }
     draw_gizmo();
 }
+bool nativeWorkshopTransform_IsActive() { return running; }

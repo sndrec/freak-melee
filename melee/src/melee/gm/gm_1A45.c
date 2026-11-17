@@ -650,6 +650,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_Drawing);
         if (!hidden_rollback_frame) {
             if (!nativeFeedback_IsOpen()) nativeShell_Update();
+            nativeShell_UpdateAuthoring();
         }
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_RenderBegin);
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_RenderBegin);

@@ -1,0 +1,259 @@
+"""Exercise unsaved Workshop edits in one isolated hidden, muted native client."""
+import argparse
+import ctypes
+from ctypes import wintypes as w
+import hashlib
+import json
+import os
+import re
+from pathlib import Path
+import subprocess
+import time
+
+
+def close_window(pid):
+    user = ctypes.WinDLL('user32', use_last_error=True)
+    callback = ctypes.WINFUNCTYPE(w.BOOL, w.HWND, w.LPARAM)
+    user.GetWindowThreadProcessId.argtypes = [w.HWND, ctypes.POINTER(w.DWORD)]
+    user.PostMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+    @callback
+    def visit(window, _):
+        owner = w.DWORD()
+        user.GetWindowThreadProcessId(window, ctypes.byref(owner))
+        if owner.value == pid: user.PostMessageW(window, 0x10, 0, 0)
+        return True
+    user.EnumWindows(visit, 0)
+
+
+def snapshot(root):
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in root.rglob('*') if p.is_file()}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for field in ('exe', 'tool', 'iso', 'output'):
+        parser.add_argument('--' + field, type=Path, required=True)
+    parser.add_argument('--old-tool', type=Path)
+    parser.add_argument('--control', type=Path, help='Optional developer input driver for the manual-text/visual check')
+    args = parser.parse_args()
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    appdata = output / 'userdata'
+    appdata.mkdir()
+    windows = Path(os.environ['SystemRoot'])
+    env = dict(os.environ, LOCALAPPDATA=str(appdata),
+               PATH=str(windows / 'System32') + ';' + str(windows))
+    for service in ('CHAT', 'SERVICE', 'COMMUNITY'):
+        env['FREAK_MELEE_' + service + '_ENDPOINT'] = 'http://127.0.0.1:1'
+    control_id = 'agent-live-' + str(os.getpid())
+    env['FREAK_MELEE_CONTROL_ID'] = control_id
+    env['FREAK_MELEE_MENU_MOTION'] = '0'
+    tool = args.tool.resolve()
+    exe = args.exe.resolve()
+    def run(*parts, input=None, executable=tool):
+        result = subprocess.run([str(executable), *map(str, parts)], input=input, env=env, cwd=output,
+            encoding='utf-8', capture_output=True, timeout=90, creationflags=subprocess.CREATE_NO_WINDOW)
+        return result
+    def call(name, arguments=None, expected=True, executable=tool):
+        result = run('agent', 'call', name, '--stdin', input=json.dumps(arguments or {}), executable=executable)
+        assert result.stdout, (name, result.returncode, result.stderr)
+        reply = json.loads(result.stdout)
+        assert reply['ok'] == expected, (name, reply)
+        return reply['result'] if expected else reply['error']
+    project = appdata / 'Freak Melee/projects/Live Mario'
+    project.parent.mkdir(parents=True, exist_ok=True)
+    cloned = run('clone-stock', args.iso.resolve(), 'Mario', project, 'Live Mario')
+    assert cloned.returncode == 0, cloned.stderr
+    saved = {'project': str(project)}
+    files = call('scripts.list', saved)
+    first = files['files'][0]['file']
+    first_text = call('scripts.read', dict(saved, file=first))['text']
+    call('scripts.update', dict(saved, revision=files['revision'], files=[{'file': first, 'text': first_text}]))
+    combined = ''
+    for file in call('scripts.list', saved)['files']:
+        text = call('scripts.read', dict(saved, file=file['file']))['text']
+        if combined and not combined.endswith('\n'): combined += '\n'
+        combined += text
+    source = output / 'combined.fms'
+    source.write_text(combined, encoding='utf-8')
+    built = run('script-build', project, source)
+    assert built.returncode == 0, built.stderr
+    baseline = snapshot(project)
+    content = appdata / 'Freak Melee/content'
+    content.mkdir(parents=True, exist_ok=True)
+    (content / 'startup.txt').write_text('12 0 1\n\n')
+    (content / 'hub-profile.txt').write_text('Agent review\n\n')
+    process = None
+    manual_input_checked = False
+    def control(*parts):
+        result = subprocess.run([str(args.control.resolve()), '--id', control_id, *map(str, parts)],
+            env=env, cwd=output, capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        assert result.returncode == 0, result.stderr
+    def position(element):
+        log = output / 'stderr.log'
+        for _ in range(30):
+            start = log.stat().st_size
+            control('ui-inspect', element)
+            time.sleep(.15)
+            with log.open('r', encoding='utf-8', errors='replace') as stream:
+                stream.seek(start)
+                text = stream.read(2 * 1024 * 1024)
+            found = re.search(r'\[ui-inspect\] ' + re.escape(element) +
+                r':?[^\n]*origin=([\d.-]+),([\d.-]+) size=([\d.-]+),([\d.-]+)', text)
+            if found:
+                x, y, width, height = map(float, found.groups())
+                if width > 0 and height > 0 and 'visible=0' not in found[0]:
+                    return round(x + width / 2), round(y + height / 2)
+        raise AssertionError(f'UI control unavailable: {element}')
+    try:
+        with (output / 'stdout.log').open('w') as stdout, (output / 'stderr.log').open('w') as stderr:
+            process = subprocess.Popen([str(exe), '--iso', str(args.iso.resolve()), '--hidden', '--mute'],
+                env=env, cwd=output, stdout=stdout, stderr=stderr, creationflags=subprocess.CREATE_NO_WINDOW)
+        (output / 'pid.txt').write_text(str(process.pid))
+        deadline = time.monotonic() + 120
+        instance = None
+        while time.monotonic() < deadline:
+            assert process.poll() is None, f'Game exited: {process.returncode}; inspect {output}'
+            matches = [row for row in call('instances.list')['instances'] if row['process_id'] == process.pid]
+            if matches and matches[0]['available']:
+                assert matches[0]['build_matches'], matches[0]
+                assert Path(matches[0]['executable']) == exe, matches[0]
+                instance = matches[0]['instance']
+                break
+            time.sleep(.25)
+        assert instance, f'No endpoint for the live process; inspect {output}'
+        target = {'instance': instance}
+        state = call('session.inspect', target)
+        assert not state['workshop_open'] and state['project'] is None, state
+        if args.old_tool:
+            old = call('session.inspect', target, expected=False, executable=args.old_tool.resolve())
+            assert old['code'] == 'build_mismatch', old
+        # Opening is issued once. If its response is lost, inspect this exact
+        # process instead of issuing the mutation again.
+        opened = run('agent', 'call', 'session.open', '--stdin',
+            input=json.dumps(dict(target, revision=state['revision'], project=str(project))))
+        assert opened.stdout, opened.stderr
+        open_reply = json.loads(opened.stdout)
+        (output / 'session-open.json').write_text(json.dumps(open_reply, indent=2))
+        if not open_reply['ok']:
+            assert open_reply['error']['code'] == 'completion_unknown', open_reply
+        deadline = time.monotonic() + 180
+        while time.monotonic() < deadline:
+            assert process.poll() is None, f'Game exited: {process.returncode}; inspect {output}'
+            result = run('agent', 'call', 'session.inspect', '--stdin', input=json.dumps(target))
+            if result.stdout:
+                response = json.loads(result.stdout)
+                if response['ok']:
+                    state = response['result']
+                    if state.get('project') == str(project) and state['editing_allowed']: break
+                elif response['error']['code'] not in ('completion_unknown', 'instance_unavailable', 'request_not_sent'):
+                    raise AssertionError(('session.inspect', response))
+            time.sleep(.25)
+        else: raise AssertionError(f'Workshop preview did not become editable; inspect {output}')
+        assert state['workshop_open'] and state['member'] == 'main'
+        assert state['preview_scene'] == 'practice', state
+        state = call('session.workspace.select', dict(target, revision=state['revision'], workspace='scripting'))
+        assert state['workspace'] == 'scripting'
+        listing = call('session.scripts.list', target)
+        original = call('session.scripts.read', dict(target, file=first))
+        assert listing['revision'] == original['revision']
+        # A second inspection without an edit must describe the same revision.
+        assert call('session.inspect', target)['revision'] == original['revision']
+        original_text = original['text']
+        original_parameters = listing['parameters']
+        changed_text = original_text + '\n# live agent edit\n'
+        changed = call('session.scripts.update', dict(target, revision=original['revision'],
+            summary='Add live authoring note', files=[{'file': first, 'text': changed_text}]))
+        assert changed['committed'] and not changed['saved'] and not changed['installed']
+        assert changed['revision'] != original['revision'] and changed['dirty']
+        assert changed['can_undo']
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        assert snapshot(project) == baseline, 'Live edits wrote disk files'
+        denied = call('scripts.update', dict(saved, revision=call('project.inspect', saved)['revision'],
+            files=[{'file': first, 'text': 'do not overwrite the live draft'}]), expected=False)
+        assert denied['code'] == 'draft_busy'
+        stale = call('session.scripts.update', dict(target, revision=original['revision'],
+            summary='Stale edit', files=[{'file': first, 'text': 'do not overwrite'}]), expected=False)
+        assert stale['code'] == 'revision_conflict' and stale['revision'] == changed['revision']
+        rejected = call('session.scripts.update', dict(target, revision=changed['revision'], summary='Invalid batch',
+            files=[{'file': first, 'text': 'do not commit this either'}, {'file': '../missing.fms', 'text': 'no'}]), expected=False)
+        assert rejected['code'] == 'unknown_source'
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        undone = call('session.undo', dict(target, revision=changed['revision']))
+        assert call('session.scripts.read', dict(target, file=first))['text'] == original_text
+        assert call('session.scripts.list', target)['parameters'] == original_parameters
+        redone = call('session.redo', dict(target, revision=undone['revision']))
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        # Source and parameters share the same history step.
+        parameter = re.search(r'(?m)^int cpu_capture_first_attempt = (-?\d+)$', original_parameters)
+        assert parameter, original_parameters[:1000]
+        replacement_parameters = original_parameters[:parameter.start(1)] + str(int(parameter[1]) + 1) + original_parameters[parameter.end(1):]
+        parameter_edit = call('session.scripts.update', dict(target, revision=redone['revision'],
+            summary='Edit live parameter', files=[{'file': first, 'text': changed_text + '# another change\n'}],
+            parameters=replacement_parameters))
+        assert call('session.scripts.list', target)['parameters'] == replacement_parameters
+        reverted = call('session.undo', dict(target, revision=parameter_edit['revision']))
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        assert call('session.scripts.list', target)['parameters'] == original_parameters
+        assert snapshot(project) == baseline
+        if args.control:
+            reverted = call('session.scripts.select', dict(target, revision=reverted['revision'], file=first))
+            # The old input driver is used only to simulate a human typing.
+            # All discovery, authoring, history and verification use the shipped API.
+            control('ui-click', *position('workshop-script-source'))
+            control('ui-key', 'end', 'ctrl')
+            control('ui-text', '\n# manual input check\n')
+            for _ in range(30):
+                manual = call('session.scripts.read', dict(target, file=first))
+                if '# manual input check' in manual['text']: break
+                time.sleep(.1)
+            else: raise AssertionError('Manual textarea input was not visible to the live source reader')
+            stale = call('session.undo', dict(target, revision=reverted['revision']), expected=False)
+            assert stale['code'] == 'revision_conflict'
+            preserved = call('session.undo', dict(target, revision=manual['revision']), expected=False)
+            assert preserved['code'] == 'history_unavailable'
+            assert call('session.scripts.read', dict(target, file=first))['text'] == manual['text']
+            reverted = call('session.scripts.update', dict(target, revision=manual['revision'],
+                summary='Remove test typing', files=[{'file': first, 'text': changed_text}]))
+            manual_input_checked = True
+            control('ui-click', *position('workshop-fighter-toggle'))
+            control('ui-click', *position('workshop-agent-show'))
+            position('workshop-agent-close')
+            control('screenshot')
+            time.sleep(.5)
+            control('ui-click', *position('workshop-agent-disable'))
+            for _ in range(30):
+                if all(row['instance'] != instance for row in call('instances.list')['instances']): break
+                time.sleep(.1)
+            else: raise AssertionError('The in-game disconnect control did not close the endpoint')
+            control('ui-click', *position('workshop-agent-enable'))
+            for _ in range(30):
+                endpoints = [row for row in call('instances.list')['instances'] if row['process_id'] == process.pid and row['available']]
+                if endpoints: break
+                time.sleep(.1)
+            else: raise AssertionError('The in-game enable control did not open an endpoint')
+            assert endpoints[0]['instance'] != instance
+            instance = endpoints[0]['instance']
+            target = {'instance': instance}
+            connected = call('session.inspect', target)
+            assert connected['project'] == str(project) and connected['revision'] == reverted['revision']
+        disconnected = call('session.disconnect', target)
+        assert disconnected['status'] == 'disconnected' and not disconnected['agent_access_enabled']
+        assert process.poll() is None, 'Disconnect closed the game'
+        time.sleep(.1)
+        assert all(row['instance'] != instance for row in call('instances.list')['instances'])
+        (output / 'result.json').write_text(json.dumps({'status': 'PASS', 'instance': instance,
+            'build_identity': state['build_identity'], 'project': str(project), 'revision': reverted['revision']}, indent=2))
+        report = json.loads((output / 'result.json').read_text())
+        report['manual_input_checked'] = manual_input_checked
+        (output / 'result.json').write_text(json.dumps(report, indent=2))
+        print('PASS: real live Workshop, matching build, unsaved sources, atomic edits, stale/conflicting writers, undo/redo and disconnect')
+    finally:
+        if process and process.poll() is None:
+            close_window(process.pid)
+            process.wait(timeout=30)
+
+
+if __name__ == '__main__':
+    main()

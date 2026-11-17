@@ -1,11 +1,15 @@
 #include "native_agent_internal.h"
+#include <melee/ft/native_workshop_agent_catalog.h>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 
 namespace NativeAgent {
 #define PAGE_FIELDS R"("query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200})"
 #define PROJECT_FIELDS R"("project":{"type":"string","minLength":1,"maxLength":500},"member":{"type":"string","maxLength":31})"
-static const Tool tools[] = {
+static const Tool offline_tools[] = {
+    {"instances.list", "Discover local running Workshop endpoints. Each returned instance must be chosen explicitly for live requests.",
+        R"({"type":"object","properties":{},"additionalProperties":false})", running_instances, true},
     {"environment.describe", "Locate this installation, local drafts, build identity and available authoring tools.",
         R"({"type":"object","properties":{},"additionalProperties":false})", environment, true},
     {"projects.list", "List valid local fighter drafts. Supports case-insensitive title search and pagination.",
@@ -41,14 +45,25 @@ static const Tool tools[] = {
 
 const Tool* catalog(size_t& count)
 {
-    count = sizeof(tools) / sizeof(*tools);
-    return tools;
+    static const std::vector<Tool> tools = [] {
+        std::vector<Tool> result(std::begin(offline_tools), std::end(offline_tools));
+        size_t size;
+        const auto* live = NativeWorkshopAgent::catalog(size);
+        for (size_t i = 0; i < size; ++i)
+            result.push_back({live[i].name, live[i].description, live[i].schema, nullptr, live[i].read_only, true});
+        return result;
+    }();
+    count = tools.size();
+    return tools.data();
 }
 
 yyjson_mut_val* list_tools(yyjson_mut_doc* document)
 {
     auto* result = yyjson_mut_arr(document);
-    for (const auto& tool : tools) {
+    size_t count;
+    const auto* tools = catalog(count);
+    for (size_t i = 0; i < count; ++i) {
+        const auto& tool = tools[i];
         auto* item = yyjson_mut_obj(document);
         yyjson_mut_obj_add_str(document, item, "name", tool.name);
         yyjson_mut_obj_add_str(document, item, "description", tool.description);
@@ -68,56 +83,10 @@ yyjson_mut_val* list_tools(yyjson_mut_doc* document)
     return result;
 }
 
-static bool validate_value(yyjson_val* input, yyjson_val* schema, std::string& error,
-                            const std::string& path = "arguments")
-{
-    const char* type = yyjson_get_str(yyjson_obj_get(schema, "type"));
-    bool valid = false;
-    if (type && !std::strcmp(type, "object") && yyjson_is_obj(input)) {
-        size_t index, count; yyjson_val *key, *value;
-        auto* properties = yyjson_obj_get(schema, "properties");
-        yyjson_obj_foreach(input, index, count, key, value) {
-            const char* name = yyjson_get_str(key);
-            auto* field = yyjson_obj_get(properties, name);
-            if (!field) { error = "Unknown field: " + path + "." + name; return false; }
-            if (!validate_value(value, field, error, path + "." + name)) return false;
-        }
-        yyjson_arr_foreach(yyjson_obj_get(schema, "required"), index, count, value) {
-            const char* name = yyjson_get_str(value);
-            if (!yyjson_obj_get(input, name)) { error = "Missing field: " + path + "." + name; return false; }
-        }
-        valid = true;
-    } else if (type && !std::strcmp(type, "array") && yyjson_is_arr(input)) {
-        auto* minimum = yyjson_obj_get(schema, "minItems");
-        auto* maximum = yyjson_obj_get(schema, "maxItems");
-        size_t length = yyjson_arr_size(input);
-        valid = (!minimum || length >= yyjson_get_uint(minimum)) && (!maximum || length <= yyjson_get_uint(maximum));
-        if (valid) {
-            size_t index, count; yyjson_val* value;
-            yyjson_arr_foreach(input, index, count, value)
-                if (!validate_value(value, yyjson_obj_get(schema, "items"), error, path + "[" + std::to_string(index) + "]")) return false;
-        }
-    } else if (type && !std::strcmp(type, "string") && yyjson_is_str(input)) {
-        size_t size = yyjson_get_len(input);
-        auto* minimum = yyjson_obj_get(schema, "minLength");
-        auto* maximum = yyjson_obj_get(schema, "maxLength");
-        valid = std::strlen(yyjson_get_str(input)) == size &&
-            (!minimum || size >= yyjson_get_uint(minimum)) && (!maximum || size <= yyjson_get_uint(maximum));
-    } else if (type && ((!std::strcmp(type, "integer") && yyjson_is_int(input)) ||
-                        (!std::strcmp(type, "number") && yyjson_is_num(input)))) {
-        double number = yyjson_get_num(input);
-        auto* minimum = yyjson_obj_get(schema, "minimum");
-        auto* maximum = yyjson_obj_get(schema, "maximum");
-        valid = std::isfinite(number) && (!minimum || number >= yyjson_get_num(minimum)) && (!maximum || number <= yyjson_get_num(maximum));
-    } else if (type && !std::strcmp(type, "boolean")) valid = yyjson_is_bool(input);
-    if (!valid) error = "Invalid value: " + path;
-    return valid;
-}
-
 static bool validate(yyjson_val* input, yyjson_val* schema, Reply& reply)
 {
     std::string error;
-    if (!validate_value(input, schema, error)) {
+    if (!NativeAuthoring::validate_arguments(input, schema, error)) {
         reply.fail("invalid_arguments", error); return false;
     }
     return true;
@@ -125,12 +94,18 @@ static bool validate(yyjson_val* input, yyjson_val* schema, Reply& reply)
 
 bool call(const Context& context, const char* name, yyjson_val* arguments, Reply& reply)
 {
-    for (const auto& tool : tools) {
+    size_t count;
+    const auto* tools = catalog(count);
+    for (size_t i = 0; i < count; ++i) {
+        const auto& tool = tools[i];
         if (std::strcmp(tool.name, name)) continue;
         auto* schema = yyjson_read(tool.schema, std::strlen(tool.schema), 0);
         bool valid = schema && validate(arguments, yyjson_doc_get_root(schema), reply);
         yyjson_doc_free(schema);
-        if (valid) tool.handler(context, arguments, reply);
+        if (valid) {
+            if (tool.live) live_command(tool.name, arguments, reply);
+            else tool.handler(context, arguments, reply);
+        }
         return reply.ok;
     }
     reply.fail("unknown_tool", std::string("Unknown authoring tool: ") + name);

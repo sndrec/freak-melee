@@ -213,13 +213,17 @@ namespace {
             int((nativeHubFighterCount ? nativeHubFighterCount - 1 : 0) / 14 *
                 14));
     }
-    void open_editor(const char* path)
-    {
-        nativeHub_Focus(nullptr, 0);
-        nativeShellWorkshop_Open(path, NativeWorkshopOrigin::Hub);
-        hub.returning_from_tool = nativeShellWorkshop_IsOpen();
-        hub.visible = !hub.returning_from_tool;
-    }
+} // namespace
+
+extern "C" void nativeHub_OpenWorkshop(const char* path)
+{
+    nativeHub_Focus(nullptr, 0);
+    nativeShellWorkshop_Open(path, NativeWorkshopOrigin::Hub);
+    hub.returning_from_tool = nativeShellWorkshop_IsOpen();
+    hub.visible = !hub.returning_from_tool;
+}
+
+namespace {
     void queue(HubAction action, int value = 0, const char* peer = nullptr,
                const char* name = nullptr, const char* account = nullptr)
     {
@@ -668,7 +672,7 @@ void nativeHub_Activate(HubAction action, int value)
         break;
     case HubAction::Edit:
         if (nativeHubCatalog_MakeEditable(unsigned(hub.selected), path)) {
-            open_editor(path);
+            nativeHub_OpenWorkshop(path);
         } else {
             nativeHub_Notice(
                 "Could not open an editable copy of this fighter.");

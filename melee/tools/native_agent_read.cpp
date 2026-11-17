@@ -52,10 +52,11 @@ void environment(const Context& context, yyjson_val*, Reply& reply)
     add_string(reply, reply.result, "projects_root", context.projects_root);
     add_string(reply, reply.result, "build", NATIVE_NETPLAY_DIAGNOSTICS_BUILD);
     add_string(reply, reply.result, "source_revision", NATIVE_AGENT_SOURCE_REVISION);
+    add_string(reply, reply.result, "authoring_build_identity", NativeAuthoring::build_identity());
     yyjson_mut_obj_add_bool(reply.document, reply.result, "documentation_available", directory(context.installation + "\\ui\\docs"));
     yyjson_mut_obj_add_uint(reply.document, reply.result, "script_source_capacity_bytes", NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY);
     yyjson_mut_obj_add_uint(reply.document, reply.result, "family_member_capacity", NATIVE_FIGHTER_FAMILY_MEMBERS);
-    yyjson_mut_obj_add_bool(reply.document, reply.result, "live_session_tools_available", false);
+    yyjson_mut_obj_add_bool(reply.document, reply.result, "live_session_tools_available", true);
     yyjson_mut_obj_add_bool(reply.document, reply.result, "edit_tools_available", true);
     size_t count;
     const auto* tools = catalog(count);

@@ -12,21 +12,6 @@
 #include <cstring>
 
 namespace NativeAgent {
-Reply::Reply(yyjson_mut_doc* owner) : document(owner), result(yyjson_mut_obj(owner)) {}
-
-void Reply::fail(const char* code, const std::string& message)
-{
-    ok = false;
-    result = yyjson_mut_obj(document);
-    yyjson_mut_obj_add_strcpy(document, result, "code", code);
-    yyjson_mut_obj_add_strcpy(document, result, "message", message.c_str());
-}
-
-void add_string(Reply& reply, yyjson_mut_val* object, const char* key, const std::string& value)
-{
-    yyjson_mut_obj_add_strcpy(reply.document, object, key, value.c_str());
-}
-
 const char* string(yyjson_val* args, const char* key)
 {
     auto* field = yyjson_obj_get(args, key);

@@ -40,6 +40,10 @@ void update_history_buttons()
         Rml::Element* element = document->GetElementById(button.first);
         if (button.second) element->RemoveAttribute("disabled");
         else element->SetAttribute("disabled", "");
+        const bool redo = button.first == std::string("workshop-redo");
+        const size_t index = redo ? session->edit_cursor : session->edit_cursor ? session->edit_cursor - 1 : 0;
+        element->SetAttribute("title", index < session->edit_history.size() && !session->edit_history[index].summary.empty()
+            ? session->edit_history[index].summary : redo ? "Redo workshop edit" : "Undo workshop edit");
     }
 }
 
