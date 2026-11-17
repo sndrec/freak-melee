@@ -4,6 +4,7 @@
 #undef far
 #include "native_source_content_tool.h"
 #include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_validation.h>
 #include <melee/ft/native_source_package.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <stdio.h>
@@ -29,30 +30,24 @@ static bool save(const char* root,const void* bytes,size_t size)
 int nativeSourceContentTool_Check(const char* path,const char* source_path,bool commit,bool audit)
 {
     if(commit&&audit){fputs("Source audit cannot save a draft.\n",stderr);return 1;}
-    static NativeScriptDiagnostic audit_entries[256];
-    NativeScriptCompileDiagnostics report={.entries=audit_entries,.capacity=256};
-    NativeFighterProject project;uint8_t* source=NULL;size_t size=0;NativeScriptDiagnostic diagnostic={0};
+    NativeScriptDiagnostic entries[256] = {0};
+    NativeFighterValidation report = {.entries=entries,.capacity=256};
+    NativeFighterProject project;
+    uint8_t* source=NULL;size_t size=0;
     if(!nativeFighterProject_Open(path,&project)){fputs("Source member draft needs valid assets.fma and copied DATs.\n",stderr);return 1;}
-    NativeSourcePackage* candidate=calloc(1,sizeof(*candidate));NativeFighterProject* member=&project;
-    bool ok=candidate&&read(source_path,&source,&size);
-    NativeSourcePackageInput input={.family=NativeSourcePackage_Single,.facts=member->asset_record,.facts_bytes=member->asset_record_size,
-        .assets={member->fighter_dat,member->fighter_size,member->animation_dat,member->animation_size,member->costume_dat,member->costume_size},
-        .source=(const char*)source,.source_bytes=size,.parameters=(const char*)member->parameter_text,.parameter_bytes=member->parameter_size,
-        .resources=member->resources,.resource_bytes=member->resource_size,.diagnostics=audit?&report:NULL};
-    if(ok)ok=nativeSourcePackage_Prepare(candidate,&input,Ft_Kind_CustomFirst,NULL,&diagnostic);
+    bool checked=read(source_path,&source,&size)&&nativeFighterProject_CheckSource(&project,
+        (const char*)source,size,(const char*)project.parameter_text,project.parameter_size,0,&report);
+    bool ok=checked&&report.accepted;
     if(ok&&commit)ok=save(path,source,size);
-    if(ok)printf("{\"status\":\"PASS source %s\",\"target\":%u,\"functions\":%u,\"imports\":%u,\"instructions\":%u}\n",commit?"saved":"checked",(unsigned)Ft_Kind_CustomFirst,candidate->stats.functions,candidate->parameters.root_imports+candidate->parameters.article_imports,candidate->stats.instructions);
-    else {
-        if(audit&&report.count)for(unsigned i=0;i<report.count;++i)
-            fprintf(stderr,"%s:%u:%u: %s\n",source_path,report.entries[i].source.line,report.entries[i].source.column,report.entries[i].message);
-        else fprintf(stderr,"%s:%u:%u: %s\n",source_path,diagnostic.source.line,diagnostic.source.column,diagnostic.message[0]?diagnostic.message:"Source candidate validation or atomic save failed");
-    }
-    if(audit) {
-        unsigned package_diagnostic=!ok&&!report.count;
-        printf("{\"audit\":true,\"diagnostics\":%u,\"stored\":%u,\"package_diagnostic\":%s,\"functions_checked\":%u,\"metadata_complete\":%s,\"bodies_complete\":%s,\"package_accepted\":%s}\n",
-            report.total+package_diagnostic,report.count+package_diagnostic,package_diagnostic?"true":"false",report.functions_checked,report.metadata_complete?"true":"false",report.bodies_complete?"true":"false",ok?"true":"false");
-    }
-    if(candidate){nativeSourcePackage_Release(candidate);free(candidate);}free(source);nativeFighterProject_Close(&project);return ok?0:1;
+    if(ok)printf("{\"status\":\"PASS source %s\",\"target\":%u,\"functions\":%u,\"imports\":%u,\"instructions\":%u}\n",
+        commit?"saved":"checked",(unsigned)Ft_Kind_CustomFirst,report.functions,report.imports,report.instructions);
+    else if(report.count)for(unsigned i=0;i<report.count;++i)
+        fprintf(stderr,"%s:%u:%u: %s\n",source_path,entries[i].source.line,entries[i].source.column,entries[i].message);
+    else fprintf(stderr,"%s:0:0: Source reading, independent validation or atomic save failed\n",source_path);
+    if(audit)printf("{\"audit\":true,\"diagnostics\":%u,\"stored\":%u,\"package_diagnostic\":%s,\"functions_checked\":%u,\"metadata_complete\":%s,\"bodies_complete\":%s,\"package_accepted\":%s}\n",
+        report.total,report.count,report.package_diagnostic?"true":"false",report.functions_checked,report.metadata_complete?"true":"false",
+        report.bodies_complete?"true":"false",ok?"true":"false");
+    free(source);nativeFighterProject_Close(&project);return ok?0:1;
 }
 int nativeSourceContentTool_Package(const char* cache,const char* path,const char* portrait_path)
 {

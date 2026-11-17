@@ -112,6 +112,8 @@ bool nativeFighterParameters_Import(const void* fighter_dat, size_t dat_size,
             }
         }
         if (skip_article) {
+            // Keep original file/line positions for editor diagnostics.
+            if (end < script_size) result[output_size++] = '\n';
             start = end < script_size ? end + 1 : end;
             continue;
         }

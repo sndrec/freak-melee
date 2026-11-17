@@ -7,6 +7,7 @@
 #include <melee/ft/native_fighter_behavior_source.h>
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_template.h>
+#include <melee/ft/native_fighter_parameters.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -179,6 +180,68 @@ bool open_project(Session& session, const char* project_path,
     }
     if (!open(session, project_path, seed)) return false;
     session.origin = origin;
+    if (project.parameter_size)
+        session.parameters.assign((const char*)project.parameter_text, project.parameter_size);
+    return true;
+}
+
+static bool merge_parameters(std::string& existing, const char* imported, size_t size)
+{
+    NativeFighterParameters current, added;
+    if (!nativeFighterParameters_Parse(existing.data(), existing.size(), &current, nullptr) ||
+        !nativeFighterParameters_Parse(imported, size, &added, nullptr)) return false;
+    size_t start = 0;
+    for (unsigned i = 0; i < added.count; ++i) {
+        size_t end = start;
+        while (end < size && imported[end] != '\n') ++end;
+        unsigned found = 0;
+        while (found < current.count && std::strcmp(current.fields[found].name, added.fields[i].name)) ++found;
+        if (found < current.count) {
+            if (current.fields[found].type != added.fields[i].type) return false;
+        } else {
+            if (!existing.empty() && existing.back() != '\n') existing += '\n';
+            existing.append(imported + start, end - start);
+            existing += '\n';
+        }
+        start = end < size ? end + 1 : end;
+    }
+    return existing.size() <= NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY;
+}
+
+bool import_parameters(Session& session, const NativeFighterProject& project)
+{
+    Session candidate = session;
+    for (size_t i = 0; i < candidate.files.size(); ++i) {
+        auto& file = candidate.files[i];
+        const auto& text = file.text;
+        if (candidate.origin != Session::Template &&
+            text.compare(0, 10, "attribute ") &&
+            text.find("\nattribute ") == std::string::npos &&
+            text.find("\n    attribute ") == std::string::npos) continue;
+        char *converted = nullptr, *parameters = nullptr;
+        size_t converted_size = 0, parameter_size = 0;
+        unsigned line = 0;
+        bool ok = nativeFighterParameters_Import(project.fighter_dat, project.fighter_size,
+            project.fighter_root, project.base_kind, text.data(), text.size(),
+            &converted, &converted_size, &parameters, &parameter_size, &line);
+        if (ok) {
+            // Saved overrides win over template defaults. Type changes remain
+            // errors; reading a draft must never overwrite the player's tuning.
+            ok = merge_parameters(candidate.parameters, parameters, parameter_size);
+        }
+        if (!ok) {
+            std::free(converted); std::free(parameters);
+            session.error = "Could not import parameters in " + file.name + " at line " + std::to_string(line) + ". Original sources retained.";
+            session.error_file = i; session.error_line = line;
+            return false;
+        }
+        file.text.assign(converted, converted_size);
+        std::free(converted); std::free(parameters);
+    }
+    candidate.imported_parameters = candidate.parameters != session.parameters;
+    for (size_t i = 0; i < candidate.files.size(); ++i)
+        candidate.imported_parameters |= candidate.files[i].text != session.files[i].text;
+    session = std::move(candidate);
     return true;
 }
 
@@ -188,6 +251,10 @@ void close(Session& session)
     session.root.clear();
     session.disk_sources = false;
     session.error.clear();
+    session.error_file = 0;
+    session.error_line = 0;
+    session.parameters.clear();
+    session.imported_parameters = false;
     session.origin = Session::Validated;
 }
 

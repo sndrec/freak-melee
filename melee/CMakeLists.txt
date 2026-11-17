@@ -1535,7 +1535,9 @@ aurora_copy_runtime_dlls(native_model_view)
 add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/native_content_tool.c tools/native_source_content_tool.c tools/native_source_resource_tool.c
     tools/native_fighter_parameter_tool.c tools/native_fighter_cpu_tool.c
     tools/native_agent_tool.cpp tools/native_agent_catalog.cpp
-    tools/native_agent_read.cpp tools/native_agent_mcp.cpp)
+    tools/native_agent_read.cpp tools/native_agent_mcp.cpp
+    tools/native_agent_project.cpp tools/native_agent_validation.cpp
+    tools/native_agent_parameters.cpp)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.
 add_executable(native_script_reference_exporter tests/native/script_reference_exporter.c

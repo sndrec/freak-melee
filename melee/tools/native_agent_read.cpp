@@ -1,4 +1,5 @@
 #include "native_agent_internal.h"
+#include "native_agent_project.h"
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_sources.h>
 #include <melee/ft/native_fighter_attributes.h>
@@ -95,64 +96,9 @@ void projects(const Context&, yyjson_val* arguments, Reply& reply)
     pagination(reply, matching, offset, limit);
 }
 
-struct Project {
-    NativeFighterFamilyProject family{};
-    unsigned member = 0;
-    ~Project() { nativeFighterFamilyProject_Close(&family); }
-};
-
-static std::unique_ptr<Project> open(yyjson_val* arguments, Reply& reply)
-{
-    auto result = std::make_unique<Project>();
-    const char* path = string(arguments, "project");
-    if (!nativeFighterFamilyProject_Open(path, &result->family)) {
-        reply.fail("invalid_project", "Could not open this draft's owned assets and metadata: " + std::string(path)); return {};
-    }
-    const char* member = string(arguments, "member");
-    if (*member) {
-        unsigned index = 0;
-        while (index < result->family.member_count && std::strcmp(result->family.keys[index], member)) ++index;
-        if (index == result->family.member_count) {
-            reply.fail("unknown_member", "Unknown fighter member: " + std::string(member)); return {};
-        }
-        result->member = index;
-    }
-    add_string(reply, reply.result, "member", result->family.keys[result->member]);
-    add_string(reply, reply.result, "member_path", result->family.paths[result->member]);
-    return result;
-}
-
-static bool load_sources(const Project& project, NativeFighterSources::Session& sources, Reply& reply)
-{
-    if (NativeFighterSources::open_project(sources, project.family.paths[project.member], project.family.members[project.member])) return true;
-    reply.fail("invalid_source_set", sources.error);
-    return false;
-}
-
-static bool source_status(const NativeFighterSources::Session& files, const NativeFighterProject& project, Reply& reply)
-{
-    std::string combined = NativeFighterSources::compose(files);
-    NativeContentId hash{};
-    char hex[65];
-    if (!nativeContent_Hash(combined.data(), combined.size(), &hash)) {
-        reply.fail("hash_failed", "Could not compute the editable source identity.");
-        return false;
-    }
-    nativeContentStore_IdHex(&hash, hex);
-    add_string(reply, reply.result, "editable_source_sha256", hex);
-    const char* origins[] = {"validated_source", "saved_draft", "stock_template", "separate_files"};
-    add_string(reply, reply.result, "source_origin", origins[files.origin]);
-    std::string validated;
-    if (project.script_size) validated.assign((const char*)project.script_text, project.script_size);
-    validated.erase(std::remove(validated.begin(), validated.end(), '\r'), validated.end());
-    yyjson_mut_obj_add_bool(reply.document, reply.result, "matches_validated_source", combined == validated);
-    yyjson_mut_obj_add_uint(reply.document, reply.result, "combined_bytes", combined.size());
-    return true;
-}
-
 void project(const Context&, yyjson_val* arguments, Reply& reply)
 {
-    auto project = open(arguments, reply);
+    auto project = open_project(arguments, reply);
     if (!project) return;
     auto* array = yyjson_mut_arr(reply.document);
     yyjson_mut_obj_add_val(reply.document, reply.result, "members", array);
@@ -179,7 +125,7 @@ void project(const Context&, yyjson_val* arguments, Reply& reply)
 
 void sources(const Context&, yyjson_val* arguments, Reply& reply)
 {
-    auto project = open(arguments, reply);
+    auto project = open_project(arguments, reply);
     NativeFighterSources::Session files;
     if (!project || !load_sources(*project, files, reply)) return;
     if (!source_status(files, project->family.members[project->member], reply)) return;
@@ -197,7 +143,7 @@ void sources(const Context&, yyjson_val* arguments, Reply& reply)
 
 void source(const Context&, yyjson_val* arguments, Reply& reply)
 {
-    auto project = open(arguments, reply);
+    auto project = open_project(arguments, reply);
     NativeFighterSources::Session files;
     if (!project || !load_sources(*project, files, reply)) return;
     const char* requested = string(arguments, "file");
@@ -217,7 +163,7 @@ void source(const Context&, yyjson_val* arguments, Reply& reply)
 
 void attributes(const Context&, yyjson_val* arguments, Reply& reply)
 {
-    auto project = open(arguments, reply);
+    auto project = open_project(arguments, reply);
     if (!project) return;
     auto* array = yyjson_mut_arr(reply.document);
     yyjson_mut_obj_add_val(reply.document, reply.result, "attributes", array);
@@ -246,7 +192,7 @@ void attributes(const Context&, yyjson_val* arguments, Reply& reply)
 
 void actions(const Context&, yyjson_val* arguments, Reply& reply)
 {
-    auto project = open(arguments, reply);
+    auto project = open_project(arguments, reply);
     if (!project) return;
     size_t count = 0;
     const auto* member = &project->family.members[project->member];

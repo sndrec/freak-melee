@@ -100,13 +100,73 @@ def main():
         attrs = call('attributes.list', dict(args, limit=200))
         assert attrs['total'] == len(attrs['attributes']) == 97
         assert all('value' in field and field['description'] for field in attrs['attributes'])
+        checked = call('scripts.check', args)
+        assert checked['accepted'], checked
+        assert checked['metadata_complete'] and checked['bodies_complete']
+        assert checked['statistics']['functions'] > 0 and checked['statistics']['instructions'] > 0
+        assert checked['diagnostics'] == [] and checked['editable_source_sha256'] == files['editable_source_sha256']
         after = {p.relative_to(draft): hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in draft.rglob('*') if p.is_file()}
         assert before == after, 'Read-only operations changed draft files'
 
+        # Imported defaults must preserve explicit tuning. A failed import must
+        # leave the original files available for inspection and repair.
+        parameters = draft / 'fighter_parameters.fmp'
+        parameters.write_text('# player tuning\nint cpu_capture_first_attempt = 12\n')
+        tuned = call('parameters.read', args)
+        assert tuned['valid'] and tuned['text'].replace('\r\n', '\n').startswith('# player tuning\n'), tuned
+        assert next(f['value'] for f in tuned['fields'] if f['name'] == 'cpu_capture_first_attempt') == 12
+        assert call('scripts.check', args)['accepted']
+        parameters.write_text('bool cpu_capture_first_attempt = true\n')
+        broken = call('scripts.list', args)
+        assert broken['parameter_import_error']
+        assert call('scripts.read', dict(args, file=broken['files'][0]['file']))['text']
+        rejected = call('scripts.check', args)
+        assert not rejected['accepted'] and rejected['diagnostics'][0]['phase'] == 'parameter_import'
+        parameters.unlink()
+
+        # Check the same editable split-file format used by the Workshop and
+        # collect independent body errors with original file/line locations.
+        editable = {file['file'].replace('\\', '/'): call('scripts.read', dict(args, file=file['file']))['text']
+                    for file in files['files']}
+        for relative, text in editable.items():
+            path = draft / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding='utf-8')
+        assert call('scripts.check', args)['accepted']
+        combined = ''
+        for text in editable.values():
+            if combined and not combined.endswith('\n'): combined += '\n'
+            combined += text
+        combined_path = folder / 'combined.fms'
+        combined_path.write_bytes(combined.encode())
+        audit = [json.loads(line) for line in run('source-audit', draft, combined_path).splitlines()]
+        assert audit[-1]['package_accepted'] and audit[-1]['diagnostics'] == 0
+        assert 'imports' in audit[0]
+        run('script-build', draft, combined_path)
+        accepted_source = (draft / 'behavior.fms').read_bytes()
+        assert call('scripts.list', args)['matches_validated_source']
+        state = draft / 'fighter_state.fms'
+        original = state.read_text(encoding='utf-8')
+        damaged = original + '\nfunc AgentBadOne():\n    missing.first()\n\nfunc AgentBadTwo():\n    missing.second()\n'
+        state.write_text(damaged, encoding='utf-8')
+        rejected = call('scripts.check', args)
+        assert not rejected['accepted'] and rejected['diagnostic_count'] >= 2, rejected
+        expected_lines = {damaged.splitlines().index('    missing.first()') + 1,
+                          damaged.splitlines().index('    missing.second()') + 1}
+        actual_lines = {d['line'] for d in rejected['diagnostics'] if d['file'] == 'fighter_state.fms'}
+        assert expected_lines <= actual_lines, rejected
+        combined_path.write_text(combined + '\nfunc AgentBad():\n    missing.call()\n', encoding='utf-8')
+        run('script-build', draft, combined_path, expected=1)
+        assert (draft / 'behavior.fms').read_bytes() == accepted_source
+        state.write_text(original, encoding='utf-8')
+        assert call('scripts.check', args)['accepted']
+        for relative in editable:
+            (draft / relative).unlink()
+
         # Saved move files are authoritative over the validated package text.
         (draft / 'fighter_state.fms').write_text('# editable state\n', encoding='utf-8')
-        (draft / 'moves').mkdir()
+        (draft / 'moves').mkdir(exist_ok=True)
         (draft / 'moves/002_Second.fms').write_text('# second\n', encoding='utf-8')
         (draft / 'moves/001_First.fms').write_text('# first\n', encoding='utf-8')
         files = call('scripts.list', args)

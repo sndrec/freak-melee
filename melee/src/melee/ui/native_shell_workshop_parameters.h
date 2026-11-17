@@ -20,9 +20,7 @@ bool nativeShellWorkshopParameters_Save(Rml::ElementDocument* document,
                                        const char* project_path);
 bool nativeShellWorkshopParameters_Dirty(Rml::ElementDocument* document,
                                         const NativeFighterProject* project);
-bool nativeShellWorkshopParameters_Import(Rml::ElementDocument* document,
-                                         const NativeFighterProject* project,
-                                         std::string* state_source);
+
 
 #endif
 #endif

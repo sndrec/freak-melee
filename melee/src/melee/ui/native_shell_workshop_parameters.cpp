@@ -196,44 +196,6 @@ bool nativeShellWorkshopParameters_Dirty(Rml::ElementDocument* document,
                                        source.size()) != 0);
 }
 
-bool nativeShellWorkshopParameters_Import(Rml::ElementDocument* document,
-                                         const NativeFighterProject* project,
-                                         std::string* state_source)
-{
-    if (document == nullptr || project == nullptr || state_source == nullptr ||
-        (state_source->compare(0, 10, "attribute ") != 0 &&
-         state_source->find("\nattribute ") == std::string::npos &&
-         state_source->find("\n    attribute ") == std::string::npos)) return false;
-    char *converted = nullptr, *parameters = nullptr;
-    size_t converted_size = 0, parameter_size = 0;
-    unsigned error_line = 0;
-    if (!nativeFighterParameters_Import(project->fighter_dat,
-        project->fighter_size, project->fighter_root, project->base_kind, state_source->data(),
-        state_source->size(), &converted, &converted_size, &parameters,
-        &parameter_size, &error_line)) {
-        status(document, "Could not copy imported attributes at line " +
-               std::to_string(error_line) + ". Original source retained.");
-        return false;
-    }
-    std::string values = nativeShellWorkshopParameters_Text();
-    if (!values.empty() && values.back() != '\n') values += '\n';
-    values.append(parameters, parameter_size);
-    NativeFighterParameters checked;
-    if (!nativeFighterParameters_Parse(values.data(), values.size(), &checked,
-                                       &error_line)) {
-        std::free(converted);
-        std::free(parameters);
-        status(document, "Imported parameters conflict with existing values. Original source retained.");
-        return false;
-    }
-    state_source->assign(converted, converted_size);
-    nativeShellWorkshopParameters_SetText(document, values);
-    std::free(converted);
-    std::free(parameters);
-    status(document, "Stock values copied into this draft. Save and build behavior.");
-    return true;
-}
-
 bool nativeShellWorkshopParameters_Save(Rml::ElementDocument* document,
                                        NativeFighterProject* project,
                                        const char* project_path)

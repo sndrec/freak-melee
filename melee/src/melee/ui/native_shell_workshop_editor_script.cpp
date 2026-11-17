@@ -57,21 +57,20 @@ void show_script()
     session->saved_script = NativeFighterSources::compose(session->script_files);
     const bool draft_loaded = session->script_files.origin == NativeFighterSources::Session::Draft;
     const bool template_loaded = session->script_files.origin == NativeFighterSources::Session::Template;
-    bool imported_parameters = false;
-    for (size_t file = 0; file < NativeFighterSources::count(session->script_files); ++file) {
-        std::string source = NativeFighterSources::source(session->script_files, file);
-        if (nativeShellWorkshopParameters_Import(document, session->project, &source)) {
-            NativeFighterSources::set_source(session->script_files, file, source);
-            imported_parameters = true;
-        }
-    }
+    session->script_files.parameters = nativeShellWorkshopParameters_Text();
+    const bool import_valid = NativeFighterSources::import_parameters(session->script_files, *session->project);
+    const bool imported_parameters = import_valid && session->script_files.imported_parameters;
+    if (imported_parameters)
+        nativeShellWorkshopParameters_SetText(document, session->script_files.parameters);
     session->script_file_index = NativeFighterSources::count(session->script_files) > 1 ? 1 : 0;
     Rml::ElementFormControlTextArea* source =
         static_cast<Rml::ElementFormControlTextArea*>(
             document->GetElementById("workshop-script-source"));
     source->SetValue(NativeFighterSources::source(session->script_files, session->script_file_index));
     show_script_files();
-    set_text("workshop-script-status", imported_parameters
+    set_text("workshop-script-status", !import_valid
+        ? session->script_files.error
+        : imported_parameters
         ? "Imported move values copied to this draft. Save and build behavior."
         : NativeFighterSources::loaded_from_files(session->script_files)
         ? "Separate move files and fighter state loaded."

@@ -1,8 +1,8 @@
 # Create fighters with an AI agent
 
 Freak Melee includes `native_content_tool.exe` beside the game. It can inspect
-your fighter drafts and read the installed scripting reference. The current
-agent tools provide read-only inspection; run `agent list` to see the operations
+your fighter drafts, check their scripts and read the installed scripting reference. The current
+agent tools provide read-only inspection and validation; run `agent list` to see the operations
 available in your installed build.
 
 You can give a coding agent this folder and ask it to read this guide. The
@@ -32,6 +32,17 @@ Find symbols and explanations with `docs.search`, then use `docs.read` to read
 a complete page. `attributes.list` describes common fighter settings.
 `actions.list` resolves action names and IDs for the actual edited fighter.
 Searches accept `query`, `offset` and `limit`; use `next_offset` to continue.
+
+Use `parameters.read` to inspect typed parameter overrides and imported stock
+values. Existing overrides take precedence over imported defaults. Invalid
+source and parameter imports remain readable so the agent can repair them.
+
+`scripts.check` validates the editable files against the fighter's owned assets.
+Its `accepted` field reports whether the candidate is valid. A completed check
+with script errors is a successful tool call with `accepted: false`; read its
+`diagnostics` for the file, line, column and message. Independent errors are
+collected together. Locations refer to the text returned by `scripts.read`.
+The check leaves the draft and accepted behavior unchanged.
 
 ## Connect through MCP
 
