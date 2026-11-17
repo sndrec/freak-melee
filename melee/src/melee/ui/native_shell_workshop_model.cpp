@@ -591,7 +591,7 @@ bool apply_joint_transform()
     const bool asset_changed=record_asset(before);
     record_label_change(before_labels,asset_changed);
     nativeHome_WorkshopPoseInvalidate();
-    status(nativeShellWorkshop_RefreshPreview()
+    status(nativeShellWorkshop_RequestPreview(false)
         ? "Rest rig updated; meshes kept in place. Review inherited clips."
         : "Rest rig updated. Test Character to reload the preview.");
     return true;
@@ -658,7 +658,7 @@ void apply_surface()
         return;
     }
     record_asset(before);
-    status(nativeShellWorkshop_RefreshPreview()
+    status(nativeShellWorkshop_RequestPreview(false)
         ? "Material updated; refreshing the live preview."
         : "Material updated. Test Character to reload the preview.");
     render_inspector();
@@ -686,7 +686,7 @@ void apply_texture()
     }
     record_asset(before,fighter);
     reopen_model();
-    status(nativeShellWorkshop_RefreshPreview()
+    status(nativeShellWorkshop_RequestPreview(false)
         ? "Material texture updated; refreshing the live preview."
         : "Texture updated. Test Character to reload the preview.");
 }
@@ -765,7 +765,7 @@ void stroke_end()
     const bool asset_changed=record_asset(before);
     record_label_change(before_labels,asset_changed);
     reopen_model();
-    const bool preview = nativeShellWorkshop_RefreshPreview();
+    const bool preview = nativeShellWorkshop_RequestPreview(false);
     status(std::to_string(affected) + " vertices painted. " +
            (preview ? "Refreshing the live preview."
                     : "Test Character to reload the model."));
@@ -1151,7 +1151,7 @@ bool nativeShellWorkshopModel_CommitProperty(const char* id)
             record(offset, 4, before);
             active->selected_material = (int) material;
             render();
-            status(nativeShellWorkshop_RefreshPreview()
+            status(nativeShellWorkshop_RequestPreview(false)
                 ? "Mesh material changed; refreshing the live preview."
                 : "Mesh material changed. Test Character to reload it.");
         }
@@ -1185,7 +1185,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         {
             record_asset(before);
             reopen_model();
-            nativeShellWorkshop_RefreshPreview();
+            nativeShellWorkshop_RequestPreview(false);
             status("Texture-sequence image replaced. Its timing is unchanged; "
                    "Save to keep the edit.");
         } else {

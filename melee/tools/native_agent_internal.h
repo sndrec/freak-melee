@@ -45,6 +45,8 @@ void project(const Context&, yyjson_val*, Reply&);
 void sources(const Context&, yyjson_val*, Reply&);
 void source(const Context&, yyjson_val*, Reply&);
 void check_scripts(const Context&, yyjson_val*, Reply&);
+void build_project(const Context&, yyjson_val*, Reply&);
+void export_package(const Context&, yyjson_val*, Reply&);
 void update_scripts(const Context&, yyjson_val*, Reply&);
 void parameter_source(const Context&, yyjson_val*, Reply&);
 void attributes(const Context&, yyjson_val*, Reply&);

@@ -73,7 +73,8 @@ bool capture(const NativeFighterFamilyProject& family,
 
 bool save(NativeFighterFamilyProject& family,
           NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],
-          const std::string& expected, std::string& after, std::string& error)
+          const std::string& expected, std::string& after, std::string& error,
+          const std::vector<NativeDraftAccess::FileEdit>& additional)
 {
     // Allocate the post-save parameter buffers before publishing disk changes.
     std::unique_ptr<uint8_t, decltype(&std::free)> parameters[NATIVE_FIGHTER_FAMILY_MEMBERS] = {
@@ -109,8 +110,9 @@ bool save(NativeFighterFamilyProject& family,
         std::memcpy(parameters[i].get(), text.c_str(), text.size() + 1);
     }
     Capture snapshot;
-    if (!capture(family, sources, snapshot, error) ||
-        !NativeDraftAccess::apply(family.paths[0], expected, snapshot.files, after, error)) return false;
+    if (!capture(family, sources, snapshot, error)) return false;
+    snapshot.files.insert(snapshot.files.end(), additional.begin(), additional.end());
+    if (!NativeDraftAccess::apply(family.paths[0], expected, snapshot.files, after, error)) return false;
     for (unsigned i = 0; i < family.member_count; ++i) if (sources && sources[i]) {
         std::free(family.members[i].parameter_text);
         family.members[i].parameter_text = parameters[i].release();

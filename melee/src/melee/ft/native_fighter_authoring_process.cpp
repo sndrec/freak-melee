@@ -1,4 +1,5 @@
-#include "native_fighter_validation_process.h"
+#include "native_fighter_authoring_process.h"
+#include "native_fighter_build.h"
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -8,7 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace NativeFighterValidationProcess {
+namespace NativeFighterAuthoringProcess {
 namespace {
 using NativeAuthoring::Reply;
 using NativeAuthoring::add_string;
@@ -87,7 +88,7 @@ bool read(const std::string& path, std::string& bytes, DWORD limit)
     CloseHandle(file); return ok;
 }
 
-bool run(Isolated& isolated, const std::string& member, std::string& output, std::string& error)
+bool run(Isolated& isolated, const char* member, const char* content_root, std::string& output, std::string& error)
 {
     char executable[32768];
     DWORD length = GetModuleFileNameA(nullptr, executable, sizeof(executable));
@@ -101,7 +102,13 @@ bool run(Isolated& isolated, const std::string& member, std::string& output, std
     yyjson_mut_doc_set_root(arguments, object);
     const std::string draft = isolated.root + "/draft";
     yyjson_mut_obj_add_strcpy(arguments, object, "project", draft.c_str());
-    yyjson_mut_obj_add_strcpy(arguments, object, "member", member.c_str());
+    if (member) yyjson_mut_obj_add_strcpy(arguments, object, "member", member);
+    else {
+        std::string revision;
+        if (!NativeDraftAccess::revision(draft, revision, error)) { yyjson_mut_doc_free(arguments); return false; }
+        yyjson_mut_obj_add_strcpy(arguments, object, "revision", revision.c_str());
+        yyjson_mut_obj_add_strcpy(arguments, object, "content_root", content_root);
+    }
     size_t size = 0;
     char* request = yyjson_mut_write(arguments, 0, &size);
     yyjson_mut_doc_free(arguments);
@@ -132,7 +139,7 @@ bool run(Isolated& isolated, const std::string& member, std::string& output, std
     bool initialized = ready && InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0, &attribute_bytes);
     ready = initialized && UpdateProcThreadAttribute(startup.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
         handles, sizeof(handles), nullptr, nullptr);
-    std::string command = '"' + tool + "\" agent call scripts.check --stdin";
+    std::string command = '"' + tool + "\" agent call " + (member ? "scripts.check" : "project.build") + " --stdin";
     PROCESS_INFORMATION child{};
     bool started = ready && CreateProcessA(tool.c_str(), command.data(), nullptr, nullptr, TRUE,
         CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT, nullptr, isolated.root.c_str(), &startup.StartupInfo, &child);
@@ -159,20 +166,9 @@ bool run(Isolated& isolated, const std::string& member, std::string& output, std
     }
     return code <= 1; // Both success and structured invalid-request replies are JSON.
 }
-}
 
-void check(const NativeFighterFamilyProject& family,
-    NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],
-    unsigned member, Reply& reply)
+void import_result(const Isolated& isolated, const std::string& bytes, const char* const* fields, size_t field_count, Reply& reply)
 {
-    if (member >= family.member_count) { reply.fail("unknown_member", "Choose an open fighter member."); return; }
-    NativeFighterSnapshot::Capture capture;
-    Isolated isolated;
-    std::string error, bytes;
-    if (!NativeFighterSnapshot::capture(family, sources, capture, error) || !isolated.create(capture, error) ||
-        !run(isolated, family.keys[member], bytes, error)) {
-        reply.fail("validation_unavailable", error.empty() ? "The isolated validator exited unexpectedly." : error); return;
-    }
     auto* document = yyjson_read(bytes.data(), bytes.size(), 0);
     auto* root = yyjson_doc_get_root(document);
     auto* result = yyjson_obj_get(root, "result");
@@ -189,15 +185,19 @@ void check(const NativeFighterFamilyProject& family,
     } else {
         // Keep temporary paths and their disk revision private. Source paths in
         // diagnostics are relative and resolve against the live member instead.
-        const char* fields[] = {"accepted", "diagnostics", "diagnostic_count", "diagnostics_truncated", "metadata_complete",
-            "bodies_complete", "package_diagnostic", "functions_checked", "statistics", "editable_source_sha256",
-            "parameter_sha256", "matches_validated_source", "combined_bytes", "parameter_import_error"};
-        for (const char* field : fields) {
+        for (size_t i = 0; i < field_count; ++i) {
+            const char* field = fields[i];
             auto* value = yyjson_obj_get(result, field);
             if (value) yyjson_mut_obj_add_val(reply.document, reply.result, field, yyjson_val_mut_copy(reply.document, value));
         }
         add_string(reply, reply.result, "draft_view", "live_snapshot");
-        auto* diagnostics = yyjson_mut_obj_get(reply.result, "diagnostics");
+    }
+    yyjson_doc_free(document);
+}
+
+void locate_diagnostics(Reply& reply, yyjson_mut_val* object)
+{
+        auto* diagnostics = yyjson_mut_obj_get(object, "diagnostics");
         size_t index, count; yyjson_mut_val* diagnostic;
         yyjson_mut_arr_foreach(diagnostics, index, count, diagnostic) {
             if (yyjson_mut_obj_get(diagnostic, "source_view")) {
@@ -205,7 +205,58 @@ void check(const NativeFighterFamilyProject& family,
                 yyjson_mut_obj_add_str(reply.document, diagnostic, "source_view", "session.scripts.read");
             }
         }
+}
+}
+
+void check(const NativeFighterFamilyProject& family,
+    NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],
+    unsigned member, Reply& reply)
+{
+    if (member >= family.member_count) { reply.fail("unknown_member", "Choose an open fighter member."); return; }
+    NativeFighterSnapshot::Capture capture;
+    Isolated isolated;
+    std::string error, bytes;
+    if (!NativeFighterSnapshot::capture(family, sources, capture, error) || !isolated.create(capture, error) ||
+        !run(isolated, family.keys[member], nullptr, bytes, error)) {
+        reply.fail("validation_unavailable", error.empty() ? "The isolated validator exited unexpectedly." : error); return;
     }
-    yyjson_doc_free(document);
+    const char* fields[] = {"accepted", "diagnostics", "diagnostic_count", "diagnostics_truncated", "metadata_complete",
+        "bodies_complete", "package_diagnostic", "functions_checked", "statistics", "editable_source_sha256",
+        "parameter_sha256", "matches_validated_source", "combined_bytes", "parameter_import_error"};
+    import_result(isolated, bytes, fields, sizeof(fields) / sizeof(*fields), reply);
+    if (reply.ok) locate_diagnostics(reply, reply.result);
+}
+
+void build(const NativeFighterFamilyProject& family,
+    NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],
+    const void* portrait, size_t portrait_size, const char* content_root, Reply& reply)
+{
+    if (!portrait || !portrait_size || !content_root) { reply.fail("build_inputs", "Choose a portrait and a local content cache."); return; }
+    NativeFighterSnapshot::Capture capture;
+    Isolated isolated;
+    std::string error, bytes, revision;
+    if (!NativeFighterBuild::revision(family, sources, revision, error) ||
+        !NativeFighterSnapshot::capture(family, sources, capture, error)) {
+        reply.fail("build_unavailable", error); return;
+    }
+    capture.files.push_back({"portrait.png", std::string((const char*)portrait, portrait_size)});
+    if (!isolated.create(capture, error) || !run(isolated, nullptr, content_root, bytes, error)) {
+        reply.fail("build_unavailable", error.empty() ? "The isolated builder exited unexpectedly." : error); return;
+    }
+    const char* fields[] = {"accepted", "member_reports", "diagnostic_count", "package_id", "package_bytes", "cached", "saved", "installed"};
+    import_result(isolated, bytes, fields, sizeof(fields) / sizeof(*fields), reply);
+    if (!reply.ok) return;
+    auto* members = yyjson_mut_obj_get(reply.result, "member_reports");
+    size_t index, count; yyjson_mut_val* member;
+    yyjson_mut_arr_foreach(members, index, count, member) {
+        for (const char* name : {"member_path", "revision", "draft_view"}) yyjson_mut_obj_remove_str(member, name);
+        locate_diagnostics(reply, member);
+    }
+    add_string(reply, reply.result, "fighter_revision", revision);
+    if (!yyjson_mut_get_bool(yyjson_mut_obj_get(reply.result, "accepted"))) return;
+    NativeContentId id{};
+    const char* hex = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "package_id"));
+    if (!hex || !nativeContentStore_IdFromHex(hex, &id) || !NativeFighterBuild::verify_cached(family, sources, content_root, id, error))
+        reply.fail("build_mismatch", error.empty() ? "The builder returned an invalid package identity." : error);
 }
 }

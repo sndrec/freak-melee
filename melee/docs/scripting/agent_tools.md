@@ -126,6 +126,41 @@ button, or `session.disconnect`, closes agent access while keeping the game and
 draft open. Enable access there again when desired. This creates a new instance
 identity, so discover it again before attaching.
 
+## Build, install and try a fighter
+
+For an open Workshop draft, use `session.build` with the current live revision.
+It checks every family member, builds a complete package, and accepts and saves
+the behavior together. `member_reports` contains each member's diagnostics.
+An `accepted: false` result means the source needs attention; the previous
+accepted behavior stays available. Building preserves editor undo history.
+
+`session.install` builds and installs the current fighter. Existing CSS tiles
+that used this draft's previous installed build move to the new package.
+Both operations return the canonical `package_id` identifying the complete
+fighter package. The installed copy and the running preview are separate states.
+
+Use `session.preview.refresh` to load current edits into the frozen preview,
+or `session.practice.start` to test the whole family with normal controls.
+These operations cache a snapshot while keeping your saved draft as it is.
+`session.practice.stop` returns that test to the frozen editor.
+
+Scene loading finishes after the request returns. Poll `session.inspect` on the
+same instance until `preview_ready` is true and `loaded_preview_package_id`
+matches the operation's returned `package_id`. That loaded ID comes from the
+actual actor. `fighter_revision` identifies the effective fighter data, separate
+from view selection and undo state; portrait bytes are included in `package_id`.
+`preview_fighter_revision` and `preview_matches_fighter` describe the loaded copy.
+`accepted_behavior_matches_sources` reports whether the editable move files match
+the accepted behavior. `installed_package_id` identifies the installed copy.
+
+For a saved draft outside the Workshop, `project.build` takes its disk `revision`,
+checks all members and caches an installable package while preserving draft files.
+Its portrait comes from the draft or the installed default; an explicit `portrait`
+PNG can override it. `packages.export` writes a cached `package_id` to a new
+`output` .fmc file. The exported bytes hash to that ID. Both operations normally use
+your installation's content cache; `content_root` selects another local cache.
+The live inspector also reports that instance's `content_root` and `projects_root`.
+
 `examples.list` and `examples.read` expose the installed FMS templates and
 supporting examples. They are also available as MCP resources under
 `freak-melee://examples/`. The installed reference links to local copies of

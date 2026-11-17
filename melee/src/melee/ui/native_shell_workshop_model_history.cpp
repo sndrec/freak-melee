@@ -120,7 +120,7 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         playing=false;
         reopen_model(redo?&change.rig->after_view:&change.rig->before_view);
         nativeShellWorkshopEditor_RigChanged(*before,active->model);
-        nativeShellWorkshop_RefreshPreview();nativeHome_WorkshopPoseInvalidate();buttons();
+        nativeShellWorkshop_RequestPreview(false);nativeHome_WorkshopPoseInvalidate();buttons();
         status(redo?"Reapplied bone edit.":"Undid bone edit.");return true;
     }
     if(change.rig_revision != active->project->rig_edit_revision) {
@@ -169,7 +169,7 @@ bool nativeShellWorkshopModel_Undo(bool redo)
     buttons();
     reopen_model();
     if (!change.before_asset.empty())
-        nativeShellWorkshop_RefreshPreview();
+        nativeShellWorkshop_RequestPreview(false);
     nativeHome_WorkshopPoseInvalidate();
     status(redo ? "Reapplied Model edit." : "Undid Model edit.");
     return true;

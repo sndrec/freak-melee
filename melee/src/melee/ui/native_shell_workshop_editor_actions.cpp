@@ -1124,7 +1124,7 @@ void apply_history(bool redo)
     nativeHome_WorkshopPoseInvalidate();
     session->bone_pose_refresh = true;
     session->graph_refresh = true;
-    if (!fighter.empty()) nativeShellWorkshop_RefreshPreview();
+    if (!fighter.empty()) nativeShellWorkshop_RequestPreview(false);
     set_text("workshop-editor-status", redo ? "Reapplied workshop edit."
                                             : "Undid workshop edit.");
 }

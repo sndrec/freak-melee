@@ -1,7 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <melee/ft/native_fighter_snapshot.h>
-#include <melee/ft/native_fighter_validation_process.h>
+#include <melee/ft/native_fighter_authoring_process.h>
+#include <melee/ft/native_fighter_build.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -36,7 +37,7 @@ int main(int argc, char** argv)
     auto validate = [&](unsigned member, bool accepted, unsigned minimum, bool asset_error) {
         auto* document = yyjson_mut_doc_new(nullptr);
         NativeAuthoring::Reply report(document);
-        NativeFighterValidationProcess::check(family, sources, member, report);
+        NativeFighterAuthoringProcess::check(family, sources, member, report);
         auto* diagnostics = yyjson_mut_obj_get(report.result, "diagnostics");
         bool ok = report.ok && yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "accepted")) == accepted &&
             yyjson_mut_get_uint(yyjson_mut_obj_get(report.result, "diagnostic_count")) >= minimum;
@@ -128,7 +129,57 @@ int main(int argc, char** argv)
     REQUIRE(NativeFighterSources::dirty(sessions[0]));
     std::string retained;
     REQUIRE(NativeDraftAccess::revision(argv[1], retained, error) && retained == changed);
+    REQUIRE(DeleteFileA(outside.c_str()));
+    REQUIRE(NativeDraftAccess::revision(argv[1], retained, error));
+    char executable[32768], cache[512];
+    DWORD length = GetModuleFileNameA(nullptr, executable, sizeof(executable));
+    REQUIRE(length && length < sizeof(executable));
+    char* end = std::strrchr(executable, '\\'); REQUIRE(end);
+    std::string image_path(executable, end + 1); image_path += "ui/workshop_draft_portrait.png";
+    FILE* image = std::fopen(image_path.c_str(), "rb"); REQUIRE(image);
+    REQUIRE(!std::fseek(image, 0, SEEK_END)); long image_size = std::ftell(image);
+    REQUIRE(image_size > 0 && !std::fseek(image, 0, SEEK_SET));
+    std::string png((size_t)image_size, '\0');
+    REQUIRE(std::fread(png.data(), 1, png.size(), image) == png.size()); REQUIRE(!std::fclose(image));
+    REQUIRE(nativeContentStore_DefaultRoot(cache, sizeof(cache)));
+    auto* document = yyjson_mut_doc_new(nullptr);
+    NativeAuthoring::Reply build(document);
+    NativeFighterAuthoringProcess::build(family, sources, png.data(), png.size(), cache, build);
+    if (!build.ok) { char* text = yyjson_mut_val_write(build.result, 0, nullptr); error = text ? text : "No build report"; std::free(text); }
+    REQUIRE(build.ok && yyjson_mut_get_bool(yyjson_mut_obj_get(build.result, "accepted")));
+    NativeContentId built{};
+    REQUIRE(nativeContentStore_IdFromHex(yyjson_mut_get_str(yyjson_mut_obj_get(build.result, "package_id")), &built));
+    yyjson_mut_doc_free(document);
+    std::string fighter_revision;
+    REQUIRE(NativeFighterBuild::revision(family, sources, fighter_revision, error));
+    auto* prior_source = family.members[0].script_text;
+    auto* prior_fighter = family.members[0].fighter_dat;
+    sessions[0].files[0].text += "# changed after build\n";
+    REQUIRE(!NativeFighterBuild::accept(family, sources, cache, built, retained, after, error));
+    sessions[0].files[0].text.erase(sessions[0].files[0].text.size() - std::strlen("# changed after build\n"));
+    REQUIRE(family.members[0].script_text == prior_source);
+    file = CreateFileA(blocked.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+    REQUIRE(file != INVALID_HANDLE_VALUE);
+    saved = NativeFighterBuild::accept(family, sources, cache, built, retained, after, error);
+    CloseHandle(file); REQUIRE(!saved);
+    REQUIRE(NativeDraftAccess::recover(argv[1], error));
+    REQUIRE(family.members[0].script_text == prior_source);
+    REQUIRE(NativeFighterSources::dirty(sessions[0]));
+    REQUIRE(NativeFighterBuild::accept(family, sources, cache, built, retained, after, error));
+    REQUIRE(family.members[0].fighter_dat == prior_fighter);
+    for (unsigned i = 0; i < family.member_count; ++i) {
+        const auto text = NativeFighterSources::compose(sessions[i]);
+        REQUIRE(family.members[i].script_size == text.size() && !std::memcmp(family.members[i].script_text, text.data(), text.size()));
+        REQUIRE(!NativeFighterSources::dirty(sessions[i]));
+    }
+    std::string accepted_revision;
+    REQUIRE(NativeFighterBuild::revision(family, sources, accepted_revision, error) && accepted_revision == fighter_revision);
+    REQUIRE(!nativeContentStore_IsInstalled(cache, &built));
+    REQUIRE(DeleteFileA(receipt.c_str()));
+    NativeContentId replaced{};
+    REQUIRE(nativeFighterProject_Install(argv[1], cache, &built, &replaced));
+    REQUIRE(nativeContentStore_IsInstalled(cache, &built));
     nativeFighterFamilyProject_Close(&family);
-    std::puts("PASS: isolated unsaved source/asset validation, whole-family save, interrupted-publish recovery and disk conflicts");
+    std::puts("PASS: isolated validation/build, atomic family acceptance, failed-commit recovery, stable live assets and installation");
     return 0;
 }

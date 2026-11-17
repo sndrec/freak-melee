@@ -165,6 +165,23 @@ def main():
         else: raise AssertionError(f'Workshop preview did not become editable; inspect {output}')
         assert state['workshop_open'] and state['member'] == 'main'
         assert state['preview_scene'] == 'practice', state
+        def wait_preview(package, testing=False):
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                assert process.poll() is None, f'Game exited while loading preview: {process.returncode}'
+                result = run('agent', 'call', 'session.inspect', '--stdin', input=json.dumps(target))
+                if result.stdout:
+                    response = json.loads(result.stdout)
+                    if response['ok']:
+                        latest = response['result']
+                        if latest['preview_ready'] and latest['loaded_preview_package_id'] == package and latest['testing'] == testing:
+                            return latest
+                    elif response['error']['code'] not in ('completion_unknown', 'instance_unavailable', 'request_not_sent'):
+                        raise AssertionError(response)
+                time.sleep(.15)
+            raise AssertionError(f'Preview did not load {package}; inspect {output}')
+        state = wait_preview(state['requested_preview_package_id'])
+        initial_package = state['loaded_preview_package_id']
         state = call('session.workspace.select', dict(target, revision=state['revision'], workspace='scripting'))
         assert state['workspace'] == 'scripting'
         listing = call('session.scripts.list', target)
@@ -305,6 +322,33 @@ def main():
         reverted = call('session.redo', dict(target, revision=undone['revision']))
         assert not reverted['dirty'], reverted
         assert call('session.scripts.read', dict(target, file=first))['text'] == final_text
+        built = call('session.build', dict(target, revision=reverted['revision']))
+        assert built['accepted'] and built['saved'] and not built['installed'] and not built['dirty'], built
+        assert built['loaded_preview_package_id'] == initial_package and not built['preview_matches_fighter'], built
+        assert all(row['accepted'] for row in built['member_reports'])
+        accepted_disk = snapshot(project)
+        preview_text = final_text + '# unsaved preview snapshot\n'
+        draft = call('session.scripts.update', dict(target, revision=built['revision'], summary='Preview unsaved source',
+            files=[{'file': first, 'text': preview_text}]))
+        refreshed = call('session.preview.refresh', dict(target, revision=draft['revision']))
+        assert not refreshed['saved'] and not refreshed['installed']
+        frozen = wait_preview(refreshed['package_id'])
+        assert frozen['preview_matches_fighter'] and frozen['fighter_revision'] == refreshed['fighter_revision']
+        assert snapshot(project) == accepted_disk
+        practice = call('session.practice.start', dict(target, revision=frozen['revision']))
+        playing = wait_preview(practice['package_id'], testing=True)
+        denied = call('session.scripts.update', dict(target, revision=playing['revision'], summary='Refused during practice', files=[]), expected=False)
+        assert denied['code'] == 'editor_busy'
+        stopped = call('session.practice.stop', dict(target, revision=playing['revision']))
+        frozen = wait_preview(playing['loaded_preview_package_id'])
+        assert snapshot(project) == accepted_disk
+        installed = call('session.install', dict(target, revision=frozen['revision']))
+        assert installed['installed'] and installed['installed_package_id'] == installed['package_id'], installed
+        assert installed['preview_ready'] and installed['loaded_preview_package_id'] == frozen['loaded_preview_package_id']
+        exported = output / 'Live Mario.fmc'
+        package = call('packages.export', {'package_id': installed['package_id'], 'output': str(exported)})
+        assert hashlib.sha256(exported.read_bytes()).hexdigest() == installed['package_id']
+        assert package['bytes'] == installed['package_bytes']
         disconnected = call('session.disconnect', target)
         assert disconnected['status'] == 'disconnected' and not disconnected['agent_access_enabled']
         assert process.poll() is None, 'Disconnect closed the game'
@@ -315,7 +359,7 @@ def main():
         report = json.loads((output / 'result.json').read_text())
         report['manual_input_checked'] = manual_input_checked
         (output / 'result.json').write_text(json.dumps(report, indent=2))
-        print('PASS: real live Workshop, matching build, unsaved sources, atomic edits/save, disk conflicts, undo/redo and disconnect')
+        print('PASS: live authoring, atomic acceptance, unsaved preview identity, practice lifecycle, installation, exact export and preserved history')
     finally:
         if process and process.poll() is None:
             close_window(process.pid)

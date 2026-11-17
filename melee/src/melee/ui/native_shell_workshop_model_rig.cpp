@@ -119,7 +119,7 @@ void edit_rig(const NativeFighterRigEdit& edit) try
     playing=false;
     reopen_model(&active->changes.back().rig->after_view);
     nativeShellWorkshopEditor_RigChanged(*before_model,active->model);
-    nativeShellWorkshop_RefreshPreview();nativeHome_WorkshopPoseInvalidate();buttons();
+    nativeShellWorkshop_RequestPreview(false);nativeHome_WorkshopPoseInvalidate();buttons();
     status(edit.kind==NativeRigEdit_Add?"Added bone. Save the draft to keep it.":
            edit.kind==NativeRigEdit_Reparent?"Changed bone parent. Save the draft to keep it.":
            "Removed bone. Its children keep their rest positions.");

@@ -80,6 +80,7 @@ bool describe(Reply& reply)
         }
         if (!nativeShellWorkshopEditor_AgentState(fingerprint, &reply)) return false;
     } else yyjson_mut_obj_add_null(reply.document, reply.result, "project");
+    nativeShellWorkshop_Artifacts(reply);
     NativeContentId digest{}; char hex[65];
     if (!nativeContent_Hash(fingerprint.data(), fingerprint.size(), &digest)) {
         reply.fail("revision_unavailable", "Could not fingerprint the editor state."); return false;
@@ -117,7 +118,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     if (yyjson_obj_get(arguments, "revision") && revision != string(arguments, "revision")) {
         reply.fail("revision_conflict", "The live Workshop changed. Inspect it before editing.");
         add_string(reply, reply.result, "revision", revision);
-    } else if (!command->read_only && std::strcmp(method, "session.disconnect") &&
+    } else if (!command->read_only && std::strcmp(method, "session.disconnect") && std::strcmp(method, "session.practice.stop") &&
                (!state.allowed || nativeShellWorkshopEditor_AgentBusy())) {
         reply.fail("editor_busy", "Editing is unavailable during gameplay, preview transitions or an active edit gesture.");
     } else if (!std::strcmp(method, "session.inspect")) {
@@ -137,6 +138,11 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
                 reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
         }
     } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+    else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
+    else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
+    else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);
+    else if (!std::strcmp(method, "session.practice.start")) nativeShellWorkshop_RequestPreview(true, &reply);
+    else if (!std::strcmp(method, "session.practice.stop")) nativeShellWorkshop_StopTest(reply);
     else if (!std::strcmp(method, "session.scripts.check")) {
         if (!state.allowed || nativeShellWorkshopEditor_AgentBusy())
             reply.fail("editor_busy", "Finish gameplay, preview loading or the current edit gesture before checking a draft.");
@@ -157,7 +163,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
         for (; member < state.family->member_count; ++member)
             if (!std::strcmp(state.family->keys[member], string(arguments, "member"))) break;
         if (member == state.family->member_count) reply.fail("unknown_member", "Choose a member key returned by session.inspect.");
-        else if (!nativeShellWorkshop_SelectMember(member)) reply.fail("member_unavailable", "Could not open this member's editor.");
+        else if (!nativeShellWorkshop_SelectMember(member, true)) reply.fail("member_unavailable", "Could not open this member's editor.");
     } else if (!std::strcmp(method, "session.scripts.list")) nativeShellWorkshopEditor_AgentSources(nullptr, reply);
     else if (!std::strcmp(method, "session.scripts.read")) nativeShellWorkshopEditor_AgentSources(string(arguments, "file"), reply);
     else if (!std::strcmp(method, "session.scripts.select")) nativeShellWorkshopEditor_AgentSelectSource(string(arguments, "file"), reply);
@@ -168,7 +174,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     // Preserve operation results while refreshing their state/revision fields.
     if (reply.ok && !command->read_only) {
         yyjson_mut_obj_remove_str(reply.result, "revision");
-        yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
+        if (!yyjson_mut_obj_get(reply.result, "committed")) yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
         auto* state_doc = yyjson_mut_doc_new(nullptr);
         if (state_doc) {
             Reply after(state_doc);

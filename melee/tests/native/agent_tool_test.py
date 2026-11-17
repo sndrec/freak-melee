@@ -62,7 +62,9 @@ def main():
         names = {item['name'] for item in tools}
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
-        mutations = {'scripts.update', 'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',
+        mutations = {'scripts.update', 'project.build', 'packages.export', 'session.build', 'session.install',
+                     'session.preview.refresh', 'session.practice.start', 'session.practice.stop',
+                     'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',
                      'session.scripts.select', 'session.save', 'session.undo', 'session.redo', 'session.disconnect'}
         assert all(item['annotations']['readOnlyHint'] == (item['name'] not in mutations) for item in tools)
         assert call('environment.describe')['installation'] == str(tool.parent)

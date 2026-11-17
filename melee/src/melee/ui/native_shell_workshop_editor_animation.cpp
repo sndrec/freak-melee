@@ -123,7 +123,7 @@ void record_pose_keys(const uint8_t* before, size_t size,
     show_animation_keys();
     show_animation_graph();
     show_animation_dopesheet();
-    nativeShellWorkshop_RefreshPreview();
+    nativeShellWorkshop_RequestPreview(false);
 }
 
 class WorkshopCurveGraph final : public Rml::Element {

@@ -9,6 +9,8 @@ tool, probe, iso = map(lambda p: str(Path(p).resolve()), sys.argv[1:])
 windows = Path(os.environ['SystemRoot'])
 env = dict(os.environ, PATH=str(windows / 'System32') + ';' + str(windows))
 with tempfile.TemporaryDirectory(prefix='native-snapshot-') as temp:
+    (Path(temp) / 'userdata').mkdir()
+    env['LOCALAPPDATA'] = str(Path(temp) / 'userdata')
     for fighter in ('Mario', 'Zelda'):
         project = str(Path(temp) / fighter)
         for command in ([tool, 'clone-stock', iso, fighter, project, fighter], [probe, project]):

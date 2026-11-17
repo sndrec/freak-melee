@@ -25,8 +25,12 @@ void nativeShellWorkshop_Update();
 void nativeShellWorkshop_Close();
 bool nativeShellWorkshop_IsOpen();
 bool nativeShellWorkshop_IsTesting();
-// Rebuild the current draft and restart only the frozen practice preview.
-bool nativeShellWorkshop_RefreshPreview();
+// Build a cached snapshot and enter frozen preview or normal practice.
+bool nativeShellWorkshop_RequestPreview(bool live_test, NativeAuthoring::Reply* = nullptr);
+bool nativeShellWorkshop_StopTest(NativeAuthoring::Reply&);
+bool nativeShellWorkshop_Build(NativeAuthoring::Reply&);
+bool nativeShellWorkshop_Install(NativeAuthoring::Reply&);
+void nativeShellWorkshop_Artifacts(NativeAuthoring::Reply&);
 bool nativeShellWorkshop_Save(std::string* error = nullptr);
 bool nativeShellWorkshop_Check(NativeAuthoring::Reply&);
 #endif

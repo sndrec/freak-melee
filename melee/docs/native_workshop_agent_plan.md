@@ -78,6 +78,20 @@ Accepted 2026-11-17. Implementation is in progress.
   pass without saving the unfinished source. The live checks and CLI/MCP/launcher
   checks also pass from an extracted setup ZIP with a Windows-only PATH; all
   nine current authoring/reference/payload regression checks pass.
+- Live build and installation now use the same whole-family operations as the
+  Workshop buttons. An isolated native process checks every member and caches
+  the complete package; acceptance saves all members through one recovery
+  journal. Failure preserves the previous accepted behavior and editor history.
+  Unsaved preview refresh and practice start/stop preserve saved draft files.
+  Inspection distinguishes effective fighter data, accepted source, cached build,
+  the package loaded by the actual preview actor and the installed package.
+  Exact package export preserves existing output files. Native checks cover
+  paired builds, multiple errors in both members, interrupted acceptance,
+  preserved asset pointers, stale packages and explicit installation. All ten
+  authoring/reference/payload checks pass. The extracted setup also passes live
+  build/preview/practice/install/export and CLI/MCP/launcher checks with a
+  Windows-only PATH. No public build was uploaded. Domain editing, controlled
+  tests/capture, agent feedback and full packaged acceptance remain open.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted

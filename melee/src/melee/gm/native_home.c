@@ -451,6 +451,8 @@ bool nativeHome_PracticeWatch(unsigned port, NativeHomePracticeWatch* result)
         .velocity_y = fighter->self_vel.y,
         .grounded = fighter->ground_or_air == GA_Ground,
     };
+    const NativeContentId* package = nativeFighterRuntime_PackageId(fighter->kind);
+    if (package) result->package_id = *package;
     return true;
 }
 

@@ -17,6 +17,7 @@ bool capture(const NativeFighterFamilyProject&,
 // Failure preserves the live family and source save markers.
 bool save(NativeFighterFamilyProject&,
           NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],
-          const std::string& expected, std::string& after, std::string& error);
+          const std::string& expected, std::string& after, std::string& error,
+          const std::vector<NativeDraftAccess::FileEdit>& additional = {});
 }
 #endif

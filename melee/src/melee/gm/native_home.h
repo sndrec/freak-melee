@@ -27,6 +27,7 @@ typedef struct NativeHomePracticeWatch {
     float velocity_x;
     float velocity_y;
     bool grounded;
+    NativeContentId package_id;
 } NativeHomePracticeWatch;
 bool nativeHome_PracticeWatch(unsigned port, NativeHomePracticeWatch* result);
 // Select an immutable package member for frozen authoring views/watch queries.

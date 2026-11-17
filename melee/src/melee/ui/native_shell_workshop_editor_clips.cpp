@@ -77,7 +77,7 @@ namespace WorkshopEditor {
         session->action_clip_frames[target] = info.frames;
         select_action(target);
         nativeShellWorkshopEditor_FilterClips();
-        nativeShellWorkshop_RefreshPreview();
+        nativeShellWorkshop_RequestPreview(false);
         set_text(
             "workshop-editor-status",
             "Independent clip assigned to this action. Its events are "

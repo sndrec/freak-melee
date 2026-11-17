@@ -1,6 +1,3 @@
-#include <melee/ft/native_fighter_template.h>
-#include <melee/ft/native_authoring_reply.h>
-#include <melee/ft/native_fighter_draft_access.h>
 #include "native_shell_workshop_editor_internal.h"
 
 #ifdef MELEE_NATIVE
@@ -202,39 +199,6 @@ bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* sourc
         *parameters = sessions[member].parameter_source;
     }
     return !source->empty() && source->size() <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY;
-}
-
-bool nativeShellWorkshopEditor_BuildScript(const char* output_path, const char* family_root,
-                                           std::string& disk_revision)
-{
-    if (session->project == nullptr || output_path == nullptr || family_root == nullptr) return false;
-    const std::string source = combined_script();
-    if (source.empty() || source.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
-        set_text("workshop-script-status", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");return false;
-    }
-    std::string diagnostics, expected;
-    if (!NativeDraftAccess::revision(family_root, expected, diagnostics) || expected != disk_revision) {
-        if (diagnostics.empty()) diagnostics = "Draft changed outside the Workshop. Reopen before building behavior.";
-        set_text("workshop-script-status", diagnostics); return false;
-    }
-    auto* document = yyjson_mut_doc_new(nullptr);
-    if (!document) return false;
-    NativeAuthoring::Reply report(document);
-    bool accepted = nativeShellWorkshop_Check(report);
-    yyjson_mut_doc_free(document);
-    if (!accepted) return false;
-    const std::string prefix = _stricmp(family_root, output_path) ? "partner/" : "";
-    std::vector<NativeDraftAccess::FileEdit> edits{{prefix + "behavior.fms", source}};
-    const std::string draft_path = std::string(output_path) + "\\behavior.draft.fms";
-    if (GetFileAttributesA(draft_path.c_str()) != INVALID_FILE_ATTRIBUTES)
-        edits.push_back({prefix + "behavior.draft.fms", "", true});
-    std::string after;
-    if (!NativeDraftAccess::apply(family_root, expected, edits, after, diagnostics)) {
-        set_text("workshop-script-status", diagnostics); return false;
-    }
-    disk_revision = std::move(after);
-    set_text("workshop-script-status", "Source validated and saved to this draft. Apply a preview to test it.");
-    set_text("workshop-script-problems", "No problems found.");return true;
 }
 
 #endif

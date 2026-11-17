@@ -23,7 +23,8 @@
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_draft_access.h>
 #include <melee/ft/native_fighter_snapshot.h>
-#include <melee/ft/native_fighter_validation_process.h>
+#include <melee/ft/native_fighter_build.h>
+#include <melee/ft/native_fighter_authoring_process.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_gx_image.h>
@@ -71,12 +72,11 @@ bool attributes_dirty[NATIVE_FIGHTER_FAMILY_MEMBERS];
 bool discard_pending;
 bool package_open;
 bool fighter_menu_open;
-bool build_cached_candidate(bool save_project, bool persist_portrait,
-                            bool require_built_script, NativeContentId* result);
-void enter_draft_preview();
+struct BuildRecord { NativeContentId id{}; std::string revision; bool valid = false; };
+BuildRecord prepared_build, requested_preview, previous_preview;
 
 void status(const char* id, const char* message);
-bool build_script(bool show_script);
+void mark_family_saved(const std::string& revision);
 
 void show_fighter_menu(bool show)
 {
@@ -88,6 +88,7 @@ void show_fighter_menu(bool show)
 void close_project()
 {
     ++project_generation;
+    prepared_build = {}; requested_preview = {}; previous_preview = {};
     testing = false;
     preview_loading = false;
     while (nativeWorkshopDocs_Close()) {}
@@ -368,7 +369,7 @@ void select_draft(size_t index)
     nativeShellWorkshopEditor_Open(0, active_project, active_family.paths[0]);
     member_opened[0] = true;
     nativeHome_WorkshopSelectMember(0, false);
-    enter_draft_preview();
+    nativeShellWorkshop_RequestPreview(false);
 }
 
 void create_stock_clone()
@@ -438,15 +439,7 @@ bool nativeShellWorkshop_Save(std::string* error)
     const bool saved = ready && NativeFighterSnapshot::save(active_family, sources,
         saved_disk_revision, after, message);
     if (saved) {
-        saved_disk_revision = std::move(after);
-        for (unsigned member = 0; member < active_family.member_count; ++member) {
-            nativeShellWorkshop_SelectMember(member);
-            nativeShellWorkshopEditor_MarkAssetsSaved();
-            nativeShellWorkshopModel_MarkSaved(member);
-            attributes_dirty[member] = false;
-        }
-        nativeShellWorkshop_SelectMember(previous_member);
-        discard_pending = false;
+        mark_family_saved(after);
         status("workshop-editor-status", family_script_changed()
             ? "Draft saved. Build behavior before preview." : "Draft saved.");
     } else {
@@ -463,7 +456,7 @@ bool nativeShellWorkshop_Check(NativeAuthoring::Reply& report)
         NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
         sources[active_member] = nativeShellWorkshopEditor_CaptureSources();
         if (!sources[active_member]) report.fail("invalid_source_set", "Could not capture the current editable source files.");
-        else NativeFighterValidationProcess::check(active_family, sources, active_member, report);
+        else NativeFighterAuthoringProcess::check(active_family, sources, active_member, report);
     }
     nativeShellWorkshopEditor_PresentValidation(report);
     return report.ok && yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "accepted"));
@@ -541,236 +534,217 @@ bool read_portrait(const char* path, uint8_t** bytes, size_t* size)
     return true;
 }
 
-bool build_cached_candidate(bool save_project, bool persist_portrait,
-                            bool require_built_script, NativeContentId* result)
+std::string content_root()
 {
-    if (selected < 0 || size_t(selected) >= draft_count) {
-        return false;
-    }
-    if (require_built_script && family_script_changed()) {
-        status("workshop-editor-status", "Build the changed behavior script "
-               "before preview or install.");
-        return false;
-    }
-    const std::string chosen = input("workshop-portrait-path")->GetValue();
-    const char* path = drafts[selected].path;
-    char saved_portrait[PATH_CAPACITY];
-    int length = std::snprintf(saved_portrait, sizeof(saved_portrait),
-                               "%s\\portrait.png", path);
-    if (length <= 0 || length >= sizeof(saved_portrait)) {
-        status("workshop-editor-status", "Project path is too long.");
-        return false;
-    }
-    char fallback_portrait[MAX_PATH] = {};
-    if (!persist_portrait && chosen.empty() &&
-        GetFileAttributesA(saved_portrait) == INVALID_FILE_ATTRIBUTES) {
-        DWORD length = GetModuleFileNameA(nullptr, fallback_portrait,
-                                          sizeof(fallback_portrait));
-        char* basename = length > 0 && length < sizeof(fallback_portrait)
-            ? std::strrchr(fallback_portrait, '\\') : nullptr;
-        if (basename != nullptr &&
-            size_t(basename - fallback_portrait) +
-                sizeof("\\ui\\workshop_draft_portrait.png") <=
-                    sizeof(fallback_portrait))
-            std::strcpy(basename, "\\ui\\workshop_draft_portrait.png");
-        else fallback_portrait[0] = '\0';
-    }
-    const char* portrait_path = !fallback_portrait[0]
-        ? (chosen.empty() ? saved_portrait : chosen.c_str())
-        : fallback_portrait;
-    uint8_t* portrait = nullptr;
-    size_t portrait_size = 0;
-    uint8_t* package = nullptr;
-    size_t package_size = 0;
-    NativeContentId id;
-    char default_root[PATH_CAPACITY];
     const char* root = nativeMatchLaunch_ContentRoot();
-    if (root == nullptr && nativeContentStore_DefaultRoot(
-                               default_root, sizeof(default_root))) {
-        root = default_root;
+    char fallback[PATH_CAPACITY];
+    if (!root && nativeContentStore_DefaultRoot(fallback, sizeof(fallback))) root = fallback;
+    return root ? root : "";
+}
+
+bool capture_family(NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS])
+{
+    const unsigned before = active_member;
+    bool ready = true;
+    for (unsigned i = 0; i < active_family.member_count; ++i) {
+        if (!nativeShellWorkshop_SelectMember(i) || !(sources[i] = nativeShellWorkshopEditor_CaptureSources())) { ready = false; break; }
     }
-    bool opened_project = project_loaded && root != nullptr &&
-                          read_portrait(portrait_path, &portrait,
-                                        &portrait_size);
-    bool built = false;
-    std::string preview_source[NATIVE_FIGHTER_FAMILY_MEMBERS];
-    std::string preview_parameters[NATIVE_FIGHTER_FAMILY_MEMBERS];
-    if (opened_project) {
-        bool valid = !save_project || nativeShellWorkshop_Save();
-        NativeFighterFamilyProject candidate = active_family;
-        const unsigned previous_member = active_member;
-        for (unsigned member = 0; valid && !require_built_script &&
-             member < candidate.member_count; ++member) {
-            valid = nativeShellWorkshop_SelectMember(member) &&
-                nativeShellWorkshopEditor_PreviewSource(member, &preview_source[member],
-                                                        &preview_parameters[member]);
-            if (valid) {
-                NativeFighterProject& part = candidate.members[member];
-                part.script_text = (uint8_t*) preview_source[member].data();
-                part.script_size = preview_source[member].size();
-                part.parameter_text = (uint8_t*) preview_parameters[member].data();
-                part.parameter_size = preview_parameters[member].size();
-            }
+    nativeShellWorkshop_SelectMember(before);
+    return ready;
+}
+
+void mark_family_saved(const std::string& revision)
+{
+    saved_disk_revision = revision;
+    const unsigned before = active_member;
+    for (unsigned i = 0; i < active_family.member_count; ++i) {
+        nativeShellWorkshop_SelectMember(i);
+        nativeShellWorkshopEditor_MarkAssetsSaved();
+        nativeShellWorkshopModel_MarkSaved(i);
+        attributes_dirty[i] = false;
+    }
+    nativeShellWorkshop_SelectMember(before);
+    discard_pending = false;
+}
+
+bool prepare_build(NativeAuthoring::Reply& report)
+{
+    if (!project_loaded) { report.fail("no_draft", "Open a fighter draft first."); return false; }
+    NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
+    if (!capture_family(sources)) { report.fail("source_unavailable", "Could not capture every member's editable source."); return false; }
+    std::string image = input("workshop-portrait-path")->GetValue();
+    if (image.empty()) {
+        image = std::string(active_family.paths[0]) + "/portrait.png";
+        if (GetFileAttributesA(image.c_str()) == INVALID_FILE_ATTRIBUTES) {
+            char executable[32768]; DWORD length = GetModuleFileNameA(nullptr, executable, sizeof(executable));
+            char* end = length && length < sizeof(executable) ? std::strrchr(executable, '\\') : nullptr;
+            if (!end) { report.fail("portrait_unavailable", "Could not locate the installed default portrait."); return false; }
+            image.assign(executable, end + 1); image += "ui/workshop_draft_portrait.png";
         }
-        nativeShellWorkshop_SelectMember(previous_member);
-        built = valid && nativeFighterFamilyProject_Build(
-                             &candidate, portrait, portrait_size,
-                             &package, &package_size, &id);
     }
-    if (!built) {
-        std::free(portrait);
-        status("workshop-editor-status",
-               active_family.member_count > 1
-                   ? "Could not prepare both source members. Validate each member's behavior and owned assets; the current preview is retained."
-                   : "Could not prepare this source fighter. Validate its behavior and assets, and check the portrait.");
-        return false;
-    }
-    NativeFighterPackage metadata;
-    NativeFighterPackageData data;
-    bool cached = nativeContentStore_ParseFighter(package, package_size,
-                                                  &metadata, &data) &&
-                  metadata.member_count == active_family.member_count &&
-                  nativeContentStore_Cache(root, package, package_size,
-                                           nullptr, &id);
-    bool valid = cached && nativeFighterRuntime_ValidateCached(
-                               &id, root);
-    if (valid && persist_portrait && !chosen.empty() &&
-        _stricmp(chosen.c_str(), saved_portrait) != 0) {
-        std::string after, error;
-        std::vector<NativeDraftAccess::FileEdit> edits{{"portrait.png",
-            std::string((const char*)portrait, portrait_size)}};
-        valid = NativeDraftAccess::apply(path, saved_disk_revision, edits, after, error);
-        if (valid) saved_disk_revision = std::move(after);
-        else status("workshop-editor-status", error.c_str());
-    }
-    std::free(package);
+    uint8_t* portrait = nullptr; size_t size = 0;
+    if (!read_portrait(image.c_str(), &portrait, &size)) { report.fail("portrait_unavailable", "Choose a readable portrait PNG."); return false; }
+    const std::string root = content_root();
+    NativeFighterAuthoringProcess::build(active_family, sources, portrait, size, root.c_str(), report);
     std::free(portrait);
-    if (!valid) {
-        status("workshop-editor-status", cached && !valid
-            ? "Source fighter validation failed. Validate its behavior, parameter values and owned assets."
-            : "Could not build this fighter.");
+    if (!report.ok) {
+        const char* message = yyjson_mut_get_str(yyjson_mut_obj_get(report.result, "message"));
+        status("workshop-editor-status", message ? message : "Could not build this fighter.");
         return false;
     }
-    *result = id;
+    if (!yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "accepted"))) {
+        size_t index, count; yyjson_mut_val* member;
+        yyjson_mut_arr_foreach(yyjson_mut_obj_get(report.result, "member_reports"), index, count, member) {
+            if (yyjson_mut_get_bool(yyjson_mut_obj_get(member, "accepted"))) continue;
+            const char* key = yyjson_mut_get_str(yyjson_mut_obj_get(member, "key"));
+            for (unsigned i = 0; key && i < active_family.member_count; ++i) if (!std::strcmp(key, active_family.keys[i])) {
+                nativeShellWorkshop_SelectMember(i);
+                NativeAuthoring::Reply problems(report.document); problems.result = member;
+                problems.ok = !yyjson_mut_obj_get(member, "code");
+                nativeShellWorkshopEditor_PresentValidation(problems); break;
+            }
+            break;
+        }
+        yyjson_mut_obj_add_bool(report.document, report.result, "committed", false);
+        status("workshop-editor-status", "Fix the reported problems before building this fighter."); return false;
+    }
+    const char* id = yyjson_mut_get_str(yyjson_mut_obj_get(report.result, "package_id"));
+    const char* revision = yyjson_mut_get_str(yyjson_mut_obj_get(report.result, "fighter_revision"));
+    if (!id || !revision || !nativeContentStore_IdFromHex(id, &prepared_build.id)) {
+        report.fail("build_unavailable", "The builder did not return a complete package identity."); return false;
+    }
+    prepared_build.revision = revision; prepared_build.valid = true;
     return true;
 }
 
-void enter_draft_preview()
+} // namespace
+
+bool nativeShellWorkshop_Build(NativeAuthoring::Reply& report)
 {
-    NativeContentId id;
-    if (!build_cached_candidate(false, false, false, &id)) {
-        status("workshop-editor-status", "Could not build the draft for the "
-               "practice preview. Check its assets and portrait.");
-        return;
+    if (!prepare_build(report)) return false;
+    NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
+    for (unsigned i = 0; i < active_family.member_count; ++i) sources[i] = nativeShellWorkshopEditor_SourceSession(i);
+    std::string after, error;
+    const std::string root = content_root();
+    if (!NativeFighterBuild::accept(active_family, sources, root.c_str(), prepared_build.id, saved_disk_revision, after, error)) {
+        report.fail("accept_failed", error); status("workshop-editor-status", error.c_str()); return false;
     }
-    const bool entering = nativeHome_IsSelection()
-        ? nativeHome_RequestAuthoringPractice(&id, false)
-        : nativeHome_IsPractice() && nativeHome_RequestPreview(&id, false);
-    preview_loading = entering;
-    status("workshop-editor-status", entering
-        ? "Loading the draft fighter into practice..."
-        : "Could not open the draft's practice preview.");
+    mark_family_saved(after);
+    nativeShellWorkshopEditor_RefreshScriptOutline();
+    yyjson_mut_obj_remove_str(report.result, "saved");
+    yyjson_mut_obj_add_bool(report.document, report.result, "saved", true);
+    NativeAuthoring::add_string(report, report.result, "status", "accepted_behavior");
+    status("workshop-editor-status", "Behavior built and saved for the whole fighter."); return true;
 }
 
-void preview_draft()
+bool nativeShellWorkshop_Install(NativeAuthoring::Reply& report)
 {
-    NativeContentId id;
-    if (!build_cached_candidate(false, false, false, &id)) {
-        return;
+    if (!nativeShellWorkshop_Build(report)) return false;
+    const std::string root = content_root();
+    std::string current, error;
+    if (!NativeDraftAccess::revision(active_family.paths[0], current, error) || current != saved_disk_revision) {
+        report.fail("revision_conflict", "Draft changed outside the Workshop. Reopen before installing."); return false;
     }
-    const bool entering = nativeHome_IsSelection()
-        ? nativeHome_RequestAuthoringPractice(&id, true)
-        : nativeHome_RequestPreview(&id, true);
-    if (!entering) {
-        status("workshop-editor-status", "Could not start practice preview.");
-        return;
+    NativeContentId replaced{};
+    if (!nativeFighterProject_Install(active_family.paths[0], root.c_str(), &prepared_build.id, &replaced)) {
+        report.fail("install_failed", "Could not install this complete fighter package."); return false;
     }
-    while (nativeWorkshopDocs_Close()) {}
-    testing = true;
-    preview_loading = true;
-    nativeShell_Blur();
-    document->GetElementById("workshop-panel")->SetClass("testing", true);
-    document->GetElementById("workshop-inspector")
-        ->SetProperty("display", "none");
-    nativeShellWorkshopEditor_SetTesting(true);
-    status("workshop-test-note", "Live practice with current draft behavior");
-    status("workshop-editor-status", "Starting live practice test...");
-}
-
-void install_draft()
-{
-    if (family_script_changed() && !build_script(false)) return;
-    NativeContentId id;
-    if (!build_cached_candidate(true, true, true, &id)) {
-        return;
-    }
-    const char* root = nativeMatchLaunch_ContentRoot();
-    char default_root[PATH_CAPACITY];
-    if (root == nullptr && nativeContentStore_DefaultRoot(
-                               default_root, sizeof(default_root))) {
-        root = default_root;
-    }
-    NativeContentId replaced = {};
-    std::string current_revision, disk_error;
-    if (!NativeDraftAccess::revision(drafts[selected].path, current_revision, disk_error) ||
-        current_revision != saved_disk_revision) {
-        status("workshop-editor-status", "Draft changed outside the Workshop. Reopen before installing; your edits are retained.");
-        return;
-    }
-    if (root == nullptr || !nativeFighterProject_Install(
-                               drafts[selected].path, root, &id, &replaced)) {
-        status("workshop-editor-status", "Could not install this fighter.");
-        return;
-    }
-    const NativeContentId empty = {};
-    if (std::memcmp(&replaced, &empty, sizeof(empty)) != 0) {
-        nativeHome_ReplaceInstalledFighter(&replaced, &id);
+    const NativeContentId empty{};
+    if (std::memcmp(&replaced, &empty, sizeof(empty))) {
+        nativeHome_ReplaceInstalledFighter(&replaced, &prepared_build.id);
         nativeCssOriginal_ReloadInstalledFighters();
     }
     nativeShellCssOriginal_RefreshInstalledFighters();
+    yyjson_mut_obj_remove_str(report.result, "installed");
+    yyjson_mut_obj_add_bool(report.document, report.result, "installed", true);
+    yyjson_mut_obj_remove_str(report.result, "status");
+    NativeAuthoring::add_string(report, report.result, "status", "installed");
     status("workshop-editor-status", std::memcmp(&replaced, &empty, sizeof(empty))
-        ? "Installed. Your character-select tiles now use this build."
-        : "Installed. Add this fighter to character select with Edit CSS.");
+        ? "Installed. Character-select tiles now use this build."
+        : "Installed. Add this fighter to character select with Edit CSS."); return true;
 }
 
-bool build_script(bool show_script)
+bool nativeShellWorkshop_RequestPreview(bool live, NativeAuthoring::Reply* output)
 {
-    if (!project_loaded || selected < 0 ||
-        size_t(selected) >= draft_count) return false;
-    const unsigned previous_member = active_member;
-    if (!nativeShellWorkshop_Save()) return false;
-    for (unsigned member = 0; member < active_family.member_count; ++member) {
-        if (!nativeShellWorkshop_SelectMember(member) ||
-            !nativeShellWorkshopEditor_BuildScript(active_family.paths[member],
-                active_family.paths[0], saved_disk_revision)) {
-            status("workshop-editor-status", "Could not build this fighter's script. Open Scripting for details.");
-            return false;
-        }
+    auto* owner = output ? nullptr : yyjson_mut_doc_new(nullptr);
+    if (!output && !owner) return false;
+    NativeAuthoring::Reply local(output ? output->document : owner);
+    auto& report = output ? *output : local;
+    bool entered = false;
+    if (!opened || !project_loaded || !nativeHome_CanOpenWorkshop()) report.fail("preview_unavailable", "Return to an available home scene before previewing this fighter.");
+    else if (prepare_build(report)) {
+        entered = nativeHome_IsSelection() ? nativeHome_RequestAuthoringPractice(&prepared_build.id, live)
+            : nativeHome_IsPractice() && nativeHome_RequestPreview(&prepared_build.id, live);
+        if (!entered) report.fail("preview_unavailable", "Could not request this fighter's practice scene.");
     }
-    NativeFighterFamilyProject replacement;
-    if (!nativeFighterFamilyProject_Open(drafts[selected].path, &replacement)) {
-        status("workshop-editor-status", "Could not reopen the saved draft. Your current edits are still open.");
-        return false;
+    if (entered) {
+        previous_preview = requested_preview; requested_preview = prepared_build;
+        testing = live; preview_loading = true;
+        if (live) { while (nativeWorkshopDocs_Close()) {} nativeShell_Blur(); }
+        document->GetElementById("workshop-panel")->SetClass("testing", live);
+        nativeShellWorkshopEditor_SetTesting(live);
+        document->GetElementById("workshop-inspector")->SetProperty("display", !live && package_open ? "block" : "none");
+        NativeAuthoring::add_string(report, report.result, "status", live ? "practice_loading" : "preview_loading");
+        status("workshop-editor-status", live ? "Starting live practice test..." : "Loading the draft preview...");
     }
-    // Keep editor project addresses and DAT allocations stable. Building
-    // behavior must not discard either member's model/animation undo history.
-    for (unsigned member = 0; member < active_family.member_count; ++member) {
-        NativeFighterProject& current = active_family.members[member];
-        NativeFighterProject& built = replacement.members[member];
-        std::swap(current.asset_record, built.asset_record);
-        std::swap(current.asset_record_size, built.asset_record_size);
-        std::swap(current.resources, built.resources);
-        std::swap(current.resource_size, built.resource_size);
-        current.facts = built.facts;
-        std::swap(current.script_text, built.script_text);
-        std::swap(current.script_size, built.script_size);
-    }
-    nativeFighterFamilyProject_Close(&replacement);
-    nativeShellWorkshop_SelectMember(previous_member);
-    nativeShellWorkshopEditor_RefreshScriptOutline();
-    if (show_script) nativeShellWorkshopEditor_Click("workshop-mode-script");
-    return true;
+    if (owner) yyjson_mut_doc_free(owner);
+    return entered;
 }
+
+bool nativeShellWorkshop_StopTest(NativeAuthoring::Reply& report)
+{
+    if (!opened || !testing || !nativeHome_ReturnToWorkshopPreview()) {
+        report.fail("practice_unavailable", "Wait for this Workshop's practice test before returning to the editor."); return false;
+    }
+    testing = false; preview_loading = true;
+    document->GetElementById("workshop-panel")->SetClass("testing", false);
+    nativeShellWorkshopEditor_SetTesting(false);
+    document->GetElementById("workshop-inspector")->SetProperty("display", package_open ? "block" : "none");
+    NativeAuthoring::add_string(report, report.result, "status", "preview_loading");
+    status("workshop-editor-status", "Returning to the draft preview..."); return true;
+}
+
+void nativeShellWorkshop_Artifacts(NativeAuthoring::Reply& report)
+{
+    const std::string root = content_root();
+    NativeAuthoring::add_string(report, report.result, "content_root", root);
+    char projects[PATH_CAPACITY];
+    if (nativeFighterFamilyProject_LocalRoot(projects, sizeof(projects))) NativeAuthoring::add_string(report, report.result, "projects_root", projects);
+    if (!project_loaded) return;
+    NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
+    bool complete = true;
+    for (unsigned i = 0; i < active_family.member_count; ++i) { sources[i] = nativeShellWorkshopEditor_SourceSession(i); complete &= sources[i] != nullptr; }
+    std::string current, error;
+    if (complete && NativeFighterBuild::revision(active_family, sources, current, error)) NativeAuthoring::add_string(report, report.result, "fighter_revision", current);
+    else yyjson_mut_obj_add_null(report.document, report.result, "fighter_revision");
+    bool accepted = complete;
+    for (unsigned i = 0; i < active_family.member_count; ++i) accepted &= !nativeShellWorkshopEditor_ScriptChanged(i);
+    yyjson_mut_obj_add_bool(report.document, report.result, "accepted_behavior_matches_sources", accepted);
+    auto identity = [&](const char* name, const NativeContentId* id) {
+        if (!id) { yyjson_mut_obj_add_null(report.document, report.result, name); return; }
+        char hex[65]; nativeContentStore_IdHex(id, hex); NativeAuthoring::add_string(report, report.result, name, hex);
+    };
+    identity("built_package_id", prepared_build.valid ? &prepared_build.id : nullptr);
+    identity("requested_preview_package_id", requested_preview.valid ? &requested_preview.id : nullptr);
+    NativeHomePracticeWatch watch{};
+    bool loaded = !nativeHome_PracticeTransitioning() && nativeHome_PracticeWatch(0, &watch);
+    const NativeContentId empty{};
+    loaded = loaded && std::memcmp(&watch.package_id, &empty, sizeof(empty));
+    identity("loaded_preview_package_id", loaded ? &watch.package_id : nullptr);
+    const BuildRecord* actual = nullptr;
+    for (const auto* record : {&requested_preview, &previous_preview, &prepared_build})
+        if (loaded && record->valid && !std::memcmp(&record->id, &watch.package_id, sizeof(record->id))) { actual = record; break; }
+    if (actual) NativeAuthoring::add_string(report, report.result, "preview_fighter_revision", actual->revision);
+    else yyjson_mut_obj_add_null(report.document, report.result, "preview_fighter_revision");
+    yyjson_mut_obj_add_bool(report.document, report.result, "preview_ready", actual != nullptr);
+    yyjson_mut_obj_add_bool(report.document, report.result, "preview_matches_fighter", actual && complete && actual->revision == current);
+    FILE* receipt = std::fopen((std::string(active_family.paths[0]) + "/installed.id").c_str(), "rb");
+    char hex[66]{}; NativeContentId installed{}; bool found = false;
+    if (receipt) { size_t size = std::fread(hex, 1, sizeof(hex), receipt); std::fclose(receipt); if (size == 65 && hex[64] == '\n') { hex[64] = 0; found = nativeContentStore_IdFromHex(hex, &installed); } }
+    identity("installed_package_id", found && nativeContentStore_IsInstalled(root.c_str(), &installed) ? &installed : nullptr);
+}
+
+namespace {
 
 class WorkshopEvents final : public Rml::EventListener {
     void ProcessEvent(Rml::Event& event) override
@@ -878,22 +852,13 @@ class WorkshopEvents final : public Rml::EventListener {
             return;
         }
         if (id == "workshop-script-build") {
-            build_script(true);
+            auto* owner = yyjson_mut_doc_new(nullptr);
+            if (owner) { NativeAuthoring::Reply report(owner); nativeShellWorkshop_Build(report); yyjson_mut_doc_free(owner); }
             return;
         }
         if (id == "workshop-return-editor") {
-            if (!nativeHome_ReturnToWorkshopPreview()) {
-                status("workshop-editor-status",
-                       "Wait for live practice before returning to the editor.");
-                return;
-            }
-            testing = false;
-            preview_loading = true;
-            status("workshop-editor-status", "Returning to the draft preview...");
-            document->GetElementById("workshop-panel")->SetClass("testing", false);
-            nativeShellWorkshopEditor_SetTesting(false);
-            document->GetElementById("workshop-inspector")
-                ->SetProperty("display", package_open ? "block" : "none");
+            auto* owner = yyjson_mut_doc_new(nullptr);
+            if (owner) { NativeAuthoring::Reply report(owner); nativeShellWorkshop_StopTest(report); yyjson_mut_doc_free(owner); }
             return;
         }
         if (id != "workshop-back-drafts" && id != "workshop-close")
@@ -939,9 +904,10 @@ class WorkshopEvents final : public Rml::EventListener {
             nativeShellWorkshop_Close();
             if (!opened) nativeHubPortrait_Open(path,member,true);
         } else if (id == "workshop-test-character") {
-            preview_draft();
+            nativeShellWorkshop_RequestPreview(true);
         } else if (id == "workshop-install") {
-            install_draft();
+            auto* owner = yyjson_mut_doc_new(nullptr);
+            if (owner) { NativeAuthoring::Reply report(owner); nativeShellWorkshop_Install(report); yyjson_mut_doc_free(owner); }
         } else if (id.compare(0, 15, "workshop-draft-") == 0) {
             char* end = nullptr;
             long index = std::strtol(id.c_str() + 15, &end, 10);
@@ -1001,17 +967,6 @@ extern "C" bool nativeShellWorkshop_ImportFighter(const char* file)
     }
     status("workshop-library-status", "The fighter was imported, but its draft could not be opened.");
     return false;
-}
-
-bool nativeShellWorkshop_RefreshPreview()
-{
-    if (testing || !nativeHome_IsPractice()) return false;
-    NativeContentId id;
-    if (!build_cached_candidate(false, false, false, &id) ||
-        !nativeHome_RequestPreview(&id, false)) return false;
-    preview_loading = true;
-    status("workshop-editor-status", "Refreshing the draft preview...");
-    return true;
 }
 
 void nativeShellWorkshop_Open(const char* draft_path, NativeWorkshopOrigin origin)

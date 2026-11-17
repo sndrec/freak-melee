@@ -418,7 +418,7 @@ bool import_click(const char* id)
             }
         active->import_visible = false;
         element("workshop-model-import-overlay")->SetProperty("display", "none");
-        const bool preview = nativeShellWorkshop_RefreshPreview();
+        const bool preview = nativeShellWorkshop_RequestPreview(false);
         status(active->reimport ? "Meshes reimported. Save to keep the changes; Undo restores the previous meshes." :
             preview ? "Mesh imported; refreshing the live model preview." : "Mesh imported. Test Character to reload the model.");
         return true;

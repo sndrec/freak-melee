@@ -1590,6 +1590,18 @@ NativeFighterSources::Session* nativeShellWorkshopEditor_CaptureSources()
     return &session->script_files;
 }
 
+NativeFighterSources::Session* nativeShellWorkshopEditor_SourceSession(unsigned member)
+{
+    if (member >= 2 || !sessions[member].project || !sessions[member].script_loaded) return nullptr;
+    auto& editor = sessions[member];
+    if (member == selected_member) {
+        combined_script();
+        editor.parameter_source = nativeShellWorkshopParameters_Text();
+    }
+    editor.script_files.parameters = editor.parameter_source;
+    return &editor.script_files;
+}
+
 bool nativeShellWorkshopEditor_IsScriptMode()
 {
     return session->project != nullptr && session->mode == WorkshopMode::Script;
