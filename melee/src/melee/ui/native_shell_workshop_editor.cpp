@@ -1,5 +1,6 @@
 #include "native_shell_workshop_editor_internal.h"
 #include "native_shell_workshop.h"
+#include <melee/ft/native_authoring_reply.h>
 #include <melee/lb/native_math_functions.h>
 #include "native_shell_workshop_docs.h"
 #include <melee/ft/native_fighter_model_editor.h>
@@ -1063,9 +1064,16 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         jump_to_script_line(index);
         return true;
     }
-    if (parse_row(id, "workshop-script-line-", &index) ||
-        parse_row(id, "workshop-script-problem-line-", &index)) {
+    if (parse_row(id, "workshop-script-line-", &index)) {
         jump_to_script_line(index);
+        return true;
+    }
+    if (std::strncmp(id, "workshop-script-problem-", 24) == 0) {
+        unsigned file, line; char tail;
+        if (std::sscanf(id + 24, "%u-%u%c", &file, &line, &tail) == 2 && file < session->script_files.files.size()) {
+            select_script_file(file);
+            jump_to_script_line(line);
+        }
         return true;
     }
     if (std::strncmp(id, "workshop-graph-key-", 19) == 0) {
@@ -1291,7 +1299,8 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-script-validate") == 0) {
-        validate_script();
+        auto* document = yyjson_mut_doc_new(nullptr);
+        if (document) { NativeAuthoring::Reply report(document); nativeShellWorkshop_Check(report); yyjson_mut_doc_free(document); }
         return true;
     }
     if (std::strcmp(id, "workshop-parameters-save") == 0) {

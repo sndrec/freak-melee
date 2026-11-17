@@ -29,24 +29,13 @@ bool capture(const NativeFighterFamilyProject& family,
     for (unsigned i = 0; i < family.member_count; ++i) {
         const auto& member = family.members[i];
         const std::string prefix = i ? "partner/" : "";
-        char message[512]{};
-        if (!nativeFighterProject_ValidateAssets(&member, message, sizeof(message)))
-            return fail(error, std::string(family.keys[i]) + ": " + message);
-        NativeSourceResources resources{};
-        NativeFighterCpuProfile cpu{};
-        if (!nativeSourceResources_Read(member.resources, member.resource_size, &resources, message, sizeof(message)))
-            return fail(error, std::string(family.keys[i]) + ": " + message);
-        if (!nativeFighterCpu_Parse(member.cpu_text ? (const char*)member.cpu_text : "", member.cpu_size, &cpu))
-            return fail(error, std::string(family.keys[i]) + ": invalid CPU profile.");
         auto* source = sources ? sources[i] : nullptr;
         if (source && _stricmp(source->root.c_str(), family.paths[i]))
             return fail(error, "Editable sources belong to another family member.");
         const char* parameters = source ? source->parameters.data() : (const char*)member.parameter_text;
         size_t parameter_size = source ? source->parameters.size() : member.parameter_size;
-        NativeFighterParameters parsed{}; unsigned line = 0;
-        if (parameter_size > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY ||
-            !nativeFighterParameters_Parse(parameters ? parameters : "", parameter_size, &parsed, &line))
-            return fail(error, std::string(family.keys[i]) + ": invalid parameter on line " + std::to_string(line) + '.');
+        if (parameter_size > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY)
+            return fail(error, std::string(family.keys[i]) + ": parameter text exceeds its capacity.");
         if (!add(next, prefix, "fighter.dat", member.fighter_dat, member.fighter_size, true, error) ||
             !add(next, prefix, "animation.dat", member.animation_dat, member.animation_size, true, error) ||
             !add(next, prefix, "costume.dat", member.costume_dat, member.costume_size, true, error) ||
@@ -61,13 +50,23 @@ bool capture(const NativeFighterFamilyProject& family,
         bool names_ok = add(next, prefix, "workshop_names.txt", names, names_size, false, error);
         std::free(names);
         if (!names_ok) return false;
-        // The draft manifest remains owned by the existing manifest operations.
-        // Capture only files currently held and edited by the Workshop.
+        char manifest[256];
+        size_t manifest_size = nativeFighterProject_EncodeManifest(member.title, member.tile_name,
+            member.template_key, manifest, sizeof(manifest));
+        if (!manifest_size || !add(next, prefix, "project.txt", manifest, manifest_size, true, error))
+            return fail(error, "Could not encode this member's manifest.");
         if (source) {
             std::vector<NativeDraftAccess::FileEdit> edits;
             if (!NativeFighterSources::stage_save(*source, edits)) return fail(error, source->error);
             for (auto& edit : edits) { edit.file = prefix + edit.file; next.files.push_back(std::move(edit)); }
         }
+    }
+    if (family.member_count > 1 || std::strcmp(family.keys[0], "main")) {
+        char layout[256];
+        size_t size = nativeFighterFamilyProject_EncodeLayout(family.mode, family.member_count,
+            family.keys[0], family.keys[1], layout, sizeof(layout));
+        if (!size || !add(next, "", "family.txt", layout, size, true, error))
+            return fail(error, "Could not encode the fighter family layout.");
     }
     output = std::move(next); error.clear(); return true;
 }
@@ -84,6 +83,23 @@ bool save(NativeFighterFamilyProject& family,
     std::string current;
     if (!NativeDraftAccess::revision(family.paths[0], current, error)) return false;
     if (current != expected) return fail(error, "Draft changed outside the Workshop. Reopen before saving; your edits are retained.");
+    for (unsigned i = 0; i < family.member_count; ++i) {
+        const auto& member = family.members[i];
+        char message[512]{};
+        NativeSourceResources resources{};
+        NativeFighterCpuProfile cpu{};
+        if (!nativeFighterProject_ValidateAssets(&member, message, sizeof(message)) ||
+            !nativeSourceResources_Read(member.resources, member.resource_size, &resources, message, sizeof(message)))
+            return fail(error, std::string(family.keys[i]) + ": " + message);
+        if (!nativeFighterCpu_Parse(member.cpu_text ? (const char*)member.cpu_text : "", member.cpu_size, &cpu))
+            return fail(error, std::string(family.keys[i]) + ": invalid CPU profile.");
+        const char* text = sources && sources[i] ? sources[i]->parameters.c_str() : (const char*)member.parameter_text;
+        size_t size = sources && sources[i] ? sources[i]->parameters.size() : member.parameter_size;
+        NativeFighterParameters parameters{}; unsigned line = 0;
+        if (size > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY ||
+            !nativeFighterParameters_Parse(text ? text : "", size, &parameters, &line))
+            return fail(error, std::string(family.keys[i]) + ": invalid parameter on line " + std::to_string(line) + '.');
+    }
     for (unsigned i = 0; i < family.member_count; ++i) if (sources && sources[i]) {
         const auto& text = sources[i]->parameters;
         if (text.size() > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY)

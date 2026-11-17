@@ -35,6 +35,7 @@ void running_instances(const Context&, yyjson_val*, Reply& reply)
 }
 void live_command(const char* name, yyjson_val* arguments, Reply& reply)
 {
-    NativeWorkshopConnection::request(string(arguments, "instance"), name, arguments, reply);
+    NativeWorkshopConnection::request(string(arguments, "instance"), name, arguments, reply,
+        !std::strcmp(name, "session.scripts.check") ? 30000 : 10000);
 }
 }

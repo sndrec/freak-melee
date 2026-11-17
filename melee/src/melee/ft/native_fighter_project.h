@@ -89,6 +89,9 @@ bool nativeFighterProject_CreateFromMember(const char* path, const char* title,
 // Reads only the manifest and asset sizes for project-library listing.
 bool nativeFighterProject_ReadInfo(const char* path,
                                    NativeFighterProjectInfo* info);
+// Encode the editable manifest. Returns zero for invalid fields or insufficient space.
+size_t nativeFighterProject_EncodeManifest(const char* title, const char* tile_name,
+    const char* template_key, char* output, size_t capacity);
 // Rename the primary project manifest. Family titles come from their primary member.
 bool nativeFighterProject_Rename(const char* path, const char* title);
 bool nativeFighterProject_SetTileName(const char* path, const char* tile_name);

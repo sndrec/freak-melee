@@ -1,4 +1,5 @@
 #include <melee/ft/native_fighter_template.h>
+#include <melee/ft/native_authoring_reply.h>
 #include <melee/ft/native_fighter_draft_access.h>
 #include "native_shell_workshop_editor_internal.h"
 
@@ -84,130 +85,6 @@ void show_script()
             : "No behavior script in this draft yet.");
     session->script_loaded = true;
     nativeShellWorkshopEditor_RefreshScriptOutline();
-}
-
-bool validate_source_candidate(const char* output_path, const std::string& source,
-                                std::string* diagnostics, unsigned* error_line)
-{
-    *error_line = 0;diagnostics->clear();
-    char executable[MAX_PATH];
-    const DWORD path_length = GetModuleFileNameA(nullptr, executable,
-                                                 sizeof(executable));
-    if (path_length == 0 || path_length >= sizeof(executable)) { *diagnostics = "Could not locate the source validator.";return false;}
-    char* basename = std::strrchr(executable, '\\');
-    if (basename == nullptr ||
-        size_t(basename - executable) + sizeof("\\native_content_tool.exe") >=
-            sizeof(executable)) { *diagnostics = "Source validator path is too long.";return false;}
-    std::strcpy(basename + 1, "native_content_tool.exe");
-    if (GetFileAttributesA(executable) == INVALID_FILE_ATTRIBUTES) {
-        *diagnostics = "The source validator is not installed beside Freak Melee.";
-        return false;
-    }
-    char source_path[512], log_path[512];
-    const DWORD process_id = GetCurrentProcessId();
-    const int source_length = std::snprintf(source_path, sizeof(source_path),
-        "%s\\behavior.editor.%lu.fms", output_path, process_id);
-    const int log_length = std::snprintf(log_path, sizeof(log_path),
-        "%s\\behavior.editor.%lu.log", output_path, process_id);
-    if (source_length <= 0 || source_length >= sizeof(source_path) ||
-        log_length <= 0 || log_length >= sizeof(log_path)) { *diagnostics = "Project path is too long.";return false;}
-    FILE* file = std::fopen(source_path, "wb");
-    const bool written = file != nullptr &&
-        std::fwrite(source.data(), 1, source.size(), file) == source.size();
-    const bool closed = file != nullptr && std::fclose(file) == 0;
-    if (!written || !closed) {
-        DeleteFileA(source_path);
-        *diagnostics = "Could not stage the script source.";
-        return false;
-    }
-    SECURITY_ATTRIBUTES inheritable = { sizeof(inheritable), nullptr, 1 };
-    HANDLE log = CreateFileA(log_path, GENERIC_WRITE, FILE_SHARE_READ,
-                             &inheritable, CREATE_ALWAYS,
-                             FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (log == INVALID_HANDLE_VALUE) {
-        DeleteFileA(source_path);
-        *diagnostics = "Could not create the validation log.";
-        return false;
-    }
-    std::string command = "\"" + std::string(executable) + "\" " +
-        "source-check \"" + output_path + "\" \"" + source_path + "\"";
-    STARTUPINFOA startup = {};
-    startup.cb = sizeof(startup);
-    startup.dwFlags = STARTF_USESTDHANDLES;
-    startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    startup.hStdOutput = log;
-    startup.hStdError = log;
-    PROCESS_INFORMATION child = {};
-    const BOOL started = CreateProcessA(executable, command.data(), nullptr,
-        nullptr, 1, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &child);
-    if (started) {
-        const DWORD wait = WaitForSingleObject(child.hProcess, 60000);
-        if (wait == WAIT_TIMEOUT) {
-            TerminateProcess(child.hProcess, 1);
-            WaitForSingleObject(child.hProcess, INFINITE);
-        }
-        CloseHandle(child.hThread);
-    }
-    DWORD exit_code = 1;
-    if (started) {
-        GetExitCodeProcess(child.hProcess, &exit_code);
-        CloseHandle(child.hProcess);
-    }
-    CloseHandle(log);
-    char captured[4097] = {};
-    FILE* result = std::fopen(log_path, "rb");
-    if (result != nullptr) {
-        const size_t count = std::fread(captured, 1, 4096, result);
-        captured[count] = '\0';
-        std::fclose(result);
-    }
-    DeleteFileA(source_path);
-    DeleteFileA(log_path);
-    if (!started || exit_code != 0) {
-        diagnostics->assign(captured[0] != '\0' ? captured : "Source validation failed or timed out.");
-        const std::string prefix = std::string(source_path) + ":";
-        const size_t error = diagnostics->find(prefix);
-        if (error != std::string::npos) {
-            unsigned column = 0;int consumed = 0;
-            if (std::sscanf(diagnostics->c_str() + error + prefix.size(), "%u:%u: %n", error_line, &column, &consumed) == 2)
-                diagnostics->erase(0, error + prefix.size() + (size_t)consumed);
-        } else {
-            unsigned column = 0;int consumed = 0;
-            if (std::sscanf(diagnostics->c_str(), "%u:%u: %n", error_line, &column, &consumed) == 2)
-                diagnostics->erase(0, (size_t)consumed);
-        }
-        return false;
-    }
-    return true;
-}
-
-bool validate_script()
-{
-    if (session->project == nullptr) return false;
-    const std::string source = combined_script();
-    if (source.empty() || source.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
-        set_text("workshop-script-status", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");
-        set_text("workshop-script-problems", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");
-        return false;
-    }
-    const std::string parameter_source = nativeShellWorkshopParameters_Text();
-    NativeFighterParameters parameters;unsigned error_line = 0;std::string diagnostics;
-    bool valid = nativeFighterParameters_Parse(parameter_source.data(), parameter_source.size(), &parameters, &error_line);
-    if (valid) valid = validate_source_candidate(session->project_path, source, &diagnostics, &error_line);
-    else { diagnostics = "Invalid fighter parameter on line " + number(error_line) + ".";error_line = 0; }
-    size_t error_file = session->script_file_index;
-    if (!valid && error_line != 0 && NativeFighterSources::locate_line(
-            session->script_files, error_line, &error_file, &error_line)) select_script_file(error_file);
-    set_text("workshop-script-status", valid ? "Source and fighter assets validated."
-        : NativeFighterSources::name(session->script_files, error_file) + ":" + number(error_line) + ": " + diagnostics);
-    if (valid) set_text("workshop-script-problems", "No problems found.");
-    else if (error_line != 0) {
-        const std::string label = "Line " + number(error_line) + " · " + diagnostics;
-        document->GetElementById("workshop-script-problems")->SetInnerRML(
-            "<button id='workshop-script-problem-line-" + number(error_line) + "'>" +
-            Rml::StringUtilities::EncodeRml(label) + "</button>");
-    } else set_text("workshop-script-problems", diagnostics);
-    return valid;
 }
 
 void jump_to_script_line(unsigned line)
@@ -335,22 +212,17 @@ bool nativeShellWorkshopEditor_BuildScript(const char* output_path, const char* 
     if (source.empty() || source.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
         set_text("workshop-script-status", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");return false;
     }
-    std::string diagnostics, expected;unsigned line = 0;
+    std::string diagnostics, expected;
     if (!NativeDraftAccess::revision(family_root, expected, diagnostics) || expected != disk_revision) {
         if (diagnostics.empty()) diagnostics = "Draft changed outside the Workshop. Reopen before building behavior.";
         set_text("workshop-script-status", diagnostics); return false;
     }
-    set_text("workshop-script-status", "Validating source and fighter assets...");
-    if (!validate_source_candidate(output_path, source, &diagnostics, &line)) {
-        size_t file = session->script_file_index;
-        if (line != 0 && NativeFighterSources::locate_line(session->script_files, line, &file, &line)) select_script_file(file);
-        const std::string message = diagnostics.empty() ? "Could not validate this source candidate." : diagnostics;
-        set_text("workshop-script-status", line == 0 ? message : NativeFighterSources::name(session->script_files, file) + ":" + number(line) + ": " + message);
-        if (line == 0) set_text("workshop-script-problems", message);
-        else document->GetElementById("workshop-script-problems")->SetInnerRML(
-            "<button id='workshop-script-problem-line-" + number(line) + "'>" + Rml::StringUtilities::EncodeRml(message) + "</button>");
-        return false;
-    }
+    auto* document = yyjson_mut_doc_new(nullptr);
+    if (!document) return false;
+    NativeAuthoring::Reply report(document);
+    bool accepted = nativeShellWorkshop_Check(report);
+    yyjson_mut_doc_free(document);
+    if (!accepted) return false;
     const std::string prefix = _stricmp(family_root, output_path) ? "partner/" : "";
     std::vector<NativeDraftAccess::FileEdit> edits{{prefix + "behavior.fms", source}};
     const std::string draft_path = std::string(output_path) + "\\behavior.draft.fms";

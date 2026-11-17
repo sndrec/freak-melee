@@ -382,7 +382,6 @@ std::string combined_script();
 void show_script_files();
 void select_script_file(size_t index);
 void show_script();
-bool validate_script();
 void jump_to_script_line(unsigned line);
 void show_action_playback();
 void apply_action_playback();

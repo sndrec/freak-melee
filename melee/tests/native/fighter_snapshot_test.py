@@ -12,7 +12,10 @@ with tempfile.TemporaryDirectory(prefix='native-snapshot-') as temp:
     for fighter in ('Mario', 'Zelda'):
         project = str(Path(temp) / fighter)
         for command in ([tool, 'clone-stock', iso, fighter, project, fighter], [probe, project]):
-            result = subprocess.run(command, capture_output=True, text=True, env=env, timeout=90,
-                                    creationflags=subprocess.CREATE_NO_WINDOW)
-            assert result.returncode == 0, (command, result.stdout, result.stderr)
-            if command[0] == probe: print(result.stdout.strip())
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
+                                       creationflags=subprocess.CREATE_NO_WINDOW)
+            stdout, stderr = process.communicate(timeout=90)
+            assert process.returncode == 0, (command, stdout, stderr)
+            if command[0] == probe:
+                assert not list(Path(tempfile.gettempdir()).glob(f'FreakMeleeValidation-{process.pid}-*')), 'Validation left temporary asset copies'
+                print(stdout.strip())

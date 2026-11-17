@@ -64,8 +64,8 @@ rejected before saving.
 `revision_conflict` means another edit changed the project. Read the current
 files and revise your edit. `draft_busy` means a Workshop or another authoring
 process owns the draft; close that draft before using offline writes. Saved-file
-inspection remains available. Live unsaved editing and agent undo are still
-being implemented.
+inspection remains available. Use the live session tools below to edit a draft
+that is open in the Workshop.
 
 Successful edits return `committed: true`, `status: "saved_draft"` and the new
 `revision`. Checking, building and installation remain separate steps. Keep the
@@ -110,8 +110,16 @@ Saving editable source preserves the last accepted behavior until you build it.
 `preview_scene` describes
 the currently loaded scene; a source edit's `preview_status: "refresh_required"`
 means that behavior has not been applied to the running preview.
-`scripts.check` checks saved files. Current live checks use the Workshop's
-validation controls after saving; a live validation operation is still being built.
+`session.scripts.check` checks the selected member's current source, parameters
+and assets, including unsaved edits. Supply the current live revision. It returns
+errors with relative file paths, line numbers and columns, plus completeness
+flags and source/parameter hashes. The same diagnostics appear under Check script
+in the Workshop. Clicking a problem opens its source file and line.
+
+Checks run in a separate native validator from the same installation, with a
+15-second limit. The returned revision identifies the editor state checked.
+Your saved draft, accepted behavior, running preview and undo history stay at
+their current revisions. `scripts.check` checks the saved files instead.
 
 Fighter → Agent tools shows the instance and recent operations. Its Disconnect
 button, or `session.disconnect`, closes agent access while keeping the game and

@@ -38,7 +38,8 @@ struct FileEdit {
 // Hash names and bytes in a stable order. Temporary history/journal files are
 // excluded. Reparse points inside the draft are rejected.
 bool revision(const std::string& root, std::string& hash, std::string& error);
-// Caller holds the root's exclusive lease. A durable journal restores the old
+// Caller owns the root exclusively: an existing draft needs its authoring lease;
+// a newly created isolated directory belongs to its creator. A durable journal restores the old
 // files after failure/interruption; completion preserves the whole batch.
 bool apply(const std::string& root, const std::string& expected,
            const std::vector<FileEdit>& edits, std::string& after,

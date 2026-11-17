@@ -18,6 +18,8 @@ static const Command commands[] = {
         "{\"type\":\"object\",\"properties\":{" INSTANCE R"(,"file":{"type":"string","minLength":1,"maxLength":400}},"required":["instance","file"],"additionalProperties":false})", true},
     {"session.scripts.select", "Show one editable source file in the Workshop's Scripting pane. Resolve the file through session.scripts.list first.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION R"(,"file":{"type":"string","minLength":1,"maxLength":400}},"required":["instance","revision","file"],"additionalProperties":false})", false},
+    {"session.scripts.check", "Check the selected live member's unsaved sources, parameters and owned assets in an isolated native validator. Returns independent errors by source file and line. Leaves saved files, accepted behavior and preview unchanged; bounded to 15 seconds.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", true},
     {"session.scripts.update", "Change live source files and optional parameter text as one Workshop undo step. Does not save, validate, install or restart preview.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
         R"(,"summary":{"type":"string","minLength":1,"maxLength":200},"files":{"type":"array","maxItems":128,"items":{"type":"object","properties":{"file":{"type":"string","minLength":1,"maxLength":400},"text":{"type":"string","maxLength":524288}},"required":["file","text"],"additionalProperties":false}},"parameters":{"type":"string","maxLength":65536}},"required":["instance","revision","summary","files"],"additionalProperties":false})", false},

@@ -23,6 +23,7 @@
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_draft_access.h>
 #include <melee/ft/native_fighter_snapshot.h>
+#include <melee/ft/native_fighter_validation_process.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_gx_image.h>
@@ -455,6 +456,19 @@ bool nativeShellWorkshop_Save(std::string* error)
     return saved;
 }
 
+bool nativeShellWorkshop_Check(NativeAuthoring::Reply& report)
+{
+    if (!project_loaded) report.fail("no_draft", "Open a fighter draft first.");
+    else {
+        NativeFighterSources::Session* sources[NATIVE_FIGHTER_FAMILY_MEMBERS]{};
+        sources[active_member] = nativeShellWorkshopEditor_CaptureSources();
+        if (!sources[active_member]) report.fail("invalid_source_set", "Could not capture the current editable source files.");
+        else NativeFighterValidationProcess::check(active_family, sources, active_member, report);
+    }
+    nativeShellWorkshopEditor_PresentValidation(report);
+    return report.ok && yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "accepted"));
+}
+
 namespace {
 
 void browse_portrait()
@@ -861,10 +875,6 @@ class WorkshopEvents final : public Rml::EventListener {
                        nativeShellWorkshopEditor_Shortcut(key)) {
                 event.StopPropagation();
             }
-            return;
-        }
-        if (id == "workshop-script-validate") {
-            if (nativeShellWorkshop_Save()) nativeShellWorkshopEditor_Click(id.c_str());
             return;
         }
         if (id == "workshop-script-build") {

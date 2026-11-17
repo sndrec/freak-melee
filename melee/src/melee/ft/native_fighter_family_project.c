@@ -234,26 +234,30 @@ static bool begin_creation(const char* path, char destination[PATH_BYTES],
     return false;
 }
 
+size_t nativeFighterFamilyProject_EncodeLayout(NativeFighterFamilyMode mode, unsigned count,
+    const char* primary_key, const char* partner_key, char* output, size_t capacity)
+{
+    if (!output || !primary_key || !mode_valid(mode, count) || !key_valid(primary_key) ||
+        (count == 2 && (!partner_key || !key_valid(partner_key) || !strcmp(primary_key, partner_key)))) {
+        return 0;
+    }
+    int size = count == 1
+        ? snprintf(output, capacity, "mode=single\nprimary_key=%s\n", primary_key)
+        : snprintf(output, capacity, "mode=%s\nprimary_key=%s\npartner_key=%s\npartner=partner\n",
+            mode == NativeFighterFamily_AlternateForm ? "alternate" : "companion", primary_key, partner_key);
+    return size > 0 && (size_t)size < capacity ? (size_t)size : 0;
+}
+
 static bool publish(const char* destination, const char* staging,
                      NativeFighterFamilyMode mode, unsigned count,
                      const char* primary_key, const char* partner_key)
 {
-    if (!mode_valid(mode, count) || !key_valid(primary_key) ||
-        (count == 2 && (!key_valid(partner_key) || !strcmp(primary_key, partner_key)))) {
-        fprintf(stderr, "Cannot publish fighter family: mode=%u members=%u primary=%.31s partner=%.31s\n",
-                (unsigned)mode, count, primary_key, partner_key);
-        return false;
-    }
+    char descriptor[256];
+    size_t size = nativeFighterFamilyProject_EncodeLayout(mode, count, primary_key,
+        partner_key, descriptor, sizeof(descriptor));
+    if (!size) return false;
     if (count == 2 || strcmp(primary_key, "main")) {
-        char descriptor[256];
-        int size = count == 1
-            ? snprintf(descriptor, sizeof(descriptor), "mode=single\nprimary_key=%s\n", primary_key)
-            : snprintf(descriptor, sizeof(descriptor),
-                "mode=%s\nprimary_key=%s\npartner_key=%s\npartner=partner\n",
-                mode == NativeFighterFamily_AlternateForm ? "alternate" : "companion",
-                primary_key, partner_key);
-        if (size <= 0 || (size_t)size >= sizeof(descriptor) ||
-            !write_file(staging, "family.txt", descriptor, (size_t)size)) return false;
+        if (!write_file(staging, "family.txt", descriptor, size)) return false;
     }
     // Windows can retain a short-lived lock on a newly written directory.
     // Publishing is a load transition, so allow a bounded retry without

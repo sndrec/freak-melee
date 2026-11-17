@@ -106,6 +106,18 @@ def main():
                 if width > 0 and height > 0 and 'visible=0' not in found[0]:
                     return round(x + width / 2), round(y + height / 2)
         raise AssertionError(f'UI control unavailable: {element}')
+    def ui_text(element):
+        log = output / 'stderr.log'
+        for _ in range(30):
+            start = log.stat().st_size
+            control('ui-inspect', element)
+            time.sleep(.15)
+            with log.open('r', encoding='utf-8', errors='replace') as stream:
+                stream.seek(start)
+                text = stream.read(2 * 1024 * 1024)
+            found = re.search(r'\[ui-inspect-value\] ' + re.escape(element) + r':[^\n]* text=([^\n]*)', text)
+            if found: return found[1].strip()
+        raise AssertionError(f'No UI text for {element}')
     try:
         with (output / 'stdout.log').open('w') as stdout, (output / 'stderr.log').open('w') as stderr:
             process = subprocess.Popen([str(exe), '--iso', str(args.iso.resolve()), '--hidden', '--mute'],
@@ -169,6 +181,32 @@ def main():
         assert changed['revision'] != original['revision'] and changed['dirty']
         assert changed['can_undo']
         assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        checked = call('session.scripts.check', dict(target, revision=changed['revision']))
+        assert checked['accepted'] and checked['draft_view'] == 'live_snapshot', checked
+        assert checked['revision'] == changed['revision'] and checked['dirty']
+        assert call('session.inspect', target)['revision'] == changed['revision']
+        broken_text = changed_text + '\nfunc AgentBadOne():\n    missing.one()\n\nfunc AgentBadTwo():\n    missing.two()\n'
+        broken = call('session.scripts.update', dict(target, revision=changed['revision'], summary='Check unfinished source',
+            files=[{'file': first, 'text': broken_text}]))
+        problems = call('session.scripts.check', dict(target, revision=broken['revision']))
+        assert not problems['accepted'] and problems['diagnostic_count'] >= 2, problems
+        assert all(d['file'].replace('\\', '/') == first.replace('\\', '/') and d['line'] > 0 and
+                   d['source_view'] == 'session.scripts.read' for d in problems['diagnostics']), problems
+        assert problems['revision'] == broken['revision']
+        if args.control:
+            diagnostic = problems['diagnostics'][0]
+            control('screenshot')
+            control('ui-click', *position('workshop-script-problem-0-' + str(diagnostic['line'])))
+            selected = call('session.inspect', target)
+            assert selected['selected_source'] == first, selected
+            broken['revision'] = selected['revision']
+        changed = call('session.undo', dict(target, revision=broken['revision']))
+        assert call('session.scripts.read', dict(target, file=first))['text'] == changed_text
+        if args.control:
+            # Checking through the real button must replace the previous errors
+            # without the old event handler's forced disk save.
+            control('ui-click', *position('workshop-script-validate'))
+            assert ui_text('workshop-script-problems') == 'No problems found.'
         assert snapshot(project) == baseline, 'Live edits wrote disk files'
         denied = call('scripts.update', dict(saved, revision=call('project.inspect', saved)['revision'],
             files=[{'file': first, 'text': 'do not overwrite the live draft'}]), expected=False)

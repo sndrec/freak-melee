@@ -2,6 +2,7 @@
 
 #ifdef __cplusplus
 #include <string>
+namespace NativeAuthoring { struct Reply; }
 extern "C" {
 #else
 #include <stdbool.h>
@@ -27,4 +28,5 @@ bool nativeShellWorkshop_IsTesting();
 // Rebuild the current draft and restart only the frozen practice preview.
 bool nativeShellWorkshop_RefreshPreview();
 bool nativeShellWorkshop_Save(std::string* error = nullptr);
+bool nativeShellWorkshop_Check(NativeAuthoring::Reply&);
 #endif

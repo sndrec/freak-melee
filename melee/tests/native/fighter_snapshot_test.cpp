@@ -1,7 +1,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <melee/ft/native_fighter_snapshot.h>
+#include <melee/ft/native_fighter_validation_process.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -31,6 +33,41 @@ int main(int argc, char** argv)
     }
     std::string before, after;
     REQUIRE(NativeDraftAccess::revision(argv[1], before, error));
+    auto validate = [&](unsigned member, bool accepted, unsigned minimum, bool asset_error) {
+        auto* document = yyjson_mut_doc_new(nullptr);
+        NativeAuthoring::Reply report(document);
+        NativeFighterValidationProcess::check(family, sources, member, report);
+        auto* diagnostics = yyjson_mut_obj_get(report.result, "diagnostics");
+        bool ok = report.ok && yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "accepted")) == accepted &&
+            yyjson_mut_get_uint(yyjson_mut_obj_get(report.result, "diagnostic_count")) >= minimum;
+        if (asset_error) ok = ok && yyjson_mut_get_bool(yyjson_mut_obj_get(report.result, "package_diagnostic"));
+        if (!accepted && !asset_error) {
+            size_t index, count; yyjson_mut_val* entry;
+            yyjson_mut_arr_foreach(diagnostics, index, count, entry) {
+                const char* path = yyjson_mut_get_str(yyjson_mut_obj_get(entry, "file"));
+                ok = ok && path && !std::strcmp(path, "fighter_state.fms") &&
+                    yyjson_mut_get_uint(yyjson_mut_obj_get(entry, "line")) > 0;
+            }
+        }
+        if (!ok) {
+            char* text = yyjson_mut_val_write(report.result, 0, nullptr);
+            error = text ? text : "Missing validation report";
+            std::free(text);
+        }
+        yyjson_mut_doc_free(document);
+        return ok;
+    };
+    for (unsigned i = 0; i < family.member_count; ++i) REQUIRE(validate(i, true, 0, false));
+    auto source = sessions[0].files[0].text;
+    sessions[0].files[0].text += "\nfunc BadOne():\n    missing.one()\n\nfunc BadTwo():\n    missing.two()\n";
+    REQUIRE(validate(0, false, 2, false));
+    sessions[0].files[0].text = source;
+    // Only the unsaved costume copy is damaged; the isolated validator must
+    // reject it even though the original draft remains valid on disk.
+    family.members[0].costume_dat[0] ^= 0x80;
+    REQUIRE(validate(0, false, 1, true));
+    family.members[0].costume_dat[0] ^= 0x80;
+    REQUIRE(validate(0, true, 0, false));
     auto unchanged = [&]() {
         std::string actual;
         return NativeDraftAccess::revision(argv[1], actual, error) && actual == before;
@@ -92,6 +129,6 @@ int main(int argc, char** argv)
     std::string retained;
     REQUIRE(NativeDraftAccess::revision(argv[1], retained, error) && retained == changed);
     nativeFighterFamilyProject_Close(&family);
-    std::puts("PASS: whole-family source/asset save, failed-candidate isolation, interrupted-publish recovery and disk conflicts");
+    std::puts("PASS: isolated unsaved source/asset validation, whole-family save, interrupted-publish recovery and disk conflicts");
     return 0;
 }

@@ -7,6 +7,7 @@
 namespace NativeFighterSnapshot {
 // Sources may be null for unopened members. Their saved source files remain intact.
 // A capture owns its bytes and never registers fighters or changes a live runtime.
+// It encodes the current data, including unfinished source, for isolated checks.
 struct Capture { std::vector<NativeDraftAccess::FileEdit> files; };
 bool capture(const NativeFighterFamilyProject&,
              NativeFighterSources::Session* const sources[NATIVE_FIGHTER_FAMILY_MEMBERS],

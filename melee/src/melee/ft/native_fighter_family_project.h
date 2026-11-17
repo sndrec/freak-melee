@@ -41,6 +41,8 @@ typedef struct NativeFighterFamilyProjectInfo {
 // creation.pending keeps interrupted construction unlisted and unopened.
 bool nativeFighterFamilyProject_ReadInfo(const char* path,
                                         NativeFighterFamilyProjectInfo* info);
+size_t nativeFighterFamilyProject_EncodeLayout(NativeFighterFamilyMode, unsigned count,
+    const char* primary_key, const char* partner_key, char* output, size_t capacity);
 bool nativeFighterFamilyProject_Open(const char* path,
                                     NativeFighterFamilyProject* project);
 void nativeFighterFamilyProject_Close(NativeFighterFamilyProject* project);

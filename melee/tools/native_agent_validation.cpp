@@ -26,6 +26,7 @@ static void diagnostic(Reply& reply, yyjson_mut_val* array,
 
 void check_scripts(const Context&, yyjson_val* arguments, Reply& reply)
 {
+    add_string(reply, reply.result, "build_identity", NativeAuthoring::build_identity());
     auto project = open_project(arguments, reply);
     NativeFighterSources::Session files;
     if (!project || !load_sources(*project, files, reply)) return;

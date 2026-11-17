@@ -9,6 +9,7 @@ namespace Rml { class ElementDocument; }
 struct NativeFighterProject;
 struct NativeFighterModelEditor;
 namespace NativeFighterSources { struct Session; }
+namespace NativeAuthoring { struct Reply; }
 
 void nativeShellWorkshopEditor_RegisterGraph();
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* document);
@@ -24,6 +25,7 @@ void nativeShellWorkshopEditor_FilterClips();
 void nativeShellWorkshopEditor_RefreshScriptOutline();
 void nativeShellWorkshopEditor_Update();
 NativeFighterSources::Session* nativeShellWorkshopEditor_CaptureSources();
+void nativeShellWorkshopEditor_PresentValidation(NativeAuthoring::Reply&);
 bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member);
 void nativeShellWorkshopEditor_MarkAssetsSaved();
 bool nativeShellWorkshopEditor_BuildScript(const char* path, const char* family_root,

@@ -137,6 +137,11 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
                 reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
         }
     } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+    else if (!std::strcmp(method, "session.scripts.check")) {
+        if (!state.allowed || nativeShellWorkshopEditor_AgentBusy())
+            reply.fail("editor_busy", "Finish gameplay, preview loading or the current edit gesture before checking a draft.");
+        else nativeShellWorkshop_Check(reply);
+    }
     else if (!std::strcmp(method, "session.save")) {
         std::string error;
         if (!nativeShellWorkshop_Save(&error)) reply.fail("save_failed", error);

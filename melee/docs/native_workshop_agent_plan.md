@@ -56,8 +56,7 @@ Accepted 2026-11-17. Implementation is in progress.
   framing/partial/large-message/cancellation checks also pass. Extracted-package
   checks verify these operations with a Windows-only PATH, including in-game
   access disable/re-enable and a separate run using only the shipped tools.
-  Live validation,
-  build/install, other asset domains and preview/testing operations remain.
+  Build/install, other asset domains and preview/testing operations remain.
 - The Save button and `session.save` now capture the whole fighter family and
   commit assets, source files and parameters through one recovery journal.
   Saved-disk revisions guard raw external edits; successful saves retain undo.
@@ -67,7 +66,18 @@ Accepted 2026-11-17. Implementation is in progress.
   source/parameter save, unchanged accepted behavior and undo/redo after saving.
   The same live save checks and CLI/MCP/launcher checks pass from an extracted
   release using a Windows-only PATH.
-  Build/install and live validation remain separate work.
+  Build/install remain separate work.
+- `session.scripts.check` and the Workshop's Check script button now validate
+  the selected member's unsaved sources, parameters and assets through the same
+  isolated native process. Results identify the checked live revision and source
+  locations, collect independent errors, and require a matching validator build.
+  Checks preserve disk files, accepted behavior, preview and undo history.
+  Real Mario and Zelda/Sheik checks cover both members, multiple source errors,
+  an invalid in-memory model and temporary-file cleanup. The hidden/muted live
+  client verifies read-only checks; the actual UI button and problem links also
+  pass without saving the unfinished source. The live checks and CLI/MCP/launcher
+  checks also pass from an extracted setup ZIP with a Windows-only PATH; all
+  nine current authoring/reference/payload regression checks pass.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted

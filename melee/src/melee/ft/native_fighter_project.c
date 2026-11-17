@@ -606,11 +606,19 @@ static bool save_asset_with_previous(const char* path, const char* name,
 static bool save_manifest(const char* path, const NativeFighterProjectInfo* info)
 {
     char manifest[256];
-    int size = snprintf(manifest, sizeof(manifest), "title=%s\ntemplate=%s\n%s%s%s",
-        info->title, info->template_key, info->tile_name[0] ? "tile_name=" : "",
-        info->tile_name, info->tile_name[0] ? "\n" : "");
-    return size > 0 && size < sizeof(manifest) &&
-        save_asset_with_previous(path, "project.txt", manifest, (size_t)size);
+    size_t size = nativeFighterProject_EncodeManifest(info->title, info->tile_name,
+        info->template_key, manifest, sizeof(manifest));
+    return size && save_asset_with_previous(path, "project.txt", manifest, size);
+}
+
+size_t nativeFighterProject_EncodeManifest(const char* title, const char* tile_name,
+    const char* key, char* output, size_t capacity)
+{
+    if (!title || !tile_name || !key || !output || !title_valid(title) ||
+        !template_key_valid(key) || (*tile_name && !title_valid(tile_name)) || strchr(tile_name, 127)) return 0;
+    int size = snprintf(output, capacity, "title=%s\ntemplate=%s\n%s%s%s",
+        title, key, *tile_name ? "tile_name=" : "", tile_name, *tile_name ? "\n" : "");
+    return size > 0 && (size_t)size < capacity ? (size_t)size : 0;
 }
 
 bool nativeFighterProject_Rename(const char* path, const char* title)
