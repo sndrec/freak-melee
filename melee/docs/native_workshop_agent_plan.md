@@ -331,8 +331,15 @@ Accepted 2026-11-17. Implementation is in progress.
   MCP image bytes. Ordinary Workshop preview, practice, installation, export
   and portrait capture also passed against the same extracted build. All
   nineteen core checks passed, and agent reports still upload and retry using
-  the F2 wire format. Output schema coverage and final packaged acceptance
-  remain open.
+  the F2 wire format.
+
+- Both CLI discovery and MCP now describe successful replies and structured
+  errors for all 95 commands. Shared reply shapes cover draft and live
+  revisions, validation diagnostics, practice traces and feedback receipts.
+  Model reads use the shape for the requested view, including separate bones,
+  meshes, materials, texture sequences and skin weights. The contracts matched
+  1,152 recorded offline and live replies. Full packaged acceptance remains
+  open.
 
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe

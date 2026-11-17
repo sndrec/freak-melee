@@ -187,8 +187,12 @@ def main():
                 time.sleep(.15)
             raise AssertionError(f'Preview did not load {package}; inspect {output}')
         state = wait_preview(state['requested_preview_package_id'])
+        state = call('session.member.select', dict(target, revision=state['revision'], member=state['member']))
+        assert state['committed'] and state['member'] == 'main', state
         state = call('session.workspace.select', dict(target, revision=state['revision'], workspace='scripting'))
         assert state['workspace'] == 'scripting'
+        state = call('session.scripts.select', dict(target, revision=state['revision'], file=first))
+        assert state['committed'] and state['selected_source'] == first, state
         listing = call('session.scripts.list', target)
         original = call('session.scripts.read', dict(target, file=first))
         assert listing['revision'] == original['revision']
@@ -384,6 +388,8 @@ def main():
         # commits one property group into the same editor history as the UI.
         actions = call('session.actions.list', dict(target, query='AttackAirLw'))
         dair = next(row['id'] for row in actions['actions'] if row['name'] == 'AttackAirLw')
+        selected = call('session.actions.select', dict(target, revision=actions['revision'], action_id=dair, frame=4))
+        assert selected['committed'] and selected['selected_action'] == dair and selected['frame'] == 4, selected
         events = call('session.actions.read', dict(target, view='events', action_id=dair))
         hit = next(row for row in events['events'] if row['kind'] == 'hitbox')
         previous = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=hit['event_id']))

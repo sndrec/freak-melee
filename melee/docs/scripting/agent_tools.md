@@ -18,8 +18,10 @@ From the folder containing `native_content_tool.exe`:
 .\native_content_tool.exe agent call projects.list
 ```
 
-`agent list` returns the names, descriptions and JSON argument schemas of the
-available tools. `agent call` returns one JSON object. Successful calls contain
+`agent list` returns the names, descriptions, argument schemas and result
+schemas of the available tools. MCP publishes the same schemas in
+`tools/list`. Each result schema describes the successful payload and the
+error payload. `agent call` returns one JSON object. Successful calls contain
 `ok: true` and `result`; unsuccessful calls contain `ok: false` and an `error`
 with a code and message. Errors produce a nonzero exit code.
 For large arguments, use `agent call TOOL --stdin` and send one JSON object on

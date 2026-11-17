@@ -11,20 +11,6 @@ namespace NativeWorkshopAgent {
 #define TEST_ID R"("test_id":{"type":"integer","minimum":1,"maximum":4294967295},"test_revision":{"type":"integer","minimum":1,"maximum":4294967295})"
 #define INITIAL_FIGHTER R"("spawn":{"type":"integer","minimum":0,"maximum":3},"facing":{"type":"integer","minimum":-1,"maximum":1},"damage":{"type":"integer","minimum":0,"maximum":999})"
 #define AXIS R"({"type":"integer","minimum":-127,"maximum":127})"
-static constexpr char practice_state_output[] = R"({
-    "type":"object","required":["status","test_id","test_revision","fighter_revision","package_id",
-    "frame","target_frame","oldest_frame","seed","checkpoint_frame"],
-    "properties":{
-      "status":{"enum":["closed","opening","ready","running","checkpoint_pending","failed"]},
-      "request_id":{"type":"string"},
-      "capture_id":{"type":"string","pattern":"^[0-9a-f]{32}$"},
-      "test_id":{"type":"integer","minimum":0},"test_revision":{"type":"integer","minimum":0},
-      "fighter_revision":{"type":"string"},"package_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},
-      "frame":{"type":"integer","minimum":0},"target_frame":{"type":"integer","minimum":0},
-      "oldest_frame":{"type":"integer","minimum":0},"seed":{"type":"integer","minimum":0},
-      "checkpoint_frame":{"type":["integer","null"]},"message":{"type":"string"}
-    },"additionalProperties":false
-})";
 static constexpr char capture_output[] = R"json({
     "type":"object",
     "required":["capture_id","scope","status","view"],
@@ -169,12 +155,12 @@ static const Command commands[] = {
     {"session.practice.stop", "Return this Workshop's live practice test to its frozen preview. Available during the owned test; leaves ordinary matches untouched.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.practice.state", "Read this client's controlled test ID, revision, frame, fighter/package identity and checkpoint status.",
-        "{\"type\":\"object\",\"properties\":{" INSTANCE "},\"required\":[\"instance\"],\"additionalProperties\":false}", true, practice_state_output},
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "},\"required\":[\"instance\"],\"additionalProperties\":false}", true},
     {"session.practice.run", "Advance exactly the supplied game ticks using the given pad states. Supply capture to save the last rendered tick and get a capture ID. One neutral frame is a single step.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
         R"(,"inputs":{"type":"array","minItems":1,"maxItems":600,"items":{"type":"object","properties":{"frames":{"type":"integer","minimum":1,"maximum":600},"pads":{"type":"array","maxItems":4,"items":{"type":"object","properties":{"port":{"type":"integer","minimum":0,"maximum":3},"stick_x":)"
         AXIS R"(,"stick_y":)" AXIS R"(,"c_x":)" AXIS R"(,"c_y":)" AXIS
-        R"(,"trigger_l":{"type":"integer","minimum":0,"maximum":255},"trigger_r":{"type":"integer","minimum":0,"maximum":255},"buttons":{"type":"array","maxItems":11,"items":{"type":"string","enum":["A","B","X","Y","Z","L","R","left","right","up","down"]}}},"required":["port"],"additionalProperties":false}}},"required":["frames"],"additionalProperties":false}},"capture":{"type":"object","properties":{"scope":{"type":"string","enum":["viewport","window"]},"output":{"type":"string","minLength":1,"maxLength":500}},"required":["scope","output"],"additionalProperties":false}},"required":["instance","test_id","test_revision","inputs"],"additionalProperties":false})", false, practice_state_output},
+        R"(,"trigger_l":{"type":"integer","minimum":0,"maximum":255},"trigger_r":{"type":"integer","minimum":0,"maximum":255},"buttons":{"type":"array","maxItems":11,"items":{"type":"string","enum":["A","B","X","Y","Z","L","R","left","right","up","down"]}}},"required":["port"],"additionalProperties":false}}},"required":["frames"],"additionalProperties":false}},"capture":{"type":"object","properties":{"scope":{"type":"string","enum":["viewport","window"]},"output":{"type":"string","minLength":1,"maxLength":500}},"required":["scope","output"],"additionalProperties":false}},"required":["instance","test_id","test_revision","inputs"],"additionalProperties":false})", false},
     {"session.practice.trace", "Read retained post-tick rows with fighter actions, animation frames, active hitboxes, damage, position, velocity, facing, hitlag and item counts. Frame zero is the initialized scene.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
         R"(,"from":{"type":"integer","minimum":0,"maximum":4294967295},"limit":{"type":"integer","minimum":1,"maximum":120}},"required":["instance","test_id","test_revision"],"additionalProperties":false})", true},
@@ -183,10 +169,10 @@ static const Command commands[] = {
         R"(,"checks":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object","properties":{"predicate":{"type":"string","enum":["hitbox_inactive","facing","action","item_hit_count","no_script_faults"]},"from":{"type":"integer","minimum":0,"maximum":4294967295},"through":{"type":"integer","minimum":0,"maximum":4294967295},"port":{"type":"integer","minimum":0,"maximum":4},"actor":{"type":"integer","minimum":0,"maximum":1},"slot":{"type":"integer","minimum":0,"maximum":3},"item_kind":{"type":"integer","minimum":0,"maximum":65535},"expected":{"type":"integer","minimum":-1,"maximum":32767}},"required":["predicate"],"additionalProperties":false}}},"required":["instance","test_id","test_revision","checks"],"additionalProperties":false})", true},
     {"session.practice.checkpoint", "Save or restore one private gameplay snapshot in the current practice scene, including interpreter state. Poll state for completion.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
-        R"(,"action":{"type":"string","enum":["save","restore"]}},"required":["instance","test_id","test_revision","action"],"additionalProperties":false})", false, practice_state_output},
+        R"(,"action":{"type":"string","enum":["save","restore"]}},"required":["instance","test_id","test_revision","action"],"additionalProperties":false})", false},
     {"session.practice.reset", "Restore this trial's frame-zero state, including RNG and controller history, without reloading the draft.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
-        R"(},"required":["instance","test_id","test_revision"],"additionalProperties":false})", false, practice_state_output},
+        R"(},"required":["instance","test_id","test_revision"],"additionalProperties":false})", false},
     {"session.undo", "Undo one edit in the current Workshop member and workspace. Requires the inspected live revision.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.redo", "Redo one edit in the current Workshop member and workspace. Requires the inspected live revision.",

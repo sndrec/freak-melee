@@ -1,4 +1,5 @@
 #include "native_agent_internal.h"
+#include "native_agent_result_schema.h"
 #include <melee/ft/native_workshop_agent_catalog.h>
 #include <melee/ft/native_action_authoring.h>
 #include <melee/ft/native_animation_authoring.h>
@@ -100,6 +101,7 @@ const Tool* catalog(size_t& count)
 
 yyjson_mut_val* list_tools(yyjson_mut_doc* document)
 {
+    ResultSchema::Catalog schemas(document);
     auto* result = yyjson_mut_arr(document);
     size_t count;
     const auto* tools = catalog(count);
@@ -111,13 +113,8 @@ yyjson_mut_val* list_tools(yyjson_mut_doc* document)
         auto* schema = yyjson_read(tool.schema, std::strlen(tool.schema), 0);
         yyjson_mut_obj_add_val(document, item, "inputSchema", yyjson_val_mut_copy(document, yyjson_doc_get_root(schema)));
         yyjson_doc_free(schema);
-        auto* output_schema = tool.output_schema
-            ? yyjson_read(tool.output_schema, std::strlen(tool.output_schema), 0) : nullptr;
-        auto* output = output_schema ? yyjson_val_mut_copy(document, yyjson_doc_get_root(output_schema))
-                                     : yyjson_mut_obj(document);
-        if (!output_schema) yyjson_mut_obj_add_str(document, output, "type", "object");
-        yyjson_doc_free(output_schema);
-        yyjson_mut_obj_add_val(document, item, "outputSchema", output);
+        if (auto* output = schemas.for_tool(tool))
+            yyjson_mut_obj_add_val(document, item, "outputSchema", output);
         auto* annotations = yyjson_mut_obj(document);
         yyjson_mut_obj_add_bool(document, annotations, "readOnlyHint", tool.read_only);
         yyjson_mut_obj_add_bool(document, annotations, "destructiveHint", !std::strcmp(tool.name, "feedback.discard"));

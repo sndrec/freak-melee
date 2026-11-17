@@ -62,6 +62,16 @@ def main():
         names = {item['name'] for item in tools}
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
+        for item in tools:
+            output = item['outputSchema']
+            assert output['type'] == 'object', item['name']
+            success, error = output['anyOf']
+            assert set(error['required']) == {'code', 'message'}, item['name']
+            for variant in success.get('anyOf', [success]):
+                assert variant['type'] == 'object', item['name']
+                assert variant['additionalProperties'] is False, item['name']
+                assert variant['properties'], item['name']
+                assert set(variant.get('required', [])) <= variant['properties'].keys(), item['name']
         mutations = {'scripts.update', 'project.build', 'packages.export', 'session.build', 'session.install',
                      'project.clone_stock', 'project.clone_installed', 'project.import', 'project.rename', 'project.install',
                      'attributes.edit', 'session.attributes.edit', 'models.edit', 'session.models.edit',
