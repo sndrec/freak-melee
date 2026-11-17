@@ -12,7 +12,6 @@ extern "C" {
 enum {
     NATIVE_FIGHTER_ACTION_CAPACITY = 1024,
     NATIVE_FIGHTER_MARIO_ACTION_COUNT = 303,
-    NATIVE_FIGHTER_MARIO_JOINT_COUNT = 61,
 };
 
 typedef struct NativeFighterActionInfo {
@@ -199,6 +198,13 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
                                       unsigned action, unsigned frame,
                                       unsigned template_action, uint32_t template_offset,
                                       uint32_t* inserted_offset);
+// Insert a new non-control event from native-order operands. The command is
+// authored directly; it needs no donor action or stock template. Timers are
+// generated around the chosen frame, preserving existing event times.
+bool nativeFighterAction_CreateEvent(NativeFighterProject*, unsigned action,
+                                    unsigned frame, const uint32_t* words,
+                                    size_t word_count, uint32_t* inserted);
+bool nativeFighterAction_EncodeHitbox(const NativeFighterHitbox*, uint32_t words[6]);
 // Delete one reachable non-control command from an action-local copy of its
 // source graph. References into that command reject the edit.
 bool nativeFighterAction_DeleteCommand(NativeFighterProject* project,

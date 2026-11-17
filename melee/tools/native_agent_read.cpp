@@ -1,5 +1,6 @@
 #include "native_agent_internal.h"
 #include "native_agent_project.h"
+#include <melee/ft/native_action_authoring.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_sources.h>
 #include <melee/ft/native_fighter_attributes.h>
@@ -115,6 +116,8 @@ void project(const Context&, yyjson_val* arguments, Reply& reply)
         yyjson_mut_obj_add_uint(reply.document, object, "animation_bytes", member.animation_size);
         yyjson_mut_obj_add_uint(reply.document, object, "costume_bytes", member.costume_size);
         yyjson_mut_obj_add_uint(reply.document, object, "resource_bytes", member.resource_size);
+        yyjson_mut_obj_add_uint(reply.document, object, "joints", member.facts.joints);
+        yyjson_mut_obj_add_uint(reply.document, object, "part_slots", member.facts.joints + member.facts.omission_count);
         yyjson_mut_obj_add_bool(reply.document, object, "has_validated_source", member.script_size != 0);
     }
     const char* modes[] = {"single", "alternate_form", "simultaneous_companion"};
@@ -194,32 +197,7 @@ void attributes(const Context&, yyjson_val* arguments, Reply& reply)
 void actions(const Context&, yyjson_val* arguments, Reply& reply)
 {
     auto project = open_project(arguments, reply);
-    if (!project) return;
-    size_t count = 0;
-    const auto* member = &project->family.members[project->member];
-    if (!nativeFighterAction_List(member, nullptr, 0, &count)) {
-        reply.fail("invalid_actions", "Could not inspect this fighter's action table."); return;
-    }
-    std::vector<NativeFighterActionInfo> actions(count);
-    if (!nativeFighterAction_List(member, actions.data(), actions.size(), &count)) {
-        reply.fail("invalid_actions", "Could not read this fighter's action table."); return;
-    }
-    auto* array = yyjson_mut_arr(reply.document);
-    yyjson_mut_obj_add_val(reply.document, reply.result, "actions", array);
-    unsigned offset = page_offset(arguments), limit = page_limit(arguments);
-    size_t matching = 0;
-    for (const auto& action : actions) {
-        const char* label = nativeFighterAuthoring_Name(member, NativeAuthoring_Action, action.index);
-        const std::string query = string(arguments, "query");
-        if (!matches(action.name, query) && !(label && matches(label, query))) continue;
-        if (matching++ < offset || yyjson_mut_arr_size(array) >= limit) continue;
-        auto* object = item(reply, array);
-        yyjson_mut_obj_add_uint(reply.document, object, "id", action.index);
-        add_string(reply, object, "name", action.name);
-        if (label) add_string(reply, object, "label", label);
-        yyjson_mut_obj_add_bool(reply.document, object, "has_events", action.has_script);
-    }
-    pagination(reply, matching, offset, limit);
+    if (project) NativeActionAuthoring::list(project->family.members[project->member], arguments, reply);
 }
 
 std::vector<std::string> documentation_pages(const Context& context)

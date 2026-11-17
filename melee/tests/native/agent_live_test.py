@@ -293,6 +293,7 @@ def main():
             target = {'instance': instance}
             connected = call('session.inspect', target)
             assert connected['project'] == str(project) and connected['revision'] == reverted['revision']
+            control('ui-click', *position('workshop-agent-close'))
         # Save owns the whole family transaction. External edits are detected
         # against the revision captured when this draft opened, not accepted
         # silently as a new baseline immediately before writing.
@@ -322,6 +323,45 @@ def main():
         reverted = call('session.redo', dict(target, revision=undone['revision']))
         assert not reverted['dirty'], reverted
         assert call('session.scripts.read', dict(target, file=first))['text'] == final_text
+        # Action editing reads the unsaved archive, owns shared commands, and
+        # commits one property group into the same editor history as the UI.
+        actions = call('session.actions.list', dict(target, query='AttackAirLw'))
+        dair = next(row['id'] for row in actions['actions'] if row['name'] == 'AttackAirLw')
+        events = call('session.actions.read', dict(target, view='events', action_id=dair))
+        hit = next(row for row in events['events'] if row['kind'] == 'hitbox')
+        previous = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=hit['event_id']))
+        action_disk = snapshot(project)
+        action_edit = call('session.actions.edit', dict(target, revision=previous['revision'], action_id=dair,
+            operation='update', event_id=hit['event_id'], summary='Edit aerial damage and element',
+            properties={'damage': previous['properties']['damage'] + 1, 'element': 2}))
+        assert action_edit['workspace'] == 'action' and action_edit['can_undo'] and action_edit['dirty']
+        assert not action_edit['saved'] and not action_edit['installed']
+        updated = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=action_edit['event_id']))
+        assert updated['properties']['damage'] == previous['properties']['damage'] + 1 and updated['properties']['element'] == 2
+        assert snapshot(project) == action_disk
+        reverted_action = call('session.undo', dict(target, revision=updated['revision']))
+        restored = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=hit['event_id']))
+        assert restored['properties'] == previous['properties']
+        reverted = call('session.redo', dict(target, revision=reverted_action['revision']))
+        assert call('session.actions.read', dict(target, view='event', action_id=dair,
+            event_id=action_edit['event_id']))['properties']['element'] == 2
+        if args.control:
+            before_events = call('session.actions.read', dict(target, view='events', action_id=dair))
+            control('ui-click', *position('workshop-add-event'))
+            position('workshop-add-kind-2')
+            control('screenshot')
+            control('ui-click', *position('workshop-add-kind-2'))
+            for _ in range(30):
+                new_events = call('session.actions.read', dict(target, view='events', action_id=dair))
+                if new_events['total'] == before_events['total'] + 1: break
+                time.sleep(.1)
+            else: raise AssertionError('UI Add hitbox did not create an event')
+            created = next(row for row in new_events['events'] if row['kind'] == 'hitbox' and row['first_frame'] == 0)
+            properties = call('session.actions.read', dict(target, view='event', action_id=dair, event_id=created['event_id']))
+            assert properties['properties']['timed'] and properties['properties']['duration'] == 1
+            control('screenshot')
+            reverted = call('session.undo', dict(target, revision=properties['revision']))
+            assert call('session.actions.read', dict(target, view='events', action_id=dair))['total'] == before_events['total']
         built = call('session.build', dict(target, revision=reverted['revision']))
         assert built['accepted'] and built['saved'] and not built['installed'] and not built['dirty'], built
         assert built['loaded_preview_package_id'] == initial_package and not built['preview_matches_fighter'], built
@@ -355,11 +395,11 @@ def main():
         time.sleep(.1)
         assert all(row['instance'] != instance for row in call('instances.list')['instances'])
         (output / 'result.json').write_text(json.dumps({'status': 'PASS', 'instance': instance,
-            'build_identity': state['build_identity'], 'project': str(project), 'revision': reverted['revision']}, indent=2))
+            'build_identity': state['build_identity'], 'project': str(project), 'revision': installed['revision']}, indent=2))
         report = json.loads((output / 'result.json').read_text())
         report['manual_input_checked'] = manual_input_checked
         (output / 'result.json').write_text(json.dumps(report, indent=2))
-        print('PASS: live authoring, atomic acceptance, unsaved preview identity, practice lifecycle, installation, exact export and preserved history')
+        print('PASS: live source/action authoring, shared action undo, atomic acceptance, preview identity, practice, installation and exact export')
     finally:
         if process and process.poll() is None:
             close_window(process.pid)

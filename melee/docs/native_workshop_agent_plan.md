@@ -18,10 +18,9 @@ Accepted 2026-11-17. Implementation is in progress.
   It also passes against an extracted setup ZIP with a Windows-only PATH and
   the packaged launcher. The game/tool build, family-package regression and
   release-payload checks pass. This verifies the read-only foundation only.
-- Complete editing coverage, live asset operations, authoring schemas,
-  visual/practice tools, agent feedback and full
+- Complete domain editing coverage, visual/practice tools and full
   repository-free acceptance remain to be implemented. The remaining practical
-  authoring guides are also open.
+  authoring guides are also open; completed slices are recorded below.
 - `scripts.check` validates the editable source set through the same independent
   native candidate operation as the Workshop's validator. It collects errors
   and maps them to their original move files. `parameters.read` exposes typed
@@ -112,11 +111,36 @@ Accepted 2026-11-17. Implementation is in progress.
   checks pass. No test report or build was sent to the public service. Remaining
   work includes the domain editing tools, structured clone/import, controlled
   preview/practice evidence and full packaged acceptance exercises.
+- Saved and live action tools now expose actual action IDs, playback flags,
+  reachable commands, unrolled loop occurrences and named property definitions.
+  Hitbox fields include element, knockback, radius, attachment, hit eligibility
+  and duration. Sound, effect, throw and other command operands share the native
+  codec and the Workshop's names. New events are constructed directly, including
+  the first script on an empty action; the UI Add event menu uses this same
+  operation. Property groups commit atomically, shared commands are localized,
+  timing edits preserve repeated patterns, and live edits share editor undo.
+  Proven stock lifetimes can be converted into duration-owned hitboxes.
+  The timeline reader now preserves actual execution order when an absolute
+  wait targets a frame already passed, retaining its debt for relative waits.
+  All thirteen core authoring/reference/payload checks pass, as do native hitbox,
+  action duplication and fighter-event checks. The action CLI, MCP/launcher and
+  hidden/muted live checks pass from an extracted setup with a Windows-only
+  PATH, including the real UI Add hitbox button, undo, preview, practice,
+  installation and export. Paired build/save fixtures now explicitly construct
+  both Zelda and Sheik and verify two-member coverage; legacy clone-stock creates
+  only one member. Remaining work includes action labels/visibility and larger
+  edit batches, other asset domains, structured clone/import, controlled test
+  evidence and full packaged acceptance. No public build was uploaded.
 
 One broader animation roundtrip check has a pre-existing exact-byte assertion
 failure after key retiming. The same failure reproduces against the extracted
 reference package built before these changes. Its semantic replacement will be
 addressed with the animation tools; it is not counted as a passing check here.
+An older fighter-event package test also fails while preparing its source. Its
+fixture omits current parameter/fighter declarations, and its runtime probe
+assumes a compiled DLL. The same preparation failure reproduces with the
+extracted feedback-stage reference tool. It needs an interpreter-based
+replacement and is separate from the passing native fighter-event check.
 
 A player should be able to give their coding agent the installed Freak Melee
 folder and ask it to create or change a fighter. The installation should supply

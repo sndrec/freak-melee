@@ -31,9 +31,14 @@ with tempfile.TemporaryDirectory(prefix='Agent build with spaces ') as temporary
         project = root / fighter
         cloned = run('clone-stock', iso, fighter, project, fighter)
         assert cloned.returncode == 0, cloned.stderr
+        if fighter == 'Zelda':
+            cloned = run('clone-stock', iso, 'Sheik', project / 'partner', 'Sheik')
+            assert cloned.returncode == 0, cloned.stderr
+            (project / 'family.txt').write_text('mode=alternate\nprimary_key=main\npartner_key=partner\npartner=partner\n')
         args = {'project': str(project)}
         info = call('project.inspect', args)
         members = [row['key'] for row in info['members']]
+        assert len(members) == (2 if fighter == 'Zelda' else 1)
         originals = {}
         for member in members:
             selected = dict(args, member=member)

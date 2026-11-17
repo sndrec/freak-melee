@@ -4,90 +4,8 @@ namespace WorkshopEditor {
     std::string event_name(const NativeFighterActionEvent& event)
     {
         return event.kind == NativeFighterActionEvent_Command
-                   ? WorkshopLabels::command(event.opcode)
-                   : WorkshopLabels::event(event.kind);
-    }
-    static const char* field_name(unsigned opcode, unsigned index)
-    {
-        static const char* variable[] = { "Variable index", "Value" };
-        static const char* visibility[] = { "Group", "Visible variant" };
-        static const char* texture[] = { "Use second group", "Group",
-                                         "Second group", "Animation frame" };
-        static const char* part[] = { "Part", "Animation", "Animation frame" };
-        static const char* rumble[] = { "All controllers", "Pattern",
-                                        "Duration (frames)" };
-        static const char* charge[] = { "Charge limit (frames)",
-                                        "Damage growth (1/256)",
-                                        "Color animation", "Reserved" };
-        static const char* flash[] = { "Flash effect", "Priority" };
-        const char* const* names = nullptr;
-        unsigned count = 0;
-        switch (opcode) {
-        case 18:
-        case 21:
-        case 22:
-        case 24:
-        case 32:
-        case 33:
-            return "Reserved";
-        case 9:
-            names = flash;
-            count = 2;
-            break;
-        case 19:
-            names = variable;
-            count = 2;
-            break;
-        case 31:
-            names = visibility;
-            count = 2;
-            break;
-        case 40:
-            names = texture;
-            count = 4;
-            break;
-        case 41:
-            names = part;
-            count = 3;
-            break;
-        case 43:
-            names = rumble;
-            count = 3;
-            break;
-        case 56:
-            names = charge;
-            count = 4;
-            break;
-        case 35:
-        case 36:
-        case 37:
-            return "Hidden";
-        case 44:
-            return "Rumble pattern";
-        case 46:
-            return index == 0 ? "Color animation" : "Force restart";
-        case 47:
-            return "Color animation";
-        case 48:
-            return "Hidden";
-        case 49:
-            return index == 0   ? "Trail enabled"
-                   : index == 1 ? "Use held sword"
-                                : "Trail samples";
-        case 50:
-            return "Bone";
-        case 51:
-            return "Damage (%)";
-        case 52:
-            return "Ground alignment flags";
-        case 53:
-            return "Visible";
-        case 57:
-            return index == 0 ? "Refraction enabled" : "Vibration frame";
-        default:
-            break;
-        }
-        return names && index < count ? names[index] : nullptr;
+                   ? NativeFighterActionLabels::command(event.opcode)
+                   : NativeFighterActionLabels::event(event.kind);
     }
     void show_command_fields(const NativeFighterActionEvent& event)
     {
@@ -106,7 +24,7 @@ namespace WorkshopEditor {
         }
         std::string markup;
         for (unsigned index = 0; index < count; ++index) {
-            const char* name = field_name(event.opcode, index);
+            const char* name = NativeFighterActionLabels::field(event.opcode, index);
             if (name && std::strcmp(name, "Reserved") == 0) {
                 continue;
             }
@@ -147,7 +65,7 @@ namespace WorkshopEditor {
                  : event.opcode == 31
                      ? "Choose a visibility group and its mesh variant. "
                        "Variant -1 hides the group."
-                     : WorkshopLabels::command_description(event.opcode));
+                     : NativeFighterActionLabels::command_description(event.opcode));
     }
     void apply_command_fields()
     {
@@ -167,7 +85,7 @@ namespace WorkshopEditor {
         }
         uint32_t values[48];
         for (unsigned i = 0; i < count; ++i) {
-            const char* name = field_name(event.opcode, i);
+            const char* name = NativeFighterActionLabels::field(event.opcode, i);
             if (name && std::strcmp(name, "Reserved") == 0) {
                 values[i] = fields[i].value;
                 continue;

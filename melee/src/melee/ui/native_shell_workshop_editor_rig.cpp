@@ -45,7 +45,6 @@ void nativeShellWorkshopEditor_RigChanged(const NativeFighterModelEditor& before
     nativeShellWorkshopBones_Reset();
     for(unsigned i=0;i<512;++i)
         session->bone_names[i]=i<after.joint_count?after.joints[i].name:"";
-    session->event_templates_dirty=true;
     session->preview_hitbox_cached_frame=session->preview_hitbox_cached_action=-1;
     if(!nativeFighterAction_List(session->project,session->actions,1024,&session->action_count))
         session->action_count=0;

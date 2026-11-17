@@ -63,6 +63,7 @@ def main():
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
         mutations = {'scripts.update', 'project.build', 'packages.export', 'session.build', 'session.install',
+                     'actions.edit', 'session.actions.edit', 'session.actions.select',
                      'feedback.prepare', 'feedback.submit', 'feedback.discard',
                      'session.preview.refresh', 'session.practice.start', 'session.practice.stop',
                      'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',

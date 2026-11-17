@@ -181,6 +181,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
                     reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
             }
         } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+        else if (!std::strncmp(method, "session.actions.", 16)) nativeShellWorkshopEditor_Actions(method + 16, arguments, reply);
         else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
         else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
         else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);

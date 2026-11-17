@@ -51,6 +51,8 @@ void update_scripts(const Context&, yyjson_val*, Reply&);
 void parameter_source(const Context&, yyjson_val*, Reply&);
 void attributes(const Context&, yyjson_val*, Reply&);
 void actions(const Context&, yyjson_val*, Reply&);
+void read_actions(const Context&, yyjson_val*, Reply&);
+void edit_actions(const Context&, yyjson_val*, Reply&);
 void documentation(const Context&, yyjson_val*, Reply&);
 void documentation_page(const Context&, yyjson_val*, Reply&);
 void examples(const Context&, yyjson_val*, Reply&);

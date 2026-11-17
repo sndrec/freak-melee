@@ -4,6 +4,7 @@
 #include <melee/lb/native_math_functions.h>
 #include "native_shell_workshop_docs.h"
 #include <melee/ft/native_fighter_model_editor.h>
+#include <melee/ft/native_action_properties.h>
 
 #ifdef MELEE_NATIVE
 
@@ -106,7 +107,6 @@ void record_structural_edit(bool animation, const uint8_t* before, size_t size,
     session->edit_history.push_back(std::move(edit));
     session->edit_cursor = session->edit_history.size();
     if (animation) nativeHome_WorkshopPoseInvalidate();
-    else session->event_templates_dirty = true;
     update_history_buttons();
 }
 
@@ -434,12 +434,8 @@ void nativeShellWorkshopEditor_Init(Rml::ElementDocument* shell)
     nativeShellWorkshopHitboxes_Init(shell);
     auto* elements = static_cast<Rml::ElementFormControlSelect*>(
         shell->GetElementById("workshop-hitbox-element"));
-    const char* names[] = { "Normal", "Fire", "Electric", "Slash", "Coin",
-        "Ice", "Nap", "Sleep", "Catch", "Ground", "Cape", "Inert", "Disable",
-        "Dark", "Screw Attack", "Lipstick", "ReDead" };
     for (unsigned i = 0; i < 32; ++i)
-        elements->Add(i < std::size(names) ? names[i] : "Unknown (" + number(i) + ")",
-                      number(i), -1, i < std::size(names));
+        elements->Add(NativeActionProperties::element_label(i), number(i));
     nativeShellWorkshopModel_Init(shell);
     for (const char* id : { "workshop-action-viewport",
                             "workshop-animation-viewport" }) {
@@ -542,7 +538,6 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     set_text("workshop-frame-play", "Play");
     set_text("workshop-animation-frame-play", "Play");
     session->add_event_menu_open = false;
-    session->event_templates_dirty = true;
     document->GetElementById("workshop-add-event-menu")
         ->SetProperty("display", "none");
     session->timeline_frame = 0;
@@ -1246,8 +1241,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     if (parse_row(id, "workshop-add-command-", &index) && index < 59) {
         session->add_event_menu_open = false;
         document->GetElementById("workshop-add-event-menu")->SetProperty("display", "none");
-        if (session->command_templates[index].found)
-            insert_selected_event(session->command_templates[index].action, session->command_templates[index].offset);
+        if (const auto* type = NativeActionProperties::type(index)) create_action_event(type->name.c_str());
         return true;
     }
     if (std::strcmp(id, "workshop-add-copy") == 0 ||
@@ -1259,10 +1253,8 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             if (session->selected_event >= 0 && (size_t) session->selected_event < session->event_count)
                 insert_selected_event((unsigned) session->selected_action,
                                       session->events[session->selected_event].source_offset);
-        } else if (index <= NativeFighterActionEvent_SetAirborneState &&
-                   session->event_templates[index].found) {
-            insert_selected_event(session->event_templates[index].action,
-                                  session->event_templates[index].offset);
+        } else if (const auto* type = NativeActionProperties::type_for_event(index)) {
+            create_action_event(type->name.c_str());
         }
         return true;
     }

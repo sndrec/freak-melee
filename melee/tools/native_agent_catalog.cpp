@@ -1,5 +1,6 @@
 #include "native_agent_internal.h"
 #include <melee/ft/native_workshop_agent_catalog.h>
+#include <melee/ft/native_action_authoring.h>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -35,6 +36,8 @@ static const Tool offline_tools[] = {
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "," PAGE_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", attributes, true},
     {"actions.list", "List this fighter's real action IDs and names. Resolve the selected fighter's data before editing an action.",
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "," PAGE_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", actions, true},
+    {"actions.read", "Inspect saved action playback, reachable events, a selected event's typed fields, expanded loop occurrences or creation defaults. Choose view: metadata, events, event, timeline or types. Event handles belong to the inspected action/revision. Timers are hidden unless requested.", NativeActionAuthoring::read_schema(false), read_actions, true},
+    {"actions.edit", "Atomically edit a saved action: playback, own_hitboxes to convert proven clear-command lifetimes into durations, create an event, update properties together, change timing/duration across repetitions, or delete an event. Requires the inspected disk revision and refuses a live-owned draft. Returns a fresh event handle after structural edits.", NativeActionAuthoring::edit_schema(false), edit_actions, false},
     {"docs.search", "Search the installed scripting reference by filename or content; returns page IDs and short excerpts.",
         "{\"type\":\"object\",\"properties\":{" PAGE_FIELDS "},\"additionalProperties\":false}", documentation, true},
     {"docs.read", "Read a bundled reference page using its page ID from docs.search.",

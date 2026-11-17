@@ -51,11 +51,7 @@ namespace WorkshopEditor {
 
 bool clip_authoring_click(const char* id);
 
-struct ActionEventTemplate {
-    unsigned action;
-    uint32_t offset;
-    bool found;
-};
+
 struct TimelineEventInstance { unsigned event; int frame; };
 using GraphKeyRef = NativeFighterAnimationKeyRef;
 struct GraphKeyBaseline {
@@ -114,9 +110,6 @@ struct EditorSession {
     bool action_has_clip[1024];
     float action_clip_frames[1024];
     NativeFighterActionEvent events[256];
-    ActionEventTemplate event_templates[NativeFighterActionEvent_Command + 1];
-    ActionEventTemplate command_templates[59];
-    bool event_templates_dirty = true;
     bool add_event_menu_open;
     NativeFighterActionCommand commands[512];
     NativeFighterAnimationTrack tracks[1024];
@@ -400,7 +393,7 @@ void select_demo_clip(unsigned clip);
 void read_demo_clips();
 void select_event(unsigned index, bool seek_to_first_occurrence = true);
 void active_hitbox_events(int (&event_indices)[4]);
-void refresh_event_templates();
+void create_action_event(const char* kind);
 void toggle_add_event_menu();
 void insert_selected_event(unsigned template_action, uint32_t template_offset);
 void delete_selected_event();

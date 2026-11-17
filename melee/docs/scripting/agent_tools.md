@@ -167,6 +167,59 @@ supporting examples. They are also available as MCP resources under
 these files. Links marked **developer reference, online** provide optional
 implementation notes on GitHub.
 
+## Edit actions and events
+
+Resolve each fighter's real actions with `actions.list` or
+`session.actions.list`. Use the returned ID as `action_id`. The live tools read
+unsaved changes in the open member; saved-draft tools read its files.
+
+`actions.read` and `session.actions.read` offer these views:
+
+| `view` | Contents |
+| --- | --- |
+| `metadata` | Playback flags, animation availability, command count and timeline limits. |
+| `events` | Event handles, kinds, first frames and repetition counts. |
+| `event` | One event's properties, field descriptions, ranges, choices and repeated frames. Supply `event_id`. |
+| `timeline` | Events in execution order, including each loop repetition. |
+| `types` | Available event kinds, their creation defaults and field definitions. |
+
+Lists support `offset` and `limit`; event and type lists also accept `query`.
+Timers stay hidden until `include_timers` is true. A `timeline_complete: false`
+result identifies a trace stopped by a command such as an animation-end wait
+or a tracing limit. Frames beyond that trace are unknown.
+For duration-owned hitboxes, `duration_end_frame` is the start frame plus the
+authored duration. An explicit clear or an all-slots expiration can end it
+earlier. Use the preview or a practice check to verify its runtime lifetime.
+
+Use `actions.edit` for a saved draft or `session.actions.edit` for the open
+Workshop. Supply the inspected `revision`, `action_id` and `operation`. A live
+edit also takes a short `summary` for Undo and selects the edited action in the
+Action Editor. Related property changes commit together; a rejected edit keeps
+the original archive.
+
+| `operation` | Arguments and result |
+| --- | --- |
+| `playback` | Set `loop`, `root_motion`, or the supported `animation_flags` bits. |
+| `own_hitboxes` | Convert proven hitbox lifetimes from clear events into editable durations. `converted_hitboxes` reports the count. Unresolved patterns keep their original commands. |
+| `create` | Supply `kind`, `frame` and optional `properties` from the types view. Creates a new event directly, including an action's first event script. |
+| `update` | Supply `event_id` and a `properties` object. Update damage, element, radius, attachment, knockback, eligibility and other fields returned by the event view. |
+| `timing` | Supply `event_id`, either `frame` or `delta`, and an optional hitbox `duration`. Moves all repetitions together while preserving the loop pattern and other event times. |
+| `delete` | Supply `event_id` to remove that authored event and its repetitions. |
+
+Hitboxes created here own their duration. `refresh_hit_eligibility` controls
+whether replacing a hitbox permits another hit on an opponent it already hit.
+Angle 361 selects the Sakurai angle. Radius and hitbox offsets use game units;
+the returned `quantum` gives their precision. Bone indices belong to this
+fighter's rig; `use_common_bone_ids` selects the engine's named bone roles.
+Some less common commands expose fields marked `expert`; their descriptions
+and bit ranges describe the available operands.
+
+An `event_id` is an opaque handle for the inspected action and revision. Use
+the fresh handle returned by an edit, or inspect again after a structural
+change. Finish with Save/Build as appropriate, then refresh the preview to run
+the edited fighter. `session.actions.select` selects an action and optional
+frame without changing its data.
+
 ## Report a bug or missing capability
 
 Use the feedback tools when an authoring operation fails reproducibly or a

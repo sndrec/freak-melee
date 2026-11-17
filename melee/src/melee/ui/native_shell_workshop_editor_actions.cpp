@@ -1,5 +1,6 @@
 #include "native_shell_workshop_editor_internal.h"
 #include <melee/ft/native_fighter_model_references.h>
+#include <melee/ft/native_action_properties.h>
 
 #ifdef MELEE_NATIVE
 
@@ -151,7 +152,7 @@ void show_event()
     set_text("workshop-action-title", event_name(event));
     if (event.kind == NativeFighterActionEvent_Command) {
         set_text("workshop-action-title", event_name(event));
-        set_text("workshop-action-detail", WorkshopLabels::command_description(event.opcode));
+        set_text("workshop-action-detail", NativeFighterActionLabels::command_description(event.opcode));
         document->GetElementById("workshop-delete-event")->SetProperty("display", "block");
         return;
     }
@@ -334,7 +335,7 @@ void show_commands()
                   "</span><span>" + number(frame_order) +
                   "</span><span>" +
                   (event_index >= 0 ? event_name(session->events[event_index])
-                                    : WorkshopLabels::command(command.opcode)) +
+                                    : NativeFighterActionLabels::command(command.opcode)) +
                   "</span><span>" + target + "</span></button>";
     }
     document->GetElementById("workshop-command-list")->SetInnerRML(
@@ -724,31 +725,6 @@ void active_hitbox_events(int (&event_indices)[4])
     }
 }
 
-void refresh_event_templates()
-{
-    if (!session->event_templates_dirty) return;
-    std::memset(session->event_templates, 0, sizeof(session->event_templates));
-    std::memset(session->command_templates, 0, sizeof(session->command_templates));
-    for (size_t i = 0; i < session->action_count; ++i) {
-        NativeFighterActionEvent listed[256];
-        size_t listed_count = 0;
-        if (!nativeFighterAction_Events(session->project, (unsigned) i,
-                                        listed, 256, &listed_count)) continue;
-        for (size_t item = 0; item < listed_count; ++item) {
-            const unsigned kind = listed[item].kind;
-            if (kind == NativeFighterActionEvent_Command && listed[item].opcode < 59 &&
-                !session->command_templates[listed[item].opcode].found)
-                session->command_templates[listed[item].opcode] = {(unsigned) i, listed[item].source_offset, true};
-            if (kind > NativeFighterActionEvent_SetAirborneState ||
-                (session->event_templates[kind].found &&
-                 !(kind == NativeFighterActionEvent_CreateHitbox && listed[item].duration256))) continue;
-            session->event_templates[kind] = { (unsigned) i,
-                listed[item].source_offset, true };
-        }
-    }
-    session->event_templates_dirty = false;
-}
-
 void toggle_add_event_menu()
 {
     if (session->project == nullptr || session->selected_action < 0) {
@@ -761,7 +737,6 @@ void toggle_add_event_menu()
         menu->SetProperty("display", "none");
         return;
     }
-    refresh_event_templates();
     std::string markup;
     if (session->selected_event >= 0)
         markup = "<button id='workshop-add-copy'>Copy selected event</button>";
@@ -783,16 +758,21 @@ void toggle_add_event_menu()
         NativeFighterActionEvent_ReverseFacing,
         NativeFighterActionEvent_SetAirborneState,
     };
+    bool offered[61] = {};
     for (unsigned kind : kinds) {
         if (!session->show_event_list && (kind == NativeFighterActionEvent_SyncTimer || kind == NativeFighterActionEvent_AsyncTimer ||
             kind == NativeFighterActionEvent_ClearHitbox || kind == NativeFighterActionEvent_ClearAllHitboxes)) continue;
-        if (!session->event_templates[kind].found) continue;
+        const auto* type = NativeActionProperties::type_for_event(kind);
+        if (!type) continue;
+        offered[type->opcode] = true;
         markup += "<button id='workshop-add-kind-" + number(kind) +
-                  "'>" + WorkshopLabels::event(kind) + "</button>";
+                  "'>" + NativeFighterActionLabels::event(kind) + "</button>";
     }
-    for (unsigned opcode = 9; opcode < 59; ++opcode) if (session->command_templates[opcode].found)
-        markup += "<button id='workshop-add-command-" + number(opcode) + "'>" +
-                  WorkshopLabels::command(opcode) + "</button>";
+    for (const auto& type : NativeActionProperties::types()) {
+        if (type.opcode < 9 || offered[type.opcode] || type.opcode == 59) continue;
+        markup += "<button id='workshop-add-command-" + number(type.opcode) + "'>" +
+                  type.label + "</button>";
+    }
     menu->SetInnerRML(markup);
     menu->SetProperty("display", "block");
 }
@@ -1081,7 +1061,6 @@ void apply_history(bool redo)
     if (edit.animation) session->animation_dirty = true;
     else {
         session->action_dirty = true;
-        session->event_templates_dirty = true;
     }
     const int action = session->selected_action;
     const NativeFighterAnimationClip clip = session->animation_clip;

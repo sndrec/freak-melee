@@ -13,7 +13,13 @@ with tempfile.TemporaryDirectory(prefix='native-snapshot-') as temp:
     env['LOCALAPPDATA'] = str(Path(temp) / 'userdata')
     for fighter in ('Mario', 'Zelda'):
         project = str(Path(temp) / fighter)
-        for command in ([tool, 'clone-stock', iso, fighter, project, fighter], [probe, project]):
+        commands = [[tool, 'clone-stock', iso, fighter, project, fighter]]
+        if fighter == 'Zelda':
+            commands.append([tool, 'clone-stock', iso, 'Sheik', str(Path(project) / 'partner'), 'Sheik'])
+        commands.append([probe, project])
+        for command in commands:
+            if command[0] == probe and fighter == 'Zelda':
+                (Path(project) / 'family.txt').write_text('mode=alternate\nprimary_key=main\npartner_key=partner\npartner=partner\n')
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
                                        creationflags=subprocess.CREATE_NO_WINDOW)
             stdout, stderr = process.communicate(timeout=90)

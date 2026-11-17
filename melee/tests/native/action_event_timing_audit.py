@@ -44,7 +44,7 @@ def action_traces(path):
         offset = word(table + action * 24 + 12)
         if not offset:
             return [], True
-        frame, stack, events = 0, [], []
+        frame, reached, stack, events = 0, 0, [], []
         for _ in range(8192):
             value = word(offset)
             opcode = value >> 26
@@ -52,7 +52,7 @@ def action_traces(path):
                 6
                 if opcode == 59
                 else (
-                    2 if opcode in (5, 7) else 1 if opcode < 10 else widths[opcode - 10]
+                    5 if opcode == 60 else 2 if opcode in (5, 7) else 1 if opcode < 10 else widths[opcode - 10]
                 )
             )
             payload = tuple(word(offset + i * 4) for i in range(width))
@@ -60,9 +60,10 @@ def action_traces(path):
                 frame += value & 0x3FFFFFF
             elif opcode == 2:
                 frame = value & 0x3FFFFFF
+            reached = max(reached, frame)
             if frame > 1000:
                 return events, False
-            events.append((offset, opcode, frame, payload))
+            events.append((offset, opcode, reached, payload))
             next_offset = offset + width * 4
             if opcode == 0:
                 return events, True

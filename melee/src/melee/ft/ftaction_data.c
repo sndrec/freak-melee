@@ -69,6 +69,15 @@ u32 ftActionData_SourceCommandWidth(u32 source_word)
     return opcode <= 58 ? action_widths[opcode - 10] : 0;
 }
 
+u32 ftActionData_SourceFieldMaximum(unsigned opcode, unsigned field, unsigned width)
+{
+    // The encoded index is wider than the engine's actual throw-record array.
+    if (opcode == 34 && field == 0) return 1;
+    if ((nativeHitbox_IsCreate(opcode) || opcode == 12 || opcode == 13) && field == 0) return 3;
+    if (opcode == 15 && field == 0) return 3;
+    return width == 32 ? UINT32_MAX : (1u << width) - 1;
+}
+
 static bool fail(HSD_DatImport* import, HSD_DatResult result, u32 offset)
 {
     import->status = result;
