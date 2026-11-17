@@ -118,11 +118,24 @@ int nativeAgentTool_Main(int argc, char** argv)
     if (argc == 2 && !std::strcmp(argv[1], "list")) {
         yyjson_mut_doc_set_root(document, list_tools(document));
     } else if ((argc == 3 || argc == 4) && !std::strcmp(argv[1], "call")) {
-        const char* json = argc == 4 ? argv[3] : "{}";
-        auto* input = yyjson_read(json, std::strlen(json), YYJSON_READ_NOFLAG);
         Reply reply(document);
-        if (!input) reply.fail("invalid_json", "Arguments must be one JSON object.");
-        else call(context, argv[2], yyjson_doc_get_root(input), reply);
+        std::string stdin_json;
+        const char* json = argc == 4 ? argv[3] : "{}";
+        if (argc == 4 && !std::strcmp(argv[3], "--stdin")) {
+            char bytes[16384]; size_t size;
+            while ((size = std::fread(bytes, 1, sizeof(bytes), stdin)) != 0) {
+                if (stdin_json.size() + size > 4 * 1024 * 1024) {
+                    reply.fail("input_too_large", "Tool arguments exceed 4 MiB."); break;
+                }
+                stdin_json.append(bytes, size);
+            }
+            if (std::ferror(stdin)) reply.fail("input_failed", "Could not read tool arguments from stdin.");
+            json = stdin_json.c_str();
+        }
+        auto* input = reply.ok ? yyjson_read(json, argc == 4 && !std::strcmp(argv[3], "--stdin")
+            ? stdin_json.size() : std::strlen(json), YYJSON_READ_NOFLAG) : nullptr;
+        if (reply.ok && !input) reply.fail("invalid_json", "Arguments must be one JSON object.");
+        else if (reply.ok) call(context, argv[2], yyjson_doc_get_root(input), reply);
         auto* root = yyjson_mut_obj(document);
         yyjson_mut_obj_add_bool(document, root, "ok", reply.ok);
         yyjson_mut_obj_add_val(document, root, reply.ok ? "result" : "error", reply.result);

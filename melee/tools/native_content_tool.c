@@ -19,6 +19,7 @@
 #include <melee/ft/native_fighter_template.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_family_project.h>
+#include <melee/ft/native_fighter_draft_access.h>
 #include <melee/ft/native_fighter_gltf_import.h>
 #include <melee/ft/native_fighter_model_editor.h>
 #include <melee/ft/native_fighter_action_editor.h>
@@ -1968,6 +1969,12 @@ static int project_model_texture(const char* path, const char* material_text,
     return ok ? 0 : 1;
 }
 
+static NativeFighterDraftLease command_leases[2];
+static void release_command_leases(void)
+{
+    for (unsigned i = 0; i < 2; ++i) nativeFighterDraft_Release(&command_leases[i]);
+}
+
 int main(int argc, char** argv)
 {
     if (argc > 1 && (!strcmp(argv[1], "agent") || !strcmp(argv[1], "mcp")))
@@ -1985,6 +1992,20 @@ int main(int argc, char** argv)
         index += 2;
     }
     int arguments = argc - index;
+    // Legacy commands can also write drafts. Reserve any existing project in
+    // their first two arguments (move-copy has source and destination). Source
+    // validation is deliberately read-only and also runs for the live editor.
+    if (arguments > 1 && strcmp(argv[index], "source-check") && strcmp(argv[index], "source-audit")) {
+        atexit(release_command_leases);
+        for (int i = 1; i < arguments && i <= 2; ++i) {
+            NativeFighterFamilyProjectInfo info;
+            if (!nativeFighterFamilyProject_ReadInfo(argv[index + i], &info)) continue;
+            char error[512];
+            if (!nativeFighterDraft_Acquire(argv[index + i], &command_leases[i - 1], error, sizeof(error))) {
+                fprintf(stderr, "%s\n", error); return 1;
+            }
+        }
+    }
     int authoring_result;
     if(nativeWorkshopAuthoring_Command(arguments,argv+index,&authoring_result))return authoring_result;
     if (arguments == 2 && strcmp(argv[index], "project-model-scan") == 0)

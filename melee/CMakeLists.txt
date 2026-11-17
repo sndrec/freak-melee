@@ -1537,7 +1537,8 @@ add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/
     tools/native_agent_tool.cpp tools/native_agent_catalog.cpp
     tools/native_agent_read.cpp tools/native_agent_mcp.cpp
     tools/native_agent_project.cpp tools/native_agent_validation.cpp
-    tools/native_agent_parameters.cpp tools/native_agent_examples.cpp)
+    tools/native_agent_parameters.cpp tools/native_agent_examples.cpp
+    tools/native_agent_script_edit.cpp)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.
 add_executable(native_script_reference_exporter tests/native/script_reference_exporter.c
@@ -2159,6 +2160,9 @@ target_link_options(native_content_tool PRIVATE "LINKER:/opt:ref")
 aurora_copy_runtime_dlls(native_content_tool)
 add_test(NAME native_agent_tool COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_tool_test.py"
+    "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
+add_test(NAME native_agent_edit COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_edit_test.py"
     "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
 add_test(NAME native_fighter_module_load COMMAND native_content_tool
     module-probe "$<TARGET_FILE:native_fighter_module_fixture>")

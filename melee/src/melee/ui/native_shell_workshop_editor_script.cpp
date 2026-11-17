@@ -1,4 +1,5 @@
 #include <melee/ft/native_fighter_template.h>
+#include <melee/ft/native_fighter_draft_access.h>
 #include "native_shell_workshop_editor_internal.h"
 
 #ifdef MELEE_NATIVE
@@ -85,8 +86,8 @@ void show_script()
     nativeShellWorkshopEditor_RefreshScriptOutline();
 }
 
-bool run_script_tool(const char* output_path, const std::string& source,
-                     bool publish, std::string* diagnostics, unsigned* error_line)
+bool validate_source_candidate(const char* output_path, const std::string& source,
+                                std::string* diagnostics, unsigned* error_line)
 {
     *error_line = 0;diagnostics->clear();
     char executable[MAX_PATH];
@@ -129,7 +130,7 @@ bool run_script_tool(const char* output_path, const std::string& source,
         return false;
     }
     std::string command = "\"" + std::string(executable) + "\" " +
-        (publish ? "script-build" : "source-check") + " \"" + output_path + "\" \"" + source_path + "\"";
+        "source-check \"" + output_path + "\" \"" + source_path + "\"";
     STARTUPINFOA startup = {};
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
@@ -192,7 +193,7 @@ bool validate_script()
     const std::string parameter_source = nativeShellWorkshopParameters_Text();
     NativeFighterParameters parameters;unsigned error_line = 0;std::string diagnostics;
     bool valid = nativeFighterParameters_Parse(parameter_source.data(), parameter_source.size(), &parameters, &error_line);
-    if (valid) valid = run_script_tool(session->project_path, source, false, &diagnostics, &error_line);
+    if (valid) valid = validate_source_candidate(session->project_path, source, &diagnostics, &error_line);
     else { diagnostics = "Invalid fighter parameter on line " + number(error_line) + ".";error_line = 0; }
     size_t error_file = session->script_file_index;
     if (!valid && error_line != 0 && NativeFighterSources::locate_line(
@@ -334,9 +335,12 @@ bool nativeShellWorkshopEditor_BuildScript(const char* output_path)
     if (source.empty() || source.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
         set_text("workshop-script-status", "Enter a script up to " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".");return false;
     }
-    std::string diagnostics;unsigned line = 0;
+    std::string diagnostics, expected;unsigned line = 0;
+    if (!NativeDraftAccess::revision(output_path, expected, diagnostics)) {
+        set_text("workshop-script-status", diagnostics); return false;
+    }
     set_text("workshop-script-status", "Validating source and fighter assets...");
-    if (!run_script_tool(output_path, source, true, &diagnostics, &line)) {
+    if (!validate_source_candidate(output_path, source, &diagnostics, &line)) {
         size_t file = session->script_file_index;
         if (line != 0 && NativeFighterSources::locate_line(session->script_files, line, &file, &line)) select_script_file(file);
         const std::string message = diagnostics.empty() ? "Could not validate this source candidate." : diagnostics;
@@ -346,9 +350,14 @@ bool nativeShellWorkshopEditor_BuildScript(const char* output_path)
             "<button id='workshop-script-problem-line-" + number(line) + "'>" + Rml::StringUtilities::EncodeRml(message) + "</button>");
         return false;
     }
-    char draft_path[512];
-    const int draft_length = std::snprintf(draft_path, sizeof(draft_path), "%s\\behavior.draft.fms", output_path);
-    if (draft_length > 0 && draft_length < sizeof(draft_path)) DeleteFileA(draft_path);
+    std::vector<NativeDraftAccess::FileEdit> edits{{"behavior.fms", source}};
+    const std::string draft_path = std::string(output_path) + "\\behavior.draft.fms";
+    if (GetFileAttributesA(draft_path.c_str()) != INVALID_FILE_ATTRIBUTES)
+        edits.push_back({"behavior.draft.fms", "", true});
+    std::string after;
+    if (!NativeDraftAccess::apply(output_path, expected, edits, after, diagnostics)) {
+        set_text("workshop-script-status", diagnostics); return false;
+    }
     set_text("workshop-script-status", "Source validated and saved to this draft. Apply a preview to test it.");
     set_text("workshop-script-problems", "No problems found.");return true;
 }

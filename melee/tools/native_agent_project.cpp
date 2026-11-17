@@ -1,4 +1,5 @@
 #include "native_agent_project.h"
+#include <melee/ft/native_fighter_draft_access.h>
 #include <algorithm>
 #include <cstring>
 
@@ -9,8 +10,16 @@ std::unique_ptr<Project> open_project(yyjson_val* arguments, Reply& reply)
 {
     auto result = std::make_unique<Project>();
     const char* path = string(arguments, "project");
+    std::string error;
+    if (!NativeDraftAccess::revision(path, result->revision, error)) {
+        reply.fail("revision_unavailable", error); return {};
+    }
     if (!nativeFighterFamilyProject_Open(path, &result->family)) {
         reply.fail("invalid_project", "Could not open this draft's owned assets and metadata: " + std::string(path)); return {};
+    }
+    std::string current;
+    if (!NativeDraftAccess::revision(path, current, error) || current != result->revision) {
+        reply.fail("revision_conflict", "Draft changed while loading its assets. Retry inspection."); return {};
     }
     const char* member = string(arguments, "member");
     if (*member) {
@@ -23,6 +32,8 @@ std::unique_ptr<Project> open_project(yyjson_val* arguments, Reply& reply)
     }
     add_string(reply, reply.result, "member", result->family.keys[result->member]);
     add_string(reply, reply.result, "member_path", result->family.paths[result->member]);
+    add_string(reply, reply.result, "revision", result->revision);
+    add_string(reply, reply.result, "draft_view", "saved_files");
     return result;
 }
 
@@ -35,6 +46,10 @@ bool load_sources(const Project& project, NativeFighterSources::Session& sources
     // Import failures remain inspectable. The agent needs the original source
     // and overrides in order to repair them; scripts.check reports the failure.
     NativeFighterSources::import_parameters(sources, member);
+    std::string current, error;
+    if (!NativeDraftAccess::revision(project.family.paths[0], current, error) || current != project.revision) {
+        reply.fail("revision_conflict", "Draft changed while reading its editable sources. Retry inspection."); return false;
+    }
     return true;
 }
 

@@ -62,7 +62,8 @@ def main():
         names = {item['name'] for item in tools}
         assert {'environment.describe', 'project.inspect', 'scripts.list', 'actions.list', 'docs.search'} <= names
         assert all(item['inputSchema']['additionalProperties'] is False for item in tools)
-        assert all(item['annotations']['readOnlyHint'] for item in tools)
+        assert all(item['annotations']['readOnlyHint'] for item in tools if item['name'] != 'scripts.update')
+        assert not next(item for item in tools if item['name'] == 'scripts.update')['annotations']['readOnlyHint']
         assert call('environment.describe')['installation'] == str(tool.parent)
         assert call('projects.list')['total'] == 0
         assert call('unknown', expected=1)['code'] == 'unknown_tool'

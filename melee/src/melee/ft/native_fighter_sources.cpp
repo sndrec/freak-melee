@@ -8,6 +8,7 @@
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_template.h>
 #include <melee/ft/native_fighter_parameters.h>
+#include "native_fighter_draft_access.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -37,21 +38,33 @@ bool read_file(const std::string& path, std::string* text)
     return ok;
 }
 
-bool write_file(const SourceFile& file)
+bool source_revision(const std::string& root, std::string& revision)
 {
-    const std::string temporary = file.path + ".new";
-    FILE* output = std::fopen(temporary.c_str(), "wb");
-    if (output == nullptr) return false;
-    const bool written = std::fwrite(file.text.data(), 1,
-        file.text.size(), output) == file.text.size();
-    const bool closed = std::fclose(output) == 0;
-    if (!written || !closed || !MoveFileExA(temporary.c_str(),
-        file.path.c_str(), MOVEFILE_REPLACE_EXISTING |
-                           MOVEFILE_WRITE_THROUGH)) {
-        DeleteFileA(temporary.c_str());
-        return false;
+    std::vector<std::string> names;
+    auto exists = [&](const char* name) { return GetFileAttributesA((root + "\\" + name).c_str()) != INVALID_FILE_ATTRIBUTES; };
+    if (exists("fighter_state.fms")) {
+        names.push_back("fighter_state.fms");
+        WIN32_FIND_DATAA item{};
+        HANDLE search = FindFirstFileA((root + "\\moves\\*.fms").c_str(), &item);
+        if (search != INVALID_HANDLE_VALUE) {
+            do {
+                if (!(item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) names.push_back(std::string("moves\\") + item.cFileName);
+            } while (FindNextFileA(search, &item));
+            FindClose(search);
+        }
+    } else if (exists("behavior.draft.fms")) names.push_back("behavior.draft.fms");
+    else if (exists("behavior.fms")) names.push_back("behavior.fms");
+    std::sort(names.begin(), names.end());
+    std::string bytes;
+    for (const auto& name : names) {
+        std::string text;
+        if (!read_file(root + "\\" + name, &text)) return false;
+        bytes += name; bytes += '\0'; bytes += text; bytes += '\0';
+        if (bytes.size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY + 65536) return false;
     }
-    return true;
+    NativeContentId hash{}; char hex[65];
+    if (!nativeContent_Hash(bytes.data(), bytes.size(), &hash)) return false;
+    nativeContentStore_IdHex(&hash, hex); revision = hex; return true;
 }
 
 std::string move_filename(const std::string& declaration, size_t ordinal)
@@ -98,7 +111,7 @@ void split_seed(Session& session, const std::string& seed)
 }
 }
 
-bool open(Session& session, const char* project_path, const std::string& seed)
+static bool open_files(Session& session, const char* project_path, const std::string& seed)
 {
     close(session);
     session.root = project_path;
@@ -158,6 +171,10 @@ bool open_project(Session& session, const char* project_path,
     std::string seed;
     Session::Origin origin = Session::Validated;
     const std::string root(project_path);
+    std::string before;
+    if (!source_revision(root, before)) {
+        close(session); session.error = "Could not identify the saved source set."; return false;
+    }
     if (GetFileAttributesA((root + "\\fighter_state.fms").c_str()) != INVALID_FILE_ATTRIBUTES) {
         origin = Session::SeparateFiles;
     } else if (GetFileAttributesA((root + "\\behavior.draft.fms").c_str()) != INVALID_FILE_ATTRIBUTES) {
@@ -178,7 +195,10 @@ bool open_project(Session& session, const char* project_path,
         }
         std::free(source);
     }
-    if (!open(session, project_path, seed)) return false;
+    if (!open_files(session, project_path, seed)) return false;
+    if (!source_revision(root, session.saved_source_revision) || before != session.saved_source_revision) {
+        session.error = "Source files changed while loading. Reopen the draft."; return false;
+    }
     session.origin = origin;
     if (project.parameter_size)
         session.parameters.assign((const char*)project.parameter_text, project.parameter_size);
@@ -211,6 +231,7 @@ static bool merge_parameters(std::string& existing, const char* imported, size_t
 bool import_parameters(Session& session, const NativeFighterProject& project)
 {
     Session candidate = session;
+    candidate.error.clear(); candidate.error_file = 0; candidate.error_line = 0;
     for (size_t i = 0; i < candidate.files.size(); ++i) {
         auto& file = candidate.files[i];
         const auto& text = file.text;
@@ -254,6 +275,7 @@ void close(Session& session)
     session.error_file = 0;
     session.error_line = 0;
     session.parameters.clear();
+    session.saved_source_revision.clear();
     session.imported_parameters = false;
     session.origin = Session::Validated;
 }
@@ -278,25 +300,59 @@ std::string compose(const Session& session)
 
 bool save(Session& session)
 {
-    if (session.files.empty() ||
-        compose(session).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) return false;
-    const bool migration = !session.disk_sources;
-    const std::string moves = session.root + "\\moves";
-    if (!CreateDirectoryA(moves.c_str(), nullptr) &&
-        GetLastError() != ERROR_ALREADY_EXISTS) return false;
-    // The state file is the source-set marker. Write it last on first save
-    // so a failed migration can still load the original combined draft.
-    for (size_t index = session.disk_sources ? 0 : 1; index < session.files.size(); ++index) {
-        SourceFile& file = session.files[index];
-        if (session.disk_sources && file.text == file.saved) continue;
-        if (!write_file(file)) return false;
-        file.saved = file.text;
+    NativeDraftAccess::Lease lease;
+    if (!lease.acquire(session.root.c_str(), session.error)) return false;
+    std::string current;
+    if (!source_revision(session.root, current) || current != session.saved_source_revision) {
+        session.error = "Source files changed outside the Workshop. Reopen before saving."; return false;
     }
-    if (!session.disk_sources && !write_file(session.files[0])) return false;
-    session.files[0].saved = session.files[0].text;
+    std::string expected, after;
+    return NativeDraftAccess::revision(session.root, expected, session.error) &&
+        save_batch(session, expected, nullptr, after);
+}
+
+bool save_batch(Session& session, const std::string& expected,
+                const std::string* parameters, std::string& after)
+{
+    if (session.files.empty() || compose(session).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY ||
+        (parameters && parameters->size() > NATIVE_FIGHTER_PARAMETER_TEXT_CAPACITY)) {
+        session.error = "Source set or parameter text exceeds its capacity."; return false;
+    }
+    if (!session.disk_sources) {
+        WIN32_FIND_DATAA item{};
+        HANDLE search = FindFirstFileA((session.root + "\\moves\\*.fms").c_str(), &item);
+        bool known = true;
+        if (search != INVALID_HANDLE_VALUE) {
+            do {
+                if (item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                std::string existing = session.root + "\\moves\\" + item.cFileName;
+                if (std::none_of(session.files.begin(), session.files.end(), [&](const SourceFile& file) {
+                    return _stricmp(file.path.c_str(), existing.c_str()) == 0;
+                })) { known = false; break; }
+            } while (FindNextFileA(search, &item));
+            FindClose(search);
+        }
+        if (!known) {
+            session.error = "Untracked move files already exist. Restore fighter_state.fms or move those files aside before saving this source set.";
+            return false;
+        }
+    }
+    std::vector<NativeDraftAccess::FileEdit> edits;
+    for (const auto& file : session.files) {
+        std::string relative = file.path.substr(session.root.size() + 1);
+        std::replace(relative.begin(), relative.end(), '\\', '/');
+        edits.push_back({relative, file.text});
+    }
+    if (parameters) edits.push_back({"fighter_parameters.fmp", *parameters});
+    if (GetFileAttributesA((session.root + "\\behavior.draft.fms").c_str()) != INVALID_FILE_ATTRIBUTES)
+        edits.push_back({"behavior.draft.fms", "", true});
+    if (!NativeDraftAccess::apply(session.root, expected, edits, after, session.error)) return false;
+    for (auto& file : session.files) file.saved = file.text;
     session.disk_sources = true;
-    if (migration)
-        DeleteFileA((session.root + "\\behavior.draft.fms").c_str());
+    session.origin = Session::SeparateFiles;
+    if (parameters) session.parameters = *parameters;
+    source_revision(session.root, session.saved_source_revision);
+    session.error.clear();
     return true;
 }
 

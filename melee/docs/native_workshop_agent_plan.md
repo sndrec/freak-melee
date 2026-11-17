@@ -18,7 +18,7 @@ Accepted 2026-11-17. Implementation is in progress.
   It also passes against an extracted setup ZIP with a Windows-only PATH and
   the packaged launcher. The game/tool build, family-package regression and
   release-payload checks pass. This verifies the read-only foundation only.
-- Editing, live Workshop session ownership/IPC, complete authoring schemas,
+- Complete editing coverage, live Workshop IPC, authoring schemas,
   visual/practice tools, agent feedback and full
   repository-free acceptance remain to be implemented. The remaining practical
   authoring guides are also open.
@@ -34,6 +34,21 @@ Accepted 2026-11-17. Implementation is in progress.
   authoring checks. Both MCP resources and the in-game reference can read the
   bundled examples. Package preparation rejects undeclared files and broken
   section links; native tool, family, parameter, reference and payload checks pass.
+- `scripts.update` saves source/parameter batches through shared authoring code,
+  with an inspected disk revision as its precondition. A native directory lease
+  protects open Workshop families from offline writers, including legacy CLI
+  commands. A recoverable journal rolls back failed/interrupted source batches;
+  saved-source checks preserve raw external edits. Source validation remains
+  isolated, and the live owner commits accepted behavior itself. Agent editing,
+  read-only, parameter, family, pose, reference and release-payload checks pass.
+  Read and write CLI/MCP checks also pass from an extracted setup ZIP with a
+  Windows-only PATH. No public update was uploaded.
+  Live unsaved editing, undo and whole-project transactions are still open.
+
+One broader animation roundtrip check has a pre-existing exact-byte assertion
+failure after key retiming. The same failure reproduces against the extracted
+reference package built before these changes. Its semantic replacement will be
+addressed with the animation tools; it is not counted as a passing check here.
 
 A player should be able to give their coding agent the installed Freak Melee
 folder and ask it to create or change a fighter. The installation should supply

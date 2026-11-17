@@ -8,6 +8,7 @@ namespace NativeAgent {
 struct Project {
     NativeFighterFamilyProject family{};
     unsigned member = 0;
+    std::string revision;
     ~Project();
 };
 std::unique_ptr<Project> open_project(yyjson_val* arguments, Reply&);

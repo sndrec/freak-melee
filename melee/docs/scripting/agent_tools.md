@@ -1,8 +1,8 @@
 # Create fighters with an AI agent
 
 Freak Melee includes `native_content_tool.exe` beside the game. It can inspect
-your fighter drafts, check their scripts and read the installed scripting reference. The current
-agent tools provide read-only inspection and validation; run `agent list` to see the operations
+your fighter drafts, edit their script files and parameters, check their scripts
+and read the installed scripting reference. Run `agent list` to see the operations
 available in your installed build.
 
 You can give a coding agent this folder and ask it to read this guide. The
@@ -22,6 +22,9 @@ From the folder containing `native_content_tool.exe`:
 available tools. `agent call` returns one JSON object. Successful calls contain
 `ok: true` and `result`; unsuccessful calls contain `ok: false` and an `error`
 with a code and message. Errors produce a nonzero exit code.
+For large arguments, use `agent call TOOL --stdin` and send one JSON object on
+standard input. Stdin and MCP accept up to 4 MiB of arguments per request;
+inline arguments also have Windows' command-line length limit.
 
 Use the absolute project path returned by `projects.list`. `project.inspect`
 lists its members; specify a member key to inspect Zelda/Sheik or Popo/Nana
@@ -43,6 +46,31 @@ with script errors is a successful tool call with `accepted: false`; read its
 `diagnostics` for the file, line, column and message. Independent errors are
 collected together. Locations refer to the text returned by `scripts.read`.
 The check leaves the draft and accepted behavior unchanged.
+
+## Edit a saved draft
+
+Inspect `scripts.list`, `scripts.read` and `parameters.read` before editing.
+They return a `revision` identifying the saved project's files. Supply it to
+`scripts.update` with a list of `{ "file": "...", "text": "..." }` objects and,
+optionally, the complete `parameters` text. Use file paths from `scripts.list`.
+An empty `files` list lets you change parameters alone.
+
+One call saves the whole batch together. First save creates the template's
+separate fighter-state and move files. Explicit parameter overrides retain
+their values. Syntax errors in move code can be saved as a draft; use
+`scripts.check` to find and repair them. Invalid parameter declarations are
+rejected before saving.
+
+`revision_conflict` means another edit changed the project. Read the current
+files and revise your edit. `draft_busy` means a Workshop or another authoring
+process owns the draft; close that draft before using offline writes. Saved-file
+inspection remains available. Live unsaved editing and agent undo are still
+being implemented.
+
+Successful edits return `committed: true`, `status: "saved_draft"` and the new
+`revision`. Checking, building and installation remain separate steps. Keep the
+returned revision for your next edit. The tool keeps recovery backups during a
+batch; the next exclusive open restores an interrupted edit before loading it.
 
 `examples.list` and `examples.read` expose the installed FMS templates and
 supporting examples. They are also available as MCP resources under

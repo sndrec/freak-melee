@@ -18,6 +18,9 @@ static const Tool tools[] = {
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS ",\"file\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":500}},\"required\":[\"project\",\"file\"],\"additionalProperties\":false}", source, true},
     {"scripts.check", "Validate the current editable move files and owned parameters against this member's assets. Returns independent errors with file/line locations; leaves the draft and accepted behavior unchanged.",
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", check_scripts, true},
+    {"scripts.update", "Save a batch of editable source files and optional parameter overrides. Requires the disk revision returned by inspection; refuses drafts owned by a live Workshop. Source checking and installation are separate operations. Existing files only; first save materializes the template's split files.",
+        "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS
+        R"(,"revision":{"type":"string","minLength":64,"maxLength":64},"files":{"type":"array","maxItems":128,"items":{"type":"object","properties":{"file":{"type":"string","minLength":1,"maxLength":400},"text":{"type":"string","maxLength":524288}},"required":["file","text"],"additionalProperties":false}},"parameters":{"type":"string","maxLength":65536}},"required":["project","revision","files"],"additionalProperties":false})", update_scripts, false},
     {"parameters.read", "Read this member's parameter override text and typed values, including values imported for a stock template. Inline defaults remain visible in the move sources. Invalid overrides are returned for repair.",
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", parameter_source, true},
     {"attributes.list", "Read named common fighter attributes with their types, groups and descriptions.",
@@ -65,40 +68,57 @@ yyjson_mut_val* list_tools(yyjson_mut_doc* document)
     return result;
 }
 
-// This catalog currently uses scalar object fields. Extend validation together
-// with the catalog when authoring operations introduce nested data.
+static bool validate_value(yyjson_val* input, yyjson_val* schema, std::string& error,
+                            const std::string& path = "arguments")
+{
+    const char* type = yyjson_get_str(yyjson_obj_get(schema, "type"));
+    bool valid = false;
+    if (type && !std::strcmp(type, "object") && yyjson_is_obj(input)) {
+        size_t index, count; yyjson_val *key, *value;
+        auto* properties = yyjson_obj_get(schema, "properties");
+        yyjson_obj_foreach(input, index, count, key, value) {
+            const char* name = yyjson_get_str(key);
+            auto* field = yyjson_obj_get(properties, name);
+            if (!field) { error = "Unknown field: " + path + "." + name; return false; }
+            if (!validate_value(value, field, error, path + "." + name)) return false;
+        }
+        yyjson_arr_foreach(yyjson_obj_get(schema, "required"), index, count, value) {
+            const char* name = yyjson_get_str(value);
+            if (!yyjson_obj_get(input, name)) { error = "Missing field: " + path + "." + name; return false; }
+        }
+        valid = true;
+    } else if (type && !std::strcmp(type, "array") && yyjson_is_arr(input)) {
+        auto* minimum = yyjson_obj_get(schema, "minItems");
+        auto* maximum = yyjson_obj_get(schema, "maxItems");
+        size_t length = yyjson_arr_size(input);
+        valid = (!minimum || length >= yyjson_get_uint(minimum)) && (!maximum || length <= yyjson_get_uint(maximum));
+        if (valid) {
+            size_t index, count; yyjson_val* value;
+            yyjson_arr_foreach(input, index, count, value)
+                if (!validate_value(value, yyjson_obj_get(schema, "items"), error, path + "[" + std::to_string(index) + "]")) return false;
+        }
+    } else if (type && !std::strcmp(type, "string") && yyjson_is_str(input)) {
+        size_t size = yyjson_get_len(input);
+        auto* minimum = yyjson_obj_get(schema, "minLength");
+        auto* maximum = yyjson_obj_get(schema, "maxLength");
+        valid = std::strlen(yyjson_get_str(input)) == size &&
+            (!minimum || size >= yyjson_get_uint(minimum)) && (!maximum || size <= yyjson_get_uint(maximum));
+    } else if (type && ((!std::strcmp(type, "integer") && yyjson_is_int(input)) ||
+                        (!std::strcmp(type, "number") && yyjson_is_num(input)))) {
+        double number = yyjson_get_num(input);
+        auto* minimum = yyjson_obj_get(schema, "minimum");
+        auto* maximum = yyjson_obj_get(schema, "maximum");
+        valid = std::isfinite(number) && (!minimum || number >= yyjson_get_num(minimum)) && (!maximum || number <= yyjson_get_num(maximum));
+    } else if (type && !std::strcmp(type, "boolean")) valid = yyjson_is_bool(input);
+    if (!valid) error = "Invalid value: " + path;
+    return valid;
+}
+
 static bool validate(yyjson_val* input, yyjson_val* schema, Reply& reply)
 {
-    if (!yyjson_is_obj(input)) { reply.fail("invalid_arguments", "Arguments must be a JSON object."); return false; }
-    size_t index, count;
-    yyjson_val *key, *value;
-    auto* properties = yyjson_obj_get(schema, "properties");
-    yyjson_obj_foreach(input, index, count, key, value) {
-        const char* name = yyjson_get_str(key);
-        auto* field = yyjson_obj_get(properties, name);
-        if (!field) { reply.fail("invalid_arguments", std::string("Unknown argument: ") + name); return false; }
-        const char* type = yyjson_get_str(yyjson_obj_get(field, "type"));
-        bool valid = false;
-        if (!std::strcmp(type, "string") && yyjson_is_str(value)) {
-            size_t size = yyjson_get_len(value);
-            auto* minimum = yyjson_obj_get(field, "minLength");
-            auto* maximum = yyjson_obj_get(field, "maxLength");
-            valid = std::strlen(yyjson_get_str(value)) == size &&
-                (!minimum || size >= yyjson_get_uint(minimum)) &&
-                (!maximum || size <= yyjson_get_uint(maximum));
-        } else if (!std::strcmp(type, "integer") && yyjson_is_int(value)) {
-            double number = yyjson_get_num(value);
-            auto* minimum = yyjson_obj_get(field, "minimum");
-            auto* maximum = yyjson_obj_get(field, "maximum");
-            valid = std::isfinite(number) &&
-                (!minimum || number >= yyjson_get_num(minimum)) &&
-                (!maximum || number <= yyjson_get_num(maximum));
-        }
-        if (!valid) { reply.fail("invalid_arguments", std::string("Invalid value for argument: ") + name); return false; }
-    }
-    yyjson_arr_foreach(yyjson_obj_get(schema, "required"), index, count, value) {
-        const char* name = yyjson_get_str(value);
-        if (!yyjson_obj_get(input, name)) { reply.fail("invalid_arguments", std::string("Missing argument: ") + name); return false; }
+    std::string error;
+    if (!validate_value(input, schema, error)) {
+        reply.fail("invalid_arguments", error); return false;
     }
     return true;
 }

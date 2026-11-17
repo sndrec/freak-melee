@@ -19,6 +19,7 @@
 
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_fighter_family_project.h>
+#include <melee/ft/native_fighter_draft_access.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
 #include <melee/ft/native_gx_image.h>
@@ -52,6 +53,7 @@ bool testing;
 bool preview_loading;
 NativeWorkshopOrigin return_destination;
 NativeFighterFamilyProject active_family;
+NativeFighterDraftLease active_lease{};
 NativeFighterProject* active_project;
 unsigned active_member;
 bool updating_member_selector;
@@ -84,6 +86,7 @@ void close_project()
     document->GetElementById("workshop-panel")->SetClass("testing", false);
     nativeShellWorkshopEditor_Close();
     if (project_loaded) nativeFighterFamilyProject_Close(&active_family);
+    nativeFighterDraft_Release(&active_lease);
     active_project = nullptr;
     active_member = 0;
     std::fill_n(member_opened, NATIVE_FIGHTER_FAMILY_MEMBERS, false);
@@ -248,6 +251,11 @@ void select_draft(size_t index)
     if (index >= draft_count) {
         return;
     }
+    NativeDraftAccess::Lease candidate_lease;
+    std::string lease_error;
+    if (!candidate_lease.acquire(drafts[index].path, lease_error)) {
+        status("workshop-library-status", lease_error.c_str()); return;
+    }
     NativeFighterFamilyProject family;
     if (!nativeFighterFamilyProject_Open(drafts[index].path, &family)) {
         status("workshop-library-status", "Could not open that complete fighter draft.");
@@ -277,6 +285,8 @@ void select_draft(size_t index)
         return;
     }
     close_project();
+    active_lease = candidate_lease.value;
+    candidate_lease.value = {};
     document->GetElementById("workshop-panel")->SetClass("library", false);
     active_family = family;
     active_member = 0;
