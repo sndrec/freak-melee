@@ -142,7 +142,7 @@ malformed argument widths are errors.
 | `item.motion_state` | Read-only current article state index. |
 | `item.kind` | Read-only engine item kind; `It_Kind_*` constants are accepted in article expressions. |
 | `item.collision_group` | Read-only integer identifying the engine item-hit group (`xAC4_ignoreItemID`); distinct from the item creation ID and authored state. |
-| [`item.surface_normal.x/y/z`](article_links.md#surface-normals) | Read or assign the normal stored by an explicit stage-segment sweep. |
+| [`item.surface_normal.x/y/z`](item_sweep_segment.md) | Read or assign the normal stored by an explicit stage-segment sweep. |
 | `item.remove_at_bounds` | Read or set the engine's out-of-bounds removal enable flag. |
 | `owner.incapacitated` | Whether a valid attached owner satisfies the common incapacitated-state query. False without one. |
 | `owner.action_detaches_items` | Read-only action flag used by stock weapon handlers to end attached-item behavior (`x2071_b6`). Scripts decide when to respond; reading it does not remove an item. |
@@ -266,7 +266,7 @@ which operates on a validated attachment creator.
 Stop this item's looping sound through the engine item-audio lifecycle. This
 statement does not stop motion or alter fighter audio.
 
-Article callbacks can also use [`articles.signal`](fighter.md#articlessignal)
+Article callbacks can also use [`articles.signal`](fighter.md#articlessignalhandle-declaredarticle-name-value)
 to communicate within the same immutable authored Definition and
 [article resources](article_resources.md) for bounded model/collision collections.
 
@@ -339,7 +339,7 @@ scale; writes do nothing. Non-finite writes are ignored. Rotation components
 operate on Euler joints: quaternion joints return zero and ignore those
 rotation writes. Their translation and scale are still accessible. Raw
 `.quaternion.x/y/z/w` channels read and write HSD's stored rotation components
-without normalization; see [article model channels](article_models.md#joint-addressing).
+without normalization; see [article model channels](article_models.md#joint-properties).
 
 These operations change the live article, not its saved model or bind pose.
 Use them for procedural recoil, stretching, and other model behavior from
@@ -374,14 +374,14 @@ combines these properties with [constant tables](article.md#constant-tables).
 | [`item.respond_stage_mask(mask)`](#itemrespond_stage_maskmask) | â€” | Apply the native masked stage-response sequence. |
 | [`item.attachment_owner_is(other)`](#itemattachment_owner_isother) | `bool` | Compare a captured object with the live attachment owner. |
 | [`item.shield_bounce()`](#itemshield_bounce) | `bool` | Use ordinary item bounce-off-shield behavior. |
-| [`item.spawn_effect_on_bone(effect, bone, mode)`](#itemspawn_effect_on_bone) | â€” | Spawn an effect at an article bone. |
+| [`item.spawn_effect_on_bone(effect, bone, mode)`](#itemspawn_effect_on_boneeffect-bone-mode) | â€” | Spawn an effect at an article bone. |
 | [`item.spawn_effect_on_joint(effect, path)`](#itemspawn_effect_on_jointeffect-path) | â€” | Attach an effect immediately to a model joint. |
 | [`item.attach_to_owner(bone_index)`](#itemattach_to_ownerbone_index) | â€” | Attach the live article to its recorded owner's skeleton joint. |
 | [`item.release_attachment(x, y, z, preserve_held)`](#itemrelease_attachmentx-y-z-preserve_held) | â€” | Release attachment through the normal item engine, retaining damage ownership. |
 | [`item.reflect()`](#itemreflect) | `bool` | Apply ordinary item reflection. |
-| [`item.change_state(index)`](#itemchange_state) | â€” | Enter a declared article state. |
-| [`item.set_lifetime(frames)`](#itemset_lifetime) | â€” | Set the live and half-life timers. |
-| [`item.interact(other)`](#iteminteract) | â€” | Clear references to the object supplied by an interaction notification. |
+| [`item.change_state(index)`](#itemchange_stateindex) | â€” | Enter a declared article state. |
+| [`item.set_lifetime(frames)`](#itemset_lifetimeframes) | â€” | Set the live and half-life timers. |
+| [`item.interact(other)`](#iteminteractother) | â€” | Clear references to the object supplied by an interaction notification. |
 
 ## Method descriptions
 
@@ -422,7 +422,7 @@ This runs the normal item pickup and attachment sequence, including
 `on picked_up`. It does not create another item. Use it after
 [explicit article creation](article.md#explicit-creation) when the spawn
 position and the later attachment point differ. For creation and attachment
-in one operation, use [`articles.spawn_bone_attached()`](fighter.md#articlesspawn_bone_attached).
+in one operation, use [`articles.spawn_bone_attached()`](fighter.md#articlesspawn_bone_attachedkind-bone).
 
 ### `item.release_attachment(x, y, z, preserve_held)`
 
@@ -925,7 +925,7 @@ if item.state.age > item.params.hitbox_lifetime: hitboxes.disable_all()
 `item.spawn_root_effect(effect: int)` spawns a synchronous effect attached to
 the article's current model root. The effect ID can be an expression, allowing
 an owned per-instance variant without a fighter-specific host operation.
-This differs from the asynchronous [bone effect](#itemspawn_effect_on_bone).
+This differs from the asynchronous [bone effect](#itemspawn_effect_on_boneeffect-bone-mode).
 Use `item.destroy_effects()` for explicit cleanup.
 
 ```text

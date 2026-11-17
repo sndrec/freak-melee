@@ -180,7 +180,7 @@ without accessing the stock fighter's private attributes.
 | [`collision.air_standard()`](#collisionair_standard-and-collisionground_standard) / [`collision.ground_standard()`](#collisionair_standard-and-collisionground_standard) | Run ordinary air or ground collision. |
 | [`collision.ground_box(...)`](#collisionground_box-and-collisionair_box) / [`collision.air_box(...)`](#collisionground_box-and-collisionair_box) | Test a custom ground or air collision box. |
 | [`collision.air_special_landing(allow_interrupt, landing_lag)`](#collisionair_special_landing) | Check ledges and enter special landing when appropriate. |
-| [`vectors.angle_xy(ax, ay, bx, by)`](#vectorsangle_xy) | Measure the unsigned angle between two XY vectors. |
+| [`vectors.angle_xy(ax, ay, bx, by)`](#vectorsangle_xyax-ay-bx-by) | Measure the unsigned angle between two XY vectors. |
 | [`collision.skip_soft_floor()`](#collisionskip_soft_floor) | Mark a contacted pass-through platform as skipped. |
 | [`collision.floor_contact` / `collision.ceiling_contact`](#surface-contacts-and-normals) | Inspect the last collision result. |
 | [`physics.animation_vertical_velocity()`](#physicsanimation_vertical_velocity) | Apply only the animation-driven vertical velocity step. |
@@ -381,7 +381,7 @@ if animation.finished:
 
 This is a state transition, not a gravity step. While the special is active,
 use [`physics.air_motion()`](#physicsground_motion-and-physicsair_motion) or
-[`physics.fall()`](fighter.md#physicsfall-and-physicsair_decel) as its source
+[`physics.fall()`](fighter.md#physicsfallgravity-terminal_velocity-and-physicsair_decelamount) as its source
 requires.
 
 ### `motion.launch_angle`
@@ -444,7 +444,7 @@ component, assign `velocity.x` or `velocity.y` directly.
 
 Run the common quick aerial deceleration step. Luigi applies it in airborne
 Super Jump Punch only before subaction command 0 fires, after
-[`physics.fall()`](fighter.md#physicsfall-and-physicsair_decel). It is
+[`physics.fall()`](fighter.md#physicsfallgravity-terminal_velocity-and-physicsair_decelamount). It is
 different from `physics.air_decel(amount)`, which takes a move-selected rate.
 
 ### `physics.animation_velocity_plain()`
@@ -531,7 +531,7 @@ stick-directed acceleration step with a move-selected
 multiplier and speed cap. The ground variant accelerates ground velocity;
 the air variant uses the fighter's self velocity without extra friction.
 Cyclone reduces its cap as command 0 ends the spin, then passes that computed
-cap to the appropriate method. Use [`physics.ground_to_self()`](fighter.md#physicsground_decelerate-and-physicsground_to_self)
+cap to the appropriate method. Use [`physics.ground_to_self()`](fighter.md#physicsground_decelerateamount-and-physicsground_to_self)
 after the grounded step when the stock move does.
 
 ### `physics.clamp_horizontal_speed()`, `physics.clamp_ground_speed()`, and `physics.clamp_fall_speed()`
@@ -662,7 +662,7 @@ movement with explicit travel can use this after updating the bone pose.
 Apply the fighter's common aerial self-acceleration/deceleration step using its
 ordinary attributes. It does not apply gravity. This is distinct from
 [`physics.quick_air_decel()`](#physicsquick_air_decel) and from the
-[move-selected deceleration rate](fighter.md#physicsfall-and-physicsair_decel).
+[move-selected deceleration rate](fighter.md#physicsfallgravity-terminal_velocity-and-physicsair_decelamount).
 
 ### `facing.from_input_threshold()`
 

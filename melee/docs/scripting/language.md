@@ -133,24 +133,26 @@ Workshop Action Editor. A script does not replace the subaction timeline.
 
 Any authored special can declare `on accessory`. It runs through the engine's
 fighter accessory update slot, independently of the move's animation callback.
-Use it for an attachment or one-shot effect, and clear it with
-`articles.stop_cue()` when finished. It cannot coexist with
-`on neutral_special_cue` in the same move: both use that update slot.
+Use it for an attachment or one-shot effect. Clear the callback with
+`callbacks.accessory(None)` when finished.
 
 ```text
-on accessory:
+func sing_effect():
     if not effects.active:
         effects.spawn_on_part(1238, 5)
         effects.active = true
     effects.pause_during_hitlag()
     articles.stop_cue()
+
+move Sing:
+    on accessory:
+        sing_effect()
 ```
 
 This excerpt from [Sing](../../examples/purin_wip.fms) uses existing shared
-effect primitives. [`callbacks.track_accessory(Up)`](fighter.md#callbackstrack_accessoryslot)
-reinstalls the callback when a motion transition requires it. Mario and Dr.
-Mario's Cape templates also use `on accessory`; the old side-special-only cue
-declaration has been removed.
+effect primitives. [`callbacks.accessory(sing_effect)`](fighter.md#callbacksaccessoryhelper)
+reinstalls the helper when a motion transition clears the callback. Mario and
+Dr. Mario's Cape templates also use `on accessory`.
 
 ## Integer-valued queries
 
@@ -274,7 +276,7 @@ collision callbacks for a numbered motion state without taking ownership of
 the other callbacks. It can also author fighter-wide events such as
 [`on knockback_enter`](fighter.md#fighter-event-callbacks). For example,
 Luigi's Green Missile uses
-[`state.switch_to_ground(motion, flags)`](fighter.md#stateswitch_to_air-and-stateswitch_to_ground)
+[`state.switch_to_ground(motion, flags)`](fighter.md#stateswitch_to_airmotion-flags-and-stateswitch_to_groundmotion-flags)
 when its airborne charge state lands:
 
 ```text
@@ -473,7 +475,7 @@ values should use literal parameter defaults and optional project overrides.
 The compiler checks offset alignment and maximum attribute-block capacity but
 cannot prove that a DAT offset has the intended meaning or type. Check the
 fighter's attribute layout when declaring one. See the
-[`physics.ground_decelerate()`](fighter.md#physicsground_decelerate-and-physicsground_to_self)
+[`physics.ground_decelerate()`](fighter.md#physicsground_decelerateamount-and-physicsground_to_self)
 reference for the operation using this value.
 
 Opening a Workshop draft with offset declarations in its state or move files copies those values
@@ -531,15 +533,13 @@ result, which can be returned directly.
 
 ## Build and test
 
-The Workshop's **Build script** action compiles the active draft. For a source
-checkout, `native_content_tool script-build PROJECT_DIRECTORY SCRIPT_FILE`
-validates `.fms` sources and prepares typed bytecode for the current client,
-reporting syntax, metadata or unsupported-operation errors. No C compiler or
-behavior DLL is involved. The
-stock-versus-clone recordings described in
-[parity inputs](../../tests/native/parity_inputs/README.md) compare action,
-fighter, item, damage, and RNG traces on known paths. They are useful when
-translating stock code one branch at a time.
+The Workshop's **Build script** action validates the active draft. The
+installed [agent tools](agent_tools.md) provide `scripts.check` for editable move
+files and their parameters, with diagnostics tied to each file and line.
+`native_content_tool script-build PROJECT_DIRECTORY SCRIPT_FILE` accepts a
+combined source file and saves it as the draft's validated behavior after a
+successful check. Use the [move checks](authoring_checks.md#move-logic) to
+verify the behavior in practice.
 
 ### State storage limits
 
@@ -584,8 +584,9 @@ move Dash:
         animation.start()
 ```
 
-Declare `on accessory` normally, then install it at the intended point with
-[`callbacks.track_accessory(Side)`](fighter.md#callbackstrack_accessoryslot).
+Put shared accessory logic in a helper. A move's `on accessory` callback can
+call the helper. After a motion transition, install that helper at the intended
+point with [`callbacks.accessory(helper)`](fighter.md#callbacksaccessoryhelper).
 Install or reset only the callbacks and flags that the move requires.
 
 See [Action command variables](command_variables.md) for timed move cues and aerial landing windows.

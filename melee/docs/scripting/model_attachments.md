@@ -159,7 +159,6 @@ belong to the fighter/game heap restored by rollback. Desync diagnostics include
 their controls, pose, and materials. Stock-versus-script traces compare the real
 attachment joint trees despite their different stock/authored storage locations.
 
-The [costume comparison](../../tests/native/purin_costume_parity.py) requires a
-rendered attachment for every non-default costume and the recorded Rollout hit.
-See the [translation ledger](../jigglypuff_script_translation.md) for evidence
-and remaining branch coverage.
+Check the attachment on every outfit that uses it, including its appearance
+during hitlag. Follow the
+[costume and attachment checks](authoring_checks.md#costumes-and-attachments).

@@ -88,6 +88,19 @@ class ReleasePayload(unittest.TestCase):
         self.assertIn('native_content_tool.exe', result.stderr)
         self.assertFalse(self.output.exists())
 
+    def test_reference_cannot_link_to_an_unpackaged_build_file(self):
+        (self.build/'ui/docs/index.md').write_text('[Old guide](old.md)\n')
+        (self.build/'ui/docs/old.md').write_text('# Old guide\n')
+        result = self.prepare()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unbundled file old.md', result.stderr)
+
+    def test_reference_cannot_link_to_a_missing_section(self):
+        (self.build/'ui/docs/index.md').write_text('# Guide\n[Missing](#missing)\n')
+        result = self.prepare()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unknown section #missing', result.stderr)
+
     def test_source_build_without_optional_startup_track_can_be_packaged(self):
         listing = self.build/'native_release_ui.txt'
         listing.write_text('\n'.join(name for name in listing.read_text().splitlines()

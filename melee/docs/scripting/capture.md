@@ -37,14 +37,10 @@ parameter. Scripts can set these properties independently; there is no opaque
 seven-number configuration command. The timer and wiggle algorithms are the
 existing common Melee algorithms, including their animation-update ordering.
 
-All seven settings above now have direct interpreter read/write bindings. They
-are Float32 engine fields, preserving native float bits without normalization or
-clamping. Assigning them changes the current Fighter's settings; it does not
-retroactively replace settings already copied to a victim or perform a capture.
-The holder must retain its exact owned program, storage and physical lifetime.
-The [capture scheduler fixture](../../tests/native/script_capture_scheduler/README.md)
-checks all seven fields and a real interpreted configuration helper. Geometry,
-timer progression and complete command-grab gameplay remain separate acceptance.
+These seven settings are Float32 values on the current fighter. Assignments
+retain their supplied values. A victim keeps the settings copied when it was
+captured. Configure the holder before starting a new capture, then follow the
+[capture and throw checks](authoring_checks.md#captures-and-throws).
 
 Captured-item observation, attachment and release also have direct interpreter
 bindings. The enclosure settings, victim visibility/body status, enclosure release
@@ -139,12 +135,9 @@ For cue-driven release/pause and movement on the holder, see
 [`throws.update()`](fighter.md#throwsupdate) and
 [`physics.throw_motion()`](fighter.md#physicsthrow_motion).
 
-The [capture scheduler fixture](../../tests/native/script_capture_scheduler/README.md)
-compares these common entry bodies with their pre-change source, including freeze
-flags, animation donor, exact Fighter fields and engine call order. Motion/pose
-evaluation is controlled in this fixture; complete animated command-grab gameplay
-still needs match testing. See [held fighter transitions](fighter.md#held-fighter-transitions)
-for the holder-side workflow.
+Follow [held fighter transitions](fighter.md#held-fighter-transitions) for the
+holder-side workflow. Test the resulting attachment, escape and release with
+the [capture and throw checks](authoring_checks.md#captures-and-throws).
 
 ## `capture.arm(mask)`
 
@@ -164,10 +157,8 @@ The engine calls `grab_catch` first, checks both lifetimes, and then calls
 capture link. An ordinary native grab which installs engine callbacks takes
 precedence over the script hooks. `mask` must be an Int in 0..32767.
 
-The arm, entry, attachment, observation and throw-release paths are implemented and covered by the
-[capture scheduler fixture](../../tests/native/script_capture_scheduler/README.md).
-The fixture compares entry ordering and fields with the original common Falcon
-capture routine; it is not full-match acceptance of every command grab.
+Test arming, entry, attachment, observation and release together with the
+[capture and throw checks](authoring_checks.md#captures-and-throws).
 
 ## `capture.begin(motion, same_facing, force_air, track_position, holder_animation)`
 
@@ -362,12 +353,10 @@ on grab_catch:
         capture.attach_item(bones.index(TransN2))
 ```
 
-The [connected capture-item fixture](../../tests/native/script_world_feedback/README.md)
-executes real interpreted helpers against stock and owned Items. Its graph,
-statistics and teardown leaves are controlled; the separate
-[Item scheduler fixture](../../tests/native/script_item_scheduler/README.md)
-checks actual inert phases, actor-state save/load and destruction. Real rendered
-attachment geometry and whole-match rollback remain separate acceptance.
+Test the captured item's visible attachment and lifetime as well as the
+release itself. The [capture and throw checks](authoring_checks.md#captures-and-throws)
+cover interruption and removal; the
+[article checks](authoring_checks.md#articles-and-resources) cover item cleanup.
 
 `capture.victim_visible` reads or assigns the linked victim's visibility.
 `capture.set_victim_body_status(status)` applies a common body hit status to
@@ -407,12 +396,10 @@ retired actors fault and stop the calling script's continuation. Joint mappings
 needed by throw damage are checked before applying it; both actor identities
 remain retained after the grab links are intentionally cleared.
 
-The common entry checks identities again after motion selection and accessory
-creation. It never continues by looking up a replacement victim from a new grab
-link. A fault stops continuation; it does not undo changes an earlier native step
-or callback already made. The [capture scheduler fixture](../../tests/native/script_capture_scheduler/README.md)
-exercises this path with both stock and owned victims. Its damage/model/constraint
-leaves are controlled; full rendered enclosure gameplay remains separate acceptance.
+The common entry checks actor identities after motion selection and accessory
+creation. If the original victim has been removed or a callback fails, the
+remaining steps stop. Changes completed earlier remain applied. Include these
+cases in your [capture checks](authoring_checks.md#captures-and-throws).
 
 The existing timer decay and mash settings also apply. Release snapshots all
 settings, the accessory descriptor and facing before throw damage clears the

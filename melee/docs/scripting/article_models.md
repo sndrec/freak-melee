@@ -136,12 +136,9 @@ their imported particle assets; Ice uses the prepared `EfIcData.dat` particle
 bank and the primary model's first child. Named `model_effect` declarations
 construct model effects and do not replace these particle recipes.
 
-The focused [Item async fixture](../../tests/native/script_item_async_effect/README.md)
-executes the actual queue, selected native dispatcher cases and facing helper
-with controlled particle resource/allocation leaves. Position-mode tests use a
-controlled geometry sampler and typed recipe captures to check sampling time,
-not world-matrix calculations or particle construction. It does not prove rendered
-particles, imported DAT correctness or arbitrary delayed joint lifetime safety.
+Check the timing, facing and attachment behavior in practice using the
+[article and resource checks](authoring_checks.md#articles-and-resources).
+For a delayed effect, test removal of its creator before execution.
 
 ## `item.joint_world_position(model, path, x, y, z)`
 
@@ -418,9 +415,8 @@ textures selected by `RENDER_SHADOW`/`RENDER_TOON` remain explicitly unsupported
 toon-coordinate and bump textures are planned. This correction also applies to
 the existing named model-animation operations.
 
-The focused [descriptor fixture](../../tests/native/script_item_descriptor_animation/README.md)
-compares interpreter calls with the unchanged native kernels on owned imported
-assets, and tests texture planning against the actual native resource-ID kernel.
+Use the [article and resource checks](authoring_checks.md#articles-and-resources)
+to inspect the model, material and texture tracks on your imported asset.
 
 Texture image-switch tracks (`TIMG`) can select images from the imported
 animation's image table. The current implementation admits complete constant

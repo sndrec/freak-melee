@@ -17,8 +17,22 @@ foreach(_path IN LISTS _native_ui_assets)
     list(APPEND _native_release_ui "ui/${_path}")
 endforeach()
 foreach(_path IN LISTS _native_script_docs)
-    list(APPEND _native_release_ui "ui/docs/${_path}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting/${_path}")
 endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_workshop_docs.py"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/native_fighter_items.md")
+execute_process(COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_workshop_docs.py" --list
+    OUTPUT_VARIABLE _native_doc_manifest OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_VARIABLE _native_doc_error RESULT_VARIABLE _native_doc_status)
+if(NOT _native_doc_status EQUAL 0)
+    message(FATAL_ERROR "Workshop reference manifest failed: ${_native_doc_error}")
+endif()
+string(REPLACE "\r" "" _native_doc_manifest "${_native_doc_manifest}")
+string(REPLACE "\n" ";" _native_doc_manifest "${_native_doc_manifest}")
+list(APPEND _native_release_ui ${_native_doc_manifest})
 foreach(_name IN ITEMS menu-heading result-name result-winner notice css-tile menu-option menu-caption)
     list(APPEND _native_release_ui "ui/fonts/${_name}.bin")
 endforeach()
@@ -55,8 +69,8 @@ add_custom_target(melee_native_ui
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/portraits"
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_skin.py"
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/skins"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting" "$<TARGET_FILE_DIR:melee_native>/ui/docs"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_workshop_docs.py"
+        --output "$<TARGET_FILE_DIR:melee_native>/ui/docs"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui" "$<TARGET_FILE_DIR:melee_native>/ui"
     ${_native_disc_copy_commands}
@@ -69,3 +83,5 @@ add_test(NAME native_release_payload COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/release_payload_test.py")
 add_test(NAME native_news_draft COMMAND Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/news_draft_test.py")
+add_test(NAME native_workshop_docs COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/workshop_docs_test.py")

@@ -40,6 +40,6 @@ structural indices are pinned across native contact callbacks. Completed native
 callback side effects are not rolled back if publication fails. These guards
 do not claim containment of arbitrary destructive native callbacks.
 
-The [connected comparison fixture](../../tests/native/script_item_sweep/README.md)
-executes these unchanged engine kernels over controlled line geometry and
-contact callbacks, alongside the Item segment sweep.
+Repeat the query on flat ground, a slope and near an edge. Use the
+[stage query checks](authoring_checks.md#stage-queries-and-targets) to verify
+contact and missing-contact outputs.

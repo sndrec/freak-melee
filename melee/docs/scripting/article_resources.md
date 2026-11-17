@@ -425,10 +425,9 @@ Animation loop behavior remains in the imported descriptors. Stock Hookshot and
 Samus grapple construction do not explicitly mutate loop flags, so this batch
 adds no speculative loop setter.
 
-Current interpreter coverage is documented in the
-[connected resource fixture](../../tests/native/script_item_resources/README.md).
-Its line-speed cases execute the native remapping kernel through actual Item
-actors and VM output publication.
+Test the resulting item on flat ground, slopes and near an edge. Follow the
+[article and resource checks](authoring_checks.md#articles-and-resources)
+when verifying position, movement and cleanup.
 
 The following describes historical generated-backend evidence. The old
 snapshot-overlay runner uses retired ownership and animation-path interfaces;

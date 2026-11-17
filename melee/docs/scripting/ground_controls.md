@@ -131,8 +131,8 @@ branch; use ordinary script state, motion and item operations to implement it.
 It is not a general notification for every hit and does not replace the damage
 or knockback calculation. An absent hook preserves the existing branch policy.
 
-Both callbacks retain the executing actor/program/storage lifetime. A source
-fault or retired actor stops the cached native continuation. The damage branch
-also keeps its existing retained victim check. Completed mutations are not
-undone. The grouped [catch/throw fixture](../../tests/native/script_catch_policy/README.md)
-compares these decision boundaries, not the entire damage engine.
+Both callbacks retain the executing actor, program and storage. A source
+fault or actor removal stops the remaining work. The damage branch also
+checks its retained victim. Changes already completed remain applied; include
+interruption and removal in the
+[capture checks](authoring_checks.md#captures-and-throws).

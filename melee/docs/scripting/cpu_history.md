@@ -104,13 +104,6 @@ mutating the collection. The initial history seed remains controlled by the
 earlier `on cpu_prepare` contract. No per-frame allocation or second history
 pool is introduced.
 
-The current direct interpreter is covered by the grouped
-[CPU fixture](../../tests/native/script_cpu_control/README.md). It uses actual
-Prepare/Publish actors, history and planner kernels with explicit controlled
-geometry/decision leaves. Older exporter engine contracts are covered by
-`tests/native/cpu_follower_foundation/README.md`. A complete authored follower
-example and original/generated comparisons are in
-`tests/native/ice_climbers_cpu_owned/README.md`. The latter uses ordinary fighter
-variables for its copying/recovery decisions and contains no stock follower
-handler call. These source comparisons have controlled engine boundaries;
-paired publication and real gameplay are separate checks.
+Test input copying and recovery with the
+[CPU checks](authoring_checks.md#cpu-behavior). For a companion, repeat the test
+while its leader is separated, incapacitated and removed.

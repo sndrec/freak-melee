@@ -16,7 +16,7 @@
 #include <vector>
 
 namespace {
-struct Page { std::string file, title, text; };
+struct Page { std::string file, title, text; bool source = false; };
 std::vector<Page> pages;
 Rml::ElementDocument* document;
 std::string symbol;
@@ -70,6 +70,13 @@ void open_page(size_t index)
 {
     if (index >= pages.size()) return;
     const auto& page = pages[index];
+    if (page.source) {
+        document->GetElementById("workshop-doc-content")->SetInnerRML("<pre><code>" + escape(page.text) + "</code></pre>");
+        document->GetElementById("workshop-doc-title")->SetInnerRML(escape(page.title));
+        document->GetElementById("workshop-doc-panel")->SetProperty("display", "block");
+        visible = true;
+        return;
+    }
     std::vector<std::string> lines;
     size_t pos = 0;
     while (pos < page.text.size()) {
@@ -193,6 +200,13 @@ void nativeWorkshopDocs_Init(Rml::ElementDocument* shell)
         std::ifstream stream(entry.path(),std::ios::binary);std::string text((std::istreambuf_iterator<char>(stream)),{});
         std::string title=entry.path().stem().string();size_t heading=text.find("# ");if(heading!=std::string::npos){size_t end=text.find('\n',heading);title=text.substr(heading+2,end-heading-2);}
         pages.push_back({entry.path().filename().string(),title,std::move(text)});
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(root.parent_path(), error)) {
+        if (entry.path().extension() != L".fms" || entry.file_size(error) > 512 * 1024) continue;
+        std::ifstream stream(entry.path(), std::ios::binary);
+        std::string text((std::istreambuf_iterator<char>(stream)), {});
+        const std::string name = entry.path().filename().string();
+        pages.push_back({"../" + name, name, std::move(text), true});
     }
     std::sort(pages.begin(),pages.end(),[](const Page&a,const Page&b){return a.title<b.title;});
     shell->AddEventListener("mousedown",&events,true);

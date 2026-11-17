@@ -551,8 +551,6 @@ func ChooseDestination():
     cpu.combat_candidates_enabled = true
 ```
 
-The grouped [native fixture](../../tests/native/script_cpu_control/README.md)
-compares unchanged destination kernels and scalar fields, including no-op
-and nonfinite cases, with actual source actor and VM routing. Its stage-entry
-leaf is controlled; The grouped history/planner cohort is documented in [CPU history](cpu_history.md).
-Paired activation and gameplay remain separate work.
+Use [CPU history](cpu_history.md) when decisions depend on previous inputs or
+actions. Follow the [CPU checks](authoring_checks.md#cpu-behavior) to compare
+ordinary decisions, recovery and unavailable targets.

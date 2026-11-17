@@ -8,6 +8,7 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
+from prepare_workshop_docs import check_tree
 
 
 def sha256(path: Path) -> str:
@@ -79,6 +80,10 @@ def main() -> None:
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
     payload.append((scripts.parent / "docs/scripting/agent_tools.md", "START_HERE.md"))
+    try:
+        check_tree(build / 'ui/docs', [source for source, _ in payload])
+    except ValueError as error:
+        parser.error(str(error))
     notices = scripts.parent / "licenses"
     for notice in sorted(notices.rglob("*")):
         if notice.is_file():

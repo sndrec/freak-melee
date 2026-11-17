@@ -20,14 +20,20 @@ Accepted 2026-11-17. Implementation is in progress.
   release-payload checks pass. This verifies the read-only foundation only.
 - Editing, live Workshop session ownership/IPC, complete authoring schemas,
   visual/practice tools, agent feedback and full
-  repository-free acceptance remain to be implemented. Reference-link cleanup
-  and the remaining authoring guides are also open.
+  repository-free acceptance remain to be implemented. The remaining practical
+  authoring guides are also open.
 - `scripts.check` validates the editable source set through the same independent
   native candidate operation as the Workshop's validator. It collects errors
   and maps them to their original move files. `parameters.read` exposes typed
   overrides, and shared parameter import preserves explicit tuning and source
   line positions. Fresh/split Mario checks, multiple independent errors,
   parameter conflicts, repair and preservation of accepted source pass locally.
+- The installed reference now contains 88 pages and 13 linked source examples.
+  A shared build step resolves offline links and section anchors, labels optional
+  online developer references, and replaces test-fixture links with practical
+  authoring checks. Both MCP resources and the in-game reference can read the
+  bundled examples. Package preparation rejects undeclared files and broken
+  section links; native tool, family, parameter, reference and payload checks pass.
 
 A player should be able to give their coding agent the installed Freak Melee
 folder and ask it to create or change a fighter. The installation should supply

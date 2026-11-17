@@ -76,5 +76,5 @@ matched after this translation. The recordings do not yet cover every ledge,
 sloped-floor, interruption, charge-across-lives, or shield interaction.
 
 For the broader language, start at the
-[fighter scripting reference](index.md); for the source recordings, see the
-[parity input catalog](../../tests/native/parity_inputs/README.md).
+[fighter scripting reference](index.md). Use the
+[move checks](authoring_checks.md#move-logic) when changing Cyclone.

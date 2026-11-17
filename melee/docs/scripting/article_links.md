@@ -102,7 +102,7 @@ Caller retirement stops the caller; recipient script errors propagate rather
 than allowing subsequent statements to run as if the command succeeded.
 
 `articles.signal_owned()` remains fighter-only and additionally checks current
-and attachment ownership. See [signals](fighter.md#articlessignal).
+and attachment ownership. See [signals](fighter.md#articlessignalhandle-declaredarticle-name-value).
 
 ## Copying collision state
 

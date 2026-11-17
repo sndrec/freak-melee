@@ -1,7 +1,5 @@
 #include "native_agent_project.h"
-#include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_validation.h>
-#include <cstring>
 
 namespace NativeAgent {
 static void diagnostic(Reply& reply, yyjson_mut_val* array,

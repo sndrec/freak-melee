@@ -192,10 +192,8 @@ layout failures stop the query without publishing outputs. Valid native Fighter
 userdata remains an engine registry prerequisite; these checks do not prove the
 allocation extent of an arbitrary non-null userdata pointer.
 
-The grouped [target query fixture](../../tests/native/script_target_queries/README.md)
-executes the compiler, both actor classes, VM publication and unchanged native
-lookup/delta kernels. Imported package/rig publication is a controlled boundary;
-this console proof does not establish gameplay or complete asset loading.
+Use the [target checks](authoring_checks.md#stage-queries-and-targets) to test
+selection, observation and removal of the selected actor.
 
 | Expression | Result |
 | --- | --- |

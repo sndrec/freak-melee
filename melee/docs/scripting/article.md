@@ -89,7 +89,7 @@ spawn behavior. The finite scalar `creation_value` is exposed as
 saved actor-owned `item.creation_value` after `on spawned`, before `on created`, so instances can initialize their
 index, delay or role without a later notification. The six-argument form uses
 zero for both values. Neither argument creates links between items; use
-[`articles.link_owned()`](article_links.md#linking-existing-owned-articles).
+[`articles.link_owned()`](article_links.md#linking-existing-articles).
 
 `articles.create_with_velocity(kind, x, y, z, vx, vy, vz, facing,
 origin_at_owner, collision_group, creation_value, initial_collision)` performs the same creation
@@ -324,7 +324,7 @@ control of their own bookkeeping and launch sequence.
 Without a declaration, creation uses the bone position for both positions,
 preserves Z, enables initial collision, and registers the special held item.
 The fighter creates it with
-[`articles.spawn_bone_attached()`](fighter.md#articlesspawn_bone_attached).
+[`articles.spawn_bone_attached()`](fighter.md#articlesspawn_bone_attachedkind-bone).
 These settings are immutable module data, not per-instance state.
 
 ## Accessory callback
@@ -425,7 +425,7 @@ article It_Kind_Fox_Blaster states 1:
 ```
 
 The fighter sends this with
-[`articles.signal_owned(handle, DeclaredArticle, "recoil", 1)`](fighter.md#articlessignal_owned).
+[`articles.signal_owned(handle, DeclaredArticle, "recoil", 1)`](fighter.md#articlessignal_ownedhandle-declaredarticle-name-value).
 The callback runs immediately. `signal.value` is a float, available only inside
 that signal callback; use `int()` to assign an integer. A signal callback has
 no return value and may use `return` to stop early. It can select a state that
@@ -535,7 +535,7 @@ animation index. State callbacks run in the item's animation, physics, and
 collision phases. Item-wide callbacks such as `on reflected`, `on clanked`,
 `on hit_shield`, `on shield_bounced`, and `on interaction` handle contacts and
 ownership changes. A state-changing callback can call
-[`item.change_state()`](item.md#itemchange_state) when the new state is declared.
+[`item.change_state()`](item.md#itemchange_stateindex) when the new state is declared.
 
 For boolean callbacks, `true` asks the engine to remove the item; `false`
 retains it. A stock translation should enumerate and compare every reachable

@@ -29,6 +29,5 @@ Output guards do not roll back the kernel's native position snap. The operation
 performs no attachment, reflection, embed or expiry decisions; those remain in
 the authored callback.
 
-The focused [native comparison fixture](../../tests/native/script_item_sweep/README.md)
-executes the real Item/map wrappers over a controlled intersection leaf. Full
-stage geometry and complete fighter behavior remain outside that proof.
+Use the [stage query checks](authoring_checks.md#stage-queries-and-targets)
+to test a hit, a miss and contact near an edge on the stage you intend to use.

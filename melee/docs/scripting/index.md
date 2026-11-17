@@ -128,11 +128,11 @@ reference page. **Open reference** lets you browse or search the documentation.
 
 ## Examples
 
-Start with a stock fighter's script or Rook's move files:
+Start with a stock fighter's script. Open a custom fighter's draft to read
+its own move files:
 
 - [Mario](../../examples/mario_full.fms): fireballs, Cape, Super Jump Punch and Tornado.
 - [Dr. Mario](../../examples/drmario_full.fms): pills and their movement and lifetime.
-- [Rook](../../examples/rook_workshop/): separate files for moves and shared fighter state.
 - [Peach](../../examples/peach_full.fms): hovering and selecting aerial attacks.
 - [Fox](../../examples/fox_wip.fms) and [Falco](../../examples/falco_wip.fms): lasers, Reflector and movement specials.
 - [Donkey Kong](../../examples/donkey_wip.fms): carrying and throwing fighters and heavy items.

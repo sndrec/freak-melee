@@ -44,6 +44,12 @@ with script errors is a successful tool call with `accepted: false`; read its
 collected together. Locations refer to the text returned by `scripts.read`.
 The check leaves the draft and accepted behavior unchanged.
 
+`examples.list` and `examples.read` expose the installed FMS templates and
+supporting examples. They are also available as MCP resources under
+`freak-melee://examples/`. The installed reference links to local copies of
+these files. Links marked **developer reference, online** provide optional
+implementation notes on GitHub.
+
 ## Connect through MCP
 
 For a setup installation, configure your agent's MCP client to start:

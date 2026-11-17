@@ -40,6 +40,8 @@ bool read_text(const std::string& path, std::string&, size_t maximum);
 bool matches(const std::string& text, const std::string& query);
 std::vector<std::string> documentation_pages(const Context&);
 bool read_document(const Context&, const std::string& page, std::string& text);
+std::vector<std::string> example_names(const Context&);
+bool read_example(const Context&, const std::string& name, std::string& text);
 
 void environment(const Context&, yyjson_val*, Reply&);
 void projects(const Context&, yyjson_val*, Reply&);
@@ -52,4 +54,6 @@ void attributes(const Context&, yyjson_val*, Reply&);
 void actions(const Context&, yyjson_val*, Reply&);
 void documentation(const Context&, yyjson_val*, Reply&);
 void documentation_page(const Context&, yyjson_val*, Reply&);
+void examples(const Context&, yyjson_val*, Reply&);
+void example(const Context&, yyjson_val*, Reply&);
 }

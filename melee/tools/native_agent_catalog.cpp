@@ -28,6 +28,10 @@ static const Tool tools[] = {
         "{\"type\":\"object\",\"properties\":{" PAGE_FIELDS "},\"additionalProperties\":false}", documentation, true},
     {"docs.read", "Read a bundled reference page using its page ID from docs.search.",
         R"({"type":"object","properties":{"page":{"type":"string","minLength":1,"maxLength":128}},"required":["page"],"additionalProperties":false})", documentation_page, true},
+    {"examples.list", "List bundled fighter script templates and supporting source examples. Use project inspection for an installed custom fighter's own scripts.",
+        "{\"type\":\"object\",\"properties\":{" PAGE_FIELDS "},\"additionalProperties\":false}", examples, true},
+    {"examples.read", "Read a bundled FMS source example by its filename from examples.list.",
+        R"({"type":"object","properties":{"example":{"type":"string","minLength":1,"maxLength":128}},"required":["example"],"additionalProperties":false})", example, true},
 };
 #undef PROJECT_FIELDS
 #undef PAGE_FIELDS

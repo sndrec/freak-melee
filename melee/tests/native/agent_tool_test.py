@@ -76,6 +76,11 @@ def main():
         assert len(docs['pages']) == 2 and docs['total'] > 2
         page = docs['pages'][0]['page']
         assert call('docs.read', {'page': page})['text']
+        bundled = call('examples.list', {'query': 'mario', 'limit': 1})
+        assert len(bundled['examples']) == 1 and bundled['total'] >= 2
+        assert 'fighter:' in call('examples.read', {'example': 'mario_full.fms'})['text']
+        assert call('examples.read', {'example': 'fox_falco_blaster.fms'})['text']
+        assert call('examples.read', {'example': '../private.fms'}, expected=1)['code'] == 'unknown_example'
 
         draft = folder / 'appdata/Freak Melee/projects/Agent Mario'
         run('clone-stock', iso, 'Mario', draft, 'Agent Mario')
@@ -199,6 +204,7 @@ def main():
             '{invalid',
             'x' * (4 * 1024 * 1024 + 1),
             rpc('ping', id=9),
+            rpc('resources/read', {'uri': 'freak-melee://examples/mario_full.fms'}, id=10),
         ]
         responses = [json.loads(line) for line in run('mcp', input='\n'.join(requests) + '\n').splitlines()]
         assert len(responses) == len(requests) - 1
@@ -214,6 +220,8 @@ def main():
         assert by_id[8]['error']['code'] == -32601
         assert [r['error']['code'] for r in responses if r['id'] is None] == [-32700, -32700]
         assert by_id[9]['result'] == {}
+        assert by_id[10]['result']['contents'][0]['mimeType'] == 'text/plain'
+        assert 'fighter:' in by_id[10]['result']['contents'][0]['text']
         # The installed entry remains stable while state.json selects another
         # build. No updater, ISO picker or visible client may run in MCP mode.
         installation = folder / 'Installation with spaces'

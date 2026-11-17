@@ -202,10 +202,9 @@ Group tags use the engine's unsigned 32-bit assignment semantics. Integer
 arguments narrow to that width; they are equality tags, not array indices.
 The getter can observe any capsule state, including disabled slots.
 
-[`hitbox.active()`](fighter.md#hitboxactive-and-hitboxset_damage) tests the
-specific Enabled state. `enabled()` also accepts other non-disabled capsule
+`hitbox.state(index) == Hitbox.enabled` tests the specific Enabled state. `enabled()` also accepts other non-disabled capsule
 states, matching stock callbacks that use that broader test. Use
-[`hitbox.set_damage()`](fighter.md#hitboxactive-and-hitboxset_damage) to
+[`hitbox.set_damage()`](fighter.md#hitboxstateindex-and-hitboxset_damageindex-damage) to
 recalculate live damage through the engine.
 
 Use `Hitbox.disabled` and `Hitbox.enabled` with `hitbox.state(index)` when a

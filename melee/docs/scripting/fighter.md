@@ -65,27 +65,27 @@ fighter-specific flags. Prefer named script state for custom move decisions.
 | [`controls.taunt_actions()`](#controlstaunt_actions) | Run the common taunt interrupt policy with its own interrupt gate and input order. |
 | [`physics.ground_friction()`](#physicsground_friction-and-physicsair_drift) / [`physics.air_drift()`](#physicsground_friction-and-physicsair_drift) | Apply shared movement physics. |
 | [`physics.air_gravity_and_friction()`](#physicsair_gravity_and_friction) | Apply the shared airborne gravity/friction step. |
-| [`physics.ground_decelerate(amount)`](#physicsground_decelerate-and-physicsground_to_self) / [`physics.ground_to_self()`](#physicsground_decelerate-and-physicsground_to_self) | Decelerate grounded movement, then copy it to self velocity. |
-| [`physics.fall(gravity, terminal_velocity)`](#physicsfall-and-physicsair_decel) / [`physics.air_decel(amount)`](#physicsfall-and-physicsair_decel) | Apply bounded vertical fall and horizontal air deceleration. |
+| [`physics.ground_decelerate(amount)`](#physicsground_decelerateamount-and-physicsground_to_self) / [`physics.ground_to_self()`](#physicsground_decelerateamount-and-physicsground_to_self) | Decelerate grounded movement, then copy it to self velocity. |
+| [`physics.fall(gravity, terminal_velocity)`](#physicsfallgravity-terminal_velocity-and-physicsair_decelamount) / [`physics.air_decel(amount)`](#physicsfallgravity-terminal_velocity-and-physicsair_decelamount) | Apply bounded vertical fall and horizontal air deceleration. |
 | [`state.to_air()`](#stateto_air-and-stateto_ground) / [`state.to_ground()`](#stateto_air-and-stateto_ground) | Change the move's ground/air variant after collision. |
-| [`state.switch_to_air(motion, flags)`](#stateswitch_to_air-and-stateswitch_to_ground) / [`state.switch_to_ground(motion, flags)`](#stateswitch_to_air-and-stateswitch_to_ground) | Switch to a particular motion while retaining the current animation frame. |
-| [`state.enter_at(motion, flags, frame)`](#stateenter_at) | Enter a numbered motion with explicit preservation flags and start frame. |
-| [`articles.spawn_authored_projectile(kind, bone, variant)`](#articlesspawn_authored_projectile) | Create an article owned by this script. |
+| [`state.switch_to_air(motion, flags)`](#stateswitch_to_airmotion-flags-and-stateswitch_to_groundmotion-flags) / [`state.switch_to_ground(motion, flags)`](#stateswitch_to_airmotion-flags-and-stateswitch_to_groundmotion-flags) | Switch to a particular motion while retaining the current animation frame. |
+| [`state.enter_at(motion, flags, frame)`](#stateenter_atmotion-flags-frame) | Enter a numbered motion with explicit preservation flags and start frame. |
+| [`articles.spawn_authored_projectile(kind, bone, variant)`](#articlesspawn_authored_projectilekind-bone-variant) | Create an article owned by this script. |
 | [`articles.launch_at_position()`](#articleslaunch_at_position) | Launch from an explicit world position with a facing and hit group. |
 | [`bones.world_position()`](#bonesworld_position) | Read a skeleton joint position into declared float variables. |
 | [`articles.launch_projectile()`](#articleslaunch_projectile) | Launch an authored article from a bone-local offset with runtime trajectory and state. |
-| [`effects.spawn(effect, bone)`](#effectsspawn) | Spawn a fighter effect at a named bone. |
-| [`effects.active`](#effectsspawn) | Read or set the shared effect-active flag; scripts decide when to mark a spawn. |
+| [`effects.spawn(effect, bone)`](#effectsspawneffect-bone) | Spawn a fighter effect at a named bone. |
+| [`effects.active`](#effectsspawneffect-bone) | Read or set the shared effect-active flag; scripts decide when to mark a spawn. |
 | [`visuals.apply_part_animation(group, variant, duration)`](#visualsapply_part_animationgroup-variant-duration) | Apply an owned partial-body animation with explicit blend duration. |
 | [`hitbox.state(index)`](fighter_hitboxes.md) / [`hitbox.set_damage(index, damage)`](fighter_hitboxes.md) | Read a live attack capsule's state and recalculate its damage. |
 | [`callbacks.align_velocity_to_facing()`](#callbacksalign_velocity_to_facing) | Install the common facing-aligned velocity callback. |
 | [`callbacks.track_deal_damage()`](#callbackstrack_deal_damage) | Run the authored `on deal_damage` callback after a hit. |
-| [`visuals.hide_group(group)`](#visualshide_group) | Hide a fighter model-part group, including during death reset. |
+| [`visuals.hide_group(group)`](#visualshide_groupgroup) | Hide a fighter model-part group, including during death reset. |
 | [`input.horizontal_smash_age`](#inputhorizontal_smash_age) | Read the horizontal stick-smash timer. |
 | [`stats.count_as_thrown_item()`](#statscount_as_thrown_item) | Mark the current action for the game's thrown-item statistic. |
 | [`stats.action_count(slot, id)`](#statsaction_count-and-statsnotify_taunt) / [`stats.notify_taunt()`](#statsaction_count-and-statsnotify_taunt) | Read action bookkeeping and notify a taunt entry. |
 | [`callbacks.track_death1()`](#callbackstrack_death1-and-callbacksclear_death1) / [`callbacks.clear_death1()`](#callbackstrack_death1-and-callbacksclear_death1) | Register and clear the transient damage/death cleanup callback. |
-| [`state.wait_blend(frames)`](#statewait_blend) | Enter shared Wait with an explicit animation blend. |
+| [`state.wait_blend(frames)`](#statewait_blendframes) | Enter shared Wait with an explicit animation blend. |
 | [`player.slot`](#player-and-down-input-history) / [`player.secondary`](#player-and-down-input-history) | Identify the player slot and secondary fighter. |
 | [`input.down_held`](#player-and-down-input-history) / [`input.down_release_age`](#player-and-down-input-history) | Read down-taunt button history. |
 | [`stage.event(channel, value)`](stage.md) | Query or notify the active stage's event provider. |
@@ -402,7 +402,7 @@ state.enter_at(351, 0x0c4c508a, frame)
 ```
 
 Use [`state.enter(...)`](#stateenter) for a fresh motion at frame zero or
-[`state.switch_to_air/ground(...)`](#stateswitch_to_air-and-stateswitch_to_ground)
+[`state.switch_to_air/ground(...)`](#stateswitch_to_airmotion-flags-and-stateswitch_to_groundmotion-flags)
 when collision changes the ground/air variant at the current frame.
 
 ### `state.enter_flags(motion, flags)` and `animation.start()`
@@ -604,7 +604,7 @@ on deal_damage:
 ```
 
 See [motion-state callbacks](language.md#motion-state-callbacks) for `action`
-handler placement and [`state.enter_at()`](#stateenter_at) for a transition
+handler placement and [`state.enter_at()`](#stateenter_atmotion-flags-frame) for a transition
 that must retain its animation frame.
 
 ### `visuals.hide_group(group)`
@@ -1095,7 +1095,7 @@ see [linked articles](article_links.md). Ownership-restricted
 Dispatch a declared Article's signal from the owning fighter's script bank.
 The direct interpreter currently supports Fighter callers for this targeted
 operation; Article callbacks use `item.signal` for self delivery. Unlike
-[`signal_owned`](#articlessignal_owned),
+[`signal_owned`](#articlessignal_ownedhandle-declaredarticle-name-value),
 this does not require the recipient's current damage owner to be the caller.
 Reflection can transfer damage ownership while the original script still needs
 to notify its projectile. The recipient must have the exact declared Article
