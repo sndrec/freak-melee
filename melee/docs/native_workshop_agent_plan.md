@@ -265,6 +265,26 @@ Accepted 2026-11-17. Implementation is in progress.
   Resources, presentation, controlled practice/capture, typed output
   schemas and final acceptance remain open.
 
+- Resource tools now inspect typed named entries, hashes, dimensions, native
+  capacities and article/sound/effect inventory. PNG/blob import and removal
+  stage one atomic batch; offline changes use the family lease, revision guard
+  and recovery journal. Live changes use the active editor or Model Undo history,
+  keep disk unchanged and retain history across Save. The ordinary stock-icon
+  and HUD-emblem importer now uses that operation and waits for explicit Save.
+  Export preserves existing output files. Item-blueprint creation supports an
+  explicit DAT/Article offset or a named common ISO item and admits its actual
+  Article/model/command graph before publication. Blueprint imports use the same
+  admission. Direct-write resource commands were removed and their production
+  callers updated. Inspection and the installed guide explain current audio and
+  particle import limits. All nineteen core checks pass. Extracted CLI/MCP/
+  launcher, resource transactions and hidden/muted live checks pass with a
+  Windows-only PATH, covering atomic rejection, exact exports, native limits,
+  deferred Windows-lock recovery, independent ISO-byte comparison, script
+  references, paired-member isolation, both history owners, ordinary HUD import,
+  and the requested package loaded on the actual preview actor. The reference
+  now has 92 pages and 13 examples. No public upload occurred. Presentation,
+  controlled practice/capture, typed output schemas and full acceptance remain.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

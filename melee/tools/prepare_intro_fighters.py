@@ -53,8 +53,9 @@ def main():
 
     def package(key, project, portrait):
         shutil.copyfile(args.portraits.resolve() / f'stock-{portrait}.png', project / 'portrait.png')
-        tool('project-resource-import', project, 'ui/player-card.png', 'png',
-             args.portraits.resolve() / f'card-{portrait}.png')
+        revision=json.loads(tool('agent','call','resources.read',json.dumps(dict(project=str(project)))))['result']['revision']
+        tool('agent','call','resources.edit',json.dumps(dict(project=str(project),revision=revision,
+            changes=[dict(operation='import',name='ui/player-card.png',kind='png',path=str(args.portraits.resolve()/f'card-{portrait}.png'))])))
         tool('script-build', project, project / 'behavior.fms')
         result = tool('package-project', project, project / 'portrait.png')
         identity = re.search(r'\b[0-9a-f]{64}\b', result)[0]

@@ -136,6 +136,9 @@ identity, so discover it again before attaching.
 
 ## Build, install and try a fighter
 
+Use [resource authoring](agent_resources.md) to inspect or import named images,
+item blueprints and binary data, with saved-file transactions or live Undo.
+
 For an open Workshop draft, use `session.build` with the current live revision.
 It checks every family member, builds a complete package, and accepts and saves
 the behavior together. `member_reports` contains each member's diagnostics.

@@ -27,7 +27,6 @@
 #include <melee/ft/native_fighter_authoring_process.h>
 #include <melee/ft/native_fighter_parameters.h>
 #include <melee/ft/native_fighter_runtime.h>
-#include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_match_launch.h>
@@ -907,26 +906,19 @@ class WorkshopEvents final : public Rml::EventListener {
 extern "C" bool nativeShellWorkshop_ImportHudImage(unsigned target, const char* file)
 {
     if (!opened || testing || !project_loaded || target > 1 || !file || !*file) return false;
-    uint8_t* bytes = nullptr; size_t size = 0;
-    uint16_t width = 0, height = 0;
-    bool valid = read_portrait(file, &bytes, &size) &&
-        nativeSourceResources_PNG(bytes, size, &width, &height, nullptr, 0);
-    unsigned char* pixels = valid ? nativeGxImage_Decode(bytes, unsigned(size), &width, &height) : nullptr;
-    valid = valid && pixels;
-    nativeGxImage_Free(pixels);
-    const char* name = target ? "ui/emblem.png" : "ui/stock-icon.png";
-    if (!valid || !nativeFighterProject_EditResource(
-            active_project, name, NativeSourceResource_PNG, bytes, size)) {
-        std::free(bytes);
-        status("workshop-editor-status", "Could not import this PNG. The previous HUD image is retained.");
-        return false;
-    }
-    std::free(bytes);
-    attributes_dirty[active_member] = true;
-    if (!nativeShellWorkshop_Save()) return false;
-    status("workshop-editor-status", target ? "HUD emblem imported. Build & Install to use it in matches."
-                                          : "Stock icon imported. Build & Install to use it in matches.");
-    return true;
+    auto* owner=yyjson_mut_doc_new(nullptr);if(!owner)return false;
+    auto* args=yyjson_mut_obj(owner);yyjson_mut_doc_set_root(owner,args);
+    auto* changes=yyjson_mut_arr(owner);auto* change=yyjson_mut_obj(owner);
+    yyjson_mut_obj_add_val(owner,args,"changes",changes);yyjson_mut_arr_append(changes,change);
+    yyjson_mut_obj_add_str(owner,args,"summary",target?"Import HUD emblem":"Import stock icon");
+    yyjson_mut_obj_add_str(owner,change,"operation","import");yyjson_mut_obj_add_str(owner,change,"name",target?"ui/emblem.png":"ui/stock-icon.png");
+    yyjson_mut_obj_add_str(owner,change,"kind","png");yyjson_mut_obj_add_strcpy(owner,change,"path",file);
+    auto* request=yyjson_mut_doc_imut_copy(owner,nullptr);
+    NativeAuthoring::Reply reply(owner);
+    if(request)nativeShellWorkshopEditor_Resources("edit",yyjson_doc_get_root(request),reply);
+    else reply.fail("allocation_failed","Could not capture this image import.");
+    if(!reply.ok)status("workshop-editor-status","Could not import this PNG. The previous HUD image is retained.");
+    const bool ok=reply.ok;yyjson_doc_free(request);yyjson_mut_doc_free(owner);return ok;
 }
 
 extern "C" bool nativeShellWorkshop_ImportFighter(const char* file)

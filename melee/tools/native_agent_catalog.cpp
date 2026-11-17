@@ -4,6 +4,7 @@
 #include <melee/ft/native_animation_authoring.h>
 #include <melee/ft/native_attribute_authoring.h>
 #include <melee/ft/native_model_authoring.h>
+#include <melee/ft/native_resource_authoring.h>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -12,6 +13,10 @@ namespace NativeAgent {
 #define PAGE_FIELDS R"("query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200})"
 #define PROJECT_FIELDS R"("project":{"type":"string","minLength":1,"maxLength":500},"member":{"type":"string","maxLength":31})"
 static const Tool offline_tools[] = {
+    {"resources.read", "Inspect owned resource names, types, exact hashes, image dimensions, limits and the fighter's article/sound/effect asset inventory. Lists support search and pagination.", NativeResourceAuthoring::read_schema(false), read_resources, true},
+    {"resources.edit", "Import or remove named PNG/blob resources as one atomic batch. Validates PNG pixels, preserves other members and saves through the draft lease/revision/recovery journal. Source checking and package building remain explicit.", NativeResourceAuthoring::edit_schema(false), edit_resources, false},
+    {"resources.export", "Export an owned resource's exact bytes to a new file. Existing output files are preserved.", NativeResourceAuthoring::export_schema(false), export_resource, false},
+    {"resources.blueprint", "Create an owned item blueprint from an explicit DAT/Article offset or a common ISO item kind (0..42). Validates the actual model/command graph, writes a new file, and leaves drafts/installation unchanged. Import the output with resources.edit.", NativeResourceAuthoring::blueprint_schema(), item_blueprint, false},
     {"models.scan", "Inspect a GLB/glTF file's named primitives, source identities, geometry counts and skin/texture availability without editing a draft.", NativeModelAuthoring::scan_schema(), scan_model, true},
     {"models.read", "Inspect this member's actual model, meshes, stable bone identities, materials, vertex weights, import sources, texture sequences or a source-aware reimport plan. Lists are paged; positions use bind-space game units and rotations use radians.", NativeModelAuthoring::read_schema(false), read_models, true},
     {"models.edit", "Atomically import/reimport meshes, compensate rest transforms, paint weights, edit materials/rendering, assign mesh materials, replace texture images, label elements or edit extra-bone hierarchy. Preserves a rejected draft and saves all affected assets together.", NativeModelAuthoring::edit_schema(false), edit_models, false},

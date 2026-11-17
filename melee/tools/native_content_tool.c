@@ -146,9 +146,6 @@ static void usage(void)
         "  source-audit PROJECT_DIRECTORY SCRIPT_FILE\n"
         "  script-build PROJECT_DIRECTORY SCRIPT_FILE\n"
         "  export-fighter-facts TEMPLATE OUTPUT.fma\n"
-        "  project-resource-import PROJECT_DIRECTORY LOGICAL_NAME png|blob INPUT\n"
-        "  project-resource-item PROJECT_DIRECTORY LOGICAL_NAME DAT ARTICLE_OFFSET\n"
-        "  project-resource-stock-item PROJECT_DIRECTORY LOGICAL_NAME ISO KIND\n"
         "  import-cpu PROJECT_DIRECTORY ISO STOCK_FIGHTER\n"
         "  import-parameters PROJECT_DIRECTORY SCRIPT_FILE OUTPUT_SCRIPT\n"
         "  package-project PROJECT_DIRECTORY PORTRAIT_PNG\n"
@@ -2244,12 +2241,6 @@ int main(int argc, char** argv)
     if (arguments == 2 && strcmp(argv[index], "verify-package") == 0) {
         return nativeSourceContentTool_Verify(root, argv[index + 1]);
     }
-    if (arguments == 5 && strcmp(argv[index], "project-resource-import") == 0)
-        return nativeSourceResourceTool_Import(argv[index+1],argv[index+2],argv[index+3],argv[index+4]);
-    if (arguments == 5 && strcmp(argv[index], "project-resource-item") == 0)
-        return nativeSourceResourceTool_Item(argv[index+1],argv[index+2],argv[index+3],argv[index+4]);
-    if (arguments == 5 && strcmp(argv[index], "project-resource-stock-item") == 0)
-        return nativeSourceResourceTool_StockItem(argv[index+1],argv[index+2],argv[index+3],argv[index+4]);
     if (arguments == 3 && strcmp(argv[index], "export-fighter-facts") == 0)
         return nativeSourceResourceTool_ExportFacts(argv[index+1],argv[index+2]);
 

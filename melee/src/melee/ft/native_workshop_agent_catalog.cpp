@@ -3,11 +3,15 @@
 #include "native_animation_authoring.h"
 #include "native_attribute_authoring.h"
 #include "native_model_authoring.h"
+#include "native_resource_authoring.h"
 #include <cstring>
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
 static const Command commands[] = {
+    {"session.resources.read", "Inspect the live member's unsaved named PNG/blob resources, hashes, image dimensions, limits and article/sound/effect inventory.", NativeResourceAuthoring::read_schema(true), true},
+    {"session.resources.edit", "Import/remove resources as one atomic batch and current-workspace Undo step. Leaves saved files and installed packages unchanged; refresh preview explicitly after checking source/resource references.", NativeResourceAuthoring::edit_schema(true), false},
+    {"session.resources.export", "Export a live unsaved resource's exact bytes to a new file. Existing output files and draft history are preserved.", NativeResourceAuthoring::export_schema(true), false},
     {"session.models.view", "Read the Model workspace's transient mesh/material/bone selection, hidden meshes, preview mode, playhead and temporary local pose. Does not read saved-file defaults.", NativeModelAuthoring::view_schema(), true},
     {"session.models.select", "Select Model context/mode, mesh/material/bones, editor-only hidden meshes and an action clip/frame or playback state. Skeleton mode always draws bones. Changes view state, not fighter assets; no save or installation.", NativeModelAuthoring::select_schema(), false},
     {"session.models.pose", "Apply an atomic temporary local pose batch or reset to the rest pose in Model/Pose Mode. Uses inspected bone ordinals, game units, radians and scale multipliers. Does not key animations, edit the rest rig or save assets.", NativeModelAuthoring::pose_schema(), false},

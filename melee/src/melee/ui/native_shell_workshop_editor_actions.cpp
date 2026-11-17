@@ -940,6 +940,15 @@ void apply_history(bool redo)
     }
     const EditHistoryEntry& edit = session->edit_history[redo ? session->edit_cursor :
                                                      session->edit_cursor - 1];
+    if(edit.resources) {
+        std::string error;
+        if(!NativeResourceAuthoring::restore(*session->project,*edit.resources,redo,error)) {
+            set_text("workshop-editor-status",error);return;
+        }
+        if(redo)++session->edit_cursor;else --session->edit_cursor;
+        update_history_buttons();
+        set_text("workshop-editor-status",redo?"Reapplied resource edit. Refresh preview to test it.":"Undid resource edit. Refresh preview to test it.");return;
+    }
     if (edit.source_edit) {
         if (apply_source_history(edit, redo)) {
             if (redo) ++session->edit_cursor; else --session->edit_cursor;

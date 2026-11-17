@@ -256,7 +256,9 @@ bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member)
         (!target.parameter_source.empty() &&
          (fighter->parameter_text == nullptr || std::memcmp(target.parameter_source.data(),
              fighter->parameter_text, target.parameter_source.size()) != 0));
-    return target.action_dirty || target.animation_dirty || parameter_dirty ||
+    const bool resources_dirty=target.saved_resources.size()!=fighter->resource_size ||
+        (fighter->resource_size && std::memcmp(target.saved_resources.data(),fighter->resources,fighter->resource_size));
+    return target.action_dirty || target.animation_dirty || parameter_dirty || resources_dirty ||
         nativeShellWorkshopModel_HasUnsavedEdits(member) ||
         (target.script_loaded && NativeFighterSources::dirty(target.script_files));
 }

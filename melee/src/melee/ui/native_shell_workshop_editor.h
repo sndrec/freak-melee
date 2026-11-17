@@ -16,6 +16,7 @@ void nativeShellWorkshopEditor_RegisterGraph();
 void nativeShellWorkshopEditor_Actions(const char* operation, yyjson_val*, NativeAuthoring::Reply&);
 void nativeShellWorkshopEditor_Animations(const char* operation, yyjson_val*, NativeAuthoring::Reply&);
 void nativeShellWorkshopEditor_Attributes(const char* operation, yyjson_val*, NativeAuthoring::Reply&);
+void nativeShellWorkshopEditor_Resources(const char* operation, yyjson_val*, NativeAuthoring::Reply&);
 void nativeShellWorkshopEditor_Init(Rml::ElementDocument* document);
 void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* project,
                                     const char* path);

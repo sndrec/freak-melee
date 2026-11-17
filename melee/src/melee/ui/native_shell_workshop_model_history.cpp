@@ -112,6 +112,12 @@ bool nativeShellWorkshopModel_Undo(bool redo)
         (redo ? active->change_cursor == active->changes.size() : active->change_cursor == 0))
         return false;
     const Change& change = active->changes[redo ? active->change_cursor : active->change_cursor - 1];
+    if(change.resources) {
+        std::string error;
+        if(!NativeResourceAuthoring::restore(*active->project,*change.resources,redo,error)) {status(error);return false;}
+        if(redo)++active->change_cursor;else --active->change_cursor;
+        buttons();status(redo?"Reapplied resource edit. Refresh preview to test it.":"Undid resource edit. Refresh preview to test it.");return true;
+    }
     if(change.core) {
         auto before=std::make_unique<NativeFighterModelEditor>(active->model);
         NativeFighterAuthoring* names=nullptr;

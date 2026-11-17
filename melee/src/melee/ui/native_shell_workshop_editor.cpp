@@ -487,6 +487,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     selected_member = member;
     session = &sessions[member];
     session->project = fighter;
+    if(fighter->resource_size)session->saved_resources.assign(fighter->resources,fighter->resources+fighter->resource_size);
     unsigned owned_hitboxes = 0;
     char flag_error[192];
     if (!nativeFighterAction_OwnHitboxFlags(fighter, &owned_hitboxes, flag_error, sizeof(flag_error))) {
@@ -1533,6 +1534,8 @@ void nativeShellWorkshopEditor_MarkAssetsSaved()
 {
     session->action_dirty = false;
     session->animation_dirty = false;
+    if(session->project->resource_size)session->saved_resources.assign(session->project->resources,session->project->resources+session->project->resource_size);
+    else session->saved_resources.clear();
 }
 
 NativeFighterSources::Session* nativeShellWorkshopEditor_CaptureSources()

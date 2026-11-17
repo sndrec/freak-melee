@@ -1,6 +1,7 @@
 #include "native_source_item_blueprint.h"
 #include "native_source_resources.h"
 #include "native_script_ir.h"
+#include <melee/it/native_item_model_admission.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,4 +53,16 @@ bool nativeSourceItemBlueprint_Import(const void* bytes,size_t size,NativeSource
     return true;
 failure:
     nativeSourceItemBlueprint_Release(output);return error(d,"Item blueprint Article/model/command graph import failed");
+}
+bool nativeSourceItemBlueprint_Validate(const void* bytes,size_t size,NativeScriptDiagnostic* diagnostic)
+{
+    NativeSourceItemBlueprint* owner=calloc(1,sizeof(*owner));
+    if(!owner)return error(diagnostic,"Could not allocate the item blueprint admission owner");
+    bool valid=nativeSourceItemBlueprint_Import(bytes,size,owner,diagnostic);
+    if(valid && owner->article->x10_modelDesc->x4_bone_count) {
+        u32 populated;
+        valid=nativeItemModel_Admit(&owner->import,owner->article->x10_modelDesc,0,&populated);
+        if(!valid)error(diagnostic,"Item blueprint model exceeds native indexed graph topology or capacity");
+    }
+    nativeSourceItemBlueprint_Release(owner);free(owner);return valid;
 }

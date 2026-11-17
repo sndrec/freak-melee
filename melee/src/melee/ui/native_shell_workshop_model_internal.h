@@ -3,6 +3,7 @@
 #include <melee/ft/native_fighter_model_editor.h>
 #include <melee/ft/native_fighter_core_asset_state.h>
 #include <melee/ft/native_model_authoring.h>
+#include <melee/ft/native_resource_authoring.h>
 #include <melee/ft/native_fighter_action_editor.h>
 #include <melee/gm/native_home.h>
 #include <memory>
@@ -51,6 +52,7 @@ struct Change {
     std::vector<uint8_t> before_labels, after_labels;
     std::vector<uint8_t> before_fighter,after_fighter;
     std::unique_ptr<CoreAssetChange> core;
+    std::unique_ptr<NativeResourceAuthoring::History> resources;
     uint64_t rig_revision = 0;
 };
 

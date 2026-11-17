@@ -18,6 +18,8 @@ reference page. **Open reference** lets you browse or search the documentation.
   structured project inspection.
 - [Model authoring](agent_models.md) covers mesh import, source-aware reimport,
   rest transforms, extra bones, skin weights and materials through agent tools.
+- [Resource authoring](agent_resources.md) covers owned images, item blueprints,
+  grouped imports/removals, resource export and supported asset formats.
 - [Script structure and callbacks](language.md) explains move and article
   blocks, callback order, and the difference between a script and a subaction.
 - [Fighter parameters](language.md#fighter-attributes) explains project-owned

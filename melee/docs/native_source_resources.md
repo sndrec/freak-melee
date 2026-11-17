@@ -12,7 +12,7 @@ Releasing/replacing the blob invalidates every directory name and payload view.
 
 `examples/rook_workshop/moves/005_NeutralSpecial.fms` declares nine Workshop Item
 recipes. Eight have exact `icon items/snack0.png` through `items/snack7.png`
-names; the ninth has no icon. Those actual PNG files are 450–681 bytes each.
+names; the ninth has no icon. Those actual PNG files are 450â€“681 bytes each.
 `native_script_item_program.c` requires an exact name match and stores the
 prepared borrowed PNG bytes/length in a data-only `NativeItemDefinition`.
 `billboard_size` is separate recipe metadata; it is not encoded in this bundle.
@@ -22,7 +22,7 @@ PNG dimensions without any Fighter-specific or Rook-specific policy.
 The audited legacy `native_holdable_visual.c` uses Definition-owned recipes and
 24 decoded visuals per kind; it must not be used to claim ordinary source
 presentation. Its pixels are decoded at activation, then reused for drawing.
-Actual `native_gx_image.cpp` uses WIC and supports dimensions up to 1024×1024,
+Actual `native_gx_image.cpp` uses WIC and supports dimensions up to 1024Ã—1024,
 converting to GX RGBA8 tiles. Source presentation integration is a separate owner
 and is not implemented by this codec slice.
 
@@ -47,13 +47,13 @@ The unversioned canonical encoding is:
 
 | Bytes | Value |
 | --- | --- |
-| 0–3 | `FMRS` magic |
-| 4–7 | Little-endian entry count |
-| 8–11 | Little-endian exact total size |
-| Directory row: 0–127 | NUL-terminated logical name; remaining bytes zero |
-| Directory row: 128–131 | Little-endian kind: 1 opaque blob, 2 PNG |
-| Directory row: 132–135 | Little-endian payload offset |
-| Directory row: 136–139 | Little-endian nonzero payload length |
+| 0â€“3 | `FMRS` magic |
+| 4â€“7 | Little-endian entry count |
+| 8â€“11 | Little-endian exact total size |
+| Directory row: 0â€“127 | NUL-terminated logical name; remaining bytes zero |
+| Directory row: 128â€“131 | Little-endian kind: 1 opaque blob, 2 PNG |
+| Directory row: 132â€“135 | Little-endian payload offset |
+| Directory row: 136â€“139 | Little-endian nonzero payload length |
 
 Rows are strictly sorted by exact ASCII name. Payloads immediately follow the
 directory, tightly concatenated in row order, with no padding, gaps, overlaps or
@@ -104,37 +104,29 @@ timeouts. That codec receipt does not execute package/project/runtime integratio
 
 ## Authoring commands
 
-The separate `native_source_resource_tool.c` implements these actual tool routes:
+The structured resource operations share native authoring code with the Workshop.
+See [Resource authoring](scripting/agent_resources.md) for input fields, examples,
+limits, current format support and preview/build instructions.
 
-```text
-project-resource-import PROJECT LOGICAL_NAME png|blob INPUT
-project-resource-item PROJECT LOGICAL_NAME DAT ARTICLE_OFFSET
-project-resource-stock-item PROJECT LOGICAL_NAME ISO KIND
-export-fighter-facts TEMPLATE OUTPUT.fma
-```
+- `resources.read` inspects names, hashes, images, article inventory and native limits.
+- `resources.edit` imports or removes a batch through the draft lease, revision
+  guard and recovery journal. The live `session.resources.edit` uses Workshop Undo.
+- `resources.export` writes one exact owned resource to a new file.
+- `resources.blueprint` creates a validated item blueprint from a supplied DAT and
+  Article offset, or a named common-item choice from the player's ISO. Import the
+  output as a blob. It copies the complete DAT and admits its model/command graph.
+- `export-fighter-facts TEMPLATE OUTPUT.fma` exports the template's canonical
+  numeric asset record for developer inspection.
 
-The first imports exact bytes with their typed logical name. The second writes
-the actual `FMIB` envelope around an original bounded DAT and explicit Article
-descriptor offset, then imports it as a blob. The stock command is authoring
-only: it reads exact `ItCo.dat`, finds `itPublicData`, resolves its common Article
-table at root+4 and the explicit kind 0..42 slot. It copies the complete original
-DAT and selected offset through the same envelope writer. Runtime performs no
-stock table selection. Actual blueprint graph validation belongs to candidate
-import, not the shallow envelope writer.
+The former direct-write resource commands were removed. Their callers now use
+these structured operations. Stock-icon and HUD-emblem imports use the same
+live resource edit path, retain Undo history and remain unsaved until Save.
 
-Facts export is also authoring only. It finds the explicitly requested template,
-copies its numeric asset facts through the actual `nativeSourceAssets_Copy`,
-serializes the canonical FMAS record and atomically replaces the explicit output.
-It publishes no Definition, callbacks, runtime behavior key or global tables.
-Ordinary candidate preparation still reads only the copied facts and owned data.
+## Historical command receipts
 
-All commands validate the existing owned source draft, parse its existing bundle
-and replace only an exact matching entry. Case aliases are rejected. The writer
-retains every unrelated entry and writes a complete canonical bundle to a
-uniquely created temporary in the same project directory, flushes/closes it, then
-atomically replaces `resources.fmr`. A refused write/replacement leaves the old
-bundle intact and removes only its own successfully-created temporary. Logical
-resource names never become filesystem paths.
+The receipts below describe the older direct-write command implementation.
+Current resource acceptance is exercised by `tests/native/agent_resources_test.py`
+and the real hidden/muted Workshop runner `agent_resources_live_test.py`.
 
 `A:/FreakMelee-test-archives/source-resource-tool-cli-review/receipt.json` passes
 92 checks / 10 cases with a private copy of the freshly rebuilt real tool/DLLs.

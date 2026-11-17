@@ -66,6 +66,7 @@ def main():
                      'project.clone_stock', 'project.clone_installed', 'project.import', 'project.rename', 'project.install',
                      'attributes.edit', 'session.attributes.edit', 'models.edit', 'session.models.edit',
                      'session.models.select', 'session.models.pose',
+                     'resources.edit', 'resources.export', 'resources.blueprint', 'session.resources.edit', 'session.resources.export',
                      'actions.edit', 'session.actions.edit', 'session.actions.select',
                        'animations.edit', 'session.animations.edit', 'session.animations.select',
                      'feedback.prepare', 'feedback.submit', 'feedback.discard',

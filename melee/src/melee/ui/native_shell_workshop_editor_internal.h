@@ -10,6 +10,7 @@
 #include "native_shell_workshop_parameters.h"
 #include "native_shell_workshop_pose.h"
 #include <melee/ft/native_fighter_sources.h>
+#include <melee/ft/native_resource_authoring.h>
 #include "native_shell_workshop_transform.h"
 
 #ifdef MELEE_NATIVE
@@ -82,6 +83,7 @@ struct EditHistoryEntry {
     bool source_edit = false;
     std::vector<std::string> before_sources, after_sources;
     std::string before_parameters, after_parameters, summary;
+    std::unique_ptr<NativeResourceAuthoring::History> resources;
 };
 enum class GraphTool { Move, Box, Rotate, Scale };
 enum class WorkshopMode { Action, Script, Animation, Model };
@@ -136,6 +138,7 @@ struct EditorSession {
     bool animation_dirty;
     bool bone_pose_refresh;
     bool action_dirty;
+    std::vector<uint8_t> saved_resources;
     bool script_loaded;
     bool normalize_values = false;
     bool graph_animated_only = false;

@@ -164,8 +164,15 @@ class Review:
                 source = next(index for name, index in names.items() if name.startswith('AttackAirN'))
                 target = next(index for name, index in names.items() if name.startswith('AttackAirB'))
                 self.cli(creator, label+'-clip', 'project-clip-copy', draft, 'action', source, target, 'ReviewCopiedAir')
-                self.cli(creator, label+'-image', 'project-resource-import', draft, 'review/token.png', 'png', image)
-                self.cli(creator, label+'-item', 'project-resource-stock-item', draft, 'review/token.item', self.args.iso.resolve(), 0)
+                blueprint=self.output/(label+'.item')
+                self.cli(creator,label+'-blueprint','agent','call','resources.blueprint',json.dumps(dict(
+                    iso=str(self.args.iso.resolve()),stock_kind=0,output=str(blueprint))))
+                family_root=root
+                selection=dict(project=str(family_root),member='partner' if member else 'main')
+                revision=json.loads(self.cli(creator,label+'-resources','agent','call','resources.read',json.dumps(selection)))['result']['revision']
+                self.cli(creator,label+'-resource-edit','agent','call','resources.edit',json.dumps(dict(selection,revision=revision,changes=[
+                    dict(operation='import',name='review/token.png',kind='png',path=str(image)),
+                    dict(operation='import',name='review/token.item',kind='blob',path=str(blueprint))])))
                 source_path = draft/'behavior.fms'
                 text = source_path.read_text(encoding='utf-8')
                 assert not re.search(r'^item ', text, re.M) and '    on special_n:\n' in text
