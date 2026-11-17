@@ -23,7 +23,7 @@
 #include <melee/pl/player.h>
 #include <melee/it/native_holdable.h>
 #include <melee/it/native_article_resource.h>
-#include <melee/gm/native_content_store_internal.h>
+#include <melee/gm/native_content_store.h>
 #include <sysdolphin/baselib/gobjplink.h>
 
 static unsigned checks, cases;

@@ -16,6 +16,7 @@ typedef struct NativeFighterDraft {
 } NativeFighterDraft;
 
 bool nativeFighterFamilyProject_LocalRoot(char* path, size_t capacity);
+// NULL drafts and zero capacity query the full count without loading assets.
 bool nativeFighterFamilyProject_ListLocal(NativeFighterDraft* drafts,
                                          size_t capacity, size_t* count);
 

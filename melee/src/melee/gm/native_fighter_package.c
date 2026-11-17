@@ -1,5 +1,4 @@
 #include "native_content_store.h"
-#include "native_content_store_internal.h"
 #include <melee/ft/native_source_package.h>
 
 #ifdef MELEE_NATIVE

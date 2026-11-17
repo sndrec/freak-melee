@@ -27,6 +27,7 @@
 #include <melee/ft/native_fighter_move_copy.h>
 #include "native_source_content_tool.h"
 #include "native_workshop_authoring_tool.h"
+#include "native_agent_tool.h"
 #include "native_source_resource_tool.h"
 #include "native_fighter_parameter_tool.h"
 #include "native_fighter_cpu_tool.h"
@@ -59,6 +60,9 @@ static void usage(void)
 {
     fputs(
         "Usage: native_content_tool [--root DIRECTORY] COMMAND\n"
+        "  agent list\n"
+        "  agent call TOOL [JSON_ARGUMENTS]\n"
+        "  mcp\n"
         "  import-costume DAT CHARACTER BASE_COLOR TITLE\n"
         "  import-custom-costume DAT_OR_MEMBER_DIRECTORY FIGHTER_ID TITLE [MODEL_VARIANT]\n"
         "  cache PACKAGE.fmc\n"
@@ -1966,6 +1970,8 @@ static int project_model_texture(const char* path, const char* material_text,
 
 int main(int argc, char** argv)
 {
+    if (argc > 1 && (!strcmp(argv[1], "agent") || !strcmp(argv[1], "mcp")))
+        return nativeAgentTool_Main(argc - 1, argv + 1);
     char default_root[MAX_PATH];
     if (!nativeContentStore_DefaultRoot(default_root,
                                         sizeof(default_root))) {

@@ -57,7 +57,7 @@ void capture_controls(Rml::Element* root)
 void capture_script_view()
 {
     if (!session->script_loaded || document == nullptr) return;
-    session->script_views.resize(WorkshopScriptFiles::count(session->script_files));
+    session->script_views.resize(NativeFighterSources::count(session->script_files));
     if (session->script_file_index >= session->script_views.size()) return;
     auto* source = static_cast<Rml::ElementFormControlTextArea*>(
         document->GetElementById("workshop-script-source"));
@@ -199,7 +199,7 @@ bool nativeShellWorkshopEditor_Select(unsigned member)
     nativeShellWorkshopParameters_SetText(document, session->parameter_source);
     static_cast<Rml::ElementFormControlTextArea*>(
         document->GetElementById("workshop-script-source"))->SetValue(
-            WorkshopScriptFiles::source(session->script_files, session->script_file_index));
+            NativeFighterSources::source(session->script_files, session->script_file_index));
     show_script_files();
     nativeShellWorkshopEditor_RefreshScriptOutline();
     nativeShellWorkshopEditor_FilterActions();
@@ -258,7 +258,7 @@ bool nativeShellWorkshopEditor_HasUnsavedEdits(unsigned member)
              fighter->parameter_text, target.parameter_source.size()) != 0));
     return target.action_dirty || target.animation_dirty || parameter_dirty ||
         nativeShellWorkshopModel_HasUnsavedEdits(member) ||
-        (target.script_loaded && WorkshopScriptFiles::dirty(target.script_files));
+        (target.script_loaded && NativeFighterSources::dirty(target.script_files));
 }
 
 bool nativeShellWorkshopEditor_ScriptChanged(unsigned member)
@@ -267,7 +267,7 @@ bool nativeShellWorkshopEditor_ScriptChanged(unsigned member)
         return false;
     auto& target = sessions[member];
     if (member == selected_member) combined_script();
-    const std::string text = WorkshopScriptFiles::compose(target.script_files);
+    const std::string text = NativeFighterSources::compose(target.script_files);
     const uint8_t* compiled = target.project->script_text;
     if (!compiled) return !text.empty();
     // The text widget uses LF. Compare source text with the same line endings

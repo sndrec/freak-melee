@@ -5,8 +5,9 @@
 #include <cstddef>
 #include <string>
 #include <vector>
+struct NativeFighterProject;
 
-namespace WorkshopScriptFiles {
+namespace NativeFighterSources {
 struct SourceFile {
     std::string name;
     std::string path;
@@ -18,9 +19,12 @@ struct Session {
     std::string root;
     std::vector<SourceFile> files;
     bool disk_sources = false;
+    std::string error;
+    enum Origin { Validated, Draft, Template, SeparateFiles } origin = Validated;
 };
 
-void open(Session& session, const char* project_path, const std::string& seed);
+bool open(Session& session, const char* project_path, const std::string& seed);
+bool open_project(Session&, const char* project_path, const NativeFighterProject&);
 void close(Session& session);
 size_t count(const Session& session);
 const std::string& name(const Session& session, size_t index);

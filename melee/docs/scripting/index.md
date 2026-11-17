@@ -14,6 +14,8 @@ reference page. **Open reference** lets you browse or search the documentation.
 
 ## Start here
 
+- [AI agent tools](agent_tools.md) explains the installed CLI, MCP setup and
+  structured project inspection.
 - [Script structure and callbacks](language.md) explains move and article
   blocks, callback order, and the difference between a script and a subaction.
 - [Fighter parameters](language.md#fighter-attributes) explains project-owned

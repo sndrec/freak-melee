@@ -1533,7 +1533,9 @@ target_link_libraries(native_model_view PRIVATE aurora_main melee_runtime aurora
 aurora_copy_runtime_dlls(native_model_view)
 
 add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/native_content_tool.c tools/native_source_content_tool.c tools/native_source_resource_tool.c
-    tools/native_fighter_parameter_tool.c tools/native_fighter_cpu_tool.c)
+    tools/native_fighter_parameter_tool.c tools/native_fighter_cpu_tool.c
+    tools/native_agent_tool.cpp tools/native_agent_catalog.cpp
+    tools/native_agent_read.cpp tools/native_agent_mcp.cpp)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.
 add_executable(native_script_reference_exporter tests/native/script_reference_exporter.c
@@ -2145,12 +2147,17 @@ add_test(NAME native_fighter_mario_cape_script COMMAND
 target_include_directories(native_content_tool PRIVATE
     src extern/dolphin/include)
 target_compile_definitions(native_content_tool PRIVATE
-    MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+    MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES
+    NATIVE_AGENT_SOURCE_REVISION="${NATIVE_FEEDBACK_SOURCE_REVISION}"
+    NATIVE_NETPLAY_DIAGNOSTICS_BUILD="${NATIVE_NETPLAY_DIAGNOSTICS_BUILD}")
 target_link_libraries(native_content_tool PRIVATE
     melee_runtime aurora_os aurora_gx aurora_vi aurora_pad aurora_mtx
     aurora_dvd aurora_card aurora_thp)
 target_link_options(native_content_tool PRIVATE "LINKER:/opt:ref")
 aurora_copy_runtime_dlls(native_content_tool)
+add_test(NAME native_agent_tool COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_tool_test.py"
+    "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
 add_test(NAME native_fighter_module_load COMMAND native_content_tool
     module-probe "$<TARGET_FILE:native_fighter_module_fixture>")
 add_test(NAME native_fighter_animation_edit_roundtrip COMMAND

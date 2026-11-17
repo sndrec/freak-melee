@@ -22,7 +22,7 @@ def main():
  units += [ROOT/'src/melee/ft/native_script_pose_metadata.c', ROOT/'src/melee/ft/native_fighter_pose_path.c', ROOT/'tests/native/script_bindings_unavailable_pose.c']
  units += [ROOT/'tests/native'/('script_bindings_unavailable_'+n+'.c') for n in ['actions', 'item_resources','effect','item','presentation','spawn','ledge','jump','forms','feedback', 'hitlag', 'stage', 'family']]
  units += [ROOT/'tests/native'/('script_receiver_unavailable_'+n+'.c') for n in ['registry','identity','pool','item_actor']]
- inputs=units+[HERE/'run.py',*files,*(folder/'items').glob('*.png'),ROOT/'src/melee/ui/native_shell_workshop_script_files.cpp']
+ inputs=units+[HERE/'run.py',*files,*(folder/'items').glob('*.png'),ROOT/'src/melee/ft/native_fighter_sources.cpp']
  hashes.update({str(x):hashlib.sha256(x.read_bytes()).hexdigest() for x in inputs})
  command=[str(a.compiler),'-std=gnu11','-O2','-ffp-contract=off','-ffunction-sections','-fdata-sections','-fuse-ld=lld','-Wl,/opt:ref','-DMELEE_NATIVE=1','-D_CRT_SECURE_NO_WARNINGS','-D_USE_MATH_DEFINES','-I'+str(ROOT/'src'),'-I'+str(ROOT/'src/melee/ft'),'-I'+str(ROOT/'extern/dolphin/include'),'-I'+str(out),*map(str,units),'-o',str(out/'test.exe')]
  commands=[]

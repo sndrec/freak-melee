@@ -133,6 +133,8 @@ bool nativeContentStore_ListInstalled(const char* root, NativeContentId* ids,
                                       size_t capacity, size_t* count);
 bool nativeContentStore_DefaultRoot(char* path, size_t capacity);
 void nativeContentStore_IdHex(const NativeContentId* id, char hex[65]);
+// SHA-256 of the supplied bytes; shared by packages, cached content and source inspection.
+bool nativeContent_Hash(const void* bytes, size_t size, NativeContentId* id);
 bool nativeContentStore_IdFromHex(const char* hex, NativeContentId* id);
 
 #ifdef __cplusplus

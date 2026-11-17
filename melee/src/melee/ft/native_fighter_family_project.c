@@ -38,7 +38,7 @@ bool nativeFighterFamilyProject_ListLocal(NativeFighterDraft* drafts,
                                          size_t capacity, size_t* count)
 {
     char root[512], pattern[520];
-    if (drafts == NULL || count == NULL || capacity == 0 ||
+    if (count == NULL || (drafts == NULL && capacity != 0) ||
         !nativeFighterFamilyProject_LocalRoot(root, sizeof(root))) return false;
     *count = 0;
     int n = snprintf(pattern, sizeof(pattern), "%s\\*", root);
@@ -49,19 +49,20 @@ bool nativeFighterFamilyProject_ListLocal(NativeFighterDraft* drafts,
     do {
         if (!(found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
             (found.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) ||
-            found.cFileName[0] == '.' || *count == capacity) continue;
+            found.cFileName[0] == '.' || (drafts != NULL && *count == capacity)) continue;
         NativeFighterDraft draft;
         n = snprintf(draft.path, sizeof(draft.path), "%s\\%s", root, found.cFileName);
         NativeFighterFamilyProjectInfo info;
         if (n <= 0 || n >= sizeof(draft.path) ||
             !nativeFighterFamilyProject_ReadInfo(draft.path, &info)) continue;
         memcpy(draft.title, info.members[0].title, sizeof(draft.title));
-        drafts[(*count)++] = draft;
+        if (drafts != NULL) drafts[*count] = draft;
+        ++*count;
     } while (FindNextFileA(search, &found));
     DWORD error = GetLastError();
     FindClose(search);
     if (error != ERROR_NO_MORE_FILES) return false;
-    qsort(drafts, *count, sizeof(*drafts), compare_drafts);
+    if (drafts != NULL) qsort(drafts, *count, sizeof(*drafts), compare_drafts);
     return true;
 }
 enum { PATH_BYTES = NATIVE_FIGHTER_FAMILY_PROJECT_PATH_BYTES };

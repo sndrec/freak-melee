@@ -4,7 +4,8 @@ param(
     [switch] $CheckOnly,
     [switch] $Rollback,
     [switch] $Hidden,
-    [switch] $Mute
+    [switch] $Mute,
+    [switch] $AgentMcp
 )
 
 $ErrorActionPreference = 'Stop'
@@ -222,6 +223,47 @@ function Install-Update([string] $location, $state) {
 }
 
 try {
+    if ($AgentMcp) {
+        # Agents attach independently of the player's launcher. Select the
+        # current version without updating, taking the game mutex or opening UI.
+        if (-not (Test-Path -LiteralPath $statePath)) {
+            throw 'No installed release found. Extract the setup download first.'
+        }
+        $agentState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        Assert-ReleaseId ([string] $agentState.current)
+        $agentDirectory = Join-Path $versions ([string] $agentState.current)
+        $agentTool = Join-Path $agentDirectory 'native_content_tool.exe'
+        if (-not (Test-Path -LiteralPath $agentTool -PathType Leaf)) {
+            throw 'This installed build is missing its Workshop authoring tool.'
+        }
+        $agentProcess = New-Object System.Diagnostics.Process
+        $agentProcess.StartInfo.FileName = $agentTool
+        $agentProcess.StartInfo.Arguments = 'mcp'
+        $agentProcess.StartInfo.WorkingDirectory = $agentDirectory
+        $agentProcess.StartInfo.UseShellExecute = $false
+        $agentProcess.StartInfo.CreateNoWindow = $true
+        $agentProcess.StartInfo.RedirectStandardInput = $true
+        $agentProcess.StartInfo.RedirectStandardOutput = $true
+        $agentProcess.StartInfo.RedirectStandardError = $true
+        if (-not $agentProcess.Start()) { throw 'Could not start the Workshop MCP server.' }
+        # Forward bytes, without PowerShell's native text-pipeline conversion.
+        # Output runs concurrently so a reply cannot block an incoming request.
+        $agentOutput = $agentProcess.StandardOutput.BaseStream.CopyToAsync([Console]::OpenStandardOutput())
+        $agentErrors = $agentProcess.StandardError.BaseStream.CopyToAsync([Console]::OpenStandardError())
+        $agentInput = [Console]::OpenStandardInput()
+        $agentBuffer = New-Object byte[] 8192
+        try {
+            while (($agentBytes = $agentInput.Read($agentBuffer, 0, $agentBuffer.Length)) -gt 0) {
+                $agentProcess.StandardInput.BaseStream.Write($agentBuffer, 0, $agentBytes)
+                $agentProcess.StandardInput.BaseStream.Flush()
+            }
+        } finally {
+            $agentProcess.StandardInput.Close()
+        }
+        $agentProcess.WaitForExit()
+        [System.Threading.Tasks.Task]::WaitAll(@($agentOutput, $agentErrors))
+        exit $agentProcess.ExitCode
+    }
     if (-not $mutex.WaitOne(0)) {
         throw 'Freak Melee is already running from this launcher. Close it before updating.'
     }

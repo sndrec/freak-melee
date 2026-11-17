@@ -47,6 +47,8 @@ file(GENERATE OUTPUT "$<TARGET_FILE_DIR:melee_native>/native_release_ui.txt"
     CONTENT "${_native_release_ui_text}\n")
 
 add_custom_target(melee_native_ui
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/scripting/agent_tools.md" "$<TARGET_FILE_DIR:melee_native>/START_HERE.md"
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_fonts.py"
         --iso "${MELEE_ISO}" --output "$<TARGET_FILE_DIR:melee_native>/ui/fonts"
     COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_menu_art.py"

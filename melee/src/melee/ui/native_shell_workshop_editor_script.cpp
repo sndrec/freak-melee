@@ -8,39 +8,39 @@ namespace WorkshopEditor {
 std::string combined_script()
 {
     if (session->script_loaded) {
-        WorkshopScriptFiles::set_source(session->script_files, session->script_file_index,
+        NativeFighterSources::set_source(session->script_files, session->script_file_index,
             static_cast<Rml::ElementFormControlTextArea*>(
                 document->GetElementById("workshop-script-source"))->GetValue());
     }
-    return WorkshopScriptFiles::compose(session->script_files);
+    return NativeFighterSources::compose(session->script_files);
 }
 
 
 void show_script_files()
 {
     std::string markup;
-    for (size_t index = 0; index < WorkshopScriptFiles::count(session->script_files); ++index) {
+    for (size_t index = 0; index < NativeFighterSources::count(session->script_files); ++index) {
         markup += "<button id='workshop-script-file-" + number((unsigned) index) +
                   "' class='workshop-script-outline-row" +
                   (index == session->script_file_index ? " selected" : "") + "'>" +
                   Rml::StringUtilities::EncodeRml(
-                      WorkshopScriptFiles::name(session->script_files, index)) + "</button>";
+                      NativeFighterSources::name(session->script_files, index)) + "</button>";
     }
     document->GetElementById("workshop-script-files")->SetInnerRML(markup);
     set_text("workshop-script-file", session->script_file_index == 0
         ? "fighter_state.fms"
-        : WorkshopScriptFiles::name(session->script_files, session->script_file_index) + ".fms");
+        : NativeFighterSources::name(session->script_files, session->script_file_index) + ".fms");
 }
 
 void select_script_file(size_t index)
 {
-    if (!session->script_loaded || index >= WorkshopScriptFiles::count(session->script_files)) return;
+    if (!session->script_loaded || index >= NativeFighterSources::count(session->script_files)) return;
     capture_script_view();
     combined_script();
     session->script_file_index = index;
     static_cast<Rml::ElementFormControlTextArea*>(
         document->GetElementById("workshop-script-source"))->SetValue(
-            WorkshopScriptFiles::source(session->script_files, index));
+            NativeFighterSources::source(session->script_files, index));
     show_script_files();
     nativeShellWorkshopEditor_RefreshScriptOutline();
     restore_script_view();
@@ -49,54 +49,31 @@ void select_script_file(size_t index)
 void show_script()
 {
     if (session->script_loaded) return;
-    session->saved_script.clear();
-    bool draft_loaded = false;
-    char draft_path[512];
-    const int length = std::snprintf(draft_path, sizeof(draft_path),
-                                      "%s\\behavior.draft.fms", session->project_path);
-    if (length > 0 && length < sizeof(draft_path)) {
-        FILE* draft = std::fopen(draft_path, "rb");
-        if (draft != nullptr) {
-            long bytes = 0;
-            if (std::fseek(draft, 0, SEEK_END) == 0 &&
-                (bytes = std::ftell(draft)) >= 0 && bytes <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY &&
-                std::fseek(draft, 0, SEEK_SET) == 0) {
-                session->saved_script.resize((size_t) bytes);
-                draft_loaded = std::fread(session->saved_script.data(), 1,
-                    (size_t) bytes, draft) == (size_t) bytes;
-            }
-            std::fclose(draft);
-        }
+    if (!session->project || !NativeFighterSources::open_project(
+            session->script_files, session->project_path, *session->project)) {
+        set_text("workshop-script-status", session->script_files.error);
+        return;
     }
-    if (!draft_loaded && session->project != nullptr && session->project->script_text != nullptr)
-        session->saved_script.assign((const char*) session->project->script_text,
-                            session->project->script_size);
-    bool template_loaded = false;
-    if (!draft_loaded && session->saved_script.empty() && session->project != nullptr) {
-        char* source = nullptr;
-        size_t size = 0;
-        template_loaded = nativeFighterTemplate_Read(session->project->base_kind, &source, &size);
-        if (template_loaded) session->saved_script.assign(source, size);
-        std::free(source);
-    }
-    WorkshopScriptFiles::open(session->script_files, session->project_path, session->saved_script);
+    session->saved_script = NativeFighterSources::compose(session->script_files);
+    const bool draft_loaded = session->script_files.origin == NativeFighterSources::Session::Draft;
+    const bool template_loaded = session->script_files.origin == NativeFighterSources::Session::Template;
     bool imported_parameters = false;
-    for (size_t file = 0; file < WorkshopScriptFiles::count(session->script_files); ++file) {
-        std::string source = WorkshopScriptFiles::source(session->script_files, file);
+    for (size_t file = 0; file < NativeFighterSources::count(session->script_files); ++file) {
+        std::string source = NativeFighterSources::source(session->script_files, file);
         if (nativeShellWorkshopParameters_Import(document, session->project, &source)) {
-            WorkshopScriptFiles::set_source(session->script_files, file, source);
+            NativeFighterSources::set_source(session->script_files, file, source);
             imported_parameters = true;
         }
     }
-    session->script_file_index = WorkshopScriptFiles::count(session->script_files) > 1 ? 1 : 0;
+    session->script_file_index = NativeFighterSources::count(session->script_files) > 1 ? 1 : 0;
     Rml::ElementFormControlTextArea* source =
         static_cast<Rml::ElementFormControlTextArea*>(
             document->GetElementById("workshop-script-source"));
-    source->SetValue(WorkshopScriptFiles::source(session->script_files, session->script_file_index));
+    source->SetValue(NativeFighterSources::source(session->script_files, session->script_file_index));
     show_script_files();
     set_text("workshop-script-status", imported_parameters
         ? "Imported move values copied to this draft. Save and build behavior."
-        : WorkshopScriptFiles::loaded_from_files(session->script_files)
+        : NativeFighterSources::loaded_from_files(session->script_files)
         ? "Separate move files and fighter state loaded."
         : draft_loaded
         ? "Saved script draft loaded. Build behavior before preview."
@@ -219,10 +196,10 @@ bool validate_script()
     if (valid) valid = run_script_tool(session->project_path, source, false, &diagnostics, &error_line);
     else { diagnostics = "Invalid fighter parameter on line " + number(error_line) + ".";error_line = 0; }
     size_t error_file = session->script_file_index;
-    if (!valid && error_line != 0 && WorkshopScriptFiles::locate_line(
+    if (!valid && error_line != 0 && NativeFighterSources::locate_line(
             session->script_files, error_line, &error_file, &error_line)) select_script_file(error_file);
     set_text("workshop-script-status", valid ? "Source and fighter assets validated."
-        : WorkshopScriptFiles::name(session->script_files, error_file) + ":" + number(error_line) + ": " + diagnostics);
+        : NativeFighterSources::name(session->script_files, error_file) + ":" + number(error_line) + ": " + diagnostics);
     if (valid) set_text("workshop-script-problems", "No problems found.");
     else if (error_line != 0) {
         const std::string label = "Line " + number(error_line) + " · " + diagnostics;
@@ -261,7 +238,7 @@ void nativeShellWorkshopEditor_RefreshScriptOutline()
     if (!session->script_loaded || document == nullptr) return;
     const std::string composed = combined_script();
     nativeShellWorkshopParameters_Refresh(document, composed);
-    const std::string& state = WorkshopScriptFiles::source(session->script_files, 0);
+    const std::string& state = NativeFighterSources::source(session->script_files, 0);
     std::string variables;
     size_t state_start = 0;
     unsigned state_line = 1;
@@ -344,7 +321,7 @@ bool nativeShellWorkshopEditor_PreviewSource(unsigned member, std::string* sourc
         *source = combined_script();
         *parameters = nativeShellWorkshopParameters_Text();
     } else {
-        *source = WorkshopScriptFiles::compose(sessions[member].script_files);
+        *source = NativeFighterSources::compose(sessions[member].script_files);
         *parameters = sessions[member].parameter_source;
     }
     return !source->empty() && source->size() <= NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY;
@@ -362,9 +339,9 @@ bool nativeShellWorkshopEditor_BuildScript(const char* output_path)
     set_text("workshop-script-status", "Validating source and fighter assets...");
     if (!run_script_tool(output_path, source, true, &diagnostics, &line)) {
         size_t file = session->script_file_index;
-        if (line != 0 && WorkshopScriptFiles::locate_line(session->script_files, line, &file, &line)) select_script_file(file);
+        if (line != 0 && NativeFighterSources::locate_line(session->script_files, line, &file, &line)) select_script_file(file);
         const std::string message = diagnostics.empty() ? "Could not validate this source candidate." : diagnostics;
-        set_text("workshop-script-status", line == 0 ? message : WorkshopScriptFiles::name(session->script_files, file) + ":" + number(line) + ": " + message);
+        set_text("workshop-script-status", line == 0 ? message : NativeFighterSources::name(session->script_files, file) + ":" + number(line) + ": " + message);
         if (line == 0) set_text("workshop-script-problems", message);
         else document->GetElementById("workshop-script-problems")->SetInnerRML(
             "<button id='workshop-script-problem-line-" + number(line) + "'>" + Rml::StringUtilities::EncodeRml(message) + "</button>");

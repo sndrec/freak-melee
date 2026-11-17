@@ -9,7 +9,7 @@
 #include "native_shell_workshop_model.h"
 #include "native_shell_workshop_parameters.h"
 #include "native_shell_workshop_pose.h"
-#include "native_shell_workshop_script_files.h"
+#include <melee/ft/native_fighter_sources.h>
 #include "native_shell_workshop_transform.h"
 
 #ifdef MELEE_NATIVE
@@ -217,7 +217,7 @@ struct EditorSession {
     WorkshopMode mode = WorkshopMode::Action;
 
 
-    WorkshopScriptFiles::Session script_files;
+    NativeFighterSources::Session script_files;
     std::vector<EditorWidgetState> widgets;
     std::vector<EditorElementState> messages;
     std::vector<EditorScrollState> scrolls;

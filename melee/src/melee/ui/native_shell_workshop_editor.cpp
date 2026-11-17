@@ -509,7 +509,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
     session->animation_dirty = false;
     session->action_dirty = converted_hitboxes != 0 || owned_hitboxes != 0;
     session->script_loaded = false;
-    WorkshopScriptFiles::close(session->script_files);
+    NativeFighterSources::close(session->script_files);
     session->graph_width = 0;
     session->graph_refresh = false;
     session->graph_focused = false;
@@ -627,7 +627,7 @@ void nativeShellWorkshopEditor_Close()
     session->animation_dirty = false;
     session->action_dirty = false;
     session->script_loaded = false;
-    WorkshopScriptFiles::close(session->script_files);
+    NativeFighterSources::close(session->script_files);
     session->saved_script.clear();
     session->pose_copied = false;
     session->add_event_menu_open = false;
@@ -1004,7 +1004,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
             valid = valid && ((ch >= 'A' && ch <= 'Z') ||
                               (ch >= 'a' && ch <= 'z') ||
                               (ch >= '0' && ch <= '9') || ch == '_');
-        std::string state = WorkshopScriptFiles::source(session->script_files, 0);
+        std::string state = NativeFighterSources::source(session->script_files, 0);
         for (size_t at = 0; valid && at < state.size();) {
             const size_t end = state.find('\n', at);
             std::string line = state.substr(at,
@@ -1022,7 +1022,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         }
         if (!state.empty() && state.back() != '\n') state += '\n';
         state += "state " + type + " " + name + "\n";
-        WorkshopScriptFiles::set_source(session->script_files, 0, state);
+        NativeFighterSources::set_source(session->script_files, 0, state);
         if (session->script_file_index == 0)
             static_cast<Rml::ElementFormControlTextArea*>(
                 document->GetElementById("workshop-script-source"))
@@ -1033,7 +1033,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (parse_row(id, "workshop-script-variable-remove-", &index)) {
         combined_script();
-        std::string state = WorkshopScriptFiles::source(session->script_files, 0);
+        std::string state = NativeFighterSources::source(session->script_files, 0);
         size_t begin = 0;
         for (unsigned line = 1; line < index && begin < state.size(); ++line) {
             const size_t next = state.find('\n', begin);
@@ -1045,7 +1045,7 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         if (state.compare(begin, 6, "state ") != 0) return true;
         state.erase(begin, end == std::string::npos ?
             std::string::npos : end - begin + 1);
-        WorkshopScriptFiles::set_source(session->script_files, 0, state);
+        NativeFighterSources::set_source(session->script_files, 0, state);
         if (session->script_file_index == 0)
             static_cast<Rml::ElementFormControlTextArea*>(
                 document->GetElementById("workshop-script-source"))
@@ -1570,7 +1570,7 @@ bool nativeShellWorkshopEditor_SaveScriptDraft()
 {
     if (!session->script_loaded) return true;
     combined_script();
-    return WorkshopScriptFiles::save(session->script_files);
+    return NativeFighterSources::save(session->script_files);
 }
 
 bool nativeShellWorkshopEditor_IsScriptMode()

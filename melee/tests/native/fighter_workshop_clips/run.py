@@ -21,7 +21,7 @@ def main():
  for name in ids:
   tag='input' if name in input_ids else 'textarea' if name in areas else 'div';markup+=f'<input id="{name}"/>' if tag=='input' else f'<{tag} id="{name}"></{tag}>'
  markup+='</body></rml>';(out/'document.rml').write_text(markup,encoding='utf-8')
- units=[HERE/'test.cpp',UI/'native_shell_workshop_editor_clips.cpp',UI/'native_shell_workshop_editor_session.cpp',UI/'native_shell_workshop_labels.cpp',UI/'native_shell_workshop_script_files.cpp']
+ units=[HERE/'test.cpp',UI/'native_shell_workshop_editor_clips.cpp',UI/'native_shell_workshop_editor_session.cpp',UI/'native_shell_workshop_labels.cpp',ROOT/'src/melee/ft/native_fighter_sources.cpp']
  sources=units+[HERE/'run.py',UI/'native_shell_workshop_editor.cpp',UI/'native_shell_workshop_editor_actions.cpp',UI/'native_shell_workshop_editor_internal.h',UI/'native_shell_workshop_editor.h',ROOT/'src/melee/ft/native_fighter_animation_editor.h',ROOT/'src/melee/ft/native_fighter_project.h']
  inputs={str(x):sha(x) for x in sources}
  db=json.loads((ROOT/'build/native/compile_commands.json').read_text(encoding='utf-8'));entry=next(x for x in db if Path(x['file']).name=='native_shell_workshop_editor.cpp');args=re.split(r'\s+',entry['command']);args=args[:args.index('-o')]

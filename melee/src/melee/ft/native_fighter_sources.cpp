@@ -1,17 +1,20 @@
-#include "native_shell_workshop_script_files.h"
+#include "native_fighter_sources.h"
 
 #ifdef MELEE_NATIVE
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <melee/ft/native_fighter_behavior_source.h>
+#include <melee/ft/native_fighter_project.h>
+#include <melee/ft/native_fighter_template.h>
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
-namespace WorkshopScriptFiles {
+namespace NativeFighterSources {
 namespace {
 bool read_file(const std::string& path, std::string* text)
 {
@@ -25,7 +28,7 @@ bool read_file(const std::string& path, std::string* text)
     if (ok) {
         text->resize((size_t) length);
         ok = std::fread(text->data(), 1, (size_t) length, input) ==
-             (size_t) length;
+             (size_t) length && text->find('\0') == std::string::npos;
     }
     std::fclose(input);
     if (!ok) text->clear();
@@ -94,7 +97,7 @@ void split_seed(Session& session, const std::string& seed)
 }
 }
 
-void open(Session& session, const char* project_path, const std::string& seed)
+bool open(Session& session, const char* project_path, const std::string& seed)
 {
     close(session);
     session.root = project_path;
@@ -113,7 +116,11 @@ void open(Session& session, const char* project_path, const std::string& seed)
                     continue;
                 SourceFile move = { item.cFileName,
                     session.root + "\\moves\\" + item.cFileName, "", "" };
-                if (!read_file(move.path, &move.text)) continue;
+                if (!read_file(move.path, &move.text)) {
+                    session.error = "Could not read move source: " + move.path;
+                    FindClose(search);
+                    return false;
+                }
                 move.name.resize(move.name.size() - 4);
                 if (move.name.size() > 4 &&
                     move.name[0] >= '0' && move.name[0] <= '9' &&
@@ -130,10 +137,49 @@ void open(Session& session, const char* project_path, const std::string& seed)
             [](const SourceFile& a, const SourceFile& b) {
                 return a.path < b.path;
             });
+    } else if (GetFileAttributesA(state.path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        session.error = "Could not read fighter state: " + state.path;
+        return false;
     } else {
         session.disk_sources = false;
         split_seed(session, seed);
     }
+    if (compose(session).size() > NATIVE_FIGHTER_BEHAVIOR_SOURCE_CAPACITY) {
+        session.error = "Combined fighter source exceeds " NATIVE_FIGHTER_BEHAVIOR_SOURCE_LIMIT_TEXT ".";
+        return false;
+    }
+    return true;
+}
+
+bool open_project(Session& session, const char* project_path,
+                  const NativeFighterProject& project)
+{
+    std::string seed;
+    Session::Origin origin = Session::Validated;
+    const std::string root(project_path);
+    if (GetFileAttributesA((root + "\\fighter_state.fms").c_str()) != INVALID_FILE_ATTRIBUTES) {
+        origin = Session::SeparateFiles;
+    } else if (GetFileAttributesA((root + "\\behavior.draft.fms").c_str()) != INVALID_FILE_ATTRIBUTES) {
+        if (!read_file(root + "\\behavior.draft.fms", &seed)) {
+            close(session);
+            session.error = "Could not read saved script draft.";
+            return false;
+        }
+        origin = Session::Draft;
+    } else if (project.script_size) {
+        seed.assign((const char*)project.script_text, project.script_size);
+    } else {
+        char* source = nullptr;
+        size_t size = 0;
+        if (nativeFighterTemplate_Read(project.base_kind, &source, &size)) {
+            seed.assign(source, size);
+            origin = Session::Template;
+        }
+        std::free(source);
+    }
+    if (!open(session, project_path, seed)) return false;
+    session.origin = origin;
+    return true;
 }
 
 void close(Session& session)
@@ -141,6 +187,8 @@ void close(Session& session)
     session.files.clear();
     session.root.clear();
     session.disk_sources = false;
+    session.error.clear();
+    session.origin = Session::Validated;
 }
 
 size_t count(const Session& session) { return session.files.size(); }

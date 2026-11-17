@@ -1,6 +1,27 @@
 # AI assistance for fighter creation
 
-Proposed 2026-11-17. Implementation starts after this plan is accepted.
+Accepted 2026-11-17. Implementation is in progress.
+
+## Progress
+
+- Shared fighter-state/move-file loading and composition now live in the native
+  fighter authoring code; the Workshop and agent tools call it directly.
+- Structured CLI and native stdio MCP support read-only environment, project,
+  script-file, attribute, action and documentation inspection. Editable source
+  provenance and its relationship to validated behavior are reported.
+- The installation launcher has an independent MCP entry that follows the
+  active version without launching the game or updating it. The packaged
+  `START_HERE.md` explains setup and currently available tools.
+- The first contract test covers a real Mario clone, unchanged draft files,
+  split sources, malformed source detection, pagination, MCP resources/errors,
+  bounded input and live request/reply through the launcher across two versions.
+  It also passes against an extracted setup ZIP with a Windows-only PATH and
+  the packaged launcher. The game/tool build, family-package regression and
+  release-payload checks pass. This verifies the read-only foundation only.
+- Editing, live Workshop session ownership/IPC, complete authoring schemas,
+  validation diagnostics, visual/practice tools, agent feedback and full
+  repository-free acceptance remain to be implemented. Reference-link cleanup
+  and the remaining authoring guides are also open.
 
 A player should be able to give their coding agent the installed Freak Melee
 folder and ask it to create or change a fighter. The installation should supply

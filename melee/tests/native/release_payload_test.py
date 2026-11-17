@@ -57,6 +57,7 @@ class ReleasePayload(unittest.TestCase):
         with zipfile.ZipFile(self.output/manifest['archive']) as archive:
             names = archive.namelist()
             self.assertIn('native_content_tool.exe', names)
+            self.assertEqual(archive.read('START_HERE.md'), (ROOT/'docs/scripting/agent_tools.md').read_bytes())
             self.assertIn('disc/audio/first_startup.hps', names)
             self.assertIn('ui/portraits/tile-frame.png', names)
             self.assertIn('licenses/monocypher.txt', names)

@@ -78,6 +78,7 @@ def main() -> None:
     scripts = Path(__file__).resolve().parent
     payload = [(source, source.relative_to(build).as_posix()) for source in payload]
     payload.append((scripts / "freak_launcher.ps1", "freak_launcher.ps1"))
+    payload.append((scripts.parent / "docs/scripting/agent_tools.md", "START_HERE.md"))
     notices = scripts.parent / "licenses"
     for notice in sorted(notices.rglob("*")):
         if notice.is_file():
