@@ -155,6 +155,9 @@ or `session.practice.start` to test the whole family with normal controls.
 These operations cache a snapshot while keeping your saved draft as it is.
 `session.practice.stop` returns that test to the frozen editor.
 
+Use [Workshop preview capture](agent_preview.md) to frame and save a PNG of the
+viewport or the entire Workshop.
+
 Scene loading finishes after the request returns. Poll `session.inspect` on the
 same instance until `preview_ready` is true and `loaded_preview_package_id`
 matches the operation's returned `package_id`. That loaded ID comes from the

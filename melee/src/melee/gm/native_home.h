@@ -52,6 +52,12 @@ void nativeHome_InspectWorkshop(void);
 void nativeHome_WorkshopCameraDrag(float dx, float dy, bool pan);
 void nativeHome_WorkshopCameraZoom(float wheel_steps);
 void nativeHome_WorkshopCameraReset(bool front);
+typedef struct NativeHomeWorkshopCamera {
+    float target[3];
+    float yaw, pitch, distance;
+} NativeHomeWorkshopCamera;
+bool nativeHome_WorkshopCameraRead(NativeHomeWorkshopCamera*);
+bool nativeHome_WorkshopCameraSet(const NativeHomeWorkshopCamera*);
 // Populate the original collision-debug renderer from the paused action's
 // active hitboxes. The caller supplies at most four slots, indexed by ID.
 void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox* hitboxes,

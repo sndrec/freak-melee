@@ -8,6 +8,51 @@
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
+static constexpr char capture_output[] = R"json({
+    "type":"object",
+    "required":["capture_id","scope","status","view"],
+    "properties":{
+        "capture_id":{"type":"string","pattern":"^[0-9a-f]{32}$"},
+        "request_id":{"type":"string"},
+        "scope":{"enum":["viewport","window"]},
+        "status":{"enum":["pending","ready","failed"]},
+        "view":{
+            "type":"object",
+            "required":["instance","member","revision","workspace","loaded_preview_package_id","preview_view"],
+            "properties":{
+                "instance":{"type":"string"},"revision":{"type":"string"},"member":{"type":"string"},
+                "workspace":{"type":"string"},"build_identity":{"type":"string"},
+                "fighter_revision":{"type":["string","null"]},
+                "preview_fighter_revision":{"type":["string","null"]},
+                "loaded_preview_package_id":{"type":"string"},
+                "model_view":{"type":"object"},
+                "preview_view":{
+                    "type":"object",
+                    "required":["pose","camera","playing","hitboxes","hurtboxes","bones","viewport_visible"],
+                    "properties":{
+                        "pose":{"type":"object","required":["bank","index","frame"],"properties":{
+                            "bank":{"enum":["action","demo"]},"index":{"type":"integer"},"frame":{"type":"number"}}},
+                        "camera":{"type":["object","null"],"required":["target","yaw","pitch","distance"],"properties":{
+                            "target":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number"}},
+                            "yaw":{"type":"number"},"pitch":{"type":"number"},"distance":{"type":"number"}}},
+                        "playing":{"type":"boolean"},"hitboxes":{"type":"boolean"},"hurtboxes":{"type":"boolean"},
+                        "bones":{"type":"boolean"},"viewport_visible":{"type":"boolean"}
+                    }
+                }
+            }
+        },
+        "output":{"type":"string"},"png_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+        "bytes":{"type":"integer","minimum":1},"width":{"type":"integer","minimum":1},
+        "height":{"type":"integer","minimum":1},"displayed_frame":{"type":"integer","minimum":1},
+        "presented_at_ns":{"type":"integer"},"message":{"type":"string"},"image_error":{"type":"string"}
+    },
+    "allOf":[
+        {"if":{"properties":{"status":{"const":"ready"}}},"then":{
+          "required":["output","png_sha256","bytes","width","height","displayed_frame","presented_at_ns"]}},
+        {"if":{"properties":{"status":{"const":"failed"}}},"then":{"required":["message"]}}
+    ],
+    "additionalProperties":false
+})json";
 static const Command commands[] = {
     {"session.resources.read", "Inspect the live member's unsaved named PNG/blob resources, hashes, image dimensions, limits and article/sound/effect inventory.", NativeResourceAuthoring::read_schema(true), true},
     {"session.resources.edit", "Import/remove resources as one atomic batch and current-workspace Undo step. Leaves saved files and installed packages unchanged; refresh preview explicitly after checking source/resource references.", NativeResourceAuthoring::edit_schema(true), false},
@@ -70,6 +115,15 @@ static const Command commands[] = {
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.preview.refresh", "Build a cached snapshot of unsaved edits and load it in the frozen preview. Inspection confirms the actual loaded package and fighter revision. Preserves draft files and installed membership.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.preview.configure", "Set the frozen camera and the active Action or Animation preview controls. Angles use radians, target and distance use game units. Read preview_view from session.inspect. Model visibility and playback use session.models.select.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
+        R"(,"camera":{"type":"object","properties":{"target":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-10000,"maximum":10000}},"yaw":{"type":"number","minimum":-100,"maximum":100},"pitch":{"type":"number","minimum":-1.45,"maximum":1.45},"distance":{"type":"number","minimum":8,"maximum":220}},"additionalProperties":false},"reset_camera":{"type":"string","enum":["default","front"]},"hitboxes":{"type":"boolean"},"hurtboxes":{"type":"boolean"},"bones":{"type":"boolean"},"playing":{"type":"boolean"}},"required":["instance","revision"],"additionalProperties":false})", false},
+    {"session.preview.capture", "Queue a PNG of this rendered Workshop view at the inspected revision. Select viewport or window and a new absolute .png output path. Poll session.preview.capture_status using the capture ID.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
+        R"(,"scope":{"type":"string","enum":["viewport","window"]},"output":{"type":"string","minLength":1,"maxLength":500}},"required":["instance","revision","scope","output"],"additionalProperties":false})", false, capture_output},
+    {"session.preview.capture_status", "Read the latest capture's frozen metadata and pending, ready or failed status. A ready capture includes its PNG path, hash and dimensions. MCP also returns the PNG as image content.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE
+        R"(,"capture_id":{"type":"string","minLength":32,"maxLength":32}},"required":["instance","capture_id"],"additionalProperties":false})", true, capture_output},
     {"session.practice.start", "Build current edits and enter ordinary local practice with the whole fighter family. Inspection confirms when the package loads. Preserves saved drafts and installed membership.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.practice.stop", "Return this Workshop's live practice test to its frozen preview. Available during the owned test; leaves ordinary matches untouched.",

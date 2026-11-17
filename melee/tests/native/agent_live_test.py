@@ -1,11 +1,13 @@
 """Exercise unsaved Workshop edits in one isolated hidden, muted native client."""
 import argparse
+import base64
 import ctypes
 from ctypes import wintypes as w
 import hashlib
 import json
 import os
 import re
+import struct
 from pathlib import Path
 import subprocess
 import time
@@ -452,6 +454,74 @@ def main():
             raise AssertionError('Edited animation did not reach the rendered preview actor')
         visible = actor_pose(.5)
         assert visible['workspace'] == 'animation' and snapshot(project) == action_disk
+        configured = call('session.preview.configure', dict(target, revision=visible['revision'],
+            camera=dict(target=[0, 8, 0], yaw=.55, pitch=.15, distance=36), bones=False))
+        assert abs(configured['preview_view']['camera']['yaw'] - .55) < .00001
+        assert not configured['preview_view']['bones']
+        assert call('session.preview.configure', dict(target, revision=visible['revision'],
+            bones=True), expected=False)['code'] == 'revision_conflict'
+        def capture_image(scope, name, state):
+            path = output / name
+            queued = call('session.preview.capture', dict(target, revision=state['revision'],
+                scope=scope, output=str(path)))
+            assert queued['status'] == 'pending'
+            for _ in range(80):
+                receipt = call('session.preview.capture_status', dict(target, capture_id=queued['capture_id']))
+                if receipt['status'] != 'pending': break
+                time.sleep(.1)
+            assert receipt['status'] == 'ready', receipt
+            assert receipt['view'] == queued['view']
+            assert receipt['view']['revision'] == state['revision']
+            assert receipt['view']['preview_view']['camera'] == state['preview_view']['camera']
+            pose = receipt['view']['preview_view']['pose']
+            assert pose['frame'] == 10 and pose['index'] == dair
+            png = path.read_bytes()
+            assert png.startswith(b'\x89PNG\r\n\x1a\n')
+            assert struct.unpack('>II', png[16:24]) == (receipt['width'], receipt['height'])
+            assert hashlib.sha256(png).hexdigest() == receipt['png_sha256']
+            path.with_suffix('.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
+            return receipt, png
+        window, _ = capture_image('window', 'workshop-window.png', configured)
+        view, png = capture_image('viewport', 'workshop-view.png', configured)
+        assert window['width'] > view['width'] and window['height'] > view['height']
+        assert view['displayed_frame'] > window['displayed_frame']
+        assert abs(view['width'] * 3 - view['height'] * 4) <= 7
+        assert call('session.preview.capture', dict(target, revision=configured['revision'],
+            scope='viewport', output=view['output']), expected=False)['code'] == 'output_exists'
+        def mcp_capture():
+            init = dict(jsonrpc='2.0', id=1, method='initialize', params={'protocolVersion':'2025-11-25'})
+            status = dict(jsonrpc='2.0', id=2, method='tools/call', params={
+                'name':'session.preview.capture_status', 'arguments':dict(target, capture_id=view['capture_id'])})
+            response = run('mcp', input=json.dumps(init) + '\n' + json.dumps(status) + '\n')
+            assert response.returncode == 0, response.stderr
+            return json.loads(response.stdout.splitlines()[1])['result']
+        result = mcp_capture()
+        image = next(block for block in result['content'] if block['type'] == 'image')
+        assert image['mimeType'] == 'image/png' and base64.b64decode(image['data'], validate=True) == png
+        assert {k:v for k,v in result['structuredContent'].items() if k != 'request_id'} == {
+            k:v for k,v in view.items() if k != 'request_id'}
+        Path(view['output']).write_bytes(bytes(len(png)))
+        tampered = mcp_capture()
+        assert tampered['structuredContent']['image_error'] and all(block['type'] != 'image' for block in tampered['content'])
+        Path(view['output']).write_bytes(png)
+        reset = call('session.preview.configure', dict(target, revision=configured['revision'],
+            reset_camera='default'))
+        camera2, _ = capture_image('viewport', 'workshop-view-reset.png', reset)
+        assert camera2['png_sha256'] != view['png_sha256']
+        playing = call('session.preview.configure', dict(target, revision=reset['revision'], playing=True))
+        assert playing['preview_view']['playing']
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            advanced = call('session.inspect', target)
+            if advanced['preview_view']['pose']['frame'] > 10:
+                break
+        else:
+            raise AssertionError('Preview playback did not advance the actor')
+        paused = call('session.preview.configure', dict(target, revision=advanced['revision'], playing=False))
+        assert not paused['preview_view']['playing']
+        call('session.animations.select', dict(target, revision=paused['revision'], clip=animation_clip, frame=10))
+        visible = actor_pose(.5)
+        assert snapshot(project) == action_disk
         if args.control: control('screenshot')
         undo_animation = call('session.undo', dict(target, revision=visible['revision']))
         after_undo = actor_pose(bones[hip]['rotation'][2])

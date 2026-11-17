@@ -21,6 +21,7 @@ struct Tool {
     Handler handler;
     bool read_only;
     bool live = false;
+    const char* output_schema = nullptr;
 };
 
 bool initialize(Context&, std::string& error);

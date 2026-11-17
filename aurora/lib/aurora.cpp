@@ -300,6 +300,7 @@ void end_frame(bool present) noexcept {
   bool rmlOverlay = false;
   const auto captureBackdrop = gfx::presented_capture::backdrop();
   gfx::video_capture::Command videoCapture;
+  gfx::presented_capture::Request screenshot;
   if (present) {
     const uint64_t imguiStarted = profiled ? SDL_GetTicksNS() : 0;
     imguiDrawData = imgui::freeze();
@@ -325,10 +326,11 @@ void end_frame(bool present) noexcept {
     }
 #endif
     videoCapture = gfx::video_capture::take_request();
+    screenshot = gfx::presented_capture::take_request();
   }
   if (profiled) frame_profile::mark(frame_profile::Phase::Overlay);
   gfx::end_frame([present, videoBlack = g_videoBlack, captureBackdrop, videoCapture, rmlBindGroup = std::move(rmlBindGroup),
-                  rmlViewport, rmlOverlay, viewport,
+                  rmlViewport, rmlOverlay, viewport, screenshot,
                   imguiDrawData = std::move(imguiDrawData)](
                      wgpu::CommandEncoder& encoder, std::vector<gfx::AfterSubmitCallback> afterSubmitCallbacks) {
     wgpu::Texture currentTexture;
@@ -446,6 +448,7 @@ void end_frame(bool present) noexcept {
       g_queue.Submit(1, &buffer);
     }
     webgpu::gpu_prof::after_submit();
+    int presentedSlot = -1;
     if (canPresent && g_surface) {
       ZoneScopedN("Present");
       wgpu::ConvertibleStatus status = wgpu::Status::Error;
@@ -456,7 +459,7 @@ void end_frame(bool present) noexcept {
         }
       }
       if (status) {
-        gfx::presented_capture::publish(retainedSlot);
+        presentedSlot = retainedSlot;
         gfx::after_present();
       } else {
         Log.warn("Surface present failed");
@@ -489,6 +492,8 @@ void end_frame(bool present) noexcept {
         break;
       }
     }
+    if (presentedSlot >= 0 || screenshot.id)
+      gfx::presented_capture::publish(presentedSlot, screenshot, viewport);
     for (auto& callback : afterSubmitCallbacks) {
       if (callback) {
         callback();

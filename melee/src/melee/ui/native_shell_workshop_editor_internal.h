@@ -351,6 +351,7 @@ bool parse_i16(const char* id, int16_t* value);
 void stop_action_preview();
 void set_graph_focus(bool focused);
 void toggle_action_preview();
+void set_preview_overlays(bool hitboxes, bool hurtboxes, bool bones);
 void select_mode(WorkshopMode next);
 void show_animation_keys();
 void show_bone_transform();

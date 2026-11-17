@@ -2,6 +2,7 @@
 #include "native_shell_workshop_editor_internal.h"
 #include "native_shell_workshop_model_internal.h"
 #include "native_shell_workshop_model.h"
+#include "native_shell_workshop_preview_agent.h"
 #include <melee/gm/native_content_store.h>
 
 using NativeAuthoring::Reply;
@@ -73,6 +74,15 @@ bool nativeShellWorkshopEditor_AgentState(std::string& fingerprint, Reply* detai
     session->parameter_source = nativeShellWorkshopParameters_Text();
     fingerprint += "member:" + std::to_string(selected_member) + ";mode:" + std::to_string((int)session->mode) + ';';
     fingerprint += "source:" + std::to_string(session->script_file_index) + ';';
+    NativeHomeWorkshopCamera camera{};
+    if (nativeHome_WorkshopCameraRead(&camera)) fingerprint.append((const char*)&camera, sizeof(camera));
+    const int active_view[] = {session->selected_action, (int) session->animation_clip.bank,
+        (int) session->animation_clip.index,
+        session->action_preview_playing ? -1 : session->timeline_frame,
+        session->action_preview_playing ? -1 : session->animation_frame,
+        session->action_preview_playing, session->show_hitboxes, session->show_hurtboxes,
+        session->show_action_bones, session->show_animation_bones, session->graph_focused};
+    fingerprint.append((const char*)active_view, sizeof(active_view));
     for (unsigned member = 0; member < 2; ++member) {
         auto& editor = sessions[member];
         if (!editor.project) continue;
@@ -87,6 +97,7 @@ bool nativeShellWorkshopEditor_AgentState(std::string& fingerprint, Reply* detai
         WorkshopModelInternal::view_fingerprint(fingerprint,member);
     }
     if (details) {
+        nativeWorkshopPreview_Describe(*details, details->result);
         const char* names[] = {"action", "scripting", "animation", "model"};
         add_string(*details, details->result, "workspace", names[(unsigned)session->mode]);
         auto source_path = session->script_files.files[session->script_file_index].path.substr(session->script_files.root.size() + 1);

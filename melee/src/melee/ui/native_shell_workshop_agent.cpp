@@ -2,6 +2,7 @@
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_editor.h"
 #include "native_shell_workshop_model.h"
+#include "native_shell_workshop_preview_agent.h"
 #include "native_hub.h"
 #include <melee/ft/native_workshop_connection.h>
 #include <melee/ft/native_workshop_agent_catalog.h>
@@ -133,7 +134,9 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     const auto* command = NativeWorkshopAgent::find(method);
     if (!command) { reply.fail("unknown_tool", "Unknown live Workshop operation."); return; }
     if (!NativeWorkshopAgent::validate(*command, arguments, reply)) return;
-    if (!std::strncmp(method, "feedback.", 9)) {
+    if (!std::strcmp(method, "session.preview.capture_status")) {
+        nativeWorkshopPreview_CaptureStatus(arguments, reply);
+    } else if (!std::strncmp(method, "feedback.", 9)) {
         auto* document = yyjson_mut_doc_new(nullptr);
         if (!document) { reply.fail("capture_failed", "Could not allocate capture metadata."); return; }
         Reply state(document);
@@ -158,6 +161,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
         if (!describe(reply)) return;
         const auto state = nativeShellWorkshop_LiveState();
         const std::string revision = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "revision"));
+        auto* inspected = reply.result;
         if (!command->read_only) reply.result = yyjson_mut_obj(reply.document);
         if (yyjson_obj_get(arguments, "revision") && revision != string(arguments, "revision")) {
             reply.fail("revision_conflict", "The live Workshop changed. Inspect it before editing.");
@@ -190,6 +194,8 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
         else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
         else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
         else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);
+        else if (!std::strcmp(method, "session.preview.configure")) nativeWorkshopPreview_Configure(arguments, reply);
+        else if (!std::strcmp(method, "session.preview.capture")) nativeWorkshopPreview_Capture(arguments, inspected, reply);
         else if (!std::strcmp(method, "session.practice.start")) nativeShellWorkshop_RequestPreview(true, &reply);
         else if (!std::strcmp(method, "session.practice.stop")) nativeShellWorkshop_StopTest(reply);
         else if (!std::strcmp(method, "session.scripts.check")) {
@@ -221,7 +227,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
             nativeShellWorkshopEditor_AgentUndo(!std::strcmp(method, "session.redo"), reply);
         else reply.fail("unknown_tool", "Unknown live Workshop operation.");
         // Preserve operation results while refreshing their state/revision fields.
-        if (reply.ok && !command->read_only) {
+        if (reply.ok && !command->read_only && std::strcmp(method, "session.preview.capture")) {
             yyjson_mut_obj_remove_str(reply.result, "revision");
             if (!yyjson_mut_obj_get(reply.result, "committed")) yyjson_mut_obj_add_bool(reply.document, reply.result, "committed", true);
             auto* state_doc = yyjson_mut_doc_new(nullptr);
@@ -256,10 +262,15 @@ void nativeWorkshopAgent_Init(Rml::ElementDocument* owner)
 }
 extern "C" void nativeShell_UpdateAuthoring(void)
 {
+    nativeWorkshopPreview_UpdateCapture();
     NativeFeedbackAgent::update();
     NativeWorkshopConnection::poll(server);
 }
-void nativeWorkshopAgent_Shutdown() { NativeWorkshopConnection::shutdown(server); document = nullptr; }
+void nativeWorkshopAgent_Shutdown() {
+    NativeWorkshopConnection::shutdown(server);
+    nativeWorkshopPreview_Shutdown();
+    document = nullptr;
+}
 bool nativeWorkshopAgent_Click(const char* id)
 {
     if (!std::strncmp(id, "workshop-agent-report-", 22)) {

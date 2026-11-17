@@ -4,6 +4,8 @@
 #include "../internal.hpp"
 #include <SDL3/SDL_timer.h>
 #include <array>
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -25,6 +27,7 @@ uint64_t next_frame = 0, next_capture = 0;
 bool active = false, pending = false, retain_image = false, show_backdrop = false;
 AuroraPresentedCapture capture{};
 using Path = std::array<char, 1024>;
+Request next_request;
 
 void finish(uint64_t id, bool ok, const char* message) {
   std::lock_guard lock{mutex};
@@ -35,7 +38,8 @@ void finish(uint64_t id, bool ok, const char* message) {
   if (!retain_image) { active = false; reserved = -1; }
 }
 
-void readback(int slot_index, uint64_t id, const Path& path) {
+void readback(int slot_index, uint64_t id, const Path& path, wgpu::Origin3D origin = {},
+              wgpu::Extent3D extent = {0, 0, 1}) {
   const auto& source = slots[slot_index].image;
   const bool bgra = source.format == wgpu::TextureFormat::BGRA8Unorm ||
                     source.format == wgpu::TextureFormat::BGRA8UnormSrgb;
@@ -44,7 +48,7 @@ void readback(int slot_index, uint64_t id, const Path& path) {
     finish(id, false, "The screen uses an unsupported image format.");
     return;
   }
-  const auto extent = source.size;
+  if (!extent.width) extent = source.size;
   const uint32_t pitch = (extent.width * 4 + 255) & ~255u;
   const uint64_t bytes = uint64_t(pitch) * extent.height;
   const wgpu::BufferDescriptor descriptor{
@@ -52,7 +56,7 @@ void readback(int slot_index, uint64_t id, const Path& path) {
       .size = bytes};
   auto buffer = webgpu::g_device.CreateBuffer(&descriptor);
   const auto encoder = webgpu::g_device.CreateCommandEncoder();
-  const wgpu::TexelCopyTextureInfo src{.texture = source.texture};
+  const wgpu::TexelCopyTextureInfo src{.texture = source.texture, .origin = origin};
   const wgpu::TexelCopyBufferInfo dst{.layout = {.offset = 0, .bytesPerRow = pitch, .rowsPerImage = extent.height},
                                      .buffer = buffer};
   encoder.CopyTextureToBuffer(&src, &dst, &extent);
@@ -113,12 +117,54 @@ int retain(const wgpu::CommandEncoder& encoder, const wgpu::Texture& texture,
   return index;
 }
 
-void publish(int index) {
-  if (index < 0) return;
+Request take_request() {
   std::lock_guard lock{mutex};
-  auto& slot = slots[index];
-  slot.frame = ++next_frame; slot.presented_at = SDL_GetTicksNS();
-  displayed = index;
+  Request request = next_request;
+  next_request = {};
+  return request;
+}
+
+void publish(int index, const Request& request, const webgpu::Viewport& viewport) {
+  wgpu::Origin3D origin{};
+  wgpu::Extent3D extent{};
+  {
+    std::lock_guard lock{mutex};
+    if (index >= 0) {
+      auto& slot = slots[index];
+      slot.frame = ++next_frame;
+      slot.presented_at = SDL_GetTicksNS();
+      displayed = index;
+    }
+    if (!request.id || !active || capture.capture_id != request.id) return;
+    if (index >= 0) {
+      const auto& slot = slots[index];
+      extent = slot.image.size;
+      if (request.viewport_only) {
+        // Use the compositor's pixel rectangle on the captured surface.
+        const auto pixel = [](float value, uint32_t limit) {
+          return static_cast<uint32_t>(std::clamp(std::round(value), 0.f, static_cast<float>(limit)));
+        };
+        origin.x = pixel(viewport.left, extent.width);
+        origin.y = pixel(viewport.top, extent.height);
+        extent.width = pixel(viewport.left + viewport.width, extent.width) - origin.x;
+        extent.height = pixel(viewport.top + viewport.height, extent.height) - origin.y;
+      }
+      if (extent.width && extent.height && uint64_t(extent.width) * extent.height <= 16 * 1024 * 1024) {
+        reserved = index;
+        capture.displayed_frame = slot.frame;
+        capture.presented_at_ns = slot.presented_at;
+        capture.width = extent.width;
+        capture.height = extent.height;
+      } else {
+        index = -1;
+      }
+    }
+  }
+  if (index < 0) {
+    finish(request.id, false, "The requested frame could not be presented within the capture limits.");
+    return;
+  }
+  readback(index, request.id, request.path, origin, extent);
 }
 
 Backdrop backdrop() {
@@ -135,8 +181,26 @@ void shutdown() {
   active = pending = retain_image = show_backdrop = false;
   displayed = reserved = -1;
   capture = {}; ++next_capture;
+  next_request = {};
   for (auto& slot : slots) slot = {};
 }
+}
+
+bool aurora_capture_next_frame(const char* path, bool viewport_only, AuroraPresentedCapture* info) {
+  using namespace aurora::gfx::presented_capture;
+  if (!path) return false;
+  const size_t length = std::strlen(path);
+  if (length < 5 || length >= Path{}.size() || std::strcmp(path + length - 4, ".png")) return false;
+  std::lock_guard lock{mutex};
+  if (active || pending || reserved >= 0 || next_request.id) return false;
+  next_request.id = ++next_capture;
+  next_request.viewport_only = viewport_only;
+  std::memcpy(next_request.path.data(), path, length + 1);
+  capture = {.capture_id = next_request.id, .status = AURORA_CAPTURE_PENDING};
+  active = pending = retain_image = true;
+  show_backdrop = false;
+  if (info) *info = capture;
+  return true;
 }
 
 bool aurora_capture_presented(const char* path, bool keep, AuroraPresentedCapture* info) {

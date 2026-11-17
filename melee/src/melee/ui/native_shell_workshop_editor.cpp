@@ -281,6 +281,22 @@ void toggle_action_preview()
     set_text("workshop-animation-frame-play", "Pause");
 }
 
+void set_preview_overlays(bool hitboxes, bool hurtboxes, bool bones)
+{
+    if (session->mode == WorkshopMode::Animation) {
+        session->show_animation_bones = bones;
+        document->GetElementById("workshop-animation-show-bones")->SetClass("selected", bones);
+    } else if (session->mode == WorkshopMode::Action) {
+        session->show_action_bones = bones;
+        session->show_hitboxes = hitboxes;
+        session->show_hurtboxes = hurtboxes;
+        document->GetElementById("workshop-view-bones")->SetClass("selected", bones);
+        document->GetElementById("workshop-view-hitboxes")->SetClass("selected", hitboxes);
+        document->GetElementById("workshop-view-hurtboxes")->SetClass("selected", hurtboxes);
+        ftDrawCommon_SetWorkshopOverlays(hitboxes, hurtboxes);
+    }
+}
+
 void select_mode(WorkshopMode next)
 {
     stop_action_preview();
@@ -832,10 +848,9 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-view-bones") == 0 ||
         std::strcmp(id, "workshop-animation-show-bones") == 0) {
-        bool& shown = std::strcmp(id, "workshop-view-bones") == 0
-            ? session->show_action_bones : session->show_animation_bones;
-        shown = !shown;
-        document->GetElementById(id)->SetClass("selected", shown);
+        const bool shown = session->mode == WorkshopMode::Animation
+            ? session->show_animation_bones : session->show_action_bones;
+        set_preview_overlays(session->show_hitboxes, session->show_hurtboxes, !shown);
         return true;
     }
     if (std::strcmp(id, "workshop-viewport-reset") == 0) {
@@ -852,14 +867,10 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-view-hitboxes") == 0 ||
         std::strcmp(id, "workshop-view-hurtboxes") == 0) {
-        if (std::strcmp(id, "workshop-view-hitboxes") == 0)
-            session->show_hitboxes = !session->show_hitboxes;
-        else session->show_hurtboxes = !session->show_hurtboxes;
-        document->GetElementById("workshop-view-hitboxes")
-            ->SetClass("selected", session->show_hitboxes);
-        document->GetElementById("workshop-view-hurtboxes")
-            ->SetClass("selected", session->show_hurtboxes);
-        ftDrawCommon_SetWorkshopOverlays(session->show_hitboxes, session->show_hurtboxes);
+        const bool toggle_hitboxes = std::strcmp(id, "workshop-view-hitboxes") == 0;
+        set_preview_overlays(toggle_hitboxes ? !session->show_hitboxes : session->show_hitboxes,
+                             toggle_hitboxes ? session->show_hurtboxes : !session->show_hurtboxes,
+                             session->show_action_bones);
         return true;
     }
     if (std::strcmp(id, "workshop-undo") == 0 ||

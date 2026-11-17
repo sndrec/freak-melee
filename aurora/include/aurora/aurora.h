@@ -167,6 +167,9 @@ typedef struct AuroraPresentedCapture {
 // Readback/PNG writing complete asynchronously. retain_image keeps this same
 // GPU image available as a frozen backdrop until explicitly released.
 bool aurora_capture_presented(const char* png_path, bool retain_image, AuroraPresentedCapture* info);
+// Capture the frame currently being prepared. The request follows that frame
+// through submission, so earlier queued frames cannot satisfy it.
+bool aurora_capture_next_frame(const char* png_path, bool viewport_only, AuroraPresentedCapture* info);
 // Retry or export the already reserved image, preserving its capture/frame IDs.
 bool aurora_write_presented_capture(const char* png_path);
 void aurora_presented_capture_status(AuroraPresentedCapture* info);

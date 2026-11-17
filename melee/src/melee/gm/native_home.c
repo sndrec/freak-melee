@@ -783,6 +783,32 @@ void nativeHome_WorkshopCameraReset(bool front)
     workshop_camera_apply();
 }
 
+bool nativeHome_WorkshopCameraRead(NativeHomeWorkshopCamera* camera)
+{
+    if (!camera || !nativeHome_WorkshopCameraActive()) return false;
+    *camera = (NativeHomeWorkshopCamera){
+        { home.workshop_camera_target.x, home.workshop_camera_target.y, home.workshop_camera_target.z },
+        home.workshop_camera_yaw, home.workshop_camera_pitch, home.workshop_camera_distance
+    };
+    return true;
+}
+
+bool nativeHome_WorkshopCameraSet(const NativeHomeWorkshopCamera* camera)
+{
+    if (!camera || !nativeHome_WorkshopCameraActive()) return false;
+    for (unsigned axis = 0; axis < 3; ++axis)
+        if (!isfinite(camera->target[axis])) return false;
+    if (!isfinite(camera->yaw) || !isfinite(camera->pitch) || !isfinite(camera->distance) ||
+        fabsf(camera->pitch) > 1.45f || camera->distance < 8.0f || camera->distance > 220.0f)
+        return false;
+    home.workshop_camera_target = (Vec3){camera->target[0], camera->target[1], camera->target[2]};
+    home.workshop_camera_yaw = camera->yaw;
+    home.workshop_camera_pitch = camera->pitch;
+    home.workshop_camera_distance = camera->distance;
+    workshop_camera_apply();
+    return true;
+}
+
 void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox hitboxes[4],
                                         unsigned active_mask)
 {

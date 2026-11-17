@@ -1,11 +1,55 @@
 #include "native_agent_internal.h"
+#include <melee/gm/native_content_store.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <io.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <wincrypt.h>
 
 namespace NativeAgent {
+static void add_capture_image(Reply& reply, yyjson_mut_val* content)
+{
+    const char* status = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "status"));
+    if (!status || std::strcmp(status, "ready")) return;
+    const char* path = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "output"));
+    const char* hash = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "png_sha256"));
+    const uint64_t size = yyjson_mut_get_uint(yyjson_mut_obj_get(reply.result, "bytes"));
+    std::string image;
+    NativeContentId id;
+    if (path && hash && size > 8 && size <= 64 * 1024 * 1024) {
+        if (FILE* file = std::fopen(path, "rb")) {
+            image.resize(size);
+            const bool complete = std::fread(image.data(), 1, image.size(), file) == size &&
+                std::fgetc(file) == EOF && !std::ferror(file);
+            std::fclose(file);
+            if (!complete) image.clear();
+        }
+    }
+    DWORD length = 0;
+    const DWORD format = CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF;
+    const auto* bytes = reinterpret_cast<const BYTE*>(image.data());
+    char actual[65]{};
+    if (!image.empty() && nativeContent_Hash(image.data(), image.size(), &id))
+        nativeContentStore_IdHex(&id, actual);
+    if (*actual && !std::strcmp(hash, actual) &&
+        CryptBinaryToStringA(bytes, DWORD(image.size()), format, nullptr, &length)) {
+        std::string encoded(length, '\0');
+        if (CryptBinaryToStringA(bytes, DWORD(image.size()), format, encoded.data(), &length)) {
+            auto* item = yyjson_mut_obj(reply.document);
+            yyjson_mut_obj_add_str(reply.document, item, "type", "image");
+            yyjson_mut_obj_add_str(reply.document, item, "mimeType", "image/png");
+            yyjson_mut_obj_add_strncpy(reply.document, item, "data", encoded.data(), length);
+            yyjson_mut_arr_add_val(content, item);
+            return;
+        }
+    }
+    add_string(reply, reply.result, "image_error", "The captured PNG is unreadable or its bytes changed.");
+}
+
 static yyjson_mut_val* response(yyjson_mut_doc* document, yyjson_val* id)
 {
     auto* root = yyjson_mut_obj(document);
@@ -91,14 +135,16 @@ static void process(const Context& context, yyjson_val* request,
         }
         yyjson_mut_obj_add_bool(document, result, "isError", !reply.ok);
         yyjson_mut_obj_add_val(document, result, "structuredContent", reply.result);
+        auto* content = yyjson_mut_arr(document);
+        if (reply.ok && !std::strcmp(name, "session.preview.capture_status"))
+            add_capture_image(reply, content);
         auto* text = yyjson_mut_obj(document);
         yyjson_mut_obj_add_str(document, text, "type", "text");
         size_t length;
         char* serialized = yyjson_mut_val_write(reply.result, 0, &length);
         yyjson_mut_obj_add_strcpy(document, text, "text", serialized ? serialized : "Result serialization failed.");
         std::free(serialized);
-        auto* content = yyjson_mut_arr(document);
-        yyjson_mut_arr_add_val(content, text);
+        yyjson_mut_arr_prepend(content, text);
         yyjson_mut_obj_add_val(document, result, "content", content);
     } else if (!std::strcmp(method, "resources/list")) {
         auto* resources = yyjson_mut_arr(document);

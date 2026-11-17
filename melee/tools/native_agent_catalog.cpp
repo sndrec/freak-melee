@@ -86,7 +86,8 @@ const Tool* catalog(size_t& count)
         size_t size;
         const auto* live = NativeWorkshopAgent::catalog(size);
         for (size_t i = 0; i < size; ++i)
-            result.push_back({live[i].name, live[i].description, live[i].schema, nullptr, live[i].read_only, true});
+            result.push_back({live[i].name, live[i].description, live[i].schema, nullptr,
+                              live[i].read_only, true, live[i].output_schema});
         return result;
     }();
     count = tools.size();
@@ -106,8 +107,12 @@ yyjson_mut_val* list_tools(yyjson_mut_doc* document)
         auto* schema = yyjson_read(tool.schema, std::strlen(tool.schema), 0);
         yyjson_mut_obj_add_val(document, item, "inputSchema", yyjson_val_mut_copy(document, yyjson_doc_get_root(schema)));
         yyjson_doc_free(schema);
-        auto* output = yyjson_mut_obj(document);
-        yyjson_mut_obj_add_str(document, output, "type", "object");
+        auto* output_schema = tool.output_schema
+            ? yyjson_read(tool.output_schema, std::strlen(tool.output_schema), 0) : nullptr;
+        auto* output = output_schema ? yyjson_val_mut_copy(document, yyjson_doc_get_root(output_schema))
+                                     : yyjson_mut_obj(document);
+        if (!output_schema) yyjson_mut_obj_add_str(document, output, "type", "object");
+        yyjson_doc_free(output_schema);
         yyjson_mut_obj_add_val(document, item, "outputSchema", output);
         auto* annotations = yyjson_mut_obj(document);
         yyjson_mut_obj_add_bool(document, annotations, "readOnlyHint", tool.read_only);

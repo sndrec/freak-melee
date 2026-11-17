@@ -285,6 +285,22 @@ Accepted 2026-11-17. Implementation is in progress.
   now has 92 pages and 13 examples. No public upload occurred. Presentation,
   controlled practice/capture, typed output schemas and full acceptance remain.
 
+- Frozen preview tools now expose the applied actor clip and frame, camera,
+  playback, and overlays through session inspection. An agent can adjust the
+  camera and the Action or Animation preview controls at the inspected revision.
+  Viewport and window PNGs come from the requested presented frame, including
+  the renderer's existing overlays. Capture reports retain the frame's view,
+  fighter and build identities. The CLI returns a file path and MCP returns the
+  same PNG as image content after verifying the file hash. Capture start and
+  status have typed output schemas. An extracted build with a Windows-only
+  PATH verified actual Workshop input, camera and playback, viewport dimensions,
+  unchanged draft files, byte-identical MCP images and rejection of changed PNG
+  bytes. The captured receipts passed schema validation. The F2 capture,
+  delivery and retry path also passed against a private test endpoint.
+  The installed reference now contains 93 pages and 13 examples. Portrait and
+  CSS tile authoring, controlled practice, remaining typed outputs and full
+  workflow acceptance remain open.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the
