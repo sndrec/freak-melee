@@ -100,7 +100,7 @@ bool nativeFighterModel_SetMeshMaterial(NativeFighterModelEditor* editor,
 // Used before assigning a material or enabling/replacing texture layers.
 bool nativeFighterModel_MaterialInputs(const NativeFighterModelEditor*,
                                       unsigned mesh, unsigned material,
-                                      u32 render_mode);
+                                      const HSD_Dat*, u32 render_mode);
 void nativeFighterModel_MaterialJointFlags(const NativeFighterModelEditor*,
     unsigned material, u32 render_mode, u32 flags[NATIVE_MODEL_MAX_JOINTS]);
 unsigned nativeFighterModel_EnvelopeGroups(const NativeFighterModelEditor* editor,

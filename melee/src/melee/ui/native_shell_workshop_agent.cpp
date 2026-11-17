@@ -1,6 +1,7 @@
 #include "native_shell_workshop_agent.h"
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_editor.h"
+#include "native_shell_workshop_model.h"
 #include "native_hub.h"
 #include <melee/ft/native_workshop_connection.h>
 #include <melee/ft/native_workshop_agent_catalog.h>
@@ -184,7 +185,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
         else if (!std::strncmp(method, "session.actions.", 16)) nativeShellWorkshopEditor_Actions(method + 16, arguments, reply);
         else if (!std::strncmp(method, "session.animations.", 19)) nativeShellWorkshopEditor_Animations(method + 19, arguments, reply);
         else if (!std::strncmp(method, "session.attributes.", 19)) nativeShellWorkshopEditor_Attributes(method + 19, arguments, reply);
-        else if (!std::strncmp(method, "session.models.", 15)) nativeShellWorkshopModel_Agent(method + 15, arguments, reply);
+        else if (!std::strncmp(method, "session.models.", 15)) nativeShellWorkshopModel_Operation(method + 15, arguments, reply);
         else if (!std::strcmp(method, "session.build")) nativeShellWorkshop_Build(reply);
         else if (!std::strcmp(method, "session.install")) nativeShellWorkshop_Install(reply);
         else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);

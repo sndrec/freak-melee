@@ -4,6 +4,7 @@
 #ifdef MELEE_NATIVE
 
 #include <melee/ft/native_fighter_action_editor.h>
+#include <melee/ft/native_authoring_reply.h>
 
 namespace Rml { class ElementDocument; }
 
@@ -24,6 +25,7 @@ bool nativeShellWorkshopModel_HasUnsavedEdits(unsigned member);
 void nativeShellWorkshopModel_MarkSaved(unsigned member);
 bool nativeShellWorkshopModel_Undo(bool redo);
 bool nativeShellWorkshopModel_IsBusy();
+void nativeShellWorkshopModel_Operation(const char* method, yyjson_val*, NativeAuthoring::Reply&);
 int nativeShellWorkshopModel_SelectedClip();
 void nativeShellWorkshopModel_Inspect();
 

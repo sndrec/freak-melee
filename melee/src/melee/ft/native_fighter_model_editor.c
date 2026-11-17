@@ -292,36 +292,36 @@ bool nativeFighterModel_SetMaterialFloat(NativeFighterModelEditor* editor,
 
 bool nativeFighterModel_MaterialInputs(const NativeFighterModelEditor* editor,
                                       unsigned mesh, unsigned material,
-                                      u32 render_mode)
+                                      const HSD_Dat* dat, u32 render_mode)
 {
     if (!editor || mesh >= editor->mesh_count || material >= editor->material_count) return false;
     u32 required = 0, texture = editor->materials[material].texture_offset;
     for (unsigned layer = 0; texture && layer < 8; ++layer) {
         u32 flags, source;
-        if (!HSD_DatReadU32(&editor->dat, texture + 64, &flags) ||
-            !HSD_DatReadU32(&editor->dat, texture + 12, &source)) return false;
+        if (!HSD_DatReadU32(dat, texture + 64, &flags) ||
+            !HSD_DatReadU32(dat, texture + 12, &source)) return false;
         if ((render_mode & (RENDER_TEX0 << layer)) &&
             (flags & TEX_COORD_MASK) == TEX_COORD_UV &&
             source >= GX_TG_TEX0 && source <= GX_TG_TEX7)
             required |= 1u << (GX_VA_TEX0 + source - GX_TG_TEX0);
-        if (!reference(&editor->dat, texture + 4, &texture)) texture = 0;
+        if (!reference(dat, texture + 4, &texture)) texture = 0;
     }
     if (!required) return true;
     u32 polygon;
-    if (!reference(&editor->dat, editor->meshes[mesh].offset + 12, &polygon)) return false;
+    if (!reference(dat, editor->meshes[mesh].offset + 12, &polygon)) return false;
     for (unsigned p = 0; p < editor->meshes[mesh].polygon_count; ++p) {
         u32 descriptors, present = 0;
-        if (!reference(&editor->dat, polygon + 8, &descriptors)) return false;
+        if (!reference(dat, polygon + 8, &descriptors)) return false;
         for (unsigned a = 0; a < 27; ++a) {
             u32 attr, type;
-            if (!HSD_DatReadU32(&editor->dat, descriptors + a * 24, &attr)) return false;
+            if (!HSD_DatReadU32(dat, descriptors + a * 24, &attr)) return false;
             if (attr == GX_VA_NULL) break;
-            if (!HSD_DatReadU32(&editor->dat, descriptors + a * 24 + 4, &type)) return false;
+            if (!HSD_DatReadU32(dat, descriptors + a * 24 + 4, &type)) return false;
             if (attr < 32 && type != GX_NONE) present |= 1u << attr;
         }
         if ((present & required) != required) return false;
         if (p + 1 < editor->meshes[mesh].polygon_count &&
-            !reference(&editor->dat, polygon + 4, &polygon)) return false;
+            !reference(dat, polygon + 4, &polygon)) return false;
     }
     return true;
 }
@@ -345,29 +345,6 @@ void nativeFighterModel_MaterialJointFlags(const NativeFighterModelEditor* edito
     for (unsigned j = 0; j < editor->joint_count; ++j) if (affected[j])
         for (int parent = editor->joints[j].parent; parent >= 0; parent = editor->joints[parent].parent)
             flags[parent] |= passes[j] << 10;
-}
-
-bool nativeFighterModel_SetMeshMaterial(NativeFighterModelEditor* editor,
-                                       unsigned mesh, unsigned material)
-{
-    if (editor == NULL || mesh >= editor->mesh_count ||
-        material >= editor->material_count ||
-        !nativeFighterModel_MaterialInputs(editor, mesh, material,
-                                           editor->materials[material].render_mode)) return false;
-    u32 target;
-    if (!reference(&editor->dat, editor->meshes[mesh].offset + 8,
-                   &target)) return false;
-    write_u32(editor, editor->meshes[mesh].offset + 8,
-              editor->materials[material].offset);
-    editor->meshes[mesh].material = (uint16_t) material;
-    u32 flags[NATIVE_MODEL_MAX_JOINTS];
-    nativeFighterModel_MaterialJointFlags(editor, material,
-                                         editor->materials[material].render_mode, flags);
-    for (unsigned j = 0; j < editor->joint_count; ++j) if (flags[j] != editor->joints[j].flags) {
-        write_u32(editor, editor->joints[j].offset + 4, flags[j]);
-        editor->joints[j].flags = flags[j];
-    }
-    return true;
 }
 
 unsigned nativeFighterModel_EnvelopeGroups(const NativeFighterModelEditor* editor,

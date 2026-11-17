@@ -48,9 +48,11 @@ bool nativeFighterMaterial_StageRender(const NativeFighterModelEditor& model, un
     if (material >= model.material_count) {error = "Choose an existing material."; return false;}
     const auto& mat = model.materials[material];
     const uint32_t mode = state.mode;
+    HSD_Dat staged = model.dat;
+    staged.data = dat.data.data(); staged.data_size = (u32)dat.data.size();
     for (unsigned mesh = 0; mesh < model.mesh_count; ++mesh)
         if (model.meshes[mesh].material == material &&
-            !nativeFighterModel_MaterialInputs(&model, mesh, material, mode)) {
+            !nativeFighterModel_MaterialInputs(&model, mesh, material, &staged, mode)) {
             error = "A mesh using this material lacks its required UV coordinates. Import UVs or change the texture mapping before enabling the layer."; return false;
         }
     if ((mode & RENDER_NO_ZUPDATE) && !(mode & RENDER_XLU)) {

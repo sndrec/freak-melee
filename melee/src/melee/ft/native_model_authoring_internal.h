@@ -38,4 +38,7 @@ bool sequences(const NativeFighterModelEditor&, unsigned, std::vector<NativeMate
 void material_properties(const NativeFighterModelEditor&, unsigned, Reply&, yyjson_mut_val*);
 bool edit_material(NativeFighterProject&, unsigned, yyjson_val*, Reply&);
 const char* material_schema();
+const char* texture_schema();
+bool texture_properties(const NativeFighterModelEditor&, unsigned, unsigned, Reply&, yyjson_mut_val*);
+bool edit_texture(NativeFighterProject&, unsigned, unsigned, yyjson_val*, Reply&);
 }

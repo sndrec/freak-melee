@@ -221,6 +221,32 @@ Accepted 2026-11-17. Implementation is in progress.
   controlled test evidence and final acceptance remain open. No public upload
   occurred.
 
+- Texture tools now inspect and edit the Model inspector's mapping, transforms,
+  contribution flags, wrapping, filtering, LOD and supported color-combiner
+  inputs through a shared native writer. The UI uses that writer too. Mapping
+  validation reads staged properties, so switching between UV and reflection
+  checks the mapping actually being applied. Texture-sequence inspection now
+  distinguishes animation IDs from physical layer indices.
+  Active color/alpha expressions reject inputs the native expression evaluator
+  cannot evaluate; those invalid choices were also removed from the inspector.
+  Animated costumes retain texture IDs tied to render slots. Inspection reports
+  that constraint and the inspector disables that ID field; image replacement
+  remains supported without changing animation bindings.
+- Material assignment now stages the costume and fighter together, retains
+  matching material animations, remaps expression selectors and admits the
+  complete result before publication. The UI and agent share the same Model
+  operation and whole-asset history. Assignments removing required expression
+  textures are rejected. The standalone regression caught an aliased serializer
+  input/output lifetime bug in the new assignment path; separate staging storage
+  fixes it. All eighteen core checks pass. Extracted-package CLI/MCP/launcher,
+  model authoring and hidden/muted live checks pass with a Windows-only PATH.
+  Live checks wait for the requested package identity on the actual preview
+  actor, cover material/texture Undo/Redo, reject unsupported expressions and ID
+  changes, preserve saved files before Save and successfully build saved edits.
+  Editor-only model selection/visibility, resources, presentation, controlled
+  practice/preview evidence, output schemas and final acceptance remain open.
+  No public upload occurred.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

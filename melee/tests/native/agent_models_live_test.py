@@ -59,7 +59,9 @@ def main():
             while time.monotonic() < deadline:
                 assert process.poll() is None, ('Game exited', process.returncode, root)
                 state = call('session.inspect', target)
-                if not state['preview_loading'] and state['editing_allowed'] and state['preview_scene'] == 'practice':
+                if (not state['preview_loading'] and state['editing_allowed'] and state['preview_scene'] == 'practice'
+                    and state['preview_ready'] and state['requested_preview_package_id']
+                    and state['loaded_preview_package_id'] == state['requested_preview_package_id']):
                     return state
                 time.sleep(.15)
             raise AssertionError(('Preview did not settle', state))

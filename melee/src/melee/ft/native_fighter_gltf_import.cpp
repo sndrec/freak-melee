@@ -1210,7 +1210,7 @@ bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
     NativeFighterModelEditor existing = {};
     if (!project || !image_path ||
         !nativeFighterModel_Open(&existing, project) ||
-        material >= existing.material_count || layer >= 8)
+        material >= existing.material_count || (!sequence && layer >= 8))
     {
         fail(error, error_size, "Choose an editable fighter material.");
         return false;
@@ -1298,7 +1298,7 @@ bool nativeFighterGltf_SetTextureImage(NativeFighterProject* project,
     }
     for(unsigned mesh=0;mesh<changed.mesh_count;++mesh)
         if(changed.meshes[mesh].material==material &&
-           !nativeFighterModel_MaterialInputs(&changed,mesh,material,changed.materials[material].render_mode)) {
+           !nativeFighterModel_MaterialInputs(&changed,mesh,material,&changed.dat,changed.materials[material].render_mode)) {
             fail(error,error_size,"A mesh using this material lacks the image's required UV coordinates. Import UVs before adding this texture.");return false;
         }
     uint8_t* owned = (uint8_t*) std::malloc(converted.size());

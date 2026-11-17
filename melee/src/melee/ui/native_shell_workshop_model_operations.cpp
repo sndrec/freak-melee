@@ -1,10 +1,11 @@
 #include "native_shell_workshop_agent.h"
+#include "native_shell_workshop_model.h"
 #include "native_shell_workshop_model_internal.h"
 #include "native_shell_workshop_editor.h"
 #include "native_shell_workshop.h"
 #include <cstring>
 
-void nativeShellWorkshopModel_Agent(const char* method, yyjson_val* args,
+void nativeShellWorkshopModel_Operation(const char* method, yyjson_val* args,
                                     NativeAuthoring::Reply& reply)
 {
     using namespace WorkshopModelInternal;
@@ -29,6 +30,10 @@ void nativeShellWorkshopModel_Agent(const char* method, yyjson_val* args,
     playing = false;
     nativeShellWorkshopEditor_AgentWorkspace("model");
     reopen_model(&active->changes.back().core->after_view);
+    const char* operation=yyjson_get_str(yyjson_obj_get(args,"operation"));
+    if(operation && !std::strcmp(operation,"mesh_material") && active->selected_mesh>=0) {
+        active->selected_material=active->model.meshes[active->selected_mesh].material;render();
+    }
     if (rig_changed) nativeShellWorkshopEditor_RigChanged(*before, active->model);
     nativeHome_WorkshopPoseInvalidate(); buttons();
     const bool refreshing = nativeShellWorkshop_RequestPreview(false);

@@ -1,4 +1,5 @@
 #include "native_model_authoring_internal.h"
+#include "native_fighter_material_texture.h"
 
 namespace NativeModelAuthoring {
 void vector(Reply& r, yyjson_mut_val* row, const char* key, const float* value, unsigned count)
@@ -97,6 +98,8 @@ void read(const NativeFighterProject& p, yyjson_val* args, Reply& r)
         add_string(r, r.result, "position_space", "bind_space_game_units"); add_string(r, r.result, "rotation_unit", "radians");
         auto* schema = yyjson_read(material_schema(), std::strlen(material_schema()), 0);
         yyjson_mut_obj_add_val(r.document, r.result, "material_fields", yyjson_val_mut_copy(r.document, yyjson_doc_get_root(schema))); yyjson_doc_free(schema);
+        schema = yyjson_read(texture_schema(), std::strlen(texture_schema()), 0);
+        yyjson_mut_obj_add_val(r.document, r.result, "texture_fields", yyjson_val_mut_copy(r.document, yyjson_doc_get_root(schema))); yyjson_doc_free(schema);
         return;
     }
     const unsigned offset = number(args, "offset"), limit = has(args, "limit") ? number(args, "limit") : 50;
@@ -125,11 +128,27 @@ void read(const NativeFighterProject& p, yyjson_val* args, Reply& r)
             for (unsigned j = 0; j < vertex.skin.count; ++j) {auto* weight = yyjson_mut_obj(r.document); yyjson_mut_arr_append(influences, weight); yyjson_mut_obj_add_uint(r.document, weight, "bone", vertex.skin.joints[j]); yyjson_mut_obj_add_real(r.document, weight, "weight", vertex.skin.weights[j]);}
         }
         yyjson_mut_obj_add_uint(r.document, r.result, "corner_count", corners); total = count;
+    } else if (!std::strcmp(view, "textures")) {
+        if (!has(args, "material") || material >= model->material_count) {r.fail("unknown_material", "Choose a material from this member's material list."); return;}
+        u32 layers[8]; total = nativeFighterMaterial_TextureLayers(*model, material, layers);
+        for (unsigned layer = offset; layer < total && yyjson_mut_arr_size(rows) < limit; ++layer) {
+            auto* row = yyjson_mut_obj(r.document); yyjson_mut_arr_append(rows, row); yyjson_mut_obj_add_uint(r.document, row, "id", layer);
+            yyjson_mut_obj_add_bool(r.document,row,"animation_id_editable",p.facts.costume_matanim[0]==0);
+            auto* properties = yyjson_mut_obj(r.document); yyjson_mut_obj_add_val(r.document, row, "properties", properties);
+            if (!texture_properties(*model, material, layer, r, properties)) return;
+        }
     } else if (!std::strcmp(view, "texture_sequences")) {
         if (!has(args, "material") || material >= model->material_count) {r.fail("unknown_material", "Choose a material from this member's material list."); return;}
         std::vector<NativeMaterialTextureSequence> images;
         if (!sequences(*model, material, images, r)) return;
-        for (size_t i = offset; i < images.size() && yyjson_mut_arr_size(rows) < limit; ++i) {auto* row = yyjson_mut_obj(r.document); yyjson_mut_arr_append(rows, row); yyjson_mut_obj_add_uint(r.document, row, "id", i); yyjson_mut_obj_add_uint(r.document, row, "layer", images[i].layer); yyjson_mut_obj_add_uint(r.document, row, "images", images[i].frames);}
+        u32 layers[8]; const unsigned layer_count=nativeFighterMaterial_TextureLayers(*model,material,layers);
+        for (size_t i = offset; i < images.size() && yyjson_mut_arr_size(rows) < limit; ++i) {
+            auto* row = yyjson_mut_obj(r.document); yyjson_mut_arr_append(rows, row); yyjson_mut_obj_add_uint(r.document, row, "id", i);
+            yyjson_mut_obj_add_uint(r.document,row,"animation_id",images[i].animation_id);
+            unsigned layer=0;for(;layer<layer_count;++layer) {u32 id=0;HSD_DatReadU32(&model->dat,layers[layer]+8,&id);if(id==images[i].animation_id) break;}
+            if(layer<layer_count) yyjson_mut_obj_add_uint(r.document,row,"layer",layer);else yyjson_mut_obj_add_null(r.document,row,"layer");
+            yyjson_mut_obj_add_uint(r.document, row, "images", images[i].frames);
+        }
         total = images.size();
     } else if (!std::strcmp(view, "bones")) {
         std::vector<int32_t> ids; std::vector<uint8_t> extra;

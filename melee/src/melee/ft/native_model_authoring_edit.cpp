@@ -95,6 +95,7 @@ bool edit(NativeFighterProject& project, yyjson_val* args, Reply& r, History* hi
     const char* fields = !std::strcmp(op, "import") ? "|path|imports|" :
         !std::strcmp(op, "reimport") ? "|path|mesh|whole_source|binding|replace_material|" :
         !std::strcmp(op, "rest") ? "|changes|" : !std::strcmp(op, "material") ? "|material|properties|" :
+        !std::strcmp(op, "texture") ? "|material|layer|texture|" :
         !std::strcmp(op, "paint") ? "|mesh|bone|centers|radius|strength|subtract|" :
         !std::strcmp(op, "rig") ? "|rig_operation|bone_id|parent_id|name|" :
         !std::strcmp(op, "label") ? "|category|id|name|" :
@@ -117,6 +118,9 @@ bool edit(NativeFighterProject& project, yyjson_val* args, Reply& r, History* hi
     else if (!std::strcmp(op, "material")) {
         if (!required(args, "material", r) || !required(args, "properties", r)) return false;
         ok = edit_material(p, number(args, "material"), yyjson_obj_get(args, "properties"), r);
+    } else if (!std::strcmp(op, "texture")) {
+        if (!required(args, "material", r) || !required(args, "texture", r)) return false;
+        ok = edit_texture(p, number(args, "material"), number(args, "layer"), yyjson_obj_get(args, "texture"), r);
     } else if (!std::strcmp(op, "paint")) {
         for (const char* key : {"mesh", "bone", "centers", "radius", "strength"}) if (!required(args, key, r)) return false;
         std::vector<NativeSkinBrushPoint> centers;
@@ -143,6 +147,7 @@ bool edit(NativeFighterProject& project, yyjson_val* args, Reply& r, History* hi
         if (!std::strcmp(op, "mesh_material")) {
             if (!required(args, "mesh", r) || !required(args, "material", r)) return false;
             ok = nativeFighterModel_SetMeshMaterial(model.get(), number(args, "mesh"), number(args, "material"));
+            if (!ok) {r.fail("material_assignment_rejected", "Could not assign this material while preserving the mesh's required inputs and fighter texture animations."); return false;}
         } else if (!std::strcmp(op, "label")) {
             if (!required(args, "category", r) || !required(args, "id", r) || !required(args, "name", r)) return false;
             const unsigned id = number(args, "id"); const char* category = text(args, "category"); unsigned key = UINT32_MAX, type = 0;
@@ -157,7 +162,7 @@ bool edit(NativeFighterProject& project, yyjson_val* args, Reply& r, History* hi
             if (has(args, "sequence")) {
                 std::vector<NativeMaterialTextureSequence> images; if (!sequences(*model, material, images, r)) return false;
                 const unsigned selected = number(args, "sequence"); if (selected >= images.size() || frame >= images[selected].frames) {r.fail("unknown_texture_image", "Choose an inspected sequence and image index."); return false;}
-                sequence = images[selected].offset; layer = images[selected].layer;
+                sequence = images[selected].offset;
             }
             ok = nativeFighterGltf_SetTextureImage(&p, material, layer, sequence, frame, text(args, "path"), error, sizeof(error));
         }
@@ -172,6 +177,12 @@ bool edit(NativeFighterProject& project, yyjson_val* args, Reply& r, History* hi
     if (!std::strcmp(op, "material")) {
         std::unique_ptr<NativeFighterModelEditor> model; if (!open(p, model, r)) return false;
         auto* properties = yyjson_mut_obj(r.document); yyjson_mut_obj_add_val(r.document, r.result, "applied_properties", properties); material_properties(*model, number(args, "material"), r, properties);
+    }
+    if (!std::strcmp(op, "texture")) {
+        yyjson_mut_obj_add_val(r.document, r.result, "requested_texture", yyjson_val_mut_copy(r.document, yyjson_obj_get(args, "texture")));
+        std::unique_ptr<NativeFighterModelEditor> model; if (!open(p, model, r)) return false;
+        auto* properties = yyjson_mut_obj(r.document); yyjson_mut_obj_add_val(r.document, r.result, "applied_texture", properties);
+        if (!texture_properties(*model, number(args, "material"), number(args, "layer"), r, properties)) return false;
     }
     if (changed) {
         // Reserve both sides of live Undo before publishing any part of the

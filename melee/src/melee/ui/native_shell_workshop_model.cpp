@@ -315,8 +315,8 @@ void render_inspector()
                         markup += "<option value='" +
                                   std::to_string(sequences[i].offset) + ":" +
                                   std::to_string(f) + "'>Sequence " +
-                                  std::to_string(i + 1) + " · layer " +
-                                  std::to_string(sequences[i].layer) +
+                                  std::to_string(i + 1) + " · animation ID " +
+                                  std::to_string(sequences[i].animation_id) +
                                   " · image " + std::to_string(f) +
                                   "</option>";
                     }
@@ -1143,18 +1143,17 @@ bool nativeShellWorkshopModel_CommitProperty(const char* id)
                 element("workshop-model-assigned-material"))->GetValue().c_str(),
             nullptr, 10);
         if (material >= active->model.material_count) return true;
-        const uint32_t offset = 0x20 + active->model.meshes[active->selected_mesh].offset + 8;
-        uint8_t before[4];
-        std::memcpy(before, active->project->costume_dat + offset, 4);
-        if (nativeFighterModel_SetMeshMaterial(&active->model, active->selected_mesh,
-                                                material)) {
-            record(offset, 4, before);
-            active->selected_material = (int) material;
-            render();
-            status(nativeShellWorkshop_RequestPreview(false)
-                ? "Mesh material changed; refreshing the live preview."
-                : "Mesh material changed. Test Character to reload it.");
+        char arguments[200];
+        std::snprintf(arguments,sizeof(arguments),"{\"operation\":\"mesh_material\",\"mesh\":%u,\"material\":%u,\"summary\":\"Assign mesh material\"}",(unsigned)active->selected_mesh,material);
+        auto* request=yyjson_read(arguments,std::strlen(arguments),0);
+        auto* response=yyjson_mut_doc_new(nullptr);
+        if(!request || !response) status("Could not allocate the material edit.");
+        else {
+            NativeAuthoring::Reply reply(response);
+            nativeShellWorkshopModel_Operation("edit",yyjson_doc_get_root(request),reply);
+            if(!reply.ok) status(yyjson_mut_get_str(yyjson_mut_obj_get(reply.result,"message")));
         }
+        yyjson_doc_free(request);yyjson_mut_doc_free(response);
         return true;
     }
     apply_surface();

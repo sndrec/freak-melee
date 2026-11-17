@@ -20,6 +20,7 @@ Call `models.read` with a project path and a `view`. In a live session, call
 | `bones` | Names, hierarchy, roles, stable bone identities and local rest transforms. |
 | `meshes` | Mesh names, owning bones, material assignments and import information. |
 | `materials` | Surface colors, lighting, transparency, depth and blending settings. |
+| `textures` | A material's texture layers, mapping, transforms, filtering and color combiners. Supply `material`. |
 | `vertices` | Bind-space positions and normalized bone weights. Supply `mesh`. |
 | `sources` | Imported meshes, source paths, source identities, scale and binding choices. |
 | `texture_sequences` | A material's animated texture sequences and their image counts. Supply `material`. |
@@ -30,8 +31,8 @@ views. Vertex positions use game units in the model's bind space. Local bone
 rotations use radians; scales use multipliers. Weights range from zero to one.
 
 The `id` values for bones, meshes, materials, vertices and texture sequences
-identify entries in the inspected model. Resolve them again after importing or
-changing the hierarchy. Each bone also has a stable `bone_id`, used by the
+identify entries in the inspected revision. Resolve them again after importing,
+changing the hierarchy or assigning a different material. Each bone also has a stable `bone_id`, used by the
 `rig` operation. Keep these two identities distinct when authoring a skeleton.
 
 ## Import and reimport
@@ -127,9 +128,62 @@ assign an existing material. Use `operation: "texture_image"` with a
 For an animated texture, inspect `texture_sequences`, then supply its sequence
 `id` as `sequence` and a zero-based `image` index.
 
-Advanced texture transforms, filtering, LOD and texture-combiner properties
-remain available through the Model inspector; structured tools for those
-properties are still being added.
+Material assignment preserves texture animations and fighter expression
+references. If the assignment would remove a referenced texture, edit the
+current material's properties or images instead. Reinspect material IDs after
+assignment; the list contains the materials currently used by meshes.
+
+Use `operation: "texture"` with `material`, an optional zero-based `layer`
+and a `texture` object containing changed fields. The `textures` view returns
+the current properties, and `info.texture_fields` contains their schema. The
+reply includes `requested_texture` and the complete `applied_texture`.
+
+| Field | Meaning |
+| --- | --- |
+| `animation_id` | Identity used to match this layer's texture animations. |
+| `coordinate_source` | Position (0), normal (1), binormal (2), tangent (3), UV sets (4–11), generated coordinates (12–18), or vertex colors (19–20). |
+| `mapping` | UV (0), reflection (1), highlight (2), shadow (3), toon (4), gradation (5), or backlight (6). |
+| `rotation`, `scale`, `offset` | Three-component texture transform. Rotation uses radians. |
+| `color_operation` | Disabled (0), alpha mask (1), RGB mask (2), blend (3), multiply (4), replace (5), pass through (6), add (7), or subtract (8). |
+| `alpha_operation` | Disabled (0), alpha mask (1), blend (2), multiply (3), replace (4), pass through (5), add (6), or subtract (7). |
+| `blend` | Amount used by the texture operation. |
+| `wrap_u`, `wrap_v` | Clamp (0), repeat (1), or mirror (2). |
+| `repeat_u`, `repeat_v` | Texture repeat counts, from 1 to 255. |
+| `magnification` | Nearest (0) or linear (1) sampling. |
+| Contribution flags | Select diffuse, specular, ambient, extended, shadow or bump use. |
+
+The nested `lod` object enables custom mipmap filtering with `enabled`. It
+contains `minification`, `bias`, `anisotropy`, `clamp_bias` and `edge_lod`.
+Minification values 0–5 select nearest, linear, nearest/nearest mip,
+linear/nearest mip, nearest/linear mip and linear/linear mip. Anisotropy values
+0–2 select 1×, 2× and 4×.
+
+`animation_id_editable` on each texture row reports whether its animation ID
+can change. Animated costumes keep their existing IDs, which the engine uses
+as render slots. Replace their images or edit material properties to change
+their appearance. Texture-sequence inspection returns both the animation ID
+and its matching layer index.
+
+The nested `combiner` object enables custom texture expressions with
+`enabled`. `color_expression` and `alpha_expression` activate its two
+expressions. Each has an operation, bias, scale, clamp flag and four inputs.
+Operations are add (0), subtract (1), or native comparison operations (8–15).
+Bias selects zero (0), add half (1), or subtract half (2). Scale selects
+1× (0), 2× (1), 4× (2), or 0.5× (3).
+
+`color_inputs` contains four input IDs: texture RGB/alpha (8–9),
+one (12), half (13), zero (15), constant RGB or its
+R/G/B/A channels (128–132), or texture registers 0–1 RGB/alpha (133–136).
+`alpha_inputs` selects texture
+alpha (4), zero (7), constant
+R/G/B/A (64–67), or texture registers 0–1 alpha (68–69).
+
+`constant`, `register0` and `register1` are four-component byte colors.
+The twelve `overrides` flags select their individual RGBA channel overrides
+in that order. Values in a disabled `lod` or `combiner` use the engine defaults
+until the corresponding custom block is enabled. UV mapping requires the
+referenced UV set on every mesh using that material; reflection mapping can
+use geometry without UV coordinates.
 
 ## Names, history and saving
 

@@ -192,7 +192,7 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
                 nativeFighterMaterial_Sequences(model, a, entries, 128);
             for (unsigned i = 0; i < n; ++i) {
                 printf("sequence %u offset %u layer %u images %u\n", i,
-                       entries[i].offset, entries[i].layer, entries[i].frames);
+                       entries[i].offset, entries[i].animation_id, entries[i].frames);
             }
             ok = true;
         }

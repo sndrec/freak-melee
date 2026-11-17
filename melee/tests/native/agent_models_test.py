@@ -92,6 +92,42 @@ def model_checks(call, target, root, *, live=False, settled=None):
     assert owners and all(rendered_bones[bone]['flags'] & 0x100000 for bone in owners)
     change('mesh_material', mesh=0, material=material)
     change('label', category='material', id=material, name='Agent surface')
+    textures = call(read, dict(target, view='textures', material=material))['textures']
+    assert textures
+    textured = change('texture', material=material, layer=0, texture=dict(
+        rotation=[0, .25, 0], scale=[1.25, .75, 1], offset=[.125, .25, 0],
+        wrap_u=1, wrap_v=2, repeat_u=2, repeat_v=3, magnification=0, blend=.875,
+        lod=dict(enabled=True, minification=1, anisotropy=1, bias=.25, clamp_bias=True, edge_lod=False),
+        combiner=dict(enabled=True, color_operation=0, alpha_operation=0,
+            color_inputs=[15, 15, 8, 128], alpha_inputs=[7, 7, 4, 67],
+            constant=[128, 64, 32, 255], register0=[20, 30, 40, 255],
+            overrides=[False] * 12, color_expression=True, alpha_expression=True)))
+    assert textured['applied_texture']['scale'] == [1.25, .75, 1]
+    assert textured['applied_texture']['combiner']['color_inputs'] == [15, 15, 8, 128]
+    assert textured['applied_texture']['lod']['bias'] == .25
+    texture_after = call(read, dict(target, view='textures', material=material))['textures']
+    history_roundtrip({'textures': textures}, {'textures': texture_after}, dict(view='textures', material=material))
+    assert not change('texture', material=material, texture={'blend': .875})['changed']
+    animated_material = None
+    for candidate in call(read, dict(target, view='materials', limit=200))['materials']:
+        sequences_before = call(read, dict(target, view='texture_sequences', material=candidate['id']))['texture_sequences']
+        if sequences_before and sequences_before[0]['layer'] is not None:
+            animated_material = candidate['id']; animated_layer = sequences_before[0]['layer']; break
+    assert animated_material is not None, 'Mario should have an expression texture sequence'
+    animated_texture = call(read, dict(target, view='textures', material=animated_material))['textures'][animated_layer]
+    assert not animated_texture['animation_id_editable']
+    bad_id = (animated_texture['properties']['animation_id'] + 1) % 8
+    assert reject('texture', material=animated_material, layer=animated_layer,
+        texture={'animation_id': bad_id})['code'] == 'texture_edit_rejected'
+    reject('texture', material=animated_material, layer=animated_layer, texture={'animation_id': 37})
+    remapped = call(read, dict(target, view='texture_sequences', material=animated_material))['texture_sequences']
+    assert remapped == sequences_before
+    chosen = remapped[0]
+    change('texture_image', material=animated_material, sequence=chosen['id'], image=0, path=str(root / 'portrait.png'))
+    reject('texture', material=material, texture={'combiner': {'color_operation': 3}})
+    reject('texture', material=material, texture={'combiner': {'color_inputs': [16, 0, 0, 0]}})
+    reject('texture', material=material, texture={'combiner': {'color_inputs': [15, 15, 8, 10]}})
+    reject('texture', material=material, texture={'repeat_u': 0})
     bones = call(read, dict(target, view='bones', limit=200))['bones']
     # A late invalid bone in a rest batch must discard earlier valid edits.
     rest = list(bones[5]['position']); rest[0] += .25
@@ -160,9 +196,19 @@ def model_checks(call, target, root, *, live=False, settled=None):
     change('texture_image', material=material, path=str(root / 'portrait.png'))
     sequences = call(read, dict(target, view='texture_sequences', material=material))
     assert isinstance(sequences['texture_sequences'], list)
+    # Applying an image preserves a material's authored coordinate mapping.
+    # Reflection can use untextured geometry, while switching it to UV must
+    # reject the whole change when that geometry lacks the required attribute.
+    def named_material(name):
+        return next(row['id'] for row in call(read, dict(target, view='materials', query=name))['materials'] if row['name'] == name)
+    reject('mesh_material', mesh=mesh, material=material)
+    change('texture', material=material, texture={'mapping': 1})
+    change('mesh_material', mesh=mesh, material=material)
+    reject('texture', material=named_material('Agent surface'), texture={'mapping': 0, 'coordinate_source': 4})
     if live:
         assert snapshot(root) == baseline, 'Live model editing wrote saved files'
-    return {'bones': len(bones), 'meshes': current_info['meshes'], 'materials': current_info['materials']}
+    final_info=call(read,dict(target,view='info'))
+    return {'bones': len(bones), 'meshes': final_info['meshes'], 'materials': final_info['materials']}
 
 
 def main():

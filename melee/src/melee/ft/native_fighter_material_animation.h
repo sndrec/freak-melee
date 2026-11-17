@@ -6,7 +6,7 @@ extern "C" {
 #endif
 typedef struct NativeMaterialTextureSequence {
     uint32_t offset;
-    unsigned layer, frames;
+    unsigned animation_id, frames;
 } NativeMaterialTextureSequence;
 unsigned nativeFighterMaterial_Sequences(const NativeFighterModelEditor*,
                                          unsigned material,
