@@ -173,6 +173,28 @@ Accepted 2026-11-17. Implementation is in progress.
   checks pass with a Windows-only PATH. The installed guide covers this tuning
   workflow. No public upload occurred.
 
+- Structured stock discovery, installed-fighter discovery, stock/package cloning,
+  package import and closed-draft rename are implemented. The hub and agent tools
+  share complete native draft construction: paired families, owned templates and
+  tuning, split move files, presentation images and a per-project agent guide.
+  Construction publishes a new destination after preparation; existing folders
+  and the source installation are preserved. Failed preparation stays outside
+  the visible draft library. Rename uses the family lease, inspected revision
+  and recovery journal, and reports its committed revision from inside the lease.
+- Saved-draft installation now accepts an exact cached build through the same
+  native acceptance and installation operations as the Workshop. It verifies
+  every member's current sources/assets, saves accepted behavior and installs
+  the package. A stale build preserves draft files and the prior installation.
+  Native checks cover complete Mario, Zelda/Sheik and Popo/Nana creation,
+  per-member source validation, import/clone independence, protected rename,
+  incomplete-installation failure and stale-build rejection. All seventeen core
+  checks pass. The actual hidden/muted Mario client now starts from the structured
+  clone operation and verifies live ownership, editing, preview, practice and
+  export. Extracted-package CLI/MCP/launcher and live checks pass with a
+  Windows-only PATH. The installed reference contains 90 pages, including the
+  creation guide. No public upload occurred. Model/resource/presentation tools,
+  controlled preview/practice evidence and full acceptance remain open.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

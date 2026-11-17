@@ -67,7 +67,7 @@ int main(int argc,char** argv)
         CHECK(nativeFighterFamilyProject_Build(&opened,portrait,(size_t)portrait_bytes,&roundtrip,&roundtrip_bytes,&rebuilt));
         CHECK(same_bytes(packet,bytes,roundtrip,roundtrip_bytes)&&!memcmp(&id,&rebuilt,sizeof(id)));
         NativeFighterProjectInfo named;
-        CHECK(nativeFighterProject_Rename(destination, "Renamed fighter"));
+        CHECK(nativeFighterProject_Rename(destination, "Renamed fighter", NULL, NULL) == NativeFighterRename_Success);
         CHECK(nativeFighterProject_ReadInfo(destination, &named) &&
             !strcmp(named.title, "Renamed fighter") && !strcmp(named.tile_name, "MY FIGHTER"));
         free(roundtrip);nativeFighterFamilyProject_Close(&opened);free(packet);

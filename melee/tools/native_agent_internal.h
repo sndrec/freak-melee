@@ -41,11 +41,18 @@ bool read_example(const Context&, const std::string& name, std::string& text);
 
 void environment(const Context&, yyjson_val*, Reply&);
 void projects(const Context&, yyjson_val*, Reply&);
+void stock_fighters(const Context&, yyjson_val*, Reply&);
+void installed_fighters(const Context&, yyjson_val*, Reply&);
+void clone_stock(const Context&, yyjson_val*, Reply&);
+void clone_installed(const Context&, yyjson_val*, Reply&);
+void import_fighter(const Context&, yyjson_val*, Reply&);
+void rename_project(const Context&, yyjson_val*, Reply&);
 void project(const Context&, yyjson_val*, Reply&);
 void sources(const Context&, yyjson_val*, Reply&);
 void source(const Context&, yyjson_val*, Reply&);
 void check_scripts(const Context&, yyjson_val*, Reply&);
 void build_project(const Context&, yyjson_val*, Reply&);
+void install_project(const Context&, yyjson_val*, Reply&);
 void export_package(const Context&, yyjson_val*, Reply&);
 void update_scripts(const Context&, yyjson_val*, Reply&);
 void parameter_source(const Context&, yyjson_val*, Reply&);

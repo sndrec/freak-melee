@@ -49,6 +49,10 @@ The check leaves the draft and accepted behavior unchanged.
 
 ## Edit a saved draft
 
+To make a new draft, see [Create a fighter draft](agent_projects.md). The
+structured tools clone stock or installed fighters, import `.fmc` packages and
+rename closed drafts. New projects include a small local agent guide.
+
 Inspect `scripts.list`, `scripts.read` and `parameters.read` before editing.
 They return a `revision` identifying the saved project's files. Supply it to
 `scripts.update` with a list of `{ "file": "...", "text": "..." }` objects and,
@@ -160,6 +164,9 @@ PNG can override it. `packages.export` writes a cached `package_id` to a new
 `output` .fmc file. The exported bytes hash to that ID. Both operations normally use
 your installation's content cache; `content_root` selects another local cache.
 The live inspector also reports that instance's `content_root` and `projects_root`.
+`project.install` accepts and saves an exact cached `package_id`, then installs
+it. Supply the draft's current disk revision. Its source and assets must still
+match that build; otherwise build the edited draft again first.
 
 `examples.list` and `examples.read` expose the installed FMS templates and
 supporting examples. They are also available as MCP resources under

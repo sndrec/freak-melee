@@ -93,7 +93,21 @@ bool nativeFighterProject_ReadInfo(const char* path,
 size_t nativeFighterProject_EncodeManifest(const char* title, const char* tile_name,
     const char* template_key, char* output, size_t capacity);
 // Rename the primary project manifest. Family titles come from their primary member.
-bool nativeFighterProject_Rename(const char* path, const char* title);
+// Own the draft lease and journal the manifest. An optional expected revision
+// prevents a stale rename; NULL inspects the current files while holding the lease.
+typedef enum NativeFighterRenameResult {
+    NativeFighterRename_Success,
+    NativeFighterRename_Busy,
+    NativeFighterRename_Conflict,
+    NativeFighterRename_Invalid,
+    NativeFighterRename_IoError,
+} NativeFighterRenameResult;
+typedef struct NativeFighterRenameDetails {
+    char revision[65];
+    char error[512];
+} NativeFighterRenameDetails;
+NativeFighterRenameResult nativeFighterProject_Rename(const char* path, const char* title,
+    const char* expected_revision, NativeFighterRenameDetails*);
 bool nativeFighterProject_SetTileName(const char* path, const char* tile_name);
 // Add or replace an owned named resource; NULL+0 removes it.
 bool nativeFighterProject_SetResource(const char* path, const char* name,

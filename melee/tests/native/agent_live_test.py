@@ -63,8 +63,11 @@ def main():
         return reply['result'] if expected else reply['error']
     project = appdata / 'Freak Melee/projects/Live Mario'
     project.parent.mkdir(parents=True, exist_ok=True)
-    cloned = run('clone-stock', args.iso.resolve(), 'Mario', project, 'Live Mario')
-    assert cloned.returncode == 0, cloned.stderr
+    mario = call('stock.list', {'query': 'Mario'})['fighters']
+    mario = next(row for row in mario if row['name'] == 'Mario')
+    cloned = call('project.clone_stock', {'iso': str(args.iso.resolve()), 'fighter_id': mario['fighter_id'],
+        'output': str(project), 'title': 'Live Mario'})
+    assert Path(cloned['project']) == project and len(cloned['members']) == 1
     saved = {'project': str(project)}
     files = call('scripts.list', saved)
     first = files['files'][0]['file']
@@ -228,6 +231,8 @@ def main():
         denied = call('scripts.update', dict(saved, revision=call('project.inspect', saved)['revision'],
             files=[{'file': first, 'text': 'do not overwrite the live draft'}]), expected=False)
         assert denied['code'] == 'draft_busy'
+        assert call('project.rename', dict(saved, revision=call('project.inspect', saved)['revision'],
+            title='Do not rename an open draft'), expected=False)['code'] == 'draft_busy'
         stale = call('session.scripts.update', dict(target, revision=original['revision'],
             summary='Stale edit', files=[{'file': first, 'text': 'do not overwrite'}]), expected=False)
         assert stale['code'] == 'revision_conflict' and stale['revision'] == changed['revision']

@@ -3,7 +3,7 @@
 #include <SDL3/SDL_iostream.h>
 #include "native_shell_css_original.h"
 #include <melee/ft/native_gx_image.h>
-#include <melee/ft/native_fighter_template.h>
+#include <melee/ft/native_fighter_draft_creation.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_home.h>
@@ -213,65 +213,13 @@ bool nativeHubCatalog_PublishDraft(const char* path, NativeHubPublish policy, Na
 bool nativeHubCatalog_CreateStockDraft(FighterKind kind, const char* title,
                                   char draft[512])
 {
-    NativeFighterFamilyMode mode = NativeFighterFamily_Single;
-    FighterKind partner = Ft_Kind_None;
-    if (kind == Ft_Kind_Zelda || kind == Ft_Kind_Seak) {
-        mode = NativeFighterFamily_AlternateForm;
-        partner = kind == Ft_Kind_Zelda ? Ft_Kind_Seak : Ft_Kind_Zelda;
-    }
-    if (kind == Ft_Kind_Popo || kind == Ft_Kind_Nana) {
-        mode = NativeFighterFamily_SimultaneousCompanion;
-        kind = Ft_Kind_Popo;
-        partner = Ft_Kind_Nana;
-    }
-    if (!new_path(draft) || !nativeFighterFamilyProject_CreateStockFromDisc(
-                                draft, title, mode, kind, partner))
-    {
-        return false;
-    }
-    char source[560], destination[560];
-    std::snprintf(source, sizeof(source), "%sui/portraits/stock-%u.png",
-                  SDL_GetBasePath(), unsigned(kind));
-    std::snprintf(destination, sizeof(destination), "%s/portrait.png", draft);
-    if (!SDL_CopyFile(source, destination)) {
-        return false;
-    }
-    if (!nativeFighterTemplate_Apply(draft)) {
-        return false;
-    }
-    std::snprintf(source,sizeof(source),"%sui/portraits/card-%u.png",SDL_GetBasePath(),unsigned(kind));
-    size_t card_size=0; void* card=SDL_LoadFile(source,&card_size);
-    bool card_ok=card && nativeFighterProject_SetResource(draft,"ui/player-card.png",NativeSourceResource_PNG,card,card_size);
-    SDL_free(card);
-    if (!card_ok) return false;
-    for (unsigned member = 0; member < (partner == Ft_Kind_None ? 1u : 2u); ++member) {
-        char member_path[560];
-        std::snprintf(member_path, sizeof(member_path), "%s%s", draft, member ? "/partner" : "");
-        const FighterKind member_kind = member ? partner : kind;
-        const char* assets[] = {"stock", "emblem"};
-        const char* resources[] = {"ui/stock-icon.png", "ui/emblem.png"};
-        for (unsigned asset = 0; asset < 2; ++asset) {
-            std::snprintf(source, sizeof(source), "%sui/portraits/hud-%s-%u.png",
-                          SDL_GetBasePath(), assets[asset], unsigned(member_kind));
-            size_t size = 0; void* bytes = SDL_LoadFile(source, &size);
-            const bool copied = bytes && nativeFighterProject_SetResource(member_path,
-                resources[asset], NativeSourceResource_PNG, bytes, size);
-            SDL_free(bytes);
-            if (!copied) return false;
-        }
-    }
-    if (partner != Ft_Kind_None) {
-        char partner_path[560];
-        std::snprintf(partner_path, sizeof(partner_path), "%s/partner", draft);
-        if (!nativeFighterTemplate_Apply(partner_path)) {
-            return false;
-        }
-    }
-    NativeFighterFamilyProjectInfo info{};
-    return nativeFighterFamilyProject_ReadInfo(draft, &info);
+    char error[768];
+    return new_path(draft) && nativeFighterDraft_CreateStock(draft, title, kind, error, sizeof(error));
 }
+
 bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512])
 {
+    char error[768];
     if (index >= nativeHubFighterCount || !nativeHubFighters[index].installed)
     {
         return false;
@@ -283,27 +231,28 @@ bool nativeHubCatalog_Copy(unsigned index, const char* title, char draft[512])
     bool ok = root && new_path(draft) &&
               nativeContentStore_Read(root, &nativeHubFighters[index].id,
                                       &packet, &size) &&
-              nativeFighterFamilyProject_CreateFromPackage(draft, title,
-                                                           packet, size) &&
+              nativeFighterDraft_CreateFromPackage(draft, title, packet, size, error, sizeof(error)) &&
               nativeHubCatalog_PublishDraft(draft, NativeHubPublish::InstallAndPlace);
     std::free(packet);
     return ok;
 }
 bool nativeHubCatalog_ImportFighter(const char* package_path, char draft[512])
 {
+    char error[768];
     uint8_t* bytes = nullptr;
     size_t size = 0;
     NativeFighterPackage fighter;
     NativeFighterPackageData data;
     bool ok = read_file(package_path, &bytes, &size, NATIVE_CONTENT_MAX_PACKAGE_BYTES) &&
         nativeContentStore_ParseFighter(bytes, size, &fighter, &data) && new_path(draft) &&
-        nativeFighterFamilyProject_CreateFromPackage(draft, fighter.title, bytes, size);
+        nativeFighterDraft_CreateFromPackage(draft, fighter.title, bytes, size, error, sizeof(error));
     std::free(bytes);
     return ok;
 }
 
 bool nativeHubCatalog_MakeEditable(unsigned index, char draft[512])
 {
+    char error[768];
     if (index >= nativeHubFighterCount) {
         return false;
     }
@@ -318,8 +267,7 @@ bool nativeHubCatalog_MakeEditable(unsigned index, char draft[512])
     size_t size = 0;
     bool ok = root && new_path(draft) &&
               nativeContentStore_Read(root, &f.id, &packet, &size) &&
-              nativeFighterFamilyProject_CreateFromPackage(draft, f.title,
-                                                           packet, size) &&
+              nativeFighterDraft_CreateFromPackage(draft, f.title, packet, size, error, sizeof(error)) &&
               nativeFighterProject_Install(draft, root, &f.id, nullptr);
     std::free(packet);
     return ok;
@@ -335,13 +283,13 @@ bool nativeHubCatalog_Rename(unsigned index, const char* title)
     }
     NativeFighterProjectInfo original{};
     if (!nativeFighterProject_ReadInfo(draft, &original) ||
-        !nativeFighterProject_Rename(draft, title))
+        nativeFighterProject_Rename(draft, title, nullptr, nullptr) != NativeFighterRename_Success)
     {
         return false;
     }
     if (nativeHubCatalog_PublishDraft(draft, NativeHubPublish::Install)) {
         return true;
     }
-    nativeFighterProject_Rename(draft, original.title);
+    nativeFighterProject_Rename(draft, original.title, nullptr, nullptr);
     return false;
 }

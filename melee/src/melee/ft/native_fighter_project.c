@@ -621,16 +621,6 @@ size_t nativeFighterProject_EncodeManifest(const char* title, const char* tile_n
     return size > 0 && (size_t)size < capacity ? (size_t)size : 0;
 }
 
-bool nativeFighterProject_Rename(const char* path, const char* title)
-{
-    NativeFighterProjectInfo info;
-    if (path == NULL || title == NULL || !title_valid(title) ||
-        !nativeFighterProject_ReadInfo(path, &info))
-        return false;
-    strcpy(info.title, title);
-    return save_manifest(path, &info);
-}
-
 bool nativeFighterProject_SetTileName(const char* path, const char* tile_name)
 {
     NativeFighterProjectInfo info;
