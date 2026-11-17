@@ -1,10 +1,17 @@
 #include "native_workshop_agent_catalog.h"
 #include "native_action_authoring.h"
+#include "native_animation_authoring.h"
 #include <cstring>
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
 static const Command commands[] = {
+    {"session.animations.read", "Read unsaved clips, bones, tracks, keys, local poses and native evaluated samples.", NativeAnimationAuthoring::read_schema(true), true},
+    {"session.animations.preview", "Read the actual frozen preview actor's applied clip/frame, local bone transforms and world matrices. Returns preview_pending until the requested draft pose has reached the actor. Includes current draft/loaded-package identity.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE R"(,"bones":{"type":"array","maxItems":512,"items":{"type":"integer","minimum":0,"maximum":511}}},"required":["instance"],"additionalProperties":false})", true},
+    {"session.animations.edit", "Atomically edit animation assets, including bulk keys/transforms/deletion, pose copying and independent clip creation. Shares Workshop undo and selects the edited clip for frozen preview.", NativeAnimationAuthoring::edit_schema(true), false},
+    {"session.animations.select", "Select an action/demo clip in Animation and seek the frozen preview to a frame.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION R"(,"clip":{"type":"object","properties":{"bank":{"type":"string","enum":["action","demo"]},"index":{"type":"integer","minimum":0,"maximum":1023}},"required":["bank","index"],"additionalProperties":false},"frame":{"type":"integer","minimum":0,"maximum":65535}},"required":["instance","revision","clip"],"additionalProperties":false})", false},
     {"session.actions.list", "List the live member's real action IDs, names and labels, including unsaved archive edits.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE R"(,"query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200}},"required":["instance"],"additionalProperties":false})", true},
     {"session.actions.read", "Inspect live playback, events, typed properties, creation defaults or the expanded event timeline. Uses the same native action codecs and timer/loop tracing as the Workshop. Event handles belong to the returned revision.", NativeActionAuthoring::read_schema(true), true},

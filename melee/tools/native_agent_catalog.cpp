@@ -1,6 +1,7 @@
 #include "native_agent_internal.h"
 #include <melee/ft/native_workshop_agent_catalog.h>
 #include <melee/ft/native_action_authoring.h>
+#include <melee/ft/native_animation_authoring.h>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -9,6 +10,8 @@ namespace NativeAgent {
 #define PAGE_FIELDS R"("query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200})"
 #define PROJECT_FIELDS R"("project":{"type":"string","minLength":1,"maxLength":500},"member":{"type":"string","maxLength":31})"
 static const Tool offline_tools[] = {
+    {"animations.read", "Inspect clips, bones and rest transforms, clip metadata, tracks, keys, bone-local poses or evaluated samples. IDs come from inspection and belong to its revision. Foreign rig bindings are identified explicitly.", NativeAnimationAuthoring::read_schema(false), read_animations, true},
+    {"animations.edit", "Atomically create/duplicate an action clip, change duration, insert bone keys, change/delete/transform selected keys across bones, or copy a pose. Uses native evaluation and encoding limits; returns applied values and preserves a rejected draft.", NativeAnimationAuthoring::edit_schema(false), edit_animations, false},
     {"instances.list", "Discover local running Workshop endpoints. Each returned instance must be chosen explicitly for live requests.",
         R"({"type":"object","properties":{},"additionalProperties":false})", running_instances, true},
     {"environment.describe", "Locate this installation, local drafts, build identity and available authoring tools.",
@@ -107,6 +110,10 @@ bool call(const Context& context, const char* name, yyjson_val* arguments, Reply
         const auto& tool = tools[i];
         if (std::strcmp(tool.name, name)) continue;
         auto* schema = yyjson_read(tool.schema, std::strlen(tool.schema), 0);
+        if (!schema) {
+            reply.fail("invalid_tool_schema", std::string("Could not load the tool schema: ") + name);
+            return false;
+        }
         bool valid = schema && validate(arguments, yyjson_doc_get_root(schema), reply);
         yyjson_doc_free(schema);
         if (valid) {

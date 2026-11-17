@@ -22,6 +22,7 @@ typedef struct AnimationClip {
     unsigned offset;
     unsigned size;
     const char* name;
+    u32 binding_flags;
 } AnimationClip;
 
 static uint32_t be32(const uint8_t* p)
@@ -34,6 +35,7 @@ typedef struct ClipDescriptor {
     const char* name;
     int32_t offset;
     int32_t size;
+    u32 binding_flags;
 } ClipDescriptor;
 
 static bool descriptor(const NativeFighterProject* project,
@@ -41,7 +43,7 @@ static bool descriptor(const NativeFighterProject* project,
                        ClipDescriptor* result)
 {
     HSD_Dat fighter;
-    u32 root, table, string, offset, size;
+    u32 root, table, string, offset, size, flags;
     const char* external;
     unsigned count, field;
     if (project == NULL || result == NULL) return false;
@@ -66,12 +68,13 @@ static bool descriptor(const NativeFighterProject* project,
         HSD_DatResolve(&fighter, table + reference.index * 24, &string,
                        &external) != HSD_DAT_REF_LOCAL ||
         !HSD_DatReadU32(&fighter, table + reference.index * 24 + 4, &offset) ||
-        !HSD_DatReadU32(&fighter, table + reference.index * 24 + 8, &size))
+        !HSD_DatReadU32(&fighter, table + reference.index * 24 + 8, &size) ||
+        !HSD_DatReadU32(&fighter, table + reference.index * 24 + 16, &flags))
         return false;
     const char* name = (const char*) HSD_DatBytes(&fighter, string, 1);
     if (name == NULL || *name == '\0' ||
         memchr(name, 0, fighter.data_size - string) == NULL) return false;
-    *result = (ClipDescriptor){ name, (int32_t) offset, (int32_t) size };
+    *result = (ClipDescriptor){ name, (int32_t) offset, (int32_t) size, flags };
     return true;
 }
 
@@ -133,6 +136,7 @@ static bool open_clip(const NativeFighterProject* project,
                               clip->tracks, MAX_TRACKS, &clip->nodes) !=
             HSD_DAT_OK) return false;
     clip->name = metadata.name;
+    clip->binding_flags = metadata.binding_flags;
     clip->track_count = 0;
     for (unsigned i = 0; i < clip->nodes; ++i)
         clip->track_count += (uint8_t) clip->tree.nodes[i];
@@ -303,7 +307,7 @@ bool nativeFighterAnimation_Info(const NativeFighterProject* project,
     if (!open_clip(project, reference, &clip)) return false;
     *info = (NativeFighterAnimationInfo){
         clip.tree.frames, clip.nodes, clip.track_count, clip.offset, clip.size,
-        clip.name
+        clip.name, clip.binding_flags
     };
     return true;
 }

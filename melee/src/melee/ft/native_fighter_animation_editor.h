@@ -17,6 +17,7 @@ typedef struct NativeFighterAnimationInfo {
     unsigned clip_size;
     // Borrowed descriptor name; valid until the project's fighter DAT changes.
     const char* name;
+    uint32_t binding_flags;
 } NativeFighterAnimationInfo;
 
 typedef struct NativeFighterAnimationTrack {

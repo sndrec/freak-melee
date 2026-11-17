@@ -1,4 +1,5 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/ft/native_animation_edits.h>
 #include <melee/lb/native_math_functions.h>
 
 #ifdef MELEE_NATIVE
@@ -981,17 +982,17 @@ void apply_key()
     std::vector<uint8_t> before(session->project->animation_dat,
                                 session->project->animation_dat + size);
     std::vector<uint8_t> fighter;
-    const NativeFighterAnimationKeyTime timing = {{track, key}, (int) frame};
     if (frame != original.frame)
         fighter.assign(session->project->fighter_dat,
                        session->project->fighter_dat + session->project->fighter_size);
-    const bool valid = (fighter.empty() ||
-        nativeFighterAnimation_EditKeys(session->project, session->animation_clip,
-                                        &timing, 1, false)) &&
-        (value == original.value ||
-         nativeFighterAnimation_SetKey(session->project, session->animation_clip, track, key, value)) &&
-        (tangent == original.tangent ||
-         nativeFighterAnimation_SetTangent(session->project, session->animation_clip, track, key, tangent));
+    std::vector<NativeAnimationEdits::Change> requested = {
+        {{track, key}, (int)frame, value, tangent,
+         (frame != original.frame ? NativeAnimationEdits::Time : 0u) |
+         (value != original.value ? NativeAnimationEdits::Value : 0u) |
+         (tangent != original.tangent ? NativeAnimationEdits::Tangent : 0u)}};
+    std::vector<NativeAnimationEdits::Change> applied;
+    std::string error;
+    const bool valid = NativeAnimationEdits::apply(*session->project, session->animation_clip, requested, applied, error);
     if (!valid) {
         std::memcpy(session->project->animation_dat, before.data(), size);
         session->project->animation_size = size;

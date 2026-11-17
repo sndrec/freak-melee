@@ -1565,7 +1565,7 @@ aurora_copy_runtime_dlls(native_model_view)
 add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/native_content_tool.c tools/native_source_content_tool.c tools/native_source_resource_tool.c
     tools/native_fighter_parameter_tool.c tools/native_fighter_cpu_tool.c
     tools/native_agent_tool.cpp tools/native_agent_catalog.cpp
-    tools/native_agent_read.cpp tools/native_agent_mcp.cpp tools/native_agent_actions.cpp
+    tools/native_agent_read.cpp tools/native_agent_mcp.cpp tools/native_agent_actions.cpp tools/native_agent_animations.cpp
     tools/native_agent_project.cpp tools/native_agent_validation.cpp tools/native_agent_build.cpp
     tools/native_agent_parameters.cpp tools/native_agent_examples.cpp
     tools/native_agent_script_edit.cpp tools/native_agent_live.cpp)
@@ -2226,6 +2226,9 @@ add_test(NAME native_fighter_animation_edit_roundtrip COMMAND
 add_test(NAME native_fighter_pose_transfer_roundtrip COMMAND
     Python3::Interpreter
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/fighter_pose_transfer_roundtrip.py"
+    "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
+add_test(NAME native_agent_animations COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/native/agent_animations_test.py"
     "$<TARGET_FILE:native_content_tool>" "${MELEE_ISO}")
 add_test(NAME native_fighter_normal_copy_roundtrip COMMAND
     Python3::Interpreter

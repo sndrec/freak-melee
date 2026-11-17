@@ -240,6 +240,12 @@ change. Finish with Save/Build as appropriate, then refresh the preview to run
 the edited fighter. `session.actions.select` selects an action and optional
 frame without changing its data.
 
+## Edit animations
+
+The [animation authoring guide](agent_animation.md) covers clip and bone
+discovery, evaluated poses, key insertion, bulk key changes/deletion/transforms,
+pose copying and verification against the actual frozen preview actor.
+
 ## Report a bug or missing capability
 
 Use the feedback tools when an authoring operation fails reproducibly or a

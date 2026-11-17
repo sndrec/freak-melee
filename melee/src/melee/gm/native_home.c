@@ -1289,6 +1289,20 @@ void nativeHome_WorkshopPoseInvalidate(void)
     home.workshop_pose_frame = -1.0f;
 }
 
+bool nativeHome_WorkshopPoseStatus(const NativeFighterProject* draft,
+    NativeFighterAnimationClip* clip, float* frame)
+{
+    if (!clip || !frame || !draft || !home.authoring || !home.preview_active ||
+        home.preview_live_test || home.preview_transitioning ||
+        home.workshop_pose_project != draft || home.workshop_pose_frame < 0 ||
+        home.workshop_pose_clip.index == UINT_MAX ||
+        !nativeFighterLifetime_Current(&home.workshop_pose_lifetime) ||
+        !nativeCallbackSource_Alive(home.workshop_pose_gobj,
+            home.workshop_pose_generation, NativeCallbackSource_Fighter)) return false;
+    *clip = home.workshop_pose_clip; *frame = home.workshop_pose_frame;
+    return true;
+}
+
 bool nativeHome_WorkshopHitboxScreen(unsigned hitbox, unsigned angle,
                                     NativeHomeWorkshopHitboxScreen* result)
 {

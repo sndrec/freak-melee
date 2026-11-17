@@ -73,17 +73,23 @@ def main():
         run(tool, "project-animation-undo", project)
         assert digest(bank.read_bytes()) == digest(original)
 
+        before_move = run(tool, "project-animation", project, 295, 0).splitlines()[1:]
+        other_track = run(tool, "project-animation", project, 295, 1).splitlines()[1:]
         run(tool, "project-animation-move", project, 295, 0, 5, 12)
         moved = bank.read_bytes()
-        changed = [i for i, (a, b) in enumerate(zip(original, moved))
-                   if a != b]
-        assert changed == [403635, 403638], changed
+        assert moved != original
+        # Retiming re-encodes and relocates the stream. Verify key semantics
+        # and unrelated tracks rather than the old two-byte patch layout.
+        expected = [line.replace("5 frame=11 ", "5 frame=12 ", 1)
+                    if line.startswith("5 frame=") else line for line in before_move]
+        assert run(tool, "project-animation", project, 295, 0).splitlines()[1:] == expected
+        assert run(tool, "project-animation", project, 295, 1).splitlines()[1:] == other_track
         keys = run(tool, "project-animation", project, 295, 0)
         assert "5 frame=12" in keys and "6 frame=13" in keys
         assert abs(sample(tool, project, 11) - 0.0593566895) < 1e-7
         run(tool, "project-animation-move", project, 295, 0, 5, 13,
             succeeds=False)
-        run(tool, "project-animation-move", project, 295, 0, 1, 3,
+        run(tool, "project-animation-move", project, 295, 0, 1, 4,
             succeeds=False)
         assert digest(bank.read_bytes()) == digest(moved)
         run(tool, "project-animation-undo", project)
@@ -95,8 +101,10 @@ def main():
         assert sample(tool, project, 13) == remaining_at_13
         run(tool, "project-animation-undo", project)
         assert digest(bank.read_bytes()) == digest(original)
-        run(tool, "project-animation-delete", project, 295, 0, 0,
-            succeeds=False)
+        run(tool, "project-animation-delete", project, 295, 0, 0)
+        assert "frame=0 " not in run(tool, "project-animation", project, 295, 0)
+        assert sample(tool, project, 13) == remaining_at_13
+        run(tool, "project-animation-undo", project)
         assert digest(bank.read_bytes()) == digest(original)
         run(tool, "project-animation-insert", project, 295, 0, 11, 0.25)
         with_key = run(tool, "project-animation", project, 295, 0)

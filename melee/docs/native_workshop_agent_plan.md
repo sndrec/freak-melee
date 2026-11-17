@@ -142,10 +142,24 @@ Accepted 2026-11-17. Implementation is in progress.
   hidden/muted Workshop checks pass with a Windows-only PATH, including grouped
   undo/redo, label visibility in the UI and labels saved through build/install.
 
-One broader animation roundtrip check has a pre-existing exact-byte assertion
-failure after key retiming. The same failure reproduces against the extracted
-reference package built before these changes. Its semantic replacement will be
-addressed with the animation tools; it is not counted as a passing check here.
+- Saved/live animation tools now discover clips, model bones, native tracks,
+  keys and evaluated poses. They create independent rest clips, duplicate clips,
+  change duration, insert channels, copy endpoint poses and edit/delete/transform
+  keys across selected bones. Key changes use the same operation as the graph
+  gestures and inspector, report quantization and reject partial batches. Clip
+  creation/duplication carries the correct rig binding while preserving target
+  action events and playback settings. Foreign bindings expose raw tracks and
+  samples; bone-local editing reports the binding requirement.
+  Live changes share structural animation undo. A read-only preview operation
+  reports the actual frozen actor's clip, frame and bone transforms. The real
+  hidden/muted client verifies an edited pose, Undo/Redo, unchanged disk before
+  Save, persisted keys, practice, installation and export. All fifteen core
+  checks pass, including semantic retiming/curve evaluation checks replacing an
+  old fixed-byte assertion. Extracted-package CLI/MCP/launcher and live tests pass
+  with a Windows-only PATH. The bundled reference contains 89 pages and an
+  animation authoring guide. Pose-copy capacity and skipped channels are reported;
+  this uses the current editor's native pose buffer. No public upload occurred.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

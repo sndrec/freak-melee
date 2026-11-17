@@ -1,5 +1,6 @@
 #include "native_shell_workshop_editor_internal.h"
 #include <melee/lb/native_math_functions.h>
+#include <melee/ft/native_animation_edits.h>
 #ifdef MELEE_NATIVE
 namespace WorkshopEditor {
 
@@ -290,35 +291,16 @@ namespace WorkshopEditor {
         if (!changed) {
             return false;
         }
-        std::vector<NativeFighterAnimationKeyTime> times;
-        for (const KeyTarget& target : targets)
-            if (target.frame != target.baseline.frame)
-                times.push_back({target.baseline.ref, target.frame});
-        std::sort(times.begin(), times.end(), [](const auto& a, const auto& b) {
-            return a.ref.track < b.ref.track ||
-                   (a.ref.track == b.ref.track && a.ref.key < b.ref.key);
-        });
-        bool valid = times.empty() || nativeFighterAnimation_EditKeys(
-            session->project, session->animation_clip, times.data(), times.size(), false);
+        std::vector<NativeAnimationEdits::Change> changes, applied;
         for (const KeyTarget& target : targets) {
-            if (!valid) {
-                break;
-            }
-            if (target.value != target.baseline.value) {
-                valid = nativeFighterAnimation_SetKey(
-                    session->project, session->animation_clip,
-                    target.baseline.ref.track, target.baseline.ref.key,
-                    target.value);
-            }
-            if (valid && target.baseline.tangent_editable &&
-                target.tangent != target.baseline.tangent)
-            {
-                valid = nativeFighterAnimation_SetTangent(
-                    session->project, session->animation_clip,
-                    target.baseline.ref.track, target.baseline.ref.key,
-                    target.tangent);
-            }
+            unsigned fields = (target.frame != target.baseline.frame ? NativeAnimationEdits::Time : 0u) |
+                (target.value != target.baseline.value ? NativeAnimationEdits::Value : 0u) |
+                (target.tangent != target.baseline.tangent ? NativeAnimationEdits::Tangent : 0u);
+            if (fields) changes.push_back({target.baseline.ref, target.frame, target.value, target.tangent, fields});
         }
+        std::string error;
+        const bool valid = changes.empty() || NativeAnimationEdits::apply(
+            *session->project, session->animation_clip, changes, applied, error);
         if (!valid) {
             restore_graph_draft();
             set_text("workshop-editor-status",

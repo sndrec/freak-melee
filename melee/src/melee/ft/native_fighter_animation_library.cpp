@@ -35,7 +35,7 @@ namespace {
                              target) < 128;
     }
     bool publish(NativeFighterProject* project, unsigned target,
-                 const char* name, const std::vector<uint8_t>& clip)
+                 const char* name, const std::vector<uint8_t>& clip, uint32_t binding)
     {
         if (!project || target >= project->action_count) {
             return false;
@@ -70,6 +70,12 @@ namespace {
         dat.link(table + target * 24, string);
         dat.word(table + target * 24 + 4, (uint32_t) offset);
         dat.word(table + target * 24 + 8, (uint32_t) clip.size());
+        // Copy the source rig tag and omitted-part mask. Playback/root-motion
+        // settings belong to the destination action.
+        const uint32_t binding_mask = 63u | (0x1fffu << 9);
+        dat.word(table + target * 24 + 16,
+            (NativeAssetDat::read32(project->fighter_dat + 32 + table + target * 24 + 16) & ~binding_mask) |
+            (binding & binding_mask));
         std::vector<uint8_t> fighter;
         if (!dat.finish(&fighter)) {
             return false;
@@ -135,7 +141,7 @@ nativeFighterAnimation_Duplicate(NativeFighterProject* p,
         return false;
     }
     auto clip = named_clip(dat, symbol);
-    return !clip.empty() && publish(p, target, symbol, clip);
+    return !clip.empty() && publish(p, target, symbol, clip, info.binding_flags);
 }
 extern "C" bool nativeFighterAnimation_CreateRest(NativeFighterProject* p,
                                                   unsigned target,
@@ -214,7 +220,7 @@ extern "C" bool nativeFighterAnimation_CreateRest(NativeFighterProject* p,
     word(clip, 4, (uint32_t) data.size());
     word(clip, 8, (uint32_t) relocs.size());
     word(clip, 12, 1);
-    return publish(p, target, symbol, clip);
+    return publish(p, target, symbol, clip, p->facts.animation_tag);
 }
 extern "C" bool
 nativeFighterAnimation_RestoreDescriptors(NativeFighterProject* p,

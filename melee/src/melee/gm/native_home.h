@@ -75,6 +75,8 @@ typedef struct NativeHomeWorkshopBoneLocal {
 } NativeHomeWorkshopBoneLocal;
 bool nativeHome_WorkshopBoneLocal(unsigned joint,
                                   NativeHomeWorkshopBoneLocal* result);
+bool nativeHome_WorkshopPoseStatus(const NativeFighterProject* draft,
+    NativeFighterAnimationClip* clip, float* frame);
 bool nativeHome_WorkshopSetBoneLocal(unsigned joint,
                                      const NativeHomeWorkshopBoneLocal* value);
 // Transient editor visibility, hover tint and selected-bone heatmap.

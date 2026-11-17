@@ -181,7 +181,6 @@ def main():
                 time.sleep(.15)
             raise AssertionError(f'Preview did not load {package}; inspect {output}')
         state = wait_preview(state['requested_preview_package_id'])
-        initial_package = state['loaded_preview_package_id']
         state = call('session.workspace.select', dict(target, revision=state['revision'], workspace='scripting'))
         assert state['workspace'] == 'scripting'
         listing = call('session.scripts.list', target)
@@ -375,11 +374,42 @@ def main():
         assert not call('session.actions.read', dict(target, view='metadata', action_id=dair))['hidden']
         reverted = call('session.redo', dict(target, revision=undone_label['revision']))
         assert call('session.actions.read', dict(target, view='metadata', action_id=dair))['label'] == 'Orbital kicks'
+        # Sampled draft data and the actor that is actually rendered must agree.
+        animation_clip = {'bank': 'action', 'index': dair}
+        rest = call('session.animations.edit', dict(target, revision=reverted['revision'], operation='create',
+            target_action=dair, name='AgentDownAir', frames=24, summary='Create an independent preview clip'))
+        bones = call('session.animations.read', dict(target, view='bones', clip=animation_clip, limit=200))['bones']
+        hip = next(bone['id'] for bone in bones if bone.get('role') == 'HipN')
+        keyed = call('session.animations.edit', dict(target, revision=rest['revision'], operation='insert', clip=animation_clip,
+            summary='Key a visibly tilted pose', insertions=[{'bone': hip, 'channel': 'rotation_z', 'frame': 10, 'value': .5}]))
+        selected = call('session.animations.select', dict(target, revision=keyed['revision'], clip=animation_clip, frame=10))
+        def actor_pose(expected):
+            for _ in range(50):
+                result = run('agent', 'call', 'session.animations.preview', '--stdin', input=json.dumps(dict(target, bones=[hip])))
+                reply = json.loads(result.stdout)
+                if reply['ok']:
+                    pose = reply['result']
+                    if pose['clip'] == animation_clip and pose['frame'] == 10 and abs(pose['bones'][0]['rotation'][2] - expected) < .0001:
+                        return pose
+                else: assert reply['error']['code'] == 'preview_pending', reply
+                time.sleep(.1)
+            raise AssertionError('Edited animation did not reach the rendered preview actor')
+        visible = actor_pose(.5)
+        assert visible['workspace'] == 'animation' and snapshot(project) == action_disk
+        if args.control: control('screenshot')
+        undo_animation = call('session.undo', dict(target, revision=visible['revision']))
+        after_undo = actor_pose(bones[hip]['rotation'][2])
+        redone_animation = call('session.redo', dict(target, revision=after_undo['revision']))
+        reverted = actor_pose(.5)
         built = call('session.build', dict(target, revision=reverted['revision']))
         assert built['accepted'] and built['saved'] and not built['installed'] and not built['dirty'], built
-        assert built['loaded_preview_package_id'] == initial_package and not built['preview_matches_fighter'], built
+        # Animation history reloads the actor's package. Build itself preserves
+        # that current actor rather than implicitly starting another preview.
+        assert built['loaded_preview_package_id'] == reverted['loaded_preview_package_id'], built
         assert all(row['accepted'] for row in built['member_reports'])
         assert call('actions.read', dict(saved, action_id=dair, view='metadata'))['label'] == 'Orbital kicks'
+        saved_pose = call('animations.read', dict(saved, view='pose', clip=animation_clip, frame=10, limit=200))
+        assert saved_pose['pose'][hip]['rotation'][2] == .5
         accepted_disk = snapshot(project)
         preview_text = final_text + '# unsaved preview snapshot\n'
         draft = call('session.scripts.update', dict(target, revision=built['revision'], summary='Preview unsaved source',
