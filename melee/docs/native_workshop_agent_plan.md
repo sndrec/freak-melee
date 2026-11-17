@@ -337,9 +337,14 @@ Accepted 2026-11-17. Implementation is in progress.
   errors for all 95 commands. Shared reply shapes cover draft and live
   revisions, validation diagnostics, practice traces and feedback receipts.
   Model reads use the shape for the requested view, including separate bones,
-  meshes, materials, texture sequences and skin weights. The contracts matched
-  1,152 recorded offline and live replies. Full packaged acceptance remains
-  open.
+  meshes, materials, texture sequences and skin weights.
+
+- Packaged acceptance passed. The extracted tools returned 1,189 replies
+  across all 95 commands, each matching its result schema. The Comet Mario
+  acceptance draft exercised shared authoring for an action, animation,
+  material, scripted item and CSS tile. The practice trace now reports the
+  active Action-bank animation ID alongside the runtime action ID, so the
+  played clip can be checked against the authored clip.
 
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
@@ -618,6 +623,31 @@ animation and model presentation. Keep the source draft, exported package and
 short result summary as the acceptance artifact. Verify package preparation
 includes the tools, documentation, schemas and examples, and excludes test
 profiles, account credentials and developer-only outputs.
+
+### Acceptance results
+
+The extracted release ran outside the checkout with isolated userdata, the
+player's ISO and a Windows-only PATH. Test drivers ran outside the installation.
+Both native CLI and stdio MCP were exercised. The package contained the guide,
+scripting reference, templates and production tools.
+
+- The action and animation tests verified repeated hitbox timing, damage,
+  element, eligibility, independent clips, pose copy and multi-bone edits.
+- The script tests recovered from multiple source errors and verified parameter
+  updates, interpreter state and replay in practice. Family tests independently
+  edited and exported both Zelda and Sheik and preserved member assets.
+- The model tests imported and reimported a skinned GLB, retained its source
+  weights, painted a third influence and replaced a texture. The normal
+  Workshop UI shared live state, selection and undo with the agent.
+- Stale revisions, concurrent draft ownership, interrupted saves and rejected
+  batches preserved the correct draft. The F2 loopback tests verified both
+  report types, capture-time attachments and retries using the same report ID.
+- Comet Mario used an electric down-air, a new two-bone animation, an amber
+  material and a scripted held item. The frozen actor applied the authored
+  pose. In practice the item hit on frame 220 and retired on frame 303, and
+  the edited down-air clip used its hitboxes. The draft then received a new
+  portrait tile and was installed and exported. The private local acceptance
+  folder contains the draft, package, preview PNG and short results.
 
 ## Delivery order and completion
 

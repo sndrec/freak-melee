@@ -60,7 +60,7 @@ typedef struct NativeWorkshopPracticeState {
 
 typedef struct NativeWorkshopPracticeFighter {
     bool present, airborne;
-    int kind, action, hitboxes;
+    int kind, action, animation, hitboxes;
     float animation_frame, damage, x, y, vx, vy, facing, hitlag;
     uint64_t script_state;
 } NativeWorkshopPracticeFighter;

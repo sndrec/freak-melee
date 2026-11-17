@@ -208,6 +208,18 @@ def main():
         assert pending['status'] == 'checkpoint_pending'
         reset = wait(trial, lambda value: value['status'] == 'ready')
         assert reset['frame'] == 0 and trace(reset, 0, 1) == first
+        moves = call('session.actions.list', dict(target, query='AttackAirLw'))['actions']
+        clip = next(row['id'] for row in moves if row['name'] == 'AttackAirLw')
+        aerial = run(reset, [
+            {'frames': 180},
+            {'frames': 1, 'pads': [{'port': 0, 'buttons': ['X']}]},
+            {'frames': 4},
+            {'frames': 1, 'pads': [{'port': 0, 'buttons': ['A'], 'stick_y': -127}]},
+            {'frames': 27},
+        ])
+        attack = next(fighter for row in trace(aerial, 180) for fighter in row['fighters']
+                      if fighter['port'] == 0 and fighter['animation_id'] == clip and fighter['hitboxes'])
+        assert attack['action_id'] != attack['animation_id'], attack
         assert snapshot(project) == disk
         state = workshop()
         call('session.practice.stop', dict(target, revision=state['revision']))

@@ -174,6 +174,7 @@ static void sample(void)
         NativeWorkshopPracticeFighter* actor = &row->fighters[i];
         *actor = (NativeWorkshopPracticeFighter){
             .present = true, .kind = fighter->kind, .action = fighter->motion_id,
+            .animation = fighter->anim_id,
             .animation_frame = fighter->cur_anim_frame,
             .damage = fighter->dmg.x1830_percent, .x = fighter->cur_pos.x, .y = fighter->cur_pos.y,
             .vx = fighter->self_vel.x, .vy = fighter->self_vel.y,

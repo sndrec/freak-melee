@@ -57,7 +57,7 @@ void practice(Catalog& c)
             .fields({{"first_failure_frame", "integer"}}, false).schema)));
 
     auto actor = c.object({{"port", "integer"}, {"actor", "integer"}, {"runtime_kind", "integer"},
-                           {"action_id", "integer"}, {"airborne", "boolean"}})
+                           {"action_id", "integer"}, {"animation_id", "integer"}, {"airborne", "boolean"}})
         .add("hitboxes", c.array("integer")).fields({{"script_state", "string"}}, false);
     for (const char* field : {"animation_frame", "damage", "x", "y", "vx", "vy", "facing", "hitlag"})
         actor.add(field, c.nullable("number"));

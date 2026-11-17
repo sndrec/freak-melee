@@ -156,6 +156,7 @@ void add_trace(const NativeWorkshopPracticeTrace& trace, Reply& reply, yyjson_mu
         yyjson_mut_obj_add_uint(reply.document, row, "actor", i % 2);
         yyjson_mut_obj_add_int(reply.document, row, "runtime_kind", source.kind);
         yyjson_mut_obj_add_int(reply.document, row, "action_id", source.action);
+        yyjson_mut_obj_add_int(reply.document, row, "animation_id", source.animation);
         if (source.script_state) {
             char hex[17];
             std::snprintf(hex, sizeof(hex), "%016llx", static_cast<unsigned long long>(source.script_state));

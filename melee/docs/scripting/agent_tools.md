@@ -233,6 +233,9 @@ hits. Each row also reports interpreter faults for that frame and the
 fighter's persistent script-state fingerprint. A trace row describes the
 state after its frame finished. When the number of items, hits or faults
 exceeds the number of detail rows, the count shows the full total.
+Each fighter's `action_id` is the runtime state used by script callbacks.
+`animation_id` is the playing Action-bank clip index used by
+`animations.read`. It is -1 when the fighter has no animation.
 Item owners and hit participants use the index `2 * port + actor`, where
 `actor` is 0 for the main fighter and 1 for its partner. An item without a
 fighter owner uses -1. Fault locations refer to the combined program.
