@@ -3,6 +3,9 @@
 #include "native_hub_startup.h"
 #include "native_hub_startup_roster.h"
 #include "native_shell_workshop.h"
+#include <melee/ft/native_fighter_draft_access.h>
+#include <melee/ft/native_authoring_reply.h>
+#include <melee/gm/native_feedback.h>
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_home.h>
@@ -21,6 +24,11 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+namespace Presentation = NativeFighterPresentation;
 
 namespace {
     constexpr float x = 71, y = 133, size = 264;
@@ -33,11 +41,21 @@ namespace {
     bool dragging, waiting;
     float small_size=64;
     bool editing,pending,return_editor,card_mode;
+    bool install_capture;
+    struct {
+        Presentation::Framing framing;
+        char label[64];
+        bool card;
+        unsigned id;
+        const char* status = "idle";
+    } capture;
+    unsigned generation;
     unsigned edit_member;
-    char draft[512],edit_name[64],edit_title[64];
+    char draft[512],edit_name[64],edit_title[64],edit_template[NATIVE_FIGHTER_CODE_KEY_BYTES];
     void apply_camera();
     void fail(const char* message);
     char edit_error[192];
+    std::string disk_revision;
     NativePortraitCamera saved_camera[2];
     bool has_saved_camera[2];
     char saved_animation[2][64], frame_text[32];
@@ -108,11 +126,15 @@ namespace {
     }
     bool load_project()
     {
+        NativeDraftAccess::Lease lease;
+        std::string error;
+        if (!lease.acquire(draft, error) || !NativeDraftAccess::revision(draft, disk_revision, error)) return false;
         NativeFighterProjectInfo info{};
         if (!nativeFighterProject_ReadInfo(draft, &info)) return false;
         std::snprintf(edit_name, sizeof(edit_name), "%s",
                       info.tile_name[0] ? info.tile_name : info.title);
         std::snprintf(edit_title, sizeof(edit_title), "%s", info.title);
+        std::strcpy(edit_template, info.template_key);
         nativeMenuFighter_UnloadAll();
         count = 0;
         for (auto& portrait : saved_portraits) nativeMenuPortrait_Free(&portrait);
@@ -127,13 +149,13 @@ namespace {
                                        &resources, nullptr, 0);
         if (has_resources)
             for (unsigned mode=0;mode<2;++mode) {
-                const auto* record=nativeSourceResources_Find(&resources,mode?"ui/portrait-card.camera":"ui/portrait-tile.camera",NativeSourceResource_Blob);
-                if (!record || record->size>=192) continue;
-                char text[192]{}; std::memcpy(text,record->bytes,record->size);
-                auto& c=saved_camera[mode];
-                has_saved_camera[mode]=std::sscanf(text,"%f %f %f %f %f %f %63s",&c.yaw,&c.pitch,&c.zoom,&c.pan_x,&c.pan_y,&c.frame,saved_animation[mode])==7 &&
-                    std::isfinite(c.yaw) && std::isfinite(c.pitch) && std::isfinite(c.zoom) && std::isfinite(c.pan_x) && std::isfinite(c.pan_y) &&
-                    std::isfinite(c.frame) && c.zoom>=.15f && c.zoom<=32 && c.frame>=0 && c.frame<=1024;
+                Presentation::Framing framing;
+                has_saved_camera[mode] = Presentation::read_framing(resources,
+                    mode ? Presentation::Target::Card : Presentation::Target::Tile, framing);
+                if (has_saved_camera[mode]) {
+                    saved_camera[mode] = framing.camera;
+                    std::strcpy(saved_animation[mode], framing.animation);
+                }
             }
         if (opened) {
             edit_member = std::min(edit_member, family.member_count - 1);
@@ -200,6 +222,57 @@ namespace {
         }
     }
 
+    Presentation::Framing framing()
+    {
+        Presentation::Framing value{camera};
+        std::snprintf(value.animation, sizeof(value.animation), "%s",
+            count ? nativeMenuFighter_CurrentAnimation(subjects[0].slot) : "Wait1");
+        return value;
+    }
+
+    void select_target(bool card)
+    {
+        if (card == card_mode) return;
+        if (count) commit_frame();
+        const auto previous = framing();
+        saved_camera[card_mode] = previous.camera;
+        has_saved_camera[card_mode] = true;
+        std::strcpy(saved_animation[card_mode], previous.animation);
+        card_mode = card;
+        dragging = animation_open = false;
+        restore_camera();
+    }
+
+    bool request_capture(bool install)
+    {
+        char root[512];
+        const char* folder = nativeHubCatalog_Root(root);
+        char temporary[MAX_PATH];
+        if (!folder || !GetTempFileNameA(folder, "fmp", 0, temporary)) {
+            fail("Could not create a temporary portrait in your user-data folder.");
+            return false;
+        }
+        std::snprintf(destination, sizeof(destination), "%s", temporary);
+        commit_frame();
+        apply_camera();
+        nativeHub_ChangePage(hub.page);
+        edit_error[0] = 0;
+        capture.framing = framing();
+        std::strcpy(capture.label, nativeHubPortrait_TileName());
+        capture.card = card_mode;
+        const auto picture = photo();
+        waiting = nativeMenuPortraitCapture_Request(subjects, count, destination, card_mode ? 136 : 464,
+            card_mode ? 188 : unsigned(std::lround(464 * picture.height / picture.width)), card_mode);
+        install_capture = install;
+        if (++capture.id == 0) ++capture.id;
+        capture.status = waiting ? "pending" : "failed";
+        if (!waiting) {
+            DeleteFileA(destination);
+            fail("Could not capture this portrait. Try again.");
+        }
+        return waiting;
+    }
+
     void draw_saved_portrait(const NativeMenuTilePortrait& rect)
     {
         const auto& portrait = saved_portraits[card_mode && saved_portraits[1].pixels ? 1 : 0];
@@ -242,9 +315,13 @@ void nativeHubPortrait_Open(const char* path,unsigned member,bool return_to_edit
     if (!path || !*path || nativeHubStartup.active) return;
     std::snprintf(draft,sizeof(draft),"%s",path); edit_member=member; return_editor=return_to_editor;
     pending=true; editing=card_mode=false; edit_error[0]=0;
+    ++generation;
+    disk_revision.clear();
+    capture.status = "idle";
     if (!nativeHome_IsSelection()) nativeHome_ReturnToSelection();
 }
 bool nativeHubPortrait_Editing() { return editing; }
+bool nativeHubPortrait_Requested() { return editing || pending; }
 char* nativeHubPortrait_FrameText() { return frame_text; }
 char* nativeHubPortrait_TileName() { return editing?edit_name:nativeHubStartup.tile_name; }
 bool nativeHubPortrait_Activate(HubAction action,int value)
@@ -272,10 +349,9 @@ bool nativeHubPortrait_Activate(HubAction action,int value)
     if (action==HubAction::PortraitReset) { nativeHubPortrait_Reset(); return true; }
     if (action==HubAction::PortraitSave) { nativeHubPortrait_Save(); return true; }
     if (editing && action==HubAction::PortraitMode) {
-        if (count) commit_frame();
-        saved_camera[card_mode]=camera; has_saved_camera[card_mode]=true;
-        if (count) std::snprintf(saved_animation[card_mode], sizeof(saved_animation[0]), "%s", nativeMenuFighter_CurrentAnimation(subjects[0].slot));
-        card_mode=value!=0; dragging=animation_open=false; restore_camera(); nativeHub_ChangePage(hub.page); return true;
+        select_target(value != 0);
+        nativeHub_ChangePage(hub.page);
+        return true;
     }
     if (editing && (action==HubAction::Back || action==HubAction::Close)) { close_editor(); return true; }
     return false;
@@ -287,29 +363,17 @@ void nativeHubPortrait_Save()
     if (!active() || waiting || !*label || std::strspn(label," \t\r\n")==std::strlen(label)) return;
     if (!count) {
         if (!editing || card_mode) return;
-        if (!nativeFighterProject_SetTileName(draft, edit_name))
-            fail("Could not save the tile name.");
+        std::string error;
+        if (Presentation::save(draft, disk_revision.c_str(), Presentation::Target::Tile, edit_name,
+                               nullptr, nullptr, disk_revision, error) != Presentation::Result::Saved)
+            fail(error.c_str());
         else if (!nativeHubCatalog_PublishDraft(draft, NativeHubPublish::Install))
             fail("Tile name saved to the draft. Could not update the installed fighter.");
         else
             close_editor();
         return;
     }
-    char root[512]; const char* folder = nativeHubCatalog_Root(root);
-    if (!folder) {
-        fail("Could not open your user-data folder.");
-        return;
-    }
-    if (editing) std::snprintf(destination,sizeof(destination),"%s/%s.png",draft,card_mode?"player-card":"portrait");
-    else std::snprintf(destination, sizeof(destination), "%s/startup-portrait.png", folder);
-    commit_frame();
-    apply_camera();
-    nativeHub_ChangePage(hub.page);
-    edit_error[0]=0;
-    const auto picture = photo();
-    waiting = nativeMenuPortraitCapture_Request(subjects, count, destination, card_mode?136:464,
-        card_mode?188:unsigned(std::lround(464*picture.height/picture.width)), card_mode);
-    if (!waiting) fail("Could not capture this portrait. Try again.");
+    request_capture(editing);
 }
 
 void nativeHubPortrait_Tick()
@@ -322,24 +386,29 @@ void nativeHubPortrait_Tick()
         }
         editing=true; nativeHub_Open(NativeHubPage_Portrait); nativeMenuScenery_Load("tournament-background");
     }
-    if (active() && count && hub.field != frame_text) commit_frame();
+    if (active() && count && !waiting && hub.field != frame_text) commit_frame();
     if (!active() || !waiting) return;
     const auto state = nativeMenuPortraitCapture_State();
     if (state == NativePortraitCaptureState::Saved) {
         waiting = false;
+        capture.status = "saved";
         if (editing) {
-            bool ok;
-            if (card_mode) {
-                size_t size=0; void* png=SDL_LoadFile(destination,&size);
-                ok=png && nativeFighterProject_SetResource(draft,"ui/player-card.png",NativeSourceResource_PNG,png,size);
-                SDL_free(png);
-            } else ok=nativeFighterProject_SetTileName(draft,edit_name);
-            if (!ok || !nativeHubPortrait_StoreCamera(draft) || !nativeHubCatalog_PublishDraft(draft,NativeHubPublish::Install))
-                fail("Could not install the portrait. Your image is saved in the draft.");
-            else close_editor();
-        } else nativeHubStartup_PortraitSaved(destination);
+            std::string error;
+            const auto target = capture.card ? Presentation::Target::Card : Presentation::Target::Tile;
+            if (Presentation::save(draft, disk_revision.c_str(), target, capture.card ? nullptr : capture.label,
+                                   destination, &capture.framing, disk_revision, error) != Presentation::Result::Saved) {
+                capture.status = "failed";
+                fail(error.c_str());
+            } else if (install_capture) {
+                if (nativeHubCatalog_PublishDraft(draft, NativeHubPublish::Install)) close_editor();
+                else fail("Portrait saved to the draft. Could not update the installed fighter.");
+            }
+        } else nativeHubStartup_PortraitSaved(destination, capture.framing);
+        DeleteFileA(destination);
     } else if (state == NativePortraitCaptureState::Failed) {
         waiting = false;
+        capture.status = "failed";
+        DeleteFileA(destination);
         fail("Could not save this portrait. Check free space and try again.");
     }
 }
@@ -492,11 +561,149 @@ void nativeHubPortrait_Inspect(const char* element)
         count ? nativeMenuFighter_CurrentAnimation(subjects[0].slot) : "none", camera.frame, last_frame(),
         count ? nativeMenuFighter_AnimationCount(subjects[0].slot) : 0);
 }
-bool nativeHubPortrait_StoreCamera(const char* path)
+
+namespace {
+using NativeAuthoring::Reply;
+using NativeAuthoring::add_string;
+
+bool portrait_revision(char (&hex)[65])
 {
-    char text[192]; int size=std::snprintf(text,sizeof(text),"%.9g %.9g %.9g %.9g %.9g %.9g %s\n",
-        camera.yaw,camera.pitch,camera.zoom,camera.pan_x,camera.pan_y,camera.frame,
-        count ? nativeMenuFighter_CurrentAnimation(subjects[0].slot) : "Wait1");
-    return size>0 && size<sizeof(text) && nativeFighterProject_SetResource(path,
-        card_mode?"ui/portrait-card.camera":"ui/portrait-tile.camera",NativeSourceResource_Blob,text,size);
+    const auto pose = framing();
+    char identity[2048];
+    const int size = std::snprintf(identity, sizeof(identity), "%u/%u/%u/%d/%d/%d/%u/%s\n%s\n%s\n%s\n%.9g %.9g %.9g %.9g %.9g %.9g\n%s",
+        generation, edit_member, count, pending, waiting, card_mode, capture.id, capture.status,
+        draft, disk_revision.c_str(), edit_name, camera.yaw, camera.pitch, camera.zoom,
+        camera.pan_x, camera.pan_y, camera.frame, pose.animation);
+    NativeContentId id{};
+    if (size < 0 || size >= sizeof(identity) || !nativeContent_Hash(identity, size, &id)) return false;
+    nativeContentStore_IdHex(&id, hex);
+    return true;
+}
+
+bool animation_available(const char* animation)
+{
+    for (unsigned i = 0; i < count; ++i) {
+        const unsigned slot = subjects[i].slot;
+        unsigned j = 0, total = nativeMenuFighter_AnimationCount(slot);
+        while (j < total && std::strcmp(animation, nativeMenuFighter_AnimationName(slot, j))) ++j;
+        if (j == total) return false;
+    }
+    return count != 0;
+}
+
+void describe_portrait(Reply& reply, unsigned offset)
+{
+    char hash[65];
+    if (!portrait_revision(hash)) { reply.fail("revision_unavailable", "Could not fingerprint this portrait view."); return; }
+    add_string(reply, reply.result, "revision", hash);
+    add_string(reply, reply.result, "project", draft);
+    add_string(reply, reply.result, "status", pending ? "opening" : waiting ? "saving" : "ready");
+    if (pending) return;
+    add_string(reply, reply.result, "saved_disk_revision", disk_revision);
+    add_string(reply, reply.result, "target", card_mode ? "card" : "tile");
+    add_string(reply, reply.result, "tile_name", edit_name);
+    yyjson_mut_obj_add_uint(reply.document, reply.result, "subjects", count);
+    yyjson_mut_obj_add_uint(reply.document, reply.result, "member_index", edit_member);
+    if (capture.id && std::strcmp(capture.status, "idle")) {
+        auto* result = yyjson_mut_obj(reply.document);
+        yyjson_mut_obj_add_uint(reply.document, result, "id", capture.id);
+        add_string(reply, result, "status", capture.status);
+        add_string(reply, result, "target", capture.card ? "card" : "tile");
+        yyjson_mut_obj_add_val(reply.document, reply.result, "capture", result);
+    }
+    if (edit_error[0]) add_string(reply, reply.result, "message", edit_error);
+    if (!count) return;
+    const auto pose = framing();
+    add_string(reply, reply.result, "animation", pose.animation);
+    yyjson_mut_obj_add_real(reply.document, reply.result, "frame", camera.frame);
+    yyjson_mut_obj_add_real(reply.document, reply.result, "last_frame", last_frame());
+    auto* view = yyjson_mut_obj(reply.document);
+    yyjson_mut_obj_add_val(reply.document, reply.result, "camera", view);
+    yyjson_mut_obj_add_real(reply.document, view, "yaw", camera.yaw);
+    yyjson_mut_obj_add_real(reply.document, view, "pitch", camera.pitch);
+    yyjson_mut_obj_add_real(reply.document, view, "zoom", camera.zoom);
+    yyjson_mut_obj_add_real(reply.document, view, "pan_x", camera.pan_x);
+    yyjson_mut_obj_add_real(reply.document, view, "pan_y", camera.pan_y);
+    const unsigned total = nativeMenuFighter_AnimationCount(subjects[0].slot);
+    auto* clips = yyjson_mut_arr(reply.document);
+    yyjson_mut_obj_add_val(reply.document, reply.result, "animations", clips);
+    yyjson_mut_obj_add_uint(reply.document, reply.result, "total_animations", total);
+    yyjson_mut_obj_add_uint(reply.document, reply.result, "animation_offset", offset);
+    for (unsigned i = offset; i < total && i - offset < 100; ++i) {
+        const char* name = nativeMenuFighter_AnimationName(subjects[0].slot, i);
+        if (name && animation_available(name)) yyjson_mut_arr_append(clips, yyjson_mut_strcpy(reply.document, name));
+    }
+}
+}
+
+void nativeHubPortrait_Agent(const char* method, yyjson_val* args, Reply& reply)
+{
+    if (!nativeHubPortrait_Requested()) {
+        reply.fail("portrait_closed", "Open Portrait & tile from the Workshop first.");
+        return;
+    }
+    if (!std::strcmp(method, "inspect")) {
+        describe_portrait(reply, unsigned(yyjson_get_uint(yyjson_obj_get(args, "offset"))));
+        return;
+    }
+    if (pending || waiting || nativeFeedback_IsOpen() || hub.field ||
+        !nativeHome_IsSelection() || !nativeCssOriginal_CanEdit() || !hub.visible || hub.page != NativeHubPage_Portrait) {
+        reply.fail("portrait_busy", "Finish the portrait transition, text field edit or capture first.");
+        return;
+    }
+    const char* expected = yyjson_get_str(yyjson_obj_get(args, "revision"));
+    char hash[65];
+    if (!expected || !portrait_revision(hash) || std::strcmp(hash, expected)) {
+        reply.fail("revision_conflict", "Inspect the current portrait before changing it.");
+        return;
+    }
+    if (!std::strcmp(method, "close")) {
+        close_editor();
+        add_string(reply, reply.result, "status", "closed");
+        return;
+    }
+    if (!std::strcmp(method, "capture")) {
+        if (!count || !request_capture(false)) {
+            reply.fail("portrait_capture_failed", count ? edit_error : "This fighter has no loaded 3D portrait preview.");
+            return;
+        }
+        describe_portrait(reply, 0);
+        return;
+    }
+    const char* name = yyjson_get_str(yyjson_obj_get(args, "tile_name"));
+    const char* clip = yyjson_get_str(yyjson_obj_get(args, "animation"));
+    const char* target = yyjson_get_str(yyjson_obj_get(args, "target"));
+    auto* camera_args = yyjson_obj_get(args, "camera");
+    auto* frame = yyjson_obj_get(args, "frame");
+    if (name) {
+        char manifest[256];
+        if (!nativeFighterProject_EncodeManifest(edit_title, name, edit_template, manifest, sizeof(manifest))) {
+            reply.fail("invalid_tile_name", "Use at most 63 bytes without control characters.");
+            return;
+        }
+    }
+    if ((clip && !animation_available(clip)) || (!count && (camera_args || frame))) {
+        reply.fail("animation_unavailable", "Choose a clip available for every portrait subject.");
+        return;
+    }
+    if (target) select_target(std::strcmp(target, "card") == 0);
+    if (clip && !select_animation(clip)) {
+        reply.fail("animation_unavailable", "Could not open that portrait animation.");
+        return;
+    }
+    if (name) std::strcpy(edit_name, name);
+    if (camera_args) {
+        const auto read = [camera_args](const char* key, float& component) {
+            if (auto* value = yyjson_obj_get(camera_args, key)) component = float(yyjson_get_num(value));
+        };
+        read("yaw", camera.yaw);
+        read("pitch", camera.pitch);
+        read("zoom", camera.zoom);
+        read("pan_x", camera.pan_x);
+        read("pan_y", camera.pan_y);
+        constrain();
+    }
+    set_frame(frame ? float(yyjson_get_num(frame)) : camera.frame);
+    nativeHub_ChangePage(hub.page);
+    describe_portrait(reply, 0);
 }

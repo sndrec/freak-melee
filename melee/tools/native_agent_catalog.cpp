@@ -13,6 +13,10 @@ namespace NativeAgent {
 #define PAGE_FIELDS R"("query":{"type":"string","maxLength":256},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":200})"
 #define PROJECT_FIELDS R"("project":{"type":"string","minLength":1,"maxLength":500},"member":{"type":"string","maxLength":31})"
 static const Tool offline_tools[] = {
+    {"presentation.read", "Read a family's saved tile name, portrait framing, image dimensions and hashes.",
+        R"({"type":"object","properties":{"project":{"type":"string","minLength":1,"maxLength":500}},"required":["project"],"additionalProperties":false})", read_presentation, true},
+    {"presentation.edit", "Set the family tile text, import a tile or player-card PNG, or do both in one saved draft edit. Requires the saved revision from presentation.read.",
+        R"({"type":"object","properties":{"project":{"type":"string","minLength":1,"maxLength":500},"revision":{"type":"string","minLength":64,"maxLength":64},"tile_name":{"type":"string","maxLength":63},"image":{"type":"string","minLength":1,"maxLength":500},"target":{"enum":["tile","card"],"type":"string"}},"required":["project","revision"],"additionalProperties":false})", edit_presentation, false},
     {"resources.read", "Inspect owned resource names, types, exact hashes, image dimensions, limits and the fighter's article/sound/effect asset inventory. Lists support search and pagination.", NativeResourceAuthoring::read_schema(false), read_resources, true},
     {"resources.edit", "Import or remove named PNG/blob resources as one atomic batch. Validates PNG pixels, preserves other members and saves through the draft lease/revision/recovery journal. Source checking and package building remain explicit.", NativeResourceAuthoring::edit_schema(false), edit_resources, false},
     {"resources.export", "Export an owned resource's exact bytes to a new file. Existing output files are preserved.", NativeResourceAuthoring::export_schema(false), export_resource, false},

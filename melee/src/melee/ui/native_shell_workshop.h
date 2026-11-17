@@ -23,6 +23,7 @@ void nativeShellWorkshop_Open(const char* draft_path = nullptr,
                                NativeWorkshopOrigin origin = NativeWorkshopOrigin::Library);
 void nativeShellWorkshop_Update();
 void nativeShellWorkshop_Close();
+bool nativeShellWorkshop_OpenPortrait();
 bool nativeShellWorkshop_IsOpen();
 bool nativeShellWorkshop_IsTesting();
 // Build a cached snapshot and enter frozen preview or normal practice.

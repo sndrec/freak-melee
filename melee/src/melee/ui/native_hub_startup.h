@@ -29,7 +29,8 @@ void nativeHubStartup_Initialize(bool has_profile);
 void nativeHubStartup_Begin();
 void nativeHubStartup_Tick();
 bool nativeHubStartup_Activate(HubAction action, int value);
-void nativeHubStartup_PortraitSaved(const char* path);
+namespace NativeFighterPresentation { struct Framing; }
+void nativeHubStartup_PortraitSaved(const char* path, const NativeFighterPresentation::Framing&);
 void nativeHubStartup_Finish();
 bool nativeHubStartup_HasRoster();
 void nativeHubStartup_Render();

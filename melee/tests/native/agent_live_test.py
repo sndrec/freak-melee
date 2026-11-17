@@ -559,6 +559,94 @@ def main():
         package = call('packages.export', {'package_id': installed['package_id'], 'output': str(exported)})
         assert hashlib.sha256(exported.read_bytes()).hexdigest() == installed['package_id']
         assert package['bytes'] == installed['package_bytes']
+        presentation_before = call('presentation.read', saved)
+        busy_edit = call('presentation.edit', dict(saved, revision=presentation_before['revision'],
+            tile_name='LIVE'), expected=False)
+        assert busy_edit['code'] == 'draft_busy', busy_edit
+        opened = call('session.presentation.open', dict(target, revision=installed['revision']))
+        assert opened['portrait_open'], opened
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            portrait = call('session.presentation.inspect', target)
+            if portrait['status'] == 'ready':
+                break
+            time.sleep(.15)
+        else:
+            raise AssertionError('The native Portrait & tile editor did not open')
+        assert portrait['subjects'] == 1 and portrait['animations'], portrait
+        invalid = call('session.presentation.configure', dict(target, revision=portrait['revision'],
+            animation='missing-animation', tile_name='INVALID', target='card'), expected=False)
+        assert invalid['code'] == 'animation_unavailable'
+        assert call('session.presentation.inspect', target)['revision'] == portrait['revision']
+        configured = call('session.presentation.configure', dict(target, revision=portrait['revision'],
+            camera={'yaw': -.5, 'pitch': .15, 'zoom': 1.7, 'pan_y': .18}, tile_name='LIVE MARIO'))
+        assert configured['tile_name'] == 'LIVE MARIO'
+        assert abs(configured['camera']['zoom'] - 1.7) < .0001
+        stale = call('session.presentation.capture', dict(target, revision=portrait['revision']), expected=False)
+        assert stale['code'] == 'revision_conflict'
+        def save_rendered_portrait(view):
+            requested = call('session.presentation.capture', dict(target, revision=view['revision']))
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                result = call('session.presentation.inspect', target)
+                if result.get('capture', {}).get('status') != 'pending':
+                    assert result['capture']['id'] == requested['capture']['id']
+                    assert result['capture']['status'] == 'saved', result
+                    assert result['capture']['target'] == view['target']
+                    return result
+                time.sleep(.15)
+            raise AssertionError('Portrait capture timed out')
+        captured = save_rendered_portrait(configured)
+        tile = call('presentation.read', saved)
+        assert tile['tile_name'] == 'LIVE MARIO' and tile['revision'] == captured['saved_disk_revision'], tile
+        assert tile['tile']['width'] == 464 and tile['tile']['height'] < 464
+        assert hashlib.sha256((project / 'portrait.png').read_bytes()).hexdigest() == tile['tile']['sha256']
+        assert abs(tile['tile']['framing']['pan_y'] - .18) < .0001
+        card_view = call('session.presentation.configure', dict(target, revision=captured['revision'],
+            target='card', camera={'yaw': .35, 'zoom': 1.3}))
+        captured = save_rendered_portrait(card_view)
+        portraits = call('presentation.read', saved)
+        assert portraits['card']['width'] == 136 and portraits['card']['height'] == 188
+        assert portraits['tile'] == tile['tile'] and portraits['tile_name'] == tile['tile_name']
+        assert abs(portraits['card']['framing']['yaw'] - .35) < .0001
+        assert call('fighters.installed', {'query': 'Live Mario'})['fighters'][0]['package_id'] == installed['package_id']
+        malformed = output / 'bad-portrait.png'
+        malformed.write_bytes(b'not a PNG')
+        failed = call('presentation.edit', dict(saved, revision=portraits['revision'],
+            tile_name='INVALID', image=str(malformed), target='card'), expected=False)
+        assert failed['code'] == 'invalid_presentation'
+        assert call('presentation.read', saved) == portraits
+        edited = call('presentation.edit', dict(saved, revision=portraits['revision'], tile_name='MARIO LAB'))
+        assert edited['saved'] and edited['revision'] != portraits['revision']
+        stale_capture = call('session.presentation.capture', dict(target, revision=captured['revision']))
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            captured = call('session.presentation.inspect', target)
+            if captured['capture']['status'] != 'pending':
+                break
+            time.sleep(.15)
+        assert captured['capture']['id'] == stale_capture['capture']['id']
+        assert captured['capture']['status'] == 'failed' and 'draft changed' in captured['message'].lower()
+        after_external = call('presentation.read', saved)
+        assert after_external['revision'] == edited['revision'] and after_external['tile_name'] == 'MARIO LAB'
+        assert after_external['tile'] == portraits['tile'] and after_external['card'] == portraits['card']
+        result = call('session.presentation.close', dict(target, revision=captured['revision']))
+        assert result['status'] == 'closed', result
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            reopened = call('session.inspect', target)
+            if reopened['workshop_open'] and reopened['editing_allowed']:
+                break
+            time.sleep(.2)
+        else:
+            raise AssertionError('Could not return to the Workshop from Portrait & tile')
+        installed = call('session.install', dict(target, revision=reopened['revision']))
+        placed = call('session.presentation.place', dict(target, revision=installed['revision'],
+            package_id=installed['installed_package_id']))
+        assert placed['placed']
+        assert call('session.presentation.place', dict(target, revision=placed['revision'],
+            package_id=installed['installed_package_id']))['placed']
+        (output / 'presentation.json').write_text(json.dumps(portraits, indent=2))
         disconnected = call('session.disconnect', target)
         assert disconnected['status'] == 'disconnected' and not disconnected['agent_access_enabled']
         assert process.poll() is None, 'Disconnect closed the game'
@@ -569,7 +657,7 @@ def main():
         report = json.loads((output / 'result.json').read_text())
         report['manual_input_checked'] = manual_input_checked
         (output / 'result.json').write_text(json.dumps(report, indent=2))
-        print('PASS: live source/action authoring, shared action undo, atomic acceptance, preview identity, practice, installation and exact export')
+        print('PASS: live source/action authoring, undo, preview identity, practice, installation, exact export and native portrait capture')
     finally:
         if process and process.poll() is None:
             close_window(process.pid)

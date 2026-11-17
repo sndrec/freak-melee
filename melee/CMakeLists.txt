@@ -1569,7 +1569,7 @@ add_executable(native_content_tool tools/native_workshop_authoring_tool.c tools/
     tools/native_agent_project.cpp tools/native_agent_validation.cpp tools/native_agent_build.cpp
     tools/native_agent_creation.cpp tools/native_agent_library.cpp tools/native_agent_install.cpp tools/native_agent_models.cpp
     tools/native_agent_parameters.cpp tools/native_agent_examples.cpp tools/native_agent_attributes.cpp tools/native_agent_resources.cpp
-    tools/native_agent_script_edit.cpp tools/native_agent_live.cpp)
+    tools/native_agent_script_edit.cpp tools/native_agent_live.cpp tools/native_agent_presentation.cpp)
 
 # Generated C is retained only as a behavioral oracle for comparison fixtures.
 add_executable(native_script_reference_exporter tests/native/script_reference_exporter.c

@@ -5,6 +5,7 @@
 #include "native_hub_portrait.h"
 #include "native_hub_startup_stamp.h"
 #include "native_hub_startup_triggers.h"
+#include <melee/ft/native_fighter_presentation.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/gm/native_profile_input.h>
 #include <melee/gm/native_online_session.h>
@@ -382,11 +383,10 @@ void nativeHubStartup_Finish()
     lbAudioAx_80023F28(gmMainLib_8015ECB0());
     hub.dismissed = true; hub.visible = false;
 }
-void nativeHubStartup_PortraitSaved(const char* portrait)
+void nativeHubStartup_PortraitSaved(const char* portrait, const NativeFighterPresentation::Framing& framing)
 {
     auto& s = nativeHubStartup;
     if (!s.active || s.step != NativeStartup_Portrait) return;
-    char destination[560];
     if (!s.draft[0]) {
         char path[512];
         if (!nativeHubCatalog_CreateStockDraft(static_cast<FighterKind>(hub.template_kind), hub.title, path)) {
@@ -394,12 +394,13 @@ void nativeHubStartup_PortraitSaved(const char* portrait)
         }
         std::snprintf(s.draft, sizeof(s.draft), "%s", path);
     }
-    std::snprintf(destination, sizeof(destination), "%s/portrait.png", s.draft);
-    if (!SDL_CopyFile(portrait, destination) || !nativeHubStartupStamp_Load()) {
+    using namespace NativeFighterPresentation;
+    std::string revision, error;
+    if (save(s.draft, nullptr, Target::Tile, s.tile_name, portrait, &framing, revision, error) != Result::Saved ||
+        !nativeHubStartupStamp_Load()) {
         std::snprintf(s.error, sizeof(s.error), "Could not save your portrait. Your draft is saved in the Workshop."); return;
     }
-    if (!nativeHubPortrait_StoreCamera(s.draft) || !nativeFighterProject_SetTileName(s.draft,s.tile_name) ||
-        !nativeHubCatalog_PublishDraft(s.draft,NativeHubPublish::Install) || !nativeHubCatalog_Load()) {
+    if (!nativeHubCatalog_PublishDraft(s.draft,NativeHubPublish::Install) || !nativeHubCatalog_Load()) {
         std::snprintf(s.error,sizeof(s.error),"Could not install your fighter. Your draft is saved in the Workshop."); return;
     }
     bool found=false;

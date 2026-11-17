@@ -881,11 +881,7 @@ class WorkshopEvents final : public Rml::EventListener {
         } else if (id == "workshop-fighter-import-package") {
             import_fighter();
         } else if (id == "workshop-portrait-edit") {
-            if (!project_loaded || !nativeShellWorkshop_Save()) return;
-            char path[PATH_CAPACITY]; std::snprintf(path,sizeof(path),"%s",active_family.paths[0]);
-            unsigned member=active_member;
-            nativeShellWorkshop_Close();
-            if (!opened) nativeHubPortrait_Open(path,member,true);
+            if (project_loaded && nativeShellWorkshop_Save()) nativeShellWorkshop_OpenPortrait();
         } else if (id == "workshop-test-character") {
             nativeShellWorkshop_RequestPreview(true);
         } else if (id == "workshop-install") {
@@ -1066,6 +1062,18 @@ void nativeShellWorkshop_Close()
 bool nativeShellWorkshop_IsOpen()
 {
     return opened;
+}
+
+bool nativeShellWorkshop_OpenPortrait()
+{
+    if (!opened || !project_loaded || family_has_unsaved_edits() || nativeHubPortrait_Requested()) return false;
+    char path[PATH_CAPACITY];
+    std::snprintf(path, sizeof(path), "%s", active_family.paths[0]);
+    const unsigned member = active_member;
+    nativeShellWorkshop_Close();
+    if (opened) return false;
+    nativeHubPortrait_Open(path, member, true);
+    return nativeHubPortrait_Requested();
 }
 
 bool nativeShellWorkshop_IsTesting()

@@ -54,6 +54,18 @@ static constexpr char capture_output[] = R"json({
     "additionalProperties":false
 })json";
 static const Command commands[] = {
+    {"session.presentation.open", "Open the native Portrait & tile editor for the active member of a saved Workshop draft.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.presentation.inspect", "Read the current portrait view revision, tile label, actual pose and camera, available clips, or the result of an asynchronous capture. Pass offset to page through clips.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE R"(,"offset":{"type":"integer","minimum":0,"maximum":10000}},"required":["instance"],"additionalProperties":false})", true},
+    {"session.presentation.configure", "Select the CSS tile or player card, its named animation and frame, its orthographic framing, or the CSS tile label. Angles are radians and pan is in framing units.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION R"(,"target":{"type":"string","enum":["tile","card"]},"tile_name":{"type":"string","maxLength":63},"animation":{"type":"string","minLength":1,"maxLength":63},"frame":{"type":"number","minimum":0,"maximum":1024},"camera":{"type":"object","properties":{"yaw":{"type":"number","minimum":-180,"maximum":180},"pitch":{"type":"number","minimum":-1.553343,"maximum":1.553343},"zoom":{"type":"number","minimum":0.15,"maximum":32},"pan_x":{"type":"number","minimum":-64,"maximum":64},"pan_y":{"type":"number","minimum":-64,"maximum":64}},"additionalProperties":false}},"required":["instance","revision"],"additionalProperties":false})", false},
+    {"session.presentation.capture", "Render an image with the selected framing and save it to the draft with its label and camera. Poll session.presentation.inspect until capture.status is saved or failed. Installation remains explicit.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.presentation.close", "Close the portrait editor and return to the Workshop. Discards any framing changes since the last capture.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.presentation.place", "Place an already installed fighter in the first free CSS tile position. Repeating the request preserves its existing tile.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION R"(,"package_id":{"type":"string","minLength":64,"maxLength":64}},"required":["instance","revision","package_id"],"additionalProperties":false})", false},
     {"session.resources.read", "Inspect the live member's unsaved named PNG/blob resources, hashes, image dimensions, limits and article/sound/effect inventory.", NativeResourceAuthoring::read_schema(true), true},
     {"session.resources.edit", "Import/remove resources as one atomic batch and current-workspace Undo step. Leaves saved files and installed packages unchanged; refresh preview explicitly after checking source/resource references.", NativeResourceAuthoring::edit_schema(true), false},
     {"session.resources.export", "Export a live unsaved resource's exact bytes to a new file. Existing output files and draft history are preserved.", NativeResourceAuthoring::export_schema(true), false},

@@ -52,7 +52,7 @@ static uint32_t read_be_u32(const uint8_t* p)
            (uint32_t)p[2] << 8 | p[3];
 }
 
-static bool valid_portrait(const uint8_t* p, size_t size)
+bool nativeContent_ValidFighterPortrait(const uint8_t* p, size_t size)
 {
     static const uint8_t png_magic[8] = {137, 'P', 'N', 'G', 13, 10, 26, 10};
     if (p == NULL || size < 45 || size > 1024 * 1024 ||
@@ -100,7 +100,7 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
     if (fighter == NULL || data == NULL || package == NULL ||
         package_size == NULL || id == NULL ||
         !valid_mode(fighter->mode, fighter->member_count) ||
-        !valid_portrait(data->portrait_png, data->portrait_size)) return false;
+        !nativeContent_ValidFighterPortrait(data->portrait_png, data->portrait_size)) return false;
     size_t title_size = strnlen(fighter->title, NATIVE_CONTENT_TITLE_BYTES);
     if (title_size == 0 || title_size == NATIVE_CONTENT_TITLE_BYTES) return false;
     size_t tile_size = strnlen(fighter->tile_name, NATIVE_CONTENT_TITLE_BYTES);
@@ -194,7 +194,7 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
     spans.portrait_size = read_u32(bytes + 8);
     if (spans.portrait_size > remaining) return false;
     spans.portrait_png = bytes + FAMILY_PAYLOAD;
-    if (!valid_portrait(spans.portrait_png, spans.portrait_size)) return false;
+    if (!nativeContent_ValidFighterPortrait(spans.portrait_png, spans.portrait_size)) return false;
     const uint8_t* cursor = spans.portrait_png + spans.portrait_size;
     remaining -= spans.portrait_size;
     size_t tile_size = read_u32(bytes + 12);

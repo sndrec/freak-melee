@@ -66,6 +66,8 @@ void read_resources(const Context&, yyjson_val*, Reply&);
 void edit_resources(const Context&, yyjson_val*, Reply&);
 void export_resource(const Context&, yyjson_val*, Reply&);
 void item_blueprint(const Context&, yyjson_val*, Reply&);
+void read_presentation(const Context&, yyjson_val*, Reply&);
+void edit_presentation(const Context&, yyjson_val*, Reply&);
 void actions(const Context&, yyjson_val*, Reply&);
 void read_actions(const Context&, yyjson_val*, Reply&);
 void edit_actions(const Context&, yyjson_val*, Reply&);

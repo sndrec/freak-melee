@@ -4,11 +4,14 @@
 #include "native_shell_workshop_model.h"
 #include "native_shell_workshop_preview_agent.h"
 #include "native_hub.h"
+#include "native_hub_portrait.h"
 #include <melee/ft/native_workshop_connection.h>
 #include <melee/ft/native_workshop_agent_catalog.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_home.h>
+#include <melee/gm/native_online_session.h>
+#include <melee/mn/native_css_original.h>
 #include <melee/gm/native_feedback_agent.h>
 #include <RmlUi/Core.h>
 #include <array>
@@ -53,6 +56,7 @@ bool describe(Reply& reply)
     yyjson_mut_obj_add_bool(reply.document, reply.result, "testing", state.testing);
     yyjson_mut_obj_add_bool(reply.document, reply.result, "preview_loading", state.loading);
     yyjson_mut_obj_add_bool(reply.document, reply.result, "editing_allowed", state.allowed);
+    yyjson_mut_obj_add_bool(reply.document, reply.result, "portrait_open", nativeHubPortrait_Requested());
     yyjson_mut_obj_add_bool(reply.document, reply.result, "agent_access_enabled", server.enabled);
     add_string(reply, reply.result, "preview_scene", state.loading ? "loading" :
         nativeHome_IsPractice() ? "practice" : nativeHome_IsSelection() ? "character_select" : "other");
@@ -136,6 +140,10 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     if (!NativeWorkshopAgent::validate(*command, arguments, reply)) return;
     if (!std::strcmp(method, "session.preview.capture_status")) {
         nativeWorkshopPreview_CaptureStatus(arguments, reply);
+    } else if (!std::strncmp(method, "session.presentation.", 21) &&
+               std::strcmp(method, "session.presentation.open") &&
+               std::strcmp(method, "session.presentation.place")) {
+        nativeHubPortrait_Agent(method + 21, arguments, reply);
     } else if (!std::strncmp(method, "feedback.", 9)) {
         auto* document = yyjson_mut_doc_new(nullptr);
         if (!document) { reply.fail("capture_failed", "Could not allocate capture metadata."); return; }
@@ -176,7 +184,8 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
             server.enabled = false;
             add_string(reply, reply.result, "status", "disconnected");
         } else if (!std::strcmp(method, "session.open")) {
-            if (state.dirty) reply.fail("unsaved_edits", "Save or discard the current Workshop edits before opening another draft.");
+            if (nativeHubPortrait_Requested()) reply.fail("portrait_open", "Close Portrait & tile before opening a different draft.");
+            else if (state.dirty) reply.fail("unsaved_edits", "Save or discard the current Workshop edits before opening another draft.");
             if (reply.ok) {
                 nativeHub_OpenWorkshop(string(arguments, "project"));
                 const auto opened = nativeShellWorkshop_LiveState();
@@ -185,7 +194,20 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
                 if (!opened.family || !size || size >= sizeof(full) || _stricmp(opened.family->paths[0], full))
                     reply.fail("open_failed", "Could not open that draft in the Workshop. Its previous edits were preserved.");
             }
+        } else if (!std::strcmp(method, "session.presentation.place")) {
+            NativeContentId id{};
+            if (nativeHubPortrait_Requested() || nativeOnlineSession_State() != NativeLobbySessionState_Disconnected ||
+                (nativeHome_IsSelection() && !nativeCssOriginal_CanEdit()))
+                reply.fail("css_unavailable", "Leave Portrait & tile and any online lobby before placing a tile.");
+            else if (!nativeContentStore_IdFromHex(string(arguments, "package_id"), &id) || !nativeCssOriginal_AddInstalled(&id))
+                reply.fail("placement_failed", "Choose an installed fighter and make room for a tile on character select.");
+            else yyjson_mut_obj_add_bool(reply.document, reply.result, "placed", true);
         } else if (!state.family) reply.fail("no_draft", "Open a fighter draft first.");
+        else if (!std::strcmp(method, "session.presentation.open")) {
+            if (state.dirty) reply.fail("unsaved_edits", "Save or discard current edits before opening Portrait & tile.");
+            else if (!nativeShellWorkshop_OpenPortrait()) reply.fail("portrait_unavailable", "Could not open Portrait & tile.");
+            else add_string(reply, reply.result, "status", "opening");
+        }
         else if (!std::strncmp(method, "session.actions.", 16)) nativeShellWorkshopEditor_Actions(method + 16, arguments, reply);
         else if (!std::strncmp(method, "session.animations.", 19)) nativeShellWorkshopEditor_Animations(method + 19, arguments, reply);
         else if (!std::strncmp(method, "session.attributes.", 19)) nativeShellWorkshopEditor_Attributes(method + 19, arguments, reply);

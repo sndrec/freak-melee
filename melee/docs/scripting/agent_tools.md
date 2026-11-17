@@ -289,6 +289,35 @@ The [animation authoring guide](agent_animation.md) covers clip and bone
 discovery, evaluated poses, key insertion, bulk key changes/deletion/transforms,
 pose copying and verification against the actual frozen preview actor.
 
+## Make a portrait or character-select tile
+
+Use `presentation.read` to inspect a saved draft's tile name, images and
+framing. Pass its revision to `presentation.edit` to set `tile_name`, import a
+PNG, or do both together. Set `target` to `tile` for the character-select
+image or `card` for the lower player card. An empty tile name displays the
+fighter's full name. The tile and card have separate PNG limits, shown in the
+read result. Close the Workshop draft before editing it from disk.
+
+To photograph the 3D fighter, save the open draft and call
+`session.presentation.open` with the **Workshop** revision. Then use
+`session.presentation.inspect` to wait for `ready` and find the **portrait**
+revision, loaded subjects, camera and clip names. Select the target, name,
+animation, frame and camera with `session.presentation.configure`. Angles use
+radians. Each camera field can be adjusted independently.
+
+Call `session.presentation.capture` at the configured revision. Inspect until
+that capture's status is `saved` or `failed`. A successful capture saves the
+image and its framing together. A tile capture also saves its short name.
+`presentation.read` returns dimensions and hashes for the result. Read the
+tile PNG directly from the draft, or use `resources.export` to export the
+player-card PNG named `ui/player-card.png`.
+
+Call `session.presentation.close` with the portrait revision to return to the
+Workshop. Build and install explicitly with `session.install`. To add a tile
+locally, pass the installed package ID and current Workshop revision to
+`session.presentation.place`. An existing tile retains its position.
+Use `resources.edit` for stock icons and HUD emblems.
+
 ## Report a bug or missing capability
 
 Use the feedback tools when an authoring operation fails reproducibly or a

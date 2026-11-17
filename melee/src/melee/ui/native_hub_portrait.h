@@ -12,8 +12,11 @@ bool nativeHubPortrait_Event(const SDL_Event* event);
 void nativeHubPortrait_Inspect(const char* element);
 void nativeHubPortrait_Open(const char* draft, unsigned member, bool return_to_editor);
 bool nativeHubPortrait_Editing();
+bool nativeHubPortrait_Requested();
+struct yyjson_val;
+namespace NativeAuthoring { struct Reply; }
+void nativeHubPortrait_Agent(const char* method, yyjson_val* arguments, NativeAuthoring::Reply&);
 char* nativeHubPortrait_TileName();
 char* nativeHubPortrait_FrameText();
 enum class HubAction;
 bool nativeHubPortrait_Activate(HubAction action, int value);
-bool nativeHubPortrait_StoreCamera(const char* draft);

@@ -301,6 +301,19 @@ Accepted 2026-11-17. Implementation is in progress.
   CSS tile authoring, controlled practice, remaining typed outputs and full
   workflow acceptance remain open.
 
+- Presentation tools inspect saved tile text, framing and PNG identities,
+  import PNGs and edit labels through one draft transaction. The live tools
+  open Portrait & tile for the current member and use its existing scene,
+  animation selection, camera and PNG renderer. Captures save the image,
+  framing and tile label together. Explicit installation and CSS placement
+  are separate operations. First startup and the Workshop portrait editor
+  use the same draft transaction. All nineteen core checks passed. The
+  extracted hidden/muted client with Windows-only PATH verified tile and card
+  capture, precise camera metadata, stale view rejection, atomic failure
+  when another editor saved first, install and idempotent CSS placement.
+  Controlled practice, remaining typed output schemas and final packaged
+  acceptance remain open.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

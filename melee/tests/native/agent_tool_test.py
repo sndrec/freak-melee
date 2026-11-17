@@ -67,6 +67,8 @@ def main():
                      'attributes.edit', 'session.attributes.edit', 'models.edit', 'session.models.edit',
                      'session.models.select', 'session.models.pose', 'session.preview.configure', 'session.preview.capture',
                      'resources.edit', 'resources.export', 'resources.blueprint', 'session.resources.edit', 'session.resources.export',
+                     'presentation.edit', 'session.presentation.open', 'session.presentation.configure',
+                     'session.presentation.capture', 'session.presentation.close', 'session.presentation.place',
                      'actions.edit', 'session.actions.edit', 'session.actions.select',
                        'animations.edit', 'session.animations.edit', 'session.animations.select',
                      'feedback.prepare', 'feedback.submit', 'feedback.discard',
