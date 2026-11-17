@@ -1,5 +1,6 @@
 #ifdef MELEE_NATIVE
 #include "native_hitbox_lifetime.h"
+#include <melee/gm/native_workshop_practice.h>
 #endif
 #include "ftcoll.h"
 #include "fighter_collision_state.h"
@@ -1280,6 +1281,9 @@ bool ftColl_80077C60(Item* item, HitCapsule* hit, Fighter* fp,
                 if (should_log) {
                     FighterKind kind;
                     HSD_GObj* entity = item->entity;
+#ifdef MELEE_NATIVE
+                    nativeWorkshopPractice_ItemHit(item, fp, scaled_dmg);
+#endif
                     kind = (FighterKind) item->kind;
                     if (fighter_collision_state.primary_count < 20U) {
                         entry = &fighter_collision_state.primary[fighter_collision_state.primary_count];

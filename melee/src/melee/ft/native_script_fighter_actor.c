@@ -5,6 +5,7 @@
 #include "types.h"
 #include "native_script_fighter_snapshot.h"
 #include <melee/gm/native_match_arena.h>
+#include <melee/gm/native_workshop_practice.h>
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <dolphin/os.h>
@@ -58,6 +59,24 @@ static ScriptFighterActor* find(Fighter_GObj* object)
 }
 
 bool nativeScriptFighter_IsAttached(Fighter_GObj* object){return find(object)!=NULL;}
+
+static uint64_t state_fingerprint(const ScriptFighterActor* actor)
+{
+    const NativeScriptStorageOwner* owner = nativeScriptStorage_Owner(actor->storage.layout, 0);
+    uint64_t hash = UINT64_C(1469598103934665603);
+    if (owner)
+        for (uint32_t i = 0; i < owner->state_bytes; ++i) {
+            hash ^= actor->bytes[i];
+            hash *= UINT64_C(1099511628211);
+        }
+    return hash;
+}
+
+uint64_t nativeScriptFighter_StateFingerprint(Fighter_GObj* object)
+{
+    const ScriptFighterActor* actor = find(object);
+    return actor ? state_fingerprint(actor) : 0;
+}
 
 static NativeScriptVMStatus status(const ScriptFighterActor* actor)
 {
@@ -169,6 +188,8 @@ static NativeScriptVMStatus runFunction(ScriptFighterActor* actor,uint32_t funct
         if(state_after==NativeScriptVM_SourceRetired)return state_after;
         actor->faulted=true;
         const NativeScriptVM* vm=actor->execution.vm;
+        nativeWorkshopPractice_ScriptFault("fighter", actor->generation,
+            vm->diagnostic.source.line, vm->diagnostic.source.column, vm->diagnostic.message);
         OSReport("[script] Fighter %u event %u frame %u source %u:%u: %s\n",actor->generation,event,tick,
             vm->diagnostic.source.line,vm->diagnostic.source.column,vm->diagnostic.message);
         return NativeScriptVM_Error;
@@ -306,9 +327,7 @@ void nativeScriptFighter_Detach(Fighter_GObj* object)
     ScriptFighterActor* actor=find(object);
     if(!actor)return;
     (void)nativeScriptFighter_Run(object,NativeScriptFighter_Remove,NULL,0, NULL,NULL);
-    const NativeScriptStorageOwner* owner=nativeScriptStorage_Owner(actor->storage.layout,0);
-    uint64_t hash=UINT64_C(1469598103934665603);
-    if(owner)for(uint32_t i=0;i<owner->state_bytes;++i){hash^=actor->bytes[i];hash*=UINT64_C(1099511628211);}
+    const uint64_t hash = state_fingerprint(actor);
     OSReport("[script] Retired fighter %u: %u completed / %u requested interpreted ticks, state=%016llx, faulted=%u.\n",
         actor->generation,actor->completed_ticks,actor->tick,(unsigned long long)hash,actor->faulted);
     nativeScriptStorage_Destroy(&actor->storage);actor->active=false;
@@ -406,9 +425,7 @@ void nativeScriptFighter_Report(void)
 {
     for(unsigned at=0;at<initialized_count;++at) {
         const ScriptFighterActor* actor=&actors[at];if(!actor->active)continue;
-        const NativeScriptStorageOwner* owner=nativeScriptStorage_Owner(actor->storage.layout,0);
-        uint64_t hash=UINT64_C(1469598103934665603);
-        if(owner)for(uint32_t i=0;i<owner->state_bytes;++i){hash^=actor->bytes[i];hash*=UINT64_C(1099511628211);}
+        const uint64_t hash = state_fingerprint(actor);
         OSReport("[script] Live fighter %u kind %u: %u completed / %u requested interpreted ticks, state=%016llx, faulted=%u.\n",
             actor->generation,actor->kind,actor->completed_ticks,actor->tick,(unsigned long long)hash,actor->faulted);
         reportState(actor);

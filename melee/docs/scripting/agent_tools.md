@@ -184,6 +184,69 @@ supporting examples. They are also available as MCP resources under
 these files. Links marked **developer reference, online** provide optional
 implementation notes on GitHub.
 
+## Run a controlled practice test
+
+Use `session.practice.start` with the current Workshop inspection revision and a
+`controlled` object to test the current draft, including unsaved edits. A
+controlled test starts at frame zero and runs offline. Use `seed` to set the
+initial RNG. Port 0 is the draft fighter. Choose its spawn, facing and damage
+with `player`, and add up to three `opponents` on ports 1–3. Choose a stock
+`fighter_id` from `stock.list` or a `package_id` from a previous build or the
+installed library. Set `cpu_level` to 1–9 for a CPU opponent. By default the
+practice sandbag occupies port 4. Set `sandbag` to false to leave it out.
+
+Spawn points 0–3 run from left to right across the floor. Facing is -1 for
+left and 1 for right. Damage is a percentage from 0 to 999.
+
+Poll `session.practice.state` until it reports `ready`. Use its `test_id` and
+`test_revision` for subsequent operations. Pass input segments to
+`session.practice.run` and poll until `ready` again. This example advances
+one tick with B held, then 59 ticks with neutral inputs.
+
+```json
+{
+  "instance": "<instance>",
+  "test_id": 1,
+  "test_revision": 2,
+  "inputs": [
+    {"frames": 1, "pads": [{"port": 0, "buttons": ["B"]}]},
+    {"frames": 59}
+  ]
+}
+```
+
+Each segment supplies a complete pad state for every listed port. Stick axes
+are signed values from -127 to 127. Analog triggers use 0 to 255, and the L
+and R buttons represent their digital clicks. Omitted pads and fields are
+neutral. Schedule up to 600 ticks per request.
+
+To capture the final tick, include a `capture` object in the run request with
+`scope` set to `viewport` or `window` and `output` set to a new absolute PNG
+path. Poll `session.preview.capture_status` with the returned `capture_id`.
+The receipt records the test ID, exact tick, fighter revision and package.
+
+Use `session.practice.trace` for frame ranges, including positions, damage,
+active hitboxes, actions, animation frames, RNG, live items and accepted item
+hits. Each row also reports interpreter faults for that frame and the
+fighter's persistent script-state fingerprint. A trace row describes the
+state after its frame finished. When the number of items, hits or faults
+exceeds the number of detail rows, the count shows the full total.
+Item owners and hit participants use the index `2 * port + actor`, where
+`actor` is 0 for the main fighter and 1 for its partner. An item without a
+fighter owner uses -1. Fault locations refer to the combined program.
+
+Use `session.practice.assert` with inclusive ranges to check that a particular
+hitbox has ended, the fighter is facing the expected direction, an item hit an
+opponent exactly once, or a run has no interpreter faults. The results
+include the observed value and, where applicable, the first failing frame.
+For `item_hit_count`, `port` identifies the fighter who received the hits.
+
+Save or restore a checkpoint with `session.practice.checkpoint`, or return to
+frame zero with `session.practice.reset`. Restoring starts a new trace at the
+restored frame.
+Use `session.practice.stop` with the latest Workshop revision to return to
+the frozen editor.
+
 ## Tune common attributes
 
 `attributes.list` reads named tuning such as `gravity`, `max_jumps`, `weight`

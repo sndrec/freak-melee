@@ -628,6 +628,8 @@ set(MELEE_ROLLBACK_HOST_STATE_SOURCES
     src/melee/ui/native_social_presence.c
     src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_room_cache.c
+    src/melee/gm/native_workshop_practice.c
+    src/melee/ui/native_shell_workshop_practice.cpp
     src/melee/ui/native_hub_rules.cpp
     src/sysdolphin/baselib/audio_rollback.c
     src/sysdolphin/baselib/audio_output.c

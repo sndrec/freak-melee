@@ -11,6 +11,7 @@ extern "C" {
 bool nativeShell_Init(void);
 void nativeShell_Update(void);
 void nativeShell_UpdateAuthoring(void);
+void nativeShell_CapturePracticeFrame(void);
 void nativeShell_Shutdown(void);
 void nativeShell_Blur(void);
 bool nativeShell_IsEditingText(void);

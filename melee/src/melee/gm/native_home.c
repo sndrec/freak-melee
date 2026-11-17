@@ -24,6 +24,7 @@
 #include "native_spectator_match.h"
 #include "native_online_session.h"
 #include "native_practice.h"
+#include "native_workshop_practice.h"
 #include "native_stock_content.h"
 #include <melee/cm/camera.h>
 #include <melee/ft/fighter.h>
@@ -1470,6 +1471,7 @@ bool nativeHome_ReturnToWorkshopPreview(void)
 
 static void finish_preview(void)
 {
+    nativeWorkshopPractice_CancelStart("The practice launch ended before the trial scene loaded.");
     home.workshop_camera_retain = false;
     home.preview_active = false;
     home.preview_live_test = false;
@@ -1830,7 +1832,14 @@ bool nativeHome_LockSelection(CSSData* css)
         NativeContentId packages[GM_MAX_PLAYERS] = { 0 };
         uint8_t kinds[GM_MAX_PLAYERS];
         packages[port] = home.preview_candidate;
+        NativeContentId controlled_packages[GM_MAX_PLAYERS] = { home.preview_candidate };
+        const bool controlled = nativeWorkshopPractice_Packages(controlled_packages);
+        if (controlled) {
+            port = 0;
+            memcpy(packages, controlled_packages, sizeof(packages));
+        }
         if (!nativeMatchLaunch_ConfigureLocalFighters(packages, kinds, true)) {
+            if (controlled) nativeWorkshopPractice_CancelStart("Could not load the selected practice fighter packages.");
             if (has_package_id(&home.preview_previous_candidate)) {
                 home.preview_candidate = home.preview_previous_candidate;
                 home.preview_previous_candidate = (NativeContentId){ 0 };
@@ -1853,6 +1862,7 @@ bool nativeHome_LockSelection(CSSData* css)
         player->slot_type = Gm_PKind_Human;
         player->ckind = kinds[port];
         player->color = 0;
+        if (controlled) nativeWorkshopPractice_Configure(&css->vs.start, kinds);
         css->pending_scene_change = 1;
         home.css = NULL;
         prepare_preload(&css->vs, true);
@@ -2005,6 +2015,10 @@ void nativeHome_EnterPractice(StartMeleeData* start)
                                 ? (int) home.preview_port
                                 : -1;
     nativePractice_Configure(start, editor_port);
+    if (home.preview_live_test) {
+        nativeWorkshopPractice_Dummy(start);
+        nativeWorkshopPractice_EnterScene();
+    }
     home.selection.confirmed = true;
     home.preview_transitioning = false;
     home.preview_previous_candidate = (NativeContentId){ 0 };

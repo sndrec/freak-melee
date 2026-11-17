@@ -1,4 +1,5 @@
 #include "native_script_item_actor_internal.h"
+#include <melee/gm/native_workshop_practice.h>
 #include <melee/ft/native_script_actor_access.h>
 #include "types.h"
 #include "native_item_owner.h"
@@ -350,6 +351,8 @@ static NativeScriptVMStatus run(NativeScriptItemActor* a,uint32_t function,const
     if(!alive(a))return NativeScriptVM_SourceRetired;
     if(status==NativeScriptVM_Ok && output.type!=contract->result)status=NativeScriptVM_Error;
     if(status==NativeScriptVM_Error){a->faulted=true;const NativeScriptVM* vm=a->execution.vm;
+        nativeWorkshopPractice_ScriptFault("item", a->generation,
+            vm->diagnostic.source.line, vm->diagnostic.source.column, vm->diagnostic.message);
         OSReport("[script] Item %u function %u frame %u source %u:%u: %s\n",a->generation,function,a->tick,
             vm->diagnostic.source.line,vm->diagnostic.source.column,vm->diagnostic.message);}
     if(status==NativeScriptVM_Ok){++a->completed_callbacks;*result=output;}

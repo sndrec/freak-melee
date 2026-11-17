@@ -1,4 +1,5 @@
 #include "presented_capture.hpp"
+#include "frame.hpp"
 #include "render_worker.hpp"
 #include "png_writer.hpp"
 #include "../internal.hpp"
@@ -229,7 +230,13 @@ bool aurora_capture_presented(const char* path, bool keep, AuroraPresentedCaptur
 void aurora_presented_capture_status(AuroraPresentedCapture* info) {
   using namespace aurora::gfx::presented_capture;
   if (!info) return;
-  std::lock_guard lock{mutex}; *info = capture;
+  {
+    std::lock_guard lock{mutex};
+    *info = capture;
+  }
+  // An offline test or feedback UI can hold the final rendered frame. Pump
+  // its asynchronous readback even when there is no subsequent frame submit.
+  if (info->status == AURORA_CAPTURE_PENDING) aurora::gfx::enqueue_process_events();
 }
 bool aurora_write_presented_capture(const char* path) {
   using namespace aurora::gfx::presented_capture;

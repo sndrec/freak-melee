@@ -8,6 +8,23 @@
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
+#define TEST_ID R"("test_id":{"type":"integer","minimum":1,"maximum":4294967295},"test_revision":{"type":"integer","minimum":1,"maximum":4294967295})"
+#define INITIAL_FIGHTER R"("spawn":{"type":"integer","minimum":0,"maximum":3},"facing":{"type":"integer","minimum":-1,"maximum":1},"damage":{"type":"integer","minimum":0,"maximum":999})"
+#define AXIS R"({"type":"integer","minimum":-127,"maximum":127})"
+static constexpr char practice_state_output[] = R"({
+    "type":"object","required":["status","test_id","test_revision","fighter_revision","package_id",
+    "frame","target_frame","oldest_frame","seed","checkpoint_frame"],
+    "properties":{
+      "status":{"enum":["closed","opening","ready","running","checkpoint_pending","failed"]},
+      "request_id":{"type":"string"},
+      "capture_id":{"type":"string","pattern":"^[0-9a-f]{32}$"},
+      "test_id":{"type":"integer","minimum":0},"test_revision":{"type":"integer","minimum":0},
+      "fighter_revision":{"type":"string"},"package_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+      "frame":{"type":"integer","minimum":0},"target_frame":{"type":"integer","minimum":0},
+      "oldest_frame":{"type":"integer","minimum":0},"seed":{"type":"integer","minimum":0},
+      "checkpoint_frame":{"type":["integer","null"]},"message":{"type":"string"}
+    },"additionalProperties":false
+})";
 static constexpr char capture_output[] = R"json({
     "type":"object",
     "required":["capture_id","scope","status","view"],
@@ -16,7 +33,7 @@ static constexpr char capture_output[] = R"json({
         "request_id":{"type":"string"},
         "scope":{"enum":["viewport","window"]},
         "status":{"enum":["pending","ready","failed"]},
-        "view":{
+        "view":{"oneOf":[{
             "type":"object",
             "required":["instance","member","revision","workspace","loaded_preview_package_id","preview_view"],
             "properties":{
@@ -40,7 +57,15 @@ static constexpr char capture_output[] = R"json({
                     }
                 }
             }
-        },
+        },{
+            "type":"object",
+            "required":["instance","build_identity","fighter_revision","package_id","test_id","practice_frame"],
+            "properties":{
+                "instance":{"type":"string"},"build_identity":{"type":"string"},"fighter_revision":{"type":"string"},
+                "package_id":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+                "test_id":{"type":"integer","minimum":1},"practice_frame":{"type":"integer","minimum":1}
+            },"additionalProperties":false
+        }]},
         "output":{"type":"string"},"png_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},
         "bytes":{"type":"integer","minimum":1},"width":{"type":"integer","minimum":1},
         "height":{"type":"integer","minimum":1},"displayed_frame":{"type":"integer","minimum":1},
@@ -133,13 +158,35 @@ static const Command commands[] = {
     {"session.preview.capture", "Queue a PNG of this rendered Workshop view at the inspected revision. Select viewport or window and a new absolute .png output path. Poll session.preview.capture_status using the capture ID.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
         R"(,"scope":{"type":"string","enum":["viewport","window"]},"output":{"type":"string","minLength":1,"maxLength":500}},"required":["instance","revision","scope","output"],"additionalProperties":false})", false, capture_output},
-    {"session.preview.capture_status", "Read the latest capture's frozen metadata and pending, ready or failed status. A ready capture includes its PNG path, hash and dimensions. MCP also returns the PNG as image content.",
+    {"session.preview.capture_status", "Read the latest frozen preview or practice PNG and its revision-linked metadata. A ready capture includes its path, hash and dimensions. MCP also returns the PNG as image content.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE
         R"(,"capture_id":{"type":"string","minLength":32,"maxLength":32}},"required":["instance","capture_id"],"additionalProperties":false})", true, capture_output},
-    {"session.practice.start", "Build current edits and enter ordinary local practice with the whole fighter family. Inspection confirms when the package loads. Preserves saved drafts and installed membership.",
-        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.practice.start", "Build current edits and enter local practice with the whole fighter family. Supply controlled options to start at frame zero with seeded RNG, selected participants and no automatic ticks.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION
+        R"(,"controlled":{"type":"object","properties":{"seed":{"type":"integer","minimum":0,"maximum":4294967295},"player":{"type":"object","properties":{)"
+        INITIAL_FIGHTER R"(},"additionalProperties":false},"opponents":{"type":"array","maxItems":3,"items":{"type":"object","properties":{)"
+        INITIAL_FIGHTER R"(,"port":{"type":"integer","minimum":1,"maximum":3},"fighter_id":{"type":"integer","minimum":0,"maximum":127},"package_id":{"type":"string","minLength":64,"maxLength":64},"cpu_level":{"type":"integer","minimum":0,"maximum":9}},"required":["port"],"additionalProperties":false}},"sandbag":{"type":"boolean"},"sandbag_damage":{"type":"integer","minimum":0,"maximum":999}},"required":["seed"],"additionalProperties":false}},"required":["instance","revision"],"additionalProperties":false})", false},
     {"session.practice.stop", "Return this Workshop's live practice test to its frozen preview. Available during the owned test; leaves ordinary matches untouched.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
+    {"session.practice.state", "Read this client's controlled test ID, revision, frame, fighter/package identity and checkpoint status.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "},\"required\":[\"instance\"],\"additionalProperties\":false}", true, practice_state_output},
+    {"session.practice.run", "Advance exactly the supplied game ticks using the given pad states. Supply capture to save the last rendered tick and get a capture ID. One neutral frame is a single step.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
+        R"(,"inputs":{"type":"array","minItems":1,"maxItems":600,"items":{"type":"object","properties":{"frames":{"type":"integer","minimum":1,"maximum":600},"pads":{"type":"array","maxItems":4,"items":{"type":"object","properties":{"port":{"type":"integer","minimum":0,"maximum":3},"stick_x":)"
+        AXIS R"(,"stick_y":)" AXIS R"(,"c_x":)" AXIS R"(,"c_y":)" AXIS
+        R"(,"trigger_l":{"type":"integer","minimum":0,"maximum":255},"trigger_r":{"type":"integer","minimum":0,"maximum":255},"buttons":{"type":"array","maxItems":11,"items":{"type":"string","enum":["A","B","X","Y","Z","L","R","left","right","up","down"]}}},"required":["port"],"additionalProperties":false}}},"required":["frames"],"additionalProperties":false}},"capture":{"type":"object","properties":{"scope":{"type":"string","enum":["viewport","window"]},"output":{"type":"string","minLength":1,"maxLength":500}},"required":["scope","output"],"additionalProperties":false}},"required":["instance","test_id","test_revision","inputs"],"additionalProperties":false})", false, practice_state_output},
+    {"session.practice.trace", "Read retained post-tick rows with fighter actions, animation frames, active hitboxes, damage, position, velocity, facing, hitlag and item counts. Frame zero is the initialized scene.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
+        R"(,"from":{"type":"integer","minimum":0,"maximum":4294967295},"limit":{"type":"integer","minimum":1,"maximum":120}},"required":["instance","test_id","test_revision"],"additionalProperties":false})", true},
+    {"session.practice.assert", "Check inclusive retained frame ranges for inactive hitboxes, facing, action, exact accepted item-hit counts or script faults. Returns each result and its first failing frame when applicable.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
+        R"(,"checks":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object","properties":{"predicate":{"type":"string","enum":["hitbox_inactive","facing","action","item_hit_count","no_script_faults"]},"from":{"type":"integer","minimum":0,"maximum":4294967295},"through":{"type":"integer","minimum":0,"maximum":4294967295},"port":{"type":"integer","minimum":0,"maximum":4},"actor":{"type":"integer","minimum":0,"maximum":1},"slot":{"type":"integer","minimum":0,"maximum":3},"item_kind":{"type":"integer","minimum":0,"maximum":65535},"expected":{"type":"integer","minimum":-1,"maximum":32767}},"required":["predicate"],"additionalProperties":false}}},"required":["instance","test_id","test_revision","checks"],"additionalProperties":false})", true},
+    {"session.practice.checkpoint", "Save or restore one private gameplay snapshot in the current practice scene, including interpreter state. Poll state for completion.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
+        R"(,"action":{"type":"string","enum":["save","restore"]}},"required":["instance","test_id","test_revision","action"],"additionalProperties":false})", false, practice_state_output},
+    {"session.practice.reset", "Restore this trial's frame-zero state, including RNG and controller history, without reloading the draft.",
+        "{\"type\":\"object\",\"properties\":{" INSTANCE "," TEST_ID
+        R"(},"required":["instance","test_id","test_revision"],"additionalProperties":false})", false, practice_state_output},
     {"session.undo", "Undo one edit in the current Workshop member and workspace. Requires the inspected live revision.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE "," REVISION "},\"required\":[\"instance\",\"revision\"],\"additionalProperties\":false}", false},
     {"session.redo", "Redo one edit in the current Workshop member and workspace. Requires the inspected live revision.",
@@ -149,6 +196,9 @@ static const Command commands[] = {
 };
 #undef INSTANCE
 #undef REVISION
+#undef TEST_ID
+#undef INITIAL_FIGHTER
+#undef AXIS
 const Command* catalog(size_t& count) { count = sizeof(commands) / sizeof(*commands); return commands; }
 const Command* find(const char* name)
 {

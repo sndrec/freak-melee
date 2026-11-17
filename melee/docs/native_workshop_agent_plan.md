@@ -314,6 +314,26 @@ Accepted 2026-11-17. Implementation is in progress.
   Controlled practice, remaining typed output schemas and final packaged
   acceptance remain open.
 
+- Controlled practice now starts at frame zero with a seed, editable spawn
+  point, facing and damage, the draft family, up to three stock or cached
+  opponents, and an optional sandbag. Agents submit pad segments for single
+  steps or runs of up to 600 ticks. The game uses its ordinary simulation and
+  render passes on those ticks. Test trace rows include actor state, item
+  positions, accepted item hits, script-state fingerprints and interpreter
+  faults. Checks cover inactive hitboxes, facing, action, item hit counts and
+  script faults. Reset and a single saved checkpoint use the match snapshot
+  arenas. A run can reserve its final tick as a viewport or whole-window PNG.
+  A paused frame continues servicing GPU readback without another game tick.
+  The extracted hidden and muted build verified precise steps, starting
+  setup and loaded package identity, one left-facing fireball hit, hit and
+  facing assertions, a deliberate interpreter fault, rollback of a modified
+  script variable, identical replay traces, exact PNG receipts and matching
+  MCP image bytes. Ordinary Workshop preview, practice, installation, export
+  and portrait capture also passed against the same extracted build. All
+  nineteen core checks passed, and agent reports still upload and retry using
+  the F2 wire format. Output schema coverage and final packaged acceptance
+  remain open.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

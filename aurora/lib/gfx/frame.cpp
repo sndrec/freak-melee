@@ -157,6 +157,7 @@ void process_events() {
     g_instance.ProcessEvents();
   }
 }
+} // namespace
 
 void enqueue_process_events() {
   if (render_worker::is_worker_thread()) {
@@ -176,6 +177,7 @@ void enqueue_process_events() {
   });
 }
 
+namespace {
 void wait_for_gpu_progress(std::chrono::nanoseconds sleepDuration) {
   if (render_worker::is_idle()) {
     enqueue_process_events();

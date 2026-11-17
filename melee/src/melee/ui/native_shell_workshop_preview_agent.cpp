@@ -5,6 +5,7 @@
 #include <aurora/aurora.h>
 #include <bcrypt.h>
 #include <melee/gm/native_feedback.h>
+#include <melee/gm/native_workshop_practice.h>
 
 using NativeAuthoring::Reply;
 using NativeAuthoring::add_string;
@@ -16,6 +17,7 @@ struct Capture {
     AuroraPresentedCapture frame{};
     yyjson_mut_doc* metadata = nullptr;
     size_t bytes = 0;
+    unsigned practice_id = 0, practice_frame = 0;
 } capture;
 
 bool playing()
@@ -45,6 +47,69 @@ void report_capture(Reply& reply)
         add_string(reply, reply.result, "message", capture.error);
     }
     add_string(reply, reply.result, "status", status);
+}
+
+bool reserve_capture(yyjson_val* args, yyjson_mut_val* view, Reply& reply,
+    unsigned practice_id = 0, unsigned practice_frame = 0)
+{
+    if (!capture.temporary.empty()) {
+        reply.fail("capture_busy", "Wait for the outstanding Workshop capture.");
+        return false;
+    }
+    const char* scope = yyjson_get_str(yyjson_obj_get(args, "scope"));
+    const bool viewport = std::strcmp(scope, "viewport") == 0;
+    const std::string requested = yyjson_get_str(yyjson_obj_get(args, "output"));
+    char full[768];
+    const bool drive_path = requested.size() >= 7 && requested[1] == ':' &&
+        (requested[2] == '/' || requested[2] == '\\') && requested.find(':', 2) == std::string::npos;
+    DWORD length = drive_path ? GetFullPathNameA(requested.c_str(), sizeof(full), full, nullptr) : 0;
+    if (!length || length >= sizeof(full) || !requested.ends_with(".png")) {
+        reply.fail("invalid_output", "Choose an absolute .png file path on a local drive.");
+        return false;
+    }
+    if (GetFileAttributesA(full) != INVALID_FILE_ATTRIBUTES) {
+        reply.fail("output_exists", "Choose a new PNG path.");
+        return false;
+    }
+    unsigned char random[16];
+    if (BCryptGenRandom(nullptr, random, sizeof(random), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
+        reply.fail("capture_failed", "Could not allocate a capture identity.");
+        return false;
+    }
+    char token[33]{};
+    for (unsigned i = 0; i < sizeof(random); ++i) std::snprintf(token + i * 2, 3, "%02x", random[i]);
+    const std::string temporary = std::string(full) + "." + token + ".png";
+    auto* metadata = yyjson_mut_doc_new(nullptr);
+    if (!metadata) {
+        reply.fail("capture_failed", "Could not allocate frame metadata.");
+        return false;
+    }
+    yyjson_mut_doc_set_root(metadata, yyjson_mut_val_mut_copy(metadata, view));
+    HANDLE file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        yyjson_mut_doc_free(metadata);
+        reply.fail("capture_failed", "Could not reserve a file in the requested output directory.");
+        return false;
+    }
+    CloseHandle(file);
+    AuroraPresentedCapture reserved{};
+    if (!practice_id && !aurora_capture_next_frame(temporary.c_str(), viewport, &reserved)) {
+        DeleteFileA(temporary.c_str());
+        yyjson_mut_doc_free(metadata);
+        reply.fail("capture_busy", "Finish the current screenshot or feedback capture first.");
+        return false;
+    }
+    yyjson_mut_doc_free(capture.metadata);
+    capture = {};
+    capture.token = token;
+    capture.temporary = temporary;
+    capture.output = full;
+    capture.scope = scope;
+    capture.frame = reserved;
+    capture.metadata = metadata;
+    capture.practice_id = practice_id;
+    capture.practice_frame = practice_frame;
+    return true;
 }
 }
 
@@ -142,10 +207,6 @@ void nativeWorkshopPreview_Configure(yyjson_val* args, Reply& reply)
 
 void nativeWorkshopPreview_Capture(yyjson_val* args, yyjson_mut_val* state, Reply& reply)
 {
-    if (!capture.temporary.empty()) {
-        reply.fail("capture_busy", "Wait for the outstanding Workshop capture.");
-        return;
-    }
     auto* view = yyjson_mut_obj_get(state, "preview_view");
     if (nativeFeedback_IsOpen() || !yyjson_mut_get_bool(yyjson_mut_obj_get(state, "preview_ready")) ||
         !yyjson_mut_is_obj(yyjson_mut_obj_get(view, "pose"))) {
@@ -158,68 +219,56 @@ void nativeWorkshopPreview_Capture(yyjson_val* args, yyjson_mut_val* state, Repl
         reply.fail("viewport_hidden", "Leave graph focus to capture the game viewport.");
         return;
     }
-    const std::string requested = yyjson_get_str(yyjson_obj_get(args, "output"));
-    char full[768];
-    const bool drive_path = requested.size() >= 7 && requested[1] == ':' &&
-        (requested[2] == '/' || requested[2] == '\\') && requested.find(':', 2) == std::string::npos;
-    DWORD length = drive_path ? GetFullPathNameA(requested.c_str(), sizeof(full), full, nullptr) : 0;
-    if (!length || length >= sizeof(full) || !requested.ends_with(".png")) {
-        reply.fail("invalid_output", "Choose an absolute .png file path on a local drive.");
-        return;
-    }
-    if (GetFileAttributesA(full) != INVALID_FILE_ATTRIBUTES) {
-        reply.fail("output_exists", "Choose a new PNG path.");
-        return;
-    }
-    unsigned char random[16];
-    if (BCryptGenRandom(nullptr, random, sizeof(random), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
-        reply.fail("capture_failed", "Could not allocate a capture identity.");
-        return;
-    }
-    char token[33]{};
-    for (unsigned i = 0; i < sizeof(random); ++i) std::snprintf(token + i * 2, 3, "%02x", random[i]);
-    const std::string temporary = std::string(full) + "." + token + ".png";
-    auto* metadata = yyjson_mut_doc_new(nullptr);
-    if (!metadata) {
-        reply.fail("capture_failed", "Could not allocate frame metadata.");
-        return;
-    }
-    auto* captured = yyjson_mut_obj(metadata);
-    yyjson_mut_doc_set_root(metadata, captured);
+    auto* captured = yyjson_mut_obj(reply.document);
     for (const char* key : {"instance", "build_identity", "member", "workspace", "revision",
                             "fighter_revision", "preview_fighter_revision", "loaded_preview_package_id",
                             "preview_view", "model_view"}) {
         auto* value = yyjson_mut_obj_get(state, key);
-        if (value) yyjson_mut_obj_add_val(metadata, captured, key, yyjson_mut_val_mut_copy(metadata, value));
+        if (value) yyjson_mut_obj_add_val(reply.document, captured, key, yyjson_mut_val_mut_copy(reply.document, value));
     }
-    HANDLE file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
-        yyjson_mut_doc_free(metadata);
-        reply.fail("capture_failed", "Could not reserve a file in the requested output directory.");
-        return;
-    }
-    CloseHandle(file);
-    AuroraPresentedCapture reserved{};
-    if (!aurora_capture_next_frame(temporary.c_str(), viewport, &reserved)) {
-        DeleteFileA(temporary.c_str());
-        yyjson_mut_doc_free(metadata);
-        reply.fail("capture_busy", "Finish the current screenshot or feedback capture first.");
-        return;
-    }
-    yyjson_mut_doc_free(capture.metadata);
-    capture = {};
-    capture.token = token;
-    capture.temporary = temporary;
-    capture.output = full;
-    capture.scope = scope;
-    capture.frame = reserved;
-    capture.metadata = metadata;
-    report_capture(reply);
+    if (reserve_capture(args, captured, reply)) report_capture(reply);
+}
+
+bool nativeWorkshopPreview_ReservePracticeCapture(yyjson_val* args, const char* instance,
+                                                unsigned end_frame, Reply& reply)
+{
+    const auto& state = *nativeWorkshopPractice_State();
+    auto* view = yyjson_mut_obj(reply.document);
+    char package[65];
+    nativeContentStore_IdHex(&state.package, package);
+    add_string(reply, view, "instance", instance);
+    add_string(reply, view, "build_identity", NativeAuthoring::build_identity());
+    add_string(reply, view, "fighter_revision", state.fighter_revision);
+    add_string(reply, view, "package_id", package);
+    yyjson_mut_obj_add_uint(reply.document, view, "test_id", state.id);
+    yyjson_mut_obj_add_uint(reply.document, view, "practice_frame", end_frame);
+    if (!reserve_capture(args, view, reply, state.id, end_frame)) return false;
+    add_string(reply, reply.result, "capture_id", capture.token);
+    return true;
+}
+
+extern "C" void nativeShell_CapturePracticeFrame(void)
+{
+    if (!capture.practice_id || capture.temporary.empty() || capture.frame.capture_id) return;
+    const auto& state = *nativeWorkshopPractice_State();
+    if (!nativeWorkshopPractice_Stepping() || state.id != capture.practice_id ||
+        state.frame + 1 != capture.practice_frame) return;
+    if (!aurora_capture_next_frame(capture.temporary.c_str(), capture.scope == "viewport", &capture.frame))
+        capture.error = "The requested practice frame could not reserve the renderer.";
 }
 
 void nativeWorkshopPreview_UpdateCapture()
 {
     if (capture.temporary.empty()) return;
+    if (capture.practice_id && !capture.frame.capture_id) {
+        const auto& state = *nativeWorkshopPractice_State();
+        if (capture.error.empty() && state.id == capture.practice_id && nativeWorkshopPractice_Stepping() &&
+            state.frame < capture.practice_frame) return;
+        if (capture.error.empty()) capture.error = "The requested practice frame was not presented.";
+        DeleteFileA(capture.temporary.c_str());
+        capture.temporary.clear();
+        return;
+    }
     AuroraPresentedCapture completed{};
     aurora_presented_capture_status(&completed);
     if (completed.capture_id == capture.frame.capture_id && completed.status == AURORA_CAPTURE_PENDING) return;
@@ -265,7 +314,7 @@ void nativeWorkshopPreview_CaptureStatus(yyjson_val* args, Reply& reply)
 void nativeWorkshopPreview_Shutdown()
 {
     if (!capture.temporary.empty()) {
-        aurora_release_presented_capture();
+        if (capture.frame.capture_id) aurora_release_presented_capture();
         DeleteFileA(capture.temporary.c_str());
     }
     yyjson_mut_doc_free(capture.metadata);

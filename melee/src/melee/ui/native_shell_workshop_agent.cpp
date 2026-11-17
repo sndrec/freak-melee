@@ -2,6 +2,7 @@
 #include "native_shell_workshop.h"
 #include "native_shell_workshop_editor.h"
 #include "native_shell_workshop_model.h"
+#include "native_shell_workshop_practice.h"
 #include "native_shell_workshop_preview_agent.h"
 #include "native_hub.h"
 #include "native_hub_portrait.h"
@@ -140,6 +141,10 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
     if (!NativeWorkshopAgent::validate(*command, arguments, reply)) return;
     if (!std::strcmp(method, "session.preview.capture_status")) {
         nativeWorkshopPreview_CaptureStatus(arguments, reply);
+    } else if (!std::strncmp(method, "session.practice.", 17) &&
+               std::strcmp(method, "session.practice.start") &&
+               std::strcmp(method, "session.practice.stop")) {
+        nativeWorkshopPractice_Agent(method + 17, arguments, reply);
     } else if (!std::strncmp(method, "session.presentation.", 21) &&
                std::strcmp(method, "session.presentation.open") &&
                std::strcmp(method, "session.presentation.place")) {
@@ -218,7 +223,7 @@ void handle(const char* method, yyjson_val* arguments, Reply& reply, void*)
         else if (!std::strcmp(method, "session.preview.refresh")) nativeShellWorkshop_RequestPreview(false, &reply);
         else if (!std::strcmp(method, "session.preview.configure")) nativeWorkshopPreview_Configure(arguments, reply);
         else if (!std::strcmp(method, "session.preview.capture")) nativeWorkshopPreview_Capture(arguments, inspected, reply);
-        else if (!std::strcmp(method, "session.practice.start")) nativeShellWorkshop_RequestPreview(true, &reply);
+        else if (!std::strcmp(method, "session.practice.start")) nativeWorkshopPractice_Start(arguments, inspected, reply);
         else if (!std::strcmp(method, "session.practice.stop")) nativeShellWorkshop_StopTest(reply);
         else if (!std::strcmp(method, "session.scripts.check")) {
             if (!state.allowed || nativeShellWorkshopEditor_AgentBusy())

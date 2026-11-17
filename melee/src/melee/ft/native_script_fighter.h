@@ -122,6 +122,7 @@ bool nativeScriptFighter_Attach(Fighter_GObj*);
 void nativeScriptFighter_NewLife(Fighter_GObj*,uint32_t generation);
 void nativeScriptFighter_Detach(Fighter_GObj*);
 bool nativeScriptFighter_IsAttached(Fighter_GObj*);
+uint64_t nativeScriptFighter_StateFingerprint(Fighter_GObj*);
 // Only the initial attachment callback may allocate costume trees and cloth.
 bool nativeScriptFighter_IsLoading(Fighter_GObj*);
 bool nativeScriptFighter_HasHook(Fighter_GObj*,uint32_t hook);

@@ -73,6 +73,7 @@ def main():
                        'animations.edit', 'session.animations.edit', 'session.animations.select',
                      'feedback.prepare', 'feedback.submit', 'feedback.discard',
                      'session.preview.refresh', 'session.practice.start', 'session.practice.stop',
+                     'session.practice.run', 'session.practice.checkpoint', 'session.practice.reset',
                      'session.open', 'session.member.select', 'session.workspace.select', 'session.scripts.update',
                      'session.scripts.select', 'session.save', 'session.undo', 'session.redo', 'session.disconnect'}
         assert all(item['annotations']['readOnlyHint'] == (item['name'] not in mutations) for item in tools)

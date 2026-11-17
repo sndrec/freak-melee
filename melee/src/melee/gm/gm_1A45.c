@@ -17,6 +17,7 @@
 #include "native_match_launch.h"
 #include "native_spectator_match.h"
 #include "native_home.h"
+#include "native_workshop_practice.h"
 #include "native_netplay_match.h"
 #include "native_netplay_timing.h"
 #include "native_rollback_census.h"
@@ -418,9 +419,11 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
     }
 
+    nativeWorkshopPractice_BeginLoop();
     while (temp_r25->unk_C == 0 && !gmMain_ExitRequested) {
         // GPU and UI work run on this thread between ticks.
         _mm_setcsr(NativeFloatMath_DefaultMxcsr);
+        nativeWorkshopPractice_Boundary();
         if(compact_before_input) {
             nativeSnapshotCensus_Sample(info->scene_kind,temp_r25->unk_0,
                                        nativeReplay_SampleCount());
@@ -459,6 +462,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         if(compact_timing)nativeSnapshotCensus_BeginTiming(NativeCompactTiming_Input);
         if(netplay_timing)nativeNetplayTiming_Begin(NativeNetplayTiming_Input);
         bool watch_frame_ready = !spectating;
+        bool practice_idle = false;
         do {
             nativeFeedbackContext_Boundary(info->scene_kind, temp_r25->unk_0, rollback_frame,
                 (netplay && nativeNetplayMatch_IsResimulating()) || nativeSnapshotCensus_IsResimulating(), netplay);
@@ -492,6 +496,10 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 SDL_Delay(1);
                 continue;
             }
+            if (nativeWorkshopPractice_Controlled() && !nativeWorkshopPractice_Stepping()) {
+                practice_idle = true;
+                break;
+            }
             if (spectating) {
                 int ready = nativeSpectatorMatch_PollFrame();
                 if (ready < 0) { gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST); break; }
@@ -500,7 +508,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             }
             // Online matches gate visible samples on the host clock in
             // BeginFrame. Every sample advances the simulation clock once.
-            pad_queue_count = lbInput_Poll(spectating || netplay
+            pad_queue_count = lbInput_Poll(spectating || netplay || nativeWorkshopPractice_Controlled()
                                                ? lbInput_NextSampleTimeNs()
                                                : nativeMatchLaunch_Fast()
                                                      ? lbInput_VirtualClockNowNs()
@@ -523,7 +531,15 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             --loop_snapshot.activity;
             break;
         }
-        if (rollback_active && pad_queue_count > 1) {
+        if (practice_idle) {
+            // Agent/feedback requests can be processed without another pad
+            // sample, GObj pass, render callback or gameplay clock advance.
+            --loop_snapshot.activity;
+            nativeShell_UpdateAuthoring();
+            SDL_Delay(4);
+            continue;
+        }
+        if ((rollback_active || nativeWorkshopPractice_Controlled()) && pad_queue_count > 1) {
             pad_queue_count = 1;
         }
 
@@ -675,6 +691,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
                 gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
             }
             --loop_snapshot.activity;
+            nativeWorkshopPractice_EndFrame();
             continue;
         }
         GXInvalidateVtxCache();
@@ -720,6 +737,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             aurora_end_frame_without_present();
         } else {
             db_TakeScreenshotIfPending();
+            nativeShell_CapturePracticeFrame();
             aurora_end_frame();
         }
         if(compact_timing)nativeSnapshotCensus_EndTiming(NativeCompactTiming_RenderEnd);
@@ -737,6 +755,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             nativeSnapshotCensus_Abort("cannot end compact replay audio-intent frame");gmMain_ExitRequested=true;
         }
         --loop_snapshot.activity;
+        nativeWorkshopPractice_EndFrame();
         if(nativeMatchLaunch_SnapshotCensus()) {
             for(uint32_t slot=0;slot<nativeGObjPool.initialized_count;++slot)
                 if(nativeGObjPool.slots[slot].occupied)
@@ -777,6 +796,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             gm_Scene_Vs_Abort(OUTCOME_NO_CONTEST);
         }
     }
+    nativeWorkshopPractice_EndLoop();
     if(compact_journal)HSD_AudioRollbackAbortFrame();
     if (no_gpu_resim) OSReport("[native-render] CPU-only GX frames: %llu.\n",
         (unsigned long long)cpu_render_frames);
