@@ -160,6 +160,19 @@ Accepted 2026-11-17. Implementation is in progress.
   animation authoring guide. Pose-copy capacity and skipped channels are reported;
   this uses the current editor's native pose buffer. No public upload occurred.
 
+- Common attributes now have saved/live grouped edits by inspected names, with
+  native type/range metadata and requested/applied float32 values. Both routes
+  use one atomic native operation. Rejected groups preserve all original bytes;
+  saved edits use the family lease, disk revision and recovery journal. Paired
+  member edits preserve the other member. Live edits use the current workspace's
+  history, including Model, and synchronize the ordinary attribute fields.
+  Enter-to-confirm now uses the inspector's capture handler; the previous bubble
+  handler did not receive Enter reliably. A hidden/muted client verifies manual
+  entry, cancellation, grouped undo, Model undo/redo and unchanged disk before
+  saving. All sixteen core checks and extracted-package CLI/MCP/launcher/live
+  checks pass with a Windows-only PATH. The installed guide covers this tuning
+  workflow. No public upload occurred.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

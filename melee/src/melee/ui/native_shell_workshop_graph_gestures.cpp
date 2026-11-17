@@ -509,7 +509,7 @@ namespace WorkshopEditor {
             field("workshop-clip-end")->SetValue(float_text(session->clip_frames));
             return true;
         case Property::Model: return nativeShellWorkshopModel_CommitProperty(id.c_str());
-        case Property::Attribute:
+        case Property::Attribute: return apply_attribute(id);
         case Property::Parameter:
         case Property::None: return false;
         }

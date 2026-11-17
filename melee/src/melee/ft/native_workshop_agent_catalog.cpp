@@ -1,11 +1,14 @@
 #include "native_workshop_agent_catalog.h"
 #include "native_action_authoring.h"
 #include "native_animation_authoring.h"
+#include "native_attribute_authoring.h"
 #include <cstring>
 namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
 static const Command commands[] = {
+    {"session.attributes.list", "Read the live member's unsaved common attributes, names, types, descriptions and native limits.", NativeAttributeAuthoring::list_schema(true), true},
+    {"session.attributes.edit", "Edit common attributes by name as one atomic Workshop undo step. Returns requested and applied values; leaves disk and installed fighters unchanged.", NativeAttributeAuthoring::edit_schema(true), false},
     {"session.animations.read", "Read unsaved clips, bones, tracks, keys, local poses and native evaluated samples.", NativeAnimationAuthoring::read_schema(true), true},
     {"session.animations.preview", "Read the actual frozen preview actor's applied clip/frame, local bone transforms and world matrices. Returns preview_pending until the requested draft pose has reached the actor. Includes current draft/loaded-package identity.",
         "{\"type\":\"object\",\"properties\":{" INSTANCE R"(,"bones":{"type":"array","maxItems":512,"items":{"type":"integer","minimum":0,"maximum":511}}},"required":["instance"],"additionalProperties":false})", true},

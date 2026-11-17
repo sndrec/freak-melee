@@ -1,8 +1,8 @@
 # Create fighters with an AI agent
 
 Freak Melee includes `native_content_tool.exe` beside the game. It can inspect
-your fighter drafts, edit their script files and parameters, check their scripts
-and read the installed scripting reference. Run `agent list` to see the operations
+your fighter drafts, edit scripts, tuning, actions and animations, validate and
+build fighters, and read the installed scripting reference. Run `agent list` to see the operations
 available in your installed build.
 
 You can give a coding agent this folder and ask it to read this guide. The
@@ -166,6 +166,32 @@ supporting examples. They are also available as MCP resources under
 `freak-melee://examples/`. The installed reference links to local copies of
 these files. Links marked **developer reference, online** provide optional
 implementation notes on GitHub.
+
+## Tune common attributes
+
+`attributes.list` reads named tuning such as `gravity`, `max_jumps`, `weight`
+and aerial landing recovery. Search by name, label, description or group. Each
+field includes its current value, numeric type and native limits. Descriptions
+explain the gameplay meaning and units.
+
+`attributes.edit` takes the saved draft's `revision` and a `changes` array:
+
+```json
+{"changes": [{"name": "gravity", "value": 0.125}, {"name": "max_jumps", "value": 3}]}
+```
+
+The whole group succeeds together. Integer fields require whole values; flag
+fields accept their reported mask range. Float fields use 32-bit precision, and
+the reply reports both `requested` and `applied` values. Weight and model scale
+must remain positive; total jumps must be at least one. A rejected group leaves
+the draft unchanged. Use `member` to tune one member of a paired fighter.
+
+The live equivalents are `session.attributes.list` and
+`session.attributes.edit`. A live edit also takes a short `summary`, changes the
+unsaved member and creates one undo step in the current workspace's history. The attribute fields
+update when an agent edits them or restores history. Save keeps the draft; refresh
+the preview or start practice to load the complete fighter with its new tuning.
+Build and install when ready to use it outside the Workshop.
 
 ## Edit actions and events
 

@@ -16,6 +16,10 @@ void buttons()
                          { "workshop-redo", active->change_cursor < active->changes.size() } }) {
         if (button.second) element(button.first)->RemoveAttribute("disabled");
         else element(button.first)->SetAttribute("disabled", "");
+        const bool redo = !std::strcmp(button.first, "workshop-redo");
+        const size_t index = redo ? active->change_cursor : active->change_cursor ? active->change_cursor - 1 : 0;
+        element(button.first)->SetAttribute("title", index < active->changes.size() && !active->changes[index].summary.empty()
+            ? active->changes[index].summary : redo ? "Redo Model edit" : "Undo Model edit");
     }
 }
 
@@ -43,16 +47,16 @@ void record(uint32_t offset, unsigned count, const uint8_t before[4])
 
 bool record_asset(const std::vector<uint8_t>& before,const std::vector<uint8_t>& fighter)
 {
-    const bool same_costume=before.size() == active->project->costume_size &&
+    const bool same_costume=before.empty() || (before.size() == active->project->costume_size &&
         std::memcmp(before.data(), active->project->costume_dat,
-                    before.size()) == 0;
+                    before.size()) == 0);
     const bool same_fighter=fighter.empty() || (fighter.size()==active->project->fighter_size &&
         std::memcmp(fighter.data(),active->project->fighter_dat,fighter.size())==0);
     if(same_costume && same_fighter) return false;
     Change change = {};
     change.rig_revision = active->project->rig_edit_revision;
     change.before_asset = before;
-    change.after_asset.assign(active->project->costume_dat,
+    if (!before.empty()) change.after_asset.assign(active->project->costume_dat,
                               active->project->costume_dat + active->project->costume_size);
     if(!fighter.empty()) {
         change.before_fighter=fighter;
@@ -168,6 +172,7 @@ bool nativeShellWorkshopModel_Undo(bool redo)
     else --active->change_cursor;
     buttons();
     reopen_model();
+    nativeShellWorkshop_RefreshAttributes();
     if (!change.before_asset.empty())
         nativeShellWorkshop_RequestPreview(false);
     nativeHome_WorkshopPoseInvalidate();

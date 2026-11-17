@@ -1061,6 +1061,7 @@ void apply_history(bool redo)
     if (edit.animation) session->animation_dirty = true;
     else {
         session->action_dirty = true;
+        nativeShellWorkshop_RefreshAttributes();
     }
     const int action = session->selected_action;
     const NativeFighterAnimationClip clip = session->animation_clip;

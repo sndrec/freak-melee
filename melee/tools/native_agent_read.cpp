@@ -4,6 +4,7 @@
 #include <melee/ft/native_fighter_family_project.h>
 #include <melee/ft/native_fighter_sources.h>
 #include <melee/ft/native_fighter_attributes.h>
+#include <melee/ft/native_attribute_authoring.h>
 #include <melee/ft/native_fighter_action_editor.h>
 #include <melee/ft/native_fighter_authoring.h>
 #include <melee/ft/native_fighter_behavior_source.h>
@@ -168,30 +169,7 @@ void source(const Context&, yyjson_val* arguments, Reply& reply)
 void attributes(const Context&, yyjson_val* arguments, Reply& reply)
 {
     auto project = open_project(arguments, reply);
-    if (!project) return;
-    auto* array = yyjson_mut_arr(reply.document);
-    yyjson_mut_obj_add_val(reply.document, reply.result, "attributes", array);
-    unsigned offset = page_offset(arguments), limit = page_limit(arguments);
-    size_t matching = 0;
-    for (unsigned i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i) {
-        const auto& field = nativeFighterCommonAttributes[i];
-        std::string query = string(arguments, "query");
-        if (!matches(field.name, query) && !matches(field.label, query) && !matches(field.description, query)) continue;
-        if (matching++ < offset || yyjson_mut_arr_size(array) >= limit) continue;
-        double value;
-        if (!nativeFighterProject_GetAttribute(&project->family.members[project->member], i, &value)) {
-            reply.fail("invalid_attribute", std::string("Could not read attribute: ") + field.name); return;
-        }
-        auto* object = item(reply, array);
-        add_string(reply, object, "name", field.name);
-        add_string(reply, object, "label", field.label);
-        add_string(reply, object, "description", field.description);
-        add_string(reply, object, "group", field.group);
-        const char* types[] = {"float", "integer", "flags"};
-        add_string(reply, object, "type", types[field.type]);
-        yyjson_mut_obj_add_real(reply.document, object, "value", value);
-    }
-    pagination(reply, matching, offset, limit);
+    if (project) NativeAttributeAuthoring::list(project->family.members[project->member], arguments, reply);
 }
 
 void actions(const Context&, yyjson_val* arguments, Reply& reply)

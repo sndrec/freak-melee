@@ -1,4 +1,22 @@
 #include "native_fighter_attributes.h"
+#include <float.h>
+
+NativeFighterAttributeLimits nativeFighterAttribute_Limits(size_t property)
+{
+    if (property >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT)
+        return (NativeFighterAttributeLimits){0, 0, false};
+    const NativeFighterAttribute* field = &nativeFighterCommonAttributes[property];
+    NativeFighterAttributeLimits limits = field->type == NativeAttribute_Mask
+        ? (NativeFighterAttributeLimits){0, 255, false}
+        : field->type == NativeAttribute_Int
+        ? (NativeFighterAttributeLimits){-2147483648.0, 2147483647.0, false}
+        : (NativeFighterAttributeLimits){-FLT_MAX, FLT_MAX, false};
+    if (field->offset == 0x88 || field->offset == 0x8c) {
+        limits.minimum = 0; limits.exclusive_minimum = true;
+    }
+    if (field->offset == 0x58) limits.minimum = 1;
+    return limits;
+}
 
 const NativeFighterAttribute nativeFighterCommonAttributes[NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT] = {
     { "walk_accel_mul", "Walk acceleration Â· stick multiplier", "Movement", "Horizontal walk acceleration from stick input, in units per frame squared at full input.", 0x000, NativeAttribute_Float },

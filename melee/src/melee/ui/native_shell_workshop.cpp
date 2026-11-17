@@ -65,7 +65,6 @@ NativeFighterProject* active_project;
 unsigned active_member;
 bool updating_member_selector;
 bool member_opened[NATIVE_FIGHTER_FAMILY_MEMBERS];
-std::string attribute_text[NATIVE_FIGHTER_FAMILY_MEMBERS][NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT];
 bool project_loaded;
 uint64_t project_generation;
 bool attributes_dirty[NATIVE_FIGHTER_FAMILY_MEMBERS];
@@ -223,6 +222,22 @@ bool family_has_unsaved_edits()
 
 } // namespace
 
+void nativeShellWorkshop_RefreshAttributes()
+{
+    if (!project_loaded || !active_project) return;
+    for (unsigned i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i) {
+        double value;
+        if (!nativeFighterProject_GetAttribute(active_project, i, &value)) continue;
+        char text[48];
+        const auto result = nativeFighterCommonAttributes[i].type == NativeAttribute_Float
+            ? std::to_chars(text, text + sizeof(text) - 1, (float) value)
+            : std::to_chars(text, text + sizeof(text) - 1, (long long) value);
+        if (result.ec != std::errc{}) continue;
+        *result.ptr = 0;
+        input(attribute_id(i).c_str())->SetValue(text);
+    }
+}
+
 bool nativeShellWorkshop_SelectMember(unsigned member, bool restart_preview)
 {
     if (!project_loaded || member >= active_family.member_count) return false;
@@ -238,8 +253,7 @@ bool nativeShellWorkshop_SelectMember(unsigned member, bool restart_preview)
     }
     active_member = member;
     active_project = &active_family.members[member];
-    for (int i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i)
-        input(attribute_id(i).c_str())->SetValue(attribute_text[member][i]);
+    nativeShellWorkshop_RefreshAttributes();
     auto* member_menu = static_cast<Rml::ElementFormControlSelect*>(
         document->GetElementById("workshop-family-member"));
     const std::string member_value = std::to_string(member);
@@ -314,11 +328,8 @@ void select_draft(size_t index)
     active_member = 0;
     active_project = &active_family.members[0];
     project_loaded = true;
-    for (unsigned member = 0; member < family.member_count; ++member)
-        for (int i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i)
-            attribute_text[member][i] = std::move(values[member][i]);
     for (int i = 0; i < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++i)
-        input(attribute_id(i).c_str())->SetValue(attribute_text[0][i]);
+        input(attribute_id(i).c_str())->SetValue(values[0][i]);
     auto* member_menu = static_cast<Rml::ElementFormControlSelect*>(
         document->GetElementById("workshop-family-member"));
     std::string member_options;
@@ -778,33 +789,6 @@ class WorkshopEvents final : public Rml::EventListener {
             if (id == "workshop-agent-show") show_fighter_menu(false);
             return;
         }
-        if (project_loaded && id.compare(0, 19, "workshop-attribute-") == 0 &&
-            (event.GetType() == "keydown" || event.GetType() == "blur")) {
-            const unsigned index = std::strtoul(id.c_str() + 19, nullptr, 10);
-            if (index >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT) return;
-            auto* control = input(id.c_str());
-            auto& saved = attribute_text[active_member][index];
-            if (event.GetType() == "blur") {
-                control->SetValue(saved);
-            } else if (event.GetParameter<int>("key_identifier", 0) ==
-                       Rml::Input::KI_RETURN) {
-                const auto value = control->GetValue();
-                char* end;
-                const double number = std::strtod(value.c_str(), &end);
-                if (value != saved && end != value.c_str() && *end == '\0' &&
-                    nativeFighterProject_SetAttribute(active_project, index, number)) {
-                    saved = value;
-                    attributes_dirty[active_member] = true;
-                    discard_pending = false;
-                    status("workshop-editor-status", "Attribute updated.");
-                } else if (value != saved) {
-                    status("workshop-editor-status", "Enter a valid attribute value.");
-                }
-                control->Blur();
-                event.StopPropagation();
-            }
-            return;
-        }
         if (event.GetType() == "keydown") {
             const int key = event.GetParameter<int>("key_identifier", 0);
             if (key == Rml::Input::KI_ESCAPE && fighter_menu_open) {
@@ -1033,8 +1017,6 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
         ->AddEventListener("input", &events);
     document->GetElementById("workshop-family-member")
         ->AddEventListener("change", &events);
-    for (size_t index = 0; index < NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT; ++index)
-        document->GetElementById(attribute_id(index))->AddEventListener("blur", &events);
 }
 
 void nativeShellWorkshop_Update()

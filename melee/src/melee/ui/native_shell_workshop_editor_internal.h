@@ -332,6 +332,7 @@ Rml::ElementFormControlInput* field(const char* id);
 void set_text(const char* id, const std::string& value);
 void update_history_buttons();
 bool apply_source_history(const EditHistoryEntry&, bool redo);
+bool apply_attribute(const Rml::String& id);
 void record_edit(bool animation, const uint8_t* before);
 void record_structural_edit(bool animation, const uint8_t* before, size_t size,
                             const uint8_t* before_fighter = nullptr,

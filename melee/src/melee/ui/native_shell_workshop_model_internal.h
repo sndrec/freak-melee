@@ -27,6 +27,7 @@ struct RigChange {
     RigView before_view,after_view;
 };
 struct Change {
+    std::string summary;
     uint32_t offset;
     uint8_t count;
     uint8_t before[4];

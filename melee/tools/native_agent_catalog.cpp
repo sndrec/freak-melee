@@ -2,6 +2,7 @@
 #include <melee/ft/native_workshop_agent_catalog.h>
 #include <melee/ft/native_action_authoring.h>
 #include <melee/ft/native_animation_authoring.h>
+#include <melee/ft/native_attribute_authoring.h>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -36,7 +37,9 @@ static const Tool offline_tools[] = {
     {"parameters.read", "Read this member's parameter override text and typed values, including values imported for a stock template. Inline defaults remain visible in the move sources. Invalid overrides are returned for repair.",
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", parameter_source, true},
     {"attributes.list", "Read named common fighter attributes with their types, groups and descriptions.",
-        "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "," PAGE_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", attributes, true},
+        NativeAttributeAuthoring::list_schema(false), attributes, true},
+    {"attributes.edit", "Atomically edit common fighter attributes by inspected name. Returns requested and float32-applied values; validates native type/range limits and preserves a rejected draft.",
+        NativeAttributeAuthoring::edit_schema(false), edit_attributes, false},
     {"actions.list", "List this fighter's real action IDs and names. Resolve the selected fighter's data before editing an action.",
         "{\"type\":\"object\",\"properties\":{" PROJECT_FIELDS "," PAGE_FIELDS "},\"required\":[\"project\"],\"additionalProperties\":false}", actions, true},
     {"actions.read", "Inspect saved action playback, reachable events, a selected event's typed fields, expanded loop occurrences or creation defaults. Choose view: metadata, events, event, timeline or types. Event handles belong to the inspected action/revision. Timers are hidden unless requested.", NativeActionAuthoring::read_schema(false), read_actions, true},

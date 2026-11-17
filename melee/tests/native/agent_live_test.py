@@ -106,7 +106,7 @@ def main():
                 if width > 0 and height > 0 and 'visible=0' not in found[0]:
                     return round(x + width / 2), round(y + height / 2)
         raise AssertionError(f'UI control unavailable: {element}')
-    def ui_text(element):
+    def ui_text(element, value=False):
         log = output / 'stderr.log'
         for _ in range(30):
             start = log.stat().st_size
@@ -115,7 +115,8 @@ def main():
             with log.open('r', encoding='utf-8', errors='replace') as stream:
                 stream.seek(start)
                 text = stream.read(2 * 1024 * 1024)
-            found = re.search(r'\[ui-inspect-value\] ' + re.escape(element) + r':[^\n]* text=([^\n]*)', text)
+            suffix = r':[^\n]* value=(.*?) text=' if value else r':[^\n]* text=([^\n]*)'
+            found = re.search(r'\[ui-inspect-value\] ' + re.escape(element) + suffix, text)
             if found: return found[1].strip()
         raise AssertionError(f'No UI text for {element}')
     try:
@@ -322,6 +323,56 @@ def main():
         reverted = call('session.redo', dict(target, revision=undone['revision']))
         assert not reverted['dirty'], reverted
         assert call('session.scripts.read', dict(target, file=first))['text'] == final_text
+        # Common tuning shares native limits and the editor's undo history.
+        tuning = call('session.attributes.list', dict(target, limit=200))
+        values = {row['name']: row['value'] for row in tuning['attributes']}
+        attribute_disk = snapshot(project)
+        tuned = call('session.attributes.edit', dict(target, revision=tuning['revision'],
+            summary='Tune gravity and jumping together', changes=[
+                {'name': 'gravity', 'value': .125}, {'name': 'max_jumps', 'value': 3}]))
+        assert tuned['changed'] and not tuned['saved'] and tuned['can_undo']
+        assert snapshot(project) == attribute_disk
+        invalid = call('session.attributes.edit', dict(target, revision=tuned['revision'],
+            summary='Reject invalid tuning', changes=[{'name': 'weight', 'value': 100},
+                {'name': 'max_jumps', 'value': 0}]), expected=False)
+        assert invalid['code'] == 'attribute_edit_rejected'
+        unchanged = call('session.attributes.list', dict(target, limit=200))
+        assert unchanged['revision'] == tuned['revision']
+        assert next(row['value'] for row in unchanged['attributes'] if row['name'] == 'weight') == values['weight']
+        reverted = call('session.undo', dict(target, revision=tuned['revision']))
+        restored = call('session.attributes.list', dict(target, limit=200))
+        assert {row['name']: row['value'] for row in restored['attributes']} == values
+        if args.control:
+            control('ui-click', *position('workshop-package-toggle'))
+            control('ui-click', *position('workshop-attribute-0'))
+            control('ui-key', 'a', 'ctrl')
+            control('ui-text', '0.375')
+            assert ui_text('workshop-attribute-0', value=True) == '0.375'
+            control('ui-key', 'enter')
+            for _ in range(30):
+                manual = call('session.attributes.list', dict(target, limit=200))
+                if manual['attributes'][0]['value'] == .375: break
+                time.sleep(.1)
+            else: raise AssertionError((manual['attributes'][0], ui_text('workshop-editor-status'), ui_text('workshop-attribute-0', value=True)))
+            reverted = call('session.undo', dict(target, revision=manual['revision']))
+            assert abs(float(ui_text('workshop-attribute-0', value=True)) - values['walk_accel_mul']) < 1e-7
+            control('ui-click', *position('workshop-attribute-0'))
+            control('ui-key', 'a', 'ctrl')
+            control('ui-text', '0.625')
+            control('ui-key', 'escape')
+            assert abs(float(ui_text('workshop-attribute-0', value=True)) - values['walk_accel_mul']) < 1e-7
+            control('ui-click', *position('workshop-package-toggle'))
+        assert snapshot(project) == attribute_disk
+        model_mode = call('session.workspace.select', dict(target, revision=reverted['revision'], workspace='model'))
+        model_tuned = call('session.attributes.edit', dict(target, revision=model_mode['revision'],
+            summary='Tune weight from the Model workspace', changes=[{'name': 'weight', 'value': 150}]))
+        assert model_tuned['workspace'] == 'model' and model_tuned['can_undo']
+        model_undo = call('session.undo', dict(target, revision=model_tuned['revision']))
+        restored = call('session.attributes.list', dict(target, limit=200))
+        assert next(row['value'] for row in restored['attributes'] if row['name'] == 'weight') == values['weight']
+        model_redo = call('session.redo', dict(target, revision=restored['revision']))
+        assert next(row['value'] for row in call('session.attributes.list', dict(target, limit=200))['attributes'] if row['name'] == 'weight') == 150
+        reverted = call('session.undo', dict(target, revision=model_redo['revision']))
         # Action editing reads the unsaved archive, owns shared commands, and
         # commits one property group into the same editor history as the UI.
         actions = call('session.actions.list', dict(target, query='AttackAirLw'))

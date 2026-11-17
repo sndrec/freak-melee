@@ -540,12 +540,12 @@ bool nativeFighterProject_SetAttribute(NativeFighterProject* project,
     if (property >= NATIVE_FIGHTER_COMMON_ATTRIBUTE_COUNT || !isfinite(value)) return false;
     const NativeFighterAttribute* field = &nativeFighterCommonAttributes[property];
     const bool integral = field->type != NativeAttribute_Float;
-    if (integral && (floor(value) != value ||
-        value < (field->type == NativeAttribute_Mask ? 0.0 : -2147483648.0) ||
-        value > (field->type == NativeAttribute_Mask ? 255.0 : 2147483647.0))) return false;
-    if (field->type == NativeAttribute_Float && !isfinite((float)value)) return false;
-    if ((field->offset == 0x88 || field->offset == 0x8c) && value <= 0.0) return false;
-    if (field->offset == 0x58 && value < 1.0) return false;
+    const NativeFighterAttributeLimits limits = nativeFighterAttribute_Limits(property);
+    const double applied = integral ? value : (double)(float)value;
+    if ((integral && floor(value) != value) || !isfinite(applied) ||
+        value < limits.minimum || value > limits.maximum ||
+        applied < limits.minimum || applied > limits.maximum ||
+        (limits.exclusive_minimum && (value <= limits.minimum || applied <= limits.minimum))) return false;
     HSD_Dat dat;
     u32 attributes;
     if (!common_attribute_record(project, &dat, &attributes)) return false;

@@ -31,6 +31,7 @@ bool nativeShellWorkshop_StopTest(NativeAuthoring::Reply&);
 bool nativeShellWorkshop_Build(NativeAuthoring::Reply&);
 bool nativeShellWorkshop_Install(NativeAuthoring::Reply&);
 void nativeShellWorkshop_Artifacts(NativeAuthoring::Reply&);
+void nativeShellWorkshop_RefreshAttributes();
 bool nativeShellWorkshop_Save(std::string* error = nullptr);
 bool nativeShellWorkshop_Check(NativeAuthoring::Reply&);
 #endif
