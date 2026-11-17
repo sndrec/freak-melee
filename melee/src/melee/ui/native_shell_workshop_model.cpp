@@ -472,7 +472,7 @@ void render()
 void set_frame(int next)
 {
     const int max_frame = active->selected_clip >= 0 ?
-        (int) std::max(1.0f, std::ceil(active->clip_frames[active->selected_clip])) : 1;
+        (int) std::max(0.0f, std::floor(active->clip_frames[active->selected_clip])) : 0;
     active->frame = std::clamp(next, 0, max_frame);
     input("workshop-model-frame")->SetValue(std::to_string(active->frame));
     text("workshop-model-frame-label", std::to_string(active->frame) + " / " +
@@ -492,7 +492,7 @@ void build_clips()
     element("workshop-model-clip")->SetInnerRML(options);
     input("workshop-model-frame")->SetAttribute("max",
         std::to_string(active->selected_clip >= 0 ?
-            (int) std::max(1.0f, std::ceil(active->clip_frames[active->selected_clip])) : 1));
+            (int) std::max(0.0f, std::floor(active->clip_frames[active->selected_clip])) : 0));
     set_frame(0);
 }
 
@@ -551,16 +551,10 @@ bool apply_joint_transform()
             values[2][a] < 0.001f || values[2][a] > 100.0f)
             return false;
     if (active->rig_mode == RigMode::Pose) {
-        NativeHomeWorkshopBoneLocal& target = active->pose[active->selected_joint];
-        for (unsigned a = 0; a < 3; ++a) {
-            target.position[a] = values[0][a];
-            target.rotation[a] = values[1][a];
-            target.scale[a] = values[2][a];
-        }
-        active->pose_changed[active->selected_joint] = true;
-        nativeHome_WorkshopPoseInvalidate();
-        status("Temporary pose applied. Reset pose to clear it.");
-        return true;
+        PoseChange change; change.bone=(unsigned)active->selected_joint;change.channels=7;
+        std::copy_n(values[0],3,change.value.position);std::copy_n(values[1],3,change.value.rotation);std::copy_n(values[2],3,change.value.scale);
+        std::string error;const bool applied=set_pose(&change,1,false,error);
+        status(applied?"Temporary pose applied. Reset pose to clear it.":error);return applied;
     }
     NativeModelJoint& target = active->model.joints[active->selected_joint];
     const auto before_labels=label_snapshot();
@@ -801,14 +795,10 @@ public:
             event.GetTargetElement()->GetTagName() != "input" &&
             event.GetParameter<int>("key_identifier", 0) == Rml::Input::KI_H)
         {
-            if (event.GetParameter<bool>("alt_key", false)) {
-                std::memset(active->hidden_meshes, 0, sizeof(active->hidden_meshes));
-            } else if (active->selected_mesh >= 0) {
-                active->hidden_meshes[active->selected_mesh] = 1;
-            }
-            hovered_mesh = -1;
-            render_tree();
-            update_mesh_view();
+            auto view=get_view();
+            if (event.GetParameter<bool>("alt_key", false)) std::fill_n(view.hidden_meshes,NATIVE_MODEL_MAX_MESHES,0);
+            else if (view.mesh >= 0) view.hidden_meshes[view.mesh]=1;
+            std::string error;if(!set_view(view,error)) status(error);
             event.StopPropagation();
             return;
         }
@@ -843,9 +833,9 @@ public:
                 pick_mesh(event.GetParameter<int>("mouse_x", 0),
                           event.GetParameter<int>("mouse_y", 0));
             if (picked >= 0) {
-                active->selected_mesh = picked;
-                active->selected_material = active->model.meshes[picked].material;
-                render();
+                auto view=get_view();view.mesh=picked;const unsigned mat=active->model.meshes[picked].material;
+                view.material=mat<active->model.material_count?(int)mat:-1;
+                std::string error;if(!set_view(view,error)) status(error);
             }
         }
 
@@ -1198,90 +1188,55 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
     for (unsigned i = 0; i < 4; ++i)
         if (std::strcmp(id, (std::string("workshop-model-context-") +
                             contexts[i]).c_str()) == 0) {
-            active->context = (Context) i;
-            reveal_material = active->context == Context::Materials ? 2 : 0;
-            if (active->context == Context::Skinning) {
-                if (active->selected_joint < 0 ||
-                    !(active->model.joints[active->selected_joint].flags & JOBJ_SKELETON))
-                    for (unsigned bone = 0; bone < active->model.joint_count; ++bone)
-                        if (active->model.joints[bone].flags & JOBJ_SKELETON) {
-                            active->selected_joint = (int) bone;
-                            std::memset(active->selected_joints, 0,
-                                        sizeof(active->selected_joints));
-                            active->selected_joints[bone] = true;
-                            break;
-                        }
-            }
-            render();
+            auto view=get_view();view.context=(Context)i;
+            std::string error;if(!set_view(view,error)) status(error);
             return true;
         }
     const char* modes[] = { "edit", "pose", "animation" };
     for (unsigned i = 0; i < 3; ++i)
         if (std::strcmp(id, (std::string("workshop-model-rig-") +
                             modes[i]).c_str()) == 0) {
-            nativeWorkshopTransform_Clear();
-            if ((RigMode) i == RigMode::Pose && !active->pose_initialized) {
-                for (unsigned bone = 0; bone < active->model.joint_count; ++bone) {
-                    active->pose_changed[bone] =
-                        nativeHome_WorkshopBoneLocal(bone, &active->pose[bone]);
-                }
-                active->pose_initialized = true;
-            }
-            active->rig_mode = (RigMode) i;
-            playing = false;
-            nativeHome_WorkshopPoseInvalidate();
-            render();
+            auto view=get_view();view.mode=(RigMode)i;view.playing=false;
+            std::string error;if(!set_view(view,error)) status(error);
             return true;
         }
     unsigned chosen;
     if (index(id, "workshop-model-mesh-", &chosen)) {
         if (chosen < active->model.mesh_count) {
-            active->selected_mesh = (int) chosen;
-            active->selected_material = active->model.meshes[chosen].material;
-            render();
+            auto view=get_view();view.mesh=(int)chosen;const unsigned mat=active->model.meshes[chosen].material;
+            view.material=mat<active->model.material_count?(int)mat:-1;
+            std::string error;if(!set_view(view,error)) status(error);
         }
         return true;
     }
     if (index(id, "workshop-model-material-", &chosen)) {
         if (chosen < active->model.material_count) {
-            active->selected_material = (int) chosen;
-            render();
+            auto view=get_view();view.material=(int)chosen;
+            std::string error;if(!set_view(view,error)) status(error);
         }
         return true;
     }
     if (index(id, "workshop-model-joint-", &chosen) ||
         index(id, "workshop-model-bone-", &chosen)) {
         if (chosen < active->model.joint_count) {
-            if (!shift) {
-                std::memset(active->selected_joints, 0, sizeof(active->selected_joints));
-            }
-            active->selected_joints[chosen] = !shift || !active->selected_joints[chosen];
-            active->selected_joint = (int) chosen;
-            if (!active->selected_joints[chosen]) {
-                for (unsigned i = 0; i < active->model.joint_count; ++i) {
-                    if (active->selected_joints[i]) {
-                        active->selected_joint = (int) i;
-                        break;
-                    }
-                }
-            }
-            render();
+            auto view=get_view();
+            if(!shift) std::fill_n(view.selected_bones,NATIVE_MODEL_MAX_JOINTS,false);
+            view.selected_bones[chosen]=!shift || !view.selected_bones[chosen];
+            view.bone=view.selected_bones[chosen]?(int)chosen:-1;
+            if(view.bone<0) for(unsigned bone=0;bone<active->model.joint_count;++bone) if(view.selected_bones[bone]) {view.bone=(int)bone;break;}
+            std::string error;if(!set_view(view,error)) status(error);
         }
         return true;
     }
     if (std::strcmp(id, "workshop-model-bones") == 0) {
-        if (active->context != Context::Skeleton) {
-            active->bones_visible = !active->bones_visible;
-        }
-        render();
+        auto view=get_view();if(view.context!=Context::Skeleton) view.bones_visible=!view.bones_visible;
+        std::string error;if(!set_view(view,error)) status(error);
         return true;
     }
     if (index(id, "workshop-model-eye-", &chosen)) {
         if (chosen < active->model.mesh_count) {
-            active->hidden_meshes[chosen] = !active->hidden_meshes[chosen];
-            hovered_mesh = -1;
-            render_tree();
-            update_mesh_view();
+            auto view=get_view();view.hidden_meshes[chosen]=!view.hidden_meshes[chosen];
+            std::string error;if(!set_view(view,error)) status(error);
         }
         return true;
     }
@@ -1290,19 +1245,7 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         return true;
     }
     if (std::strcmp(id, "workshop-model-reset-pose") == 0) {
-        nativeWorkshopTransform_Clear();
-        active->pose_initialized = true;
-        for (unsigned i = 0; i < active->model.joint_count; ++i) {
-            active->pose_changed[i] = true;
-            for (unsigned axis = 0; axis < 3; ++axis) {
-                active->pose[i].rotation[axis] = active->model.joints[i].rotation[axis];
-                active->pose[i].scale[axis] = active->model.joints[i].scale[axis];
-                active->pose[i].position[axis] = active->model.joints[i].position[axis];
-            }
-        }
-        nativeHome_WorkshopPoseInvalidate();
-        render_inspector();
-        status("Temporary pose reset.");
+        std::string error;status(set_pose(nullptr,0,true,error)?"Temporary pose reset.":error);
         return true;
     }
     if (std::strcmp(id, "workshop-model-texture-browse") == 0) {
@@ -1323,22 +1266,14 @@ bool nativeShellWorkshopModel_Click(const char* id, bool shift)
         apply_texture(); return true;
     }
     if (std::strcmp(id, "workshop-model-edit-material") == 0) {
-        active->context = Context::Materials;
-        render();
-        reveal_material = 2;
+        auto view=get_view();view.context=Context::Materials;
+        std::string error;if(!set_view(view,error)) status(error);
         return true;
     }
     if (std::strcmp(id, "workshop-model-play") == 0) {
         if (active->rig_mode != RigMode::Animation) return true;
-        if (!playing) {
-            playing = true;
-            play_start_frame = active->frame;
-            play_started = std::chrono::steady_clock::now();
-            text("workshop-model-play", "Pause");
-        } else {
-            playing = false;
-            text("workshop-model-play", "Play");
-        }
+        auto view=get_view();view.playing=!view.playing;
+        std::string error;if(!set_view(view,error)) status(error);
         return true;
     }
     if (std::strcmp(id, "workshop-model-front") == 0 ||
@@ -1389,8 +1324,8 @@ void nativeShellWorkshopModel_Update()
         const int wanted = std::atoi(mesh->GetValue().c_str());
         if (wanted >= 0 && wanted < active->model.mesh_count &&
             wanted != active->selected_mesh) {
-            active->selected_mesh = wanted;
-            render_inspector();
+            auto view=get_view();view.mesh=wanted;
+            std::string error;if(!set_view(view,error)) status(error);
         }
     }
     if (active->rig_mode == RigMode::Animation) {
@@ -1399,21 +1334,16 @@ void nativeShellWorkshopModel_Update()
         const int next_clip = std::atoi(clip->GetValue().c_str());
         if (next_clip >= 0 && next_clip < (int) active->action_count &&
             active->has_clip[next_clip] && active->selected_clip != next_clip) {
-            active->selected_clip = next_clip;
-            input("workshop-model-frame")->SetAttribute("max",
-                std::to_string((int) std::max(1.0f,
-                    std::ceil(active->clip_frames[active->selected_clip]))));
-            set_frame(0);
-            playing = false;
-            text("workshop-model-play", "Play");
+            auto view=get_view();view.clip=next_clip;view.frame=0;view.playing=false;
+            std::string error;if(!set_view(view,error)) status(error);
         }
         if (playing) {
             const int elapsed = (int) std::floor(
                 std::chrono::duration<float>(
                     std::chrono::steady_clock::now() - play_started).count() *
                 60.0f);
-            const int count = (int) std::max(1.0f,
-                std::ceil(active->clip_frames[active->selected_clip]));
+            const int count = (int) std::max(0.0f,
+                std::floor(active->clip_frames[active->selected_clip]));
             const int next = (play_start_frame + elapsed) % (count + 1);
             if (active->frame != next) set_frame(next);
         } else {
@@ -1424,7 +1354,7 @@ void nativeShellWorkshopModel_Update()
     }
     const float pose_frame = active->rig_mode == RigMode::Animation ? (float) active->frame : 0.0f;
     if (nativeHome_WorkshopPose({NativeFighterAnimation_Action,
-                               (unsigned) active->selected_clip}, pose_frame, nullptr) &&
+                               (unsigned) active->selected_clip}, pose_frame, active->project) &&
         active->rig_mode != RigMode::Animation) {
         for (unsigned i = 0; i < active->model.joint_count; ++i) {
             if (active->rig_mode == RigMode::Pose && !active->pose_changed[i]) continue;

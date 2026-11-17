@@ -185,6 +185,56 @@ until the corresponding custom block is enabled. UV mapping requires the
 referenced UV set on every mesh using that material; reflection mapping can
 use geometry without UV coordinates.
 
+## Choose the Model view
+
+Use `session.models.view` to read the current Model workspace. Its `model_view`
+contains the selected mesh, material and bones, hidden meshes, preview mode,
+playhead and IDs of temporarily posed bones. Add `include_pose: true` to read
+their local transforms too. These values describe the open editor.
+
+Use `session.models.select` with the live `revision` to change them:
+
+| Field | Meaning |
+| --- | --- |
+| `context` | `meshes`, `materials`, `skeleton` or `skinning`. |
+| `mode` | `edit` for the rest rig, `pose` for a temporary pose, or `animation` for clip playback. |
+| `mesh`, `material` | An inspected ID, or `-1` to clear that selection. Selecting a mesh also selects its material. |
+| `bones` | The complete selected-bone list. An empty list clears it. |
+| `active_bone` | The bone shown in the inspector and used for skin painting. |
+| `hidden_meshes` | The complete list of meshes to hide in the editor. An empty list unhides them. |
+| `bones_visible` | Show bone markers. Skeleton context always draws them; `bones_drawn` reports the result. |
+| `action_clip` | An available action ID from the fighter's action list. |
+| `frame` | Integer frame in the selected clip, clamped to its available range. |
+| `playing` | Play or pause the selected clip in Animation Mode. |
+
+Selecting a new clip or frame pauses playback unless you also send
+`playing: true`. Playback advances the pose at 60 frames per second while the
+practice simulation stays frozen. Its advancing playhead leaves the editor
+revision stable, so a pause request can use the revision inspected during play.
+Manual selection, seeking and visibility changes produce a new revision.
+
+Selection and hidden meshes belong to this member's editor view. They leave
+fighter files, installed packages and the costume's authored visibility alone.
+Use `session.animations.preview` to read the actual actor's applied clip, frame
+and bone transforms after the view reaches it.
+
+Seeking clamps to the last whole frame inside the clip. During playback the
+playhead advances while the view revision stays stable, so you can pause using
+the revision you inspected. Changing selection, seeking, pausing or editing a
+temporary pose updates the revision.
+
+## Make a temporary pose
+
+Use `session.models.pose` with a `changes` array. Each entry identifies a bone
+and any of its local `position`, `rotation` and `scale`. Positions use game
+units, rotations use radians, and scales use multipliers. One request applies
+the whole batch; invalid or repeated bones reject the whole batch.
+
+This opens Pose Mode and changes the frozen character. Send `reset: true` to
+return to the rest pose. Temporary poses affect the view and its revision;
+they leave the saved rest rig and animation keys unchanged. Use the rest-edit
+or animation-key tools when you want to author that change into the fighter.
+
 ## Names, history and saving
 
 Use `operation: "label"` with `category` (`bone`, `mesh` or `material`), the

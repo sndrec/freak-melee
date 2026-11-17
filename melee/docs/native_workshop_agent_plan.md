@@ -247,6 +247,24 @@ Accepted 2026-11-17. Implementation is in progress.
   practice/preview evidence, output schemas and final acceptance remain open.
   No public upload occurred.
 
+- Model view operations now expose mesh/material/bone selection, editor-only
+  mesh visibility, Edit/Pose/Animation modes, action-clip seeking and playback.
+  Temporary local poses accept atomic multi-bone changes and rest resets without
+  changing saved rig data or animation keys. The ordinary Model UI uses the same
+  view and temporary-pose operations. Skeleton context retains visible bones;
+  selection failures and stale requests preserve the previous view.
+  Model preview now identifies the edited draft to the frozen-pose reader and
+  evaluates its current animation tree. Live checks read actual actor transforms,
+  play/pause and long-clip frames, and exercise the real mesh-eye, bone-selection,
+  pose-field and playback buttons. Animation Undo restores the clip but retains
+  its existing conservative unsaved marker; tests compare restored clip metadata
+  and unchanged disk files directly. All eighteen core checks pass. Extracted
+  CLI/MCP/launcher, offline model and hidden/muted live checks pass with a
+  Windows-only PATH, including actual UI input, fractional end-frame clamping,
+  long-clip actor readback and saved model build. No public upload occurred.
+  Resources, presentation, controlled practice/capture, typed output
+  schemas and final acceptance remain open.
+
 An older fighter-event package test also fails while preparing its source. Its
 fixture omits current parameter/fighter declarations, and its runtime probe
 assumes a compiled DLL. The same preparation failure reproduces with the

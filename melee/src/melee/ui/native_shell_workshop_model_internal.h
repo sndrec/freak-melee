@@ -13,6 +13,19 @@ namespace Rml {class Element;class ElementDocument;class ElementFormControlInput
 namespace WorkshopModelInternal {
 enum class Context { Meshes, Materials, Skeleton, Skinning };
 enum class RigMode { Edit, Pose, Animation };
+struct View {
+    Context context=Context::Skeleton;
+    RigMode mode=RigMode::Edit;
+    int mesh=-1, material=-1, bone=-1, clip=-1, frame=0;
+    bool bones_visible=true, playing=false;
+    bool selected_bones[NATIVE_MODEL_MAX_JOINTS]={};
+    uint8_t hidden_meshes[NATIVE_MODEL_MAX_MESHES]={};
+    bool operator==(const View&) const = default;
+};
+struct PoseChange {
+    unsigned bone=0, channels=0; // position=1, rotation=2, scale=4
+    NativeHomeWorkshopBoneLocal value={};
+};
 
 struct RigView {
     unsigned count=0;
@@ -90,6 +103,17 @@ extern ModelSession sessions[2];
 extern ModelSession* active;
 extern bool visible;
 extern bool playing;
+extern int hovered_mesh;
+extern unsigned reveal_material;
+View get_view();
+bool set_view(View, std::string& error);
+bool set_pose(const PoseChange*, unsigned count, bool reset, std::string& error);
+void describe_view(NativeAuthoring::Reply&, yyjson_mut_val*, bool pose_details=false);
+void view_fingerprint(std::string&, unsigned member);
+void update_mesh_view();
+void set_frame(int);
+void render_inspector();
+void build_clips();
 Rml::Element* element(const char*);
 Rml::ElementFormControlInput* input(const char*);
 void status(const std::string&);

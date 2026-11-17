@@ -832,8 +832,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
         home.preview_transitioning || !nativeHome_IsPractice() ||
         (unsigned)clip.bank > NativeFighterAnimation_Demo ||
         clip.index >= 1024 || !isfinite(frame) ||
-        frame < 0.0f ||
-        (clip.bank == NativeFighterAnimation_Action && frame > 1000.0f))
+        frame < 0.0f || frame > 65535.0f)
         return false;
     Fighter_GObj* gobj = workshop_preview_actor(false);
     uint32_t generation;

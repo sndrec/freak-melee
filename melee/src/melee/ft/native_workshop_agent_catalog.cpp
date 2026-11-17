@@ -8,6 +8,9 @@ namespace NativeWorkshopAgent {
 #define INSTANCE R"("instance":{"type":"string","minLength":34,"maxLength":43})"
 #define REVISION R"("revision":{"type":"string","minLength":64,"maxLength":64})"
 static const Command commands[] = {
+    {"session.models.view", "Read the Model workspace's transient mesh/material/bone selection, hidden meshes, preview mode, playhead and temporary local pose. Does not read saved-file defaults.", NativeModelAuthoring::view_schema(), true},
+    {"session.models.select", "Select Model context/mode, mesh/material/bones, editor-only hidden meshes and an action clip/frame or playback state. Skeleton mode always draws bones. Changes view state, not fighter assets; no save or installation.", NativeModelAuthoring::select_schema(), false},
+    {"session.models.pose", "Apply an atomic temporary local pose batch or reset to the rest pose in Model/Pose Mode. Uses inspected bone ordinals, game units, radians and scale multipliers. Does not key animations, edit the rest rig or save assets.", NativeModelAuthoring::pose_schema(), false},
     {"session.models.read", "Inspect the live member's unsaved meshes, skeleton, bind-space vertices and weights, materials, texture sequences and source-aware reimport plan.", NativeModelAuthoring::read_schema(true), true},
     {"session.models.edit", "Atomically edit the live model: GLB/glTF import/reimport, compensated rest transforms, weight painting, materials, texture images, labels, mesh assignments or extra bones. Shares one Model Undo step and reloads frozen preview; leaves disk and installed fighters unchanged.", NativeModelAuthoring::edit_schema(true), false},
     {"session.attributes.list", "Read the live member's unsaved common attributes, names, types, descriptions and native limits.", NativeAttributeAuthoring::list_schema(true), true},

@@ -15,4 +15,7 @@ bool edit(NativeFighterProject&, yyjson_val*, NativeAuthoring::Reply&, History* 
 const char* read_schema(bool live);
 const char* edit_schema(bool live);
 const char* scan_schema();
+const char* view_schema();
+const char* select_schema();
+const char* pose_schema();
 }

@@ -84,6 +84,7 @@ bool nativeShellWorkshopEditor_AgentState(std::string& fingerprint, Reply* detai
         auto& model = WorkshopModelInternal::sessions[member];
         fingerprint += std::to_string(model.change_cursor) + ':' + std::to_string(model.changes.size()) + ';';
         fingerprint.append((const char*)model.pose, sizeof(model.pose));
+        WorkshopModelInternal::view_fingerprint(fingerprint,member);
     }
     if (details) {
         const char* names[] = {"action", "scripting", "animation", "model"};
@@ -93,11 +94,14 @@ bool nativeShellWorkshopEditor_AgentState(std::string& fingerprint, Reply* detai
         add_string(*details, details->result, "selected_source", source_path);
         yyjson_mut_obj_add_bool(details->document, details->result, "gesture_active", nativeShellWorkshopEditor_AgentBusy());
         const auto& model = *WorkshopModelInternal::active;
+        auto* model_view=yyjson_mut_obj(details->document);
+        yyjson_mut_obj_add_val(details->document,details->result,"model_view",model_view);
+        WorkshopModelInternal::describe_view(*details,model_view);
         bool model_mode = session->mode == WorkshopMode::Model;
         yyjson_mut_obj_add_bool(details->document, details->result, "can_undo", model_mode ? model.change_cursor > 0 : session->edit_cursor > 0);
         yyjson_mut_obj_add_bool(details->document, details->result, "can_redo", model_mode ? model.change_cursor < model.changes.size() : session->edit_cursor < session->edit_history.size());
         yyjson_mut_obj_add_int(details->document, details->result, "selected_action", session->selected_action);
-        yyjson_mut_obj_add_int(details->document, details->result, "frame", session->mode == WorkshopMode::Animation ? session->animation_frame : session->timeline_frame);
+        yyjson_mut_obj_add_int(details->document, details->result, "frame", session->mode == WorkshopMode::Animation ? session->animation_frame : session->mode==WorkshopMode::Model ? model.frame : session->timeline_frame);
     }
     return true;
 }
