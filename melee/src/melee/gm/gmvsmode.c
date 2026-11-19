@@ -243,7 +243,7 @@ void onExitCss(GameModeState* state)
 #endif
     gmVsMelee_ExitCss(state, gmVsMelee_GetVsData());
 #ifdef MELEE_NATIVE
-    gm_SetNextGameModeStateId(nativeHome_PracticeStageSelect()
+    gm_SetNextGameModeStateId(nativeHome_BeginPracticeStageSelect()
         ? gmVsMode_State_Sss : gmVsMode_State_Practice);
 #endif
 }

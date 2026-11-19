@@ -35,15 +35,14 @@ namespace {
         Lobby,
         Ready,
         Watch,
-        Selection,
         Accept,
         Decline,
         Queue,
         Stage,
-        Settings, ChatInput, ChatSend, ChatHistory, CopyCode, Seat, Rotation
+        Settings, ChatInput, ChatSend, ChatHistory, CopyCode, Rotation
     };
     struct Button {
-        char id[40], label[96], peer[65];
+        char id[40], label[96];
         int value;
         float x, y, w, h;
         Action action;
@@ -137,14 +136,13 @@ namespace {
     }
     void add(const char* id, const char* label, float x, float y, float w,
              float h, Action action, bool enabled = true, bool gold = false,
-             bool authored = false, int value = 0, const char* peer = nullptr)
+             bool authored = false, int value = 0)
     {
         if (menu.count == sizeof(menu.buttons) / sizeof(*menu.buttons)) return;
         Button& b = menu.buttons[menu.count++];
         b = {};
         std::snprintf(b.id, sizeof(b.id), "%s", id);
         std::snprintf(b.label, sizeof(b.label), "%s", label);
-        if (peer) std::snprintf(b.peer, sizeof(b.peer), "%s", peer);
         b.x = x; b.y = y; b.w = w; b.h = h; b.action = action;
         b.enabled = enabled; b.gold = gold; b.authored = authored; b.value = value;
     }
@@ -165,11 +163,6 @@ namespace {
             SDL_SetClipboardText(nativeOnlineSession_RoomCode());
             break;
         case Action::Settings: nativeHubRules_Open(); break;
-        case Action::Seat:
-            if (nativeOnlineSession_ChooseSeat(b.peer, uint8_t(b.value), NativeRoomSeatState_Fighting))
-                nativeHome_CancelStartMatch();
-            else nativeHub_Notice("No fighting slot is available.");
-            break;
         case Action::Rotation:
             if (!nativeOnlineSession_SetRotation(NativeRoomRotationPolicy(b.value)))
                 nativeHub_Notice("Could not change the rotation.");
@@ -192,9 +185,6 @@ namespace {
                 nativeHub_Notice("Could not change the Quick Play search.");
             break;
         }
-        case Action::Selection:
-            nativeHome_ReturnToSelection();
-            break;
         case Action::Accept:
             if (!nativeOnlineSession_RequestGiftAcceptance()) {
                 nativeHub_Notice("Could not accept this fighter.");
@@ -221,7 +211,7 @@ namespace {
     void draw()
     {
         nativePlayMenu_DrawCountdown();
-        if (menu.practice) {
+        if (menu.practice && (nativeOnlineSession_Presence() || nativeOnlineSession_Quick())) {
             nativeMenuSkin_Panel(7, 5, 626, 32, 0xACA7B5FF, 0x09080EDC);
             nativeMenuPaint_Text(menu.status,18,16,604,11,0xEBDDAEFF);
             nativeCssChat_DrawPractice();
@@ -297,21 +287,6 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
             add("css-chat-code", "Copy connect code", 451, 451, 177, 24, Action::CopyCode);
         if (presence) {
             if (!quick && !presence->match_size) {
-                const char* local = nativeOnlineSession_LocalPeerId();
-                for (unsigned i = 0; i < presence->participant_count; ++i) {
-                    const auto& player = presence->participants[i];
-                    if (std::strcmp(local, player.peer_id)) continue;
-                    for (unsigned seat = 0; seat < player.local_players; ++seat) {
-                        if (player.active_mask & (1u << seat)) continue;
-                        char id[40], label[40];
-                        std::snprintf(id, sizeof(id), "css-fight-seat-%u", seat);
-                        std::snprintf(label, sizeof(label), "P%u: %s", seat + 1,
-                                      player.waiting_mask & (1u << seat) ? "Waiting" : "Spectating");
-                        add(id, label, 23 + 104 * seat, 267, 101, 20,
-                            Action::Seat, true, false, false, int(seat), player.peer_id);
-                    }
-                    break;
-                }
                 const char* rotation[] = {"Manual", "Winner stays", "Winner out"};
                 char label[40];
                 const unsigned policy = presence->rotation_policy % 3;
@@ -333,13 +308,9 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
             (right-17.3f)/(right-left)*640, header_height, Action::Lobby, true, false, true);
         add("play-rules", "Match rules", (-17-left)/(right-left)*640, 0,
             32/(right-left)*640, header_height, Action::Settings, !quick, false, true);
-    } else if (!quick && !presence) {
-        add("play-lobby","Lobby",13,10,88,22,Action::Lobby);
-        add("play-selection","Character select",507,10,119,22,Action::Selection);
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
-    const char* status = selection ? "Choose a fighter. START to ready."
-                                   : "Practice | START for Training menu";
+    const char* status = selection ? "Choose a fighter. START to ready." : "";
     if (state == NativeLobbySessionState_Connecting) {
         status = "Connecting to lobby...";
     } else if (state == NativeLobbySessionState_Failed) {
@@ -515,7 +486,7 @@ extern "C" bool nativePlayMenu_TakeReadyRequest(void)
 extern "C" bool nativePlayMenu_Inspect(const char* id)
 {
     if (!std::strcmp(id,"practice-state")) {
-        std::fprintf(stderr,"[practice-state] practice=%u ready=%u paused=%d quick-port=%d buttons=%u hud=%u status=%s\n",menu.practice,nativeHome_IsReady(),gm_GetDbPauseFlag(1),nativeHome_QuickSinglesPort(),menu.count,gmVs_GetController_0()->hud_enabled,menu.status);
+        std::fprintf(stderr,"[practice-state] practice=%u ready=%u paused=%d quick-port=%d buttons=%u hud=%u training=%u row=%u status=%s\n",menu.practice,nativeHome_IsReady(),gm_GetDbPauseFlag(1),nativeHome_QuickSinglesPort(),menu.count,gmVs_GetController_0()->hud_enabled,gmTraining_LocalMenuOpen(),gm_80473814.x00,menu.status);
         nativeCssChat_Inspect(); return true;
     }
 

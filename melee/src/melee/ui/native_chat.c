@@ -394,7 +394,10 @@ bool nativeChat_Start(const char* endpoint)
     if (strlen(endpoint) >= sizeof(network.endpoint)) return false;
     memcpy(network.endpoint, endpoint, strlen(endpoint) + 1);
     network.account_generation = nativeAccountTransport_Generation();
-    memset(&view, 0, sizeof(view));
+    // A replacement connection replays recent server messages. Keep the
+    // session's received history so that replay merges by message ID.
+    view.pending = (NativeChatMessage){0};
+    view.delivery = NativeChatDelivery_None;
     view.state = NativeChat_Offline;
     next_nonce = 0;
     announced_name[0] = 0;

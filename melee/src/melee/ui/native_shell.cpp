@@ -329,7 +329,6 @@ extern "C" bool nativeShell_Init(void)
 extern "C" void nativeShell_Update(void)
 {
     if (document != nullptr) {
-        nativeChat_Update();
         update_layout();
         nativeShellWorkshop_Update();
         nativeShellCssOriginal_Update();
@@ -388,6 +387,12 @@ extern "C" void nativeShell_InspectElement(const char* id)
     }
     if (!std::strcmp(id, "css-cards")) {
         nativeCssCards_Inspect();
+        return;
+    }
+    if (!std::strcmp(id, "global-chat-state")) {
+        const auto* chat = nativeChat_View();
+        std::fprintf(stderr, "[global-chat] state=%u messages=%u\n",
+                     unsigned(chat->state), chat->count);
         return;
     }
     // Lobby chat remains active while gameplay hides the hub.

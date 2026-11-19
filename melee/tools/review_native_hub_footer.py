@@ -73,7 +73,7 @@ def main():
             if self.path.endswith('/me'):
                 self.answer(dict(profile=profile,keys=[dict(id=key,name='Fixture key')],
                                  sessions=[dict(id=session,name='Fixture session',current=True)]))
-            elif self.path == '/v1/feed':
+            elif self.path.partition('?')[0] == '/v1/feed':
                 self.answer(dict(headline=headline,announcements=[],announcements_next=None))
             else:self.send_error(404)
         def do_POST(self):

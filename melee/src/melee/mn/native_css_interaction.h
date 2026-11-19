@@ -9,8 +9,11 @@ extern "C" {
 void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
                                 CSSCursorData** hands, CSSCharModel** cookies,
                                 CSSIcon* icons, HSD_JObj* menu,
-                                const StaticModelDesc* source);
+                                const StaticModelDesc* source,
+                                const StaticModelDesc* hand,
+                                const StaticModelDesc* token);
 void nativeCssInteraction_End(void);
+void nativeCssInteraction_PublishPointers(void);
 void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass);
 void nativeCssInteraction_DrawLocalToken(HSD_GObj* object, int pass);
 // Consumes native cookie input after the stock menu moves its hand.
@@ -19,6 +22,7 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* trigger);
 void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint);
 bool nativeCssInteraction_CanReady(void);
 unsigned nativeCssInteraction_ReadyPorts(void);
+int nativeCssInteraction_WaitingSeats(void);
 bool nativeCssInteraction_SetLocalPlayers(unsigned count);
 bool nativeCssInteraction_Random(unsigned slot);
 void nativeCssInteraction_Inspect(void);

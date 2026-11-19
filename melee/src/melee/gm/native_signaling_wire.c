@@ -8,13 +8,12 @@
 
 enum {
     SIGNALING_MAGIC = 0x464D5331,
-    SIGNALING_VERSION = 5,
+    SIGNALING_VERSION = 6,
     SIGNALING_HEADER_BYTES = 8,
     CLIENT_UPDATE = 1,
     CLIENT_SIGNAL = 2,
     CLIENT_REQUEST_PRESENCE = 3,
     CLIENT_SET_MATCH = 4,
-    CLIENT_ASSIGN_SEATS = 5,
     CLIENT_SET_ROTATION = 6,
     CLIENT_REPORT_MATCH = 7,
     CLIENT_POST_CHAT = 8,
@@ -32,6 +31,8 @@ enum {
     CLIENT_SET_LOBBY_RULES = 20,
     CLIENT_REQUEST_LOBBY_STATE = 21,
     CLIENT_STAGE_CURSOR = 22,
+    CLIENT_CHANGE_CARD = 23,
+    CLIENT_CSS_POINTERS = 24,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -46,6 +47,8 @@ enum {
     SERVER_LISTING = 0x8C,
     SERVER_LOBBY_STATE = 0x8D,
     SERVER_STAGE_CURSOR = 0x8E,
+    SERVER_CSS_POINTERS = 0x8F,
+    SERVER_ROOM_ACTION_REJECTED = 0x90,
     SERVER_ERROR = 0xFF,
     UPDATE_NAME = 1 << 0,
     UPDATE_ACTIVE_MASK = 1 << 1,
@@ -357,25 +360,6 @@ size_t nativeSignalingWire_EncodeSetMatch(const uint8_t* payload,
     return writer_finish(&writer);
 }
 
-size_t nativeSignalingWire_EncodeAssignSeats(const char* peer_id,
-                                             uint8_t active_mask,
-                                             uint8_t waiting_mask,
-                                             uint8_t* output,
-                                             size_t output_capacity)
-{
-    WireWriter writer;
-    if (active_mask > 0xF || waiting_mask > 0xF ||
-        output_capacity > NATIVE_SIGNALING_MAX_MESSAGE_BYTES ||
-        !writer_begin(&writer, output, output_capacity, CLIENT_ASSIGN_SEATS) ||
-        !writer_string8(&writer, peer_id, NATIVE_SIGNALING_MAX_PEER_ID_BYTES) ||
-        !writer_u8(&writer, active_mask) ||
-        !writer_u8(&writer, waiting_mask))
-    {
-        return 0;
-    }
-    return writer_finish(&writer);
-}
-
 size_t nativeSignalingWire_EncodeSetRotation(uint8_t policy,
                                              uint8_t* output,
                                              size_t output_capacity)
@@ -392,25 +376,33 @@ size_t nativeSignalingWire_EncodeSetRotation(uint8_t policy,
     return writer_finish(&writer);
 }
 
+size_t nativeSignalingWire_EncodeChangeCard(uint8_t seat, uint8_t card,
+                                           uint8_t expected, uint8_t* output,
+                                           size_t capacity)
+{
+    WireWriter writer;
+    if (seat >= 4 || !((card < 4 && expected == UINT8_MAX) ||
+                       (card == UINT8_MAX && expected < 4)) ||
+        !writer_begin(&writer, output, capacity, CLIENT_CHANGE_CARD) ||
+        !writer_u8(&writer, seat) || !writer_u8(&writer, card) ||
+        !writer_u8(&writer, expected)) return 0;
+    return writer_finish(&writer);
+}
+
 size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
-                                             const char* winner_peer_id,
-                                             uint8_t winner_seat,
-                                             bool eligible,
+                                             uint8_t winners,
                                              uint8_t loser_port,
                                              uint8_t* output,
                                              size_t output_capacity)
 {
     WireWriter writer;
     if (output_capacity > NATIVE_SIGNALING_MAX_MESSAGE_BYTES ||
-        (eligible && winner_seat >= 4) ||
+        winners > 15 ||
         (loser_port >= 4 && loser_port != UINT8_MAX) ||
         !writer_begin(&writer, output, output_capacity,
                       CLIENT_REPORT_MATCH) ||
         !writer_u64(&writer, epoch) ||
-        !writer_string8(&writer, winner_peer_id,
-                        NATIVE_SIGNALING_MAX_PEER_ID_BYTES) ||
-        !writer_u8(&writer, winner_seat) ||
-        !writer_u8(&writer, eligible ? 1 : 0) ||
+        !writer_u8(&writer, winners) ||
         !writer_u8(&writer, loser_port))
     {
         return 0;
@@ -479,6 +471,28 @@ size_t nativeSignalingWire_EncodeStageCursor(const NativeStageCursor* cursor,
     return writer_finish(&writer);
 }
 
+static bool valid_css_point(int x, int y)
+{
+    return x >= -1024 && x <= NATIVE_CSS_POINTER_UNITS + 1024 &&
+        y >= 0 && y <= NATIVE_CSS_POINTER_UNITS;
+}
+
+size_t nativeSignalingWire_EncodeCssPointers(const NativeCssPointers* pointers,
+                                             uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    if (!pointers || pointers->visible > 15 || (pointers->held & ~pointers->visible) ||
+        !writer_begin(&writer, output, capacity, CLIENT_CSS_POINTERS) ||
+        !writer_u8(&writer, pointers->visible) || !writer_u8(&writer, pointers->held))
+        return 0;
+    for (unsigned seat = 0; seat < 4; ++seat) {
+        int x = pointers->point[seat][0], y = pointers->point[seat][1];
+        if (!valid_css_point(x, y) || !writer_u16(&writer, (uint16_t)x) ||
+            !writer_u16(&writer, (uint16_t)y)) return 0;
+    }
+    return writer_finish(&writer);
+}
+
 size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity)
 {
     WireWriter writer;
@@ -515,6 +529,8 @@ static bool decode_participant(WireReader* reader,
         ready > 1 || !reader_u64(reader, &participant->join_order) ||
         !reader_raw(reader, participant->waiting_ranks,
                     sizeof(participant->waiting_ranks)) ||
+        !reader_raw(reader, participant->card_slots,
+                    sizeof(participant->card_slots)) ||
         !reader_bytes16(reader, participant->selection,
                         sizeof(participant->selection),
                         &participant->selection_size) ||
@@ -531,9 +547,17 @@ static bool decode_participant(WireReader* reader,
         (participant->ready && participant->active_mask == 0)) {
         return false;
     }
+    unsigned occupied = 0;
     for (uint32_t seat = 0; seat < 4; ++seat) {
         if (((participant->waiting_mask & (1U << seat)) != 0) !=
             (participant->waiting_ranks[seat] != 0)) {
+            return false;
+        }
+        unsigned card = participant->card_slots[seat];
+        if (participant->active_mask & (1u << seat)) {
+            if (card >= 4 || (occupied & (1u << card))) return false;
+            occupied |= 1u << card;
+        } else if (card != UINT8_MAX) {
             return false;
         }
     }
@@ -636,6 +660,22 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
     }
     memset(output, 0, sizeof(*output));
     switch (type) {
+    case SERVER_CSS_POINTERS: {
+        NativeCssPointers* pointers = &output->data.css_pointers;
+        output->type = NativeSignalingServerMessage_CssPointers;
+        if (!reader_string8(&reader, pointers->peer_id, sizeof(pointers->peer_id)) ||
+            !pointers->peer_id[0] || !reader_u8(&reader, &pointers->visible) ||
+            !reader_u8(&reader, &pointers->held) || pointers->visible > 15 ||
+            (pointers->held & ~pointers->visible)) return false;
+        for (unsigned seat = 0; seat < 4; ++seat) {
+            uint16_t x, y;
+            if (!reader_u16(&reader, &x) || !reader_u16(&reader, &y) ||
+                !valid_css_point((int16_t)x, y)) return false;
+            pointers->point[seat][0] = (int16_t)x;
+            pointers->point[seat][1] = (int16_t)y;
+        }
+        return reader_finished(&reader);
+    }
     case SERVER_STAGE_CURSOR: {
         NativeStageCursor* cursor = &output->data.stage_cursor;
         uint16_t x, y;
@@ -812,8 +852,11 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
         return reader_string8(&reader, output->data.signal.peer_id,
                               sizeof(output->data.signal.peer_id)) &&
                reader_finished(&reader);
+    case SERVER_ROOM_ACTION_REJECTED:
     case SERVER_ERROR: {
-        output->type = NativeSignalingServerMessage_Error;
+        output->type = type == SERVER_ROOM_ACTION_REJECTED
+            ? NativeSignalingServerMessage_RoomActionRejected
+            : NativeSignalingServerMessage_Error;
         uint16_t size;
         if (!reader_bytes16(&reader, (uint8_t*) output->data.error,
                             NATIVE_SIGNALING_MAX_ERROR_BYTES, &size) ||

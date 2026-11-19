@@ -1,4 +1,4 @@
-import { lockedChoices, unreadySelection } from "./lobby-selection";
+import { lockedChoices, selectedSeats, unreadySelection } from "./lobby-selection";
 import { DurableObject } from "cloudflare:workers";
 import type { LobbyEntry } from "./lobby-directory";
 import { HEARTBEAT_MS, CONNECTION_LIFETIME_MS, connectionExpired, connectionUncertain, playerIdentity } from "./connection-lease";
@@ -8,7 +8,10 @@ import { encodeListing, validLobbyPassword } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers, automaticLobbyStage, emptyLobbyStageHistory,
   lobbyReadySignature, type LobbyStageHistory } from "./lobby-stage";
 import { LOBBY_COUNTDOWN_MS, encodeLobbyRules, decodeLobbyRules, type LobbyRules } from "./lobby-rules";
-import { encodeLobbyState, encodeStageCursorUpdate } from "./wire";
+import { encodeLobbyState, encodeStageCursorUpdate, encodeCssPointersUpdate,
+  type CssPointers } from "./wire";
+import { assignOpenCards, occupiedCards, validCardSlots, NO_CARD,
+  type CardSlots } from "./room-cards";
 import { buildQuickMatch, quickRosterComplete, QUICK_COUNTDOWN_MS } from "./quick-match";
 import { quickPorts, quickStageVotes, agreedQuickStage, type QuickPort, type QuickStageVote } from "./quick-round";
 import { quickBucket, quickSeats, sameQuickMembers, QUICK_RULES,
@@ -336,6 +339,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       build,
       localPlayers,
       activeMask,
+      cardSlots: [NO_CARD, NO_CARD, NO_CARD, NO_CARD],
       waitingMask,
       ready: false,
       selection: previous ? unreadySelection(previous.selection) : new Uint8Array(),
@@ -344,6 +348,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         previous?.localPlayers === localPlayers ? previous : null,
         waitingMask, counters.revision,
       ),
+      lastPlayed: previous?.lastPlayed ?? [0, 0, 0, 0],
     };
 
     this.pendingConnections.set(attachment.connectionId, false);
@@ -362,10 +367,12 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.attachment(socket)?.playerIdentity !== identity).map(socket => this.attachment(socket)!).filter(Boolean);
     others.push(...this.recovering().filter(peer => peer.playerIdentity !== identity &&
       !others.some(live => live.playerIdentity === peer.playerIdentity)));
-    if (others.length >= MAX_PARTICIPANTS || others.reduce((sum, peer) => sum + countActive(peer.activeMask), 0) + countActive(activeMask) > this.fighterLimit()) {
+    const cards = assignOpenCards(activeMask, occupiedCards(others), this.fighterLimit(), previous?.cardSlots);
+    if (others.length >= MAX_PARTICIPANTS || !cards) {
       await this.env.PLAYER_SESSIONS.getByName(identity).leave(attachment.connectionId);
       return new Response("Lobby seats changed while joining; please try again", { status: 409 });
     }
+    attachment.cardSlots = cards;
 
     const pair = new WebSocketPair();
     const client = pair[0];
@@ -544,8 +551,8 @@ export class Room extends DurableObject<CloudflareBindings> {
       case ClientMessageType.SetMatch:
         this.setMatch(socket, parsed.payload);
         return;
-      case ClientMessageType.AssignSeats:
-        this.assignSeats(socket, parsed);
+      case ClientMessageType.ChangeCard:
+        this.changeCard(socket, parsed);
         await this.refreshLobbyCountdown();
         return;
       case ClientMessageType.SetRotation:
@@ -560,6 +567,9 @@ export class Room extends DurableObject<CloudflareBindings> {
         return;
       case ClientMessageType.StageCursor:
         this.stageCursor(socket, parsed.cursor);
+        return;
+      case ClientMessageType.CssPointers:
+        this.cssPointers(socket, parsed.pointers);
         return;
       }
     } finally {
@@ -789,7 +799,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       const peer = JSON.parse(row.attachment) as ConnectionAttachment;
       peer.selection = new Uint8Array(peer.selection);
       return peer;
-    });
+    }).filter(peer => validCardSlots(peer.cardSlots, peer.activeMask));
   }
 
   private reserveConnection(peer: ConnectionAttachment): void {
@@ -1213,12 +1223,16 @@ export class Room extends DurableObject<CloudflareBindings> {
     const name = current.account?.profile.name ?? (message.name === undefined ? current.name : message.name);
     const activeMask = message.activeMask === undefined
       ? current.activeMask : message.activeMask;
-    const waitingMask = message.waitingMask === undefined
+    let waitingMask = message.waitingMask === undefined
       ? current.waitingMask : message.waitingMask;
     const localPlayers =
       message.localPlayers === undefined ? current.localPlayers : message.localPlayers;
     const selection =
       message.selection === undefined ? current.selection : message.selection;
+    if (message.selection !== undefined && !this.quickParty()?.mode && !this.quickMatch()) {
+      waitingMask &= this.rotationPolicy() === RotationPolicy.Manual ? 0 :
+        selectedSeats(selection, localPlayers) & ~activeMask;
+    }
     const selectionChanged = !sameBytes(selection, current.selection);
     const topologyChanged = activeMask !== current.activeMask;
     const activeSelectionChanged =
@@ -1257,11 +1271,15 @@ export class Room extends DurableObject<CloudflareBindings> {
     if (!this.lobbyFlow().rules && match.payload === null && (topologyChanged || activeSelectionChanged ||
         (selectionChanged && current.peerId === this.snapshot(this.currentRevision()).ownerPeerId)))
       this.invalidateMatch();
+    const cardSlots = activeMask === current.activeMask
+      ? current.cardSlots : this.cardsFor(current, activeMask);
+    if (!cardSlots) { this.error(socket, "All fighting seats are taken"); return; }
     const revision = this.nextRevision();
     socket.serializeAttachment({
       ...current,
       name,
       activeMask,
+      cardSlots,
       waitingMask,
       localPlayers,
       ready,
@@ -1271,57 +1289,39 @@ export class Room extends DurableObject<CloudflareBindings> {
     this.broadcastPresence(revision);
   }
 
-  private assignSeats(
-    socket: WebSocket,
-    message: Extract<ClientMessage, { type: ClientMessageType.AssignSeats }>,
-  ): void {
-    if (this.quickParty()?.mode || this.quickMatch()) {
-      this.send(socket, encodeQuickRejected("Quick Play keeps its assigned players and rules.")); return;
-    }
+  private cardsFor(current: ConnectionAttachment, activeMask: number): CardSlots | null {
+    const others = this.snapshot(this.currentRevision()).participants.filter(
+      participant => participant.peerId !== current.peerId);
+    return assignOpenCards(activeMask, occupiedCards(others),
+      this.fighterLimit(), current.cardSlots);
+  }
 
-    const sender = this.attachment(socket);
-    const owner = this.snapshot(this.currentRevision()).ownerPeerId;
-    if (sender === null || sender.peerId !== owner) {
-      this.error(socket, "Only the room owner may assign seats");
-      return;
+  private changeCard(socket: WebSocket,
+    message: Extract<ClientMessage, { type: ClientMessageType.ChangeCard }>): void {
+    const current = this.attachment(socket);
+    if (!current || message.seat >= current.localPlayers ||
+        this.quickParty()?.mode || this.quickMatch()) {
+      this.send(socket, encodeError("This controller cannot claim a lobby card.", 164, true)); return;
     }
-    const target = isPeerId(message.peerId)
-      ? this.ctx.getWebSockets(`peer:${message.peerId}`).find(
-          (candidate) => candidate.readyState === WebSocket.OPEN,
-        ) : undefined;
-    const current = target !== undefined ? this.attachment(target) : null;
-    if (target === undefined || current === null ||
-        !validSeatMasks(current.localPlayers, message.activeMask,
-                        message.waitingMask)) {
-      this.error(socket, "Invalid seat assignment");
-      return;
+    if (this.currentMatch().payload !== null) {
+      this.send(socket, encodeError("Active players are locked for this match", 164, true)); return;
     }
-    const activeChanged = message.activeMask !== current.activeMask;
-    if (activeChanged && this.currentMatch().payload !== null) {
-      this.error(socket, "Active players are locked for this match");
-      return;
+    const bit = 1 << message.seat;
+    const owned = current.cardSlots[message.seat];
+    if (message.card === NO_CARD ? owned !== message.expected || owned === NO_CARD
+      : owned !== NO_CARD || message.card >= this.fighterLimit() ||
+        (occupiedCards(this.snapshot(this.currentRevision()).participants) & (1 << message.card))) {
+      this.send(socket, encodeError("That fighting card has changed", 164, true)); return;
     }
-    let occupied = 0;
-    for (const connected of this.ctx.getWebSockets()) {
-      if (connected === target || connected.readyState !== WebSocket.OPEN) continue;
-      occupied += countActive(this.attachment(connected)?.activeMask ?? 0);
-    }
-    if (occupied + countActive(message.activeMask) > this.fighterLimit()) {
-      this.error(socket, "All fighting seats are taken");
-      return;
-    }
-    if (activeChanged) {
-      this.invalidateMatch();
-    }
+    const cardSlots = current.cardSlots.slice() as CardSlots;
+    cardSlots[message.seat] = message.card;
     const revision = this.nextRevision();
-    target.serializeAttachment({
-      ...current,
-      activeMask: message.activeMask,
-      waitingMask: message.waitingMask,
-      ready: activeChanged ? false : current.ready,
-      waitingOrder: waitingOrderForChange(current, message.waitingMask,
-                                          revision),
-    } satisfies ConnectionAttachment);
+    const activeMask = message.card === NO_CARD ? current.activeMask & ~bit : current.activeMask | bit;
+    const waitingMask = current.waitingMask & ~bit;
+    socket.serializeAttachment({ ...current, activeMask, cardSlots, waitingMask, ready: false,
+      selection: unreadySelection(current.selection),
+      waitingOrder: waitingOrderForChange(current, waitingMask, revision) } satisfies ConnectionAttachment);
+    this.resetLobbyReadiness();
     this.broadcastPresence(revision);
   }
 
@@ -1390,6 +1390,20 @@ export class Room extends DurableObject<CloudflareBindings> {
       "UPDATE room_policy SET rotation = ? WHERE id = 1", policy,
     );
     this.broadcastPresence(this.nextRevision());
+  }
+
+  private cssPointers(socket: WebSocket, pointers: CssPointers): void {
+    const sender = this.attachment(socket);
+    if (!sender || this.quickParty()?.mode || this.quickMatch() || sender.uncertain) return;
+    const handMask = (1 << Math.max(1, sender.localPlayers)) - 1;
+    if (pointers.visible & ~handMask || (sender.localPlayers === 0 && pointers.held)) return;
+    const now = Date.now();
+    if (now - (sender.lastCssPointerMs ?? 0) < 32) return;
+    sender.lastCssPointerMs = now;
+    socket.serializeAttachment(sender);
+    const packet = encodeCssPointersUpdate(sender.peerId, pointers);
+    for (const other of this.ctx.getWebSockets())
+      if (other !== socket && other.readyState === WebSocket.OPEN) this.send(other, packet);
   }
 
   private stageCursor(socket: WebSocket, cursor: import("./wire").StageCursor): void {
@@ -1473,8 +1487,16 @@ export class Room extends DurableObject<CloudflareBindings> {
     // clear a newer proposal or rotate the queue twice.
     if (match.payload === null || match.epoch !== message.epoch) return;
 
-    const active: { socket: WebSocket; seat: number; peerId: string }[] = [];
-    let nextWaiting: { socket: WebSocket; seat: number; order: number } | null = null;
+    const ports = lobbyStagePlayers(this.snapshot(this.currentRevision()).participants);
+    const allFighters = (1 << ports.length) - 1;
+    const loser = ports[message.loserPort];
+    if ((message.loserPort !== NO_CARD && !loser) || (message.winners & ~allFighters)) {
+      this.error(socket, "Match result names a non-fighting player");
+      return;
+    }
+    type Seat = { socket: WebSocket; seat: number; peerId: string };
+    const active: Seat[] = [];
+    const waiters: (Seat & { lastPlayed: number; draw: number })[] = [];
     for (const connected of this.ctx.getWebSockets()) {
       if (connected.readyState !== WebSocket.OPEN) continue;
       const participant = this.attachment(connected);
@@ -1484,32 +1506,25 @@ export class Room extends DurableObject<CloudflareBindings> {
         if ((participant.activeMask & bit) !== 0) {
           active.push({ socket: connected, seat, peerId: participant.peerId });
         }
-        if ((participant.waitingMask & bit) !== 0 &&
-            (nextWaiting === null || participant.waitingOrder[seat] < nextWaiting.order)) {
-          nextWaiting = { socket: connected, seat,
-                          order: participant.waitingOrder[seat] };
+        if (participant.waitingMask & bit && !participant.uncertain) {
+          waiters.push({ socket: connected, seat, peerId: participant.peerId,
+            lastPlayed: participant.lastPlayed[seat], draw: 0 });
         }
       }
     }
-    let outgoing: { socket: WebSocket; seat: number; peerId: string } | null = null;
+    const outgoing: Seat[] = [];
     const policy = this.rotationPolicy();
-    if (message.eligible && policy !== RotationPolicy.Manual &&
-        active.length === 2 && nextWaiting !== null &&
-        isPeerId(message.winnerPeerId) && message.winnerSeat < 4) {
-      const winner = active.find((entry) =>
-        entry.peerId === message.winnerPeerId && entry.seat === message.winnerSeat);
-      if (winner === undefined) {
-        this.error(socket, "Winner is not a fighting player");
-        return;
+    if (message.winners && message.winners !== allFighters &&
+        policy !== RotationPolicy.Manual && waiters.length) {
+      for (const [port, player] of ports.entries()) {
+        const won = !!(message.winners & (1 << port));
+        if (won !== (policy === RotationPolicy.WinnerOut)) continue;
+        const seat = active.find(entry => entry.peerId === player.peerId && entry.seat === player.seat);
+        if (seat) outgoing.push(seat);
       }
-      outgoing = policy === RotationPolicy.WinnerOut ? winner :
-        active.find((entry) => entry !== winner) ?? null;
-    }
-
-    const loser = lobbyStagePlayers(this.snapshot(this.currentRevision()).participants)[message.loserPort];
-    if (message.loserPort !== 255 && !loser) {
-      this.error(socket, "Loser is not a fighting player");
-      return;
+      const draws = crypto.getRandomValues(new Uint32Array(waiters.length));
+      waiters.forEach((person, i) => person.draw = draws[i]);
+      waiters.sort((a, b) => a.lastPlayed - b.lastPlayed || a.draw - b.draw);
     }
     this.ctx.storage.sql.exec(
       "UPDATE room_stage SET loser_peer=?, loser_seat=?, stage=255 WHERE id=1",
@@ -1522,12 +1537,24 @@ export class Room extends DurableObject<CloudflareBindings> {
     this.resetLobbyReadiness();
     this.clearReady();
     const revision = this.nextRevision();
-    if (outgoing !== null && nextWaiting !== null) {
-      const leaving = this.attachment(outgoing.socket)!;
-      const leavingBit = 1 << outgoing.seat;
-      outgoing.socket.serializeAttachment({
+    if (message.winners || loser) {
+      for (const { socket: player, seat } of active) {
+        const current = this.attachment(player)!;
+        current.lastPlayed[seat] = revision;
+        player.serializeAttachment(current);
+      }
+    }
+    for (let i = 0; i < Math.min(outgoing.length, waiters.length); ++i) {
+      const departed = outgoing[i], nextWaiting = waiters[i];
+      const leaving = this.attachment(departed.socket)!;
+      const leavingBit = 1 << departed.seat;
+      const card = leaving.cardSlots[departed.seat];
+      const leavingCards = leaving.cardSlots.slice() as CardSlots;
+      leavingCards[departed.seat] = NO_CARD;
+      departed.socket.serializeAttachment({
         ...leaving,
         activeMask: leaving.activeMask & ~leavingBit,
+        cardSlots: leavingCards,
         waitingMask: leaving.waitingMask | leavingBit,
         waitingOrder: waitingOrderForChange(
           leaving, leaving.waitingMask | leavingBit, revision,
@@ -1535,9 +1562,12 @@ export class Room extends DurableObject<CloudflareBindings> {
       } satisfies ConnectionAttachment);
       const entering = this.attachment(nextWaiting.socket)!;
       const enteringBit = 1 << nextWaiting.seat;
+      const enteringCards = entering.cardSlots.slice() as CardSlots;
+      enteringCards[nextWaiting.seat] = card;
       nextWaiting.socket.serializeAttachment({
         ...entering,
         activeMask: entering.activeMask | enteringBit,
+        cardSlots: enteringCards,
         waitingMask: entering.waitingMask & ~enteringBit,
         waitingOrder: waitingOrderForChange(
           entering, entering.waitingMask & ~enteringBit, revision,
@@ -1669,6 +1699,9 @@ export class Room extends DurableObject<CloudflareBindings> {
           !Number.isFinite(attachment.lastSeenAt) || !Number.isFinite(attachment.lastAuthorityCheckAt) || typeof attachment.uncertain !== "boolean" ||
           !validSeatMasks(attachment.localPlayers, attachment.activeMask,
                           attachment.waitingMask) ||
+          !validCardSlots(attachment.cardSlots, attachment.activeMask) ||
+          !Array.isArray(attachment.lastPlayed) || attachment.lastPlayed.length !== 4 ||
+          !attachment.lastPlayed.every(value => Number.isSafeInteger(value) && value >= 0) ||
           !Array.isArray(attachment.waitingOrder) ||
           attachment.waitingOrder.length !== 4 ||
           attachment.waitingOrder.some((order, seat) =>
@@ -1768,10 +1801,33 @@ export class Room extends DurableObject<CloudflareBindings> {
     }
     const limitChanged = capacity !== this.fighterLimit();
     if (limitChanged) {
-      const fighting = this.snapshot(revisionBeforeHash).participants.reduce((n,p) => n + countActive(p.activeMask), 0);
+      const people = this.snapshot(revisionBeforeHash).participants;
+      const fighting = people.reduce((n,p) => n + countActive(p.activeMask), 0);
       if (this.currentMatch().payload !== null || fighting > capacity) {
         this.error(socket, "Change the fighter limit between matches with enough open seats");
         return;
+      }
+      let occupied = occupiedCards(people);
+      const moved: CardSlots = [0, 1, 2, 3];
+      for (let card = capacity; card < 4; ++card) {
+        if (!(occupied & (1 << card))) continue;
+        let replacement = 0;
+        while (occupied & (1 << replacement)) ++replacement;
+        moved[card] = replacement;
+        occupied |= 1 << replacement;
+      }
+      if (moved.some((card, previous) => card !== previous)) {
+        for (const connected of this.ctx.getWebSockets()) {
+          if (connected.readyState !== WebSocket.OPEN) continue;
+          const current = this.attachment(connected);
+          if (!current) continue;
+          current.cardSlots = current.cardSlots.map(card => moved[card] ?? card) as CardSlots;
+          connected.serializeAttachment(current);
+        }
+        for (const reserved of this.recovering()) {
+          reserved.cardSlots = reserved.cardSlots.map(card => moved[card] ?? card) as CardSlots;
+          this.reserveConnection(reserved);
+        }
       }
       this.resetLobbyReadiness();
     }

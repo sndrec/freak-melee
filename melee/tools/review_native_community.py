@@ -39,7 +39,10 @@ def main():
              "ticker": "A long news headline keeps moving through the menu header, and pauses beneath the Melee hand.",
              "published_at": int(time.time()*1000)-i*1000, "updated_at": int(time.time()*1000), "revision": 1}
             for i in range(27)]
-    state = {"headline": rows[0], "announcements": [], "conditional": 0}
+    stale_notice = {"id": str(uuid4()), "delivery_id": str(uuid4()), "title": "Before launch",
+                    "body": "This was sent to an earlier session.", "news_id": None,
+                    "published_at": int(time.time()*1000)-300_000, "expires_at": None, "revision": 1}
+    state = {"headline": rows[0], "announcements": [stale_notice], "conditional": 0, "sessions": set()}
     article_body = "# Make it yours\n\nRead the latest Workshop changes here.\n\n- Edit your fighters\n- Share them with friends\n\n" + "\n\n".join(
         f"Update {i}: Your fighter owns its moves, animations, scripts and model. Keep making things!" for i in range(20))
 
@@ -50,6 +53,9 @@ def main():
         def do_GET(self):
             path = urlsplit(self.path)
             if path.path == "/v1/feed":
+                state["sessions"].add(int(parse_qs(path.query).get("since", ["0"])[0]))
+                # Simulate a feed that includes old rows, as a cached or older
+                # service response can, to exercise the game's cutoff as well.
                 result = {"headline": state["headline"], "announcements": state["announcements"], "announcements_next": None}
             elif path.path == "/v1/news":
                 older = bool(parse_qs(path.query).get("before"))
@@ -94,9 +100,11 @@ def main():
     shots = []
     client = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
                     args.output/"online", "News review", window_size=(1440, 900))
+    late = None
     try:
         client.click("nav-5")
         wait_for(client, "hub-news", "headline=Workshop update 27")
+        assert "count=0" in client.inspect("hub-notice")
         shots.append(str(client.screenshot()))
         client.click("news-ticker")
         wait_for(client, "hub-news", f"article={rows[0]['id']}")
@@ -126,9 +134,10 @@ def main():
         # without replacing the Workshop page or requiring a client restart.
         state["headline"] = {**rows[0], "title": "Updated while running", "ticker": "Fresh news", "revision": 2}
         delivery = str(uuid4())
+        sent_at = int(time.time()*1000)
         state["announcements"] = [{"id": str(uuid4()), "delivery_id": delivery, "title": "News review notice",
                                    "body": "This notice arrived while the client was open.", "news_id": rows[0]["id"],
-                                   "published_at": int(time.time()*1000), "expires_at": None, "revision": 1}]
+                                   "published_at": sent_at, "expires_at": None, "revision": 1}, stale_notice]
         wait_for(client, "hub-news", "headline=Updated while running")
         wait_for(client, "hub-notice", "title=News review notice")
         shots.append(str(client.screenshot()))
@@ -140,15 +149,25 @@ def main():
         wait_for(client, "hub-news", "feed=3", timeout=40)
         assert "count=0" in client.inspect("hub-notice")
         assert state["conditional"] > 0
+        late = Client(args.exe.resolve(), args.iso.resolve(), args.profile.resolve(),
+                      args.output/"late", "Late launch review", window_size=(1100, 760))
+        late.click("nav-5")
+        wait_for(late, "hub-news", "headline=Updated while running")
+        assert "count=0" in late.inspect("hub-notice")
+        early_start, late_start = sorted(state["sessions"])
+        assert stale_notice["published_at"] < early_start <= sent_at < late_start
     finally:
+        if late:
+            close_window(late.process.pid)
+            late.process.wait(timeout=20)
         close_window(client.process.pid)
         client.process.wait(timeout=20)
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
-    # Reuse this installation with the service now unavailable. Its last valid
-    # headline and dismissed-delivery record must survive the restart.
-    offline = Client(args.exe.resolve(), args.iso.resolve(), client.folder/"appdata",
+    # Reuse the late client's cache with the service unavailable. Its headline
+    # stays visible, while the notices that predate launch stay hidden.
+    offline = Client(args.exe.resolve(), args.iso.resolve(), late.folder/"appdata",
                      args.output/"offline", "News review", window_size=(1100, 760))
     try:
         offline.click("nav-5")
@@ -160,7 +179,7 @@ def main():
         close_window(offline.process.pid)
         offline.process.wait(timeout=20)
     (args.output/"review.json").write_text(json.dumps({"screenshots": shots, "conditional_reads": state["conditional"],
-        "checks": ["standalone reader at two window sizes", "return to originating page", "ticker", "article scroll", "history pagination", "live update", "notice dismissal", "seen persistence", "offline cache"]}, indent=2))
+        "checks": ["standalone reader at two window sizes", "return to originating page", "ticker", "article scroll", "history pagination", "live update", "notice dismissal", "session publication cutoff", "offline cache"]}, indent=2))
     print("PASS native ticker, reader, live update, notice and offline-cache review")
 
 

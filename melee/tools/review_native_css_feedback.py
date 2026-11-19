@@ -9,6 +9,7 @@ import time
 
 from review_native_css_room import Client
 from review_native_release import close_window
+from review_native_room_rotation import click_card
 
 
 def wait(client, element, pattern, timeout=25):
@@ -85,39 +86,28 @@ def main():
         a.resize(1440, 900)
         a.click('play-rules')
         a.click('rules-next-page')
-        a.click('rules-lobby')
+        a.click('rules-next-page')
         a.element('change-listing')
         a.element('rotation-policy')
-        a.element('match-rules')
         shot(a, 'css-rules')
         a.tap('start')
-        assert 'rules=1' in a.inspect('lobby-listing'), 'START escaped the CSS rules view'
+        assert '[hub-inspect] match-rules' in a.inspect('match-rules'), 'START escaped the CSS rules view'
         a.element('change-listing')
-        # Host overrides and the player's subsequent choices use this view too.
-        a.click('lobby-manage-seats')
-        a.click('lobby-seat-1-0')
+        click_card(b, 1, 0)
         for _ in range(100):
             if len(re.findall(r'canonical=[0-3] ', a.inspect('css-cards'))) == 1:
                 break
             time.sleep(.1)
         else:
-            raise AssertionError('Host seat override did not update the CSS cards')
-        b.click('play-rules')
-        b.click('rules-next-page')
-        b.click('rules-lobby')
-        b.click('lobby-manage-seats')
-        b.click('lobby-seat-1-0')  # Waiting -> Spectating
-        time.sleep(.3)
-        b.click('lobby-seat-1-0')  # Spectating -> Fighting
+            raise AssertionError('Releasing the card did not update the CSS cards')
+        click_card(b, 1, 0, mouse=True)
         for _ in range(100):
             if len(re.findall(r'canonical=[0-3] ', a.inspect('css-cards'))) == 2:
                 break
             time.sleep(.1)
         else:
-            raise AssertionError('Player could not change their role after a host override')
-        for _ in range(4): b.click('rules-close')
+            raise AssertionError('Player could not reclaim their open card')
         b.element('play-ready')
-        a.click('rules-close')
         initial = a.inspect('lobby-listing')
         expected = 0 if 'listed=1' in initial else 1
         a.command('ui-move', *a.element('change-listing'))
@@ -147,7 +137,7 @@ def main():
         assert 'absent' in a.inspect('lobby-ready')
         a.click('return-session')
         a.element('play-ready')
-        result.update(status='PASS', scope='Four authored cards with local-first identities, selected fighters, CSS chat including UTF-8/wrapping, stock header/Back hotspots, CSS-owned rules, modal START/B consumption, host and player role changes, held A and compact remote-card fighter delivery selection.')
+        result.update(status='PASS', scope='Four authored cards with local-first identities, selected fighters, CSS chat including UTF-8/wrapping, stock header/Back hotspots, CSS-owned rules, modal START/B consumption, player card claims and releases, held A and compact remote-card fighter delivery selection.')
     except Exception as error:
         result.update(status='FAIL', error=str(error))
         for i, c in enumerate(clients):

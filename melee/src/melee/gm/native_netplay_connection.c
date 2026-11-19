@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #include "native_netplay_connection_wire.h"
 
@@ -227,6 +229,21 @@ static bool process_signaling(NativeNetplayConnection* connection)
             connection->stage_cursor = event.message.data.stage_cursor;
             continue;
         }
+        if (event.message.type == NativeSignalingServerMessage_CssPointers) {
+            const NativeCssPointers* incoming = &event.message.data.css_pointers;
+            NativeRemoteCssPointers* entry = &connection->css_pointers[0];
+            for (unsigned i = 0; i < NATIVE_SIGNALING_MAX_PARTICIPANTS; ++i) {
+                NativeRemoteCssPointers* seen = &connection->css_pointers[i];
+                if (!strcmp(seen->pointers.peer_id, incoming->peer_id)) {
+                    entry = seen;
+                    break;
+                }
+                if (seen->received_ms < entry->received_ms) entry = seen;
+            }
+            entry->pointers = *incoming;
+            entry->received_ms = GetTickCount64();
+            continue;
+        }
         if (event.message.type == NativeSignalingServerMessage_LobbyState) {
             connection->lobby=event.message.data.lobby;
             connection->has_lobby=true;
@@ -251,6 +268,11 @@ static bool process_signaling(NativeNetplayConnection* connection)
             snprintf(connection->quick_error, sizeof(connection->quick_error),
                      "%s", event.message.data.error);
             ++connection->quick_revision;
+            continue;
+        }
+        if (event.message.type == NativeSignalingServerMessage_RoomActionRejected) {
+            snprintf(connection->action_rejection, sizeof(connection->action_rejection),
+                     "%s", event.message.data.error);
             continue;
         }
         if (connection->topology_locked) {

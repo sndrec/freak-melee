@@ -660,21 +660,6 @@ bool nativeSignalingClient_SetMatch(NativeSignalingClient* client,
     return queued;
 }
 
-bool nativeSignalingClient_AssignSeats(NativeSignalingClient* client,
-                                       const char* peer_id,
-                                       uint8_t active_mask,
-                                       uint8_t waiting_mask)
-{
-    uint8_t bytes[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 12];
-    size_t size = nativeSignalingWire_EncodeAssignSeats(
-        peer_id, active_mask, waiting_mask, bytes, sizeof(bytes));
-    bool queued = client != NULL && size != 0 &&
-                  nativeSignalingClient_IsRunning(client) &&
-                  command_push(&client->commands, bytes, size);
-    if (queued) SetEvent((HANDLE) client->wake_event);
-    return queued;
-}
-
 bool nativeSignalingClient_SetRotation(NativeSignalingClient* client,
                                        uint8_t policy)
 {
@@ -688,11 +673,34 @@ bool nativeSignalingClient_SetRotation(NativeSignalingClient* client,
     return queued;
 }
 
+bool nativeSignalingClient_ChangeCard(NativeSignalingClient* client,
+                                     uint8_t seat, uint8_t card, uint8_t expected)
+{
+    uint8_t bytes[11];
+    size_t size = nativeSignalingWire_EncodeChangeCard(
+        seat, card, expected, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_SetLobbyRules(NativeSignalingClient* client, const NativeRoomRules* rules)
 {
     uint8_t bytes[NATIVE_ROOM_RULES_BYTES+10];
     size_t size=nativeSignalingWire_EncodeLobbyRules(rules,bytes,sizeof(bytes));
     bool queued=client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands,bytes,size);
+    if (queued) SetEvent((HANDLE)client->wake_event);
+    return queued;
+}
+
+bool nativeSignalingClient_CssPointers(NativeSignalingClient* client,
+                                       const NativeCssPointers* pointers)
+{
+    uint8_t bytes[26];
+    size_t size = nativeSignalingWire_EncodeCssPointers(pointers, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
     if (queued) SetEvent((HANDLE)client->wake_event);
     return queued;
 }
@@ -719,14 +727,11 @@ bool nativeSignalingClient_RequestLobbyState(NativeSignalingClient* client)
 
 bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
-                                       const char* winner_peer_id,
-                                       uint8_t winner_seat,
-                                       bool eligible, uint8_t loser_port)
+                                       uint8_t winners, uint8_t loser_port)
 {
-    uint8_t bytes[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 20];
+    uint8_t bytes[18];
     size_t size = nativeSignalingWire_EncodeReportMatch(
-        epoch, winner_peer_id, winner_seat, eligible, loser_port,
-        bytes, sizeof(bytes));
+        epoch, winners, loser_port, bytes, sizeof(bytes));
     bool queued = client != NULL && size != 0 &&
                   nativeSignalingClient_IsRunning(client) &&
                   command_push(&client->commands, bytes, size);

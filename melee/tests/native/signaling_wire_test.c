@@ -22,7 +22,7 @@ static void put_u64(uint8_t* bytes, uint64_t value)
 static size_t header(uint8_t* bytes, uint8_t type)
 {
     memcpy(bytes, "FMS1", 4);
-    bytes[4] = 5;
+    bytes[4] = 6;
     bytes[5] = type;
     bytes[6] = 0;
     bytes[7] = 0;
@@ -62,7 +62,7 @@ static void test_client_encoding(void)
     size_t size = nativeSignalingWire_EncodeUpdate(&update, bytes,
                                                    sizeof(bytes));
     const uint8_t expected[] = {
-        'F', 'M', 'S', '1', 5, 1, 0, 11, 0x3E, 1, 2, 1,
+        'F', 'M', 'S', '1', 6, 1, 0, 11, 0x3E, 1, 2, 1,
         0, 4, 0x46, 0x4D, 0x53, 0x4C, 2,
     };
     assert(size == sizeof(expected));
@@ -101,16 +101,10 @@ static void test_client_encoding(void)
                match, NATIVE_SIGNALING_MAX_MATCH_BYTES + 1, bytes,
                sizeof(bytes)) == 0);
 
-    size = nativeSignalingWire_EncodeAssignSeats(
-        "peer_two", 2, 1, bytes, sizeof(bytes));
-    const uint8_t assignment[] = {
-        'F', 'M', 'S', '1', 5, 5, 0, 11,
-        8, 'p', 'e', 'e', 'r', '_', 't', 'w', 'o', 2, 1,
-    };
-    assert(size == sizeof(assignment));
-    assert(memcmp(bytes, assignment, sizeof(assignment)) == 0);
-    assert(nativeSignalingWire_EncodeAssignSeats(
-               "peer_two", 16, 0, bytes, sizeof(bytes)) == 0);
+    assert(nativeSignalingWire_EncodeChangeCard(2, 3, 255, bytes, sizeof(bytes)) == 11);
+    assert(bytes[5] == 23 && bytes[8] == 2 && bytes[9] == 3 && bytes[10] == 255);
+    assert(nativeSignalingWire_EncodeChangeCard(2, 255, 3, bytes, sizeof(bytes)) == 11);
+    assert(!nativeSignalingWire_EncodeChangeCard(2, 3, 2, bytes, sizeof(bytes)));
 
     size = nativeSignalingWire_EncodeSetRotation(
         NativeRoomRotation_WinnerStays, bytes, sizeof(bytes));
@@ -118,14 +112,13 @@ static void test_client_encoding(void)
     assert(nativeSignalingWire_EncodeSetRotation(3, bytes, sizeof(bytes)) == 0);
 
     size = nativeSignalingWire_EncodeReportMatch(
-        42, "peer_two", 1, true, 0, bytes, sizeof(bytes));
-    assert(size == 8 + 8 + 1 + 8 + 1 + 1 + 1);
-    assert(bytes[5] == 7 && bytes[15] == 42 && bytes[16] == 8);
-    assert(bytes[size - 3] == 1 && bytes[size - 2] == 1 && bytes[size - 1] == 0);
+        42, 9, 0, bytes, sizeof(bytes));
+    assert(size == 18);
+    assert(bytes[5] == 7 && bytes[15] == 42 && bytes[16] == 9 && bytes[17] == 0);
     assert(nativeSignalingWire_EncodeReportMatch(
-               42, "peer_two", 4, true, 0, bytes, sizeof(bytes)) == 0);
+               42, 16, 0, bytes, sizeof(bytes)) == 0);
     assert(nativeSignalingWire_EncodeReportMatch(
-               42, "peer_two", 1, true, 4, bytes, sizeof(bytes)) == 0);
+               42, 1, 4, bytes, sizeof(bytes)) == 0);
     assert(nativeSignalingWire_EncodePickLobbyStage(0, 2, 32, bytes, sizeof(bytes)) == 18);
     assert(bytes[5] == 17 && bytes[16] == 2 && bytes[17] == 32);
     assert(!nativeSignalingWire_EncodePickLobbyStage(0, 4, 32, bytes, sizeof(bytes)));
@@ -156,6 +149,10 @@ static void test_server_decoding(void)
     bytes[size++] = 1;
     bytes[size++] = 0;
     bytes[size++] = 0;
+    const size_t first_card_offset = size;
+    bytes[size++] = 2;
+    memset(bytes + size, 255, 3);
+    size += 3;
     put_u16(bytes + size, sizeof(selection));
     size += 2;
     memcpy(bytes + size, selection, sizeof(selection));
@@ -175,6 +172,8 @@ static void test_server_decoding(void)
     put_u64(bytes + size, 9);
     size += 8;
     memset(bytes + size, 0, 4);
+    size += 4;
+    memset(bytes + size, 255, 4);
     size += 4;
     put_u16(bytes + size, 0);
     size += 2;
@@ -207,6 +206,7 @@ static void test_server_decoding(void)
     assert(decoded.data.presence.participants[0].active_mask == 1);
     assert(decoded.data.presence.participants[0].waiting_mask == 2);
     assert(decoded.data.presence.participants[0].waiting_ranks[1] == 1);
+    assert(decoded.data.presence.participants[0].card_slots[0] == 2);
     assert(decoded.data.presence.participants[0].ready);
     assert(decoded.data.presence.participants[0].selection_size ==
            sizeof(selection));
@@ -229,6 +229,9 @@ static void test_server_decoding(void)
     bytes[first_rank_offset + 1] = 0;
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
     bytes[first_rank_offset + 1] = 1;
+    bytes[first_card_offset] = 255;
+    assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
+    bytes[first_card_offset] = 2;
     bytes[4] = 2;
     assert(!nativeSignalingWire_DecodeServer(bytes, size, &decoded));
 }

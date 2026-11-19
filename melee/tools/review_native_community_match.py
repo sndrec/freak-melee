@@ -54,11 +54,12 @@ def main():
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args): pass
         def do_GET(self):
-            if self.path == '/v1/feed':
+            path = self.path.partition('?')[0]
+            if path == '/v1/feed':
                 if state['match'] and state['notices']: state['during_match'] += 1
                 result = dict(headline=headline,announcements=state['notices'],announcements_next=None)
-            elif self.path == '/v1/news/'+headline['id']: result = dict(**headline,body='The news works across the hub.')
-            elif self.path == '/v1/announcements/'+notice['delivery_id']: result = notice
+            elif path == '/v1/news/'+headline['id']: result = dict(**headline,body='The news works across the hub.')
+            elif path == '/v1/announcements/'+notice['delivery_id']: result = notice
             else: self.send_error(404);return
             data = json.dumps(result).encode();etag='"'+sha256(data).hexdigest()+'"'
             same = self.headers.get('If-None-Match') == etag
@@ -103,6 +104,7 @@ def main():
         owner.click('play-start');select_stage(owner)
         sessions=[session(client,1) for client in clients];assert sessions[0][:2]==sessions[1][:2]
         wait(lambda:network(owner)['frame']>120,'real match running',50)
+        notice['published_at'] = int(time.time()*1000)
         state.update(match=True,notices=[notice])
         wait(lambda:state['during_match']>=2,'both clients fetch during match',40)
         for client in clients:

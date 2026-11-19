@@ -116,6 +116,7 @@ static inline TrainingItemEntry* TrainingItemTable_Get(void)
 #ifdef MELEE_NATIVE
 static int local_slot = -1;
 static bool local_menu_open;
+static bool local_input_consumed;
 static DynamicModelDesc training_model;
 static DynamicModelDesc* training_models[] = { &training_model, NULL };
 static HSD_AnimJoint* training_anim[1];
@@ -930,21 +931,25 @@ void gmTraining_UpdateLocalMenu(void)
     } else if (was_open && (pressed & PAD_BUTTON_B)) {
         local_menu_open = false;
     }
-    if (!local_menu_open && !was_open) return;
+    local_input_consumed = local_menu_open || was_open;
+    if (!local_input_consumed) return;
     const int damage = gm_80473814.menu_values[4];
     fn_801891F4();
     if (gm_80473814.menu_values[4] != damage)
         Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, gm_80473814.menu_values[4]);
-    // Menu input comes from the controller map. Keep the simulation running
-    // with neutral input on the controller that owns this menu.
-    HSD_PadStatus* pad = &HSD_PadGameStatus[port];
-    *pad = (HSD_PadStatus){ .err = pad->err };
 }
 
 bool gmTraining_LocalMenuOpen(void)
 {
     return gmVs_GetController_0()->start.on_frame_start == gmTraining_UpdateLocalMenu &&
            local_menu_open;
+}
+
+int gmTraining_LocalInputPort(void)
+{
+    return local_input_consumed &&
+                   gmVs_GetController_0()->start.on_frame_start == gmTraining_UpdateLocalMenu
+               ? lbl_80473700.mode : -1;
 }
 #endif
 #ifdef MUST_MATCH
@@ -1035,6 +1040,7 @@ HSD_Text* fn_8018A000(int slot)
 #ifdef MELEE_NATIVE
     local_slot = slot;
     local_menu_open = false;
+    local_input_consumed = false;
     if (slot >= 0) {
         state->mode = Player_GetPlayerId(slot);
         state->count = 1;

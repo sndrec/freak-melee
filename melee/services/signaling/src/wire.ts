@@ -3,9 +3,10 @@ import type { Participant, RoomSnapshot } from "./protocol";
 import type { QuickState } from "./quick-play";
 import type { LobbyEntry } from "./lobby-directory";
 import { decodeLobbyRules, encodeLobbyRules, type LobbyRules, type LobbyState } from "./lobby-rules";
+import { validCardSlots, NO_CARD, type CardSlots } from "./room-cards";
 
 const MAGIC = 0x464d5331;
-const VERSION = 5;
+const VERSION = 6;
 const HEADER_BYTES = 8;
 
 export const enum ClientMessageType {
@@ -13,7 +14,6 @@ export const enum ClientMessageType {
   Signal = 2,
   RequestPresence = 3,
   SetMatch = 4,
-  AssignSeats = 5,
   SetRotation = 6,
   ReportMatch = 7,
   PostChat = 8,
@@ -31,6 +31,8 @@ export const enum ClientMessageType {
   SetLobbyRules = 20,
   RequestLobbyState = 21,
   StageCursor = 22,
+  ChangeCard = 23,
+  CssPointers = 24,
 }
 
 export const enum ServerMessageType {
@@ -48,6 +50,8 @@ export const enum ServerMessageType {
   Listing = 0x8c,
   LobbyState = 0x8d,
   StageCursor = 0x8e,
+  CssPointers = 0x8f,
+  RoomActionRejected = 0x90,
   Error = 0xff,
 }
 
@@ -78,8 +82,15 @@ export interface StageCursor {
   seat: number;
 }
 
+export interface CssPointers {
+  visible: number;
+  held: number;
+  points: [number, number][];
+}
+
 export type ClientMessage =
   | { type: ClientMessageType.StageCursor; cursor: StageCursor }
+  | { type: ClientMessageType.CssPointers; pointers: CssPointers }
   | { type: ClientMessageType.SetLobbyRules; rules: LobbyRules }
   | { type: ClientMessageType.RequestLobbyState }
   | { type: ClientMessageType.SetListing; title: string; listed: boolean; capacity: number; password: string | null }
@@ -105,12 +116,13 @@ export type ClientMessage =
   | { type: ClientMessageType.UnreadyQuick; completedEpoch: number }
   | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
-  | { type: ClientMessageType.AssignSeats; peerId: string; activeMask: number; waitingMask: number }
+  | { type: ClientMessageType.ChangeCard; seat: number; card: number; expected: number }
   | { type: ClientMessageType.SetRotation; policy: RotationPolicy }
   | { type: ClientMessageType.PickLobbyStage; epoch: number; seat: number; stage: number }
-  | { type: ClientMessageType.ReportMatch; epoch: number; winnerPeerId: string; winnerSeat: number; eligible: boolean; loserPort: number };
+  | { type: ClientMessageType.ReportMatch; epoch: number; winners: number; loserPort: number };
 
 export type ServerMessage =
+  | { type: ServerMessageType.CssPointers; peerId: string; pointers: CssPointers }
   | { type: ServerMessageType.StageCursor; peerId: string; cursor: StageCursor }
   | { type: ServerMessageType.LobbyState; lobby: LobbyState }
   | { type: ServerMessageType.Lobbies; offset: number; total: number; entries: LobbyEntry[] }
@@ -130,7 +142,8 @@ export type ServerMessage =
   | { type: ServerMessageType.ChatRejected; nonce: number; reason: string }
   | { type: ServerMessageType.QuickState; quick: QuickState }
   | { type: ServerMessageType.QuickRejected; reason: string }
-  | { type: ServerMessageType.Error; message: string };
+  | { type: ServerMessageType.Error; message: string }
+  | { type: ServerMessageType.RoomActionRejected; message: string };
 
 class Reader {
   private readonly view: DataView;
@@ -299,6 +312,9 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
   if (type === ClientMessageType.StageCursor) {
     const cursor = readStageCursor(reader); reader.finish(); return { type, cursor };
   }
+  if (type === ClientMessageType.CssPointers) {
+    const pointers = readCssPointers(reader); reader.finish(); return { type, pointers };
+  }
   if (type === ClientMessageType.RequestLobbyState) { reader.finish(); return { type }; }
   if (type === ClientMessageType.SetLobbyRules) {
     const rules = decodeLobbyRules(reader.bytes16()); reader.finish(); return { type, rules };
@@ -366,15 +382,12 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
     reader.finish();
     return result;
   }
-  if (type === ClientMessageType.AssignSeats) {
-    const result: ClientMessage = {
-      type,
-      peerId: reader.string8(),
-      activeMask: reader.u8(),
-      waitingMask: reader.u8(),
-    };
+  if (type === ClientMessageType.ChangeCard) {
+    const seat = reader.u8(), card = reader.u8(), expected = reader.u8();
     reader.finish();
-    return result;
+    if (seat > 3 || !(card <= 3 && expected === NO_CARD ||
+        card === NO_CARD && expected <= 3)) throw new Error("Invalid card change");
+    return { type, seat, card, expected };
   }
   if (type === ClientMessageType.SetRotation) {
     const policy = reader.u8();
@@ -383,15 +396,10 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
     return { type, policy };
   }
   if (type === ClientMessageType.ReportMatch) {
-    const epoch = reader.u64();
-    const winnerPeerId = reader.string8();
-    const winnerSeat = reader.u8();
-    const eligibleByte = reader.u8();
-    const loserPort = reader.u8();
-    if (eligibleByte > 1 || (loserPort > 3 && loserPort !== 255)) throw new Error("Invalid match report");
+    const epoch = reader.u64(), winners = reader.u8(), loserPort = reader.u8();
+    if (winners > 15 || (loserPort > 3 && loserPort !== 255)) throw new Error("Invalid match report");
     reader.finish();
-    return { type, epoch, winnerPeerId, winnerSeat,
-      eligible: eligibleByte === 1, loserPort };
+    return { type, epoch, winners, loserPort };
   }
   if (type === ClientMessageType.PickLobbyStage) {
     const epoch = reader.u64(), seat = reader.u8(), stage = reader.u8();
@@ -440,6 +448,11 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
   if (type === ServerMessageType.StageCursor) {
     const peerId = reader.string8(), cursor = readStageCursor(reader);
     reader.finish(); return { type, peerId, cursor };
+  }
+  if (type === ServerMessageType.CssPointers) {
+    const peerId = reader.string8(), pointers = readCssPointers(reader);
+    reader.finish();
+    return { type, peerId, pointers };
   }
   if (type === ServerMessageType.LobbyState) {
     const revision = reader.u64(), phase = reader.u8(), remainingMs = reader.u16(), bytes = reader.bytes16();
@@ -542,7 +555,7 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
     reader.finish();
     return result;
   }
-  if (type === ServerMessageType.Error) {
+  if (type === ServerMessageType.Error || type === ServerMessageType.RoomActionRejected) {
     const result: ServerMessage = {
       type,
       message: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
@@ -609,17 +622,6 @@ export function encodeSetMatch(
   return writer.finish();
 }
 
-export function encodeAssignSeats(
-  peerId: string, activeMask: number, waitingMask: number,
-  maximumBytes: number,
-): ArrayBuffer {
-  const writer = new Writer(ClientMessageType.AssignSeats, maximumBytes);
-  writer.string8(peerId);
-  writer.u8(activeMask);
-  writer.u8(waitingMask);
-  return writer.finish();
-}
-
 export function encodeSetRotation(policy: RotationPolicy, maximumBytes: number): ArrayBuffer {
   const writer = new Writer(ClientMessageType.SetRotation, maximumBytes);
   writer.u8(policy);
@@ -627,14 +629,11 @@ export function encodeSetRotation(policy: RotationPolicy, maximumBytes: number):
 }
 
 export function encodeReportMatch(
-  epoch: number, winnerPeerId: string, winnerSeat: number,
-  eligible: boolean, loserPort: number, maximumBytes: number,
+  epoch: number, winners: number, loserPort: number, maximumBytes: number,
 ): ArrayBuffer {
   const writer = new Writer(ClientMessageType.ReportMatch, maximumBytes);
   writer.u64(epoch);
-  writer.string8(winnerPeerId);
-  writer.u8(winnerSeat);
-  writer.u8(eligible ? 1 : 0);
+  writer.u8(winners);
   writer.u8(loserPort);
   return writer.finish();
 }
@@ -675,6 +674,14 @@ export function encodePresence(snapshot: RoomSnapshot, maximumBytes: number): Ar
   return writer.finish();
 }
 
+export function encodeChangeCard(seat: number, card: number, expected = NO_CARD): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.ChangeCard, 16);
+  writer.u8(seat);
+  writer.u8(card);
+  writer.u8(expected);
+  return writer.finish();
+}
+
 export function encodeSignal(
   from: string,
   payload: Uint8Array,
@@ -692,8 +699,9 @@ export function encodeSignalSent(to: string, maximumBytes: number): ArrayBuffer 
   return writer.finish();
 }
 
-export function encodeError(message: string, maximumBytes: number): ArrayBuffer {
-  const writer = new Writer(ServerMessageType.Error, maximumBytes);
+export function encodeError(message: string, maximumBytes: number, recoverable = false): ArrayBuffer {
+  const writer = new Writer(recoverable ? ServerMessageType.RoomActionRejected : ServerMessageType.Error,
+                            maximumBytes);
   writer.bytes16(new TextEncoder().encode(message));
   return writer.finish();
 }
@@ -708,6 +716,7 @@ function writeParticipant(writer: Writer, participant: Participant): void {
   writer.u8(participant.ready ? 1 : 0);
   writer.u64(participant.joinOrder);
   for (const rank of participant.waitingRanks) writer.u8(rank);
+  for (const card of participant.cardSlots) writer.u8(card);
   writer.bytes16(participant.selection);
   writer.string8(participant.accountId);
   writer.string8(participant.accountHandle);
@@ -725,10 +734,12 @@ function readParticipant(reader: Reader): Participant {
   const waitingRanks: [number, number, number, number] = [
     reader.u8(), reader.u8(), reader.u8(), reader.u8(),
   ];
+  const cardSlots: CardSlots = [reader.u8(), reader.u8(), reader.u8(), reader.u8()];
   const selection = reader.bytes16();
   const accountId = reader.string8(), accountHandle = reader.string8();
   if (
-    !validSeatMasks(localPlayers, activeMask, waitingMask) || !isAccountIdentity(accountId, accountHandle) ||
+    !validSeatMasks(localPlayers, activeMask, waitingMask) || !validCardSlots(cardSlots, activeMask) ||
+    !isAccountIdentity(accountId, accountHandle) ||
     ready > 1 ||
     selection.byteLength > MAX_SELECTION_BYTES ||
     (ready === 1 && activeMask === 0) ||
@@ -745,6 +756,7 @@ function readParticipant(reader: Reader): Participant {
     build,
     localPlayers,
     activeMask,
+    cardSlots,
     waitingMask,
     ready: ready === 1,
     joinOrder,
@@ -843,6 +855,41 @@ export function encodeStageCursor(cursor: StageCursor, maximumBytes = 64): Array
 export function encodeStageCursorUpdate(peerId: string, cursor: StageCursor): ArrayBuffer {
   const writer = new Writer(ServerMessageType.StageCursor, 128);
   writer.string8(peerId); writeStageCursor(writer, cursor); return writer.finish();
+}
+
+function readCssPointers(reader: Reader): CssPointers {
+  const visible = reader.u8(), held = reader.u8();
+  if (visible > 15 || (held & ~visible)) throw new Error("Invalid CSS pointer flags");
+  const points: CssPointers["points"] = [];
+  for (let seat = 0; seat < 4; ++seat) {
+    const x = (reader.u16() << 16) >> 16, y = (reader.u16() << 16) >> 16;
+    if (x < -1024 || x > 17408 || y < 0 || y > 16384)
+      throw new Error("Invalid CSS pointer position");
+    points.push([x, y]);
+  }
+  return { visible, held, points };
+}
+
+function writeCssPointers(writer: Writer, pointers: CssPointers): void {
+  writer.u8(pointers.visible);
+  writer.u8(pointers.held);
+  for (const [x, y] of pointers.points) {
+    writer.u16(x & 65535);
+    writer.u16(y);
+  }
+}
+
+export function encodeCssPointers(pointers: CssPointers): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.CssPointers, 26);
+  writeCssPointers(writer, pointers);
+  return writer.finish();
+}
+
+export function encodeCssPointersUpdate(peerId: string, pointers: CssPointers): ArrayBuffer {
+  const writer = new Writer(ServerMessageType.CssPointers, 91);
+  writer.string8(peerId);
+  writeCssPointers(writer, pointers);
+  return writer.finish();
 }
 
 export function encodeRequestLobbyState(maximumBytes: number): ArrayBuffer {

@@ -1,8 +1,10 @@
 #include "native_css_cards.h"
 #include "native_css_original.h"
+#include "native_css_remote.h"
 #include "native_menu_font.h"
 #include "native_menu_portrait.h"
 #include <melee/gm/native_home.h>
+#include <melee/gm/gmmain_lib.h>
 #include <melee/gm/native_match_launch.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_stock_content.h>
@@ -21,6 +23,7 @@
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mobj.h>
 #include <sysdolphin/baselib/native_model_view.h>
+#include <sysdolphin/baselib/sislib.h>
 #include <sysdolphin/baselib/state.h>
 #include <sysdolphin/baselib/tev.h>
 #include <dolphin/gx.h>
@@ -58,6 +61,9 @@ typedef struct CarriedArt {
 static struct {
     CSSData* css;
     HSD_GObj* owner;
+    HSD_Text* stock_rules_text;
+    HSD_Text* lobby_rules_text;
+    char rules_label[80];
     NativeCssParticipants people;
     CardArt art[4], preview;
     CarriedArt carried[4];
@@ -335,6 +341,46 @@ void nativeCssCards_End(void)
         HSD_GObjFree(cards.owner);
     }
 }
+void nativeCssCards_SetRulesText(HSD_Text* stock, HSD_Text* lobby)
+{
+    if (!cards.owner) return;
+    cards.stock_rules_text = stock;
+    cards.lobby_rules_text = lobby;
+}
+
+static void update_rules_label(unsigned limit)
+{
+    if (!cards.lobby_rules_text) return;
+    cards.stock_rules_text->hidden = limit != 0;
+    cards.lobby_rules_text->hidden = limit == 0;
+    if (!limit) return;
+
+    const NativeRoomLobbyState* lobby = nativeOnlineSession_LobbyState();
+    const GameRules* local = gmMainLib_GetGameRules();
+    const NativeRoomRules* shared = lobby && lobby->has_rules ? &lobby->rules : NULL;
+    const unsigned mode = shared ? shared->mode : local->mode;
+    unsigned minutes = shared ? shared->time : local->time_limit;
+    const bool teams = shared ? shared->teams : nativeHome_IsTeams();
+    const char* kind = mode == Mode_Stock ? "survival test"
+        : mode == Mode_Coin ? "coin battle" : mode == Mode_Bonus
+        ? "bonus battle" : "time battle";
+    char duration[16], stock[16] = "";
+    if (mode == Mode_Stock) {
+        unsigned count = shared ? shared->stocks : local->stock_count;
+        minutes = shared ? shared->stock_time : local->stock_time_limit;
+        snprintf(stock, sizeof(stock), "%u stock  ", count);
+    }
+    if (minutes) snprintf(duration, sizeof(duration), "%u min", minutes);
+    else snprintf(duration, sizeof(duration), "No limit");
+    char label[sizeof(cards.rules_label)];
+    snprintf(label, sizeof(label), "%u-man %s%s  -  %s%s",
+             limit, teams ? "team " : "", kind, stock, duration);
+    if (strcmp(label, cards.rules_label) != 0) {
+        memcpy(cards.rules_label, label, strlen(label) + 1);
+        HSD_SisLib_803A70A0(cards.lobby_rules_text, 0, "%s", label);
+    }
+}
+
 void nativeCssCards_Update(void)
 {
     if (!cards.css) {
@@ -369,10 +415,16 @@ void nativeCssCards_Update(void)
         }
     }
     const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    const NativeLobbyListing* listing = nativeOnlineSession_Listing();
+    const unsigned card_count = quick ? quick->mode * 2
+        : presence ? (listing && listing->capacity ? listing->capacity : 4) : 0;
+    update_rules_label(presence && !quick ? card_count : 0);
     if (!nativeCssParticipants_Build(
-            nativeOnlineSession_Presence(), nativeOnlineSession_LocalPeerId(),
-            nativeHub_LocalName(), local, quick ? quick->mode * 2 : nativeOnlineSession_Presence() ? 4 : 0,
-            quick && quick->state == NativeQuickState_Searching, &cards.people))
+            presence, nativeOnlineSession_LocalPeerId(),
+            nativeHub_LocalName(), local, card_count,
+            quick && quick->state == NativeQuickState_Searching,
+            presence && !quick, &cards.people))
     {
         memset(&cards.people, 0, sizeof(cards.people));
     }
@@ -434,6 +486,37 @@ unsigned nativeCssCards_DisplayPort(unsigned physical_port)
     }
     return physical_port;
 }
+bool nativeCssCards_HasLocalCard(unsigned physical_port)
+{
+    for (unsigned i = 0; i < cards.people.count; ++i) {
+        const NativeCssParticipant* card = &cards.people.cards[i];
+        if (card->local && card->physical_port == physical_port &&
+            card->kind == Gm_PKind_Human) return true;
+    }
+    return false;
+}
+bool nativeCssCards_RemotePort(const char* peer_id, unsigned seat, unsigned* display)
+{
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    const char* local = nativeOnlineSession_LocalPeerId();
+    if (!presence || !local || !strcmp(peer_id, local)) return false;
+    for (unsigned i = 0; i < cards.people.count; ++i) {
+        const NativeCssParticipant* card = &cards.people.cards[i];
+        if (!card->local && card->seat == seat && !strcmp(card->peer, peer_id)) {
+            *display = i;
+            return true;
+        }
+    }
+    for (unsigned i = 0; i < presence->participant_count; ++i) {
+        const NativeSignalingParticipant* player = &presence->participants[i];
+        if (!strcmp(player->peer_id, peer_id) &&
+            seat < (player->local_players ? player->local_players : 1u)) {
+            *display = 4;
+            return true;
+        }
+    }
+    return false;
+}
 const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
 {
     if (!cards.people.online || y > -5.6f || y < -24.5f) {
@@ -446,17 +529,26 @@ const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
     }
     return NULL;
 }
-bool nativeCssCards_CycleSeat(float x, float y)
+bool nativeCssCards_ChangeSeat(float x, float y, unsigned physical_port)
 {
     const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
     if (!cards.people.online || nativeOnlineSession_Quick() || !presence ||
-        presence->match_size || y < -6.5f || y > -2.8f) return false;
+        presence->match_size || y < -6.5f || y > -2.8f || physical_port >= 4 ||
+        cards.css->vs.start.players[physical_port].slot_type != Gm_PKind_Human) return false;
+    unsigned seat = 0;
+    for (unsigned port = 0; port < physical_port; ++port)
+        if (cards.css->vs.start.players[port].slot_type == Gm_PKind_Human) ++seat;
     for (unsigned i = 0; i < cards.people.count; ++i) {
         const NativeCssParticipant* card = &cards.people.cards[i];
         const float left = card_left(i) - .5f;
-        if (x < left || x >= left + 5.7f || card->kind != Gm_PKind_Human ||
-            (!card->local && !nativeOnlineSession_IsOwner())) continue;
-        if (nativeOnlineSession_ChooseSeat(card->peer, card->seat, NativeRoomSeatState_Spectating))
+        if (x < left || x >= left + 5.7f) continue;
+        const bool open = card->kind == Gm_PKind_NA;
+        const bool own = card->local && card->physical_port == physical_port;
+        if (!open && !own) return true;
+        if (open && (nativeOnlineSession_LocalActiveSeats() & (1u << seat))) return true;
+        if (nativeOnlineSession_ChangeCard(seat,
+                open ? card->card_slot : NATIVE_CSS_NO_PORT,
+                open ? NATIVE_CSS_NO_PORT : card->card_slot))
             nativeHome_CancelStartMatch();
         else
             nativeHub_Notice("Could not change this player's seat.");
@@ -495,6 +587,8 @@ void nativeCssCards_Inspect(void)
             progress.bytes_done, progress.bytes_total);
     fprintf(stderr, "[css-cards] online=%u count=%u\n", cards.people.online,
             cards.people.count);
+    if (cards.lobby_rules_text && !cards.lobby_rules_text->hidden)
+        fprintf(stderr, "[css-rules-label] %s\n", cards.rules_label);
     if (cards.owner) {
         const NativeCssCardPreview* rect = &cards.preview.original_portrait;
         fprintf(stderr, "[css-cards] stock-portrait x=%.6f y=%.6f width=%.6f height=%.6f\n", rect->x,rect->y,rect->width,rect->height);
@@ -503,11 +597,13 @@ void nativeCssCards_Inspect(void)
         const NativeCssParticipant* p = &cards.people.cards[i];
         fprintf(stderr,
                 "[css-card] display=%u peer=%s seat=%u physical=%u "
-                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-15.0 portrait=%u title=%s outfit=%s\n",
+                "canonical=%u local=%u ready=%u selected=%u center=%.3f,-15.0 portrait=%u title=%s outfit=%s card=%u\n",
                 i, p->peer, p->seat, p->physical_port, p->canonical_port,
                 p->local, p->ready, p->choice.selected, card_left(i) + 7.4f * online_card_scale,
-                cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title, cards.art[i].outfit);
+                cards.art[i].portrait.pixels != NULL, cards.art[i].portrait.title,
+                cards.art[i].outfit, p->card_slot);
     }
+    nativeCssRemote_Inspect();
 }
 
 

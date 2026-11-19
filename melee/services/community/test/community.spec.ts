@@ -43,17 +43,35 @@ describe("community publishing", () => {
     expect(feed.headline).toMatchObject({ id: key, title: "Edited update", published_at: date });
   });
 
-  it("changes delivery IDs only on an explicit resend and withdraws notices", async () => {
+  it("preserves the audience on edits and sends an explicit resend to the current audience", async () => {
     const input = { revision: 0, title: "Maintenance", body: "Soon.", news_id: null, published_at: Date.now()-100, expires_at: null, withdrawn: false, resend: false };
     const made = await body(await adminNews(request("/admin/api/announcements", input), testEnv));
     const key = String(made.id);
     const row = await body(await adminNews(request(`/admin/api/announcements/${key}`), testEnv));
-    await adminNews(request(`/admin/api/announcements/${key}`, { ...input, revision: 1, body: "Later." }), testEnv);
+    expect(row.published_at).toBe(row.updated_at);
+    const lateLaunch = Number(row.published_at) + 1;
+    expect((await body(await publicNews(request(`/v1/feed?since=${lateLaunch}`), testEnv))).announcements).toEqual([]);
+    expect((await body(await publicNews(request(`/v1/announcements?since=${lateLaunch}`), testEnv))).entries).toEqual([]);
+    const oldDelivery = `/v1/announcements/${row.delivery_id}`;
+    await expect(publicNews(request(`${oldDelivery}?since=${lateLaunch}`), testEnv)).rejects.toMatchObject({status:404});
+    const earlyLaunch = Number(row.published_at);
+    expect((await body(await publicNews(request(`/v1/feed?since=${earlyLaunch}`), testEnv))).announcements)
+      .toEqual([expect.objectContaining({ delivery_id: row.delivery_id })]);
+    expect((await body(await publicNews(request(`${oldDelivery}?since=${earlyLaunch}`), testEnv))).published_at)
+      .toBe(row.published_at);
+    await adminNews(request(`/admin/api/announcements/${key}`, { ...input, revision: 1, body: "Later.", published_at: Date.now()+60_000 }), testEnv);
     const edited = await body(await adminNews(request(`/admin/api/announcements/${key}`), testEnv));
     expect(edited.delivery_id).toBe(row.delivery_id);
+    expect(edited.published_at).toBe(row.published_at);
     await adminNews(request(`/admin/api/announcements/${key}`, { ...input, revision: 2, resend: true }), testEnv);
     const resent = await body(await adminNews(request(`/admin/api/announcements/${key}`), testEnv));
     expect(resent.delivery_id).not.toBe(row.delivery_id);
+    expect(resent.published_at).toBe(resent.updated_at);
+    expect(Number(resent.published_at)).toBeGreaterThanOrEqual(lateLaunch);
+    expect((await body(await publicNews(request(`/v1/feed?since=${lateLaunch}`), testEnv))).announcements)
+      .toEqual([expect.objectContaining({ delivery_id: resent.delivery_id })]);
+    expect((await body(await publicNews(request(`/v1/feed?since=${lateLaunch}`), testEnv))).headline)
+      .toMatchObject({title: "Edited update"});
     await adminNews(request(`/admin/api/announcements/${key}`, { ...input, revision: 3, withdrawn: true }), testEnv);
     expect((await body(await publicNews(request("/v1/feed"), testEnv))).announcements).toEqual([]);
   });
@@ -75,6 +93,9 @@ describe("community publishing", () => {
       next = page.next;
     }
     expect(found).toEqual(ids);
+    const filtered = await body(await publicNews(request(`/v1/feed?since=${at+1}`), testEnv));
+    expect(filtered.announcements).toEqual([]);
+    expect(filtered.announcements_next).toBeNull();
     const route = `/v1/announcements/${deliveries[100]}`;
     expect(await body(await publicNews(request(route), testEnv))).toMatchObject({title:"Notice 100"});
     await testEnv.COMMUNITY.prepare("UPDATE announcements SET body='Updated',revision=revision+1 WHERE id=?").bind(ids[100]).run();

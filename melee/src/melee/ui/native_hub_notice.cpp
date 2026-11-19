@@ -9,14 +9,13 @@
 
 namespace {
     constexpr unsigned page_rows = 4;
-    constexpr Uint64 dismiss_delay_ms = 2000;
     struct Notice {
         char title[481], message[1521];
-        char id[37], action[49];
+        char id[37], action[49], cancel[49];
         void (*dismissed)(void*, bool);
         void* context;
         unsigned short starts[768], lengths[768];
-        unsigned row_count, first_row;
+        unsigned row_count, first_row, delay_ms;
         bool prepared;
     };
     Notice notices[4];
@@ -63,7 +62,9 @@ bool nativeHubNotice_Show(const char* title, const char* message, NativeHubNotic
     std::snprintf(notice.message, sizeof(notice.message), "%s", message);
     std::snprintf(notice.id, sizeof(notice.id), "%s", options.id ? options.id : "");
     std::snprintf(notice.action, sizeof(notice.action), "%s", options.action ? options.action : "");
+    std::snprintf(notice.cancel, sizeof(notice.cancel), "%s", options.cancel ? options.cancel : "");
     notice.dismissed = options.dismissed; notice.context = options.context;
+    notice.delay_ms = options.delay_ms;
     if (!count++) opened_at = SDL_GetTicks();
     hub.pending_action = 0;
     return true;
@@ -113,9 +114,7 @@ bool nativeHubNotice_BlocksInput()
 void nativeHubNotice_Dismiss(bool choose_action)
 {
     const Uint64 now = SDL_GetTicks();
-    // Give each displayed notice two seconds before accepting dismissal or
-    // its linked action. The opening press is consumed during this interval.
-    if (!count || now - opened_at < dismiss_delay_ms) return;
+    if (!count || now - opened_at < notices[first].delay_ms) return;
     auto& notice = notices[first];
     choose_action = choose_action && *notice.action && notice.dismissed;
     if (!choose_action && notice.prepared && notice.first_row + page_rows < notice.row_count) {
@@ -173,6 +172,7 @@ void nativeHubNotice_Draw()
     char prompt[64];
     if (notice.row_count > page_rows) std::snprintf(prompt, sizeof(prompt), "Press any button  %u / %u",
         notice.first_row / page_rows + 1, (notice.row_count + page_rows - 1) / page_rows);
+    else if (*notice.cancel) std::snprintf(prompt, sizeof(prompt), "B %s", notice.cancel);
     else std::snprintf(prompt, sizeof(prompt), "%s", *notice.action ? "A Dismiss" : "Press any button");
     nativeMenuPaint_Text(prompt, *notice.action ? 300 : 140, 319, *notice.action ? 200 : 360, 11,
         0xC5B99EFF, NativeMenuFont_Notice, true, false);
@@ -182,7 +182,7 @@ void nativeHubNotice_Inspect()
 {
     std::fprintf(stderr, "[hub-inspect] hub-notice count=%u blocked=%d title=%s message=%s ready=%d\n",
         count, nativeHubNotice_BlocksInput(), count ? notices[first].title : "",
-        count ? notices[first].message : "", count && SDL_GetTicks() - opened_at >= dismiss_delay_ms);
+        count ? notices[first].message : "", count && SDL_GetTicks() - opened_at >= notices[first].delay_ms);
 }
 
 void nativeHubNotice_Clear()

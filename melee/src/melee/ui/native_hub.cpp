@@ -42,6 +42,7 @@ extern "C" {
 #include <sysdolphin/baselib/controller.h>
 #include <melee/lb/lbaudio_ax.h>
 #include <melee/gm/gm_1A45.h>
+#include <melee/gm/gmmain.h>
 }
 #include <aurora/rmlui.hpp>
 #include <RmlUi/Core.h>
@@ -290,7 +291,7 @@ namespace {
                 nativeHub_Focus(nullptr, 0);
                 return;
             }
-            queue(HubAction::Back);
+            queue(HubAction::BackInput);
             return;
         }
         if (!hub.field) {
@@ -556,6 +557,8 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
 }
 void nativeHub_Activate(HubAction action, int value)
 {
+    const bool input_back = action == HubAction::BackInput;
+    if (input_back) action = HubAction::Back;
     if (hub.delete_confirmation && action != HubAction::ConfirmDeleteFighter &&
         action != HubAction::Cancel && action != HubAction::Back) return;
     lbAudioAx_80024030(action == HubAction::Back ? 0 : 1);
@@ -571,6 +574,16 @@ void nativeHub_Activate(HubAction action, int value)
     if (nativeHubRules_Activate(action,value)) return;
     if (nativeHubCostumes_Activate(action,value)) return;
     if (nativeHubPackages_Activate(action,value)) return;
+    if (input_back && hub.page <= NativeHubPage_Settings && !hub.delete_confirmation && !hub.rename) {
+        nativeHubNotice_Show("Quit game", "Exit Freak Melee?", {
+            .id = "quit-game",
+            .action = "Quit",
+            .dismissed = [](void*, bool quit) { if (quit) gmMain_ExitRequested = true; },
+            .cancel = "Cancel",
+            .delay_ms = 100,
+        });
+        return;
+    }
     if (nativeHubSettings_Activate(action,value)) return;
     if (action >= HubAction::QuickPlay && action <= HubAction::Settings) {
         nativeHub_ChangePage(static_cast<NativeHubPage>(
@@ -746,7 +759,6 @@ void nativeHub_Activate(HubAction action, int value)
         nativeHub_Focus(nullptr, 0);
         break;
     case HubAction::Practice:
-        if (hub.page == NativeHubPage_Workshop) nativeHome_RequestPracticeStageSelect();
         hub.dismissed = true;
         hub.visible = false;
         nativeHub_Focus(nullptr, 0);
@@ -1058,7 +1070,8 @@ extern "C" void nativeHub_Tick(void)
     }
     if (selection && !hub.selection_before && hub.initialized && !tool) {
         hub.opened_from_play = false;
-        if (nativeOnlineSession_Quick() || hub.enter_lobby_css) hub.dismissed = true;
+        if (nativeOnlineSession_Presence() || nativeOnlineSession_Quick() || hub.enter_lobby_css)
+            hub.dismissed = true;
         else {
             hub.dismissed = false;
             show();
@@ -1226,7 +1239,7 @@ extern "C" void nativeHub_Tick(void)
             if (hub.field) {
                 nativeHub_Focus(nullptr, 0);
             } else {
-                queue(HubAction::Back);
+                queue(HubAction::BackInput);
             }
         } else if (pad.trigger & PAD_BUTTON_A) {
             click(port);

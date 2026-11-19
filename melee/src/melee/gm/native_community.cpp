@@ -67,14 +67,19 @@ namespace {
     }
     bool announcement(yyjson_val* value, NativeAnnouncement& n)
     {
+        yyjson_val* published = yyjson_obj_get(value, "published_at");
         yyjson_val* expiry = yyjson_obj_get(value, "expires_at");
         const bool valid = string(yyjson_obj_get(value, "id"), n.id, sizeof(n.id)) && identifier(n.id) &&
             string(yyjson_obj_get(value, "delivery_id"), n.delivery_id, sizeof(n.delivery_id)) && identifier(n.delivery_id) &&
             string(yyjson_obj_get(value, "title"), n.title, sizeof(n.title)) &&
             string(yyjson_obj_get(value, "body"), n.body, sizeof(n.body)) &&
             string(yyjson_obj_get(value, "news_id"), n.news_id, sizeof(n.news_id), true) &&
-            (!*n.news_id || identifier(n.news_id)) && (yyjson_is_null(expiry) || yyjson_is_uint(expiry));
-        if (valid) n.expires_at = yyjson_get_uint(expiry);
+            (!*n.news_id || identifier(n.news_id)) && yyjson_is_uint(published) &&
+            (yyjson_is_null(expiry) || yyjson_is_uint(expiry));
+        if (valid) {
+            n.published_at = yyjson_get_uint(published);
+            n.expires_at = yyjson_get_uint(expiry);
+        }
         return valid;
     }
     bool announcements(yyjson_val* rows, NativeAnnouncement (&entries)[64], unsigned& length)
@@ -162,11 +167,13 @@ namespace {
     bool fetch(Worker& w, const Request& command, size_t& received, DWORD& status, char (&etag)[128])
     {
         wchar_t path[256], headers[256];
-        if (command.operation == Operation::Feed) wcscpy_s(path, L"/v1/feed");
+        const unsigned long long since = w.view.session_started_at;
+        if (command.operation == Operation::Feed) swprintf_s(path, L"/v1/feed?since=%llu", since);
         else if (command.operation == Operation::Article) swprintf_s(path, L"/v1/news/%hs", command.value);
         else if (command.operation == Operation::Page) swprintf_s(path, L"/v1/news%s%hs", *command.value ? L"?before=" : L"", command.value);
-        else if (command.operation == Operation::Announcement) swprintf_s(path, L"/v1/announcements/%hs", command.value);
-        else swprintf_s(path, L"/v1/announcements?before=%hs", command.value);
+        else if (command.operation == Operation::Announcement)
+            swprintf_s(path, L"/v1/announcements/%hs?since=%llu", command.value, since);
+        else swprintf_s(path, L"/v1/announcements?before=%hs&since=%llu", command.value, since);
         HINTERNET request = WinHttpOpenRequest(w.connection, L"GET", path, nullptr,
             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, w.secure ? WINHTTP_FLAG_SECURE : 0);
         if (!request) return false;
@@ -350,6 +357,12 @@ bool nativeCommunity_Start(const char* root, const char* url)
     if (worker) return true;
     Worker* w = new (std::nothrow) Worker;
     if (!w) return false;
+    FILETIME created, exited, kernel, user;
+    if (GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user)) {
+        const uint64_t ticks = (uint64_t(created.dwHighDateTime) << 32) | created.dwLowDateTime;
+        constexpr uint64_t unix_epoch_ticks = 116444736000000000ULL;
+        if (ticks >= unix_epoch_ticks) w->view.session_started_at = (ticks - unix_epoch_ticks) / 10000;
+    }
     wchar_t host[256]{}; INTERNET_PORT port;
     bool ok = root && endpoint(*w, url, host, port) &&
         std::snprintf(w->cache, sizeof(w->cache), "%s/community-feed.json", root) < sizeof(w->cache);

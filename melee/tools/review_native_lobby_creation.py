@@ -3,6 +3,7 @@ import argparse,json,os,time,re
 from pathlib import Path
 from review_native_css_room import Client
 from review_native_release import close_window
+from review_native_room_rotation import click_card
 
 def main():
  p=argparse.ArgumentParser(description=__doc__)
@@ -35,19 +36,19 @@ def main():
   assert host_room,text
   host.wait_cards(2);guest.wait_cards(2);assert 'unavailable' in guest.inspect('quick-play')
   r['room']=host_room;r['screenshots']['cards']=str(host.screenshot());host.resize(960,540);r['screenshots']['cards-narrow']=str(host.screenshot())
-  host.click('play-rules'); host.click('rules-next-page'); host.click('rules-lobby')
+  host.click('play-rules'); host.click('rules-next-page'); host.click('rules-next-page')
   r['screenshots']['lobby-rules-narrow']=str(host.screenshot()); host.resize(1440,900)
   r['screenshots']['lobby-rules']=str(host.screenshot())
   host.command('ui-move',*host.element('change-listing')); host.tap('A',frames=40)
   wait(host,'match-rules',r'listed=0 ')
   host.click('rotation-policy'); wait(host,'match-rules',r'rotation=1 ')
-  host.click('lobby-manage-seats'); host.click('lobby-seat-1-0'); wait(host,'match-rules',r'lobby-person row=1 active=0 waiting=1 ')
-  for _ in range(4): host.click('rules-close')
-  guest.click('play-rules'); guest.click('rules-next-page'); guest.click('rules-lobby')
-  guest.click('lobby-manage-seats'); guest.click('lobby-seat-1-0'); wait(guest,'match-rules',r'lobby-person row=1 active=0 waiting=0 ')
+  click_card(guest,1,0); wait(host,'match-rules',r'lobby-person row=1 active=0 ')
+  click_card(guest,1,0,mouse=True); wait(host,'match-rules',r'lobby-person row=1 active=1 ')
+  host.click('rules-next-page'); host.click('rules-close')
+  guest.click('play-rules'); guest.click('rules-next-page'); guest.click('rules-next-page')
   r['screenshots']['guest-rules']=str(guest.screenshot())
 
-  r['checks']=['Create lobby leaves Quick Play immediately','confirmation creates a normal listed room','second client can join that room','four authored cards at two sizes','stock-styled lobby rows at two sizes','held A changes listing once','rotation policy changes','host overrides another seat','guest can change their own choice again'];r['status']='PASS'
+  r['checks']=['Create lobby leaves Quick Play immediately','confirmation creates a normal listed room','second client can join that room','four authored cards at two sizes','stock-styled lobby rows at two sizes','held A changes listing once','rotation policy changes','guest can release and reclaim their card'];r['status']='PASS'
  finally:
   for c in clients:
    if c.process.poll() is None:close_window(c.process.pid);c.process.wait(timeout=20)

@@ -23,6 +23,11 @@ News history uses 25-entry pages and the returned `next` cursor. The feed includ
 announcement reads let clients refresh or withdraw a notice already on screen.
 Public reads support `If-None-Match`.
 
+The game requests announcements published since its current process started.
+Eligible announcements wait until the player reaches a menu. Editing a delivery
+keeps its original publication time. Sending it again creates a fresh delivery
+at the chosen time. News articles remain available through the usual feed and history.
+
 Articles support paragraphs, headings, lists, `[label](https://...)` links and
 plain HTTP/HTTPS addresses. The admin preview and native reader display other
 markup as text. Links open only when selected.

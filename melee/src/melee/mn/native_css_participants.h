@@ -12,7 +12,7 @@ typedef struct NativeCssLocalSlot {
 typedef struct NativeCssParticipant {
     NativeLobbyPlayerSelection choice;
     char peer[65], name[33];
-    uint8_t seat, physical_port, canonical_port, kind;
+    uint8_t seat, physical_port, canonical_port, kind, card_slot;
     bool local, ready;
 } NativeCssParticipant;
 typedef struct NativeCssParticipants {
@@ -30,6 +30,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                                  const char* local_name,
                                  const NativeCssLocalSlot local[4],
                                  unsigned expected_players, bool searching,
+                                 bool fixed_cards,
                                  NativeCssParticipants* result);
 #ifdef __cplusplus
 }

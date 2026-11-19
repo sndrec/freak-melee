@@ -10,7 +10,8 @@ import {
   type ServerMessage,
   decodeServerMessage,
   encodeRequestPresence,
-  encodeAssignSeats,
+  encodeChangeCard,
+  encodeCssPointers,
   encodeSetMatch,
   encodeSetListing,
   encodeSetRotation,
@@ -127,6 +128,92 @@ async function connect(
 }
 
 describe("signaling worker", () => {
+  it("relays a spectator's CSS hands and held-token mask under their own peer ID", async () => {
+    const owner = await connect("CSSHANDS", "hand_owner", "Owner", "active", 1);
+    await nextMessage(owner);
+    await nextMessage(owner);
+    const member = nextMessage(owner);
+    const spectator = await connect("CSSHANDS", "hand_spec", "Spectator", "spectator", 2);
+    try {
+      await member;
+      const pointers = { visible: 3, held: 2, points: [
+        [-200, 3900], [14000, 5000], [0, 0], [0, 0],
+      ] as [number, number][] };
+      const received = nextMessage(owner);
+      spectator.send(encodeCssPointers(pointers));
+      expect(await received).toEqual({
+        type: ServerMessageType.CssPointers, peerId: "hand_spec", pointers,
+      });
+    } finally {
+      owner.close(1000, "test complete");
+      spectator.close(1000, "test complete");
+    }
+  });
+
+  it("lets a controller claim an exact open card and release only its own card", async () => {
+    const owner = await connect("SEATCARD", "card_owner", "Owner", "active", 1);
+    const observer = await connect("SEATCARD", "card_other", "Other", "spectator", 2);
+    const sockets = [owner, observer];
+    try {
+      while ((await nextMessage(observer)).type !== ServerMessageType.Presence) {}
+      const latest = (socket: WebSocket, type: ServerMessageType) => (async () => {
+        for (let i = 0; i < 12; ++i) {
+          const message = await nextMessage(socket);
+          if (message.type === type) return message;
+        }
+        throw new Error("Expected lobby card update");
+      })();
+      const claim = latest(observer, ServerMessageType.Presence);
+      observer.send(encodeChangeCard(1, 3));
+      expect(await claim).toMatchObject({ snapshot: { participants: [
+        { cardSlots: [0, 255, 255, 255] },
+        { activeMask: 2, cardSlots: [255, 3, 255, 255] },
+      ] } });
+      const wrongOwner = latest(observer, ServerMessageType.RoomActionRejected);
+      observer.send(encodeChangeCard(0, 255, 0));
+      expect(await wrongOwner).toMatchObject({ message: "That fighting card has changed" });
+      const taken = latest(observer, ServerMessageType.RoomActionRejected);
+      observer.send(encodeChangeCard(0, 3));
+      expect(await taken).toMatchObject({ message: "That fighting card has changed" });
+      const release = latest(observer, ServerMessageType.Presence);
+      observer.send(encodeChangeCard(1, 255, 3));
+      expect(await release).toMatchObject({ snapshot: { participants: [
+        { cardSlots: [0, 255, 255, 255] },
+        { activeMask: 0, cardSlots: [255, 255, 255, 255] },
+      ] } });
+    } finally {
+      for (const socket of sockets) socket.close(1000, "test complete");
+    }
+  });
+
+  it("keeps both clients connected when they claim the same lobby card", async () => {
+    const first = await connect("RACECARD", "race_first", "First", "spectator", 1);
+    const second = await connect("RACECARD", "race_second", "Second", "spectator", 1);
+    try {
+      async function settled(socket: WebSocket) {
+        for (let i = 0; i < 12; ++i) {
+          const message = await nextMessage(socket);
+          if (message.type === ServerMessageType.RoomActionRejected) return false;
+          if (message.type === ServerMessageType.Presence &&
+              message.snapshot.participants.some(person => person.cardSlots[0] === 2)) {
+            return message.snapshot.participants.find(person =>
+              person.peerId === (socket === first ? "race_first" : "race_second"))?.cardSlots[0] === 2;
+          }
+        }
+        throw new Error("Card claim did not settle");
+      }
+      const results = [settled(first), settled(second)];
+      first.send(encodeChangeCard(0, 2));
+      second.send(encodeChangeCard(0, 2));
+      expect((await Promise.all(results)).filter(Boolean)).toHaveLength(1);
+      expect(first.readyState).toBe(WebSocket.OPEN);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+    } finally {
+      first.close(1000, "test complete");
+      second.close(1000, "test complete");
+    }
+  });
+
   it("enforces a lobby's configured fighter limit when players join or switch seats", async () => {
     const owner = await connect("CAPACITY", "cap_owner", "Owner", "active", 1);
     await nextMessage(owner);
@@ -139,16 +226,18 @@ describe("signaling worker", () => {
     const joined = nextMessage(owner);
     const guest = await connect("CAPACITY", "cap_guest", "Guest", "auto", 2);
     await nextMessage(guest);
+    await nextMessage(guest);
+    await nextMessage(guest);
     const presence = await joined;
     expect(presence.type).toBe(ServerMessageType.Presence);
     if (presence.type !== ServerMessageType.Presence) throw new Error("presence expected");
     expect(presence.snapshot.participants.find(p => p.peerId === "cap_guest"))
       .toMatchObject({ activeMask: 1, waitingMask: 2 });
 
-    const rejected = nextMessage(owner);
-    owner.send(encodeAssignSeats("cap_guest", 3, 0, MAX_MESSAGE_BYTES));
-    expect(await rejected).toMatchObject({ type: ServerMessageType.Error,
-      message: "All fighting seats are taken" });
+    const rejected = nextMessage(guest);
+    guest.send(encodeChangeCard(1, 0));
+    expect(await rejected).toMatchObject({ type: ServerMessageType.RoomActionRejected,
+      message: "That fighting card has changed" });
     owner.close(1000, "test complete");
     guest.close(1000, "test complete");
   });
@@ -213,7 +302,7 @@ describe("signaling worker", () => {
     expect(room.stage).toBe(32);
     room = await broadcast(host, encodeSetMatch(new Uint8Array([1]), MAX_MESSAGE_BYTES));
     const completedEpoch = room.matchEpoch;
-    room = await broadcast(second, encodeReportMatch(completedEpoch,"",255,false,3,MAX_MESSAGE_BYTES));
+    room = await broadcast(second, encodeReportMatch(completedEpoch,0,3,MAX_MESSAGE_BYTES));
     expect([room.stagePeerId,room.stageSeat,room.stage]).toEqual(["stage_second",1,255]);
     await evictDurableObject(env.ROOMS.getByName("STAGE77"));
     const persisted = nextMessage(host); host.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
@@ -229,7 +318,7 @@ describe("signaling worker", () => {
     room = await broadcast(first, encodeUpdate({ activeMask:0, waitingMask:0 },MAX_MESSAGE_BYTES));
     expect([room.stagePeerId,room.stageSeat]).toEqual(["stage_second",0]);
     // A late result cannot overwrite the chooser or clear a later proposal.
-    second.send(encodeReportMatch(completedEpoch,"",255,false,0,MAX_MESSAGE_BYTES));
+    second.send(encodeReportMatch(completedEpoch,0,0,MAX_MESSAGE_BYTES));
     const unchanged = nextMessage(second); second.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
     expect(await unchanged).toMatchObject({ snapshot: { revision:room.revision, stagePeerId:"stage_second", stageSeat:0 } });
     for (const socket of sockets) socket.close(1000,"test complete");
@@ -276,20 +365,21 @@ describe("signaling worker", () => {
     expect(await lockedPolicyError).toMatchObject({ type: ServerMessageType.Error });
     const waitingReportError = nextMessage(sockets[2]);
     sockets[2].send(encodeReportMatch(
-      firstEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
+      firstEpoch, 2, 255, MAX_MESSAGE_BYTES));
     expect(await waitingReportError).toMatchObject({ type: ServerMessageType.Error });
     room = await broadcast(guest, encodeReportMatch(
-      firstEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
+      firstEpoch, 2, 255, MAX_MESSAGE_BYTES));
     expect(room.match).toBeNull();
-    expect(room.participants.map((participant) => [
-      participant.peerId, participant.activeMask, participant.waitingRanks[0],
-    ])).toEqual([
-      ["rot_owner", 0, 2], ["rot_guest", 1, 0],
-      ["rot_queue1", 1, 0], ["rot_queue2", 0, 1],
-    ]);
+    expect(room.participants[0]).toMatchObject({ peerId: "rot_owner", activeMask: 0, waitingMask: 1 });
+    expect(room.participants[1]).toMatchObject({ peerId: "rot_guest", activeMask: 1, waitingMask: 0 });
+    const firstBench = room.participants.slice(2);
+    expect(firstBench.map(peer => peer.activeMask).sort()).toEqual([0, 1]);
+    const promoted = firstBench.find(peer => peer.activeMask)!;
+    expect(promoted.cardSlots[0]).toBe(0);
+    expect(firstBench.find(peer => !peer.activeMask)?.waitingMask).toBe(1);
 
     const stalePresence = nextMessage(guest);
-    guest.send(encodeReportMatch(firstEpoch, "rot_guest", 0, true, 255,
+    guest.send(encodeReportMatch(firstEpoch, 2, 255,
       MAX_MESSAGE_BYTES));
     guest.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
     const stale = await stalePresence;
@@ -302,18 +392,19 @@ describe("signaling worker", () => {
     room = await broadcast(owner, encodeSetMatch(
       new Uint8Array([2]), MAX_MESSAGE_BYTES));
     room = await broadcast(guest, encodeReportMatch(
-      room.matchEpoch, "rot_guest", 0, true, 255, MAX_MESSAGE_BYTES));
+      room.matchEpoch, 1, 255, MAX_MESSAGE_BYTES));
     expect(room.participants.map((participant) => [
       participant.peerId, participant.activeMask, participant.waitingRanks[0],
     ])).toEqual([
       ["rot_owner", 0, 1], ["rot_guest", 0, 2],
       ["rot_queue1", 1, 0], ["rot_queue2", 1, 0],
     ]);
+    expect(room.participants.find(peer => peer.peerId === promoted.peerId)?.cardSlots[0]).toBe(0);
 
     room = await broadcast(owner, encodeSetMatch(
       new Uint8Array([3]), MAX_MESSAGE_BYTES));
     room = await broadcast(sockets[2], encodeReportMatch(
-      room.matchEpoch, "", 255, false, 255, MAX_MESSAGE_BYTES));
+      room.matchEpoch, 0, 255, MAX_MESSAGE_BYTES));
     expect(room.match).toBeNull();
     expect(room.participants.map((participant) => participant.activeMask))
       .toEqual([0, 0, 1, 1]);
@@ -337,7 +428,7 @@ describe("signaling worker", () => {
     if (published.type !== ServerMessageType.Presence) throw new Error("presence expected");
     const rotated = nextMessage(owner);
     owner.send(encodeReportMatch(published.snapshot.matchEpoch,
-      "couch_peer", 0, true, 255, MAX_MESSAGE_BYTES));
+      1, 255, MAX_MESSAGE_BYTES));
     const completed = await rotated;
     expect(completed.type).toBe(ServerMessageType.Presence);
     if (completed.type !== ServerMessageType.Presence) throw new Error("presence expected");
@@ -345,6 +436,41 @@ describe("signaling worker", () => {
       activeMask: 6, waitingMask: 1, waitingRanks: [1, 0, 0, 0],
     });
     owner.close(1000, "test complete");
+  });
+
+  it("replaces both outgoing team members with eligible waiting controllers", async () => {
+    const host = await connect("TEAMROT", "team_host", "Host", "active", 2);
+    const rival = await connect("TEAMROT", "team_rival", "Rival", "active", 2);
+    const bench = await connect("TEAMROT", "team_bench", "Bench", "waiting", 2);
+    try {
+      async function presence(socket: WebSocket, matches: (snapshot:
+          Extract<ServerMessage, { type: ServerMessageType.Presence }>["snapshot"]) => boolean) {
+        for (let update = 0; update < 12; ++update) {
+          const message = await nextMessage(socket);
+          if (message.type === ServerMessageType.Error) throw new Error(message.message);
+          if (message.type === ServerMessageType.Presence && matches(message.snapshot))
+            return message.snapshot;
+        }
+        throw new Error("Team rotation presence was not published");
+      }
+      const joined = presence(host, room => room.participants.length === 3);
+      host.send(encodeRequestPresence(MAX_MESSAGE_BYTES));
+      await joined;
+      const policy = presence(host, room => room.rotationPolicy === RotationPolicy.WinnerOut);
+      host.send(encodeSetRotation(RotationPolicy.WinnerOut, MAX_MESSAGE_BYTES));
+      await policy;
+      const started = presence(host, room => room.match !== null);
+      host.send(encodeSetMatch(new Uint8Array([1]), MAX_MESSAGE_BYTES));
+      const epoch = (await started).matchEpoch;
+      const finished = presence(host, room => room.match === null && room.matchEpoch > epoch);
+      rival.send(encodeReportMatch(epoch, 0b0011, 2, MAX_MESSAGE_BYTES));
+      const room = await finished;
+      expect(room.participants.map(p => p.activeMask)).toEqual([0, 3, 3]);
+      expect(room.participants[1].cardSlots).toEqual([2, 3, 255, 255]);
+      expect(room.participants[2].cardSlots.slice(0, 2).sort()).toEqual([0, 1]);
+    } finally {
+      for (const socket of [host, rival, bench]) socket.close(1000, "test complete");
+    }
   });
 
   it("orders waiting seats independently across PCs and preserves order through hibernation", async () => {
@@ -374,7 +500,7 @@ describe("signaling worker", () => {
     const ownerSeesOverride = nextMessage(owner);
     const secondSeesOverride = nextMessage(second);
     const thirdSeesOverride = nextMessage(third);
-    owner.send(encodeAssignSeats("queue_second", 1, 2, MAX_MESSAGE_BYTES));
+    second.send(encodeUpdate({ activeMask: 1, waitingMask: 2 }, MAX_MESSAGE_BYTES));
     const overridden = await secondSeesOverride;
     await ownerSeesOverride;
     await thirdSeesOverride;
@@ -439,33 +565,6 @@ describe("signaling worker", () => {
       (participant) => participant.peerId === "seat_second",
     )).toMatchObject({ activeMask: 2, waitingMask: 5 });
 
-    const rejectedOverride = nextMessage(second);
-    second.send(encodeAssignSeats("seat_first", 3, 4, MAX_MESSAGE_BYTES));
-    expect(await rejectedOverride).toMatchObject({ type: ServerMessageType.Error,
-      message: "Only the room owner may assign seats" });
-
-    const firstSeesOverride = nextMessage(first);
-    const secondSeesOverride = nextMessage(second);
-    first.send(encodeAssignSeats("seat_second", 1, 6, MAX_MESSAGE_BYTES));
-    const overridden = await secondSeesOverride;
-    await firstSeesOverride;
-    expect(overridden.type).toBe(ServerMessageType.Presence);
-    if (overridden.type !== ServerMessageType.Presence) throw new Error("presence expected");
-    expect(overridden.snapshot.participants.find(
-      (participant) => participant.peerId === "seat_second",
-    )).toMatchObject({ activeMask: 1, waitingMask: 6 });
-
-    const firstSeesChoice = nextMessage(first);
-    const secondSeesChoice = nextMessage(second);
-    second.send(encodeUpdate({ activeMask: 2, waitingMask: 5 }, MAX_MESSAGE_BYTES));
-    const chosen = await secondSeesChoice;
-    await firstSeesChoice;
-    expect(chosen.type).toBe(ServerMessageType.Presence);
-    if (chosen.type !== ServerMessageType.Presence) throw new Error("presence expected");
-    expect(chosen.snapshot.participants.find(
-      (participant) => participant.peerId === "seat_second",
-    )).toMatchObject({ activeMask: 2, waitingMask: 5 });
-
     const rejected = nextMessage(second);
     second.send(encodeUpdate({ activeMask: 3, waitingMask: 4 }, MAX_MESSAGE_BYTES));
     expect(await rejected).toMatchObject({ type: ServerMessageType.Error,
@@ -498,9 +597,9 @@ describe("signaling worker", () => {
       (participant) => participant.peerId === "seat_second",
     )).toMatchObject({ activeMask: 2, waitingMask: 4, ready: true });
 
-    const lockedOverride = nextMessage(first);
-    first.send(encodeAssignSeats("seat_second", 1, 4, MAX_MESSAGE_BYTES));
-    expect(await lockedOverride).toMatchObject({ type: ServerMessageType.Error,
+    const lockedRelease = nextMessage(second);
+    second.send(encodeChangeCard(1, 255, 3));
+    expect(await lockedRelease).toMatchObject({ type: ServerMessageType.RoomActionRejected,
       message: "Active players are locked for this match" });
 
     first.close(1000, "test complete");
@@ -659,7 +758,7 @@ describe("signaling worker", () => {
     const bob = update.snapshot.participants.find(
       (participant) => participant.peerId === "peer_two",
     );
-    expect(bob).toMatchObject({ activeMask: 0, waitingMask: 1,
+    expect(bob).toMatchObject({ activeMask: 0, waitingMask: 0,
                                 localPlayers: 1, ready: false });
     expect(bob?.selection).toEqual(selection);
 

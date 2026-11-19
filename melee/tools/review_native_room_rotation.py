@@ -1,4 +1,4 @@
-"""Check native seat overrides, rotation and promoted shared-PC input routing."""
+"""Check native seat claims, rotation and promoted shared-PC input routing."""
 import argparse
 import hashlib
 import json
@@ -15,7 +15,7 @@ from review_native_outfit_matches import network, select_stage, settings, wait
 
 def room(client):
     text = client.inspect('room-state')
-    header = re.search(r'\[room-state\] state=(\d+) local=(\w+) owner=(\w+) revision=(\d+) epoch=(\d+) match=(\d+) rotation=(\d+) members=(\d+)', text)
+    header = re.search(r'\[room-state\] state=(\d+) local=(\w*) owner=(\w*) revision=(\d+) epoch=(\d+) match=(\d+) rotation=(\d+) members=(\d+)', text)
     assert header, text
     state = dict(zip(['state', 'local', 'owner', 'revision', 'epoch', 'match', 'rotation', 'count'], header.groups()))
     for key in ['state', 'revision', 'epoch', 'match', 'rotation', 'count']:
@@ -34,16 +34,17 @@ def room(client):
     return state
 
 
-def role(client, peer, seat, wanted):
-    for _ in range(4):
-        member = room(client)['members'][peer]
-        bit = 1 << seat
-        current = 'fighting' if member['active'] & bit else 'waiting' if member['waiting'] & bit else 'spectating'
-        if current == wanted:
-            return
-        client.click(f'lobby-seat-{member["index"]}-{seat}')
-        wait(lambda: (m if (m := room(client)['members'][peer])['active'] != member['active'] or m['waiting'] != member['waiting'] else None), 'seat role update', 15)
-    raise RuntimeError('Seat did not reach '+wanted)
+def click_card(client, card, port, mouse=False):
+    text = client.inspect('css-cards')
+    match = re.search(rf'\[css-card\] [^\r\n]*?center=([-\d.]+),[^\r\n]*? card={card}\r?$', text, re.M)
+    assert match, text
+    x, y = float(match[1]) - 4.1, -4.6
+    if mouse:
+        assert port == 0
+        client.command('ui-click', *client.pixel(x, y))
+    else:
+        client.move(x, y, port)
+        client.tap('A', frames=5, port=port)
 
 
 def masks(clients, host, guest, active, waiting):
@@ -63,7 +64,7 @@ def rotation(client, policy):
         previous = room(client)['rotation']
         if previous == policy:
             return
-        client.click('rotation-policy')
+        client.click('css-rotation')
         wait(lambda: room(client)['rotation'] != previous, 'rotation policy', 15)
     raise RuntimeError('Rotation policy did not update')
 
@@ -128,45 +129,44 @@ def main():
             clients.append(c)
             if index == 0:
                 c.command('hold', 1, 'sx=0')
-            c.click('nav-1')
-            if index == 0:
+                c.click('nav-6')
+                c.click('settings-category-4')
                 c.click('local-players-2')
+                c.click('settings-back')
+                c.click('settings-back')
+            c.click('nav-1')
         code = ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(10))
         for index, c in enumerate(clients):
             c.enter('lobby-code',code); c.click('join-lobby')
             wait(lambda: room(c)['count'] == index+1, 'room membership')
         wait(lambda: room(clients[0])['count'] == 2, 'owner sees guest')
         host, guest = [room(c)['local'] for c in clients]
-        role(clients[0],host,1,'waiting')
-        role(clients[0],guest,0,'spectating')
-        role(clients[1],guest,0,'fighting')
-        masks(clients,host,guest,1,2)
-        # A guest cannot override another PC, and the host's override is not a lock.
-        before = room(clients[1])['members'][host]
-        clients[1].click(f'lobby-seat-{before["index"]}-0')
-        time.sleep(.5)
-        assert room(clients[1])['members'][host]['active'] == 1
-        role(clients[0],host,1,'spectating')
-        role(clients[0],host,1,'fighting')
-        role(clients[0],host,1,'waiting')
+        click_card(clients[0],1,1)
+        masks(clients,host,guest,1,0)
+        click_card(clients[1],0,0)
+        masks(clients,host,guest,1,0)
+        choose(clients[0],families['climbers'],1)
+        masks(clients,host,guest,1,0)
+        rotation(clients[0],2)
         receipt['seat_choices'] = masks(clients,host,guest,1,2)
-        assert all(s['members'][host]['ranks'][1] == 1 for s in receipt['seat_choices'])
-        print('PASS owner override, self-reclaim, role cycle and waiting rank', flush=True)
+        clients[0].tap('B',frames=4,port=1)
+        masks(clients,host,guest,1,0)
+        choose(clients[0],families['climbers'],1)
+        masks(clients,host,guest,1,2)
+        print('PASS card ownership, Manual rotation and token placement controlling the queue', flush=True)
         for number, policy in enumerate([2,1],1):
             active_physical = number-1
             inactive = 1-active_physical
             rotation(clients[0],policy)
             wait(lambda: room(clients[1])['rotation'] == policy, 'guest sees rotation')
-            assert 'enabled=0' in clients[1].inspect('rotation-policy')
-            for c in clients:
-                c.click('lobby-ready'); c.wait_cards(2)
+            assert 'enabled=0' in clients[1].inspect('css-rotation')
             choose(clients[0],families['fox'],0)
             choose(clients[0],families['climbers'],1)
             choose(clients[1],families['fox'],0)
+            clients[0].tap('START',frames=4,port=active_physical)
+            clients[1].tap('START',frames=4,port=0)
             for c in clients:
-                c.click('play-ready'); c.element('play-selection')
-            wait(lambda: 'enabled=1' in clients[0].inspect('play-start'), 'ready active seats')
-            clients[0].click('play-start')
+                wait(lambda: '[sss-cursor]' in c.inspect('sss-state'), 'stage selection',90)
             chooser = wait(lambda: next(((c, int(m[1])) for c in clients
                 if (m := re.search(r'\[room-stage\].*physical=([0-3])', c.inspect('room-state')))), None),
                 'active stage chooser')
@@ -236,10 +236,6 @@ def main():
             receipt['rounds'].append(entry)
             (output/'receipt.json').write_text(json.dumps(receipt,indent=2))
             print(f'PASS round {number}: active physical {active_physical}, inactive input ignored, rotation and Results',flush=True)
-            for c in clients:
-                if 'origin=' not in c.inspect('nav-1'):
-                    c.click('play-lobby')
-                c.click('nav-1')
         for c in clients:
             text=(c.folder/'stdout.log').read_text(errors='replace')+c.stderr.read_text(errors='replace')
             assert not re.search(r'Checksum mismatch|\[netplay\] FAILED:|Fighter source VM failed|native panic stack|refused during retained history',text),text[-2000:]

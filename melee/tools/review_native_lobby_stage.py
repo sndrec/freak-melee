@@ -15,7 +15,7 @@ import time
 
 from review_native_css_room import Client
 from review_native_outfit_matches import network, select_stage, settings, wait
-from review_native_room_rotation import choose, role, room, session
+from review_native_room_rotation import choose, click_card, room, session
 
 
 def stage(client):
@@ -52,23 +52,26 @@ def main():
             c = Client(args.exe.resolve(), args.iso.resolve(), base, output/str(index),
                        'Stage review '+str(index), without_drafts=True, window_size=(960,540))
             clients.append(c)
+            if index == 1:
+                c.command('hold', 1, 'sx=0')
+                c.click('nav-6'); c.click('settings-category-4'); c.click('local-players-2')
+                c.click('settings-back'); c.click('settings-back')
             c.click('nav-1')
-            if index == 1: c.click('local-players-2')
             c.enter('lobby-code', code); c.click('join-lobby')
             wait(lambda: room(c)['count']==index+1, 'lobby join')
         owner, couch, guest = clients
         wait(lambda: room(owner)['count']==3, 'owner sees all members')
         peers = [room(c)['local'] for c in clients]
-        role(owner, peers[0], 0, 'spectating')
-        role(owner, peers[1], 0, 'spectating')
-        for index,c in enumerate(clients):
-            c.click('lobby-ready'); c.wait_cards(2)
+        click_card(owner, 0, 0)
+        click_card(couch, 1, 0)
+        wait(lambda: room(owner)['members'][peers[0]]['active']==0 and
+             room(owner)['members'][peers[1]]['active']==2, 'fighting controllers')
+        for index,c in enumerate(clients[1:], start=1):
             raw = (c.data/'css-layout.bin').read_bytes()
             fighter = raw[14:46].hex()
-            for port in range(2 if index == 1 else 1): choose(c,fighter,port)
-            c.click('play-ready'); c.element('play-selection')
-        wait(lambda: 'enabled=1' in owner.inspect('play-start'), 'spectator host may start')
-        owner.click('play-start')
+            port = 1 if index == 1 else 0
+            choose(c,fighter,port)
+            c.tap('START',frames=5,port=port)
         wait(lambda: cursor(couch) is not None and cursor(guest) is not None, 'active peers enter SSS')
         assert '[sss-state] inactive' in owner.inspect('sss-state')
         assert stage(couch)==dict(peer=peers[1],seat=1,stage=255,physical=1)

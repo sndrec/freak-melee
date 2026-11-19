@@ -122,8 +122,8 @@ static bool consume(ProbePeer* peer)
             peer->saw_rotated |=
                 peer->saw_match && presence->match_size == 0 &&
                 presence->match_epoch > peer->match_epoch &&
-                first_active == 0 && first_waiting == 7 &&
-                second_active == 5 && second_waiting == 2;
+                ((first_active == 0 && (second_active == 3 || second_active == 5)) ||
+                 ((first_active == 2 || first_active == 4) && second_active == 1));
             break;
         }
         case NativeSignalingServerMessage_Signal:
@@ -222,8 +222,13 @@ int main(int argc, char** argv)
         if (!ok) break;
         if (!override_queued && first.saw_both && second.saw_both &&
             first.saw_assignment && second.saw_assignment) {
-            override_queued = nativeSignalingClient_AssignSeats(
-                &first.client, "peer_two", 2, 5);
+            NativeSignalingUpdate update = {
+                .active_mask = 2,
+                .waiting_mask = 5,
+                .has_active_mask = true,
+                .has_waiting_mask = true,
+            };
+            override_queued = nativeSignalingClient_QueueUpdate(&second.client, &update);
             if (!override_queued) break;
         }
         if (!reassignment_queued && first.saw_host_override &&
@@ -270,7 +275,7 @@ int main(int argc, char** argv)
         }
         if (!report_queued && first.saw_match && second.saw_match) {
             report_queued = nativeSignalingClient_ReportMatch(
-                &second.client, second.match_epoch, "peer_two", 0, true, 0);
+                &second.client, second.match_epoch, 2, 0);
             if (!report_queued) break;
         }
         if (first.connected && second.connected && first.welcomed &&

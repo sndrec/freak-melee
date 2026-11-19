@@ -220,18 +220,6 @@ bool nativeLobbySession_UpdateParticipant(NativeLobbySession* session,
                &session->room.connection.signaling, update);
 }
 
-bool nativeLobbySession_AssignSeats(NativeLobbySession* session,
-                                    const char* peer_id,
-                                    uint8_t active_mask,
-                                    uint8_t waiting_mask)
-{
-    return session != NULL && peer_id != NULL &&
-           session->state == NativeLobbySessionState_Waiting &&
-           nativeSignalingClient_AssignSeats(
-               &session->room.connection.signaling, peer_id,
-               active_mask, waiting_mask);
-}
-
 const NativeSignalingPresence*
 nativeLobbySession_Presence(const NativeLobbySession* session)
 {

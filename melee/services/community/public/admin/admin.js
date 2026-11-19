@@ -95,7 +95,7 @@ async function switchTab(name) {
   $("search").value="";$("search").placeholder=feedback?"Find by build":"Find by title";
   $("body").maxLength=announcement?380:32000;
   $("save").textContent=announcement?"Save announcement":"Save article";
-  $("editor-help").textContent=announcement?"Active announcements appear when players next reach a convenient menu. Resend creates a new delivery.":"Published articles appear in News. The newest headline appears in the ticker.";
+  $("editor-help").textContent=announcement?"Players who have the game open at publication see the announcement when they reach a menu. Leave the time blank to send now.":"Published articles appear in News. The newest headline appears in the ticker.";
   let saved=states.get(tab);
   if(!saved&& !feedback) {try{saved=JSON.parse(localStorage.getItem(`freak-admin-${tab}`)||"null");}catch{}}
   if(!feedback){
@@ -153,9 +153,14 @@ async function openRecord(key) {
 async function save(event) {
   event.preventDefault();if(saving)return;const value=captureForm();
   if(tab==="announcements"&&value.published&&!value.withdrawn&&
-      !confirm(value.resend?"Send this announcement again to all players?":"Save this active game-wide announcement?"))return;
+      !confirm(value.resend?"Send this announcement again to players with the game open at publication?":"Save this announcement for players with the game open at publication?"))return;
+  let publishedAt = null;
+  if (value.published) {
+    if (value.publishedAt) publishedAt = new Date(value.publishedAt).getTime();
+    else publishedAt = tab === "news" ? Date.now() : 0;
+  }
   const payload={title:value.title,body:value.body,revision:current?.revision||0,
-    published_at:value.published?(value.publishedAt?new Date(value.publishedAt).getTime():Date.now()):null};
+    published_at:publishedAt};
   if(tab==="news")Object.assign(payload,{ticker:value.ticker,archived:value.archived});
   else Object.assign(payload,{expires_at:value.expiresAt?new Date(value.expiresAt).getTime():null,news_id:value.newsId||null,withdrawn:value.withdrawn,resend:value.resend});
   saving=true;$("save").disabled=true;$("edit-form").inert=true;
@@ -168,7 +173,7 @@ async function safely(operation) {try{await operation();}catch(error){status(err
 for(const button of document.querySelectorAll("[data-tab]"))button.onclick=()=>safely(()=>switchTab(button.dataset.tab));
 $("edit-form").onsubmit=event=>safely(()=>save(event));
 $("edit-form").oninput=persistDraft;$("edit-form").onchange=persistDraft;
-$("published").addEventListener("change",()=>{if($("published").checked&&!$("published-at").value)$("published-at").value=localDate(Date.now());persistDraft();});
+$("published").addEventListener("change",()=>{if(tab==="news"&&$("published").checked&&!$("published-at").value)$("published-at").value=localDate(Date.now());persistDraft();});
 $("new").onclick=()=>{if(!confirm("Start a new draft? The current local draft will be replaced."))return;restoreForm({});persistDraft();status("");};
 $("discard").onclick=()=>{if(confirm("Discard this local draft? Saved articles stay on the server.")){restoreForm({});persistDraft();status("Local draft cleared.");}};
 $("preview-toggle").onclick=preview;$("older").onclick=()=>safely(()=>list(true));$("filter").onchange=()=>safely(()=>list());

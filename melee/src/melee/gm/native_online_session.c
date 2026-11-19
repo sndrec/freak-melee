@@ -1,4 +1,5 @@
 #include "native_online_session.h"
+#include <melee/ui/native_hub.h>
 
 #ifdef MELEE_NATIVE
 
@@ -27,6 +28,7 @@ static struct NativeOnlineProcessSession {
     char local_name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
     uint8_t local_selection[NATIVE_LOBBY_SELECTION_MAX_WIRE_BYTES];
     uint16_t local_selection_size;
+    int published_waiting_mask;
     uint8_t local_players;
     uint8_t sent_rules[NATIVE_ROOM_RULES_BYTES];
     uint32_t lobby_revision;
@@ -458,6 +460,11 @@ bool nativeOnlineSession_Pump(void)
             fail_launch("could not return to the Quick Play party");
     }
     bool pumped = nativeLobbySession_Pump(&online.lobby);
+    char* rejection = online.lobby.room.connection.action_rejection;
+    if (*rejection) {
+        nativeHub_Notice(rejection);
+        *rejection = '\0';
+    }
     pump_lobby_rules();
     if (!pumped && online.lobby.room.connection.quick.state != NativeQuickState_Aborted) return false;
     if (online.accept_gift_requested) {
@@ -616,7 +623,7 @@ bool nativeOnlineSession_GiftStatus(bool incoming,
 }
 
 bool nativeOnlineSession_UpdateSelection(
-    const NativeLobbySelection* selection)
+    const NativeLobbySelection* selection, int waiting_mask)
 {
     // Retain the locked local choice until the service decides the cancellation.
     if (quick.unready_pending) return true;
@@ -641,8 +648,11 @@ bool nativeOnlineSession_UpdateSelection(
     if (!online.active || size == 0) {
         return false;
     }
+    const bool send_waiting = waiting_mask >= 0 && !quick.assignment.mode &&
+        (online.local_selection_size == 0 ||
+         online.published_waiting_mask != waiting_mask);
     if (size == online.local_selection_size &&
-        memcmp(bytes, online.local_selection, size) == 0)
+        memcmp(bytes, online.local_selection, size) == 0 && !send_waiting)
     {
         return true;
     }
@@ -650,73 +660,40 @@ bool nativeOnlineSession_UpdateSelection(
         .selection = bytes,
         .selection_size = (uint16_t) size,
         .has_selection = true,
+        .waiting_mask = send_waiting ? (uint8_t)waiting_mask : 0,
+        .has_waiting_mask = send_waiting,
     };
     if (!nativeLobbySession_UpdateParticipant(&online.lobby, &update)) {
         return false;
     }
     memcpy(online.local_selection, bytes, size);
     online.local_selection_size = (uint16_t) size;
+    if (send_waiting) online.published_waiting_mask = waiting_mask;
     if (quick.assignment.phase == 1 && !selection->confirmed)
         nativeSignalingClient_PrepareQuick(&online.lobby.room.connection.signaling,
             online.lobby.room.connection.presence.revision, false, NULL);
     return true;
 }
 
-bool nativeOnlineSession_ChooseSeat(const char* peer_id, uint8_t seat,
-                                    NativeRoomSeatState state)
+bool nativeOnlineSession_ChangeCard(uint8_t seat, uint8_t card, uint8_t expected)
 {
-    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
-    if (peer_id == NULL || presence == NULL ||
-        online.lobby.state != NativeLobbySessionState_Waiting ||
-        state > NativeRoomSeatState_Spectating ||
-        presence->match_size != 0)
-    {
-        return false;
-    }
-    const NativeSignalingParticipant* target = NULL;
-    uint8_t occupied = 0;
-    for (uint32_t i = 0; i < presence->participant_count; ++i) {
-        const NativeSignalingParticipant* participant =
-            &presence->participants[i];
-        if (strcmp(participant->peer_id, peer_id) == 0) {
-            target = participant;
-        } else {
-            for (uint8_t local = 0; local < participant->local_players; ++local) {
-                occupied += (participant->active_mask >> local) & 1U;
-            }
-        }
-    }
-    if (target == NULL || seat >= target->local_players ||
-        (strcmp(peer_id, online.peer_id) != 0 &&
-         !nativeOnlineSession_IsOwner()))
-    {
-        return false;
-    }
-    uint8_t bit = 1U << seat;
-    uint8_t active_mask = target->active_mask & ~bit;
-    uint8_t waiting_mask = target->waiting_mask & ~bit;
-    if (state == NativeRoomSeatState_Fighting) active_mask |= bit;
-    if (state == NativeRoomSeatState_Waiting) waiting_mask |= bit;
-    for (uint8_t local = 0; local < target->local_players; ++local) {
-        occupied += (active_mask >> local) & 1U;
-    }
-    if (occupied > 4 ||
-        (active_mask == target->active_mask &&
-         waiting_mask == target->waiting_mask))
-    {
-        return false;
-    }
-    if (strcmp(peer_id, online.peer_id) == 0) {
-        NativeSignalingUpdate update = {
-            .active_mask = active_mask,
-            .waiting_mask = waiting_mask,
-            .has_active_mask = true,
-            .has_waiting_mask = true,
-        };
-        return nativeLobbySession_UpdateParticipant(&online.lobby, &update);
-    }
-    return nativeLobbySession_AssignSeats(&online.lobby, peer_id,
-                                          active_mask, waiting_mask);
+    return online.active && !quick.assignment.mode &&
+        online.lobby.state == NativeLobbySessionState_Waiting &&
+        nativeSignalingClient_ChangeCard(&online.lobby.room.connection.signaling,
+                                         seat, card, expected);
+}
+
+bool nativeOnlineSession_PublishCssPointers(const NativeCssPointers* pointers)
+{
+    return online.active && !quick.assignment.mode &&
+        nativeSignalingClient_CssPointers(&online.lobby.room.connection.signaling,
+                                           pointers);
+}
+
+const NativeRemoteCssPointers* nativeOnlineSession_CssPointers(void)
+{
+    return online.active && !quick.assignment.mode
+        ? online.lobby.room.connection.css_pointers : NULL;
 }
 
 void nativeOnlineSession_Inspect(void)
@@ -944,44 +921,24 @@ bool nativeOnlineSession_ReportMatch(const MatchEnd* result)
             (unsigned long long) online.lobby.room.agreed_match_epoch, winner, queued);
         return queued;
     }
-    uint8_t human_count = 0;
-    bool eligible = result != NULL && !gm_WasMatchCanceled(result->outcome) &&
-                    result->n_winners == 1 && !match->teams;
-    for (uint8_t port = 0; port < 4; ++port) {
-        if (match->slots[port].kind == NativeLobbyMatchSlot_Human) {
-            ++human_count;
-        } else if (match->slots[port].kind != NativeLobbyMatchSlot_Empty) {
-            eligible = false;
-        }
-    }
-    eligible = eligible && human_count == 2;
-    const char* winner_peer_id = "";
-    uint8_t winner_seat = UINT8_MAX;
-    if (eligible) {
-        uint8_t winner_port = result->winners[0];
-        if (winner_port >= 4 ||
-            match->slots[winner_port].kind != NativeLobbyMatchSlot_Human)
-        {
-            eligible = false;
-        } else {
-            for (uint8_t peer = 0; peer < match->peer_count; ++peer) {
-                if ((match->peers[peer].port_mask & (1U << winner_port)) != 0) {
-                    winner_peer_id = match->peers[peer].peer_id;
-                    winner_seat = match->slots[winner_port].local_seat;
-                    break;
-                }
+    uint8_t winning_ports = 0;
+    if (result && !gm_WasMatchCanceled(result->outcome)) {
+        if (match->teams && result->n_team_winners == 1) {
+            for (uint8_t port = 0; port < 4; ++port) {
+                if (match->slots[port].kind == NativeLobbyMatchSlot_Human &&
+                    match->slots[port].team == result->team_winners[0])
+                    winning_ports |= 1u << port;
             }
-            eligible = winner_peer_id[0] != '\0' && winner_seat < 4;
+        } else if (!match->teams && result->n_winners == 1) {
+            const uint8_t port = result->winners[0];
+            if (port < 4 && match->slots[port].kind == NativeLobbyMatchSlot_Human)
+                winning_ports = 1u << port;
         }
-    }
-    if (!eligible) {
-        winner_peer_id = "";
-        winner_seat = UINT8_MAX;
     }
     return nativeSignalingClient_ReportMatch(
         &online.lobby.room.connection.signaling,
-        online.lobby.room.agreed_match_epoch, winner_peer_id,
-        winner_seat, eligible, nativeMatchSelection_LoserPort(match, result));
+        online.lobby.room.agreed_match_epoch, winning_ports,
+        nativeMatchSelection_LoserPort(match, result));
 }
 
 NativeNetplayRoom* nativeOnlineSession_ClaimMatchRoom(void)

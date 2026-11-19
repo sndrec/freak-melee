@@ -38,6 +38,11 @@ typedef struct NativeNetplayConnectionDatagram {
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
 } NativeNetplayConnectionDatagram;
 
+typedef struct NativeRemoteCssPointers {
+    NativeCssPointers pointers;
+    uint64_t received_ms;
+} NativeRemoteCssPointers;
+
 typedef struct NativeNetplayConnection {
     NativeSignalingClient signaling;
     NativeRoomChat chat;
@@ -46,10 +51,12 @@ typedef struct NativeNetplayConnection {
     NativeLobbyListing listing;
     NativeRoomLobbyState lobby;
     NativeStageCursor stage_cursor;
+    NativeRemoteCssPointers css_pointers[NATIVE_SIGNALING_MAX_PARTICIPANTS];
     uint32_t lobby_revision;
     bool has_lobby;
     char quick_error[129];
     uint32_t quick_revision;
+    char action_rejection[129];
     NativeNetplayConnectionPeer
         peers[NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS];
     NativeNetplayContentChannels content;

@@ -32,11 +32,11 @@ function cursor(url: URL): [number, string] {
   return [stamp, id(pair[1])];
 }
 
-async function announcements(env: CloudflareBindings, url: URL, now: number) {
+async function announcements(env: CloudflareBindings, url: URL, now: number, since: number) {
   const [date, key] = cursor(url);
   const page = await env.COMMUNITY.prepare(
-    "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE withdrawn=0 AND published_at<=? AND (expires_at IS NULL OR expires_at>?) AND (published_at<? OR (published_at=? AND id<?)) ORDER BY published_at DESC,id DESC LIMIT 65"
-  ).bind(now, now, date, date, key).all<AnnouncementRow>();
+    "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE withdrawn=0 AND published_at BETWEEN ? AND ? AND (expires_at IS NULL OR expires_at>?) AND (published_at<? OR (published_at=? AND id<?)) ORDER BY published_at DESC,id DESC LIMIT 65"
+  ).bind(since, now, now, date, date, key).all<AnnouncementRow>();
   const entries = page.results.slice(0, 64), last = entries.at(-1);
   return { entries, next: page.results.length > 64 && last ? `${last.published_at},${last.id}` : null };
 }
@@ -45,20 +45,21 @@ export async function publicNews(request: Request, env: CloudflareBindings): Pro
   const url = new URL(request.url);
   if (request.method !== "GET") throw new HttpError(405, "Use GET.");
   const now = Date.now();
+  const since = timestamp(Number(url.searchParams.get("since"))) ?? 0;
   if (url.pathname === "/v1/feed") {
     const headline = await env.COMMUNITY.prepare(
       "SELECT id,title,ticker,published_at,updated_at,revision FROM news WHERE archived=0 AND published_at<=? ORDER BY published_at DESC,id DESC LIMIT 1"
     ).bind(now).first();
-    const notices = await announcements(env, new URL(url.origin), now);
+    const notices = await announcements(env, new URL(url.origin), now, since);
     return conditionalJson(request, { headline, announcements: notices.entries, announcements_next: notices.next });
   }
   if (url.pathname === "/v1/announcements")
-    return conditionalJson(request, await announcements(env, url, now));
+    return conditionalJson(request, await announcements(env, url, now, since));
   const notice = /^\/v1\/announcements\/([^/]+)$/u.exec(url.pathname);
   if (notice) {
     const entry = await env.COMMUNITY.prepare(
-      "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE delivery_id=? AND withdrawn=0 AND published_at<=? AND (expires_at IS NULL OR expires_at>?)"
-    ).bind(id(notice[1]), now, now).first();
+      "SELECT id,delivery_id,title,body,news_id,published_at,expires_at,revision FROM announcements WHERE delivery_id=? AND withdrawn=0 AND published_at BETWEEN ? AND ? AND (expires_at IS NULL OR expires_at>?)"
+    ).bind(id(notice[1]), since, now, now).first();
     if (!entry) throw new HttpError(404, "This announcement is unavailable.");
     return conditionalJson(request, entry);
   }
@@ -124,23 +125,27 @@ export async function adminNews(request: Request, env: CloudflareBindings): Prom
         .bind(recordId, title, ticker, body, publish, now, +value.archived).run();
   } else {
     const expiry = timestamp(value.expires_at);
-    if (publish !== null && expiry !== null && expiry <= publish)
-      throw new HttpError(400, "Expiry must follow publication.");
     if (typeof value.withdrawn !== "boolean" || typeof value.resend !== "boolean")
       throw new HttpError(400, "Choose withdrawal and resend options.");
     const article = value.news_id ? id(text(value.news_id, 36)) : null;
     if (article && !await env.COMMUNITY.prepare("SELECT id FROM news WHERE id=?").bind(article).first())
       throw new HttpError(400, "The linked news article does not exist.");
-    if (key) {
-      const original = await env.COMMUNITY.prepare("SELECT delivery_id FROM announcements WHERE id=?")
-        .bind(key).first<AnnouncementRow>();
-      if (!original) throw new HttpError(404, "Announcement not found.");
+    const original = key ? await env.COMMUNITY.prepare("SELECT delivery_id,published_at,withdrawn FROM announcements WHERE id=?")
+      .bind(key).first<Pick<AnnouncementRow, "delivery_id" | "published_at" | "withdrawn">>() : null;
+    if (key && !original) throw new HttpError(404, "Announcement not found.");
+    // Editing a delivery that's already gone out keeps its original audience.
+    const previous = original?.published_at;
+    const preserve = previous != null && previous <= now && !original?.withdrawn && !value.resend;
+    const sentAt = publish === null ? null : preserve ? previous : Math.max(now, publish);
+    if (sentAt !== null && expiry !== null && expiry <= sentAt)
+      throw new HttpError(400, "Expiry must follow publication.");
+    if (original) {
       const delivery = value.resend ? crypto.randomUUID() : original.delivery_id;
       result = await env.COMMUNITY.prepare("UPDATE announcements SET delivery_id=?,title=?,body=?,news_id=?,published_at=?,expires_at=?,withdrawn=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=?")
-        .bind(delivery, title, body, article, publish, expiry, +value.withdrawn, now, key, revision).run();
+        .bind(delivery, title, body, article, sentAt, expiry, +value.withdrawn, now, key, revision).run();
     } else {
       result = await env.COMMUNITY.prepare("INSERT INTO announcements(id,delivery_id,title,body,news_id,published_at,expires_at,withdrawn,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")
-        .bind(recordId, crypto.randomUUID(), title, body, article, publish, expiry, +value.withdrawn, now).run();
+        .bind(recordId, crypto.randomUUID(), title, body, article, sentAt, expiry, +value.withdrawn, now).run();
     }
   }
   if (!result.meta.changes) throw new HttpError(409, "This record changed in another tab. Reload it before saving.");

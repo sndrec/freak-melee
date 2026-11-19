@@ -16,8 +16,8 @@ namespace {
     GameRules rules;
     GamePrefs prefs;
     NativeHubPage return_page;
-    bool from_css, manage_seats;
-    unsigned selected,people_offset;
+    bool from_css;
+    unsigned selected;
     char status[160];
     constexpr uint64_t item_mask = UINT64_C(0xEFFFFFFF);
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xB9ADBDFF;
@@ -84,7 +84,9 @@ namespace {
         }
         if (target) {
             int next=int(*target)+direction;
-            *target=uint8_t(next<low?high:next>high?low:next); save();
+            *target=uint8_t(next<low?high:next>high?low:next);
+            nativeMenuRules_AnimateAdjustment(direction);
+            save();
         }
     }
     void row_region(unsigned row,const NativeMenuRuleBounds& b,bool enabled)
@@ -93,57 +95,21 @@ namespace {
         if (hub.page==NativeHubPage_MatchRules && row==5) {
             nativeHub_Region(id,b.x,b.y,b.w,b.h,HubAction::RuleItems,0,enabled); return;
         }
-        if (hub.page==NativeHubPage_AdditionalRules && row==5) {
-            nativeHub_Region("rules-lobby",b.x,b.y,b.w,b.h,HubAction::RuleLobby,0,nativeOnlineSession_Presence()!=nullptr); return;
-        }
         nativeHub_Region(id,b.x,b.y,b.w*.53f,b.h,HubAction::RuleAdjust,int(row*2+1),enabled);
         std::snprintf(id,sizeof(id),"rules-row-%u-left",row);
         nativeHub_Region(id,b.x+b.w*.53f,b.y,b.w*.22f,b.h,HubAction::RuleAdjust,int(row*2),enabled);
         std::snprintf(id,sizeof(id),"rules-row-%u-right",row);
         nativeHub_Region(id,b.x+b.w*.75f,b.y,b.w*.25f,b.h,HubAction::RuleAdjust,int(row*2+1),enabled);
     }
-    void lobby_seats()
+    void page_arrows()
     {
-        const auto* presence=nativeOnlineSession_Presence();
-        const bool owner=nativeOnlineSession_IsOwner();
-        const char* local=nativeOnlineSession_LocalPeerId();
-        struct Seat { const NativeSignalingParticipant* person; unsigned seat; } seats[128];
-        unsigned count=0;
-        for (unsigned i=0;presence&&i<presence->participant_count;++i)
-            for (unsigned seat=0;seat<presence->participants[i].local_players&&count<128;++seat)
-                seats[count++]={&presence->participants[i],seat};
-        people_offset=std::min(people_offset,count?(count-1)/4*4:0);
-        for (unsigned i=0;i<7;++i) {
-            bool enabled=i==0 || (i==6 && count>4);
-            if (i>=2&&i<6&&people_offset+i-2<count) {
-                const auto& seat=seats[people_offset+i-2];
-                enabled=owner||(local&&!std::strcmp(local,seat.person->peer_id));
-            }
-            NativeMenuRuleBounds b;
-            if (enabled&&nativeMenuRules_Bounds(i,&b)&&nativeHub_Hover(b.x,b.y,b.w,b.h)) selected=i;
-        }
-        nativeMenuPaint_End(); nativeMenuRules_Draw(NativeMenuRules_Lobby,selected,0);
-        Mtx canvas; Mtx44 projection; nativeMenuScene_View(false,false,canvas,projection); nativeMenuPaint_Begin(canvas);
-        for (unsigned row=0;row<7;++row) {
-            NativeMenuRuleBounds b; if (!nativeMenuRules_Bounds(row,&b)) continue;
-            const char* label=""; const char* value=""; char name[64],range[40],id[40];
-            HubAction action=HubAction::RulePeoplePage; int parameter=0; bool enabled=false; const char* peer=nullptr;
-            if (row==0) { label="Lobby settings"; action=HubAction::RuleManageSeats; enabled=true; std::snprintf(id,sizeof(id),"lobby-settings"); }
-            else if (row==1) { continue; }
-            else if (row==6) {
-                label="More players"; std::snprintf(range,sizeof(range),"%u-%u / %u",count?people_offset+1:0,std::min(people_offset+4,count),count); value=range;
-                parameter=people_offset+4<count?4:-int(people_offset); enabled=count>4; std::snprintf(id,sizeof(id),"lobby-next");
-            } else if (people_offset+row-2<count) {
-                const auto& seat=seats[people_offset+row-2]; const auto& person=*seat.person;
-                unsigned state=person.active_mask&(1U<<seat.seat)?0:person.waiting_mask&(1U<<seat.seat)?1:2;
-                const char* labels[]={"Fighting","Waiting","Spectating"};
-                std::snprintf(name,sizeof(name),person.local_players>1?"%s (P%u)":"%s",person.name,seat.seat+1); label=name; value=labels[state];
-                action=HubAction::RuleSeat; parameter=int(((state+1)%3)*4+seat.seat); peer=person.peer_id;
-                enabled=owner||(local&&!std::strcmp(local,person.peer_id));
-                std::snprintf(id,sizeof(id),"lobby-seat-%u-%u",unsigned(seat.person-presence->participants),seat.seat);
-            } else { label="Open slot"; std::snprintf(id,sizeof(id),"lobby-empty-%u",row); }
-            nativeMenuRules_Label(row,label,selected==row&&enabled); nativeMenuRules_Value(row,value);
-            nativeHub_Region(id,b.x,b.y,b.w,b.h,action,parameter,enabled,peer);
+        for (unsigned side = 0; side < 2; ++side) {
+            const float x = side ? 538 : 43;
+            const bool hover = nativeHub_Hover(x, 193, 58, 91);
+            nativeMenuPaint_Text(side ? ">" : "<", x, 204, 58, 58,
+                                hover ? 0xFFE36BFF : gold, NativeMenuFont_MenuCaption, true, false);
+            nativeHub_Region(side ? "rules-next-page" : "rules-previous-page", x, 193, 58, 91,
+                             HubAction::RulePage, side ? 1 : -1);
         }
     }
     void lobby_settings()
@@ -151,21 +117,21 @@ namespace {
         const auto* listing = nativeOnlineSession_Listing();
         const auto* presence = nativeOnlineSession_Presence();
         const bool owner = can_edit();
-        const char* policies[] = {"Manual", "Winner stays", "Winner out"};
-        const char* capacity[] = {"2", "3", "4"};
         const unsigned limit = listing && listing->capacity >= 2 ? listing->capacity : 4;
         const char* name = listing && listing->title[0] ? listing->title : "Lobby";
-        const char* labels[] = {"Lobby name", "Lobby listing", "Teams", "Rotation", "Fighter limit", "Password", "Manage seats"};
-        const char* values[] = {name, listing && listing->listed ? "Listed" : "Unlisted",
-                                nativeHome_IsTeams() ? "On" : "Off",
-                                presence ? policies[presence->rotation_policy % 3] : "Manual",
-                                capacity[limit - 2], listing && listing->locked ? "Set" : "None", ""};
+        const char* labels[] = {"Lobby name", "Lobby listing", "Teams", "Rotation", "Fighter limit", "Password"};
+        const char* values[][3] = {{name}, {"Unlisted", "Listed"}, {"OFF", "ON"},
+            {"Manual", "Winner stays", "Winner out"}, {"2", "3", "4"},
+            {listing && listing->locked ? "Set" : "None"}};
+        const unsigned counts[] = {1, 2, 2, 3, 3, 1};
+        const unsigned indices[] = {0, listing && listing->listed, nativeHome_IsTeams(),
+            presence ? unsigned(presence->rotation_policy) % 3 : 0, limit - 2, 0};
         const char* ids[] = {"lobby-name", "change-listing", "lobby-teams", "rotation-policy",
-                             "lobby-capacity", "lobby-edit-password", "lobby-manage-seats"};
+                             "lobby-capacity", "lobby-edit-password"};
         const HubAction actions[] = {HubAction::RuleLobbyName, HubAction::RuleListing, HubAction::RuleLobbyTeams,
                                      HubAction::RuleRotation, HubAction::RuleLobbyCapacity,
-                                     HubAction::RuleLobbyPassword, HubAction::RuleManageSeats};
-        for (unsigned row = 0; row < 7; ++row) {
+                                     HubAction::RuleLobbyPassword};
+        for (unsigned row = 0; row < 6; ++row) {
             NativeMenuRuleBounds b;
             if (nativeMenuRules_Bounds(row, &b) && nativeHub_Hover(b.x,b.y,b.w,b.h))
                 selected = row;
@@ -176,7 +142,7 @@ namespace {
         Mtx44 projection;
         nativeMenuScene_View(false, false, canvas, projection);
         nativeMenuPaint_Begin(canvas);
-        for (unsigned row = 0; row < 7; ++row) {
+        for (unsigned row = 0; row < 6; ++row) {
             NativeMenuRuleBounds b;
             if (!nativeMenuRules_Bounds(row, &b)) continue;
             nativeMenuRules_Label(row, labels[row], selected == row);
@@ -195,8 +161,17 @@ namespace {
                                  b.w*.11f, b.h-2, HubAction::RuleLobbyPasswordSave, 0, true, owner);
                 continue;
             }
-            nativeMenuRules_Value(row, values[row]);
-            nativeHub_Region(ids[row], b.x, b.y, b.w, b.h, actions[row], 0, owner || row == 6);
+            nativeMenuRules_Value(row, values[row], counts[row], indices[row]);
+            if (row == 0 || row == 5) {
+                nativeHub_Region(ids[row], b.x, b.y, b.w, b.h, actions[row], 0, owner);
+                continue;
+            }
+            char region[48];
+            nativeHub_Region(ids[row], b.x, b.y, b.w*.53f, b.h, actions[row], 1, owner);
+            std::snprintf(region, sizeof(region), "%s-left", ids[row]);
+            nativeHub_Region(region, b.x+b.w*.53f, b.y, b.w*.22f, b.h, actions[row], -1, owner);
+            std::snprintf(region, sizeof(region), "%s-right", ids[row]);
+            nativeHub_Region(region, b.x+b.w*.75f, b.y, b.w*.25f, b.h, actions[row], 1, owner);
         }
     }
 }
@@ -214,7 +189,7 @@ void nativeHubRules_Open()
     rules=*gmMainLib_GetGameRules(); prefs=*gmMainLib_GetGamePrefs();
     const auto* lobby=nativeOnlineSession_LobbyState();
     if (lobby && lobby->has_rules && !nativeOnlineSession_IsOwner()) nativeRoomRules_Apply(&lobby->rules,&rules,&prefs);
-    status[0]=0; from_css=!hub.visible; return_page=hub.page; selected=people_offset=0;
+    status[0]=0; from_css=!hub.visible; return_page=hub.page; selected=0;
     nativeHub_Open(NativeHubPage_MatchRules);
 }
 bool nativeHubRules_Activate(HubAction action,int value)
@@ -222,27 +197,19 @@ bool nativeHubRules_Activate(HubAction action,int value)
     if (action==HubAction::Rules) { nativeHubRules_Open(); return true; }
     if (!nativeHubRules_Page(hub.page)) return false;
     if (action==HubAction::Back) {
-        if (hub.page==NativeHubPage_LobbyRules && manage_seats) manage_seats = false;
-        else if (hub.page==NativeHubPage_LobbyRules) change_page(NativeHubPage_AdditionalRules,true);
+        if (hub.page==NativeHubPage_LobbyRules) change_page(NativeHubPage_AdditionalRules,true);
         else if (hub.page!=NativeHubPage_MatchRules) change_page(NativeHubPage_MatchRules,true);
         else if (from_css) { nativeHub_ChangePage(return_page,true); nativeHub_Activate(HubAction::Selection,0); }
         else nativeHub_ChangePage(return_page,true);
         return true;
     }
-    if (action<HubAction::RuleAdjust || action>HubAction::RuleManageSeats) return false;
+    if (action<HubAction::RuleAdjust || action>HubAction::RuleLobbyPasswordSave) return false;
     if (action==HubAction::RuleItems) { change_page(NativeHubPage_ItemSwitch); return true; }
-    if (action==HubAction::RuleAdditional) {
-        change_page(hub.page == NativeHubPage_MatchRules ? NativeHubPage_AdditionalRules : NativeHubPage_MatchRules,
-                    value < 0);
-        return true;
-    }
-    if (action==HubAction::RuleLobby) { manage_seats = false; change_page(NativeHubPage_LobbyRules); return true; }
-    if (action==HubAction::RuleManageSeats) { manage_seats = !manage_seats; selected = 0; return true; }
-    if (action==HubAction::RulePeoplePage) { people_offset=unsigned(std::max(0,int(people_offset)+value)); return true; }
-    if (action==HubAction::RuleSeat) {
-        if (!nativeOnlineSession_ChooseSeat(hub.pending_peer,uint8_t(value&3),NativeRoomSeatState(value>>2)))
-            nativeHub_Notice("Could not change this player's seat.");
-        else nativeHome_CancelStartMatch();
+    if (action==HubAction::RulePage) {
+        const NativeHubPage pages[] = {NativeHubPage_MatchRules, NativeHubPage_AdditionalRules, NativeHubPage_LobbyRules};
+        const int count = nativeOnlineSession_Presence() ? 3 : 2;
+        const int page = hub.page==NativeHubPage_LobbyRules ? 2 : hub.page==NativeHubPage_AdditionalRules ? 1 : 0;
+        change_page(pages[(page + count + (value < 0 ? -1 : 1)) % count], value < 0);
         return true;
     }
     if (!can_edit()) { nativeHub_Notice("Only the lobby host can change match rules."); return true; }
@@ -258,6 +225,7 @@ bool nativeHubRules_Activate(HubAction action,int value)
         if (!(prefs.item_mask&item_mask)) prefs.item_freq=UINT8_MAX;
         break;
     case HubAction::RuleLobbyTeams:
+        nativeMenuRules_AnimateLobbyValue(2, value);
         nativeHome_SetTeams(!nativeHome_IsTeams());
         nativeHome_CancelStartMatch();
         return true;
@@ -285,11 +253,13 @@ bool nativeHubRules_Activate(HubAction action,int value)
         const unsigned limit = listing && listing->capacity >= 2 ? listing->capacity : 4;
         if (!nativeOnlineSession_SetListing(action == HubAction::RuleLobbyNameSave ? hub.lobby_title : name,
                 action == HubAction::RuleListing ? !listed : listed,
-                action == HubAction::RuleLobbyCapacity ? 2 + (limit - 1) % 3 : limit,
+                action == HubAction::RuleLobbyCapacity ? 2 + (limit - 2 + (value < 0 ? 2 : 1)) % 3 : limit,
                 action == HubAction::RuleLobbyPasswordSave ? hub.lobby_password : nullptr)) {
             nativeHub_Notice(action == HubAction::RuleLobbyPasswordSave
                 ? "Use letters, numbers or punctuation without spaces." : "Could not change the lobby settings.");
         } else {
+            if (action == HubAction::RuleListing) nativeMenuRules_AnimateLobbyValue(1, value);
+            if (action == HubAction::RuleLobbyCapacity) nativeMenuRules_AnimateLobbyValue(4, value);
             if (action == HubAction::RuleLobbyPasswordSave)
                 std::memset(hub.lobby_password, 0, sizeof(hub.lobby_password));
             nativeHub_Focus(nullptr, 0);
@@ -299,7 +269,8 @@ bool nativeHubRules_Activate(HubAction action,int value)
     }
     case HubAction::RuleRotation: {
         const auto* p=nativeOnlineSession_Presence();
-        if (p) nativeOnlineSession_SetRotation(NativeRoomRotationPolicy((p->rotation_policy+1)%3));
+        if (p && nativeOnlineSession_SetRotation(NativeRoomRotationPolicy((p->rotation_policy + (value < 0 ? 2 : 1)) % 3)))
+            nativeMenuRules_AnimateLobbyValue(3, value);
         return true;
     }
     default: return false;
@@ -313,7 +284,7 @@ void nativeHubRules_Render(NativeHubPage page)
     nativeHub_Button("rules-close","< Back",40,420,110,28,HubAction::Back);
     nativeMenuPaint_Text(status,40,461,555,11,muted);
     if (page==NativeHubPage_LobbyRules) {
-        if (manage_seats) lobby_seats(); else lobby_settings();
+        page_arrows(); lobby_settings();
         return;
     }
     if (page==NativeHubPage_ItemSwitch) {
@@ -346,25 +317,17 @@ void nativeHubRules_Render(NativeHubPage page)
         }
         return;
     }
-    unsigned rows=6;
+    const unsigned rows=page==NativeHubPage_MatchRules ? 6 : 5;
     for (unsigned i=0;i<rows;++i) {
         NativeMenuRuleBounds b;
         if (nativeMenuRules_Bounds(i,&b) && nativeHub_Hover(b.x,b.y,b.w,b.h)) selected=i;
     }
-    for (unsigned side = 0; side < 2; ++side) {
-        const float x = side ? 538 : 43;
-        const bool hover = nativeHub_Hover(x, 193, 58, 91);
-        nativeMenuPaint_Text(side ? ">" : "<", x, 204, 58, 58,
-                            hover ? 0xFFE36BFF : gold, NativeMenuFont_MenuCaption, true, false);
-        nativeHub_Region(side ? "rules-next-page" : "rules-previous-page", x, 193, 58, 91,
-                         HubAction::RuleAdditional, side ? 1 : -1);
-    }
+    page_arrows();
     nativeMenuPaint_End(); nativeMenuRules_Draw(page==NativeHubPage_MatchRules?NativeMenuRules_Match:NativeMenuRules_Additional,selected,current(selected));
     Mtx canvas; Mtx44 projection; nativeMenuScene_View(false,false,canvas,projection); nativeMenuPaint_Begin(canvas);
     for (unsigned i=0;i<rows;++i) {
         NativeMenuRuleBounds b; if (!nativeMenuRules_Bounds(i,&b)) continue;
         row_region(i,b,can_edit()||i>=5);
-        if (page==NativeHubPage_AdditionalRules && i==5) nativeMenuRules_Label(i,"Lobby settings",selected==i);
     }
     if (!can_edit()) nativeMenuPaint_Text("The lobby host controls match rules.",180,432,400,12,muted);
 }
@@ -372,7 +335,7 @@ void nativeHubRules_Inspect()
 {
     const auto* listing=nativeOnlineSession_Listing();
     const auto* presence=nativeOnlineSession_Presence();
-    std::fprintf(stderr,"[hub-inspect] lobby-rules listed=%d owner=%d rotation=%u participants=%u\n",listing&&listing->listed,nativeOnlineSession_IsOwner(),presence?unsigned(presence->rotation_policy):0,presence?unsigned(presence->participant_count):0);
+    std::fprintf(stderr,"[hub-inspect] lobby-rules listed=%d owner=%d rotation=%u capacity=%u participants=%u\n",listing&&listing->listed,nativeOnlineSession_IsOwner(),presence?unsigned(presence->rotation_policy):0,listing?unsigned(listing->capacity):0,presence?unsigned(presence->participant_count):0);
     for (unsigned i=0;presence&&i<presence->participant_count;++i)
         std::fprintf(stderr,"[hub-inspect] lobby-person row=%u active=%u waiting=%u local=%u\n",i,unsigned(presence->participants[i].active_mask),unsigned(presence->participants[i].waiting_mask),unsigned(presence->participants[i].local_players));
 

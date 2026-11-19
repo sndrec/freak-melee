@@ -24,6 +24,7 @@
 #ifdef MELEE_NATIVE
 void gmTraining_UpdateLocalMenu(void);
 bool gmTraining_LocalMenuOpen(void);
+int gmTraining_LocalInputPort(void);
 #endif
 /* 473814 */ extern CssSubStruct gm_80473814;
 

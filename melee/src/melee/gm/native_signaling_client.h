@@ -110,20 +110,18 @@ bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char*
 bool nativeSignalingClient_SetMatch(NativeSignalingClient* client,
                                     const uint8_t* payload,
                                     uint16_t payload_size);
-bool nativeSignalingClient_AssignSeats(NativeSignalingClient* client,
-                                       const char* peer_id,
-                                       uint8_t active_mask,
-                                       uint8_t waiting_mask);
 bool nativeSignalingClient_SetRotation(NativeSignalingClient* client,
                                        uint8_t policy);
+bool nativeSignalingClient_ChangeCard(NativeSignalingClient* client,
+                                     uint8_t seat, uint8_t card, uint8_t expected);
 bool nativeSignalingClient_SetLobbyRules(NativeSignalingClient* client, const NativeRoomRules* rules);
 bool nativeSignalingClient_RequestLobbyState(NativeSignalingClient* client);
 bool nativeSignalingClient_StageCursor(NativeSignalingClient* client, const NativeStageCursor* cursor);
+bool nativeSignalingClient_CssPointers(NativeSignalingClient* client,
+                                       const NativeCssPointers* pointers);
 bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
-                                       const char* winner_peer_id,
-                                       uint8_t winner_seat,
-                                       bool eligible, uint8_t loser_port);
+                                       uint8_t winners, uint8_t loser_port);
 bool nativeSignalingClient_PickLobbyStage(NativeSignalingClient* client,
                                           uint64_t epoch, uint8_t seat,
                                           uint8_t stage);

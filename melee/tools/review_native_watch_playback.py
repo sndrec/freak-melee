@@ -16,7 +16,7 @@ import time
 
 from review_native_css_room import Client
 from review_native_outfit_matches import choose as choose_outfit,network,select_stage,settings,wait
-from review_native_room_rotation import choose,role,room,session
+from review_native_room_rotation import choose,click_card,room,session
 from review_native_watch_transport import watch
 
 
@@ -64,20 +64,16 @@ def main():
                 'PlayViewer' if index==viewer_index else 'PlayFighter'+str(index),window_size=(1280,800),
                 without_drafts=True,launch_args=('--netplay-delay',6 if index==active_indices[1] else 0))
             clients.append(c);c.click('nav-1');c.enter('lobby-code',code);c.click('join-lobby');c.wait_cards(index+1)
+        host=clients[0];authority,opponent=[clients[i] for i in active_indices];viewer=clients[viewer_index]
+        viewer_id=room(viewer)['local'];click_card(viewer,viewer_index,0)
+        wait(lambda: room(authority)['members'][viewer_id]['active']==0,'viewer role')
         for index,c in enumerate(clients):
-            c.wait_cards(3);c.click('lobby-ready')
             if args.paired and index in active_indices:
                 label=['zelda','climbers'][active_indices.index(index)]
                 choose_outfit(c,families[label]['parent'],'Coordinated '+label,0)
             else:choose(c,fighter,0)
-            c.click('play-ready');c.element('play-selection')
-        host=clients[0];authority,opponent=[clients[i] for i in active_indices];viewer=clients[viewer_index]
-        viewer.click('play-lobby');viewer.click('nav-1')
-        viewer_id=room(viewer)['local'];role(viewer,viewer_id,0,'spectating')
-        wait(lambda: room(authority)['members'][viewer_id]['active']==0,'viewer role')
-        viewer.click('lobby-ready')
-        wait(lambda: 'enabled=1' in host.inspect('play-start'),'ready fighters')
-        host.click('play-start');select_stage(host if not args.inactive_owner else authority)
+            c.tap('START',frames=4)
+        select_stage(host if not args.inactive_owner else authority)
         active_sessions=[session(c,1) for c in [authority,opponent]]
         assert active_sessions[0][:2]==active_sessions[1][:2]
         wait(lambda: network(authority)['frame']>180,'match before explicit viewing')

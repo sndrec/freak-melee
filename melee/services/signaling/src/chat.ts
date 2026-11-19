@@ -3,7 +3,7 @@ import { connectionAccount, currentConnectionAccount, type ConnectionAccount } f
 import { HEARTBEAT_MS, CONNECTION_LIFETIME_MS, CONNECTION_TIMEOUT_MS, playerIdentity } from "./connection-lease";
 
 // This is one shared conversation for the private client, independent of Rooms.
-export const CHAT_HISTORY = 64;
+export const CHAT_HISTORY = 16;
 export const CHAT_NAME_BYTES = 32;
 export const CHAT_TEXT_BYTES = 512;
 export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES + 2 + 43 + 24;
@@ -102,6 +102,7 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       if (!columns.some(column => column.name === "account_handle"))
         ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN account_handle TEXT NOT NULL DEFAULT ''");
       ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS chat_accounts (peer TEXT PRIMARY KEY, account_id TEXT NOT NULL)");
+      this.trimHistory();
       for (const socket of ctx.getWebSockets()) {
         const identity = socket.deserializeAttachment() as ChatIdentity;
         if (!identity.playerIdentity || !Number.isFinite(identity.lastMessageAt) || typeof identity.uncertain !== "boolean")
@@ -206,10 +207,7 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
         "INSERT INTO chat_messages (peer, nonce, name, text, account_id, account_handle) VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
         peer, nonce, name, text, identity.account?.profile.id ?? "", identity.account?.profile.handle ?? "",
       ).one();
-      this.ctx.storage.sql.exec(
-        "DELETE FROM chat_messages WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT ?)",
-        CHAT_HISTORY,
-      );
+      this.trimHistory();
       // Output gates hold this acknowledgement until the SQLite write commits.
       const packet = encodeEntry(row);
       for (const connection of this.connections()) this.send(connection, packet);
@@ -219,6 +217,13 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       release?.();
       if (this.accountMessages.get(initial.peer) === lane) this.accountMessages.delete(initial.peer);
     }
+  }
+
+  private trimHistory(): void {
+    this.ctx.storage.sql.exec(
+      "DELETE FROM chat_messages WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT ?)",
+      CHAT_HISTORY,
+    );
   }
 
   webSocketClose(): void { this.presence(); }

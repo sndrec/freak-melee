@@ -15,16 +15,27 @@ export function unreadySelection(selection: Uint8Array): Uint8Array {
 // seats may be empty; every fighting seat must have a selected fighter.
 export function lockedChoices(bytes: Uint8Array, players: number,
   activeMask = (1 << players) - 1): FighterChoice[] | null {
-  if (players < 1 || players > 4 || activeMask & ~((1 << players) - 1) || bytes.length < 7 || bytes.length > 335) return null;
+  if (bytes[6] !== 1 && bytes[6] !== 3) return null;
+  return decodeChoices(bytes, players, activeMask);
+}
+
+export function selectedSeats(bytes: Uint8Array, players: number): number {
+  return decodeChoices(bytes, players, 0)?.reduce((mask, choice, seat) =>
+    choice.selected ? mask | (1 << seat) : mask, 0) ?? 0;
+}
+
+function decodeChoices(bytes: Uint8Array, players: number,
+  required: number): FighterChoice[] | null {
+  if (players < 1 || players > 4 || required & ~((1 << players) - 1) || bytes.length < 7 || bytes.length > 335) return null;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(0) !== 0x464d534c || bytes[4] !== 1 || bytes[5] !== players ||
-      (bytes[6] !== 1 && bytes[6] !== 3)) return null;
+      (bytes[6] > 3 || bytes[6] === 2)) return null;
   let offset = 7;
   const choices: FighterChoice[] = [];
   for (let seat = 0; seat < players; ++seat) {
     if (offset + 18 > bytes.length) return null;
     const flags = bytes[offset++], team = bytes[offset++];
-    if ((activeMask & (1 << seat)) && !(flags & 1) || flags & ~7 || team > 2) return null;
+    if ((required & (1 << seat)) && !(flags & 1) || flags & ~7 || team > 2) return null;
     const character = view.getBigUint64(offset); offset += 8;
     const costume = view.getBigUint64(offset); offset += 8;
     const packages: Uint8Array[] = [];

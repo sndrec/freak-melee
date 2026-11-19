@@ -1,3 +1,5 @@
+import type { CardSlots } from "./room-cards";
+
 export const MAX_MESSAGE_BYTES = 16 * 1024;
 export const MAX_NAME_LENGTH = 32;
 export const MAX_BUILD_LENGTH = 96;
@@ -20,6 +22,7 @@ export interface Participant {
   build: string;
   localPlayers: number;
   activeMask: number;
+  cardSlots: CardSlots;
   waitingMask: number;
   ready: boolean;
   selection: Uint8Array;
@@ -38,12 +41,14 @@ export interface ConnectionAttachment extends Omit<Participant, "waitingRanks" |
   chatSubscribed?: boolean;
   lobbySubscribed?: boolean;
   stageCursor?: { epoch: number; revision: number; sequence: number; windowMs: number; updates: number };
+  lastCssPointerMs?: number;
   chatLastPost?: number;
   chatHighestNonce?: number;
   chatLastHistory?: number;
   quickRevision?: number;
   quickDigest?: Uint8Array;
   waitingOrder: [number, number, number, number];
+  lastPlayed: [number, number, number, number];
 }
 
 export interface RoomSnapshot {
@@ -117,6 +122,7 @@ export function publicParticipant(attachment: ConnectionAttachment): Participant
     build: attachment.build,
     localPlayers: attachment.localPlayers,
     activeMask: attachment.activeMask,
+    cardSlots: attachment.cardSlots.slice() as CardSlots,
     waitingMask: attachment.waitingMask,
     ready: attachment.ready,
     selection: attachment.selection.slice(),

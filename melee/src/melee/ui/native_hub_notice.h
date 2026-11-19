@@ -6,6 +6,8 @@ struct NativeHubNoticeOptions {
     const char* action = nullptr;
     void (*dismissed)(void* context, bool action_chosen) = nullptr;
     void* context = nullptr;
+    const char* cancel = nullptr;
+    unsigned delay_ms = 2000;
 };
 bool nativeHubNotice_Show(const char* title, const char* message, NativeHubNoticeOptions options = {});
 bool nativeHubNotice_Contains(const char* id);

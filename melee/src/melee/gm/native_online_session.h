@@ -62,20 +62,16 @@ void nativeOnlineSession_DeclineGift(void);
 bool nativeOnlineSession_GiftStatus(bool incoming,
                                     NativeNetplayGiftStatus* status);
 bool nativeOnlineSession_UpdateSelection(
-    const NativeLobbySelection* selection);
-typedef enum NativeRoomSeatState {
-    NativeRoomSeatState_Fighting,
-    NativeRoomSeatState_Waiting,
-    NativeRoomSeatState_Spectating,
-} NativeRoomSeatState;
-bool nativeOnlineSession_ChooseSeat(const char* peer_id, uint8_t seat,
-                                    NativeRoomSeatState state);
+    const NativeLobbySelection* selection, int waiting_mask);
+bool nativeOnlineSession_ChangeCard(uint8_t seat, uint8_t card, uint8_t expected);
 uint8_t nativeOnlineSession_LocalPlayers(void);
 uint8_t nativeOnlineSession_LocalActiveSeats(void);
 bool nativeOnlineSession_IsOwner(void);
 int nativeOnlineSession_StagePort(void);
 const NativeStageCursor* nativeOnlineSession_StageCursor(void);
 bool nativeOnlineSession_PublishStageCursor(NativeStageCursor* cursor);
+bool nativeOnlineSession_PublishCssPointers(const NativeCssPointers* pointers);
+const NativeRemoteCssPointers* nativeOnlineSession_CssPointers(void);
 bool nativeOnlineSession_PickStage(uint8_t stage);
 bool nativeOnlineSession_SetRotation(NativeRoomRotationPolicy policy);
 struct MatchEnd;

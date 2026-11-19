@@ -4,14 +4,16 @@
 #include <string.h>
 
 static void open_slots(NativeCssParticipants* result, unsigned expected,
-                        bool searching)
+                        bool searching, unsigned occupied)
 {
     if (!expected) return;
     result->online = true;
-    while (result->count < expected) {
+    for (unsigned slot = 0; slot < expected && result->count < expected; ++slot) {
+        if (occupied & (1U << slot)) continue;
         NativeCssParticipant* card = &result->cards[result->count++];
         card->kind = Gm_PKind_NA;
         card->physical_port = card->canonical_port = card->seat = NATIVE_CSS_NO_PORT;
+        card->card_slot = slot;
         snprintf(card->name, sizeof(card->name), "%s", searching ? "Searching..." : "Open slot");
     }
 }
@@ -21,6 +23,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                                  const char* local_name,
                                  const NativeCssLocalSlot local[4],
                                  unsigned expected_players, bool searching,
+                                 bool fixed_cards,
                                  NativeCssParticipants* result)
 {
     if (!local || !result || expected_players > 4) {
@@ -45,7 +48,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                      : local_name               ? local_name
                                                 : "Player");
         }
-        open_slots(result, expected_players, searching);
+        open_slots(result, expected_players, searching, 0);
         return true;
     }
     if (!local_peer ||
@@ -55,6 +58,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
     }
     NativeCssParticipant canonical[4] = { 0 };
     unsigned count = 0;
+    unsigned occupied = 0;
     uint8_t physical[4], physical_count = 0;
     for (unsigned port = 0; port < 4; ++port) {
         if (local[port].kind == Gm_PKind_Human) {
@@ -84,6 +88,12 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
             }
             NativeCssParticipant* card = &canonical[count];
             card->canonical_port = count++;
+            card->card_slot = fixed_cards ? person->card_slots[seat]
+                                          : card->canonical_port;
+            if (card->card_slot >= 4 ||
+                (fixed_cards && card->card_slot >= expected_players) ||
+                occupied & (1u << card->card_slot)) return false;
+            occupied |= 1u << card->card_slot;
             card->physical_port = NATIVE_CSS_NO_PORT;
             card->seat = seat;
             card->kind = Gm_PKind_Human;
@@ -109,6 +119,6 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
         }
     }
     result->online = true;
-    open_slots(result, expected_players, searching);
+    open_slots(result, expected_players, searching, occupied);
     return true;
 }

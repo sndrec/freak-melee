@@ -1,6 +1,7 @@
 #include <melee/ui/native_hub.h>
 #include <melee/ui/native_hub_hand.h>
 #include "native_home.h"
+#include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_menu_scene.h>
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
 #include <sysdolphin/baselib/gobjproc.h>
@@ -2015,16 +2016,16 @@ int nativeHome_PhysicalPortForLocalPlayer(unsigned local_player)
                : -1;
 }
 
-void nativeHome_RequestPracticeStageSelect(void)
+bool nativeHome_BeginPracticeStageSelect(void)
 {
-    home.local_practice_stage_select = nativeHome_IsSelection() &&
+    home.local_practice_stage_select = !home.preview_transitioning &&
         nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
+    return home.local_practice_stage_select;
 }
 
 bool nativeHome_PracticeStageSelect(void)
 {
-    return home.local_practice_stage_select && !home.preview_transitioning &&
-        nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
+    return home.local_practice_stage_select;
 }
 
 void nativeHome_EndPracticeStageSelect(unsigned stage)
@@ -2195,7 +2196,9 @@ void nativeHome_Tick(void)
             }
         }
         published.start_requested = home.start_requested;
-        nativeOnlineSession_UpdateSelection(&published);
+        const int waiting = nativeHome_IsSelection() && !home.authoring &&
+            !home.preview_active ? nativeCssInteraction_WaitingSeats() : -1;
+        nativeOnlineSession_UpdateSelection(&published, waiting);
     }
     if (nativeHome_IsSelection() && !home.authoring && !home.preview_active &&
         !nativeOnlineSession_Quick() && nativeOnlineSession_IsOwner() && !nativeOnlineSession_LocalActiveSeats()) {

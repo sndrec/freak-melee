@@ -40,6 +40,8 @@ typedef enum NativeSignalingServerMessageType {
     NativeSignalingServerMessage_Listing,
     NativeSignalingServerMessage_LobbyState,
     NativeSignalingServerMessage_StageCursor,
+    NativeSignalingServerMessage_CssPointers,
+    NativeSignalingServerMessage_RoomActionRejected,
 } NativeSignalingServerMessageType;
 
 typedef struct NativeStageCursor {
@@ -49,6 +51,13 @@ typedef struct NativeStageCursor {
     int16_t x, y; // Original stage-menu coordinates, in units of 1/256.
     uint8_t tile, seat;
 } NativeStageCursor;
+
+enum { NATIVE_CSS_POINTER_UNITS = 16384 };
+typedef struct NativeCssPointers {
+    char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    int16_t point[4][2];
+    uint8_t visible, held;
+} NativeCssPointers;
 
 typedef struct NativeLobbyListing {
     char title[65];
@@ -82,6 +91,7 @@ typedef struct NativeSignalingParticipant {
     uint8_t active_mask;
     uint8_t waiting_mask;
     uint8_t waiting_ranks[4];
+    uint8_t card_slots[4];
     bool ready;
 } NativeSignalingParticipant;
 
@@ -163,6 +173,7 @@ typedef struct NativeSignalingServerMessage {
         NativeLobbyDirectory directory;
         NativeRoomLobbyState lobby;
         NativeStageCursor stage_cursor;
+        NativeCssPointers css_pointers;
         char error[NATIVE_SIGNALING_MAX_ERROR_BYTES + 1];
     } data;
 } NativeSignalingServerMessage;
@@ -175,6 +186,8 @@ size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output,
 size_t nativeSignalingWire_EncodeLobbyRules(const NativeRoomRules* rules, uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeRequestLobbyState(uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeStageCursor(const NativeStageCursor* cursor,
+                                             uint8_t* output, size_t capacity);
+size_t nativeSignalingWire_EncodeCssPointers(const NativeCssPointers* pointers,
                                              uint8_t* output, size_t capacity);
 
 typedef struct NativeSignalingUpdate {
@@ -207,18 +220,14 @@ size_t nativeSignalingWire_EncodeSetMatch(const uint8_t* payload,
                                           uint16_t payload_size,
                                           uint8_t* output,
                                           size_t output_capacity);
-size_t nativeSignalingWire_EncodeAssignSeats(const char* peer_id,
-                                             uint8_t active_mask,
-                                             uint8_t waiting_mask,
-                                             uint8_t* output,
-                                             size_t output_capacity);
+size_t nativeSignalingWire_EncodeChangeCard(uint8_t seat, uint8_t card,
+                                           uint8_t expected, uint8_t* output,
+                                           size_t capacity);
 size_t nativeSignalingWire_EncodeSetRotation(uint8_t policy,
                                              uint8_t* output,
                                              size_t output_capacity);
 size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
-                                             const char* winner_peer_id,
-                                             uint8_t winner_seat,
-                                             bool eligible,
+                                             uint8_t winners,
                                              uint8_t loser_port,
                                              uint8_t* output,
                                              size_t output_capacity);

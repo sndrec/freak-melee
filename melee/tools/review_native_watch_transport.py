@@ -16,7 +16,7 @@ import time
 
 from review_native_css_room import Client
 from review_native_outfit_matches import network,select_stage,settings,wait
-from review_native_room_rotation import choose,role,room,session
+from review_native_room_rotation import choose,click_card,room,session
 
 
 def watch(client):
@@ -50,17 +50,13 @@ def main():
                      ['WatchAuthority','WatchPlayer','WatchViewer'][index],window_size=(1280,800),
                      without_drafts=True,launch_args=('--netplay-delay',6 if index==1 else 0))
             clients.append(c);c.click('nav-1');c.enter('lobby-code',code);c.click('join-lobby');c.wait_cards(index+1)
-        for c in clients:
-            c.wait_cards(3);c.click('lobby-ready');choose(c,fighter,0)
-            c.click('play-ready');c.element('play-selection')
         authority,player,viewer=clients
-        viewer.click('play-lobby');viewer.click('nav-1')
-        viewer_id=room(viewer)['local'];role(viewer,viewer_id,0,'spectating')
+        viewer_id=room(viewer)['local'];click_card(viewer,2,0)
         wait(lambda: room(authority)['members'][viewer_id]['active']==0,'spectator role')
-        viewer.click('lobby-ready')
-        assert watch(viewer)['practice']==1
-        wait(lambda: 'enabled=1' in authority.inspect('play-start'),'ready active fighters')
-        authority.click('play-start');select_stage(authority)
+        for c in [viewer, authority, player]:
+            choose(c,fighter,0);c.tap('START',frames=4)
+        wait(lambda: watch(viewer)['practice']==1,'spectator practice')
+        select_stage(authority)
         sessions=[session(c,1) for c in clients[:2]];assert sessions[0][:2]==sessions[1][:2]
         wait(lambda: network(authority)['frame']>150,'active gameplay')
         receipt['before_request']=watch(viewer)

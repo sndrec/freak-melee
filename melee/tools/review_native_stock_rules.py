@@ -33,7 +33,7 @@ def main():
   c.tap('B',frames=40); state('page=27 ')
   c.resize(960,540); shot('stock-rules-narrow'); c.click('rules-close'); c.element('settings-rules')
   c.click('settings-rules'); state('mode=1 time=2 stock=4 timer=1 damage=110 handicap=1 stage=3 friendly=1')
-  c.click('rules-close'); c.click('settings-back'); c.click('settings-back'); c.tap('B',frames=40)
+  c.click('rules-close'); c.click('settings-back'); c.click('settings-back'); c.click('nav-5'); c.click('local-practice')
   c.element('play-rules'); c.click('play-rules'); state('css=1 '); shot('from-css')
   c.click('rules-close'); c.element('play-rules')
   r['checks']=['Original animated rows render in the native Rules frame','Held A changes a value once','Stock count, damage ratio, stage policy and additional rules edit immediately','Items edit immediately','Back exits only one menu with a held press','Rules persist after leaving and reopening','Two window sizes','CSS header opens Rules and Back returns to CSS']; r['status']='PASS'

@@ -36,9 +36,17 @@ extern StaticModelDesc MenMainCursorTr01_Top,MenMainCursorTr02_Top,MenMainCursor
 static HSD_GObj* object;
 static NativeMenuRulesPage current_page;
 static Uint64 animated_tick;
+static unsigned adjustment_button;
 static GameRules* edited_rules;
 static struct GamePrefs* edited_prefs;
 static MnMenuAssets* archive;
+static HSD_JObj* cursor(unsigned row);
+static struct LobbyValueMotion {
+    Uint64 begin;
+    unsigned value;
+    int direction, next_direction;
+    bool initialized;
+} lobby_values[6];
 
 static HSD_JObj* joint_at(HSD_JObj* root,unsigned* index)
 {
@@ -48,6 +56,29 @@ static HSD_JObj* joint_at(HSD_JObj* root,unsigned* index)
     }
     return NULL;
 }
+
+static void align_arrows(unsigned selected)
+{
+    unsigned index = 13;
+    HSD_JObj* arrow_group = joint_at(cursor(selected), &index);
+    HSD_JObj* left = arrow_group ? arrow_group->child : NULL;
+    HSD_JObj* right = left ? left->next : NULL;
+    if (!right || !left->u.dobj || !right->u.dobj ||
+        arrow_group->flags & JOBJ_HIDDEN) return;
+
+    Vec3 left_low, left_high, right_low, right_high;
+    if (!nativeModelView_MeshBounds(left, left->u.dobj, &left_low, &left_high) ||
+        !nativeModelView_MeshBounds(right, right->u.dobj, &right_low, &right_high))
+        return;
+    HSD_JObjSetupMatrix(arrow_group);
+    const float scale_y = arrow_group->mtx[1][1];
+    if (fabsf(scale_y) < .001f) return;
+    const float correction = (right_low.y + right_high.y -
+                              left_low.y - left_high.y) * .25f / scale_y;
+    if (fabsf(correction) < .001f) return;
+    HSD_JObjSetTranslateY(left, left->translate.y + correction);
+    HSD_JObjSetTranslateY(right, right->translate.y - correction);
+}
 static void forget(void* data)
 {
     object=NULL; HSD_Free(data);
@@ -56,6 +87,7 @@ void nativeMenuRules_Unload(void)
 {
     if (object) HSD_GObjFree(object);
     archive=NULL; edited_rules=NULL; edited_prefs=NULL; animated_tick=0;
+    adjustment_button=0;
 }
 static void create(NativeMenuRulesPage page)
 {
@@ -77,6 +109,7 @@ static void create(NativeMenuRulesPage page)
     object->user_data_remove_func=forget;
     mn_804A04F0=saved; mn_804D6BD0=saved_object; mn_804D6BE0=saved_extra;
     mnItemSw_804D6BE8 = saved_items;
+    if (page == NativeMenuRules_Lobby) memset(lobby_values, 0, sizeof(lobby_values));
     current_page=page; animated_tick=0;
 }
 void nativeMenuRules_Load(MnMenuAssets* assets,GameRules* rules,struct GamePrefs* prefs)
@@ -116,15 +149,18 @@ void nativeMenuRules_Draw(NativeMenuRulesPage page,unsigned selected,unsigned va
         HSD_GObj* saved_extra=mn_804D6BE0;
         mn_804A04F0.cur_menu=extra?MENU_KIND_RULES_EXTRA:MENU_KIND_RULES; mn_804A04F0.hovered_selection=selected<(extra?6:7)?selected:0;
         mn_804A04F0.confirmed_selection=value;
+        mn_804A04F0.buttons=adjustment_button;
+        adjustment_button=0;
         mn_804D6BD0=object;
         mn_804D6BE0=object;
         if (extra) fn_80232F44(object); else fn_802309F0(object);
+        if (selected < 5) align_arrows(selected);
         mn_804A04F0=saved; mn_804D6BD0=saved_object; mn_804D6BE0=saved_extra;
         animated_tick=tick;
     }
     if (extra) {
         MenuRulesPlusData* data=object->user_data;
-        unsigned label=7; HSD_JObjSetFlags(joint_at(data->cursors[5],&label),JOBJ_HIDDEN);
+        HSD_JObjSetFlagsAll(data->cursors[5], JOBJ_HIDDEN);
     }
     if (page == NativeMenuRules_Match) {
         struct mn_802307F8_t* data = object->user_data;
@@ -132,7 +168,8 @@ void nativeMenuRules_Draw(NativeMenuRulesPage page,unsigned selected,unsigned va
     }
     if (page==NativeMenuRules_Lobby) {
         struct mn_802307F8_t* data=object->user_data;
-        for (unsigned i=0;i<7;++i) {
+        HSD_JObjSetFlagsAll(data->cursors[6], JOBJ_HIDDEN);
+        for (unsigned i=0;i<6;++i) {
             unsigned label=7; HSD_JObjSetFlags(joint_at(data->cursors[i],&label),JOBJ_HIDDEN);
             if (i>=5) { unsigned arrow=8; HSD_JObjSetFlagsAll(joint_at(data->cursors[i],&arrow),JOBJ_HIDDEN); }
             if (i<5) HSD_JObjSetFlagsAll(data->x34[i].joints[0],JOBJ_HIDDEN);
@@ -141,6 +178,13 @@ void nativeMenuRules_Draw(NativeMenuRulesPage page,unsigned selected,unsigned va
     Mtx view; HSD_CObjGetViewingMtx(HSD_CObjGetCurrent(),view);
     HSD_StateInvalidate(-1); HSD_StateInitTev(); HSD_ClearVtxDesc();
     HSD_JObjDispAll(object->hsd_obj,view,HSD_TRSP_ALL,0);
+}
+
+void nativeMenuRules_AnimateAdjustment(int direction)
+{
+    // fn_802309F0 and fn_80232F44 select the stock left/right animation from
+    // the same directional bits used by the original Rules input handlers.
+    adjustment_button = direction < 0 ? 4 : 8;
 }
 static bool mesh_bounds(HSD_JObj* body,NativeMenuRuleBounds* bounds)
 {
@@ -188,13 +232,59 @@ void nativeMenuRules_Label(unsigned row,const char* text,bool selected)
     unsigned index=7; HSD_JObj* root=cursor(row);
     NativeMenuRuleBounds b;
     if (!root || !mesh_bounds(joint_at(root,&index),&b)) return;
-    nativeMenuPaint_Text(text,b.x,b.y+b.h*.12f,b.w,b.h*.75f,
-                         selected?0x130E11FF:0xA7A0ABFF,NativeMenuFont_MenuOption,false,false);
+    nativeMenuPaint_Text(text, b.x, b.y + b.h * .11f, b.w, b.h * .75f,
+                         selected ? 0x070605FF : 0x696668FF,
+                         NativeMenuFont_MenuOption, false, false);
 }
 
-void nativeMenuRules_Value(unsigned row,const char* text)
+void nativeMenuRules_AnimateLobbyValue(unsigned row, int direction)
+{
+    if (row < 6) lobby_values[row].next_direction = direction < 0 ? -1 : 1;
+}
+
+void nativeMenuRules_Value(unsigned row, const char* const* values,
+                           unsigned count, unsigned value)
 {
     NativeMenuRuleBounds b;
-    if (!nativeMenuRules_Bounds(row,&b)) return;
-    nativeMenuPaint_Text(text,b.x+b.w*.54f,b.y+b.h*.18f,b.w*.4f,b.h*.62f,0xFFFFFFFF,NativeMenuFont_MenuOption,true,false);
+    if (row >= 6 || value >= count || !nativeMenuRules_Bounds(row, &b)) return;
+    const float left = b.x + b.w * .532f;
+    const float width = b.w * .401f;
+    const float baseline = b.y + b.h * .18f;
+    const float height = b.h * .62f;
+    if (count == 1) {
+        nativeMenuPaint_Text(values[value], left + 4, baseline, width - 8, height,
+                             0xFFFFFFFF, NativeMenuFont_MenuOption, true, false);
+        return;
+    }
+
+    struct LobbyValueMotion* motion = &lobby_values[row];
+    const Uint64 now = SDL_GetTicksNS();
+    if (!motion->initialized) {
+        motion->initialized = true;
+        motion->value = value;
+    } else if (motion->value != value) {
+        motion->begin = now;
+        motion->direction = motion->next_direction ? motion->next_direction
+            : (motion->value + 1) % count == value ? 1 : -1;
+        motion->next_direction = 0;
+        motion->value = value;
+    }
+    const float progress = motion->begin
+        ? fminf(1, (now - motion->begin) / 133333333.0f) : 1;
+    const float remainder = (1 - progress) * (1 - progress);
+    const float shift = motion->direction * remainder;
+    const float spacing = width * .48f;
+    const float center = left + width * .5f;
+    nativeMenuFont_Clip(left + 4, left + width - 4, width * .13f);
+    for (int offset = -2; offset <= 2; ++offset) {
+        const float lane = offset + shift;
+        if (fabsf(lane) > 1.5f) continue;
+        const unsigned option = (value + count * 2 + offset) % count;
+        const unsigned luminosity = (unsigned)(255 - 185 * fminf(1, fabsf(lane)));
+        const uint32_t color = (luminosity * 0x010101U << 8) | 0xFF;
+        nativeMenuPaint_Text(values[option], center + lane * spacing - spacing * .46f,
+                             baseline, spacing * .92f, height, color,
+                             NativeMenuFont_MenuOption, true, false);
+    }
+    nativeMenuFont_Clip(0, 0, 0);
 }

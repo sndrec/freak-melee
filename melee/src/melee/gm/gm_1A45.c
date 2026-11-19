@@ -8,6 +8,7 @@
 #include "native_feedback.h"
 
 #include "gm_1A36.h"
+#include "gm_1884.h"
 #include "gm_1A45.static.h"
 #include "gm_unsplit.h"
 #include "gmmain.h"
@@ -44,6 +45,7 @@
 #include <melee/db/dbnativecontrol.h>
 #include <melee/ui/native_shell.h>
 #include <melee/ui/native_hub.h>
+#include <melee/ui/native_chat.h>
 #include <melee/if/ifcoget.h>
 #include <melee/lb/lb_013B.h>
 #include <melee/lb/lb_0195.h>
@@ -487,6 +489,7 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (gmMain_ExitRequested) {
                 break;
             }
+            nativeChat_Update();
             nativeFeedback_Update();
             if (nativeFeedback_PausesSimulation()) {
                 // Annotation owns the event loop. Rendering the retained
@@ -609,7 +612,19 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
             if (temp_r25->unk_10.pre_gobj_proc != NULL) {
                 temp_r25->unk_10.pre_gobj_proc();
             }
+            // The training menu owns its port for this update. Restore the
+            // physical sample before the next poll computes edges and repeat.
+            const int training_port = !rollback_active && nativeHome_IsPractice()
+                                          ? gmTraining_LocalInputPort() : -1;
+            HSD_PadStatus physical_pad;
+            if (training_port >= 0) {
+                physical_pad = HSD_PadGameStatus[training_port];
+                HSD_PadGameStatus[training_port] = (HSD_PadStatus){ .err = physical_pad.err };
+            }
             HSD_GObj_80390CFC();
+            if (training_port >= 0) {
+                HSD_PadGameStatus[training_port] = physical_pad;
+            }
             if (temp_r25->unk_0 != -2) {
                 temp_r25->unk_0++;
             }

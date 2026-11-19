@@ -67,10 +67,11 @@ void cancel()
     if (invalid_count < 128) std::snprintf(invalid[invalid_count++], sizeof(invalid[0]), "%s", active.delivery_id);
     active = {}; dismissed = read_news = false; scan_needed = true;
 }
-bool show(const NativeAnnouncement* entries, unsigned count, uint64_t now)
+bool show(const NativeAnnouncement* entries, unsigned count, uint64_t now, uint64_t started_at)
 {
     for (unsigned i = 0; i < count; ++i) {
         const auto& entry = entries[i];
+        if (entry.published_at < started_at) break; // The feed and its pages are ordered newest first.
         if ((entry.expires_at && entry.expires_at <= now) || rejected(entry.delivery_id) || seen(entry.delivery_id)) continue;
         NativeHubNoticeOptions options;
         options.id = entry.delivery_id; options.action = *entry.news_id ? "Read news" : nullptr;
@@ -88,7 +89,7 @@ void nativeHubAnnouncements_Init(const char* root)
 
 void nativeHubAnnouncements_Tick(const NativeCommunityView& community)
 {
-    if (!*seen_path || nativeFeedback_IsOpen()) return;
+    if (!*seen_path || !community.session_started_at || nativeFeedback_IsOpen()) return;
     const uint64_t now = uint64_t(std::time(nullptr)) * 1000, clock = SDL_GetTicks();
     if (feed_revision != community.feed_revision) {
         feed_revision = community.feed_revision;
@@ -131,10 +132,17 @@ void nativeHubAnnouncements_Tick(const NativeCommunityView& community)
         }
     }
     if (!scan_needed || clock < retry_at || community.announcement_busy || !convenient() || !community.feed.available) return;
-    if (show(community.feed.announcements, community.feed.count, now)) return;
+    const uint64_t started_at = community.session_started_at;
+    if (show(community.feed.announcements, community.feed.count, now, started_at)) return;
+    if (community.feed.count && community.feed.announcements[community.feed.count - 1].published_at < started_at) {
+        scan_needed = false;
+        return;
+    }
     if (page_ready) {
-        if (show(community.notices.entries, community.notices.count, now)) return;
+        if (show(community.notices.entries, community.notices.count, now, started_at)) return;
         std::snprintf(next_page, sizeof(next_page), "%s", community.notices.next);
+        if (community.notices.count && community.notices.entries[community.notices.count - 1].published_at < started_at)
+            *next_page = 0;
         page_ready = false;
     }
     if (*next_page && !page_pending && clock >= retry_at && !community.announcement_busy &&

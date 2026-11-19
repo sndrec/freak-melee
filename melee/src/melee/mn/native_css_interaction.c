@@ -1,6 +1,7 @@
 #include "native_css_interaction.h"
 #include "native_css_original.h"
 #include "native_css_cards.h"
+#include "native_css_remote.h"
 #include "mncharsel.h"
 #include "inlines.h"
 #include <melee/ft/native_costume_catalog.h>
@@ -44,17 +45,37 @@ static struct {
 void nativeCssInteraction_DrawLocalCursor(HSD_GObj* object, int pass)
 {
     const CSSCursorData* hand = HSD_GObjGetUserData(object);
+    const bool remote_lobby = nativeOnlineSession_Presence() && !nativeOnlineSession_Quick();
+    const bool spectator = remote_lobby && nativeOnlineSession_LocalPlayers() == 0;
     if (!nativeHub_IsVisible() && selection.doors && hand->x4 < 4 &&
-        selection.doors->doors[hand->x4].p_kind == Gm_PKind_Human)
-        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
+        (selection.doors->doors[hand->x4].p_kind == Gm_PKind_Human ||
+         (spectator && hand->x4 == 0))) {
+        HSD_JObj* root = object->hsd_obj;
+        HSD_JObj* number = NULL;
+        if (remote_lobby && !nativeCssCards_HasLocalCard(hand->x4))
+            lb_80011E24(root, &number, 3, -1);
+        const bool restore = number && !(number->flags & JOBJ_HIDDEN);
+        if (restore) HSD_JObjSetFlags(number, JOBJ_HIDDEN);
+        HSD_JObjDispAll(root, NULL, HSD_GObj_80390EB8(pass), 0);
+        if (restore) HSD_JObjClearFlags(number, JOBJ_HIDDEN);
+    }
 }
 
 void nativeCssInteraction_DrawLocalToken(HSD_GObj* object, int pass)
 {
     const CSSCharModel* token = HSD_GObjGetUserData(object);
     if (!nativeHub_IsVisible() && selection.doors && token->x4 < 4 &&
-        selection.doors->doors[token->x4].p_kind != Gm_PKind_NA)
-        HSD_JObjDispAll(object->hsd_obj, NULL, HSD_GObj_80390EB8(pass), 0);
+        selection.doors->doors[token->x4].p_kind != Gm_PKind_NA) {
+        HSD_JObj* root = object->hsd_obj;
+        HSD_JObj* number = NULL;
+        if (nativeCssCards_Active() && !nativeOnlineSession_Quick() &&
+            !nativeCssCards_HasLocalCard(token->x4))
+            lb_80011E24(root, &number, 4, -1);
+        const bool restore = number && !(number->flags & JOBJ_HIDDEN);
+        if (restore) HSD_JObjSetFlags(number, JOBJ_HIDDEN);
+        HSD_JObjDispAll(root, NULL, HSD_GObj_80390EB8(pass), 0);
+        if (restore) HSD_JObjClearFlags(number, JOBJ_HIDDEN);
+    }
 }
 
 void nativeCssInteraction_EnablePointer(bool enabled)
@@ -183,7 +204,9 @@ static u32 pointer_frame(CSSCursorData* hand)
 void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
                                 CSSCursorData** hands, CSSCharModel** cookies,
                                 CSSIcon* icons, HSD_JObj* menu,
-                                const StaticModelDesc* source)
+                                const StaticModelDesc* source,
+                                const StaticModelDesc* hand_art,
+                                const StaticModelDesc* token_art)
 {
     nativeCostumeCatalog_Refresh();
     selection.css = css;
@@ -192,6 +215,7 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
     selection.cookies = cookies;
     selection.icons = icons;
     nativeCssCards_Begin(css, doors, menu, source);
+    nativeCssRemote_Begin(hand_art, token_art);
     for (unsigned port = 0; port < 4; ++port) {
         CSSCursorData* hand = hands[port];
         CSSCharModel* cookie = cookies[port];
@@ -215,13 +239,64 @@ void nativeCssInteraction_Begin(CSSData* css, CSSDoorsData* doors,
 }
 void nativeCssInteraction_End(void)
 {
+    nativeCssRemote_End();
     nativeCssCards_End();
     memset(&selection, 0, sizeof(selection));
+}
+
+void nativeCssInteraction_PublishPointers(void)
+{
+    if (!selection.css || !nativeOnlineSession_Presence() ||
+        nativeOnlineSession_Quick()) return;
+    NativeCssPointers frame = { 0 };
+    if (!nativeHub_IsVisible()) {
+        float left, right, top, bottom;
+        nativeCssOriginal_Viewport(&left, &right, &top, &bottom);
+        const unsigned local_players = nativeOnlineSession_LocalPlayers();
+        for (unsigned port = 0, seat = 0; port < 4; ++port) {
+            if (local_players ? selection.doors->doors[port].p_kind != Gm_PKind_Human
+                              : port != 0) continue;
+            if (local_players && seat >= local_players) break;
+            unsigned slot = seat++;
+            if (HSD_PadCopyStatus[port].err && !nativeCssInteraction_PointerPort(port))
+                continue;
+            const CSSCursorData* hand = selection.hands[port];
+            const long x = lroundf((hand->xC - left) / (right - left) *
+                                   NATIVE_CSS_POINTER_UNITS);
+            const long y = lroundf((top - hand->x10) / (top - bottom) *
+                                   NATIVE_CSS_POINTER_UNITS);
+            frame.point[slot][0] = x < -1024 ? -1024 : x > 17408 ? 17408 : x;
+            frame.point[slot][1] = y < 0 ? 0 : y > 16384 ? 16384 : y;
+            frame.visible |= 1u << slot;
+            if (local_players && hand->x5 == 1 && hand->x6 == port)
+                frame.held |= 1u << slot;
+        }
+    }
+    nativeCssRemote_Publish(&frame);
 }
 static bool chosen(unsigned port)
 {
     return nativeHome_FighterPackage(port) ||
            selection.css->vs.start.players[port].ckind < CKind_Playable_Count;
+}
+
+int nativeCssInteraction_WaitingSeats(void)
+{
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    if (!selection.css || !presence || nativeOnlineSession_Quick()) return -1;
+    if (presence->rotation_policy == NativeRoomRotation_Manual) return 0;
+    unsigned active = nativeOnlineSession_LocalActiveSeats(), seat = 0, waiting = 0;
+    for (unsigned port = 0; port < 4; ++port) {
+        if (selection.css->vs.start.players[port].slot_type != Gm_PKind_Human)
+            continue;
+        const unsigned bit = 1u << seat++;
+        const CSSCharModel* token = selection.cookies[port];
+        NativeCssTile tile;
+        if (!(active & bit) && !token->x5 && chosen(port) &&
+            nativeCssOriginal_HitTestTile(token->x8, token->xC, &tile))
+            waiting |= bit;
+    }
+    return (int)waiting;
 }
 static void grab(CSSCursorData* hand, unsigned slot)
 {
@@ -354,7 +429,9 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
     unsigned kind = selection.doors->doors[port].p_kind;
     bool joining_local = kind == Gm_PKind_NA &&
                          nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
-    if (kind != Gm_PKind_Human && !joining_local) {
+    const bool watching = port == 0 && nativeOnlineSession_Presence() &&
+        !nativeOnlineSession_Quick() && !nativeOnlineSession_LocalPlayers();
+    if (kind != Gm_PKind_Human && !joining_local && !watching) {
         *menu_trigger = 0;
         return true;
     }
@@ -372,6 +449,7 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         nativePlayMenu_Hand(hand->xC, hand->x10, trigger)) {
         return true;
     }
+    if (watching) return true;
     if (selection.carrying[port]) {
         nativeCssCards_Carry(port, &selection.carried[port], hand->xC,
                              hand->x10);
@@ -400,7 +478,7 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         return true;
     }
     if ((trigger & PAD_BUTTON_A) &&
-        nativeCssCards_CycleSeat(hand->xC, hand->x10)) return true;
+        nativeCssCards_ChangeSeat(hand->xC, hand->x10, port)) return true;
     if ((trigger & (PAD_BUTTON_X | PAD_BUTTON_Y)) &&
         cycle_outfit(port, (trigger & PAD_BUTTON_X) == 0)) return true;
     if (hand->x5 == 1 && hand->x6 >= 4) {
@@ -506,6 +584,8 @@ void nativeCssInteraction_Cookie(CSSCharModel* cookie, HSD_JObj* joint)
         color = team_colors[selection.doors->doors[slot].team % 3] +
                 (selection.doors->doors[slot].p_kind == Gm_PKind_Cpu ? 4 : 0);
     }
+    if (nativeCssCards_Active() && !nativeOnlineSession_Quick() &&
+        !nativeCssCards_HasLocalCard(slot)) color = 8;
     ++cookie->x7;
     if (cookie->x6 != color || cookie->x7 >= 40) {
         HSD_JObj* child;

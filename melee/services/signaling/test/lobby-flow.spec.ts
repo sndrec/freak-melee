@@ -181,7 +181,7 @@ describe("shared lobby rules and stage flow",()=>{
       game.clients[0].socket.send(encodeSetMatch(proposal,16384));
       await expect.poll(async()=>(await presence(game)).match?.length).toBe(proposal.length);
       room=await presence(game);
-      game.clients[0].socket.send(encodeReportMatch(room.matchEpoch,game.clients[0].peerId,0,true,1,16384));
+      game.clients[0].socket.send(encodeReportMatch(room.matchEpoch,1,1,16384));
       await expect.poll(async()=>(await presence(game)).match).toBeNull();
       expect((await presence(game)).participants.every(p=>!(p.selection[6]&1))).toBe(true);
       expect((await stored(game)).phase).toBe(0);
@@ -190,7 +190,8 @@ describe("shared lobby rules and stage flow",()=>{
 
   it("ignores waiting/spectating selections and rotates Turns in canonical order",()=>{
     const people: Participant[]=[0,1,2].map(i=>({peerId:`player_${i}`,accountId:"",accountHandle:"",name:"Player",build:"test",
-      localPlayers:2,activeMask:i===2?0:3,waitingMask:i===2?3:0,ready:false,selection:choices(2),joinOrder:i,waitingRanks:[0,0,0,0]}));
+      localPlayers:2,activeMask:i===2?0:3,cardSlots:i===2?[255,255,255,255]:[i*2,i*2+1,255,255],
+      waitingMask:i===2?3:0,ready:false,selection:choices(2),joinOrder:i,waitingRanks:[0,0,0,0]}));
     const initial=lobbyReadySignature(people,rules);expect(initial).toBeTruthy();
     people[2].selection=new Uint8Array();expect(lobbyReadySignature(people,rules)).toBe(initial);
     expect(lobbyStageChooser(people,{peerId:"player_1",seat:1})).toEqual({peerId:"player_1",seat:1});

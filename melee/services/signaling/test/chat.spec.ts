@@ -143,7 +143,8 @@ describe("global chat", () => {
     a.socket.close(); b.socket.close();
   });
 
-  it("keeps only the last 64 messages, with monotonic IDs", async () => {
+  it("keeps only the last 16 messages, with monotonic IDs", async () => {
+    expect(CHAT_HISTORY).toBe(16);
     const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
     const a = await connect(stub, firstPeer);
     await a.next(0x82);

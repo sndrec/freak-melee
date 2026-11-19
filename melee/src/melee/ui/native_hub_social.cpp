@@ -261,12 +261,16 @@ void nativeHubSocial_Render(NativeHubPage page)
         const bool self = !std::strcmp(account.id, social.profile.id);
         const char* state = social.relationship;
         nativeHub_Button("profile-letter", "Write a letter", 194, 307, 187, 30, HubAction::WriteLetter, 0, true, enabled && !self && !social.profile_blocked);
+        const bool friends = !std::strcmp(state, "friend");
+        if (friends) {
+            nativeHub_Button("profile-invite", can_create() ? "Create & invite" : "Invite to lobby", 395, 307, 189, 30,
+                HubAction::SendInvitation, 0, true, enabled && !self && !social.profile_blocked && (can_invite(account) || can_create()));
+        }
         nativeHub_Button("profile-friend", !std::strcmp(state, "incoming") ? "Accept friend request" : !std::strcmp(state, "outgoing") ? "Cancel friend request" :
-            !std::strcmp(state, "friend") ? "Remove friend" : "Add friend", 395, 307, 189, 30, HubAction::SocialFriend, 0, false, enabled && !self && !social.profile_blocked);
+            friends ? "Remove friend" : "Add friend", 395, friends ? 354 : 307, 189, friends ? 25 : 30,
+            HubAction::SocialFriend, 0, false, enabled && !self && !social.profile_blocked);
         nativeHub_Button("profile-block", social.profile_blocked ? "Unblock player" : "Block player", 194, 354, 187, 25,
             HubAction::SocialBlock, 0, false, enabled && !self);
-        nativeHub_Button("profile-invite", can_create() ? "Create & invite" : "Invite to lobby", 395, 354, 189, 25,
-            HubAction::SendInvitation, 0, true, enabled && !self && !social.profile_blocked && !std::strcmp(state, "friend") && (can_invite(account) || can_create()));
         return;
     }
     if (page == NativeHubPage_Letter) {

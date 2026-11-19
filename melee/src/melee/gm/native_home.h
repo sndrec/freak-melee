@@ -16,7 +16,7 @@ extern "C" {
 
 bool nativeHome_IsSelection(void);
 bool nativeHome_IsPractice(void);
-void nativeHome_RequestPracticeStageSelect(void);
+bool nativeHome_BeginPracticeStageSelect(void);
 bool nativeHome_PracticeStageSelect(void);
 void nativeHome_EndPracticeStageSelect(unsigned stage);
 bool nativeHome_IsReady(void);

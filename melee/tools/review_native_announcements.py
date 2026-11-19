@@ -81,6 +81,9 @@ def main():
         wait_for(client, "hub-news", "headline=Announcement article")
         seen = client.data/"content/seen-announcements.txt"
         seen.write_text("".join(n["delivery_id"]+"\n" for i,n in enumerate(notices) if i not in (64,129)))
+        sent_at = int(time.time()*1000)
+        for notice, key in zip(notices, sorted((n["id"] for n in notices), reverse=True)):
+            notice.update(id=key, published_at=sent_at)
         state["enabled"] = True
         wait_for(client, "hub-notice", "title=Notice 64")
         assert state["pages"], "No older announcement page requested"
@@ -107,7 +110,7 @@ def main():
         checks.append("formatted article with clickable web link")
         # A new delivery appears once; expiry removes an already-visible notice.
         expiring = {**notices[0], "delivery_id": str(uuid4()), "title": "Expires soon",
-                    "published_at": now+1, "expires_at": int(time.time()*1000)+45000}
+                    "published_at": int(time.time()*1000), "expires_at": int(time.time()*1000)+45000}
         notices.insert(0, expiring)
         wait_for(client, "hub-notice", "title=Expires soon", timeout=40)
         wait_for(client, "hub-notice", "count=0", timeout=50)

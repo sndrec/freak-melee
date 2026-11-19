@@ -39,10 +39,6 @@ bool nativeLobbySession_BeginMatch(NativeLobbySession* session,
                                    uint8_t artificial_delay_frames);
 bool nativeLobbySession_UpdateParticipant(NativeLobbySession* session,
                                           const NativeSignalingUpdate* update);
-bool nativeLobbySession_AssignSeats(NativeLobbySession* session,
-                                    const char* peer_id,
-                                    uint8_t active_mask,
-                                    uint8_t waiting_mask);
 const NativeSignalingPresence*
 nativeLobbySession_Presence(const NativeLobbySession* session);
 const char* nativeLobbySession_Failure(const NativeLobbySession* session);

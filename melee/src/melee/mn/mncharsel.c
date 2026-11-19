@@ -1957,6 +1957,7 @@ void fn_8025F0E0(HSD_GObj* gobj)
     HSD_JObjAnimAll(jobj);
 #ifdef MELEE_NATIVE
     nativeCssCards_Update();
+    nativeCssInteraction_PublishPointers();
 #endif
     PAD_STACK(28);
 }
@@ -2545,10 +2546,13 @@ void mnCharSel_CursorThink(HSD_GObj* gobj)
 #ifdef MELEE_NATIVE
                 if (nativeHome_IsSelection()) {
                     nativeCssOriginal_Viewport(&left, &right, &top, &bottom);
-                    left += 1;
-                right -= 1;
-                top -= 1;
-                bottom += 1;
+                    // The point of the hand can reach the full card tab at
+                    // the screen edge while the rest of its art is clipped.
+                    float margin = nativeCssCards_Active() ? -1.5f : 1.0f;
+                    left += margin;
+                    right -= margin;
+                    top -= 1;
+                    bottom += 1;
                 }
 #endif
                 if (top < cursor->x10) {
@@ -4320,6 +4324,8 @@ s32 mnCharSel_802640A0(void)
     u8 match_type = mnCharSel_804D6CB0->match_type;
 
 #ifdef MELEE_NATIVE
+    HSD_Text* stock_rules_text = NULL;
+    HSD_Text* lobby_rules_text = NULL;
     if (nativeHome_IsSelection()) {
         nativeCssOriginal_RestoreBounds(icons);
     }
@@ -5290,6 +5296,26 @@ s32 mnCharSel_802640A0(void)
         text->font_size.y = 0.07f;
         HSD_SisLib_803A6368(text, 0x4A);
         mnCharSel_8025BD30();
+#ifdef MELEE_NATIVE
+        if (nativeHome_IsSelection()) {
+            stock_rules_text = text;
+            lobby_rules_text = HSD_SisLib_803A6754(0, ctx);
+            // SIS's static caption carries an authored layout offset. A
+            // centered dynamic entry uses the middle of the banner itself.
+            lobby_rules_text->pos_x = 4.0f;
+            lobby_rules_text->pos_y = text->pos_y;
+            lobby_rules_text->pos_z = text->pos_z;
+            lobby_rules_text->box_size_x = text->box_size_x;
+            lobby_rules_text->box_size_y = text->box_size_y;
+            lobby_rules_text->default_alignment = text->default_alignment;
+            lobby_rules_text->default_kerning = text->default_kerning;
+            lobby_rules_text->default_fitting = text->default_fitting;
+            lobby_rules_text->font_size = text->font_size;
+            lobby_rules_text->text_color = text->text_color;
+            lobby_rules_text->hidden = true;
+            HSD_SisLib_803A6B98(lobby_rules_text, 0, 0, "%s", "");
+        }
+#endif
         mt = mnCharSel_804D6CB0->match_type;
         if ((s32) mt < 3) {
             if ((s32) mt == 0) {
@@ -5446,7 +5472,9 @@ s32 mnCharSel_802640A0(void)
     if (nativeHome_IsSelection()) {
         nativeCssInteraction_Begin(mnCharSel_804D6CB0, &mnCharSel_803F0DFC,
             mnCharSel_804A0BC0, mnCharSel_804A0BD0, icons,
-            mnCharSel_804D6CC0, &css_models->menu);
+            mnCharSel_804D6CC0, &css_models->menu, &css_models->hand,
+            &css_models->token);
+        nativeCssCards_SetRulesText(stock_rules_text, lobby_rules_text);
     }
 #endif
     PAD_STACK(0x20);

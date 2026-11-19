@@ -9,7 +9,7 @@ struct NativeNewsHeadline {
 };
 struct NativeAnnouncement {
     char id[37], delivery_id[37], title[481], body[1521], news_id[37];
-    uint64_t expires_at;
+    uint64_t published_at, expires_at;
 };
 struct NativeAnnouncementPage {
     NativeAnnouncement entries[64];
@@ -48,6 +48,7 @@ struct NativeCommunityView {
     NativeNewsArticle article;
     NativeAnnouncementPage notices;
     NativeAnnouncementCheck notice;
+    uint64_t session_started_at;
     unsigned revision, feed_revision;
     bool busy;
     bool announcement_busy;

@@ -88,6 +88,7 @@ class Client:
         user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
         user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
                                        ctypes.c_int, ctypes.c_int, wintypes.UINT]
+        user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
         user32.EnumWindows.argtypes = [callback, wintypes.LPARAM]
         resized, errors = [], []
         @callback
@@ -108,6 +109,10 @@ class Client:
             raise ctypes.WinError(errors[0])
         if not resized:
             raise RuntimeError('Test client has no window to resize')
+        rect = wintypes.RECT()
+        if not user32.GetClientRect(resized[0], ctypes.byref(rect)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        self.size = rect.right - rect.left, rect.bottom - rect.top
 
     def command(self, *parts):
         if self.process.poll() is not None:
@@ -123,7 +128,7 @@ class Client:
             with self.stderr.open('r', encoding='utf-8', errors='replace') as file:
                 file.seek(start)
                 text = file.read()
-            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|hub-lobbies|hub-account|hub-social|ui-inspect|play-menu|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback)\]', text):
+            if re.search(r'\[(?:css-cards|css-selection|hub-inspect|hub-lobbies|hub-account|hub-social|ui-inspect|play-menu|practice-state|quick-play|stadium-state|netplay-state|costume-player|sss-state|room-state|watch-playback|global-chat)\]', text):
                 return text
             if self.process.poll() is not None:
                 raise RuntimeError(f'Client exited {self.process.returncode}')
