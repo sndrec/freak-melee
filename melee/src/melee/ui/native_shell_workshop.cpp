@@ -703,7 +703,12 @@ bool nativeShellWorkshop_RequestPreview(bool live, NativeAuthoring::Reply* outpu
 
 bool nativeShellWorkshop_StopTest(NativeAuthoring::Reply& report)
 {
-    if (!opened || !testing || !nativeHome_ReturnToWorkshopPreview()) {
+    const bool returning = opened && testing &&
+        (nativeHome_IsSelection()
+            ? requested_preview.valid &&
+                nativeHome_RequestAuthoringPractice(&requested_preview.id, false)
+            : nativeHome_ReturnToWorkshopPreview());
+    if (!returning) {
         report.fail("practice_unavailable", "Wait for this Workshop's practice test before returning to the editor."); return false;
     }
     testing = false; preview_loading = true;
@@ -800,20 +805,12 @@ class WorkshopEvents final : public Rml::EventListener {
                 event.StopPropagation();
             } else if (key == Rml::Input::KI_ESCAPE && opened) {
                 if (testing) {
-                    if (!nativeHome_ReturnToWorkshopPreview()) {
-                        status("workshop-editor-status",
-                               "Wait for live practice before returning to the editor.");
-                        event.StopPropagation();
-                        return;
+                    auto* owner = yyjson_mut_doc_new(nullptr);
+                    if (owner) {
+                        NativeAuthoring::Reply report(owner);
+                        nativeShellWorkshop_StopTest(report);
+                        yyjson_mut_doc_free(owner);
                     }
-                    testing = false;
-                    preview_loading = true;
-                    status("workshop-editor-status", "Returning to the draft preview...");
-                    document->GetElementById("workshop-panel")
-                        ->SetClass("testing", false);
-                    nativeShellWorkshopEditor_SetTesting(false);
-                    document->GetElementById("workshop-inspector")
-                        ->SetProperty("display", package_open ? "block" : "none");
                 } else nativeShellWorkshop_Close();
                 event.StopPropagation();
             } else if (key == Rml::Input::KI_RETURN &&
@@ -1009,6 +1006,17 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
 
 void nativeShellWorkshop_Update()
 {
+    // The standard paused-match exit can take a test back through CSS.
+    // Restore the same draft preview when that scene finishes entering.
+    if (opened && testing && requested_preview.valid && !preview_loading && nativeHome_IsSelection() &&
+        nativeHome_CanOpenWorkshop() && !nativeFeedback_IsOpen()) {
+        auto* owner = yyjson_mut_doc_new(nullptr);
+        if (owner) {
+            NativeAuthoring::Reply report(owner);
+            nativeShellWorkshop_StopTest(report);
+            yyjson_mut_doc_free(owner);
+        }
+    }
     if (opened && !testing) nativeShellWorkshopEditor_Update();
     if (opened && project_loaded) {
         if (preview_loading && !nativeHome_PracticeTransitioning()) {

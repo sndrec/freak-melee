@@ -3,6 +3,8 @@
 
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/jobj.h>
+#include <melee/gm/forward.h>
+struct GamePrefs;
 
 typedef struct MnItemSwData {
     /* 0x00 */ u8 menu_kind;
@@ -22,8 +24,10 @@ typedef struct MnItemSwData {
 /* 23453C */ void mnItemSw_8023453C(HSD_GObj*, u8, u8);
 /* 234C24 */ void fn_80234C24(HSD_GObj*);
 /* 235020 */ HSD_JObj* mnItemSw_80235020(u8, MnItemSwData*);
-/* 2351A0 */ HSD_GObj* mnItemSw_802351A0(s32);
+/* 2351A0 */ HSD_GObj* mnItemSw_802351A0(s32, const struct GamePrefs*);
 /* 2358C0 */ void mnItemSw_802358C0(void);
+u8 mnItemSw_ItemKind(unsigned row);
+void mnItemSw_UpdateVisuals(HSD_GObj* object, unsigned selected, const struct GamePrefs* prefs);
 
 extern HSD_GObj* mnItemSw_804D6BE8;
 extern u8 mnItemSw_804D6BEC;

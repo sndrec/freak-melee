@@ -6,6 +6,7 @@
 #include <dolphin/os/OSAlloc.h>
 
 struct HSD_SynthSFXNode;
+struct HSD_SfxBank;
 
 /* 4D6018 */ extern OSHeapHandle HSD_Synth_804D6018; ///< audio heap
 
@@ -31,6 +32,9 @@ struct HSD_SynthSFXNode;
 /* 3896F0 */ int HSD_SynthSFXPlayWithGroup(int, u8, u8, u8, int, int, int,
                                            f32, f32, f32, f32, f32);
 void HSD_SynthSFXKeyOff(int);
+bool HSD_SynthHasPackageSound(int id);
+void HSD_SynthPublishPackageSfxBank(const struct HSD_SfxBank* bank);
+void HSD_SynthRetirePackageSfxBank(const struct HSD_SfxBank* bank);
 /* 3899B0 */ void HSD_SynthSFXStopRange(int);
 /* 389A50 */ void HSD_SynthSFXPause(int);
 /* 389AD0 */ void HSD_SynthSFXResume(int);

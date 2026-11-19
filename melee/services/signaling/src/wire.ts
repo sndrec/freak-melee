@@ -82,7 +82,7 @@ export type ClientMessage =
   | { type: ClientMessageType.StageCursor; cursor: StageCursor }
   | { type: ClientMessageType.SetLobbyRules; rules: LobbyRules }
   | { type: ClientMessageType.RequestLobbyState }
-  | { type: ClientMessageType.SetListing; title: string; listed: boolean }
+  | { type: ClientMessageType.SetListing; title: string; listed: boolean; capacity: number; password: string | null }
   | { type: ClientMessageType.RequestLobbies; offset: number }
   | {
       type: ClientMessageType.Update;
@@ -114,7 +114,7 @@ export type ServerMessage =
   | { type: ServerMessageType.StageCursor; peerId: string; cursor: StageCursor }
   | { type: ServerMessageType.LobbyState; lobby: LobbyState }
   | { type: ServerMessageType.Lobbies; offset: number; total: number; entries: LobbyEntry[] }
-  | { type: ServerMessageType.Listing; title: string; listed: boolean }
+  | { type: ServerMessageType.Listing; title: string; listed: boolean; capacity: number; locked: boolean }
   | {
       type: ServerMessageType.Welcome;
       connectionId: string;
@@ -304,10 +304,14 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
     const rules = decodeLobbyRules(reader.bytes16()); reader.finish(); return { type, rules };
   }
   if (type === ClientMessageType.SetListing) {
-    const title = reader.string8(), listed = reader.u8(); reader.finish();
+    const title = reader.string8(), listed = reader.u8(), capacity = reader.u8(), changePassword = reader.u8();
+    const password = changePassword === 1 ? reader.string8() : null;
+    reader.finish();
     if (new TextEncoder().encode(title).length > 64 || !title.trim() || /[\x00-\x1f\x7f]/.test(title) || listed > 1)
       throw new Error("Invalid lobby listing");
-    return { type, title, listed: listed === 1 };
+    if (capacity < 2 || capacity > 4) throw new Error("Invalid fighter limit");
+    if (changePassword > 1 || (password && !validLobbyPassword(password))) throw new Error("Invalid lobby password");
+    return { type, title, listed: listed === 1, capacity, password };
   }
   if (type === ClientMessageType.RequestLobbies) {
     const offset = reader.u16(); reader.finish(); return { type, offset };
@@ -444,9 +448,9 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
     reader.finish(); return { type, lobby: { revision, phase, remainingMs, rules } };
   }
   if (type === ServerMessageType.Listing) {
-    const title = reader.string8(), listed = reader.u8(); reader.finish();
-    if (listed > 1) throw new Error("Invalid listing state");
-    return { type, title, listed: listed === 1 };
+    const title = reader.string8(), listed = reader.u8(), capacity = reader.u8(), locked = reader.u8(); reader.finish();
+    if (listed > 1 || capacity < 2 || capacity > 4 || locked > 1) throw new Error("Invalid listing state");
+    return { type, title, listed: listed === 1, capacity, locked: locked === 1 };
   }
   if (type === ServerMessageType.Lobbies) {
     const offset = reader.u16(), total = reader.u16(), count = reader.u8();
@@ -454,7 +458,8 @@ export function decodeServerMessage(message: ArrayBuffer): ServerMessage {
     const entries: LobbyEntry[] = [];
     for (let i = 0; i < count; ++i) entries.push({ code: reader.string8(), title: reader.string8(),
       host: reader.string8(), build: "", fighting: reader.u8(), waiting: reader.u8(),
-      spectating: reader.u8(), participants: reader.u8(), playing: reader.u8() !== 0 });
+      spectating: reader.u8(), participants: reader.u8(), playing: reader.u8() !== 0,
+      capacity: reader.u8(), locked: reader.u8() !== 0 });
     reader.finish(); return { type, offset, total, entries };
   }
   if (type === ServerMessageType.QuickState) {
@@ -796,17 +801,24 @@ export function encodeRequestQuick(): ArrayBuffer {
   return new Writer(ClientMessageType.RequestQuick, 8).finish();
 }
 
-export function encodeSetListing(title: string, listed: boolean): ArrayBuffer {
-  const writer = new Writer(ClientMessageType.SetListing, 80);
-  writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
+export function validLobbyPassword(password: string): boolean {
+  return /^[!-~]{1,64}$/.test(password);
+}
+export function encodeSetListing(title: string, listed: boolean, capacity = 4, password: string | null = null): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.SetListing, 144);
+  writer.string8(title); writer.u8(listed ? 1 : 0); writer.u8(capacity);
+  writer.u8(password === null ? 0 : 1);
+  if (password !== null) writer.string8(password);
+  return writer.finish();
 }
 export function encodeRequestLobbies(offset: number): ArrayBuffer {
   const writer = new Writer(ClientMessageType.RequestLobbies, 10);
   writer.u16(offset); return writer.finish();
 }
-export function encodeListing(title: string, listed: boolean): ArrayBuffer {
+export function encodeListing(title: string, listed: boolean, capacity: number, locked: boolean): ArrayBuffer {
   const writer = new Writer(ServerMessageType.Listing, 80);
-  writer.string8(title); writer.u8(listed ? 1 : 0); return writer.finish();
+  writer.string8(title); writer.u8(listed ? 1 : 0); writer.u8(capacity); writer.u8(locked ? 1 : 0);
+  return writer.finish();
 }
 function readStageCursor(reader: Reader): StageCursor {
   const epoch = reader.u64(), revision = reader.u64(), sequence = reader.u32();
@@ -851,7 +863,7 @@ export function encodeLobbyDirectory(offset: number, total: number, entries: Lob
   for (const entry of entries) {
     writer.string8(entry.code); writer.string8(entry.title); writer.string8(entry.host);
     writer.u8(entry.fighting); writer.u8(entry.waiting); writer.u8(entry.spectating);
-    writer.u8(entry.participants); writer.u8(entry.playing ? 1 : 0);
+    writer.u8(entry.participants); writer.u8(entry.playing ? 1 : 0); writer.u8(entry.capacity); writer.u8(entry.locked ? 1 : 0);
   }
   return writer.finish();
 }

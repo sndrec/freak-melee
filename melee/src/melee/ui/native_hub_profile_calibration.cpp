@@ -88,9 +88,18 @@ namespace {
             if (count>1) nativeMenuPaint_Line(points[0],points[1],points[2],points[3],1,gold);
         }
         nativeMenuPaint_Round(x+47+vx*44/32767,y+47-vy*44/32767,8,8,4,gold);
+        if (review) {
+            const float raw_x = x + 51 + s.raw[first] * (44.f / 32767);
+            const float raw_y = y + 51 - s.raw[first + 1] * (44.f / 32767);
+            constexpr uint32_t raw_color = 0xD8CCE4FF;
+            nativeMenuPaint_Line(raw_x, raw_y - 7, raw_x + 7, raw_y, 1, raw_color);
+            nativeMenuPaint_Line(raw_x + 7, raw_y, raw_x, raw_y + 7, 1, raw_color);
+            nativeMenuPaint_Line(raw_x, raw_y + 7, raw_x - 7, raw_y, 1, raw_color);
+            nativeMenuPaint_Line(raw_x - 7, raw_y, raw_x, raw_y - 7, 1, raw_color);
+        }
         nativeMenuPaint_Text(first?"C-stick":"Main stick",x-14,y+111,130,12,muted,NativeMenuFont_Notice,true);
         char value[80];
-        if (review) std::snprintf(value,80,"X %+.1f  Y %+.1f",vx*80/32767,vy*80/32767);
+        if (review) std::snprintf(value,80,"Calibrated %+.1f, %+.1f",vx*80/32767,vy*80/32767);
         else {
             unsigned directions = 0;
             for (unsigned i=first;i<first+2;++i) {

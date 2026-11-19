@@ -1720,6 +1720,11 @@ void ftColl_80078C70(Fighter_GObj* this_gobj)
                                      ((victim_fp->victim_gobj == NULL) != 0) ||
                                      !((u8) victim_fp->x221B_b5) ||
                                      (victim_fp->victim_gobj == this_gobj)) &&
+#ifdef MELEE_NATIVE
+                                    (!victim_fp->native_hitbox_lifetimes[j].exclude_grabbed ||
+                                     !victim_fp->x221B_b5 ||
+                                     victim_fp->victim_gobj != this_gobj) &&
+#endif
                                     (lbColl_8000ACFC(this_fp, temp_r23) ==
                                      false))
                                 {
@@ -2571,6 +2576,21 @@ void ftColl_8007A06C(Fighter_GObj* gobj, void* dmg_ptr, void* log, size_t idx,
             unk_count = entry->size_of_xC;
             attacker_fp = (Fighter*) entry->gobj->user_data;
             hit = entry->hit0;
+#ifdef MELEE_NATIVE
+            if (fp->ground_or_air == GA_Ground) {
+                const NativeHitboxLifetime* lifetime =
+                    nativeHitboxLifetime_ForCapsule(attacker_fp, hit);
+                if (lifetime != NULL &&
+                    lifetime->launch.mode == NativeHitboxLaunch_Follow &&
+                    lifetime->launch.follow.override_ground_knockback)
+                {
+                    stack_hit = *hit;
+                    stack_hit.x24 = lifetime->launch.follow.ground_growth;
+                    stack_hit.x2C = lifetime->launch.follow.ground_base;
+                    hit = &stack_hit;
+                }
+            }
+#endif
             kb = ftColl_80079AB0(fp, hit, unk_count, gm_8016B248(),
                                  Player_GetAttackRatio(attacker_fp->player_id),
                                  Player_GetDefenseRatio(fp->player_id),
@@ -2880,6 +2900,12 @@ void ftColl_8007A06C(Fighter_GObj* gobj, void* dmg_ptr, void* log, size_t idx,
         angle = (float) angle_int;
     }
 
+#ifdef MELEE_NATIVE
+    if (arg4 && best_entry->x0 == 1) {
+        nativeHitboxLifetime_ResolveLaunch(best_entry->gobj->user_data, fp,
+                                           best_entry->hit0, dir, &angle);
+    }
+#endif
     out->dir = dir;
     out->angle = (int) angle;
     out->hurt_height = (int) best_entry->hurt1->height;
@@ -2949,6 +2975,9 @@ void ftColl_8007A06C(Fighter_GObj* gobj, void* dmg_ptr, void* log, size_t idx,
 void ftColl_8007AB48(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
+#ifdef MELEE_NATIVE
+    fp->native_contact_launch_active = false;
+#endif
     ftColl_8007A06C(gobj, &fp->dmg.facing_dir_1, fighter_collision_state.primary, fighter_collision_state.primary_count, 1);
 }
 
@@ -2962,20 +2991,20 @@ void ftColl_8007AB80(Fighter_GObj* gobj)
 
 void ftColl_8007ABD0(HitCapsule* arg0, u32 arg1, Fighter_GObj* arg2)
 {
-    Fighter* fp;
-    float dmg;
-    float scaled_dmg;
+    ftColl_SetHitboxDamage(arg0, (float) arg1, arg2);
+}
 
-    fp = arg2->user_data;
-    dmg = (float) arg1;
+void ftColl_SetHitboxDamage(HitCapsule* hit, float damage, Fighter_GObj* gobj)
+{
+    Fighter* fp = gobj->user_data;
     if (fp->x34_scale.y != 1.0F) {
-        dmg = ftCo_CalcYScaledKnockback(dmg, fp->x34_scale.y,
-                                        Fighter_804D6524->x4);
+        damage = ftCo_CalcYScaledKnockback(damage, fp->x34_scale.y,
+                                           Fighter_804D6524->x4);
     }
-    scaled_dmg = ftCo_800DEEB8(fp, dmg);
-    arg0->unk_count = (u32) (s32) scaled_dmg;
-    arg0->damage = ft_80089228(fp, fp->x2068_attackID,
-                               (s32) fp->x206C_attack_instance, scaled_dmg);
+    float scaled = ftCo_800DEEB8(fp, damage);
+    hit->unk_count = (u32) (s32) scaled;
+    hit->damage = ft_80089228(fp, fp->x2068_attackID,
+                              (s32) fp->x206C_attack_instance, scaled);
 }
 
 bool ftColl_8007AC68(u32 kb_angle)
@@ -3001,8 +3030,9 @@ void ftColl_8007AC9C(HitCapsule* arg0, int arg1, Fighter_GObj* arg2)
     }
 }
 
-void ftColl_8007AD18(Fighter* fp, HitCapsule* arg1)
+void ftColl_8007AD18(Fighter* fp, unsigned slot)
 {
+    HitCapsule* arg1 = &fp->x914[slot];
     Vec3 sp10;
     f32 temp_f1;
 
@@ -3035,10 +3065,26 @@ void ftColl_8007AD18(Fighter* fp, HitCapsule* arg1)
         lb_8000B1CC(arg1->jobj, &sp10, &arg1->x4C);
         break;
     case HitCapsule_Disabled:
-        break;
+        return;
     default:
-        break;
+        return;
     }
+#ifdef MELEE_NATIVE
+    NativeHitboxLifetime* lifetime = &fp->native_hitbox_lifetimes[slot];
+    // The common collision tests consume a segment. An authored capsule
+    // supplies its posed second endpoint instead of the prior center.
+    if (lifetime->capsule) {
+        lifetime->previous_start = arg1->x58;
+        Vec3 end = lifetime->end_offset;
+        if (arg1->x43_b1) {
+            const float inverse_scale = 1.0f / fp->x34_scale.y;
+            end.x *= inverse_scale;
+            end.y *= inverse_scale;
+            end.z *= inverse_scale;
+        }
+        lb_8000B1CC(arg1->jobj, &end, &arg1->x58);
+    }
+#endif
 }
 
 void ftColl_8007AE80(Fighter_GObj* gobj)
@@ -3046,7 +3092,7 @@ void ftColl_8007AE80(Fighter_GObj* gobj)
     Fighter* fp = GET_FIGHTER(gobj);
     int i;
     for (i = 0; i < ARRAY_SIZE(fp->x914); i++) {
-        ftColl_8007AD18(fp, &fp->x914[i]);
+        ftColl_8007AD18(fp, i);
     }
 }
 

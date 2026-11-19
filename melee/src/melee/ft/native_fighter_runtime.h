@@ -498,6 +498,9 @@ struct NativeSourcePackage;
 // The actual selected source candidate, with owned data-only facts and arenas.
 // Native Definition is absent for these actors; no DLL-shaped substitute.
 const struct NativeSourcePackage* nativeFighterRuntime_SourcePackage(FighterKind);
+// Resolves an owned clip to its scene-local mixer ID. Returns -1 if missing
+// or if the clip loops and therefore needs a retained sound channel.
+int nativeFighterRuntime_SoundClip(FighterKind, unsigned clip, unsigned channel);
 // Immutable identity of the package that owns an active runtime fighter kind.
 // Returns NULL for an ordinary stock fighter or an unregistered kind.
 const NativeContentId* nativeFighterRuntime_PackageId(FighterKind);

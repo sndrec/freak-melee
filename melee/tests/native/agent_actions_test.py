@@ -63,6 +63,18 @@ def main():
         assert len(hitbox_kind['fields']) >= 28
         assert hitbox_kind['fields']['element']['choices'][2]['label'] == 'Electric'
         assert hitbox_kind['fields']['angle']['maximum'] == 511
+        manual_hit = next(row for row in read('events', action_id=dair)['events']
+                          if row['kind'] == 'hitbox')
+        filtered = edit('update', action_id=dair, event_id=manual_hit['event_id'],
+                        properties={'exclude_grabbed': True, 'only_hit_grabbed': False})
+        filtered = read('event', action_id=dair, event_id=filtered['event_id'])
+        assert filtered['opcode'] == 62 and filtered['properties']['launch_mode'] == 0
+        assert not filtered['properties']['timed'] and filtered['properties']['exclude_grabbed']
+        manual = edit('update', action_id=dair, event_id=filtered['event_id'],
+                      properties={'launch_mode': 1, 'launch_up': 10, 'damage': 1.55})
+        updated = read('event', action_id=dair, event_id=manual['event_id'])
+        assert updated['opcode'] == 62 and not updated['properties']['timed']
+        assert abs(updated['properties']['damage'] - 1.55) < 1e-6
         owned = edit('own_hitboxes', action_id=dair)
         assert owned['converted_hitboxes'] == 3, owned
         events = read('events', action_id=dair, limit=200)['events']
@@ -70,6 +82,9 @@ def main():
         hits = [row for row in events if row['kind'] == 'hitbox']
         assert len(hits) == 3, hits
         original = read('event', action_id=dair, event_id=hits[0]['event_id'])
+        assert original['opcode'] == 61 and original['properties']['launch_up'] == 10
+        assert original['properties']['damage'] == updated['properties']['damage']
+        assert original['properties']['exclude_grabbed']
         assert len(original['frames']) >= 4, original
         assert original['fields']['id']['readOnly'] and not original['fields']['damage']['readOnly']
         revision = call('project.inspect', target)['revision']
@@ -112,6 +127,32 @@ def main():
         duplicate = [{'event_id': fresh_hits[0], 'properties': {'damage': n}} for n in (1, 2)]
         rejected = call('actions.edit', dict(target, revision=grouped['revision'], operation='update', action_id=dair, updates=duplicate), expected=False)
         assert rejected['code'] == 'duplicate_event' and snapshot(project) == kept
+        launched = edit('update', action_id=dair, updates=[
+            {'event_id': fresh_hits[1], 'properties': {'launch_mode': 1,
+                'launch_forward': -2.5, 'launch_up': 11.75, 'launch_frames': 5.5}},
+            {'event_id': fresh_hits[2], 'properties': {'launch_mode': 2,
+                'launch_momentum': 0.875, 'launch_attraction': 0.125,
+                'launch_min_up': -0.5, 'launch_ground_angle': 77.25,
+                'launch_override_ground_knockback': True, 'launch_ground_growth': 40,
+                'launch_ground_base': 50}},
+        ])
+        for event, mode in zip(launched['updated_events'], (1, 2)):
+            value = read('event', action_id=dair, event_id=event['event_id'])
+            assert value['opcode'] == 61 and value['properties']['launch_mode'] == mode
+            assert value['frames'] == original['frames']
+            for name, expected in event['requested'].items():
+                assert value['properties'][name] == expected
+        target_event = launched['updated_events'][0]['event_id']
+        kept = snapshot(project)
+        rejected = call('actions.edit', dict(target, revision=launched['revision'],
+            operation='update', action_id=dair, event_id=target_event,
+            properties={'launch_frames': 0.5}), expected=False)
+        assert rejected['code'] in ('invalid_arguments', 'action_edit_rejected'), rejected
+        assert snapshot(project) == kept
+        restored = edit('update', action_id=dair, event_id=target_event,
+                        properties={'launch_mode': 0})
+        value = read('event', action_id=dair, event_id=restored['event_id'])
+        assert value['opcode'] == 59 and value['frames'] == original['frames']
         fighter_hash = hashlib.sha256((project / 'fighter.dat').read_bytes()).digest()
         named = edit('metadata', action_id=dair, label='Orbital kicks', hidden=True)
         metadata = read('metadata', action_id=dair)
@@ -162,13 +203,27 @@ def main():
         edit('playback', action_id=empty, loop=not empty_flags['loop'])
         assert read('metadata', action_id=empty)['loop'] != empty_flags['loop']
         edit('playback', action_id=empty, animation_flags=empty_flags['animation_flags'])
-        defaults = dict(hitbox_kind['properties'], id=0, duration=2, damage=9, angle=45, element=1)
+        defaults = dict(hitbox_kind['properties'], id=0, duration=2, damage=9.25,
+                        angle=45, element=1)
         created = edit('create', action_id=empty, frame=3, kind='hitbox', properties=defaults)
         new = read('event', action_id=empty, event_id=created['event_id'])
-        assert new['frames'] == [3] and new['properties']['duration'] == 2 and new['properties']['damage'] == 9
-        retimed = edit('timing', action_id=empty, event_id=created['event_id'], frame=5, duration=3)
+        assert new['frames'] == [3] and new['properties']['duration'] == 2
+        assert new['properties']['damage'] == 9.25 and new['properties']['launch_mode'] == 0
+        capsule = edit('update', action_id=empty, event_id=created['event_id'], properties={
+            'capsule': True, 'offset_x': 11.5, 'offset_y': 3.25, 'offset_z': -2,
+            'end_x': 11.5, 'end_y': 3.25, 'end_z': -2})
+        capsule = capsule['updated_events'][0]
+        assert capsule['properties']['capsule']
+        for axis, expected in zip('xyz', (11.5, 3.25, -2)):
+            start = capsule['properties']['offset_' + axis]
+            end = capsule['properties']['end_' + axis]
+            assert start == end and abs(end - expected) < .002
+        retimed = edit('timing', action_id=empty, event_id=capsule['event_id'], frame=5, duration=3)
         new = read('event', action_id=empty, event_id=retimed['event_id'])
         assert new['frames'] == [5] and new['properties']['duration'] == 3
+        assert new['opcode'] == 61 and new['properties']['damage'] == 9.25
+        assert new['properties']['capsule']
+        assert new['properties']['end_z'] == capsule['properties']['end_z']
         timeline = read('timeline', action_id=empty, limit=200)
         assert timeline['timeline_complete'] and timeline['occurrences'][0]['duration_end_frame'] == 8
         kept = snapshot(project)
@@ -189,10 +244,30 @@ def main():
         edit('delete', action_id=empty, event_id=visibility['event_id'])
         throw_type = next(row for row in kinds if row['kind'] == 'throw')
         assert throw_type['fields']['slot']['maximum'] == 1
+        assert throw_type['fields']['damage']['type'] == 'number'
         kept = snapshot(project)
         assert call('actions.edit', dict(target, revision=call('project.inspect', target)['revision'],
             operation='create', action_id=empty, frame=0, kind='throw', properties={'slot': 2}), expected=False)['code'] == 'action_edit_rejected'
         assert snapshot(project) == kept
+        throw = edit('create', action_id=empty, frame=0, kind='throw', properties={
+            'slot': 1, 'damage': 7.5, 'angle': 44, 'knockback_growth': 70})
+        record = read('event', action_id=empty, event_id=throw['event_id'])
+        assert record['opcode'] == 63 and record['kind'] == 'throw'
+        assert record['properties']['damage'] == 7.5 and record['properties']['angle'] == 44
+        edit('create', action_id=empty, frame=12, kind='release_throw')
+        events = read('events', action_id=empty)['events']
+        throw = next(row for row in events if row['kind'] == 'throw')
+        kept = snapshot(project)
+        assert call('actions.edit', dict(target, revision=call('project.inspect', target)['revision'],
+            operation='update', action_id=empty, event_id=throw['event_id'],
+            properties={'damage': -0.5}), expected=False)['code'] == 'action_edit_rejected'
+        assert snapshot(project) == kept
+        changed = edit('update', action_id=empty, event_id=throw['event_id'],
+                       properties={'damage': 8, 'base_knockback': 60})['updated_events'][0]
+        assert changed['opcode'] == 34 and changed['properties']['damage'] == 8
+        assert changed['properties']['base_knockback'] == 60
+        timeline = read('timeline', action_id=empty)
+        assert any(row['opcode'] == 20 and row['frame'] == 12 for row in timeline['occurrences'])
         flags = read('metadata', action_id=dair)['animation_flags']
         edit('playback', action_id=dair, loop=True, root_motion=True)
         meta = read('metadata', action_id=dair)

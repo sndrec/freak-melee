@@ -27,6 +27,14 @@ void visible(const char* id, bool show) { element(id)->SetProperty("display", sh
 void text(const char* id, const char* value) { element(id)->SetInnerRML(Rml::StringUtilities::EncodeRml(value)); }
 void position(Rml::Element* item, const char* property, float value)
 { item->SetProperty(property, std::to_string(value) + "px"); }
+bool contains(Rml::Element* item, Rml::Vector2f pointer)
+{
+    if (!item->IsVisible()) return false;
+    const auto origin = item->GetAbsoluteOffset(Rml::BoxArea::Border);
+    const auto size = item->GetBox().GetSize(Rml::BoxArea::Border);
+    const auto point = pointer - origin;
+    return point.x >= 0 && point.x < size.x && point.y >= 0 && point.y < size.y;
+}
 void layout()
 {
     const auto size = document->GetContext()->GetDimensions();
@@ -114,6 +122,16 @@ class Events final : public Rml::EventListener {
         const auto& type = event.GetType();
         auto* target = event.GetTargetElement();
         const int pin = pin_index(target);
+        if (type == "mousemove") {
+            Rml::Vector2f pointer(float(event.GetParameter<int>("mouse_x", -1)),
+                                  float(event.GetParameter<int>("mouse_y", -1)));
+            auto* header = element("feedback-header");
+            auto* status = element("feedback-status");
+            header->SetClass("faded", !modal && contains(header, pointer) &&
+                             !contains(element("feedback-exit"), pointer));
+            status->SetClass("faded", !modal && contains(status, pointer));
+            return;
+        }
         if (type == "mouseover" && !locked && !modal && selected < 0 && pin >= 0) {
             text("feedback-hover", draft->pins[pin].text);
             const auto size = document->GetContext()->GetDimensions();
@@ -157,7 +175,7 @@ bool nativeFeedbackView_Open(NativeFeedbackDraft& value)
     if (!document) {
         document = context->LoadDocument("ui/freak_feedback.rml");
         if (!document) return false;
-        for (const char* name : {"click", "mouseover", "mouseout"}) document->AddEventListener(name, &events);
+        for (const char* name : {"click", "mousemove", "mouseover", "mouseout"}) document->AddEventListener(name, &events);
     }
     draft = &value; action = NativeFeedbackAction::None; selected = -1;
     bubble_until = 0; locked = modal = discard_confirmation = retry_enabled = finished = false;
@@ -179,6 +197,8 @@ bool nativeFeedbackView_Open(NativeFeedbackDraft& value)
     old_overlay = aurora::rmlui::get_surface_overlay(); aurora::rmlui::set_surface_overlay(true);
     visible("feedback-modal", false); visible("feedback-bubble", false); visible("feedback-hover", false);
     element("feedback-bubble")->SetClass("committing", false);
+    element("feedback-header")->SetClass("faded", false);
+    element("feedback-status")->SetClass("faded", false);
     text("feedback-status", "Screenshot and gameplay context captured. Tab hides controls. Escape cancels.");
     pins(); layout(); document->Show(); document->PullToFront(); return true;
 }

@@ -10,6 +10,7 @@
 #include "fighter.h"
 #include "forward.h"
 #include "ft_0819.h"
+#include "ft_084E.h"
 #include "ft_0892.h"
 #include "ftchangeparam.h"
 #include "ftcliffcommon.h"
@@ -1259,14 +1260,5 @@ bool ft_80084CE4(Fighter* attacker, Fighter* victim)
 
 void ft_80084DB0(Fighter_GObj* gobj)
 {
-    Fighter* fp = GET_FIGHTER(gobj);
-    ftCo_DatAttrs* co_attrs = getFtAttrs(fp);
-
-    ftCommon_CheckFallFast(fp);
-    if (fp->fall_fast) {
-        ftCommon_FallFast(fp);
-    } else {
-        ftCommon_Fall(fp, co_attrs->gravity, co_attrs->terminal_velocity);
-    }
-    ftCommon_CalcSelfAccel_Drift(fp);
+    ftCommon_ApplyScaledAirDrift(GET_FIGHTER(gobj), 1.0F);
 }

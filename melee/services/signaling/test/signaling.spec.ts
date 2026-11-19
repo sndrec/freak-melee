@@ -12,6 +12,7 @@ import {
   encodeRequestPresence,
   encodeAssignSeats,
   encodeSetMatch,
+  encodeSetListing,
   encodeSetRotation,
   encodeReportMatch,
   encodePickLobbyStage,
@@ -103,6 +104,7 @@ async function connect(
   name: string,
   role: "active" | "waiting" | "spectator" | "auto",
   players: number,
+  password?: string,
 ): Promise<WebSocket> {
   const url = new URL(`https://signal.test/v1/rooms/${room}/connect`);
   url.searchParams.set("peer", peer);
@@ -114,7 +116,8 @@ async function connect(
     url.searchParams.set("waiting", String(role === "waiting" ? (1 << players) - 1 : 0));
   }
   const response = await worker.fetch(url.toString(), {
-    headers: { Upgrade: "websocket", ...guestHeaders(url.searchParams.get("peer") ?? "guest") },
+    headers: { Upgrade: "websocket", ...guestHeaders(peer),
+      ...(password ? { "X-Freak-Lobby-Password": password } : {}) },
   });
   expect(response.status).toBe(101);
   expect(response.webSocket).not.toBeNull();
@@ -124,6 +127,57 @@ async function connect(
 }
 
 describe("signaling worker", () => {
+  it("enforces a lobby's configured fighter limit when players join or switch seats", async () => {
+    const owner = await connect("CAPACITY", "cap_owner", "Owner", "active", 1);
+    await nextMessage(owner);
+    await nextMessage(owner);
+    const changed = nextMessage(owner);
+    owner.send(encodeSetListing("Two fighters", true, 2));
+    expect(await changed).toMatchObject({ type: ServerMessageType.Listing, capacity: 2 });
+    await nextMessage(owner);
+
+    const joined = nextMessage(owner);
+    const guest = await connect("CAPACITY", "cap_guest", "Guest", "auto", 2);
+    await nextMessage(guest);
+    const presence = await joined;
+    expect(presence.type).toBe(ServerMessageType.Presence);
+    if (presence.type !== ServerMessageType.Presence) throw new Error("presence expected");
+    expect(presence.snapshot.participants.find(p => p.peerId === "cap_guest"))
+      .toMatchObject({ activeMask: 1, waitingMask: 2 });
+
+    const rejected = nextMessage(owner);
+    owner.send(encodeAssignSeats("cap_guest", 3, 0, MAX_MESSAGE_BYTES));
+    expect(await rejected).toMatchObject({ type: ServerMessageType.Error,
+      message: "All fighting seats are taken" });
+    owner.close(1000, "test complete");
+    guest.close(1000, "test complete");
+  });
+
+  it("requires a lobby password for new participants and keeps it out of the listing", async () => {
+    const owner = await connect("PASSWORD", "lock_owner", "Owner", "active", 1);
+    await nextMessage(owner);
+    await nextMessage(owner);
+    const changed = nextMessage(owner);
+    owner.send(encodeSetListing("Locked lobby", true, 4, "Test-Code-83"));
+    expect(await changed).toEqual({ type: ServerMessageType.Listing, title: "Locked lobby",
+      capacity: 4, listed: true, locked: true });
+    const guestURL = "https://signal.test/v1/rooms/PASSWORD/connect?peer=lock_guest&name=Guest&build=native-test-build&players=1";
+    const headers = { Upgrade: "websocket", ...guestHeaders("lock_guest") };
+    expect((await worker.fetch(guestURL, { headers })).status).toBe(423);
+    expect((await worker.fetch(guestURL, { headers: { ...headers, "X-Freak-Lobby-Password": "Wrong" } })).status).toBe(423);
+
+    const joined = nextMessage(owner);
+    const guest = await connect("PASSWORD", "lock_guest", "Guest", "auto", 1, "Test-Code-83");
+    await joined;
+    const unlocked = nextMessage(owner);
+    owner.send(encodeSetListing("Locked lobby", true, 4, ""));
+    expect(await unlocked).toMatchObject({ type: ServerMessageType.Listing, locked: false });
+    const unlockedGuest = await connect("PASSWORD", "lock_third", "Third", "auto", 1);
+    unlockedGuest.close(1000, "test complete");
+    guest.close(1000, "test complete");
+    owner.close(1000, "test complete");
+  });
+
   it("hands lobby stage choice to the previous loser, with active-seat fallback", async () => {
     const sockets: WebSocket[] = [];
     async function join(peer: string, players: number) {
@@ -415,7 +469,7 @@ describe("signaling worker", () => {
     const rejected = nextMessage(second);
     second.send(encodeUpdate({ activeMask: 3, waitingMask: 4 }, MAX_MESSAGE_BYTES));
     expect(await rejected).toMatchObject({ type: ServerMessageType.Error,
-      message: "Only four players can fight at once" });
+      message: "All fighting seats are taken" });
 
     const proposal = new Uint8Array([0x46, 0x4d, 0x4c, 0x01]);
     const firstSeesMatch = nextMessage(first);

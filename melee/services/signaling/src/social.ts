@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { AccountError, secret, secretHash, text, type JsonObject } from "./account-protocol";
 import { isRoomId } from "./protocol";
+import { fighterGiftKey, FIGHTER_GIFT_TTL_MS } from "./fighter-gifts";
 import { DELIVERY_MS, RECEIPT_MS, SOCIAL_FRIENDS, SOCIAL_MAIL, SOCIAL_PAGE, messageId, pairName,
   requireOwner, socialHandle, socialOffset, type FriendUpdate, type MailDelivery, type SocialProfile, type SocialResult } from "./social-protocol";
 
@@ -32,10 +33,59 @@ export class SocialMailbox extends DurableObject<CloudflareBindings> {
       CREATE TABLE IF NOT EXISTS blocked (peer TEXT PRIMARY KEY, handle TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS send_budget (day INTEGER PRIMARY KEY, count INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS invitations (id TEXT PRIMARY KEY, room TEXT NOT NULL, expires INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS fighter_sends (
+        id TEXT PRIMARY KEY, peer TEXT NOT NULL, hash TEXT NOT NULL, created INTEGER NOT NULL
+      );
     `);
   }
   allows(peer: string): boolean {
     return !this.ctx.storage.sql.exec("SELECT peer FROM blocked WHERE peer=?", peer).toArray().length;
+  }
+  fighterDeliveryStatus(recipient: SocialProfile, sender: string, id: string, hash: string):
+      "ready" | "delivered" | "removed" | null {
+    requireOwner(recipient, this.ctx.id.name);
+    const prior = this.ctx.storage.sql.exec<MailRow>("SELECT * FROM mail WHERE id=?", id).toArray()[0];
+    const cutoff = Date.now() - FIGHTER_GIFT_TTL_MS;
+    if (prior) {
+      if (prior.kind !== "fighter_gift" || prior.peer !== sender) return null;
+      if (prior.deleted || prior.created < cutoff) return "removed";
+      return prior.body === hash ? "delivered" : null;
+    }
+    if (!this.allows(sender) ||
+        this.ctx.storage.sql.exec<FriendRow>("SELECT * FROM friends WHERE peer=?", sender).toArray()[0]?.state !== "friend")
+      return null;
+    const count = this.ctx.storage.sql.exec<{ count: number }>(
+      "SELECT COUNT(*) count FROM mail WHERE kind='fighter_gift' AND deleted=0 AND created>=?",
+      cutoff).one().count;
+    return count < 16 && this.count(0) < SOCIAL_MAIL ? "ready" : null;
+  }
+  reserveFighterSend(actor: SocialProfile, recipient: string, id: string, hash: string): boolean {
+    requireOwner(actor, this.ctx.id.name);
+    if (!this.allows(recipient) ||
+        this.ctx.storage.sql.exec<FriendRow>("SELECT * FROM friends WHERE peer=?", recipient).toArray()[0]?.state !== "friend")
+      return false;
+    const prior = this.ctx.storage.sql.exec<{ peer: string; hash: string }>(
+      "SELECT peer,hash FROM fighter_sends WHERE id=?", id).toArray()[0];
+    if (prior) return prior.peer === recipient && prior.hash === hash;
+    const now = Date.now();
+    const count = this.ctx.storage.sql.exec<{ count: number }>(
+      "SELECT COUNT(*) count FROM fighter_sends WHERE created>=?", now - 86_400_000).one().count;
+    if (count >= 12) return false;
+    this.ctx.storage.sql.exec("INSERT INTO fighter_sends VALUES(?,?,?,?)", id, recipient, hash, now);
+    return true;
+  }
+  receiveFighter(recipient: SocialProfile, sender: SocialProfile, id: string, title: string, hash: string) {
+    const status = this.fighterDeliveryStatus(recipient, sender.id, id, hash);
+    if (status !== "ready") return status;
+    this.insertMail(id, 0, "fighter_gift", sender, title, hash, Date.now(), true, "delivered");
+    return "delivered" as const;
+  }
+  fighterGift(recipient: SocialProfile, id: string): string | null {
+    requireOwner(recipient, this.ctx.id.name);
+    const row = this.ctx.storage.sql.exec<MailRow>(
+      "SELECT * FROM mail WHERE id=? AND folder=0 AND kind='fighter_gift' AND deleted=0 AND created>=?",
+      id, Date.now() - FIGHTER_GIFT_TTL_MS).toArray()[0];
+    return row && this.allows(row.peer) ? row.body : null;
   }
   private count(folder: number): number {
     return this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM mail WHERE folder=? AND deleted=0", folder).one().count;
@@ -44,7 +94,8 @@ export class SocialMailbox extends DurableObject<CloudflareBindings> {
     const invite = this.ctx.storage.sql.exec<{ room: string; expires: number }>("SELECT room,expires FROM invitations WHERE id=?", message.id).toArray()[0];
     return { id: message.id, folder: message.folder, kind: message.kind, peer: message.peer, handle: message.handle,
       name: message.name, title: message.title, created: message.created, unread: message.unread, status: message.status,
-      room: invite?.room ?? "", expires: invite?.expires ?? 0 };
+      room: invite?.room ?? "", expires: message.kind === "fighter_gift" ?
+        message.created + FIGHTER_GIFT_TTL_MS : invite?.expires ?? 0 };
   }
   private insertMail(id: string, folder: number, kind: string, peer: SocialProfile, title: string, body: string,
     created: number, unread: boolean, status: string): void {
@@ -93,6 +144,9 @@ export class SocialMailbox extends DurableObject<CloudflareBindings> {
   }
   private clean(): void {
     const cutoff = Date.now() - RECEIPT_MS;
+    this.ctx.storage.sql.exec("UPDATE mail SET deleted=1,body='',unread=0 WHERE kind='fighter_gift' AND created<? AND deleted=0",
+      Date.now() - FIGHTER_GIFT_TTL_MS);
+    this.ctx.storage.sql.exec("DELETE FROM fighter_sends WHERE created<?", cutoff);
     this.ctx.storage.sql.exec("DELETE FROM mail WHERE deleted=1 AND created<?", cutoff);
     this.ctx.storage.sql.exec("DELETE FROM invitations WHERE id NOT IN (SELECT id FROM mail)");
     this.ctx.storage.sql.exec("DELETE FROM received_keys WHERE created<? AND id NOT IN (SELECT id FROM mail)", cutoff);
@@ -214,10 +268,13 @@ export class SocialMailbox extends DurableObject<CloudflareBindings> {
       }
       if (route === "read" || route === "delete") {
         const id = messageId(body.id);
-        const message = this.ctx.storage.sql.exec<MailRow>("SELECT * FROM mail WHERE id=? AND deleted=0", id).toArray()[0];
-        if (!message) throw new AccountError(404, "This letter is no longer in your mailbox.");
+        const message = this.ctx.storage.sql.exec<MailRow>("SELECT * FROM mail WHERE id=?", id).toArray()[0];
+        if (!message || (message.deleted && (route === "read" || message.kind !== "fighter_gift")))
+          throw new AccountError(404, "This letter is no longer in your mailbox.");
         if (route === "delete") {
           this.ctx.storage.sql.exec("UPDATE mail SET deleted=1,body='',unread=0 WHERE id=?", id);
+          if (message.kind === "fighter_gift")
+            await this.env.FIGHTER_GIFTS.delete(fighterGiftKey(actor.id, id));
           return { ok: true };
         }
         this.ctx.storage.sql.exec("UPDATE mail SET unread=0 WHERE id=?", id);

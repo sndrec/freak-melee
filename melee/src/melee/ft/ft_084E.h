@@ -4,6 +4,7 @@
 #include <melee/ft/forward.h>
 
 /* 084E1C */ void ft_80084E1C(Fighter_GObj* gobj, float, float, float);
+void ftCommon_ApplyScaledAirDrift(Fighter* fighter, float acceleration_scale);
 /* 084EEC */ void ft_80084EEC(Fighter_GObj* gobj);
 /* 084F3C */ void ft_80084F3C(Fighter_GObj* gobj);
 /* 084FA8 */ void ft_80084FA8(Fighter_GObj* gobj);

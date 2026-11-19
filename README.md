@@ -1,8 +1,7 @@
 # Freak Melee
 
-Windows native Melee client and character-authoring workshop. The full
-Melee decompilation is the game base, with our modified Aurora as the platform
-and renderer. Ordinary fighter behavior runs as typed interpreted scripts.
+Windows native Melee client and character-authoring workshop.
+Play online VS others using your custom costumes and fighters!
 
 ![Freak Melee main menu with Chatroom selected](docs/images/main-menu-chatroom.png)
 

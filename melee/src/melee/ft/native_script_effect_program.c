@@ -1,5 +1,6 @@
 #include "native_script_effect_program.h"
 #include "native_script_binding_effect.h"
+#include "native_source_resources.h"
 #include <melee/ef/native_script_effect_actor.h>
 #include <melee/ef/efsync.h>
 #include <stdio.h>
@@ -27,10 +28,58 @@ static const EF_ModelRecipe* recipe(const NativeScriptSourceTree* tree,uint32_t 
     if(!found||!found->model_count||found->model_count>EF_MODEL_GROUP_MAX)return NULL;
     *id=(int32_t)number;return found;
 }
+
+static bool owned_model(const NativeScriptSourceTree* tree, uint32_t at,
+                        NativeScriptSourceSpan* path, uint16_t* lifetime,
+                        EF_ModelConstructorFamily* family)
+{
+    NativeScriptSourceSpan value = tree->nodes[at].value;
+    const char* text = tree->source + value.offset;
+    const char prefix[] = "\"effects/";
+    if (value.length <= sizeof(prefix) ||
+        memcmp(text, prefix, sizeof(prefix) - 1) != 0)
+        return false;
+
+    uint32_t end = sizeof(prefix) - 1;
+    while (end < value.length && text[end] != '"') ++end;
+    if (end < sizeof(prefix) + 4 || end >= value.length ||
+        end > NATIVE_SOURCE_RESOURCE_NAME_BYTES ||
+        memcmp(text + end - 4, ".dat", 4) != 0)
+        return false;
+    uint32_t digits = end + 1;
+    if (digits == value.length || text[digits] != ' ') return false;
+    while (digits < value.length && text[digits] == ' ') ++digits;
+    unsigned ticks = 0;
+    uint32_t tail = digits;
+    while (tail < value.length && text[tail] >= '0' && text[tail] <= '9') {
+        ticks = 10 * ticks + (unsigned)(text[tail++] - '0');
+        if (ticks >= UINT16_MAX) return false;
+    }
+    if (ticks == 0) return false;
+    *family = EF_MODEL_POSITION;
+    if (tail < value.length) {
+        if (text[tail] != ' ') return false;
+        while (tail < value.length && text[tail] == ' ') ++tail;
+        if (value.length - tail != 6 || memcmp(text + tail, "follow", 6) != 0)
+            return false;
+        *family = EF_MODEL_JOINT;
+    }
+    *path = value;
+    ++path->offset;
+    ++path->column;
+    path->length = end - 1;
+    *lifetime = (uint16_t)ticks;
+    return true;
+}
+
 bool nativeScriptEffectMetadata_Validate(const NativeScriptSourceTree* tree,uint32_t at,NativeScriptDiagnostic* d)
 {
     if(!tree||at>=tree->count)return false;uint32_t enclosing=owner(tree,at);int32_t id;
-    if(!enclosing||!recipe(tree,enclosing,&id))return error(d,tree->nodes[at].source,"Effect needs a supported numeric native model recipe");
+    NativeScriptSourceSpan path = {0};
+    uint16_t lifetime = 0;
+    EF_ModelConstructorFamily family;
+    if(!enclosing||(!recipe(tree,enclosing,&id)&&!owned_model(tree,enclosing,&path,&lifetime,&family)))
+        return error(d,tree->nodes[at].source,"Model effect needs a supported recipe ID or an effects/*.dat path, lifetime in ticks and optional follow");
     const NativeScriptSourceNode* node=&tree->nodes[at];
     if(at==enclosing)return node->parent==0;
     if(node->kind==NativeScriptSource_Metadata&&node->parent==enclosing&&!node->opens&&
@@ -53,9 +102,11 @@ bool nativeScriptEffectPrograms_Prepare(const NativeScriptCompileBank* bank,Figh
     for(uint32_t at=0;at<tree->count;++at) {
         if(tree->nodes[at].kind!=NativeScriptSource_Effect)continue;
         if(candidate.count==NATIVE_SCRIPT_EFFECT_PROGRAMS)return error(d,tree->nodes[at].source,"Too many source model effects");
-        int32_t id;const EF_ModelRecipe* native=recipe(tree,at,&id);
+        int32_t id=-1;const EF_ModelRecipe* native=recipe(tree,at,&id);
+        NativeScriptSourceSpan path={0};uint16_t lifetime=0;
+        EF_ModelConstructorFamily family = native ? native->family : EF_MODEL_POSITION;
         const NativeScriptStorageOwner* storage=nativeScriptStorage_Owner(&bank->storage_layout,at);
-        if(!native||!storage||storage->state_bytes>NATIVE_SCRIPT_EFFECT_STATE_BYTES)
+        if((!native&&!owned_model(tree,at,&path,&lifetime,&family))||!storage||storage->state_bytes>NATIVE_SCRIPT_EFFECT_STATE_BYTES)
             return error(d,tree->nodes[at].source,"Effect recipe/state exceeds reserved native owner");
         for(unsigned prior=0;prior<candidate.count;++prior) {
             NativeScriptSourceSpan a=tree->nodes[candidate.programs[prior].owner].name,b=tree->nodes[at].name;
@@ -68,7 +119,8 @@ bool nativeScriptEffectPrograms_Prepare(const NativeScriptCompileBank* bank,Figh
         }
         NativeScriptEffectProgram* p=&candidate.programs[candidate.count++];
         *p=(NativeScriptEffectProgram){.bank=bank,.identity=identity,.author_kind=author,.owner=at,.update=UINT32_MAX,
-            .gfx_id=id,.family=native->family,.member_count=native->model_count};
+            .gfx_id=id,.family=family,.member_count=native?native->model_count:1,
+            .model_path=path,.lifetime=lifetime};
         for(uint32_t f=0;f<bank->declarations.function_count;++f) {
             const NativeScriptFunctionDeclaration* fn=&bank->declarations.functions[f];if(fn->owner!=at||!fn->callback)continue;
             const NativeScriptExecutionFunction* code=&bank->execution_functions[f];

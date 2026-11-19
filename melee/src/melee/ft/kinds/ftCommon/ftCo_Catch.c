@@ -199,6 +199,35 @@ void ftCo_800D8C54(Fighter_GObj* gobj, FtMotionId msid)
         fp = GET_FIGHTER(gobj);
         if (fp->kind != kind || nativeFighterRuntime_Definition(kind) != definition) return;
     }
+#ifdef MELEE_NATIVE
+    if (owned && msid == ftCo_MS_CatchDash &&
+        nativeScriptFighter_HasHook(gobj, NativeScriptFighter_CatchDashMotion))
+    {
+        const FtMotionId origin = fp->motion_id;
+        NativeScriptValue request = { .type = NativeScriptType_I32, .as.i64 = msid };
+        NativeScriptValue chosen;
+        if (nativeScriptFighter_Run(gobj, NativeScriptFighter_CatchDashMotion,
+                &request, 1, NULL, &chosen) != NativeScriptVM_Ok ||
+            !nativeFighterLifetime_Current(&lifetime) || fp->motion_id != origin) return;
+        const uint32_t motion = (uint32_t) chosen.as.i64;
+        const NativeScriptCompileBank* bank = lifetime.program->bank;
+        const NativeScriptMoveLayout* layout = &bank->motion_layout;
+        if (bank->has_motion_layout && layout->first == (uint32_t) fp->x18 &&
+            motion >= layout->first && motion - layout->first < layout->count &&
+            fp->x20_actionStateList && fp->x1C_actionStateList)
+        {
+            const MotionState* shared = &fp->x1C_actionStateList[msid];
+            const MotionState* replacement = &fp->x20_actionStateList[motion - layout->first];
+            if (replacement->anim_cb == shared->anim_cb &&
+                replacement->input_cb == shared->input_cb &&
+                replacement->phys_cb == shared->phys_cb &&
+                replacement->coll_cb == shared->coll_cb)
+            {
+                msid = (FtMotionId) motion;
+            }
+        }
+    }
+#endif
     Fighter_ChangeMotionState(gobj, msid, 0, 0.0F, 1.0F, 0.0F, NULL);
 #ifdef MELEE_NATIVE
     if (owned && !nativeFighterLifetime_Current(&lifetime)) return;

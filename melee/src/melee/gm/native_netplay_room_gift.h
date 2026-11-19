@@ -58,6 +58,9 @@ typedef struct NativeNetplayGiftStatus {
     NativeNetplayGiftState state;
     uint32_t bytes_done;
     uint32_t bytes_total;
+    NativeContentId downloading;
+    // Preview pointers borrow the receive buffer for the current tick only.
+    NativeContentPreview preview;
 } NativeNetplayGiftStatus;
 
 struct NativeNetplayRoom;

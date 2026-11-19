@@ -87,10 +87,11 @@ program. Stock Link/Samus eligibility helpers inspect stock-kind union fields;
 a source actor is not assigned those donor kinds. The input check and policy
 dispatch do not establish complete Link/Young Link tether Article behavior.
 
-`controls.try_taunt()` preserves the D-pad Up check `ftCo_800DE9D8`. A matching
-press synchronously runs the source's `on taunt` hook. If absent, the native
-source branch enters common AppealSR/AppealSL motions rather than selecting a
-donor or debug taunt handler. Healthy entry then delivers the native taunt bonus
+`controls.try_taunt()` checks for a new D-pad press. Up calls `on taunt` or
+plays the standard taunt. Left and Right call `on side_taunt` when defined.
+Down calls `on down_taunt` when defined. If several directions are pressed
+together, Up takes priority, followed by Down, then Left or Right. A taunt
+that enters successfully receives the usual taunt bonus
 notification. Fault or retirement withholds the result and skips that bonus;
 completed mutations are not rolled back.
 

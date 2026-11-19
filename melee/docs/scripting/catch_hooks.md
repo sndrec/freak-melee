@@ -10,6 +10,7 @@ request to run a donor fighter's implementation.
 | --- | --- | --- |
 | `catch_allowed` | Bool | After held-item throw priority, before standing/dash catch input tests. False denies the catch; true permits the common input check. |
 | `catch_start` | Void | After common acceleration/catch-counter initialization, before entering the catch motion and installing common grab callbacks. |
+| `catch_dash_motion` | Int | Choose which motion plays when the fighter starts a dash grab. `event.motion` is the default motion. |
 | `catch_frame` | Bool | Standing/dash catch animation update. True consumes the frame; false continues the common animation-end check. Both results replace fighter-specific frame logic. |
 | `catch_exit` | Void | Replaces fighter-specific cleanup on the catch floor-loss path, before common Fall entry. |
 | `catch_wait_release` | Void | After an accepted pummel or throw input leaves CatchWait. Replaces fighter-specific article cleanup. It is not an every-frame notification or a promise that the capture relation has already ended. |
@@ -22,10 +23,13 @@ request to run a donor fighter's implementation.
 | `throw_animation` | Void | Each forward/back/up/down throw animation update, before the common throw tick. Replaces fighter-specific animation logic. |
 | `throw_finish` | Bool | After the common throw tick when the animation ends. True means the script handled completion; false runs the common end-of-action transition. |
 
-Only `capture_wait_enter` and `throw_victim_motion` have arguments. The former's `other` uses
-the existing scoped Object payload: it cannot retain a raw engine pointer or
-transfer the holder's helper IDs into the caught Fighter's program. These events
-use no mutable native record payload.
+`capture_wait_enter` receives the caught fighter as the scoped `other` object.
+
+For `catch_dash_motion`, return an owned motion that shares the dash-grab
+motion policy. The new motion supplies the animation and hitboxes, and the
+common policy supplies grab, pull and floor-contact behavior. Return
+`event.motion` to use the normal dash grab. An invalid motion also falls back
+to the normal dash grab.
 
 `throw_victim_motion` accepts IDs in the common motion range, from zero through
 the last common state. It does not choose a move from the holder's custom action

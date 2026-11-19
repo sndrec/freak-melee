@@ -37,7 +37,8 @@ namespace {
     }
 }
 unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,
-    float size, uint32_t color, unsigned first_line)
+    float size, uint32_t color, unsigned first_line, unsigned accent_length,
+    uint32_t accent_color)
 {
     const unsigned length = unsigned(strnlen(value, 2048));
     unsigned start = 0, index = 0;
@@ -46,7 +47,20 @@ unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float
         if (index >= first_line && (index - first_line + 1) * (size + 3) <= h + 3) {
             char text[2049]; unsigned count = current.end - current.start;
             std::memcpy(text, value + current.start, count); text[count] = 0;
-            nativeMenuPaint_Text(text, x, y + (index - first_line) * (size + 3), w, size, color);
+            const float baseline = y + (index - first_line) * (size + 3);
+            unsigned prefix = 0;
+            float prefix_width = 0;
+            if (current.start < accent_length) {
+                prefix = std::min(count, accent_length - current.start);
+                const char after = text[prefix];
+                text[prefix] = 0;
+                nativeMenuPaint_Text(text, x, baseline, w, size, accent_color);
+                prefix_width = nativeMenuFont_Width(NativeMenuFont_Notice, text, size);
+                text[prefix] = after;
+            }
+            if (prefix < count)
+                nativeMenuPaint_Text(text + prefix, x + prefix_width, baseline,
+                                     w - prefix_width, size, color);
         }
         ++index; start = current.next;
     } while (start <= length);

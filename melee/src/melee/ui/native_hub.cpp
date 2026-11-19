@@ -329,7 +329,11 @@ namespace {
             } else if (field == hub.code) {
                 action = HubAction::Join;
             } else if (field == hub.lobby_title) {
-                action = HubAction::CreateNamedLobby;
+                action = hub.page == NativeHubPage_LobbyRules ? HubAction::RuleLobbyNameSave
+                                                              : HubAction::CreateNamedLobby;
+            } else if (field == hub.lobby_password) {
+                action = hub.page == NativeHubPage_LobbyRules ? HubAction::RuleLobbyPasswordSave
+                                                              : HubAction::Join;
             } else if (field == hub.title) {
                 action = hub.rename ? HubAction::ApplyRename : HubAction::CreateClone;
             } else {
@@ -537,6 +541,7 @@ extern "C" bool nativeHub_OpenFighterDelivery(const NativeContentId* fighter,
                   target ? target->name : "");
     show();
     hub.send_from_css = true;
+    hub.send_to_friends = false;
     unsigned recipient_row = 0;
     for (unsigned i = 0; target && &presence->participants[i] != target; ++i) {
         if (std::strcmp(presence->participants[i].peer_id,
@@ -741,6 +746,7 @@ void nativeHub_Activate(HubAction action, int value)
         nativeHub_Focus(nullptr, 0);
         break;
     case HubAction::Practice:
+        if (hub.page == NativeHubPage_Workshop) nativeHome_RequestPracticeStageSelect();
         hub.dismissed = true;
         hub.visible = false;
         nativeHub_Focus(nullptr, 0);
@@ -871,10 +877,12 @@ void nativeHub_Activate(HubAction action, int value)
         }
         nativeHub_Focus(nullptr, 0);
         if (!nativeOnlineMenu_Request(intent, hub.public_name, hub.code,
-                                      uint8_t(hub.local_players)))
+                                      uint8_t(hub.local_players),
+                                      action == HubAction::Join ? hub.lobby_password : nullptr))
         {
             nativeHub_Notice("The lobby is busy. Try again shortly.");
         } else if (action == HubAction::Create || action == HubAction::Join) {
+            std::memset(hub.lobby_password, 0, sizeof(hub.lobby_password));
             nativeHub_Activate(HubAction::Selection, 0);
         }
         break;
@@ -902,6 +910,8 @@ void nativeHub_Activate(HubAction action, int value)
         }
         hub.gift_id = nativeHubFighters[hub.selected].id;
         hub.send_from_css = false;
+        hub.send_to_friends = nativeHubAccount_View().signed_in && !nativeOnlineSession_Presence();
+        hub.fighter_gift_friend[0] = 0;
         hub.recipient_scroll = 0;
         std::snprintf(hub.gift_title, sizeof(hub.gift_title), "%s",
                       nativeHubFighters[hub.selected].title);
@@ -1085,12 +1095,17 @@ extern "C" void nativeHub_Tick(void)
     }
     static bool installed_gift_handled;
     NativeNetplayGiftStatus gift{};
-    if (!nativeOnlineSession_GiftStatus(true, &gift) ||
-        gift.state != NativeNetplayGift_Installed)
-    {
-        installed_gift_handled = false;
-    } else if (!installed_gift_handled) {
-        installed_gift_handled = true;
+    const bool peer_gift = nativeOnlineSession_GiftStatus(true, &gift) &&
+                           gift.state == NativeNetplayGift_Installed;
+    NativeContentId account_gift{};
+    const bool friend_gift = !(peer_gift && !installed_gift_handled) &&
+                             nativeHubSocial_TakeFighter(&account_gift);
+    if ((peer_gift && !installed_gift_handled) || friend_gift) {
+        if (friend_gift) {
+            gift = {};
+            gift.kind = NativeNetplayGift_Fighter;
+            gift.id = account_gift;
+        }
         bool placed = gift.kind == NativeNetplayGift_Fighter &&
                       nativeCssOriginal_AddInstalled(&gift.id);
         const NativeContentId empty{};
@@ -1104,6 +1119,7 @@ extern "C" void nativeHub_Tick(void)
             : placed ? "Fighter received and added to your roster."
                      : "Fighter received. Use Edit CSS to add its portrait.");
     }
+    installed_gift_handled = peer_gift;
     if (selection && !tool && hub.dismissed && !nativeCssChat_Focused() && !nativeHub_IsVisible()) {
         bool held = false, pressed = false;
         for (unsigned port = 0; port < 4; ++port) {
@@ -1171,7 +1187,7 @@ extern "C" void nativeHub_Tick(void)
     const bool measuring = nativeHubStartup.active && nativeHubStartup.step >= NativeStartup_Rest &&
                            nativeHubStartup.step <= NativeStartup_Triggers;
     const bool fixed_pointer = measuring && nativeHubStartup.step != NativeStartup_Triggers;
-    nativeMenuScene_Tick(!nativeHubProfiles_LockCamera() && !measuring && !nativeHubStartup.testing_input && !nativeHubPortrait_Editing() && !nativeHubDefaults_IsOpen() &&
+    nativeMenuScene_Tick(hub.page != NativeHubPage_News && !nativeHubProfiles_LockCamera() && !measuring && !nativeHubStartup.testing_input && !nativeHubPortrait_Editing() && !nativeHubDefaults_IsOpen() &&
         !(nativeHubStartup.active && nativeHubStartup.step == NativeStartup_Portrait));
     if (pointer_mouse && !screen_to_canvas(mouse_u, mouse_v, &hub.pointer_x, &hub.pointer_y))
         hub.pointer_x = hub.pointer_y = -100;
@@ -1242,15 +1258,16 @@ extern "C" void nativeHub_Draw(void)
         nativeMenuTile_Acquire();
         hub.fonts = true;
     }
+    const bool editing_profile = hub.page == NativeHubPage_Profile && hub.profile_self;
     const char* caption = nativeHubStartup.active ? "First startup" : nativeHubPortrait_Editing() ? "Portrait & CSS tile" : hub.page == NativeHubPage_Profile
-        ? (hub.profile_self ? hub.name : hub.viewed_name)
+        ? (editing_profile ? "Profile" : hub.viewed_name)
         : page_names[unsigned(hub.page)];
     const bool news_page = hub.page == NativeHubPage_News;
-    const bool settings_page = nativeHubSettings_Page(hub.page);
+    const bool settings_page = nativeHubSettings_Page(hub.page) || editing_profile;
     const bool standalone = news_page || settings_page;
     NativeMenuFrame frame = nativeHubStartup.active || nativeHubPortrait_Editing() ? NativeMenuFrame_Bare
         : news_page ? NativeMenuFrame_Backdrop : nativeHubRules_Page(hub.page) ? NativeMenuFrame_Rules : settings_page ? NativeMenuFrame_Options : NativeMenuFrame_Hub;
-    if (!nativeMenuScene_Begin(caption,frame,nativeHubRules_Data())) return;
+    if (!nativeMenuScene_Begin(caption,frame,nativeHubRules_Data(),nativeHubRules_Preferences())) return;
     if (nativeHubStartup.active || nativeHubPortrait_Editing()) nativeMenuScenery_Draw();
     Mtx canvas; Mtx44 projection;
     nativeMenuScene_View(false, false, canvas, projection);

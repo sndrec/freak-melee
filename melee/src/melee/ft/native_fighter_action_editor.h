@@ -4,6 +4,7 @@
 #ifdef MELEE_NATIVE
 
 #include "native_fighter_project.h"
+#include "native_hitbox_lifetime.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +56,7 @@ typedef struct NativeFighterActionEvent {
     uint32_t source_offset;
     uint32_t value;
     uint32_t target_id;
+    float throw_damage;
     uint8_t kind;
     uint8_t opcode;
 } NativeFighterActionEvent;
@@ -72,14 +74,16 @@ typedef struct NativeFighterActionOccurrence {
 } NativeFighterActionOccurrence;
 
 typedef struct NativeFighterActionField {
-    uint32_t value;
+    double value;
     uint8_t word, shift, width;
+    bool fractional;
 } NativeFighterActionField;
 bool nativeFighterAction_Fields(const NativeFighterProject*, unsigned action,
                                 uint32_t source, NativeFighterActionField*,
                                 size_t capacity, size_t* count);
 bool nativeFighterAction_SetField(NativeFighterProject*, unsigned action,
-                                  uint32_t source, unsigned field, uint32_t value);
+                                  uint32_t source, unsigned field, double value,
+                                  uint32_t* updated_offset);
 
 // Attack hitbox properties. Retail, explicit-flag and duration-owned commands
 // share these operands. Radius and offsets use the game's
@@ -91,13 +95,16 @@ typedef struct NativeFighterHitbox {
     uint8_t id;
     uint8_t hit_group;
     uint8_t only_hit_grabbed;
+    uint8_t exclude_grabbed;
     uint8_t bone;
     uint8_t use_common_bone_ids;
-    uint16_t damage;
+    float damage;
     uint16_t radius;
     int16_t offset_x;
     int16_t offset_y;
     int16_t offset_z;
+    bool capsule;
+    int16_t end_x, end_y, end_z;
     uint16_t angle;
     uint16_t knockback_growth;
     uint16_t weight_set_knockback;
@@ -113,6 +120,7 @@ typedef struct NativeFighterHitbox {
     uint8_t hit_sfx_kind;
     uint8_t hit_grounded;
     uint8_t hit_aerial;
+    NativeHitboxLaunch launch;
 } NativeFighterHitbox;
 
 typedef struct NativeFighterSoundEffect {
@@ -120,6 +128,7 @@ typedef struct NativeFighterSoundEffect {
     uint8_t volume;
     uint8_t panning;
     uint32_t sfx_id;
+    bool package_clip;
 } NativeFighterSoundEffect;
 
 // Original five-word GFX command. Offsets and ranges are unscaled source
@@ -204,7 +213,7 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
 bool nativeFighterAction_CreateEvent(NativeFighterProject*, unsigned action,
                                     unsigned frame, const uint32_t* words,
                                     size_t word_count, uint32_t* inserted);
-bool nativeFighterAction_EncodeHitbox(const NativeFighterHitbox*, uint32_t words[6]);
+unsigned nativeFighterAction_EncodeHitbox(const NativeFighterHitbox*, uint32_t words[NATIVE_HITBOX_MAX_WORDS]);
 // Delete one reachable non-control command from an action-local copy of its
 // source graph. References into that command reject the edit.
 bool nativeFighterAction_DeleteCommand(NativeFighterProject* project,
@@ -225,7 +234,7 @@ bool nativeFighterAction_GetHitbox(const NativeFighterProject* project,
                                    NativeFighterHitbox* hitbox);
 bool nativeFighterAction_SetHitbox(NativeFighterProject* project,
                                    unsigned action, uint32_t source_offset,
-                                   const NativeFighterHitbox* hitbox);
+                                   const NativeFighterHitbox* hitbox, uint32_t* updated_offset);
 // Preserve retail hitbox behavior in owned headers, keeping five-word command
 // widths, addresses, explicit clear events and group history unchanged. Traces
 // all action/subroutine users before writing; failure leaves the draft intact.

@@ -2078,6 +2078,14 @@ void gm_Scene_Vs_OnEnter(void* arg0)
     ifTime_CreateTimers();
     ifStatus_802F665C(tmp->rules.x0_3);
 #ifdef MELEE_NATIVE
+    if (tmp->rules.on_frame_start == gmTraining_UpdateLocalMenu) {
+        for (int slot = 0; slot < 4; ++slot) {
+            if (tmp->players[slot].slot_type == Gm_PKind_Human) {
+                fn_8018A000(slot);
+                break;
+            }
+        }
+    }
     nativeHome_WorkshopSceneStarted();
 #endif
 }
@@ -2182,7 +2190,7 @@ void gm_Scene_Training_OnEnter(void* user_data)
     }
     un_802FD428();
     ifStatus_802F665C(data->rules.x0_3);
-    fn_8018A000();
+    fn_8018A000(-1);
 }
 
 float gm_8016ECE8(void)

@@ -12,6 +12,37 @@ particle spawns still use the [effect operations](combat_visuals.md).
 
 ## Declare and spawn an effect
 
+Use a model from your fighter's resources or select a built-in recipe.
+
+### Use your own model
+
+```text
+model_effect FeatherBurst "effects/feathers.dat" 60:
+    pass
+
+move Launch:
+    on air_animation:
+        if frame == 33:
+            effects.spawn_root(FeatherBurst)
+```
+
+Import the DAT as a blob resource with the same path. The number after the
+path is the lifetime in ticks. The game samples the fighter's world position
+when the effect spawns. Use `effects.spawn_on_part` or
+`effects.spawn_async_position_on_part` to sample a bone.
+
+Add `follow` after the lifetime to keep the effect at the fighter's root or
+selected bone as it moves. Use `effects.spawn_root` or `effects.spawn_on_part`
+for a following effect. The effect keeps its own orientation and scale.
+
+The DAT contains an `effect_joint` model and can include
+`effect_animjoint` and `effect_matanim_joint` roots for joint and material
+animation. Animate child joints to move the model relative to its spawn point.
+The effect plays its animations automatically. Use `pass` for animation alone,
+or add one `on update` callback for behavior driven by the game.
+
+### Use a built-in recipe
+
 ```text
 state bool touches_floor
 
@@ -76,15 +107,32 @@ their declaration indices as engine effect IDs. Numeric engine operations in
 Numeric effect spawns retain their existing recipe behavior;
 use a declared name when you want an authored model update.
 
-Declare up to 64 interpreted effects with distinct names. Each has exactly one
+Declare up to 64 interpreted effects with distinct names. Each can have one
 `on update` body. Shared helper functions use the same
 [statement and expression language](functions.md), compiled for the effect
 context when called here.
 
+## Spawn from an article
+
+```text
+model_effect ShellFlash "effects/shell-flash.dat" 12:
+    pass
+
+article ExampleProjectile states 1:
+    on damage_dealt:
+        item.spawn_effect_at_position(ShellFlash, position.x, position.y, position.z, 0)
+        return false
+```
+
+Give the packaged effect a `pass` body and a lifetime. The last argument sets
+its roll in radians around world Z. The effect plays at the supplied position
+while the article moves on. It ends at its declared lifetime or when its
+article is removed. `item.destroy_effects()` clears it early.
+
 ## Read the creator
 
-The creator is the originating fighter, rather than an item's reflected damage
-owner. Creator properties are read-only in this callback.
+Creator properties refer to the fighter that spawned the effect. The effect's
+update callback can read these properties.
 
 | Property | Meaning |
 | --- | --- |
@@ -115,15 +163,11 @@ child. Paths support at most 12 levels and child ordinals `0..255`.
 | `translation.x`, `.y`, `.z` | Read/write | Local translation in joint units. |
 | `rotation.x`, `.y`, `.z` | Read/write | Local Euler angles in radians. |
 | `scale.x`, `.y`, `.z` | Read/write | Local scale factors. |
-| `quaternion.x`, `.y`, `.z`, `.w` | Read/write | Rotation components for quaternion joints. |
-| `exists` | Read | Whether the path resolves to a joint. |
 | `visible` | Read/write | Read this joint's visibility; writing also changes its subtree. |
-| `self_visible` | Read/write | Change only this joint's visibility. |
 
-The interpreter currently admits `rotation.x/y/z` and `visible`. The other
-properties in this model-control design still need interpreter selector
-migration; they are not available merely because the underlying HSD joint
-helper supports them. The connected effect fixture exercises all three Euler
+For a following effect, use a child joint to offset the artwork from its
+attached bone. The attachment sets the root's world position.
+The connected effect fixture exercises all three Euler
 channels through source compilation, real effect scheduling and actor-state
 save/load; imported model loading and drawing are controlled in that fixture.
 

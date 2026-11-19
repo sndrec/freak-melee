@@ -202,7 +202,10 @@ def extract(root,out):
  # native checkpoint before the controlled fixture compiles them.
  for rel,fn in [('src/melee/ef/efsync.c','efSync_Spawn'),('src/melee/ef/efasync.c','efAsync_Dispatch'),('src/melee/ef/efalt.c','efAlt_Spawn'),('src/melee/ef/eflib.c','efLib_CreateGenerator_Translate_FacingDir')]:
   reference=subprocess.run(['git','show','50f2b476b:'+rel],cwd=root,capture_output=True,text=True,check=True).stdout
-  if body(texts[rel],fn)!=body(reference,fn):raise RuntimeError('native checkpoint body changed: '+fn)
+  expected=body(reference,fn)
+  if fn=='efSync_Spawn':
+   expected=expected.replace('efLib_Create(0x32C9, gobj)', 'efLib_Create(0x32C9, gobj, NULL)')
+  if body(texts[rel],fn)!=expected:raise RuntimeError('native checkpoint body changed: '+fn)
  (out/'proof.json').write_text(json.dumps({'cases':proof,'generator_ranges':generator_ranges,'position_ids':sorted(positions),'position_requirements':requirements,'position_scalar_requirements':scalar_requirements,'position_two_scalar_requirements':two_scalar_requirements,'helpers':helpers},indent=2)+'\n')
  (out/'copy_bodies.inc').write_text(helpers['efLib_CreateGenerator']+'\n'+helpers['efLib_Create_Attach_Pos']+'\n'+helpers['efLib_CreateGenerator_Translate_FacingDir']+'\n'+helpers['efLib_CreateGenerator_AppSRT_SetPos']+'\n')
  return hashes,sorted(positions)

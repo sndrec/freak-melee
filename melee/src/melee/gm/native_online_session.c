@@ -60,9 +60,10 @@ const char* nativeOnlineSession_Build(void) { return online_build; }
 const NativeLobbyListing* nativeOnlineSession_Listing(void) {
     return online.active ? &online.lobby.room.connection.listing : NULL;
 }
-bool nativeOnlineSession_SetListing(const char* title, bool listed) {
+bool nativeOnlineSession_SetListing(const char* title, bool listed, uint8_t fighter_limit,
+                                    const char* password) {
     return online.active && nativeOnlineSession_IsOwner() && !quick.assignment.mode &&
-        nativeSignalingClient_SetListing(&online.lobby.room.connection.signaling, title, listed);
+        nativeSignalingClient_SetListing(&online.lobby.room.connection.signaling, title, listed, fighter_limit, password);
 }
 static const char room_alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -127,7 +128,7 @@ static bool fail_launch(const char* reason)
 
 static bool start_room(const char* room_code, const char* local_name,
                        uint8_t local_players, const char* existing_peer,
-                       const char* admission)
+                       const char* admission, const char* room_password)
 {
     if (online.active || !valid_room_code(room_code) || local_players == 0 ||
         local_players > 4)
@@ -151,6 +152,7 @@ static bool start_room(const char* room_code, const char* local_name,
             .name = local_name,
             .build = online_build,
             .admission = admission,
+            .room_password = room_password,
             .local_players = local_players,
         },
     };
@@ -177,14 +179,23 @@ bool nativeOnlineSession_CreateRoom(const char* local_name,
 {
     char room_code[9];
     return generate_room_code(room_code) &&
-           start_room(room_code, local_name, local_players, NULL, NULL);
+           start_room(room_code, local_name, local_players, NULL, NULL, NULL);
 }
 
 bool nativeOnlineSession_JoinRoom(const char* room_code,
                                   const char* local_name,
-                                  uint8_t local_players)
+                                  uint8_t local_players, const char* room_password)
 {
-    return start_room(room_code, local_name, local_players, NULL, NULL);
+    if (!room_code) return false;
+    char upper[NATIVE_SIGNALING_ROOM_ID_BYTES + 1];
+    size_t length = strnlen(room_code, sizeof(upper));
+    if (length >= sizeof(upper)) return false;
+    for (size_t i = 0; i < length; ++i) {
+        char c = room_code[i];
+        upper[i] = c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c;
+    }
+    upper[length] = 0;
+    return start_room(upper, local_name, local_players, NULL, NULL, room_password);
 }
 
 void nativeOnlineSession_Stop(void)
@@ -219,7 +230,7 @@ static bool switch_quick_room(const char* room, const char* admission)
     memcpy(name, online.local_name, sizeof(name));
     uint8_t players = online.local_players;
     nativeOnlineSession_Stop();
-    bool started = start_room(code, name, players, peer, token);
+    bool started = start_room(code, name, players, peer, token, NULL);
     quick = retained;
     quick.seen_revision = 0;
     quick.prepared_sent = false;
@@ -549,13 +560,17 @@ bool nativeOnlineSession_ContentProgress(NativeNetplayContentProgress* progress)
     if (!cache->serial || !cache->choice_count) return false;
     unsigned remaining = 0;
     for (unsigned i = 0; i < cache->choice_count; ++i) remaining += !cache->choices[i].cached;
+    if (!remaining) return false;
     *progress = (NativeNetplayContentProgress) {
+        .id = cache->receive.id,
         .bytes_done = (uint32_t) cache->receive.received,
         .bytes_total = (uint32_t) cache->receive.size,
         .package_index = cache->choice_count - remaining + 1,
         .package_count = cache->choice_count,
         .direction = NativeNetplayContent_Receiving,
     };
+    nativeContentStore_ReadPreview(cache->receive.bytes, cache->receive.received,
+                                   &progress->preview);
     return true;
 }
 

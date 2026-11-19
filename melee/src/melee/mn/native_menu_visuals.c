@@ -95,7 +95,12 @@ static void draw(HSD_GObj* object,int pass)
         }
     }
     matrix(scene->root,scene->inverse,view);
-    nativeMenuPaint_Begin(view);
+    // Tile bounds and CSS pointer projection use the stock portrait plane
+    // at Z=0. The shared paint primitives draw at Z=-5 by default.
+    Mtx tile_plane, tile_view;
+    C_MTXTrans(tile_plane, 0, 0, 5);
+    C_MTXConcat(view, tile_plane, tile_view);
+    nativeMenuPaint_Begin(tile_view);
     for (unsigned i = 0; i < SPRITES; ++i) {
         const MenuSprite* p = &scene->sprites[i];
         if (p->pixels && p->face == NativeMenuFont_Tile)

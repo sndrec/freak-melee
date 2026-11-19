@@ -75,6 +75,20 @@ passes 98 tests in thirteen files. Two hidden/muted native clients also pass
 the hosted account-key/profile/invitation/join/sign-out review:
 `.local/account-key-hosted-1/receipt.json`.
 
+Workshop sends a fighter to a friend through the signed-in account. The
+recipient accepts the delivery in Inbox. The Worker stores the bytes in the
+private `FIGHTER_GIFTS` R2 bucket and gives access to the recipient's account
+for seven days. The game checks the package hash and validates its contents
+before installing it. A successful install clears the Inbox entry and deletes
+the stored package. Deleting a gift from the Inbox also removes its package. Lobby
+gifts continue to transfer between the players.
+
+The private `freak-melee-fighter-gifts` bucket needs a seven-day expiration rule
+for the `fighters/` prefix. This also clears packages if the client closes or
+loses its connection before it can acknowledge the install. Deploy the signaling
+Worker and the client together when rolling out gifts, lobby names, passwords
+and fighter limits. See [the release procedure](../../docs/native_release.md#6-publish-github-then-activate-the-updater).
+
 Local checks:
 
 ```powershell

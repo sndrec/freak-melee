@@ -27,6 +27,7 @@ namespace NativeActionProperties {
             U16,
             I16,
             U32,
+            F32,
             Boolean,
             Flag
         };
@@ -37,6 +38,7 @@ namespace NativeActionProperties {
             double minimum, maximum, scale;
             bool read_only;
             const char* description;
+            unsigned launch_mode = NativeHitboxLaunch_Default;
         };
 #define F(T, M, S, L, H, Q, R, D) { #M, offsetof(T, M), S, L, H, Q, R, D }
         const Field hitbox_fields[] = {
@@ -57,23 +59,62 @@ namespace NativeActionProperties {
               "Hitboxes in the same group share their hit opponents."),
             F(NativeFighterHitbox, only_hit_grabbed, Flag, 0, 1, 1, false,
               "Hits only the fighter held by this fighter."),
+            F(NativeFighterHitbox, exclude_grabbed, Flag, 0, 1, 1, false,
+              "Lets the hitbox pass through the fighter you are holding."),
             F(NativeFighterHitbox, bone, U8, 0, 255, 1, false,
               "Bone to which the hitbox is attached."),
             F(NativeFighterHitbox, use_common_bone_ids, Flag, 0, 1, 1, false,
               "Interpret Bone as an engine bone role instead of a skeleton "
               "joint index."),
-            F(NativeFighterHitbox, damage, U16, 0, 1023, 1, false,
+            F(NativeFighterHitbox, damage, F32, 0, 1023, 1, false,
               "Damage added by the hit."),
-            F(NativeFighterHitbox, radius, U16, 0, 65535, .003906, false,
+            F(NativeFighterHitbox, radius, U16, 0, 65535, FT_ACTION_HITBOX_DISTANCE_SCALE, false,
               "Hitbox radius in game units."),
-            F(NativeFighterHitbox, offset_x, I16, -32768, 32767, .003906,
+            F(NativeFighterHitbox, offset_x, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
               false, "Horizontal attachment offset in game units."),
-            F(NativeFighterHitbox, offset_y, I16, -32768, 32767, .003906,
+            F(NativeFighterHitbox, offset_y, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
               false, "Vertical attachment offset in game units."),
-            F(NativeFighterHitbox, offset_z, I16, -32768, 32767, .003906,
+            F(NativeFighterHitbox, offset_z, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
               false, "Depth attachment offset in game units."),
+            F(NativeFighterHitbox, capsule, Boolean, 0, 1, 1,
+              false, "Add a second endpoint to make this hitbox a capsule."),
+            F(NativeFighterHitbox, end_x, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
+              false, "Horizontal offset of the second endpoint in game units."),
+            F(NativeFighterHitbox, end_y, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
+              false, "Vertical offset of the second endpoint in game units."),
+            F(NativeFighterHitbox, end_z, I16, -32768, 32767, FT_ACTION_HITBOX_DISTANCE_SCALE,
+              false, "Depth offset of the second endpoint in game units."),
             F(NativeFighterHitbox, angle, U16, 0, 511, 1, false,
               "Knockback angle in degrees. 361 selects the Sakurai angle."),
+            { "launch_mode", offsetof(NativeFighterHitbox, launch.mode), U32, 0, 2, 1,
+              false, "Choose an angle, a point relative to the attacker, or a launch that follows the hitbox." },
+            { "launch_forward", offsetof(NativeFighterHitbox, launch.target.forward), F32,
+              -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 1, false,
+              "Target distance forward from the attacker, in world units.", NativeHitboxLaunch_Target },
+            { "launch_up", offsetof(NativeFighterHitbox, launch.target.up), F32,
+              -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 1, false,
+              "Target height above the attacker, in world units.", NativeHitboxLaunch_Target },
+            { "launch_frames", offsetof(NativeFighterHitbox, launch.target.frames), F32,
+              1, std::numeric_limits<float>::max(), 1, false,
+              "Divides the distance to the target to set the launch speed.", NativeHitboxLaunch_Target },
+            { "launch_momentum", offsetof(NativeFighterHitbox, launch.follow.momentum), F32,
+              -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 1, false,
+              "Multiplier on the attacker's velocity for airborne opponents.", NativeHitboxLaunch_Follow },
+            { "launch_attraction", offsetof(NativeFighterHitbox, launch.follow.attraction), F32,
+              0, std::numeric_limits<float>::max(), 1, false,
+              "Pull toward the hitbox center per world unit of separation.", NativeHitboxLaunch_Follow },
+            { "launch_min_up", offsetof(NativeFighterHitbox, launch.follow.min_up), F32,
+              -std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 1, false,
+              "Minimum vertical launch speed for airborne opponents.", NativeHitboxLaunch_Follow },
+            { "launch_ground_angle", offsetof(NativeFighterHitbox, launch.follow.ground_angle), F32,
+              0, 359.999969482421875, 1, false,
+              "Angle in degrees for grounded opponents.", NativeHitboxLaunch_Follow },
+            { "launch_override_ground_knockback", offsetof(NativeFighterHitbox, launch.follow.override_ground_knockback), Boolean,
+              0, 1, 1, false, "Use separate growth and base knockback for grounded opponents.", NativeHitboxLaunch_Follow },
+            { "launch_ground_growth", offsetof(NativeFighterHitbox, launch.follow.ground_growth), U16,
+              0, 511, 1, false, "Knockback growth for grounded opponents.", NativeHitboxLaunch_Follow },
+            { "launch_ground_base", offsetof(NativeFighterHitbox, launch.follow.ground_base), U16,
+              0, 511, 1, false, "Base knockback for grounded opponents.", NativeHitboxLaunch_Follow },
             F(NativeFighterHitbox, knockback_growth, U16, 0, 511, 1, false,
               "How strongly knockback grows with opponent damage."),
             F(NativeFighterHitbox, weight_set_knockback, U16, 0, 511, 1, false,
@@ -104,10 +145,12 @@ namespace NativeActionProperties {
               "Hits airborne fighters."),
         };
         const Field sound_fields[] = {
-            F(NativeFighterSoundEffect, behavior, U8, 0, 255, 1, true,
-              "Sound behavior encoded by the event."),
+            F(NativeFighterSoundEffect, behavior, U8, 0, 6, 1, false,
+              "Fighter sound channel. Use 0 for one-shot sounds."),
+            F(NativeFighterSoundEffect, package_clip, Boolean, 0, 1, 1, false,
+              "Play a clip from this fighter's sound bank."),
             F(NativeFighterSoundEffect, sfx_id, U32, 0, 4294967295., 1, false,
-              "Sound to play."),
+              "Melee sound ID or the zero-based clip index in sounds.ssm."),
             F(NativeFighterSoundEffect, volume, U8, 0, 255, 1, false,
               "Playback volume."),
             F(NativeFighterSoundEffect, panning, U8, 0, 255, 1, false,
@@ -161,6 +204,11 @@ namespace NativeActionProperties {
                 std::memcpy(&v, p, 4);
                 return v;
             }
+            case F32: {
+                float v;
+                std::memcpy(&v, p, sizeof(v));
+                return v;
+            }
             case Boolean:
                 return *(const bool*) p;
             case Flag:
@@ -193,6 +241,11 @@ namespace NativeActionProperties {
                 std::memcpy(p, &v, 4);
                 break;
             }
+            case F32: {
+                float v = (float) value;
+                std::memcpy(p, &v, sizeof(v));
+                break;
+            }
             case Boolean:
                 *(bool*) p = value != 0;
                 break;
@@ -206,7 +259,7 @@ namespace NativeActionProperties {
         {
             add_string(r, row, "type",
                        (f.storage == Boolean || f.storage == Flag) ? "boolean"
-                       : f.scale == 1                              ? "integer"
+                       : f.scale == 1 && f.storage != F32           ? "integer"
                                                                    : "number");
             add_string(r, row, "description", f.description);
             yyjson_mut_obj_add_bool(r.document, row, "readOnly", readonly);
@@ -215,8 +268,11 @@ namespace NativeActionProperties {
                                         f.minimum * f.scale);
                 yyjson_mut_obj_add_real(r.document, row, "maximum",
                                         f.maximum * f.scale);
-                yyjson_mut_obj_add_real(r.document, row, "quantum", f.scale);
+                if (f.storage != F32)
+                    yyjson_mut_obj_add_real(r.document, row, "quantum", f.scale);
             }
+            if (f.launch_mode)
+                yyjson_mut_obj_add_uint(r.document, row, "launchMode", f.launch_mode);
             if (!std::strcmp(f.name, "element")) {
                 auto* options = yyjson_mut_arr(r.document);
                 yyjson_mut_obj_add_val(r.document, row, "choices", options);
@@ -226,11 +282,21 @@ namespace NativeActionProperties {
                     yyjson_mut_obj_add_uint(r.document, item, "value", i);
                     add_string(r, item, "label", element_label(i));
                 }
+            } else if (!std::strcmp(f.name, "launch_mode")) {
+                auto* options = yyjson_mut_arr(r.document);
+                yyjson_mut_obj_add_val(r.document, row, "choices", options);
+                const char* labels[] = { "Angle", "Toward point", "Follow hitbox" };
+                for (unsigned i = 0; i < std::size(labels); ++i) {
+                    auto* item = yyjson_mut_obj(r.document);
+                    yyjson_mut_arr_append(options, item);
+                    yyjson_mut_obj_add_uint(r.document, item, "value", i);
+                    add_string(r, item, "label", labels[i]);
+                }
             }
         }
         void describe(const void* object, const Field* fields, size_t count,
                       Reply& r, yyjson_mut_val* out, bool creating,
-                      bool timed = true)
+                      bool timed = true, unsigned launch_mode = NativeHitboxLaunch_Default)
         {
             auto* values = yyjson_mut_obj(r.document);
             auto* definitions = yyjson_mut_obj(r.document);
@@ -247,10 +313,18 @@ namespace NativeActionProperties {
                              !std::strcmp(f.name, "refresh_hit_eligibility") ||
                              !std::strcmp(f.name, "expire_all"));
                 schema_field(r, def, f, readonly);
+                if (f.launch_mode && f.launch_mode != launch_mode) continue;
+                if (f.launch_mode == NativeHitboxLaunch_Follow &&
+                    !static_cast<const NativeFighterHitbox*>(object)->launch.follow.override_ground_knockback &&
+                    (!std::strcmp(f.name, "launch_override_ground_knockback") ||
+                     !std::strcmp(f.name, "launch_ground_growth") ||
+                     !std::strcmp(f.name, "launch_ground_base"))) continue;
+                if (fields == hitbox_fields && !static_cast<const NativeFighterHitbox*>(object)->capsule &&
+                    std::strncmp(f.name, "end_", 4) == 0) continue;
                 auto* value =
                     (f.storage == Boolean || f.storage == Flag)
                         ? yyjson_mut_bool(r.document, number(object, f) != 0)
-                    : f.scale == 1
+                    : f.scale == 1 && f.storage != F32
                         ? yyjson_mut_sint(r.document,
                                           (int64_t) number(object, f))
                         : yyjson_mut_real(r.document,
@@ -262,7 +336,7 @@ namespace NativeActionProperties {
         }
         bool patch(void* object, const Field* fields, size_t count,
                    yyjson_val* properties, bool creating, std::string& error,
-                   bool timed = true)
+                   bool timed = true, unsigned launch_mode = NativeHitboxLaunch_Default)
         {
             size_t index, n;
             yyjson_val *key, *value;
@@ -279,6 +353,10 @@ namespace NativeActionProperties {
                 if (!field) {
                     error = std::string("This event has no property named ") +
                             name + '.';
+                    return false;
+                }
+                if (field->launch_mode && field->launch_mode != launch_mode) {
+                    error = std::string(name) + " belongs to another launch mode.";
                     return false;
                 }
                 bool readonly = field->read_only &&
@@ -305,13 +383,61 @@ namespace NativeActionProperties {
                         : yyjson_get_num(value) / field->scale;
                 if (!std::isfinite(v) || v < field->minimum ||
                     v > field->maximum ||
-                    (field->scale == 1 && std::floor(v) != v))
+                    (field->storage != F32 && field->scale == 1 && std::floor(v) != v))
                 {
                     error =
                         std::string("Out-of-range value for ") + name + '.';
                     return false;
                 }
-                assign(object, *field, std::round(v));
+                assign(object, *field, field->storage == F32 ? v : std::round(v));
+            }
+            return true;
+        }
+        bool patch_hitbox(NativeFighterHitbox& hitbox, yyjson_val* properties,
+                          bool creating, std::string& error)
+        {
+            if (auto* mode = yyjson_obj_get(properties, "launch_mode")) {
+                const double value = yyjson_get_num(mode);
+                if (!yyjson_is_num(mode) || value < 0 || value > 2 || std::floor(value) != value) {
+                    error = "Choose launch_mode 0 (Angle), 1 (Toward point), or 2 (Follow hitbox).";
+                    return false;
+                }
+                if (hitbox.launch.mode != (uint32_t) value)
+                    hitbox.launch = nativeHitboxLaunch_Defaults((uint32_t) value);
+            }
+            const bool was_capsule = hitbox.capsule;
+            const bool separate_ground_knockback = hitbox.launch.mode == NativeHitboxLaunch_Follow &&
+                                                   hitbox.launch.follow.override_ground_knockback;
+            if (!patch(&hitbox, hitbox_fields, std::size(hitbox_fields),
+                       properties, creating, error, hitbox.timed, hitbox.launch.mode))
+                return false;
+            if (hitbox.launch.mode == NativeHitboxLaunch_Follow) {
+                auto& follow = hitbox.launch.follow;
+                const bool has_growth = yyjson_obj_get(properties, "launch_ground_growth") != nullptr;
+                const bool has_base = yyjson_obj_get(properties, "launch_ground_base") != nullptr;
+                if (!follow.override_ground_knockback && (has_growth || has_base)) {
+                    error = "Enable separate grounded knockback to change its growth or base.";
+                    return false;
+                }
+                if (follow.override_ground_knockback && !separate_ground_knockback) {
+                    if (!has_growth) follow.ground_growth = hitbox.knockback_growth;
+                    if (!has_base) follow.ground_base = hitbox.base_knockback;
+                }
+            }
+            if (!nativeHitboxLaunch_IsValid(&hitbox.launch)) {
+                error = "Launch parameters are out of range.";
+                return false;
+            }
+            if (hitbox.capsule && !was_capsule) {
+                if (!yyjson_obj_get(properties, "end_x")) hitbox.end_x = hitbox.offset_x;
+                if (!yyjson_obj_get(properties, "end_y")) hitbox.end_y = hitbox.offset_y;
+                if (!yyjson_obj_get(properties, "end_z")) hitbox.end_z = hitbox.offset_z;
+            } else if (!hitbox.capsule &&
+                       (yyjson_obj_get(properties, "end_x") ||
+                        yyjson_obj_get(properties, "end_y") ||
+                        yyjson_obj_get(properties, "end_z"))) {
+                error = "Enable the capsule to edit its second endpoint.";
+                return false;
             }
             return true;
         }
@@ -329,7 +455,7 @@ namespace NativeActionProperties {
             static const char* variable[] = { "variable", "value" };
             static const char* hurt[] = { "bone", "state" };
             static const char* visibility[] = { "group", "variant" };
-            if (opcode == 34 && field < std::size(throws)) {
+            if (ftAction_IsThrowHitbox(opcode) && field < std::size(throws)) {
                 return throws[field];
             }
             if (opcode == 19 && field < 2) {
@@ -386,7 +512,7 @@ namespace NativeActionProperties {
         {
             if (opcode == 1 || opcode == 2) {
                 g.count = 1;
-                g.fields[0] = { 0, 0, 0, 26 };
+                g.fields[0] = { 0, 0, 0, 26, false };
                 g.names[0] = "value";
                 return true;
             }
@@ -486,6 +612,8 @@ namespace NativeActionProperties {
     {
         if (nativeHitbox_IsCreate(op)) {
             op = 59;
+        } else if (ftAction_IsThrowHitbox(op)) {
+            op = FT_ACTION_THROW_OPCODE;
         }
         for (const auto& t : types()) {
             if (t.opcode == op &&
@@ -541,7 +669,7 @@ namespace NativeActionProperties {
             nativeFighterAction_GetHitbox(&p, action, cmd.source_offset, &h))
         {
             describe(&h, hitbox_fields, std::size(hitbox_fields), r, out,
-                     false, h.timed);
+                     false, h.timed, h.launch.mode);
             bone_range(p, r, out, h.use_common_bone_ids);
             return;
         }
@@ -588,13 +716,15 @@ namespace NativeActionProperties {
             auto* def = yyjson_mut_obj(r.document);
             named(r.document, fields, g.names[i], def);
             const bool signed_variant = cmd.opcode == 31 && i == 1;
-            int64_t value = g.fields[i].value;
+            const auto& field = g.fields[i];
+            int64_t value = (int64_t) field.value;
             if (signed_variant && (value & (1u << 18))) {
                 value -= 1u << 19;
             }
             named(r.document, props, g.names[i],
-                  yyjson_mut_sint(r.document, value));
-            add_string(r, def, "type", "integer");
+                  field.fractional ? yyjson_mut_real(r.document, field.value)
+                                   : yyjson_mut_sint(r.document, value));
+            add_string(r, def, "type", field.fractional ? "number" : "integer");
             const char* label =
                 NativeFighterActionLabels::field(cmd.opcode, (unsigned) i);
             add_string(r, def, "description",
@@ -616,16 +746,15 @@ namespace NativeActionProperties {
         }
     }
 
-    bool update(NativeFighterProject& p, unsigned action, uint32_t source,
+    bool update(NativeFighterProject& p, unsigned action, uint32_t& source,
                 yyjson_val* props, std::string& error)
     {
         NativeFighterHitbox h;
         NativeFighterSoundEffect sound;
         NativeFighterSpawnEffect effect;
         if (nativeFighterAction_GetHitbox(&p, action, source, &h)) {
-            return patch(&h, hitbox_fields, std::size(hitbox_fields), props,
-                         false, error, h.timed) &&
-                   nativeFighterAction_SetHitbox(&p, action, source, &h);
+            return patch_hitbox(h, props, false, error) &&
+                   nativeFighterAction_SetHitbox(&p, action, source, &h, nullptr);
         }
         if (nativeFighterAction_GetSoundEffect(&p, action, source, &sound)) {
             if (sound.behavior > 6 && yyjson_obj_size(props)) {
@@ -689,6 +818,16 @@ namespace NativeActionProperties {
                 error = "Reserved fields are read-only.";
                 return false;
             }
+            if (g.fields[field].fractional) {
+                if (!yyjson_is_num(value) ||
+                    !nativeFighterAction_SetField(
+                        &p, action, source, (unsigned) field,
+                        yyjson_get_num(value), &source)) {
+                    error = "Throw damage is outside its allowed range.";
+                    return false;
+                }
+                continue;
+            }
             if (!yyjson_is_int(value) || v < minimum || v > (int64_t) maximum)
             {
                 error = "Command field is outside its integer range.";
@@ -701,7 +840,7 @@ namespace NativeActionProperties {
                 at->opcode < 9
                     ? nativeFighterAction_SetValue(&p, action, source, encoded)
                     : nativeFighterAction_SetField(&p, action, source,
-                                                   (unsigned) field, encoded);
+                                                   (unsigned) field, encoded, nullptr);
             if (!ok) {
                 return false;
             }
@@ -713,13 +852,12 @@ namespace NativeActionProperties {
                 const Type& t, yyjson_val* props, uint32_t& source,
                 std::string& error)
     {
-        uint32_t words[7]{};
+        uint32_t words[NATIVE_HITBOX_MAX_WORDS]{};
         words[0] = t.opcode << 26 | t.selector;
         size_t width = ftActionData_SourceCommandWidth(words[0]);
         if (t.opcode == 59) {
             auto h = initial_hitbox();
-            if (!patch(&h, hitbox_fields, std::size(hitbox_fields), props,
-                       true, error))
+            if (!patch_hitbox(h, props, true, error))
             {
                 return false;
             }
@@ -735,9 +873,10 @@ namespace NativeActionProperties {
                 if (!chosen) {
                     h.id = (uint8_t) slot;
                 }
-                if (nativeFighterAction_EncodeHitbox(&h, words) &&
+                const auto count = nativeFighterAction_EncodeHitbox(&h, words);
+                if (count &&
                     nativeFighterAction_CreateEvent(&p, action, frame, words,
-                                                    6, &source))
+                                                    count, &source))
                 {
                     return true;
                 }
@@ -768,7 +907,7 @@ namespace NativeActionProperties {
             return;
         }
         if (t.opcode == 17) {
-            NativeFighterSoundEffect s{ 0, 127, 64, 0 };
+            NativeFighterSoundEffect s{ 0, 127, 64, 0, false };
             describe(&s, sound_fields, std::size(sound_fields), r, out, true);
             return;
         }
@@ -814,7 +953,9 @@ namespace NativeActionProperties {
                 }
                 auto* def = yyjson_mut_obj(r.document);
                 named(r.document, defs, name, def);
-                add_string(r, def, "type", "integer");
+                add_string(r, def, "type",
+                           t.opcode == FT_ACTION_THROW_OPCODE && field == 1
+                               ? "number" : "integer");
                 yyjson_mut_obj_add_sint(
                     r.document, def, "minimum",
                     t.opcode == 31 && field == 1 ? -(1 << 18) : 0);

@@ -6,6 +6,7 @@
 #include <melee/ef/native_script_effect_actor.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/gobjproc.h>
+#include <sysdolphin/baselib/dat_import.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,8 +37,11 @@ static bool stable(const NativeSourcePackage* package)
 static bool discard(NativeSourcePackage* package)
 {
     if(!nativeSourceItemVisuals_Release(&package->visuals))return false;
+    free(package->sounds);
     nativeSourceHud_Release(&package->hud);
     nativeSourceEntityAssets_Release(&package->entities);
+    for (unsigned i = 0; i < package->program.effects.count; ++i)
+        free(package->effect_arenas[i]);
     nativeSourceAssets_Release(&package->assets);nativeSourceBank_Release(&package->compiler);free(package->input_memory);
     memset(package,0,sizeof(*package));
     return true;
@@ -70,6 +74,71 @@ static bool metadata(void* opaque,const NativeScriptSourceTree* tree,uint32_t no
     if(nativeScriptEffectMetadata_Owns(tree,node))return nativeScriptEffectMetadata_Validate(tree,node,d);
     return nativeScriptItemMetadata_Validate(&package->metadata,tree,node,d);
 }
+
+static bool import_effect_model(const NativeSourceResourceEntry* resource,
+                                NativeScriptEffectProgram* effect, void** arena)
+{
+    HSD_Dat dat;
+    u32 joint, animation, material;
+    if (HSD_DatOpen(&dat, resource->bytes, resource->size) != HSD_DAT_OK ||
+        !HSD_DatFindRoot(&dat, "effect_joint", &joint))
+        return false;
+    bool animated = HSD_DatFindRoot(&dat, "effect_animjoint", &animation);
+    bool material_animated = HSD_DatFindRoot(&dat, "effect_matanim_joint", &material);
+    const size_t max_arena = 16 * 1024 * 1024;
+    const uint32_t max_records = 32768;
+    size_t capacity = 64 * 1024;
+    uint32_t records = 256;
+    for (;;) {
+        *arena = malloc(capacity);
+        if (!*arena) return false;
+        HSD_DatImport import = {0};
+        if (HSD_DatImportInit(&import, &dat, *arena, capacity, records) == HSD_DAT_OK) {
+            StaticModelDesc model = { .joint = HSD_DatImportGraph(&import, joint, DAT_JOINT) };
+            if (model.joint && animated)
+                model.animjoint = HSD_DatImportGraph(&import, animation, DAT_ANIMJOINT);
+            if (model.joint && (!animated || model.animjoint) && material_animated)
+                model.matanim_joint = HSD_DatImportGraph(&import, material, DAT_MATANIM_JOINT);
+            if (model.joint && (!animated || model.animjoint) &&
+                (!material_animated || model.matanim_joint)) {
+                effect->model = (EF_EffectDesc){ .lifetime = effect->lifetime, .model_desc = model };
+                return true;
+            }
+        }
+        const bool record_limit = import.record_count == records;
+        free(*arena);
+        *arena = NULL;
+        if (import.status != HSD_DAT_CAPACITY) return false;
+        if (record_limit) {
+            if (records == max_records) return false;
+            records *= 2;
+        } else {
+            if (capacity == max_arena) return false;
+            capacity *= 2;
+        }
+    }
+}
+
+static bool prepare_effect_models(NativeSourcePackage* package, NativeScriptDiagnostic* d)
+{
+    for (unsigned i = 0; i < package->program.effects.count; ++i) {
+        NativeScriptEffectProgram* effect = &package->program.effects.programs[i];
+        const NativeScriptSourceSpan path = effect->model_path;
+        if (!path.length) continue;
+        char name[NATIVE_SOURCE_RESOURCE_NAME_BYTES];
+        if (path.length >= sizeof(name)) return error(d, "Effect model resource path is too long");
+        memcpy(name, effect->bank->tree.source + path.offset, path.length);
+        name[path.length] = 0;
+        const NativeSourceResourceEntry* resource =
+            nativeSourceResources_Find(&package->resources, name, NativeSourceResource_Blob);
+        if (!resource || !import_effect_model(resource, effect, &package->effect_arenas[i])) {
+            d->source = path;
+            snprintf(d->message, sizeof(d->message), "Could not load effect model '%s' and its animations", name);
+            return false;
+        }
+    }
+    return true;
+}
 bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSourcePackageInput* input,FighterKind target,
     const NativeSourcePackage* accepted,NativeScriptDiagnostic* diagnostic)
 {
@@ -83,6 +152,14 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
     if(!copy_inputs(package,input,d))goto failure;
     if(!nativeSourceResources_Read(package->owned_input.resources,package->owned_input.resource_bytes,
                                    &package->resources,d->message,sizeof(d->message)))goto failure;
+    const NativeSourceResourceEntry* sounds =
+        nativeSourceResources_Find(&package->resources, "sounds.ssm", NativeSourceResource_Blob);
+    if ((sounds && !(package->sounds = HSD_SfxBankReadPackage(sounds->bytes, sounds->size, target))) ||
+        nativeSourceResources_Find(&package->resources, "sounds.ssm", NativeSourceResource_PNG))
+    {
+        error(d, "sounds.ssm must be a valid mono/stereo DSP-ADPCM sound bank with first sample ID 0");
+        goto failure;
+    }
     if(!nativeSourceHud_Prepare(&package->hud,&package->resources,d->message,sizeof(d->message)))goto failure;
     if(!nativeSourceBank_Allocate(&package->compiler,d))goto failure;
     package->compiler.bank.tree.source=package->owned_input.source;
@@ -113,6 +190,7 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
     }
     if(fighters!=1||independent!=1){error(d,"Source package requires exactly one independent Fighter declaration");goto failure;}
     if(!nativeScriptFighter_PrepareProgram(target,&package->compiler.bank,&package->assets.facts.moves,&package->metadata,&package->program,d)||
+       !prepare_effect_models(package,d)||
        !nativeSourceBank_Stats(&package->compiler,&package->stats)||
        !nativeSourceItemVisuals_Prepare(&package->visuals,&package->program.items,d))goto failure;
     package->ready=true;return true;

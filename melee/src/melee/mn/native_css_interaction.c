@@ -2,6 +2,7 @@
 #include "native_css_original.h"
 #include "native_css_cards.h"
 #include "mncharsel.h"
+#include "inlines.h"
 #include <melee/ft/native_costume_catalog.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
@@ -253,11 +254,15 @@ static void choose_tile(unsigned slot, const NativeCssTile* tile)
 
     CSSDoor* door = &selection.doors->doors[slot];
     if (!tile->stock_character_id) {
+        const NativeContentId* previous = nativeHome_FighterPackage(slot);
+        const bool changed = previous &&
+            memcmp(previous, &tile->fighter_package_id, sizeof(*previous)) != 0;
         nativeHome_SelectFighterPackage(slot, &tile->fighter_package_id);
         selection.css->vs.start.players[slot].ckind = ChKind_None;
         selection.css->vs.start.players[slot].color = 0;
         door->sel_icon = 25;
         door->costume = 0;
+        if (changed) sfxMove();
     } else {
         uint8_t character;
         if (nativeStockContent_CharacterFromId(tile->stock_character_id,
@@ -346,7 +351,10 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         return false;
     }
     unsigned port = hand->x4;
-    if (selection.doors->doors[port].p_kind != Gm_PKind_Human) {
+    unsigned kind = selection.doors->doors[port].p_kind;
+    bool joining_local = kind == Gm_PKind_NA &&
+                         nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
+    if (kind != Gm_PKind_Human && !joining_local) {
         *menu_trigger = 0;
         return true;
     }
@@ -391,6 +399,8 @@ bool nativeCssInteraction_Hand(CSSCursorData* hand, u32* menu_trigger)
         }
         return true;
     }
+    if ((trigger & PAD_BUTTON_A) &&
+        nativeCssCards_CycleSeat(hand->xC, hand->x10)) return true;
     if ((trigger & (PAD_BUTTON_X | PAD_BUTTON_Y)) &&
         cycle_outfit(port, (trigger & PAD_BUTTON_X) == 0)) return true;
     if (hand->x5 == 1 && hand->x6 >= 4) {

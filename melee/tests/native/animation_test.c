@@ -68,6 +68,10 @@ void test_native_animation(void)
     static const u8 signed_values[] = { 0x12, 0xFE, 0xFF, 4, 6, 0 };
     static const u8 negative_floats[] = { 0x12, 0, 0, 0, 0xC0, 4, 0, 0, 0xC0, 0x40 };
     require(nativeAnimationPool_BeginHeap(), "Cannot initialize native animation ownership");
+    HSD_FObj waiting = { .op_intrp = 0, .obj_type = 7 };
+    f32 value = 123.0F;
+    FObjUpdateAnim(&waiting, &value, observe);
+    require(value == 123.0F, "Animation without an interpolation opcode updated the pose");
     run_track(floats, sizeof(floats), HSD_A_FRAC_FLOAT, 2);
     run_track(signed_values, sizeof(signed_values), HSD_A_FRAC_S16, -2);
     run_track(negative_floats, sizeof(negative_floats), HSD_A_FRAC_FLOAT, -2);

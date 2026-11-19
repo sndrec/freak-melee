@@ -1,4 +1,5 @@
 #include "sfxbank.h"
+#include <stdlib.h>
 #include <string.h>
 
 static u32 read32(const u8* p)
@@ -75,4 +76,63 @@ void HSD_SfxBankRelocate(HSD_SfxBank* bank, u32 aram_base,
         }
     }
     bank->aram_base = aram_base;
+}
+
+HSD_SfxBank* HSD_SfxBankReadPackage(const void* bytes, size_t size, u32 owner)
+{
+    if (!bytes || size < 16 || size > 4 * 1024 * 1024 ||
+        owner >= HSD_PACKAGE_SOUND_OWNERS)
+    {
+        return NULL;
+    }
+    const u8* data = bytes;
+    u32 metadata = read32(data);
+    u32 samples = read32(data + 4);
+    u32 count = read32(data + 8);
+    if (!count || count > HSD_PACKAGE_SOUND_CLIPS || read32(data + 12) ||
+        metadata > size - 16 || !samples || (samples & 31))
+    {
+        return NULL;
+    }
+    size_t sample_offset = (16 + metadata + 31) & ~(size_t)31;
+    if (sample_offset > size || samples != size - sample_offset) {
+        return NULL;
+    }
+    HSD_SfxBank* bank = calloc(1, sizeof(*bank) + count * sizeof(HSD_SfxEntry));
+    if (!bank) {
+        return NULL;
+    }
+    bank->first_id = HSD_PACKAGE_SOUND_BASE + owner * HSD_PACKAGE_SOUND_CLIPS;
+    bank->count = count;
+    if (!HSD_SfxBankDecode(bank, data + 16, metadata, 0, 0)) {
+        goto invalid;
+    }
+    bank->sample_data = data + sample_offset;
+    bank->sample_bytes = samples;
+    for (u32 i = 0; i < count; ++i) {
+        HSD_SfxEntry* entry = &bank->entries[i];
+        if (entry->sample_rate < 8000 || entry->sample_rate > 48000) {
+            goto invalid;
+        }
+        for (u32 j = 0; j < entry->voice_count; ++j) {
+            const HSD_SfxVoice* voice = &entry->voices[j];
+            const AXPBADDR* address = &voice->address;
+            u32 start = (u32)address->currentAddressHi << 16 | address->currentAddressLo;
+            u32 end = (u32)address->endAddressHi << 16 | address->endAddressLo;
+            u32 loop = (u32)address->loopAddressHi << 16 | address->loopAddressLo;
+            if (address->format || address->loopFlag > 1 || (start & 15) != 2 ||
+                (end & 15) < 2 || start > end || end >= samples * 2 ||
+                voice->adpcm.pred_scale > 127 ||
+                (address->loopFlag && ((loop & 15) < 2 || loop < start ||
+                    loop > end || voice->loop.loop_pred_scale > 127)))
+            {
+                goto invalid;
+            }
+        }
+    }
+    return bank;
+
+invalid:
+    free(bank);
+    return NULL;
 }

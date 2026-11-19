@@ -30,6 +30,9 @@ typedef enum NativeNetplayContentDirection {
 } NativeNetplayContentDirection;
 
 typedef struct NativeNetplayContentProgress {
+    NativeContentId id;
+    // Preview pointers borrow the receive buffer for the current tick only.
+    NativeContentPreview preview;
     uint32_t bytes_done;
     uint32_t bytes_total;
     uint8_t package_index;

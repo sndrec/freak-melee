@@ -19,4 +19,5 @@ struct NativeSocialView {
     NativeSocialMail messages[8], opened;
     NativeSocialFriend friends[8];
     char body[2049], last_sent_nonce[44], join_id[44], join_room[13];
+    char fighter_download_id[44], fighter_download_hash[65];
 };

@@ -120,8 +120,8 @@ void nativeHubSettings_Render(NativeHubPage page)
         nativeHub_TextBlock(description,455,184,135,170,13,muted);
         back(); return;
     }
-    if (page == NativeHubPage_Controls) { nativeHubControls_Render(); return; }
     back();
+    if (page == NativeHubPage_Controls) { nativeHubControls_Render(); return; }
     if (page == NativeHubPage_Video) {
         nativeMenuPaint_Text("Display mode",65,152,290,18,gold,NativeMenuFont_MenuOption);
         nativeHub_Button("video-fullscreen",full_screen()?"Fullscreen":"Windowed",373,142,210,36,HubAction::VideoFullscreen);

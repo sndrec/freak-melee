@@ -92,6 +92,35 @@ static bool valid_sizes(const size_t sizes[MEMBER_CHUNKS])
     return true;
 }
 
+static bool read_family_title(const uint8_t* bytes, size_t size, char* title)
+{
+    if (!bytes || size < FAMILY_HEADER || memcmp(bytes, "FMSC", 4) != 0 ||
+        bytes[4] != 0 || bytes[7] != 0 || !valid_mode(bytes[5], bytes[6])) return false;
+    size_t length = strnlen((const char*)bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
+    if (!length || length == NATIVE_CONTENT_TITLE_BYTES ||
+        !zeros(bytes + 16 + length, NATIVE_CONTENT_TITLE_BYTES - length)) return false;
+    memcpy(title, bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
+    return true;
+}
+
+bool nativeContentStore_ReadPreview(const void* prefix, size_t received,
+                                    NativeContentPreview* preview)
+{
+    if (!preview) return false;
+    *preview = (NativeContentPreview){0};
+    const uint8_t* bytes = prefix;
+    if (read_family_title(bytes, received, preview->title)) {
+        const size_t portrait_size = read_u32(bytes + 8);
+        if (received >= FAMILY_PAYLOAD && portrait_size <= received - FAMILY_PAYLOAD &&
+            nativeContent_ValidFighterPortrait(bytes + FAMILY_PAYLOAD, portrait_size)) {
+            preview->portrait_png = bytes + FAMILY_PAYLOAD;
+            preview->portrait_size = portrait_size;
+        }
+        return true;
+    }
+    return false;
+}
+
 bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
                                     const NativeFighterPackageData* data,
                                     uint8_t** package, size_t* package_size,
@@ -182,14 +211,7 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
     NativeFighterPackageData spans = {0};
     parsed.mode = (NativeFighterFamilyMode)bytes[5];
     parsed.member_count = bytes[6];
-    if (memcmp(bytes, "FMSC", 4) != 0 || bytes[4] != 0 || bytes[7] != 0 ||
-        !valid_mode(parsed.mode, parsed.member_count))
-        return false;
-    size_t title_size = strnlen((const char*)bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
-    if (title_size == 0 || title_size == NATIVE_CONTENT_TITLE_BYTES ||
-        !zeros(bytes + 16 + title_size, NATIVE_CONTENT_TITLE_BYTES - title_size))
-        return false;
-    memcpy(parsed.title, bytes + 16, title_size);
+    if (!read_family_title(bytes, package_size, parsed.title)) return false;
     size_t remaining = package_size - FAMILY_PAYLOAD;
     spans.portrait_size = read_u32(bytes + 8);
     if (spans.portrait_size > remaining) return false;

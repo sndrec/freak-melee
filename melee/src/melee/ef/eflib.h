@@ -27,7 +27,8 @@ ASSERT_SIZE(EF_ParamEntry, 0x8);
 
 // Create effects
 
-/* 05BE88 */ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj);
+/* 05BE88 */ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
+                                     const EF_EffectDesc* owned);
 /* 05C1B4 */ EF_Effect* efLib_Create_Attach(u32 gfx_id, HSD_GObj* gobj,
                                             HSD_JObj* jobj);
 /* 05C2BC */ EF_Effect* efLib_Create_AttachChild(u32 gfx_id, HSD_GObj* gobj,

@@ -19,7 +19,7 @@ typedef enum NativeOnlineMenuAction {
 
 // UI events queue intentions; the home selection/practice tick consumes them.
 bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
-                              const char* code, uint8_t local_players);
+                              const char* code, uint8_t local_players, const char* password);
 bool nativeOnlineMenu_IsAvailable(void);
 bool nativeOnlineMenu_HasPendingAction(void);
 void nativeOnlineMenu_Pump(void);

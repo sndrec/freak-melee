@@ -308,6 +308,7 @@ bool nativeScriptBindings_Read(NativeScriptRuntimeContext* context,uint32_t sema
             } else if(semantic>=NativeScriptBinding_AbsorberActive&&semantic<=NativeScriptBinding_AbsorberDirection) {
                 if(!nativeScriptBindingAbsorber_Read(context,semantic,&value,diagnostic))return false;
             } else if(semantic==NativeScriptBinding_ReflectorActive||semantic==NativeScriptBinding_ReflectorKeepOwner||semantic==NativeScriptBinding_ReflectorHitDirection||
+                      semantic==NativeScriptBinding_ReflectorMaxDamage||
                       (semantic>=NativeScriptBinding_GuardActive&&semantic<=NativeScriptBinding_ShieldInitialSize)) {
                 if(!nativeScriptBindingGuard_Read(context,semantic,&value,diagnostic))return false;
             } else if(semantic==NativeScriptBinding_FloorFriction) {
@@ -325,7 +326,7 @@ bool nativeScriptBindings_Read(NativeScriptRuntimeContext* context,uint32_t sema
                       (semantic>=NativeScriptBinding_ItemLaunchAngle&&semantic<=NativeScriptBinding_ItemReflectionFacing) ||
                       (semantic>=NativeScriptBinding_ItemSurfaceNormalX&&semantic<=NativeScriptBinding_ItemSurfaceNormalZ) ||
                       (context->source_class==NativeCallbackSource_Item &&
-                       ((semantic>=NativeScriptBinding_FloorNormalX && semantic<=NativeScriptBinding_FloorNormalZ)||
+                       ((semantic>=NativeScriptBinding_FloorLine && semantic<=NativeScriptBinding_FloorNormalZ)||
                         (semantic>=NativeScriptBinding_CeilingNormalX && semantic<=NativeScriptBinding_CeilingNormalY)||
                         (semantic>=NativeScriptBinding_WallLeftNormalX && semantic<=NativeScriptBinding_WallRightNormalY)))) {
                 if(!nativeScriptBindingItemObservations_Read(context,semantic,&value,diagnostic))return false;
@@ -479,7 +480,7 @@ bool nativeScriptBindings_Write(NativeScriptRuntimeContext* context,uint32_t sem
                 if(!nativeScriptBindingColors_Write(context,semantic,&value,diagnostic))return false;
             } else if(semantic>=NativeScriptBinding_AbsorberActive&&semantic<=NativeScriptBinding_AbsorberSkipPositionUpdate) {
                 if(!nativeScriptBindingAbsorber_Write(context,semantic,&value,diagnostic))return false;
-            } else if(semantic==NativeScriptBinding_ReflectorKeepOwner||
+            } else if(semantic==NativeScriptBinding_ReflectorKeepOwner||semantic==NativeScriptBinding_ReflectorMaxDamage||
                       (semantic>=NativeScriptBinding_GuardActive&&semantic<=NativeScriptBinding_GuardArticleHitlag)||
                       (semantic>=NativeScriptBinding_GuardElapsed&&semantic<=NativeScriptBinding_ShieldHealth)) {
                 if(!nativeScriptBindingGuard_Write(context,semantic,&value,diagnostic))return false;

@@ -8,6 +8,8 @@ export interface LobbyEntry {
   host: string;
   build: string;
   fighting: number;
+  capacity: number;
+  locked: boolean;
   waiting: number;
   spectating: number;
   participants: number;

@@ -20,7 +20,11 @@
 /* 1891F4 */ UNK_RET fn_801891F4(UNK_PARAMS);
 /* 189B88 */ void fn_80189B88(void);
 /* 189CDC */ void gm_80189CDC(StartMeleeData*);
-/* 18A000 */ HSD_Text* fn_8018A000(void);
+/* 18A000 */ HSD_Text* fn_8018A000(int local_slot);
+#ifdef MELEE_NATIVE
+void gmTraining_UpdateLocalMenu(void);
+bool gmTraining_LocalMenuOpen(void);
+#endif
 /* 473814 */ extern CssSubStruct gm_80473814;
 
 #endif

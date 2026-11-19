@@ -387,7 +387,8 @@ void FObjUpdateAnim(HSD_FObj* fobj, void* obj, HSD_ObjUpdateFunc obj_update)
         }
         break;
     default:
-        break;
+        // A stream with no active interpolation has no value to publish.
+        return;
     }
 #ifdef MELEE_NATIVE
     ++nativeAnimationGlobals.callback_depth;

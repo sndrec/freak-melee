@@ -37,7 +37,7 @@ void nativeHubLobbies_Tick()
         nativeHub_Notice(nativeOnlineSession_Failure());
     previous_state = state;
     if (hub.pending_listing && nativeOnlineSession_IsOwner()) {
-        if (nativeOnlineSession_SetListing(hub.lobby_title, hub.lobby_listed)) hub.pending_listing = false;
+        if (nativeOnlineSession_SetListing(hub.lobby_title, hub.lobby_listed, 4, nullptr)) hub.pending_listing = false;
     } else if (hub.pending_listing && state == NativeLobbySessionState_Failed) hub.pending_listing = false;
     const bool visible = hub.visible && hub.page == NativeHubPage_Lobbies;
     if (browser.thread_handle && !nativeSignalingClient_IsRunning(&browser)) {
@@ -110,10 +110,10 @@ void nativeHubLobbies_Render(bool create)
         char id[32], status[128];
         std::snprintf(id, sizeof(id), "join-listed-%u", i);
         nativeMenuPaint_Text(entry.title, 188, y, 301, 11, gold);
-        std::snprintf(status, sizeof(status), "%u / 4 fighting | %u waiting | %u spectating%s",
-            entry.fighting, entry.waiting, entry.spectating, entry.playing ? " | In match" : "");
+        std::snprintf(status, sizeof(status), "%u / %u fighting | %u waiting | %u spectating%s",
+            entry.fighting, entry.capacity, entry.waiting, entry.spectating, entry.playing ? " | In match" : "");
         nativeMenuPaint_Text(status, 188, y + 12, 301, 7, muted);
-        nativeHub_Button(id, "Join", 516, y, 77, 21, HubAction::JoinListedLobby, i, false,
+        nativeHub_Button(id, entry.locked ? "Locked" : "Join", 516, y, 77, 21, HubAction::JoinListedLobby, entry.locked, false,
             connected && !pending, entry.code, entry.title);
     }
     if (!page.count) nativeMenuPaint_Text(failure[0] ? failure : !received ? "Finding lobbies..." : "No listed lobbies. Create one to get started.",
@@ -125,8 +125,9 @@ void nativeHubLobbies_Render(bool create)
         nativeHub_Button("lobbies-prev", "<", 443, 117, 23, 24, HubAction::BrowseLobbies, -8, false, !pending && page.offset > 0);
         nativeHub_Button("lobbies-next", ">", 472, 117, 23, 24, HubAction::BrowseLobbies, 8, false, !pending && page.offset + page.count < page.total);
     }
-    nativeMenuPaint_Text("Lobby code", 181, 365, 85, 9, gold);
-    nativeHub_Field("lobby-code", hub.code, 271, 360, 218, 25, HubAction::FieldCode);
+    nativeHub_Field("lobby-code", hub.code, 175, 360, 131, 25, HubAction::FieldCode);
+    nativeHub_Field("lobby-password", hub.lobby_password, 313, 360, 176, 25,
+                    HubAction::FieldLobbyPassword, true, "Password (if set)");
     nativeHub_Button("join-lobby", "Join", 503, 360, 102, 25, HubAction::Join, 0, true, std::strlen(hub.code) >= 6);
 }
 bool nativeHubLobbies_Activate(HubAction action, int value)
@@ -153,7 +154,7 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
             if (end == begin) { nativeHub_Notice("Enter a name for your lobby."); return true; }
         }
         if (nativeOnlineSession_State() == NativeLobbySessionState_Failed) nativeOnlineSession_Stop();
-        if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Create, hub.public_name, "", uint8_t(hub.local_players))) {
+        if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Create, hub.public_name, "", uint8_t(hub.local_players), nullptr)) {
             hub.pending_listing = true;
             hub.lobby_invite_queued = *hub.lobby_invite_to != 0;
             nativeHub_Activate(HubAction::Selection, 0);
@@ -161,10 +162,15 @@ bool nativeHubLobbies_Activate(HubAction action, int value)
         return true;
     case HubAction::RefreshLobbies: request(page.offset); return true;
     case HubAction::BrowseLobbies: request(uint16_t(std::max(0, int(page.offset) + value))); return true;
+    case HubAction::FieldLobbyPassword:
+        nativeHub_Focus(hub.lobby_password, sizeof(hub.lobby_password));
+        return true;
     case HubAction::JoinListedLobby:
         // Use the code captured under the pointer, even if a refresh changes the rows.
         std::snprintf(hub.code, sizeof(hub.code), "%.12s", hub.pending_peer);
-        nativeHub_Activate(HubAction::Join, 0);
+        std::memset(hub.lobby_password, 0, sizeof(hub.lobby_password));
+        if (value) nativeHub_Focus(hub.lobby_password, sizeof(hub.lobby_password));
+        else nativeHub_Activate(HubAction::Join, 0);
         return true;
     default: return false;
     }

@@ -372,7 +372,7 @@ static HSD_JObj* runtime_joint(HSD_JObj* root, unsigned index)
     return result;
 }
 
-bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame, GameRules* rules)
+bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame, GameRules* rules, struct GamePrefs* prefs)
 {
     if (!scene.camera || !scene.backdrop[0] || !scene.backdrop[1]) return false;
     scene.previous_camera = HSD_CObjGetCurrent();
@@ -436,7 +436,7 @@ bool nativeMenuScene_Begin(const char* caption, NativeMenuFrame frame, GameRules
             168, 24, rgba, false, false);
         nativeMenuPaint_End();
     }
-    if (frame == NativeMenuFrame_Rules && rules) nativeMenuRules_Load(&scene.assets,rules);
+    if (frame == NativeMenuFrame_Rules && rules) nativeMenuRules_Load(&scene.assets,rules,prefs);
     return true;
 }
 

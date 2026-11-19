@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "debug.h"
+#include "audio_capture.h"
 #include "devcom.h"
 #include "synth.static.h"
 #include <dolphin/ar.h>
@@ -30,6 +31,33 @@ void HSD_AudioFree(void* ptr)
 
 static int sfxLoadRequest;
 static float HSD_Synth_804D6030 = 1.0f;
+static const HSD_SfxBank* package_banks[HSD_PACKAGE_SOUND_OWNERS];
+
+static unsigned package_bank_owner(int id)
+{
+    return ((unsigned)id - HSD_PACKAGE_SOUND_BASE) / HSD_PACKAGE_SOUND_CLIPS;
+}
+
+static const HSD_SfxBank* package_bank_for_id(int id)
+{
+    if (!HSD_SfxIsPackageSound(id)) {
+        return NULL;
+    }
+    const HSD_SfxBank* bank = package_banks[package_bank_owner(id)];
+    return bank && (u32)id - bank->first_id < bank->count ? bank : NULL;
+}
+
+bool HSD_SynthHasPackageSound(int id)
+{
+    return package_bank_for_id(id) != NULL;
+}
+
+void HSD_SynthPublishPackageSfxBank(const HSD_SfxBank* bank)
+{
+    unsigned owner = package_bank_owner(bank->first_id);
+    HSD_ASSERT(0, owner < HSD_PACKAGE_SOUND_OWNERS && !package_banks[owner]);
+    package_banks[owner] = bank;
+}
 
 static void HSD_SynthSFXSampleLoadCallback(int result, void* context, void* addr,
                                            bool cancelflag)
@@ -251,6 +279,19 @@ static void HSD_SynthUnlinkBankEntries(HSD_SfxBank* bank)
     }
 }
 
+void HSD_SynthRetirePackageSfxBank(const HSD_SfxBank* bank)
+{
+    unsigned owner = package_bank_owner(bank->first_id);
+    HSD_ASSERT(0, owner < HSD_PACKAGE_SOUND_OWNERS && package_banks[owner] == bank);
+    for (u32 i = 0; i < ARRAY_SIZE(hsd_SynthSFXNodes); ++i) {
+        struct HSD_SynthSFXNode* node = &hsd_SynthSFXNodes[i];
+        if (node->x0 > 0 && (u32)node->sfx_id - bank->first_id < bank->count) {
+            HSD_SynthSFXStopNode(node);
+        }
+    }
+    package_banks[owner] = NULL;
+}
+
 void HSD_SynthSFXUnloadBank(int bank_id)
 {
     HSD_SynthSFXStopRange(bank_id);
@@ -413,12 +454,17 @@ int HSD_Synth_80389334(int sfx_id, u8 vol, u8 vol2, u8 pan, int priority,
     float vol2_norm;
     int voice_idx;
     u32 node_idx;
-    HSD_SfxEntry* sfx_entry;
+    const HSD_SfxEntry* sfx_entry;
     struct HSD_SynthSFXNode* sfx_node;
 
     PAD_STACK(0x14);
 
-    sfx_entry = HSD_Synth_804C29E0[sfx_id & 0x1F];
+    const HSD_SfxBank* package = package_bank_for_id(sfx_id);
+    if (package) {
+        sfx_entry = &package->entries[sfx_id - package->first_id];
+    } else {
+        sfx_entry = HSD_Synth_804C29E0[sfx_id & 0x1F];
+    }
 
     while (sfx_entry != NULL) {
         if (sfx_entry->id == sfx_id) {
@@ -490,8 +536,16 @@ int HSD_Synth_80389334(int sfx_id, u8 vol, u8 vol2, u8 pan, int priority,
                 voices[voice_idx]->sample.address = sfx_entry->voices[voice_idx].address;
                 voices[voice_idx]->sample.adpcm = sfx_entry->voices[voice_idx].adpcm;
                 voices[voice_idx]->sample.loop = sfx_entry->voices[voice_idx].loop;
+                if (package) {
+                    voices[voice_idx]->sample_data = package->sample_data;
+                    voices[voice_idx]->sample_bytes = package->sample_bytes;
+                }
                 HSD_ASSERT(0, HSD_AudioVoiceStart(voices[voice_idx]));
                 voice_idx += 1;
+            }
+            if (package) {
+                HSD_AudioCapturePackageCue(package_bank_owner(sfx_id),
+                                           sfx_id - package->first_id);
             }
             HSD_Synth_804D7750 += 0x40;
             if (HSD_Synth_804D7750 < 0) {
@@ -589,7 +643,7 @@ static inline void stopRange(size_t lo, size_t hi)
     int i;
     for (i = 0; i < 0x40; i++) {
         struct HSD_SynthSFXNode* node = &hsd_SynthSFXNodes[i];
-        if (hsd_SynthSFXNodes[i].x0 > 0) {
+        if (node->x0 > 0 && !node->voice[0]->sample_data) {
             const AXPBADDR* address = &node->voice[0]->sample.address;
             addr = ((u32) address->currentAddressHi << 16) |
                    address->currentAddressLo;

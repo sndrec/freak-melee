@@ -34,6 +34,16 @@
 #include <sysdolphin/baselib/sislib.h>
 #include <sysdolphin/baselib/tobj.h>
 #include <sysdolphin/baselib/wobj.h>
+#ifdef MELEE_NATIVE
+#include "gmvs.h"
+#include "native_home.h"
+#include "native_practice.h"
+#include <melee/lb/lbfile.h>
+#include <sysdolphin/baselib/controller.h>
+#include <sysdolphin/baselib/dat_import.h>
+#include <sysdolphin/baselib/debug.h>
+#include <sysdolphin/baselib/memory.h>
+#endif
 
 /// @todo .sdata2 order hack
 static inline void gm_1884_sdata2_order(void)
@@ -103,6 +113,45 @@ static inline TrainingItemEntry* TrainingItemTable_Get(void)
 
 /* 473700 */ static TrainingModeState lbl_80473700;
 /* 473814 */ CssSubStruct gm_80473814;
+#ifdef MELEE_NATIVE
+static int local_slot = -1;
+static bool local_menu_open;
+static DynamicModelDesc training_model;
+static DynamicModelDesc* training_models[] = { &training_model, NULL };
+static HSD_AnimJoint* training_anim[1];
+static HSD_MatAnimJoint* training_matanim[1];
+
+static void load_training_model(void)
+{
+    enum { arena_size = 1024 * 1024, record_count = 2048 };
+    const char* file = lbLang_IsSavedLanguageUS() ? "GmTrain.usd" : "GmTrain.dat";
+    size_t size = lbFileGetSize(file);
+    void* bytes = HSD_MemAlloc((size + 31) & ~(size_t) 31);
+    void* arena = HSD_MemAlloc(arena_size);
+    HSD_Dat dat;
+    HSD_DatImport import;
+    u32 root, model, joint, list, anim, matanim;
+    const char* external;
+    lbFile_8001668C(file, bytes, &size);
+    HSD_ASSERT(0, HSD_DatOpen(&dat, bytes, size) == HSD_DAT_OK);
+    HSD_ASSERT(0, HSD_DatFindRoot(&dat, "ScGamTraining_scene_models", &root));
+    HSD_ASSERT(0, HSD_DatResolve(&dat, root, &model, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatResolve(&dat, model, &joint, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatResolve(&dat, model + 4, &list, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatResolve(&dat, list, &anim, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatResolve(&dat, model + 8, &list, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatResolve(&dat, list, &matanim, &external) == HSD_DAT_REF_LOCAL);
+    HSD_ASSERT(0, HSD_DatImportInit(&import, &dat, arena, arena_size, record_count) == HSD_DAT_OK);
+    training_model.joint = HSD_DatImportGraph(&import, joint, DAT_JOINT);
+    training_anim[0] = HSD_DatImportGraph(&import, anim, DAT_ANIMJOINT);
+    training_matanim[0] = HSD_DatImportGraph(&import, matanim, DAT_MATANIM_JOINT);
+    HSD_ASSERTREPORT(0, training_model.joint && training_anim[0] && training_matanim[0],
+                     "Training model import failed: %d at %lx", import.status, import.error_offset);
+    training_model.anims = training_anim;
+    training_model.matanims = training_matanim;
+    lbl_804D662C = training_models;
+}
+#endif
 
 ASSERT_SIZE(lbl_80473700, 0x114);
 ASSERT_SIZE(gm_80473814, 0x204);
@@ -424,7 +473,11 @@ void fn_80188EE8(HSD_GObj* gobj)
 
     PAD_STACK(8);
 
-    if (gm_GetDbPauseFlag(2) != 0) {
+    bool open = gm_GetDbPauseFlag(2) != 0;
+#ifdef MELEE_NATIVE
+    if (local_slot >= 0) open = local_menu_open;
+#endif
+    if (open) {
         HSD_SisLib_803A6368(sub->text, 0x1E);
         HSD_JObjSetFlagsAll(sub->jobjs[3], JOBJ_HIDDEN);
     } else {
@@ -537,14 +590,25 @@ void fn_801891F4(void)
     u64 buttons;
     TrainingSpeedStack speed_stack;
     Vec3 pos;
+    int player = 0;
+    bool open = gm_GetDbPauseFlag(2) != 0;
+#ifdef MELEE_NATIVE
+    if (local_slot >= 0) {
+        player = local_slot;
+        open = local_menu_open;
+    }
+#endif
 
     buttons = gm_801A36C0((u8) lbl_80473700.mode);
     sub = &gm_80473814;
 
-    if (gm_GetDbPauseFlag(2) != 0) {
+    if (open) {
         if (sub->x01 == 0) {
             fn_801651FC(0, 0);
-            gm_801891F4_SetCpuType(0);
+#ifdef MELEE_NATIVE
+            if (local_slot < 0)
+#endif
+                gm_801891F4_SetCpuType(0);
             sub->anim_frames[22] = 0;
         }
         sub->x01 = 1;
@@ -553,9 +617,10 @@ void fn_801891F4(void)
             sfxMove();
             if (sub->x00 != 0) {
                 sub->x00--;
-                if (sub->x00 == 5) {
-                    sub->x00 = 4;
-                }
+                if (sub->x00 == 5) sub->x00 = 4;
+#ifdef MELEE_NATIVE
+                if (local_slot >= 0 && sub->x00 == 3) sub->x00 = 1;
+#endif
             } else {
                 sub->x00 = 8;
             }
@@ -565,9 +630,10 @@ void fn_801891F4(void)
             sfxMove();
             if (sub->x00 < 8) {
                 sub->x00++;
-                if (sub->x00 == 5) {
-                    sub->x00 = 6;
-                }
+                if (sub->x00 == 5) sub->x00 = 6;
+#ifdef MELEE_NATIVE
+                if (local_slot >= 0 && sub->x00 == 2) sub->x00 = 4;
+#endif
             } else {
                 sub->x00 = 0;
             }
@@ -616,7 +682,8 @@ void fn_801891F4(void)
                 lbAudioAx_80024030(8);
                 item =
                     gmTraining_ItemTable[gm_80473814.menu_values[1]].item_id;
-                jobj = Player_GetEntity(0)->hsd_obj;
+                if (!Player_GetEntity(player)) return;
+                jobj = Player_GetEntity(player)->hsd_obj;
                 HSD_JObjGetTranslation2(jobj, &pos);
                 pos.y += 10.0f;
                 it_8026D258(&pos, (ItemKind) item);
@@ -752,12 +819,26 @@ void fn_801891F4(void)
         case 7:
             if (buttons & PAD_BUTTON_A) {
                 sfxForward();
+#ifdef MELEE_NATIVE
+                if (local_slot >= 0) {
+                    Player_SetHUDDamage(player, 0);
+                    Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, 0);
+                    sub->menu_values[4] = 0;
+                    return;
+                }
+#endif
                 fn_80188644();
                 return;
             }
             break;
         case 8:
             if (buttons & PAD_BUTTON_A) {
+#ifdef MELEE_NATIVE
+                if (local_slot >= 0) {
+                    nativeHome_ReturnToSelection();
+                    return;
+                }
+#endif
                 gm_8016B328();
                 return;
             }
@@ -776,6 +857,12 @@ void fn_801891F4(void)
                     speed_stack.speeds.values[sub->menu_values[0]];
                 lbInput_SetGameSpeed(selected_speed);
             }
+#ifdef MELEE_NATIVE
+            if (local_slot >= 0) {
+                sub->x01 = 0;
+                return;
+            }
+#endif
 
             fn_80188550(sub->menu_values[2] + 1);
 
@@ -826,6 +913,40 @@ void fn_801891F4(void)
         sub->x01 = 0;
     }
 }
+
+#ifdef MELEE_NATIVE
+void gmTraining_UpdateLocalMenu(void)
+{
+    if (local_slot < 0) return;
+    const int port = lbl_80473700.mode;
+    const bool was_open = local_menu_open;
+    const u64 pressed = gm_GetButtonsTriggered(port);
+    if (pressed & PAD_BUTTON_START) {
+        local_menu_open = !was_open;
+        if (local_menu_open) {
+            gm_80473814.anim_frames[22] = 0;
+            sfxForward();
+        }
+    } else if (was_open && (pressed & PAD_BUTTON_B)) {
+        local_menu_open = false;
+    }
+    if (!local_menu_open && !was_open) return;
+    const int damage = gm_80473814.menu_values[4];
+    fn_801891F4();
+    if (gm_80473814.menu_values[4] != damage)
+        Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, gm_80473814.menu_values[4]);
+    // Menu input comes from the controller map. Keep the simulation running
+    // with neutral input on the controller that owns this menu.
+    HSD_PadStatus* pad = &HSD_PadGameStatus[port];
+    *pad = (HSD_PadStatus){ .err = pad->err };
+}
+
+bool gmTraining_LocalMenuOpen(void)
+{
+    return gmVs_GetController_0()->start.on_frame_start == gmTraining_UpdateLocalMenu &&
+           local_menu_open;
+}
+#endif
 #ifdef MUST_MATCH
 #pragma dont_inline off
 #endif
@@ -842,8 +963,11 @@ void fn_80189B88(void)
     sub = &gm_80473814;
     sub->x00 = 0;
     sub->x01 = 0;
-    HSD_GObj_SetupProc(GObj_Create(0xE, 2, 0), (HSD_GObjEvent) fn_801891F4,
-                       0x15);
+#ifdef MELEE_NATIVE
+    if (local_slot < 0)
+#endif
+        HSD_GObj_SetupProc(GObj_Create(0xE, 2, 0), (HSD_GObjEvent) fn_801891F4,
+                          0x15);
     gobj = GObj_Create(0xE, 0xF, 0);
     jobj = HSD_JObjLoadJoint((*lbl_804D662C)->joint);
     gm_80473814.gobj = gobj;
@@ -898,7 +1022,7 @@ static inline void resetText(HSD_Text* text)
     text->x34.y = 0.6f;
 }
 
-HSD_Text* fn_8018A000(void)
+HSD_Text* fn_8018A000(int slot)
 {
     TrainingModeState* state;
     u8* data;
@@ -908,9 +1032,23 @@ HSD_Text* fn_8018A000(void)
     PAD_STACK(0x10);
     data = M2C_BITWISE(u8*, gmTraining_ItemTable);
     state = &lbl_80473700;
+#ifdef MELEE_NATIVE
+    local_slot = slot;
+    local_menu_open = false;
+    if (slot >= 0) {
+        state->mode = Player_GetPlayerId(slot);
+        state->count = 1;
+    }
+#else
+    (void) slot;
+#endif
     memzero(state->result_cache, sizeof(state->result_cache));
+#ifdef MELEE_NATIVE
+    load_training_model();
+#else
     lbl_804D6628 = lbArchive_80016DBC("GmTrain", &lbl_804D662C,
                                       "ScGamTraining_scene_models", 0);
+#endif
     fn_80189B88();
     ifAll_GetHUDGObj();
     HSD_SisLib_803A611C(0, NULL, 9, 0x14, 0, 0xE, 0, 0x12);

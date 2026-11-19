@@ -8,6 +8,7 @@
 #include "native_source_hud.h"
 #include "native_source_entity_assets.h"
 #include <melee/it/native_source_item_visual.h>
+#include <sysdolphin/baselib/sfxbank.h>
 
 enum {NATIVE_SOURCE_DAT_BYTES=32*1024*1024};
 typedef enum NativeSourcePackageFamily {NativeSourcePackage_Single=0} NativeSourcePackageFamily;
@@ -28,9 +29,11 @@ typedef struct NativeSourcePackage {
     NativeSourceBank compiler;
     NativeSourceParameters parameters;
     NativeSourceResources resources;
+    HSD_SfxBank* sounds;
     NativeSourceHud hud;
     NativeSourceItemVisuals visuals;
     NativeSourceEntityAssets entities;
+    void* effect_arenas[NATIVE_SCRIPT_EFFECT_PROGRAMS];
     NativeScriptItemMetadataContext metadata;
     NativeScriptFighterProgram program;
     NativeSourceBankStats stats;

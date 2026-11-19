@@ -16,6 +16,7 @@
 #include "native_home.h"
 #include <melee/gr/forward.h>
 #include <melee/mn/native_online_sss.h>
+#include <melee/ui/native_hub.h>
 #include <sysdolphin/baselib/debug.h>
 #endif
 #include "types.h"
@@ -242,7 +243,8 @@ void onExitCss(GameModeState* state)
 #endif
     gmVsMelee_ExitCss(state, gmVsMelee_GetVsData());
 #ifdef MELEE_NATIVE
-    gm_SetNextGameModeStateId(gmVsMode_State_Practice);
+    gm_SetNextGameModeStateId(nativeHome_PracticeStageSelect()
+        ? gmVsMode_State_Sss : gmVsMode_State_Practice);
 #endif
 }
 
@@ -261,7 +263,12 @@ void onEnterSss(GameModeState* state)
 {
     gmVsMelee_EnterSss(state, gmVsMelee_GetVsData());
 #ifdef MELEE_NATIVE
-    nativeOnlineSss_Prepare(gm_GetGameModeStateEnterData(state));
+    SSSData* sss = gm_GetGameModeStateEnterData(state);
+    if (nativeHome_PracticeStageSelect()) {
+        sss->force_stage_id = -1;
+        sss->unk_stage = 0;
+    }
+    nativeOnlineSss_Prepare(sss);
 #endif
 }
 
@@ -269,6 +276,11 @@ void onExitSss(GameModeState* state)
 {
     gmVsMelee_ExitSss(state, gmVsMelee_GetVsData(), gmVsMode_State_Css);
 #ifdef MELEE_NATIVE
+    if (nativeHome_PracticeStageSelect()) {
+        SSSData* sss = gm_GetGameModeStateExitData(state);
+        nativeHome_EndPracticeStageSelect(sss->start_game ? sss->vs.start.rules.stkind : 0);
+        if (sss->start_game) gm_SetNextGameModeStateId(gmVsMode_State_Practice);
+    }
     nativeOnlineSss_Reset();
 #endif
 }
@@ -279,7 +291,7 @@ void onEnterVs(GameModeState* state)
 #ifdef MELEE_NATIVE
     StartMeleeData* start = gm_GetGameModeStateEnterData(state);
     if (start->rules.stkind == St_Kind_Practice) {
-        nativePractice_Configure(start, -1);
+        nativePractice_Configure(start, -1, St_Kind_Practice);
     }
 #endif
 }
@@ -341,6 +353,9 @@ void onEnterResults(GameModeState* state)
 void onExitResults(GameModeState* state)
 {
     gmVsMelee_ExitResults(state, gmVsMelee_GetVsData(), gmVsMode_State_Css);
+#ifdef MELEE_NATIVE
+    nativeHub_ReturnToCss();
+#endif
     if (!gm_WasMatchCanceled(gmVsMelee_ResultsEnterData.match_end.outcome)) {
         gm_801623A4(&gmVsMelee_ResultsEnterData.match_end);
     }

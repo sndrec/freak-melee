@@ -770,7 +770,7 @@ EF_SpawnResult efSync_Spawn(s32 gfx_id, HSD_GObj* gobj, ...)
         break;
     case 0x4E1: {
         HSD_JObj* cursor;
-        spawned.object.model = efLib_Create(0x32C9, gobj);
+        spawned.object.model = efLib_Create(0x32C9, gobj, NULL);
         spawned.kind =
             spawned.object.model != NULL ? EF_SPAWN_MODEL : EF_SPAWN_NONE;
 #if defined(MELEE_NATIVE)

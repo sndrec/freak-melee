@@ -12,6 +12,7 @@ and [parameters](language.md#fighter-attributes) for editable tuning.
 | --- | --- |
 | [`reflector.active`](#reflectorretain-and-reflectordisable) | Read whether reflection is currently enabled. |
 | [`reflector.keep_owner`](#reflectorretain-and-reflectordisable) | Read or change the live bubble's projectile ownership policy. |
+| [`reflector.max_damage`](#reflectormax_damage) | Read or change how much projectile damage the bubble can reflect. |
 | [`reflector.create(bone, max_damage, x, y, z, radius, damage_mul, speed_mul, keep_owner)`](#reflectorcreate) | Create or replace the reflection bubble. |
 | [`reflector.update()`](#reflectorupdate) | Update bubble geometry from the current pose. |
 | [`reflector.retain()` / `reflector.disable()`](#reflectorretain-and-reflectordisable) | Enable or disable the existing bubble. |
@@ -46,6 +47,13 @@ at the appropriate move transition.
 Update the engine's bubble collision geometry using its current bone pose.
 Call it in the phases where the move should maintain the bubble. This operation
 does not create a descriptor, choose a move phase, or register a callback.
+
+## `reflector.max_damage`
+
+Read or set the largest projectile damage the bubble can reflect. Assign a
+nonnegative integer. This changes the current bubble's limit immediately and
+keeps its size, position, multipliers and callback. A new call to
+`reflector.create()` sets the limit from its own arguments.
 
 ## `reflector.retain()` and `reflector.disable()`
 

@@ -86,6 +86,27 @@ sound. The policy adds no callbacks, allocations or fighter-specific handlers.
 
 ## Direct channel requests
 
+### `sound.clip(channel, index, volume, pan)`
+
+Play a clip from this fighter's [sound bank](agent_resources.md#import-fighter-sounds).
+`index` starts at zero. Use channel 0 for a one-shot sound or channels
+1 through 6 to retain a handle on the corresponding fighter sound channel.
+A clip with looping audio needs a retained channel. Volume ranges from
+0 to 127, and pan uses 64 for center.
+
+```text
+parameter int takeoff_sound = 0
+sound.clip(0, attrs.takeoff_sound, 127, 64)
+```
+
+To play a clip on an animation frame, add a **Sound effect** event in the
+Action Editor. Turn on **Use fighter sound bank** and enter the clip index.
+In `actions.edit`, create a `sound` event with
+`"properties": {"package_clip": true, "sfx_id": 0}`. The `behavior` property
+selects the same fighter sound channel.
+
+### `sound.channel(channel, sound_id, volume, pan)`
+
 Fighter callbacks and fighter helper functions can request any retained channel:
 
 ```text

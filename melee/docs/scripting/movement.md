@@ -300,7 +300,10 @@ physics.air_accel_normal()
 ```
 
 `physics.air_drift()` performs the normal air-physics routine, including its
-vertical work. `physics.air_accel_friction(threshold, acceleration, speed)`
+vertical work. `physics.air_drift(acceleration_multiplier)` scales both parts
+of the stick-driven horizontal acceleration. Gravity, fastfall, the target
+horizontal speed and air friction use the fighter's usual values.
+`physics.air_accel_friction(threshold, acceleration, speed)`
 instead calculates horizontal acceleration from explicit tuning values. These
 operations overwrite the current horizontal acceleration; calling normal
 acceleration after custom acceleration preserves that deliberate order rather

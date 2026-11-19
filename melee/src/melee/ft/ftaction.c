@@ -2,6 +2,7 @@
 #include "native_hitbox_lifetime.h"
 #endif
 #include "ftaction.h"
+#include "ftaction_codec.h"
 #include <melee/ft/native_callback_lifetime.h>
 #include <melee/ft/native_fighter_runtime.h>
 
@@ -196,6 +197,9 @@ static FtCmd ftAction_803C06E8[] = {
 #ifdef MELEE_NATIVE
     nativeHitboxLifetime_Spawn,
     ftAction_8007121C,
+    nativeHitboxLifetime_Spawn,
+    nativeHitboxLifetime_Spawn,
+    ftAction_80071E04,
 #endif
 };
 
@@ -216,6 +220,9 @@ static FtCmd ftAction_803C07AC[ARRAY_SIZE(ftAction_803C06E8)] = {
 #ifdef MELEE_NATIVE
     nativeHitboxLifetime_Skip,
     ftAction_800715EC,
+    nativeHitboxLifetime_Skip,
+    nativeHitboxLifetime_Skip,
+    ftAction_80071F0C,
 #endif
 };
 
@@ -224,7 +231,8 @@ static u8 ftAction_803C0870[ARRAY_SIZE(ftAction_803C06E8)] = {
     01, 01, 01, 01, 01, 01, 01, 03, 01, 01, 01, 07, 04, 01, 01, 01, 01,
     01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 03, 03, 02, 01, 04
 #ifdef MELEE_NATIVE
-    , 06, 05
+    , 06, 05, NATIVE_HITBOX_EXTENSION_WORDS, NATIVE_HITBOX_EXTENSION_WORDS,
+    FT_ACTION_THROW_FRACTIONAL_WORDS
 #endif
 };
 
@@ -309,10 +317,13 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
     HitCapsule* hitbox;
     u32 hit_group;
     u32 idx;
+    unsigned slot = cmd->u->create_hitbox_0.id;
     PAD_STACK(8);
 #ifdef MELEE_NATIVE
     const bool owned_flag = nativeHitbox_OwnsFlags(cmd->u->create_hitbox_0.opcode);
     const bool victim_only = cmd->u->create_hitbox_0.only_hit_grabbed;
+    const bool capsule = nativeHitbox_HasCapsule(cmd->u->create_hitbox_0.opcode, slot);
+    slot = nativeHitbox_Slot(cmd->u->create_hitbox_0.opcode, slot);
 #endif
 
     fp = GET_FIGHTER(gobj);
@@ -323,10 +334,21 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
         ftAction_800715EC(gobj, cmd);
     } else {
 #ifdef MELEE_NATIVE
-        nativeHitboxLifetime_Clear(fp, cmd->u->create_hitbox_0.id);
+        nativeHitboxLifetime_Clear(fp, slot);
+        if (capsule) {
+            u32 words[2];
+            memcpy(words, cmd->u + NATIVE_HITBOX_EXTENSION_WORDS, sizeof(words));
+            NativeHitboxLifetime* lifetime = &fp->native_hitbox_lifetimes[slot];
+            lifetime->capsule = true;
+            lifetime->end_offset = (Vec3) {
+                (s16) words[1] * FT_ACTION_HITBOX_DISTANCE_SCALE,
+                (s16) (words[0] >> 16) * FT_ACTION_HITBOX_DISTANCE_SCALE,
+                (s16) words[0] * FT_ACTION_HITBOX_DISTANCE_SCALE,
+            };
+        }
 #endif
         hit_group = cmd->u->create_hitbox_0.hit_group;
-        if (((hitbox = &fp->x914[cmd->u->create_hitbox_0.id])->state ==
+        if (((hitbox = &fp->x914[slot])->state ==
              HitCapsule_Disabled) ||
             (hitbox->x4 != hit_group))
         {
@@ -343,13 +365,23 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
         } else {
             hitbox->jobj = fp->parts[idx].joint;
         }
-        ftColl_8007ABD0(hitbox, cmd->u->create_hitbox_0.damage, gobj);
+#ifdef MELEE_NATIVE
+        if (nativeHitbox_IsExtended(cmd->u->create_hitbox_0.opcode)) {
+            u32 extension;
+            memcpy(&extension, cmd->u + NATIVE_HITBOX_EXTENSION_WORD, sizeof(extension));
+            ftColl_SetHitboxDamage(hitbox, cmd->u->create_hitbox_0.damage +
+                                          nativeHitbox_DamageFraction(extension), gobj);
+        } else
+#endif
+        {
+            ftColl_8007ABD0(hitbox, cmd->u->create_hitbox_0.damage, gobj);
+        }
         NEXT_CMD(cmd);
-        hitbox->scale = 0.003906f * cmd->u->create_hitbox_1.size;
-        hitbox->b_offset.x = 0.003906f * cmd->u->create_hitbox_1.z_offset;
+        hitbox->scale = FT_ACTION_HITBOX_DISTANCE_SCALE * cmd->u->create_hitbox_1.size;
+        hitbox->b_offset.x = FT_ACTION_HITBOX_DISTANCE_SCALE * cmd->u->create_hitbox_1.z_offset;
         NEXT_CMD(cmd);
-        hitbox->b_offset.y = 0.003906f * cmd->u->create_hitbox_2.y_offset;
-        hitbox->b_offset.z = 0.003906f * cmd->u->create_hitbox_2.x_offset;
+        hitbox->b_offset.y = FT_ACTION_HITBOX_DISTANCE_SCALE * cmd->u->create_hitbox_2.y_offset;
+        hitbox->b_offset.z = FT_ACTION_HITBOX_DISTANCE_SCALE * cmd->u->create_hitbox_2.x_offset;
         NEXT_CMD(cmd);
         ftColl_8007AC9C(hitbox, cmd->u->create_hitbox_3.angle, gobj);
         hitbox->x24 = cmd->u->create_hitbox_3.knockback_growth;
@@ -387,7 +419,7 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
         if ((HSD_GObj_CurrentInvokedProc != NULL) &&
             (HSD_GObj_CurrentInvokedProc->s_link > 9))
         {
-            ftColl_8007AD18(fp, hitbox);
+            ftColl_8007AD18(fp, slot);
         }
     }
     ftCommon_80080484(fp);
@@ -429,7 +461,7 @@ void ftAction_8007169C(Fighter_GObj* gobj, CommandInfo* cmd)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     HitCapsule* hit = &fp->x914[cmd->u->set_hitbox_scale.idx];
-    hit->scale = 0.003906f * cmd->u->set_hitbox_scale.value;
+    hit->scale = FT_ACTION_HITBOX_DISTANCE_SCALE * cmd->u->set_hitbox_scale.value;
     NEXT_CMD(cmd);
 }
 
@@ -628,6 +660,16 @@ void ftAction_80071B50(Fighter_GObj* gobj, CommandInfo* cmd)
         vol = cmd->u->sound_effect_2.volume;
         pan = cmd->u->sound_effect_2.panning;
 
+#ifdef MELEE_NATIVE
+        if (sfx - FT_ACTION_CLIP_ID_BASE < FT_ACTION_CLIP_COUNT) {
+            const int id = nativeFighterRuntime_SoundClip(fp->kind,
+                sfx - FT_ACTION_CLIP_ID_BASE, behavior);
+            if (id < 0) {
+                break;
+            }
+            sfx = id;
+        }
+#endif
         switch (behavior) {
         case 0:
             ft_PlaySFX(fp, sfx, vol, pan);
@@ -735,7 +777,18 @@ void ftAction_80071E04(Fighter_GObj* gobj, CommandInfo* cmd)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     HitCapsule* hit = &fp->xDF4[cmd->u->set_throw_hitbox_0.idx];
-    ftColl_8007ABD0(hit, cmd->u->set_throw_hitbox_0.damage, gobj);
+#ifdef MELEE_NATIVE
+    const bool fractional = cmd->u->set_throw_hitbox_0.opcode ==
+                            FT_ACTION_THROW_FRACTIONAL_OPCODE;
+    if (fractional) {
+        float damage;
+        memcpy(&damage, cmd->u + FT_ACTION_THROW_WORDS, sizeof(damage));
+        ftColl_SetHitboxDamage(hit, damage, gobj);
+    } else
+#endif
+    {
+        ftColl_8007ABD0(hit, cmd->u->set_throw_hitbox_0.damage, gobj);
+    }
     NEXT_CMD(cmd);
 
     ftColl_8007AC9C(hit, cmd->u->set_throw_hitbox_1.unk0, gobj);
@@ -748,10 +801,19 @@ void ftAction_80071E04(Fighter_GObj* gobj, CommandInfo* cmd)
     hit->sfx_severity = cmd->u->set_throw_hitbox_2.sfx_severity;
     hit->sfx_kind = cmd->u->set_throw_hitbox_2.sfx_kind;
     NEXT_CMD(cmd);
+#ifdef MELEE_NATIVE
+    if (fractional) NEXT_CMD(cmd);
+#endif
 }
 
 void ftAction_80071F0C(Fighter_GObj* gobj, CommandInfo* cmd)
 {
+#ifdef MELEE_NATIVE
+    if (cmd->u->set_throw_hitbox_0.opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE) {
+        SKIP_CMD(cmd, FT_ACTION_THROW_FRACTIONAL_WORDS);
+        return;
+    }
+#endif
     SKIP_CMD(cmd, 3);
 }
 
@@ -1452,7 +1514,14 @@ void ftAction_8007349C(Fighter_GObj* gobj)
         {
             u32 id = cmd->u->Command_09.id;
             if (!Command_Execute(cmd, id)) {
-                cmd->u += ftAction_803C0870[id - 10];
+#ifdef MELEE_NATIVE
+                if (nativeHitbox_IsExtended(id)) {
+                    cmd->u += nativeHitbox_ExtendedWidth(cmd->u->create_hitbox_0.id);
+                } else
+#endif
+                {
+                    cmd->u += ftAction_803C0870[id - 10];
+                }
             }
         }
     } while (cmd->timer != F32_MAX);

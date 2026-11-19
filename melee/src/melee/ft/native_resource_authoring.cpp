@@ -94,6 +94,7 @@ void describe(Reply& reply,yyjson_mut_val* row,const NativeSourceResourceEntry& 
     add_string(reply,row,"name",resource.name);
     add_string(reply,row,"kind",resource.kind==NativeSourceResource_PNG?"png":"blob");
     add_string(reply,row,"format",resource.kind==NativeSourceResource_PNG?"png":
+        !std::strcmp(resource.name,"sounds.ssm")?"sound_bank":
         resource.size>=4&&!std::memcmp(resource.bytes,"FMIB",4)?"item_blueprint":"opaque");
     yyjson_mut_obj_add_uint(reply.document,row,"bytes",resource.size);
     yyjson_mut_obj_add_uint(reply.document,row,"width",resource.width);
@@ -166,8 +167,8 @@ void read(const NativeFighterProject& project,yyjson_val* args,Reply& reply)
     for(const auto& entry:{std::pair{"textures","Named PNG resources; costume images use models.edit."},
         std::pair{"items","Owned DAT/Article blueprints plus item declarations in editable scripts."},
         std::pair{"articles","Owned fighter-DAT descriptors plus article declarations in editable scripts."},
-        std::pair{"sounds","Existing sound-bank IDs and scripted/subaction sound operations. Custom audio-bank import is unavailable."},
-        std::pair{"effects","Existing effect-bank IDs and scripted effect operations. Custom particle-bank import is unavailable."}}) {
+        std::pair{"sounds","Import a DSP-ADPCM SSM as the blob sounds.ssm. Play its clips with sound.clip(channel, index, volume, pan)."},
+        std::pair{"effects","Use effect-bank IDs or import a model DAT as an effects/*.dat blob for a model_effect declaration."}}) {
         auto* row=yyjson_mut_obj(reply.document);yyjson_mut_arr_append(formats,row);add_string(reply,row,"category",entry.first);add_string(reply,row,"authoring",entry.second);
     }
 }

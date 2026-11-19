@@ -122,6 +122,8 @@ const NativeScriptEffectProgram* nativeScriptEffect_Spec(HSD_GObj* o){(void)o;re
 HSD_JObj* nativeScriptEffect_Joint(HSD_GObj* o,uint32_t g,unsigned m){(void)o;(void)g;(void)m;return NULL;}
 NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* c,uint32_t o,bool on_part,int32_t raw,bool deferred,NativeScriptDiagnostic* d){(void)c;(void)o;(void)on_part;(void)raw;(void)deferred;(void)d;return NativeScriptVM_Error;}
 void nativeModelEffect_Cancel(EF_Effect* e){(void)e;abort();}
+EF_Effect* efLib_Create(int id, HSD_GObj* owner, const EF_EffectDesc* model)
+{(void)id; (void)owner; (void)model; abort();}
 void nativeModelEffect_Spawn(Fighter_GObj* o,const NativeFighterModelEffect* p,s32 i,Vec3* v,bool b){(void)o;(void)p;(void)i;(void)v;(void)b;abort();}
 float nativeModelJoint_Read(HSD_JObj* j,unsigned c){(void)j;(void)c;abort();}
 void nativeModelJoint_Write(HSD_JObj* j,unsigned c,float v){(void)j;(void)c;(void)v;abort();}

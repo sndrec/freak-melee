@@ -162,7 +162,10 @@ void nativeHubStartup_Initialize(bool has_profile)
         if (*id && nativeProfileStore_IsValidId(id)) {
             std::snprintf(s.profile_id, sizeof(s.profile_id), "%s", id);
             if (nativeProfileStore_Load(&s.profile, id)) {
-                nativeProfileInput_Assign(port, &s.profile);
+                char selection[NATIVE_PROFILE_ID_BYTES + 1];
+                if (!nativeProfileStore_ReadSelection(port, selection) && !nativeProfileInput_Assigned(port)) {
+                    nativeProfileInput_Assign(port, &s.profile);
+                }
                 s.calibrated = s.profile.calibration.measured;
             }
         }
@@ -347,7 +350,9 @@ bool nativeHubStartup_Activate(HubAction action, int value)
         if (apply_controls()) enter(NativeStartup_Test);
         break;
     case NativeStartup_Test:
-        if (!nativeProfileStore_Save(&s.profile, s.profile_id) || !nativeProfileInput_Assign(s.port, &s.profile)) {
+        if (!nativeProfileStore_Save(&s.profile, s.profile_id) ||
+            !nativeProfileStore_WriteSelection(s.port, s.profile_id) ||
+            !nativeProfileInput_Assign(s.port, &s.profile)) {
             std::snprintf(s.error, sizeof(s.error), "Could not save this calibration. Your measurements are still here."); break;
         }
         s.applied = false; s.calibrated = true;

@@ -151,6 +151,7 @@ extern "C" bool nativeFighterRig_RemapReferences(const NativeFighterProject* pro
         case 10: // GFX: named roles and model-selected bones retain their selectors.
             if(!(raw&((1u<<17)|(1u<<15)))&&!e.bits(at,18))return false;break;
         case 11:case NATIVE_HITBOX_TIMED_OPCODE:case NATIVE_HITBOX_EXPLICIT_OPCODE:
+        case NATIVE_HITBOX_TIMED_EXTENDED_OPCODE:case NATIVE_HITBOX_EXPLICIT_EXTENDED_OPCODE:
             if(!(raw&(1u<<10))&&!e.bits(at,11))return false;break;
         case 28:if(!e.bits(at,18))return false;break;
         case 58:if(!e.bits(at,0))return false;break;

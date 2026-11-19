@@ -1,5 +1,11 @@
 # Fighter hitboxes
 
+In the Workshop Action Editor, select a hitbox on the event timeline or in
+the Event list. Use **Launch** to choose how the hit launches opponents, and
+**Capsule** to give the hitbox two endpoints. Type a decimal in **Damage**
+for fractional damage. **Grab target** controls whether the hitbox can hit
+the fighter you are holding. Press Enter to confirm a typed value.
+
 ## Creating a hitbox
 
 To adjust a hitbox created by an action event before it can hit, use an
@@ -34,7 +40,7 @@ capsules directly.
 | Field | Meaning | Default and range |
 | --- | --- | --- |
 | `bone` | Fighter [bone ID](bone_queries.md#bone-ids), or its declared live article reservation | Required; nonnegative signed 32-bit integer |
-| `damage` | Damage before the common scale, charge and stale-move rules | Required; integer 0..2147483647 |
+| `damage` | Damage before the common scale, charge and stale-move rules | Required; nonnegative Float |
 | `radius` | Native capsule radius, in model units | Required; finite, nonnegative Float |
 | `offset_x`, `offset_y`, `offset_z` | Local offset from the joint | 0; finite Float |
 | `angle` | Knockback angle, including Sakurai angle 361 | 361; integer 0..2147483647 |
@@ -46,6 +52,7 @@ capsules directly.
 | `item_interaction`, `ignore_fighter_scale`, `rebound` | Native collision flags | false; Bool |
 | `clank`, `grounded`, `aerial` | Clash and target eligibility flags | true; Bool |
 | `victim_only` | Restrict contact to the captured victim | false; Bool |
+| `exclude_grabbed` | Let the hitbox pass through the fighter you are holding | false; Bool |
 | `require_throw_owner` | Refuse creation without the native captured-victim owner | false; Bool |
 
 Definitions accept constant expressions, not mutable fighter variables or
@@ -66,6 +73,52 @@ capsule in the same group preserves its native state and victim history.
 Damage and angle use the common engine setters. Radius and offsets use the
 values declared here directly; imported packed command coefficients must be
 converted explicitly in the declaration.
+
+## Capsule shape
+
+Enable **Capsule** in the hitbox inspector to add **End X**, **End Y** and
+**End Z**. Both endpoints follow the selected bone. **Radius** applies along
+the full segment, including the rounded ends. The game checks the posed
+capsule each tick. Spherical hitboxes sweep from their previous position.
+
+For agent action edits, set `capsule: true` and use `end_x`, `end_y`, and
+`end_z` in the same coordinate system as the offsets. In a
+`hitbox_definition`, provide all three `end_*` fields to create a capsule.
+
+## Throw damage
+
+Select **Define throw values** on a throw's timeline to edit damage, angle,
+knockback, element and sound. **Damage** accepts decimals such as `7.5`.
+The **Release throw** event controls when the throw applies those values.
+
+## Launching toward a point or a moving hitbox
+
+In the Workshop Action Editor, select a hitbox event and choose **Toward
+point** or **Follow hitbox** under **Launch**. Edit the settings that appear
+and press Enter to confirm a typed value. **Angle** uses the hitbox's angle.
+
+In **Follow hitbox**, enable **Separate grounded knockback** to give grounded
+opponents their own growth and base knockback. The main growth and base
+knockback fields then apply to airborne opponents.
+
+Use these calls after the hitbox is created. Each setting lasts until the
+hitbox is cleared or replaced. Knockback attributes still determine hitstun.
+
+| Call | Effect |
+| --- | --- |
+| `hitbox.set_launch_target(slot, forward, up, frames)` | A hit launches the opponent toward a point relative to the fighter. Positive `forward` follows the fighter's facing. The initial speed is the distance to the point divided by `frames`, which must be at least 1. |
+| `hitbox.set_launch_follow(slot, momentum, attraction, min_up, ground_angle)` | An airborne opponent inherits the fighter's velocity multiplied by `momentum`. Each axis also gets the difference between the hitbox center and the opponent's position multiplied by `attraction`. `min_up` sets the lowest vertical speed. Grounded opponents use ordinary knockback at `ground_angle` degrees. |
+
+The game calculates this velocity when the hit connects. Normal knockback
+decay, gravity and directional influence affect the opponent after the hit.
+Both calls work on slots 0 through 3.
+
+For `actions.edit`, use `launch_mode` 0 for Angle, 1 for Toward point, or
+2 for Follow hitbox. Toward point uses `launch_forward`, `launch_up` and
+`launch_frames`. Follow hitbox uses `launch_momentum`, `launch_attraction`,
+`launch_min_up` and `launch_ground_angle`.
+Set `launch_override_ground_knockback` to true to enable `launch_ground_growth`
+and `launch_ground_base`.
 
 ## Reading and updating a hitbox
 

@@ -124,9 +124,10 @@ def float_track(channel, values):
     # One-key packets avoid the separate packet-count varint encoding.
     constant = max(values) - min(values) < 1e-7
     stream = bytearray()
-    if constant and len(values) > 1:
-        # Keep editable endpoints across the clip instead of a one-key step.
-        keys = [(values[0], len(values) - 1), (values[-1], 0)]
+    if constant:
+        # A lone linear key leaves HSD without an interpolation segment.
+        # Give constant tracks two identical endpoints, including one-sample poses.
+        keys = [(values[0], max(1, len(values) - 1)), (values[-1], 0)]
     else:
         keys = [(value, 1 if i + 1 < len(values) else 0)
                 for i, value in enumerate(values)]
@@ -135,7 +136,7 @@ def float_track(channel, values):
     return dict(channel=channel, start=0, value_format=0, slope_format=0, stream=bytes(stream))
 
 
-def figatree(name, nodes, frames, tree_type=1, flags=0):
+def figatree(name, nodes, frames, tree_type=1, flags=0, share_streams=False):
     data = bytearray(struct.pack('>IIfII', tree_type, flags, frames, 20, 0))
     data += bytes(len(n) for n in nodes) + b'\xff'
     data += b'\0' * (-len(data) % 4)
@@ -143,6 +144,7 @@ def figatree(name, nodes, frames, tree_type=1, flags=0):
     struct.pack_into('>I', data, 16, tracks)
     data += b'\0' * (12 * sum(map(len, nodes)))
     reloc = [12, 16]
+    streams = {}
     i = 0
     for node in nodes:
         for track in node:
@@ -150,10 +152,15 @@ def figatree(name, nodes, frames, tree_type=1, flags=0):
             if len(stream) > 65535:
                 raise ValueError('Track too large')
             offset = tracks + i * 12
+            stream_offset = streams.get(stream) if share_streams else None
+            if stream_offset is None:
+                stream_offset = len(data)
+                data += stream
+                if share_streams:
+                    streams[stream] = stream_offset
             struct.pack_into('>HHBBBBI', data, offset, len(stream), track['start'],
-                             track['channel'], track['value_format'], track['slope_format'], 0, len(data))
+                             track['channel'], track['value_format'], track['slope_format'], 0, stream_offset)
             reloc.append(offset + 8)
-            data += stream
             i += 1
     data += b'\0' * (-len(data) % 4)
     tail = struct.pack(f'>{len(reloc)}I', *reloc) + struct.pack('>II', 0, 0) + name.encode() + b'\0'

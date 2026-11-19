@@ -373,7 +373,7 @@ union ftCommon_MotionVars {
         /* fp+2358 */ HSD_JObj* x18;
     } capturedamage;
     struct {
-        /* fp+2340 */ bool timer;
+        /* fp+2340 */ int timer;
         /* fp+2344 */ float x4;
         /* fp+2348 */ Vec3 x8;
         /* fp+2354 */ Vec3 x14;
@@ -381,6 +381,9 @@ union ftCommon_MotionVars {
         /* fp+2364 */ float x24;
         /* fp+2368 */ float x28;
         /* fp+236C */ ftCollisionBox x2C;
+#ifdef MELEE_NATIVE
+        bool authored;
+#endif
     } entry;
     struct {
         /* fp+2340 */ Item_GObj* x0;

@@ -322,6 +322,17 @@ int main(void)
                        sizeof(portrait_png)) == 0 &&
                 !nativeContentStore_ParseCostume(fighter_package, fighter_package_size, &metadata, &metadata_data),
             "typed fighter bundle round trip\n");
+    NativeContentPreview preview;
+    size_t portrait_end = parsed_data.portrait_png - fighter_package + parsed_data.portrait_size;
+    require(!nativeContentStore_ReadPreview(fighter_package, 12, &preview) &&
+            !*preview.title && !preview.portrait_png, "incomplete preview header\n");
+    require(nativeContentStore_ReadPreview(fighter_package, portrait_end - 1, &preview) &&
+            !strcmp(preview.title, fighter.title) && !preview.portrait_png,
+            "show the fighter name while the portrait arrives\n");
+    require(nativeContentStore_ReadPreview(fighter_package, portrait_end, &preview) &&
+            !strcmp(preview.title, fighter.title) && preview.portrait_size == sizeof(portrait_png) &&
+            !memcmp(preview.portrait_png, portrait_png, sizeof(portrait_png)),
+            "show the portrait before the fighter payload arrives\n");
     uint8_t saved_label_byte = fighter_package[208 + sizeof(portrait_png)];
     fighter_package[208 + sizeof(portrait_png)] = '\n';
     require(!nativeContentStore_ParseFighter(fighter_package, fighter_package_size,

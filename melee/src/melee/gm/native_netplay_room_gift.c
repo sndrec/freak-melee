@@ -256,8 +256,11 @@ bool nativeNetplayRoom_GiftStatus(const NativeNetplayRoom* room, bool incoming,
     memcpy(status->peer_id, gift->peer_id, sizeof(status->peer_id));
     memcpy(status->title, gift->title, sizeof(status->title));
     if (incoming && gift->state == NativeNetplayGift_Receiving) {
+        status->downloading = gift->receive.id;
         status->bytes_done = (uint32_t) gift->receive.received;
         status->bytes_total = (uint32_t) gift->receive.size;
+        nativeContentStore_ReadPreview(gift->receive.bytes, gift->receive.received,
+                                       &status->preview);
     } else if (!incoming && gift->state == NativeNetplayGift_Sending) {
         status->bytes_done = (uint32_t) gift->send.acknowledged;
         status->bytes_total = (uint32_t) gift->send.size;

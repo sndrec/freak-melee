@@ -24,6 +24,7 @@
 #include "native_spectator_match.h"
 #include "native_online_session.h"
 #include "native_practice.h"
+#include "gm_1884.h"
 #include "native_workshop_practice.h"
 #include "native_stock_content.h"
 #include <melee/cm/camera.h>
@@ -75,6 +76,8 @@ static struct {
     bool start_requested;
     bool enter_stage_select;
     bool enter_match_setup;
+    bool local_practice_stage_select;
+    unsigned local_practice_stage;
     bool online_match;
     bool watch_results;
     bool authoring;
@@ -569,8 +572,7 @@ void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
             nativeFighterRuntime_SourcePackage(fighter->kind) ==
                 home.workshop_pose_source &&
             nativeFighterLifetime_Current(&home.workshop_pose_lifetime)) {
-            for (unsigned i = 0; i < 4; ++i)
-                fighter->x914[i].state = HitCapsule_Disabled;
+            ftColl_8007AFF8(posed);
         }
         if (resume_gameplay && nativeCallbackSource_Alive(posed, home.workshop_pose_generation,
                 NativeCallbackSource_Fighter) &&
@@ -830,7 +832,9 @@ void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox hitboxes[4],
     home.workshop_preview_hitboxes = true;
     for (unsigned id = 0; id < 4; ++id) {
         HitCapsule* capsule = &fighter->x914[id];
+        NativeHitboxLifetime* lifetime = &fighter->native_hitbox_lifetimes[id];
         capsule->state = HitCapsule_Disabled;
+        lifetime->capsule = false;
         if (hitboxes == NULL || !(active_mask & (1u << id))) continue;
         const NativeFighterHitbox* hitbox = &hitboxes[id];
         const unsigned bone = hitbox->use_common_bone_ids
@@ -844,11 +848,15 @@ void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox hitboxes[4],
         capsule->b_offset.x = hitbox->offset_z / 256.0f;
         capsule->b_offset.y = hitbox->offset_y / 256.0f;
         capsule->b_offset.z = hitbox->offset_x / 256.0f;
+        lifetime->capsule = hitbox->capsule;
+        lifetime->end_offset = (Vec3) {
+            hitbox->end_z / 256.0f, hitbox->end_y / 256.0f, hitbox->end_x / 256.0f,
+        };
         capsule->element = hitbox->element;
         capsule->x43_b1 = hitbox->ignore_fighter_scale;
         capsule->x43_b2 = 0;
         capsule->state = HitCapsule_Enabled;
-        ftColl_8007AD18(fighter, capsule);
+        ftColl_8007AD18(fighter, id);
     }
 }
 
@@ -2007,6 +2015,24 @@ int nativeHome_PhysicalPortForLocalPlayer(unsigned local_player)
                : -1;
 }
 
+void nativeHome_RequestPracticeStageSelect(void)
+{
+    home.local_practice_stage_select = nativeHome_IsSelection() &&
+        nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
+}
+
+bool nativeHome_PracticeStageSelect(void)
+{
+    return home.local_practice_stage_select && !home.preview_transitioning &&
+        nativeOnlineSession_State() == NativeLobbySessionState_Disconnected;
+}
+
+void nativeHome_EndPracticeStageSelect(unsigned stage)
+{
+    home.local_practice_stage_select = false;
+    home.local_practice_stage = stage;
+}
+
 void nativeHome_EnterPractice(StartMeleeData* start)
 {
     const int editor_port = home.authoring && home.preview_active &&
@@ -2014,7 +2040,16 @@ void nativeHome_EnterPractice(StartMeleeData* start)
                                     home.preview_port < GM_MAX_PLAYERS
                                 ? (int) home.preview_port
                                 : -1;
-    nativePractice_Configure(start, editor_port);
+    const unsigned stage = home.local_practice_stage && !home.preview_active
+        ? home.local_practice_stage : St_Kind_Practice;
+    home.local_practice_stage = 0;
+    nativePractice_Configure(start, editor_port, stage);
+    if (editor_port < 0 && !home.preview_active &&
+        nativeOnlineSession_State() == NativeLobbySessionState_Disconnected &&
+        !nativeOnlineSession_Quick()) {
+        start->rules.on_frame_start = gmTraining_UpdateLocalMenu;
+        start->rules.disable_pausing = true;
+    }
     if (home.preview_live_test) {
         nativeWorkshopPractice_Dummy(start);
         nativeWorkshopPractice_EnterScene();

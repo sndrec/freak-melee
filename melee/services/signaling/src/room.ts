@@ -4,7 +4,7 @@ import type { LobbyEntry } from "./lobby-directory";
 import { HEARTBEAT_MS, CONNECTION_LIFETIME_MS, connectionExpired, connectionUncertain, playerIdentity } from "./connection-lease";
 import { connectionAccount, currentConnectionAccount, type ConnectionAccount } from "./connection-account";
 import { equalHash } from "./account-protocol";
-import { encodeListing } from "./wire";
+import { encodeListing, validLobbyPassword } from "./wire";
 import { lobbyStageChooser, lobbyStagePlayers, automaticLobbyStage, emptyLobbyStageHistory,
   lobbyReadySignature, type LobbyStageHistory } from "./lobby-stage";
 import { LOBBY_COUNTDOWN_MS, encodeLobbyRules, decodeLobbyRules, type LobbyRules } from "./lobby-rules";
@@ -183,6 +183,12 @@ export class Room extends DurableObject<CloudflareBindings> {
         CREATE TABLE IF NOT EXISTS room_listing (
           id INTEGER PRIMARY KEY CHECK(id=1), title TEXT NOT NULL, listed INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS room_capacity (
+          id INTEGER PRIMARY KEY CHECK(id=1), fighters INTEGER NOT NULL CHECK(fighters BETWEEN 2 AND 4)
+        );
+        CREATE TABLE IF NOT EXISTS room_password (
+          id INTEGER PRIMARY KEY CHECK(id=1), salt BLOB NOT NULL, verifier BLOB NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS room_recovery (
           connection TEXT PRIMARY KEY, expires INTEGER NOT NULL, attachment TEXT NOT NULL
         );
@@ -202,6 +208,17 @@ export class Room extends DurableObject<CloudflareBindings> {
     const account = connectionAccount(request);
     const identity = await playerIdentity(request, account?.profile.id);
     if (!identity) return new Response("Missing guest installation key", { status: 400 });
+    const lock = this.password();
+    if (lock) {
+      const password = request.headers.get("X-Freak-Lobby-Password");
+      const reconnecting = this.ctx.getWebSockets().some(socket => this.attachment(socket)?.playerIdentity === identity)
+        || this.recovering().some(peer => peer.playerIdentity === identity);
+      if (!reconnecting && (!password || !validLobbyPassword(password) ||
+          !crypto.subtle.timingSafeEqual(lock.verifier, await this.passwordVerifier(password, lock.salt)) ||
+          !crypto.subtle.timingSafeEqual(this.password()?.salt ?? new Uint8Array(16), lock.salt))) {
+        return new Response("Lobby password required", { status: 423 });
+      }
+    }
     const name = account?.profile.name ?? url.searchParams.get("name") ?? "";
     const build = url.searchParams.get("build") ?? "";
     const localPlayers = parseBoundedInteger(url.searchParams.get("players"), 0, 4);
@@ -276,7 +293,7 @@ export class Room extends DurableObject<CloudflareBindings> {
     const recovery = this.recovering().find(peer => peer.playerIdentity === identity);
     const previous = previousConnections.length !== 0
       ? this.attachment(previousConnections[0]) : recovery ?? null;
-    const free = Math.max(0, MAX_ACTIVE_PLAYERS - occupied);
+    const free = Math.max(0, this.fighterLimit() - occupied);
     const requestedActive = activeQuery !== null
       ? parseBoundedInteger(activeQuery, 0, 15) : null;
     const requestedWaiting = waitingQuery !== null
@@ -345,7 +362,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       this.attachment(socket)?.playerIdentity !== identity).map(socket => this.attachment(socket)!).filter(Boolean);
     others.push(...this.recovering().filter(peer => peer.playerIdentity !== identity &&
       !others.some(live => live.playerIdentity === peer.playerIdentity)));
-    if (others.length >= MAX_PARTICIPANTS || others.reduce((sum, peer) => sum + countActive(peer.activeMask), 0) + countActive(activeMask) > MAX_ACTIVE_PLAYERS) {
+    if (others.length >= MAX_PARTICIPANTS || others.reduce((sum, peer) => sum + countActive(peer.activeMask), 0) + countActive(activeMask) > this.fighterLimit()) {
       await this.env.PLAYER_SESSIONS.getByName(identity).leave(attachment.connectionId);
       return new Response("Lobby seats changed while joining; please try again", { status: 409 });
     }
@@ -479,7 +496,7 @@ export class Room extends DurableObject<CloudflareBindings> {
         await this.refreshLobbyCountdown();
         return;
       case ClientMessageType.SetListing:
-        this.setListing(socket, parsed.title, parsed.listed);
+        await this.setListing(socket, parsed.title, parsed.listed, parsed.capacity, parsed.password);
         return;
       case ClientMessageType.UnreadyQuick:
         await this.unreadyQuick(socket, parsed.completedEpoch);
@@ -789,6 +806,8 @@ export class Room extends DurableObject<CloudflareBindings> {
   private clearEmptyLobby(): void {
     this.ctx.storage.sql.exec("DELETE FROM room_chat");
     this.ctx.storage.sql.exec("UPDATE room_listing SET listed=0 WHERE id=1");
+    this.ctx.storage.sql.exec("DELETE FROM room_capacity");
+    this.ctx.storage.sql.exec("DELETE FROM room_password");
     this.ctx.storage.sql.exec("UPDATE room_stage SET loser_peer='', loser_seat=255, stage=255 WHERE id=1");
     const history = JSON.stringify(emptyLobbyStageHistory());
     this.ctx.storage.sql.exec("UPDATE lobby_flow SET rules=NULL, phase=0, deadline=0, signature='', revision=revision+1, history=?, next_history=? WHERE id=1", history, history);
@@ -1226,8 +1245,8 @@ export class Room extends DurableObject<CloudflareBindings> {
       if (connected === socket || connected.readyState !== WebSocket.OPEN) continue;
       occupied += countActive(this.attachment(connected)?.activeMask ?? 0);
     }
-    if (occupied + countActive(activeMask) > MAX_ACTIVE_PLAYERS) {
-      this.error(socket, "Only four players can fight at once");
+    if (occupied + countActive(activeMask) > this.fighterLimit()) {
+      this.error(socket, "All fighting seats are taken");
       return;
     }
     if (match.payload !== null && (topologyChanged || activeSelectionChanged)) {
@@ -1287,8 +1306,8 @@ export class Room extends DurableObject<CloudflareBindings> {
       if (connected === target || connected.readyState !== WebSocket.OPEN) continue;
       occupied += countActive(this.attachment(connected)?.activeMask ?? 0);
     }
-    if (occupied + countActive(message.activeMask) > MAX_ACTIVE_PLAYERS) {
-      this.error(socket, "Only four players can fight at once");
+    if (occupied + countActive(message.activeMask) > this.fighterLimit()) {
+      this.error(socket, "All fighting seats are taken");
       return;
     }
     if (activeChanged) {
@@ -1720,18 +1739,54 @@ export class Room extends DurableObject<CloudflareBindings> {
     return this.ctx.storage.sql.exec<{ title: string; listed: number }>(
       "SELECT title, listed FROM room_listing WHERE id=1").toArray()[0] ?? null;
   }
+  private fighterLimit(): number {
+    return this.ctx.storage.sql.exec<{ fighters: number }>(
+      "SELECT fighters FROM room_capacity WHERE id=1").toArray()[0]?.fighters ?? MAX_ACTIVE_PLAYERS;
+  }
+  private password(): { salt: ArrayBuffer; verifier: ArrayBuffer } | undefined {
+    return this.ctx.storage.sql.exec<{ salt: ArrayBuffer; verifier: ArrayBuffer }>(
+      "SELECT salt, verifier FROM room_password WHERE id=1").toArray()[0];
+  }
+  private async passwordVerifier(password: string, salt: ArrayBuffer): Promise<ArrayBuffer> {
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+    return crypto.subtle.deriveBits({ name: "PBKDF2", salt, hash: "SHA-256", iterations: 100_000 }, key, 256);
+  }
   private sendListing(socket: WebSocket): void {
     const listing = this.listing();
-    if (listing) this.send(socket, encodeListing(listing.title, !!listing.listed));
+    if (listing) this.send(socket, encodeListing(listing.title, !!listing.listed, this.fighterLimit(), !!this.password()));
   }
-  private setListing(socket: WebSocket, title: string, listed: boolean): void {
-    const peer = this.attachment(socket), room = this.snapshot(this.currentRevision());
-    if (!peer || peer.peerId !== room.ownerPeerId || this.quickParty()?.mode || this.quickMatch()) {
+  private async setListing(socket: WebSocket, title: string, listed: boolean, capacity: number, password: string | null): Promise<void> {
+    const peer = this.attachment(socket), revisionBeforeHash = this.currentRevision();
+    if (!peer || peer.peerId !== this.snapshot(revisionBeforeHash).ownerPeerId || this.quickParty()?.mode || this.quickMatch()) {
       this.error(socket, "Only a regular lobby's host can change its listing"); return;
     }
-    this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_listing VALUES (1,?,?)", title.trim(), listed ? 1 : 0);
+    const salt = password ? crypto.getRandomValues(new Uint8Array(16)).buffer : null;
+    const verifier = salt && password ? await this.passwordVerifier(password, salt) : null;
+    if (socket.readyState !== WebSocket.OPEN || this.currentRevision() !== revisionBeforeHash) {
+      this.error(socket, "The lobby changed. Apply these settings again."); return;
+    }
+    const limitChanged = capacity !== this.fighterLimit();
+    if (limitChanged) {
+      const fighting = this.snapshot(revisionBeforeHash).participants.reduce((n,p) => n + countActive(p.activeMask), 0);
+      if (this.currentMatch().payload !== null || fighting > capacity) {
+        this.error(socket, "Change the fighter limit between matches with enough open seats");
+        return;
+      }
+      this.resetLobbyReadiness();
+    }
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_listing VALUES (1,?,?)", title.trim(), listed ? 1 : 0);
+      this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_capacity VALUES (1,?)", capacity);
+      if (salt && verifier)
+        this.ctx.storage.sql.exec("INSERT OR REPLACE INTO room_password VALUES (1,?,?)", salt, verifier);
+      else if (password === "")
+        this.ctx.storage.sql.exec("DELETE FROM room_password");
+    });
     for (const connected of this.ctx.getWebSockets()) if (connected.readyState === WebSocket.OPEN) this.sendListing(connected);
-    this.advertise(this.nextRevision());
+    const revision = this.nextRevision();
+    if (limitChanged) this.broadcastPresence(revision);
+    else this.advertise(revision);
   }
   private advertise(revision: number, excluded?: WebSocket): void {
     const code = this.ctx.id.name;
@@ -1747,7 +1802,7 @@ export class Room extends DurableObject<CloudflareBindings> {
       !this.attachment(socket)?.uncertain);
     if (!listing?.listed || !people.length || !reachable || this.quickParty()?.mode || this.quickMatch()) return null;
     return { code: this.ctx.id.name ?? "", title: listing.title, host: people[0].name, build: people[0].build,
-      fighting: people.reduce((n,p) => n + countActive(p.activeMask), 0),
+      fighting: people.reduce((n,p) => n + countActive(p.activeMask), 0), capacity: this.fighterLimit(), locked: !!this.password(),
       waiting: people.reduce((n,p) => n + countActive(p.waitingMask), 0),
       spectating: people.reduce((n,p) => n + p.localPlayers - countActive(p.activeMask | p.waitingMask) + (p.localPlayers === 0 ? 1 : 0), 0),
       participants: people.length, playing: this.currentMatch().payload !== null };

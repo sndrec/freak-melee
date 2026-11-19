@@ -176,7 +176,7 @@ static bool emit_block(TimingPlan* plan, int parent, unsigned depth)
             memcpy(plan->code + plan->bytes, source, size);
             plan->bytes += size;
             if (node->source == plan->selected && plan->duration_edit &&
-                (raw >> 26) == NATIVE_HITBOX_TIMED_OPCODE)
+                nativeHitbox_IsTimed(raw >> 26))
             {
                 u32 original_life;
                 HSD_DatReadU32(&plan->dat, node->source + 20, &original_life);
@@ -187,10 +187,19 @@ static bool emit_block(TimingPlan* plan, int parent, unsigned depth)
             if (node->lifetime) {
                 u32 flags = raw;
                 if ((raw >> 26) == 11 && !HSD_DatReadU32(&plan->dat, node->source + 20, &flags)) return false;
+                const bool extended = nativeHitbox_IsExtended(raw >> 26);
+                const u32 opcode = extended ? NATIVE_HITBOX_TIMED_EXTENDED_OPCODE :
+                                                NATIVE_HITBOX_TIMED_OPCODE;
                 put_word(plan->code + node->output,
                          (raw & 0x3ffffff & ~(1u << 19)) | (flags & (1u << 19)) |
-                             (NATIVE_HITBOX_TIMED_OPCODE << 26));
-                if (!emit_word(plan, node->lifetime)) {
+                             (opcode << 26));
+                if (extended) {
+                    u32 original_flags;
+                    if (!HSD_DatReadU32(&plan->dat, node->source + 20, &original_flags))
+                        return false;
+                    put_word(plan->code + node->output + 20,
+                             node->lifetime | (original_flags & NATIVE_HITBOX_EXCLUDE_GRABBED));
+                } else if (!emit_word(plan, node->lifetime)) {
                     return false;
                 }
             }
@@ -345,7 +354,7 @@ static bool publish(NativeFighterProject* project, unsigned action, u32 table,
                 if (!matched[j] && before->source_offset == old &&
                     (before->opcode == actual[i].opcode ||
                      (plan->converting && nativeHitbox_IsCreate(before->opcode) &&
-                      actual[i].opcode == NATIVE_HITBOX_TIMED_OPCODE)) &&
+                      nativeHitbox_IsTimed(actual[i].opcode))) &&
                     (int) before->frame +
                             (old == plan->selected ? plan->delta : 0) ==
                         actual[i].frame)
@@ -413,7 +422,7 @@ bool nativeFighterAction_EditEventTiming(NativeFighterProject* project,
     if (ok && duration256) {
         u32 raw;
         ok = HSD_DatReadU32(&plan->dat, source, &raw) &&
-             (raw >> 26) == NATIVE_HITBOX_TIMED_OPCODE;
+             nativeHitbox_IsTimed(raw >> 26);
     }
     if (ok) {
         for (size_t i = 1; i < plan->node_count; ++i) {
@@ -476,7 +485,8 @@ bool nativeFighterAction_HitboxIntervalsValid(
             continue;
         }
         const unsigned slot =
-            occurrence->opcode == 15 ? raw & 0x3ffffff : (raw >> 23) & 7;
+            occurrence->opcode == 15 ? raw & 0x3ffffff :
+                nativeHitbox_Slot(occurrence->opcode, (raw >> 23) & 7);
         if (slot >= 4) {
             return false;
         }
@@ -488,7 +498,7 @@ bool nativeFighterAction_HitboxIntervalsValid(
             return false;
         }
         ends[slot] = 0;
-        if (occurrence->opcode == NATIVE_HITBOX_TIMED_OPCODE) {
+        if (nativeHitbox_IsTimed(occurrence->opcode)) {
             u32 life;
             if (!HSD_DatReadU32(&dat, occurrence->source_offset + 20, &life) ||
                 !(life & NATIVE_HITBOX_DURATION_MASK) ||
@@ -520,7 +530,7 @@ bool nativeFighterAction_ConvertHitboxIntervals(NativeFighterProject* project,
     }
     bool has_hitbox = false;
     for (size_t i = 0; i < command_count; ++i) {
-        if (commands[i].opcode == NATIVE_HITBOX_TIMED_OPCODE) {
+        if (nativeHitbox_IsTimed(commands[i].opcode)) {
             return true;
         }
         has_hitbox |= nativeHitbox_IsCreate(commands[i].opcode);
@@ -552,7 +562,9 @@ bool nativeFighterAction_ConvertHitboxIntervals(NativeFighterProject* project,
         u32 raw;
         HSD_DatReadU32(&plan->dat, occurrence->source_offset, &raw);
         const unsigned slot =
-            nativeHitbox_IsCreate(occurrence->opcode) ? (raw >> 23) & 7 : raw & 0x3ffffff;
+            nativeHitbox_IsCreate(occurrence->opcode)
+                ? nativeHitbox_Slot(occurrence->opcode, (raw >> 23) & 7)
+                : raw & 0x3ffffff;
         if (occurrence->opcode == 15 || occurrence->opcode == 16) {
             if (occurrence->opcode == 15) {
                 if (slot >= 4 || !seen[slot]) {
@@ -609,7 +621,8 @@ bool nativeFighterAction_ConvertHitboxIntervals(NativeFighterProject* project,
             HSD_DatReadU32(&plan->dat, next->source_offset, &value);
             if (next->opcode == 16 ||
                 (next->opcode == 15 && (value & 0x3ffffff) == slot) ||
-                (nativeHitbox_IsCreate(next->opcode) && ((value >> 23) & 7) == slot))
+                (nativeHitbox_IsCreate(next->opcode) &&
+                 nativeHitbox_Slot(next->opcode, (value >> 23) & 7) == slot))
             {
                 end = next->frame;
                 expire_all = next->opcode == 16;

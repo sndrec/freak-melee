@@ -7,6 +7,24 @@ authored article. They do not select a stock fighter's constructor.
 See [Colors and model presentation](colors.md) for diffuse/outline colors,
 instance width and owned secondary visibility tables.
 
+## `on match_entrance:`
+
+Return `true` to play the fighter's **Entry** action during Ready. The
+game plays its animation and timeline cues, then enters standing idle or
+falling when the clip ends. The end of Ready also ends a clip still
+playing, so the player can act on the normal frame.
+
+Edit **Entry** in the Action Editor to set the timing of sounds and
+temporary mesh selections. Its animation can be edited in the Animation
+workspace. A fighter can choose the usual trophy entrance by returning
+`false`.
+
+```text
+action MatchPresentation:
+    on match_entrance:
+        return true
+```
+
 ## `on demo_enter:`
 
 The shared engine enters the selected demo state first, then calls this fighter
@@ -19,6 +37,18 @@ two presentation articles with separately chosen appearances. His move scripts
 and article callbacks own the decisions, including initialization order and
 when to follow their original creator. Classic and video-specific scenes are
 outside the current versus milestone.
+
+## `on victory_fanfare:`
+
+The fighter chosen for the victory music receives this event when the results
+screen opens. In a team match the game chooses one winner to play the fanfare.
+Play a clip from the fighter's sound bank to give that fighter a victory theme.
+
+```text
+action VictoryTheme:
+    on victory_fanfare:
+        sound.clip(0, 50, 110, 64)
+```
 
 ## Temporary visibility selections
 

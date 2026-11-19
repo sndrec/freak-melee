@@ -39,6 +39,12 @@ bool nativeScriptBindingAirPhysics_Invoke(NativeScriptRuntimeContext* context,ui
     const ftCommonData* common=p_ftCommonData;
     if(!current(context,&source,model,common,d))return false;
     switch(semantic) {
+    case NativeScriptBinding_PhysicsAirDriftScaled:
+        if (!common || count != 1 || !arguments || arguments[0].type != NativeScriptType_F32 ||
+            !isfinite(arguments[0].as.f32) || arguments[0].as.f32 <= 0)
+            return error(d, "Air drift requires a positive finite acceleration multiplier");
+        ftCommon_ApplyScaledAirDrift(source.data, arguments[0].as.f32);
+        break;
     case NativeScriptBinding_PhysicsAirDriftWithLimits:
         if(!arguments || count!=3)return error(d,"Bounded air drift requires threshold, acceleration and speed Floats");
         for(unsigned i=0;i<3;++i)

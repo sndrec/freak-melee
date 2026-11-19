@@ -1,13 +1,11 @@
 #include "native_shell_workshop_editor_internal.h"
+#include <melee/ft/ftaction_codec.h>
 #include <melee/ft/native_fighter_model_references.h>
 #include <melee/ft/native_action_properties.h>
 
 #ifdef MELEE_NATIVE
 
 namespace WorkshopEditor {
-
-// The runtime command uses this exact scale for radius and bone offsets.
-constexpr float HitboxDistanceScale = 0.003906f;
 
 static bool visible_command(const NativeFighterActionCommand& command)
 {
@@ -108,7 +106,6 @@ constexpr HitboxToggle hitbox_toggles[] = {
     {"workshop-hitbox-grounded", &NativeFighterHitbox::hit_grounded},
     {"workshop-hitbox-aerial", &NativeFighterHitbox::hit_aerial},
     {"workshop-hitbox-common-bone", &NativeFighterHitbox::use_common_bone_ids},
-    {"workshop-hitbox-grabbed", &NativeFighterHitbox::only_hit_grabbed},
     {"workshop-hitbox-items", &NativeFighterHitbox::item_hit_interaction},
     {"workshop-hitbox-ignore-thrown", &NativeFighterHitbox::ignore_thrown_fighters},
     {"workshop-hitbox-ignore-scale", &NativeFighterHitbox::ignore_fighter_scale},
@@ -145,8 +142,6 @@ void show_event()
         airborne_event ? "block" : "none");
     document->GetElementById("workshop-value-number")->SetProperty("display",
         airborne_event ? "none" : "block");
-    set_text("workshop-event-value-label",
-        event.kind == NativeFighterActionEvent_ThrowHitbox ? "Damage" : "Command value");
     document->GetElementById("workshop-delete-event")
         ->SetProperty("display", "block");
     set_text("workshop-action-title", event_name(event));
@@ -156,20 +151,30 @@ void show_event()
         document->GetElementById("workshop-delete-event")->SetProperty("display", "block");
         return;
     }
+    if (event.kind == NativeFighterActionEvent_ThrowHitbox) {
+        set_text("workshop-action-detail", "Throw record #" + number(event.target_id));
+        return;
+    }
     if (event.kind == NativeFighterActionEvent_SoundEffect) {
         NativeFighterSoundEffect sound;
         if (!nativeFighterAction_GetSoundEffect(session->project,
                 (unsigned) session->selected_action, event.source_offset, &sound)) return;
         document->GetElementById("workshop-sound-fields")->SetProperty("display", "block");
-        set_text("workshop-action-detail", "Original sound command at 0x" +
+        set_text("workshop-action-detail", "Sound command at 0x" +
                  [&] { char hex[16]; std::snprintf(hex, sizeof(hex), "%X",
                            event.source_offset); return std::string(hex); }());
-        set_text("workshop-sound-behavior", "Behavior " + number(sound.behavior) +
-                 (sound.behavior > 6 ? " · canned sound is read-only" : ""));
+        set_text("workshop-sound-behavior", sound.behavior > 6
+                 ? "Preserved sound command " + number(sound.behavior) : "");
+        auto* package = field("workshop-sound-package");
+        if (sound.package_clip) package->SetAttribute("checked", "");
+        else package->RemoveAttribute("checked");
+        set_text("workshop-sound-id-label", sound.package_clip ? "Clip index" : "Sound ID");
         field("workshop-sound-id")->SetValue(number(sound.sfx_id));
+        field("workshop-sound-channel")->SetValue(number(sound.behavior));
         field("workshop-sound-volume")->SetValue(number(sound.volume));
         field("workshop-sound-pan")->SetValue(number(sound.panning));
-        for (const char* id : { "workshop-sound-id", "workshop-sound-volume",
+        for (const char* id : { "workshop-sound-package", "workshop-sound-id",
+                                "workshop-sound-channel", "workshop-sound-volume",
                                 "workshop-sound-pan" }) {
             if (sound.behavior > 6) field(id)->SetAttribute("disabled", "");
             else field(id)->RemoveAttribute("disabled");
@@ -213,9 +218,6 @@ void show_event()
                     document->GetElementById("workshop-air-state"));
                 state->SetValue(number(event.value));
                 set_text("workshop-value-target", "Change movement state at this event's frame.");
-            } else if (event.kind == NativeFighterActionEvent_ThrowHitbox) {
-                set_text("workshop-value-target", "Throw record #" + number(event.target_id) +
-                    ". Defines damage; the separate Release throw event applies the throw.");
             }
         }
         if (event.kind == NativeFighterActionEvent_ReleaseThrow)
@@ -243,17 +245,61 @@ void show_event()
              (hitbox.use_common_bone_ids ? " · common bone " :
                                            " · fighter bone ") +
              number(hitbox.bone));
-    field("workshop-hitbox-damage")->SetValue(number(hitbox.damage));
+    field("workshop-hitbox-damage")->SetValue(float_text(hitbox.damage));
     field("workshop-hitbox-angle")->SetValue(number(hitbox.angle));
-    field("workshop-hitbox-radius")->SetValue(std::to_string(hitbox.radius * HitboxDistanceScale));
+    const auto mode = hitbox.launch.mode;
+    static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-hitbox-launch-mode"))->SetValue(number(mode));
+    document->GetElementById("workshop-hitbox-angle-row")->SetProperty(
+        "display", mode == NativeHitboxLaunch_Default ? "flex" : "none");
+    document->GetElementById("workshop-hitbox-launch-target")->SetProperty(
+        "display", mode == NativeHitboxLaunch_Target ? "block" : "none");
+    document->GetElementById("workshop-hitbox-launch-follow")->SetProperty(
+        "display", mode == NativeHitboxLaunch_Follow ? "block" : "none");
+    const auto target = mode == NativeHitboxLaunch_Target ? hitbox.launch :
+        nativeHitboxLaunch_Defaults(NativeHitboxLaunch_Target);
+    const auto follow = mode == NativeHitboxLaunch_Follow ? hitbox.launch :
+        nativeHitboxLaunch_Defaults(NativeHitboxLaunch_Follow);
+    field("workshop-hitbox-launch-forward")->SetValue(float_text(target.target.forward));
+    field("workshop-hitbox-launch-up")->SetValue(float_text(target.target.up));
+    field("workshop-hitbox-launch-frames")->SetValue(float_text(target.target.frames));
+    field("workshop-hitbox-launch-momentum")->SetValue(float_text(follow.follow.momentum));
+    field("workshop-hitbox-launch-attraction")->SetValue(float_text(follow.follow.attraction));
+    field("workshop-hitbox-launch-min-up")->SetValue(float_text(follow.follow.min_up));
+    field("workshop-hitbox-launch-ground-angle")->SetValue(float_text(follow.follow.ground_angle));
+    const bool ground_kb = follow.follow.override_ground_knockback;
+    auto* ground_toggle = field("workshop-hitbox-ground-kb");
+    if (ground_kb) ground_toggle->SetAttribute("checked", "");
+    else ground_toggle->RemoveAttribute("checked");
+    document->GetElementById("workshop-hitbox-ground-kb-values")->SetProperty(
+        "display", ground_kb ? "block" : "none");
+    field("workshop-hitbox-ground-growth")->SetValue(number(
+        ground_kb ? follow.follow.ground_growth : hitbox.knockback_growth));
+    field("workshop-hitbox-ground-base")->SetValue(number(
+        ground_kb ? follow.follow.ground_base : hitbox.base_knockback));
+    field("workshop-hitbox-radius")->SetValue(float_text(hitbox.radius * FT_ACTION_HITBOX_DISTANCE_SCALE));
     field("workshop-hitbox-kbg")->SetValue(number(hitbox.knockback_growth));
     field("workshop-hitbox-bkb")->SetValue(number(hitbox.base_knockback));
     field("workshop-hitbox-bone")->SetValue(number(hitbox.bone));
-    field("workshop-hitbox-offset-x")->SetValue(std::to_string(hitbox.offset_x * HitboxDistanceScale));
-    field("workshop-hitbox-offset-y")->SetValue(std::to_string(hitbox.offset_y * HitboxDistanceScale));
-    field("workshop-hitbox-offset-z")->SetValue(std::to_string(hitbox.offset_z * HitboxDistanceScale));
+    field("workshop-hitbox-offset-x")->SetValue(float_text(hitbox.offset_x * FT_ACTION_HITBOX_DISTANCE_SCALE));
+    field("workshop-hitbox-offset-y")->SetValue(float_text(hitbox.offset_y * FT_ACTION_HITBOX_DISTANCE_SCALE));
+    field("workshop-hitbox-offset-z")->SetValue(float_text(hitbox.offset_z * FT_ACTION_HITBOX_DISTANCE_SCALE));
+    auto* capsule = field("workshop-hitbox-capsule");
+    if (hitbox.capsule) capsule->SetAttribute("checked", "");
+    else capsule->RemoveAttribute("checked");
+    document->GetElementById("workshop-hitbox-end-offsets")->SetProperty(
+        "display", hitbox.capsule ? "flex" : "none");
+    field("workshop-hitbox-end-x")->SetValue(float_text(
+        (hitbox.capsule ? hitbox.end_x : hitbox.offset_x) * FT_ACTION_HITBOX_DISTANCE_SCALE));
+    field("workshop-hitbox-end-y")->SetValue(float_text(
+        (hitbox.capsule ? hitbox.end_y : hitbox.offset_y) * FT_ACTION_HITBOX_DISTANCE_SCALE));
+    field("workshop-hitbox-end-z")->SetValue(float_text(
+        (hitbox.capsule ? hitbox.end_z : hitbox.offset_z) * FT_ACTION_HITBOX_DISTANCE_SCALE));
     static_cast<Rml::ElementFormControlSelect*>(
         document->GetElementById("workshop-hitbox-element"))->SetValue(number(hitbox.element));
+    static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-hitbox-grab-target"))->SetValue(
+            hitbox.only_hit_grabbed ? "only" : hitbox.exclude_grabbed ? "skip" : "all");
     field("workshop-hitbox-shield")->SetValue(std::to_string(hitbox.shield_damage));
     field("workshop-hitbox-wkb")->SetValue(number(hitbox.weight_set_knockback));
     field("workshop-hitbox-rehit-group")->SetValue(number(hitbox.hit_group));
@@ -553,7 +599,7 @@ void show_action_timeline()
                      (event.kind == NativeFighterActionEvent_CreateHitbox
                           ? "#" + number(event.target_id) :
                       event.kind == NativeFighterActionEvent_ThrowHitbox
-                          ? number(event.value) + "%" :
+                          ? float_text(event.throw_damage) + "%" :
                       event.kind == NativeFighterActionEvent_ReleaseThrow
                           ? "Release" :
                           Rml::StringUtilities::EncodeRml(event_name(event))) +
@@ -1176,7 +1222,7 @@ bool begin_fighter_event_edit(uint32_t offset, FighterEventEdit* edit)
 void cancel_fighter_event_edit(FighterEventEdit* edit)
 {
     if (edit->before == nullptr) return;
-    if (edit->localized) {
+    if (edit->localized || session->project->fighter_size != edit->size) {
         std::free(session->project->fighter_dat);
         session->project->fighter_dat = edit->before;
         session->project->fighter_size = edit->size;
@@ -1189,13 +1235,14 @@ void cancel_fighter_event_edit(FighterEventEdit* edit)
 
 void commit_fighter_event_edit(FighterEventEdit* edit)
 {
-    if (edit->localized)
+    const bool structural = edit->localized || session->project->fighter_size != edit->size;
+    if (structural)
         record_structural_edit(false, edit->before, edit->size);
     else record_edit(false, edit->before);
     std::free(edit->before);
     edit->before = nullptr;
     session->action_dirty = true;
-    if (edit->localized) {
+    if (structural) {
         const unsigned action = (unsigned) session->selected_action;
         select_action(action);
         for (size_t i = 0; i < session->event_count; ++i) {
@@ -1237,25 +1284,37 @@ void apply_hitbox()
         hitbox.refresh_hit_eligibility = document->GetElementById("workshop-hitbox-refresh")->HasAttribute("checked");
     }
     uint16_t bone;
-    const char* spatial_ids[] = {"workshop-hitbox-radius", "workshop-hitbox-offset-x",
-                                 "workshop-hitbox-offset-y", "workshop-hitbox-offset-z"};
-    long spatial[4];
-    for (unsigned axis = 0; axis < 4; ++axis) {
+    hitbox.capsule = field("workshop-hitbox-capsule")->HasAttribute("checked");
+    const char* spatial_ids[] = { "workshop-hitbox-radius", "workshop-hitbox-offset-x",
+        "workshop-hitbox-offset-y", "workshop-hitbox-offset-z",
+        "workshop-hitbox-end-x", "workshop-hitbox-end-y", "workshop-hitbox-end-z" };
+    long spatial[7]{};
+    for (unsigned axis = 0; axis < (hitbox.capsule ? 7u : 4u); ++axis) {
         float value;
-        if (!parse_float(spatial_ids[axis], &value) ||
-            value < (axis ? -32768 : 0) * HitboxDistanceScale ||
-            value > (axis ? 32767 : 65535) * HitboxDistanceScale) {
-            set_text("workshop-editor-status", "Enter a radius from 0 to 255.98 and offsets from -127.99 to 127.99 game units.");
+        if (!parse_float(spatial_ids[axis], &value)) {
+            set_text("workshop-editor-status", "Enter a number for each radius and offset field.");
             return;
         }
-        spatial[axis] = std::lround(value / HitboxDistanceScale);
+        const double units = std::round(double(value) / FT_ACTION_HITBOX_DISTANCE_SCALE);
+        if (units < (axis ? -32768 : 0) || units > (axis ? 32767 : 65535)) {
+            set_text("workshop-editor-status", "Radius or offset is outside its range.");
+            return;
+        }
+        spatial[axis] = (long) units;
     }
     hitbox.radius = (uint16_t) spatial[0];
     hitbox.offset_x = (int16_t) spatial[1];
     hitbox.offset_y = (int16_t) spatial[2];
     hitbox.offset_z = (int16_t) spatial[3];
-    if (!parse_u16("workshop-hitbox-damage", 1023, &hitbox.damage) ||
-        !parse_u16("workshop-hitbox-angle", 511, &hitbox.angle) ||
+    hitbox.end_x = (int16_t) spatial[4];
+    hitbox.end_y = (int16_t) spatial[5];
+    hitbox.end_z = (int16_t) spatial[6];
+    if (!parse_float("workshop-hitbox-damage", &hitbox.damage) ||
+        hitbox.damage < 0 || hitbox.damage > 1023) {
+        set_text("workshop-editor-status", "Enter damage from 0 to 1023.");
+        return;
+    }
+    if (!parse_u16("workshop-hitbox-angle", 511, &hitbox.angle) ||
         !parse_u16("workshop-hitbox-kbg", 511, &hitbox.knockback_growth) ||
         !parse_u16("workshop-hitbox-bkb", 511, &hitbox.base_knockback) ||
         !parse_u16("workshop-hitbox-bone", 255, &bone)) {
@@ -1287,6 +1346,41 @@ void apply_hitbox()
     hitbox.element = (uint8_t) std::strtoul(element.c_str(), nullptr, 10);
     for (const auto& toggle : hitbox_toggles)
         hitbox.*toggle.member = document->GetElementById(toggle.id)->HasAttribute("checked");
+    const auto grab_target = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-hitbox-grab-target"))->GetValue();
+    hitbox.only_hit_grabbed = grab_target == "only";
+    hitbox.exclude_grabbed = grab_target == "skip";
+    const auto mode_value = static_cast<Rml::ElementFormControlSelect*>(
+        document->GetElementById("workshop-hitbox-launch-mode"))->GetValue();
+    if (mode_value != "0" && mode_value != "1" && mode_value != "2") return;
+    hitbox.launch = nativeHitboxLaunch_Defaults((unsigned) (mode_value[0] - '0'));
+    if (hitbox.launch.mode == NativeHitboxLaunch_Target) {
+        auto& target = hitbox.launch.target;
+        if (!parse_float("workshop-hitbox-launch-forward", &target.forward) ||
+            !parse_float("workshop-hitbox-launch-up", &target.up) ||
+            !parse_float("workshop-hitbox-launch-frames", &target.frames) ||
+            !nativeHitboxLaunch_IsValid(&hitbox.launch)) {
+            set_text("workshop-editor-status", "Enter a target offset and at least one travel frame.");
+            return;
+        }
+    } else if (hitbox.launch.mode == NativeHitboxLaunch_Follow) {
+        auto& follow = hitbox.launch.follow;
+        if (!parse_float("workshop-hitbox-launch-momentum", &follow.momentum) ||
+            !parse_float("workshop-hitbox-launch-attraction", &follow.attraction) ||
+            !parse_float("workshop-hitbox-launch-min-up", &follow.min_up) ||
+            !parse_float("workshop-hitbox-launch-ground-angle", &follow.ground_angle) ||
+            !nativeHitboxLaunch_IsValid(&hitbox.launch)) {
+            set_text("workshop-editor-status", "Attraction must be zero or higher. Ground angle must be from 0 to less than 360°.");
+            return;
+        }
+        follow.override_ground_knockback = field("workshop-hitbox-ground-kb")->HasAttribute("checked");
+        if (follow.override_ground_knockback &&
+            (!parse_u16("workshop-hitbox-ground-growth", 511, &follow.ground_growth) ||
+             !parse_u16("workshop-hitbox-ground-base", 511, &follow.ground_base))) {
+            set_text("workshop-editor-status", "Ground growth and base knockback must be whole values from 0 to 511.");
+            return;
+        }
+    }
     FighterEventEdit edit = {};
     if (!begin_fighter_event_edit(offset, &edit)) {
         set_text("workshop-editor-status", "Could not prepare this "
@@ -1294,7 +1388,7 @@ void apply_hitbox()
         return;
     }
     if (!nativeFighterAction_SetHitbox(session->project, (unsigned) session->selected_action,
-                                       edit.offset, &hitbox)) {
+                                       edit.offset, &hitbox, &edit.offset)) {
         cancel_fighter_event_edit(&edit);
         set_text("workshop-editor-status", "Could not edit this hitbox "
                  "within its source encoding.");
@@ -1346,17 +1440,28 @@ void apply_sound()
         return;
     const uint32_t offset = session->events[session->selected_event].source_offset;
     NativeFighterSoundEffect sound;
-    uint16_t volume, pan;
+    uint16_t volume, pan, channel;
     if (!nativeFighterAction_GetSoundEffect(session->project, (unsigned) session->selected_action,
                                             offset, &sound) ||
         !parse_u32("workshop-sound-id", &sound.sfx_id) ||
+        !parse_u16("workshop-sound-channel", 6, &channel) ||
         !parse_u16("workshop-sound-volume", 255, &volume) ||
         !parse_u16("workshop-sound-pan", 255, &pan)) {
-        set_text("workshop-editor-status", "Enter a valid sound ID, volume and panning.");
+        set_text("workshop-editor-status", "Enter a sound ID or clip index and a channel from 0 to 6.");
         return;
     }
     sound.volume = (uint8_t) volume;
     sound.panning = (uint8_t) pan;
+    sound.behavior = (uint8_t) channel;
+    const bool package = field("workshop-sound-package")->HasAttribute("checked");
+    if (package && !sound.package_clip && sound.sfx_id >= FT_ACTION_CLIP_COUNT) {
+        sound.sfx_id = 0;
+    }
+    if (package && sound.sfx_id >= FT_ACTION_CLIP_COUNT) {
+        set_text("workshop-editor-status", "Use a clip index from 0 to 255.");
+        return;
+    }
+    sound.package_clip = package;
     FighterEventEdit edit = {};
     if (!begin_fighter_event_edit(offset, &edit)) {
         set_text("workshop-editor-status", "Could not prepare this "

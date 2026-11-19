@@ -44,7 +44,6 @@ bool nativeHubControls_SetPlayers(unsigned count)
 
 void nativeHubControls_Render()
 {
-    nativeHub_Button("controls-back", "< Settings", 40, 112, 130, 26, HubAction::Settings);
     nativeMenuPaint_Text("Players on this PC", 65, 175, 518, 18, 0xE5C361FF,
                          NativeMenuFont_MenuOption);
     for (unsigned count = 1; count <= 4; ++count) {

@@ -5,6 +5,8 @@
 #include "native_source_package.h"
 #include <melee/ef/efsync.h>
 #include <melee/ef/efasync.h>
+#include <melee/ef/eflib.h>
+#include <melee/it/native_item_lifetime.h>
 #include <melee/ft/ftdat.h>
 #include <melee/ft/ftparts.h>
 #include <melee/ef/native_script_effect_actor.h>
@@ -188,6 +190,33 @@ bool nativeScriptBindingEffect_Invoke(NativeScriptRuntimeContext* context,uint32
        semantic==NativeScriptBinding_EffectsSpawnAsyncPositionOnPart||
        semantic==NativeScriptBinding_EffectsSpawnAsyncPositionScalarOnPart) {
         if(!spawn_parts(context,args,count,semantic,d))return false;
+    } else if ((semantic & NATIVE_SCRIPT_EFFECT_PROPERTY_MASK) == NATIVE_SCRIPT_EFFECT_SPAWN_ITEM_POSITION) {
+        const uint32_t owner = semantic & NATIVE_SCRIPT_EFFECT_INDEX_MASK;
+        if (!args || count != 5 || args[0].type != NativeScriptType_I32 || args[0].as.i64 != owner)
+            return error(d, "Model effect differs from its prepared source owner");
+        for (unsigned i = 1; i < count; ++i) {
+            if (args[i].type != NativeScriptType_F32 || !isfinite(args[i].as.f32))
+                return error(d, "Model effect position and roll must be finite");
+        }
+        NativeItemLifetime item;
+        if (context->source_class != NativeCallbackSource_Item ||
+            !nativeItemLifetime_Capture(context->source, &item) || !item.source_owned ||
+            item.removing || item.generation != context->generation ||
+            item.reference.lifetime != context->scene_epoch || !nativeScriptBindings_SourceAlive(context))
+            return error(d, "Model effect requires a live authored article");
+        const NativeScriptEffectProgram* effect = nativeScriptEffect_Program(item.program->author_kind, owner);
+        if (!effect || effect->bank != item.bank || effect->family != EF_MODEL_POSITION ||
+            effect->update != UINT32_MAX || !effect->model_path.length || !effect->model.model_desc.joint)
+            return error(d, "Article model effect requires a packaged position effect with no update");
+        EF_Effect* spawned = efLib_Create(effect->gfx_id, item.object, &effect->model);
+        if (spawned) {
+            HSD_JObj* root = spawned->gobj->hsd_obj;
+            Vec3 position = {args[1].as.f32, args[2].as.f32, args[3].as.f32};
+            HSD_JObjSetTranslate(root, &position);
+            HSD_JObjSetRotationZ(root, args[4].as.f32);
+        }
+        if (!nativeItemLifetime_Current(&item) || !nativeScriptBindings_SourceAlive(context))
+            return error(d, "Article retired during model effect spawn");
     } else if((semantic&NATIVE_SCRIPT_EFFECT_PROPERTY_MASK)==NATIVE_SCRIPT_EFFECT_SPAWN ||
               (semantic&NATIVE_SCRIPT_EFFECT_PROPERTY_MASK)==NATIVE_SCRIPT_EFFECT_SPAWN_ON_PART||
               (semantic&NATIVE_SCRIPT_EFFECT_PROPERTY_MASK)==NATIVE_SCRIPT_EFFECT_SPAWN_DEFERRED_POSITION) {

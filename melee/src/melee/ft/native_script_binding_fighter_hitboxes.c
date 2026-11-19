@@ -10,6 +10,7 @@
 #include <melee/gm/forward.h>
 #include <melee/pl/player.h>
 #include <melee/pl/types.h>
+#include <math.h>
 #include <stdio.h>
 
 static bool error(NativeScriptDiagnostic* d,const char* message)
@@ -48,13 +49,15 @@ static bool capture(NativeScriptRuntimeContext* c,NativeFighterLifetime* source,
 static float* coordinate(Fighter* fighter,uint32_t slot,uint32_t semantic)
 {
     HitCapsule* hit=&fighter->x914[slot];
+    NativeHitboxLifetime* lifetime = &fighter->native_hitbox_lifetimes[slot];
+    Vec3* previous = lifetime->capsule ? &lifetime->previous_start : &hit->x58;
     switch(semantic) {
     case NativeScriptBinding_HitboxCurrentX:return &hit->x4C.x;
     case NativeScriptBinding_HitboxCurrentY:return &hit->x4C.y;
     case NativeScriptBinding_HitboxCurrentZ:return &hit->x4C.z;
-    case NativeScriptBinding_HitboxPreviousX:return &hit->x58.x;
-    case NativeScriptBinding_HitboxPreviousY:return &hit->x58.y;
-    case NativeScriptBinding_HitboxPreviousZ:return &hit->x58.z;
+    case NativeScriptBinding_HitboxPreviousX:return &previous->x;
+    case NativeScriptBinding_HitboxPreviousY:return &previous->y;
+    case NativeScriptBinding_HitboxPreviousZ:return &previous->z;
     default:return NULL;
     }
 }
@@ -99,8 +102,10 @@ bool nativeScriptBindingFighterHitboxes_Invoke(NativeScriptRuntimeContext* c,uin
     bool enabled=semantic==NativeScriptBinding_HitboxSetEnabled;
     bool victims=semantic==NativeScriptBinding_HitboxClearVictims;
     bool all=semantic==NativeScriptBinding_HitboxClearAll;
-    if(!out||(!args&&!all)||(!state&&!damage&&!group&&!set_group&&!position&&!enabled&&!victims&&!all&&semantic!=NativeScriptBinding_HitboxSetDamage)||
-       count!=(all?0u:(state||damage||group||victims)?1u:position?4u:2u)||
+    bool target = semantic == NativeScriptBinding_HitboxLaunchTarget;
+    bool follow = semantic == NativeScriptBinding_HitboxLaunchFollow;
+    if(!out||(!args&&!all)||(!state&&!damage&&!group&&!set_group&&!position&&!enabled&&!victims&&!all&&!target&&!follow&&semantic!=NativeScriptBinding_HitboxSetDamage)||
+       count!=(all?0u:(state||damage||group||victims)?1u:follow?5u:(position||target)?4u:2u)||
        (enabled&&(args[1].type!=NativeScriptType_Bool||args[1].as.u64>1)))
         return error(d,"Fighter hitbox operation has an invalid argument shape");
     uint32_t slot=UINT32_MAX;
@@ -135,6 +140,40 @@ bool nativeScriptBindingFighterHitboxes_Invoke(NativeScriptRuntimeContext* c,uin
     } else if(state)result.as.i64=f->x914[slot].state;
     else if(damage)result.as.f32=f->x914[slot].damage;
     else if(group)result.as.u64=f->x914[slot].x4;
+    else if (target || follow) {
+        float parameters[4];
+        for (unsigned i = 1; i < count; ++i) {
+            NativeScriptValue value;
+            if (!nativeScriptValue_Convert(&args[i], NativeScriptType_F32, &value, d)) {
+                return false;
+            }
+            if (!isfinite(value.as.f32)) {
+                return error(d, "Hitbox launch parameters must be finite");
+            }
+            parameters[i - 1] = value.as.f32;
+        }
+        if (target && parameters[2] < 1.0f) {
+            return error(d, "A hitbox launch target needs at least one travel frame");
+        }
+        if (follow && (parameters[1] < 0.0f ||
+                       parameters[3] < 0.0f || parameters[3] >= 360.0f)) {
+            return error(d, "Hitbox launch attraction must be nonnegative and ground angle must be in [0, 360)");
+        }
+        if (f->x914[slot].state != HitCapsule_Disabled) {
+            NativeHitboxLifetime* hit = &f->native_hitbox_lifetimes[slot];
+            if (target) {
+                hit->launch = (NativeHitboxLaunch) {
+                    .mode = NativeHitboxLaunch_Target,
+                    .target = { parameters[0], parameters[1], parameters[2], 0 },
+                };
+            } else {
+                hit->launch = (NativeHitboxLaunch) {
+                    .mode = NativeHitboxLaunch_Follow,
+                    .follow = { parameters[0], parameters[1], parameters[2], parameters[3] },
+                };
+            }
+        }
+    }
     else if(set_group){
         if(!nativeScriptExpression_IsIntegral(args[1].type)||
            (args[1].type==NativeScriptType_Bool&&args[1].as.u64>1))

@@ -294,6 +294,11 @@ void ftCo_8008DCE0(Fighter_GObj* gobj, int arg1, float facing_dir)
     float y;
     int var_r27 = 1;
     float kb_applied = fp->dmg.kb_applied;
+#ifdef MELEE_NATIVE
+    bool custom_launch = fp->native_contact_launch_active;
+    Vec2 launch = fp->native_contact_launch;
+    fp->native_contact_launch_active = false;
+#endif
     PAD_STACK(0x28);
     Fighter_8006CDA4(fp, fp->dmg.x1838_percentTemp);
     if (!nativeFighterLifetime_Current(&source)) return;
@@ -357,6 +362,12 @@ void ftCo_8008DCE0(Fighter_GObj* gobj, int arg1, float facing_dir)
         x = scaled_kb.v * cosf(kb_angle);
         y = scaled_kb.v * sinf(kb_angle);
     block_20:
+#ifdef MELEE_NATIVE
+        if (custom_launch) {
+            x = -launch.x * fp->facing_dir;
+            y = launch.y;
+        }
+#endif
         ftCo_Damage_CalcVel(fp, -x * fp->facing_dir, y);
         fp->xF0_ground_kb_vel = 0;
         goto block_28;
@@ -364,6 +375,12 @@ void ftCo_8008DCE0(Fighter_GObj* gobj, int arg1, float facing_dir)
         normal = &fp->coll_data.floor.normal;
         pos.x = -x * fp->facing_dir;
         pos.y = y;
+#ifdef MELEE_NATIVE
+        if (custom_launch) {
+            pos.x = launch.x;
+            pos.y = launch.y;
+        }
+#endif
         pos.z = 0;
         floor_angle = lbVector_Angle(normal, &pos);
         if (!(floor_angle < M_PI_2_F)) {

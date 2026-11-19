@@ -264,11 +264,43 @@ static uint64_t add_hurt_capsule(uint64_t hash,
     return nativeSemanticState_AddU32(hash, hurt->is_grabbable);
 }
 
+static uint64_t add_hitbox_lifetime(uint64_t hash,
+                                    const NativeHitboxLifetime* hit)
+{
+    hash = add_float(hash, hit->remaining);
+    hash = nativeSemanticState_AddU32(hash, hit->armed);
+    hash = nativeSemanticState_AddU32(hash, hit->expire_all);
+    hash = nativeSemanticState_AddU32(hash, hit->exclude_grabbed);
+    hash = nativeSemanticState_AddU32(hash, hit->capsule);
+    if (hit->capsule) {
+        hash = add_vec3(hash, &hit->end_offset);
+        hash = add_vec3(hash, &hit->previous_start);
+    }
+    hash = nativeSemanticState_AddU32(hash, hit->launch.mode);
+    if (hit->launch.mode == NativeHitboxLaunch_Target) {
+        hash = add_float(hash, hit->launch.target.forward);
+        hash = add_float(hash, hit->launch.target.up);
+        hash = add_float(hash, hit->launch.target.frames);
+    } else if (hit->launch.mode == NativeHitboxLaunch_Follow) {
+        hash = add_float(hash, hit->launch.follow.momentum);
+        hash = add_float(hash, hit->launch.follow.attraction);
+        hash = add_float(hash, hit->launch.follow.min_up);
+        hash = add_float(hash, hit->launch.follow.ground_angle);
+        hash = nativeSemanticState_AddU32(hash, hit->launch.follow.override_ground_knockback);
+        if (hit->launch.follow.override_ground_knockback) {
+            hash = nativeSemanticState_AddU32(hash, hit->launch.follow.ground_growth);
+            hash = nativeSemanticState_AddU32(hash, hit->launch.follow.ground_base);
+        }
+    }
+    return hash;
+}
+
 uint64_t nativeSemanticState_FighterHitboxDigest(const Fighter* fighter)
 {
     uint64_t hash = nativeSemanticState_Begin();
     for (uint32_t i = 0; i < 4; ++i) {
         hash = add_hit_capsule(hash, &fighter->x914[i]);
+        hash = add_hitbox_lifetime(hash, &fighter->native_hitbox_lifetimes[i]);
     }
     for (uint32_t i = 0; i < 2; ++i) {
         hash = add_hit_capsule(hash, &fighter->xDF4[i]);
@@ -666,6 +698,7 @@ static uint64_t add_fighter_common_motion_state(uint64_t hash,
     case ftCo_MS_EntryEnd:
         hash = nativeSemanticState_AddU32(
             hash, (uint32_t) fighter->mv.co.entry.timer);
+        hash = nativeSemanticState_AddU32(hash, fighter->mv.co.entry.authored);
         hash = add_float(hash, fighter->mv.co.entry.x4);
         hash = add_vec3(hash, &fighter->mv.co.entry.x8);
         hash = add_vec3(hash, &fighter->mv.co.entry.x14);
@@ -1221,6 +1254,7 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     if (trace != NULL) trace->animation = hash;
     for (uint32_t i = 0; i < 4; ++i) {
         hash = add_hit_capsule(hash, &fighter->x914[i]);
+        hash = add_hitbox_lifetime(hash, &fighter->native_hitbox_lifetimes[i]);
     }
     for (uint32_t i = 0; i < 2; ++i) {
         hash = add_hit_capsule(hash, &fighter->xDF4[i]);
@@ -1241,6 +1275,11 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     hash = nativeSemanticState_AddU32(hash,
                                       (uint32_t) fighter->dmg.x1848_kb_angle);
     hash = add_float(hash, fighter->dmg.kb_applied);
+    hash = nativeSemanticState_AddU32(hash, fighter->native_contact_launch_active);
+    if (fighter->native_contact_launch_active) {
+        hash = add_float(hash, fighter->native_contact_launch.x);
+        hash = add_float(hash, fighter->native_contact_launch.y);
+    }
     hash = add_float(hash, fighter->dmg.x18A4_knockbackMagnitude);
     hash = nativeSemanticState_AddU32(
         hash, (uint32_t) fighter->dmg.x18ac_time_since_hit);

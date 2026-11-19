@@ -9,6 +9,7 @@
   "vars": {
     "AUTH_ORIGIN": "https://freak-melee-signaling.sndrec32exe.workers.dev"
   },
+  "r2_buckets": [{ "binding": "FIGHTER_GIFTS", "bucket_name": "freak-melee-fighter-gifts" }],
   "ratelimits": [
     { "name": "ACCOUNT_LIMIT", "namespace_id": "710019", "simple": { "limit": 60, "period": 60 } },
     { "name": "TURN_NETWORK_LIMIT", "namespace_id": "710022", "simple": { "limit": 20, "period": 60 } },

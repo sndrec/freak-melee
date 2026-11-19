@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdio>
 #include <string>
 
 namespace {
@@ -24,8 +25,9 @@ struct MarkerPosition {
     int y;
     int arrow_degrees;
     int arrow_length;
-    unsigned damage;
+    float damage;
     unsigned source_angle;
+    unsigned launch_mode;
     bool visible;
     bool arrow_visible;
     bool special_visible;
@@ -47,7 +49,7 @@ void nativeShellWorkshopHitboxes_Init(Rml::ElementDocument* shell)
             ("workshop-hitbox-damage-" + std::to_string(id)).c_str());
         special_labels[id] = document->GetElementById(
             ("workshop-hitbox-special-" + std::to_string(id)).c_str());
-        positions[id] = { -1, -1, INT_MIN, -1, UINT_MAX, UINT_MAX,
+        positions[id] = { -1, -1, INT_MIN, -1, -1.0f, UINT_MAX, UINT_MAX,
                           false, false, false, false };
     }
 }
@@ -99,26 +101,39 @@ void nativeShellWorkshopHitboxes_Update(bool visible, int selected_hitbox,
             arrows[id]->SetProperty("top", std::to_string(py) + "px");
             positions[id].y = py;
         }
-        const unsigned damage = hitboxes[id].damage;
+        const float damage = hitboxes[id].damage;
         const unsigned angle = hitboxes[id].angle;
-        if (damage != positions[id].damage || angle != positions[id].source_angle) {
-            damage_labels[id]->SetInnerRML(std::to_string(damage) + "%");
-            const std::string description = angle == 361
+        const unsigned mode = hitboxes[id].launch.mode;
+        const bool uses_angle = mode == NativeHitboxLaunch_Default;
+        if (damage != positions[id].damage || angle != positions[id].source_angle ||
+            mode != positions[id].launch_mode) {
+            char percent[32];
+            std::snprintf(percent, sizeof(percent), "%g%%", damage);
+            damage_labels[id]->SetInnerRML(percent);
+            const std::string description = mode == NativeHitboxLaunch_Target
+                ? "Launch toward point"
+                : mode == NativeHitboxLaunch_Follow
+                    ? "Follow hitbox"
+                : angle == 361
                 ? "Sakurai angle (context-dependent)"
                 : angle > 360
                     ? "Special angle " + std::to_string(angle)
                     : std::to_string(angle) +
                       " degree launch angle, relative to facing";
             markers[id]->SetAttribute("title", "Hitbox #" +
-                std::to_string(id) + " · " + std::to_string(damage) +
-                "% base damage · " + description);
-            if (angle > 360)
+                std::to_string(id) + " · " + percent +
+                " base damage · " + description);
+            if (!uses_angle)
+                special_labels[id]->SetInnerRML(mode == NativeHitboxLaunch_Target
+                    ? "Target" : "Follow");
+            else if (angle > 360)
                 special_labels[id]->SetInnerRML(angle == 361
                     ? "Sakurai" : "Angle " + std::to_string(angle));
             positions[id].damage = damage;
             positions[id].source_angle = angle;
+            positions[id].launch_mode = mode;
         }
-        const bool special = angle > 360;
+        const bool special = !uses_angle || angle > 360;
         if (special != positions[id].special_visible) {
             special_labels[id]->SetProperty("display", special ? "block" : "none");
             positions[id].special_visible = special;

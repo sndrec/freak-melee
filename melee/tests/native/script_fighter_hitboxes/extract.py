@@ -18,7 +18,7 @@ def extract(root,out):
  for path,names in [('src/melee/ft/ftchangeparam.c',['ftCo_CalcYScaledKnockback']),
                     ('src/melee/ft/ft_0DF0.c',['ftCo_800DEEB8']),
                     ('src/melee/ft/ft_0881.c',['ft_80089118','ft_80089228']),
-                    ('src/melee/ft/ftcoll.c',['ftColl_8007ABD0','ftColl_8007B8A8','ftColl_8007AFF8']),
+                    ('src/melee/ft/ftcoll.c',['ftColl_SetHitboxDamage','ftColl_8007ABD0','ftColl_8007B8A8','ftColl_8007AFF8']),
                     ('src/melee/lb/lbcollision.c',['lbColl_80008428','lbColl_80008434','lbColl_80008440'])]:
   text=read(path);bodies.extend(module.body(text,n) for n in names)
  (out/'native_hitbox.inc').write_text('#include <melee/lb/lbcollision.h>\n'+'\n\n'.join(bodies)+'\n')

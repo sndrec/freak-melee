@@ -72,6 +72,8 @@ StaleMoveTable* Player_GetStaleMoveTableIndexPtr(s32 slot){(void)slot;return NUL
 Fighter_Part ftParts_GetBoneIndex(Fighter* fighter,Fighter_Part bone){(void)fighter;(void)bone;abort();}
 void ftColl_8007ABD0(HitCapsule* hit,u32 damage,Fighter_GObj* object)
 {(void)object;hit->damage=(float)damage;hit->unk_count=damage;}
+void ftColl_SetHitboxDamage(HitCapsule* hit,float damage,Fighter_GObj* object)
+{(void)object;hit->damage=damage;hit->unk_count=(u32)damage;}
 void ftColl_8007AC9C(HitCapsule* hit,int angle,Fighter_GObj* object)
 {(void)object;hit->kb_angle=angle;}
 #pragma clang diagnostic push

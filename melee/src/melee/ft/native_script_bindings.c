@@ -249,6 +249,7 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     K0(NativeScriptBinding_PhysicsClearKinetics,"clear_kinetics",NativeScriptBinding_Physics,NativeScriptType_Void,0),
     K0(NativeScriptBinding_PhysicsGroundFriction,"ground_friction",NativeScriptBinding_Physics,NativeScriptType_Void,NativeScriptFlag_MayInvalidateSource),
     K0(NativeScriptBinding_PhysicsAirDrift,"air_drift",NativeScriptBinding_Physics,NativeScriptType_Void,NativeScriptFlag_MayInvalidateSource),
+    K1(NativeScriptBinding_PhysicsAirDriftScaled,"air_drift",0,NativeScriptType_Void,NativeScriptType_F32,NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource),
     K0(NativeScriptBinding_PhysicsGroundMotion,"ground_motion",NativeScriptBinding_Physics,NativeScriptType_Void,NativeScriptFlag_MayInvalidateSource),
     K0(NativeScriptBinding_PhysicsAirMotion,"air_motion",NativeScriptBinding_Physics,NativeScriptType_Void,NativeScriptFlag_MayInvalidateSource),
     K0(NativeScriptBinding_PhysicsAirGravityAndFriction,"air_gravity_and_friction",NativeScriptBinding_Physics,NativeScriptType_Void,NativeScriptFlag_MayInvalidateSource),
@@ -309,7 +310,7 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     PROP(NativeScriptBinding_CollisionLeftGround,"left_ground",NativeScriptBinding_Collision,F,NativeScriptType_Bool,R|NativeScriptFlag_MayInvalidateSource),
     PROP(NativeScriptBinding_CollisionSpecialGroundLost,"special_ground_lost",NativeScriptBinding_Collision,F,NativeScriptType_Bool,R|NativeScriptFlag_MayInvalidateSource),
     PROP(NativeScriptBinding_CollisionLanded,"landed",NativeScriptBinding_Collision,F,NativeScriptType_Bool,R|NativeScriptFlag_MayInvalidateSource),
-    PROP(NativeScriptBinding_FloorLine,"line",NativeScriptBinding_Floor,F,NativeScriptType_I32,R),
+    PROP(NativeScriptBinding_FloorLine,"line",NativeScriptBinding_Floor,F|A,NativeScriptType_I32,R),
     PROP(NativeScriptBinding_FloorNormalX,"x",NativeScriptBinding_FloorNormal,F|A,NativeScriptType_F32,R),
     PROP(NativeScriptBinding_FloorNormalY,"y",NativeScriptBinding_FloorNormal,F|A,NativeScriptType_F32,R),
     PROP(NativeScriptBinding_FloorNormalZ,"z",NativeScriptBinding_FloorNormal,F|A,NativeScriptType_F32,R),
@@ -455,10 +456,12 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     [NativeScriptBinding_AttackUpdateRapidJab]={.name="update_rapid_jab",.parent=NativeScriptBinding_Attack,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=1,.arguments={{.type=NativeScriptType_Callable,.mode=NativeScriptArgument_CodeRef,.numeric_any=false}}},
     K0(NativeScriptBinding_ItemsTryGroundPickup,"try_ground_pickup",NativeScriptBinding_Items,NativeScriptType_Bool,NativeScriptFlag_MayInvalidateSource),
     [NativeScriptBinding_CollisionAirAerialLandingCallback]={.name="air_aerial_landing_callback",.parent=NativeScriptBinding_Collision,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=1,.arguments={{.type=NativeScriptType_Callable,.mode=NativeScriptArgument_CodeRef,.numeric_any=false}}},
+    [NativeScriptBinding_CollisionAirAerialLandingWithLedges]={.name="air_aerial_landing_callback",.parent=0,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=2,.arguments={{.type=NativeScriptType_Callable,.mode=NativeScriptArgument_CodeRef,.numeric_any=false},ARG(NativeScriptType_Bool)}},
     K1(NativeScriptBinding_BonesIndex,"index",NativeScriptBinding_Bones,NativeScriptType_I32,NativeScriptType_I32,NativeScriptFlag_Pure),
     [NativeScriptBinding_SoundPlay]={.name="play",.parent=NativeScriptBinding_Sound,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=3,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32)}},
     [NativeScriptBinding_SoundLoop]={.name="loop",.parent=NativeScriptBinding_Sound,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=3,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32)}},
     [NativeScriptBinding_SoundChannel]={.name="channel",.parent=NativeScriptBinding_Sound,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=4,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32)}},
+    [NativeScriptBinding_SoundClip]={.name="clip",.parent=NativeScriptBinding_Sound,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=4,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32),ARG(NativeScriptType_I32)}},
     [NativeScriptBinding_BonesRootRotateX]={.name="rotate_x",.parent=NativeScriptBinding_BonesRoot,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=1,.arguments={ARG(NativeScriptType_F32)}},
     [NativeScriptBinding_BonesRootRotateXWithJoint]={.name="rotate_x_joint",.parent=NativeScriptBinding_BonesRoot,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=2,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_F32)}},
     [NativeScriptBinding_BonesRotateX]={.name="rotate_x",.parent=NativeScriptBinding_Bones,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=2,.arguments={ARG(NativeScriptType_I32),ARG(NativeScriptType_F32)}},
@@ -616,6 +619,7 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     PROP(NativeScriptBinding_ReflectorActive,"active",NativeScriptBinding_Reflector,F,NativeScriptType_Bool,R|NativeScriptFlag_SourceOnly),
     PROP(NativeScriptBinding_ReflectorHitDirection,"hit_direction",NativeScriptBinding_Reflector,F,NativeScriptType_F32,R|NativeScriptFlag_SourceOnly),
     PROP(NativeScriptBinding_ReflectorKeepOwner,"keep_owner",NativeScriptBinding_Reflector,F,NativeScriptType_Bool,W|NativeScriptFlag_SourceOnly),
+    PROP(NativeScriptBinding_ReflectorMaxDamage,"max_damage",NativeScriptBinding_Reflector,F,NativeScriptType_I32,R|W|NativeScriptFlag_SourceOnly),
     [NativeScriptBinding_ReflectorCreate]={.name="create",.parent=NativeScriptBinding_Reflector,.flags=KINETIC_CALL|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=9,.arguments={ARG(NativeScriptType_U32),ARG(NativeScriptType_I32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_Bool)}},
     K0(NativeScriptBinding_ReflectorDisable,"disable",NativeScriptBinding_Reflector,NativeScriptType_Void,0),
     K0(NativeScriptBinding_ReflectorRetain,"retain",NativeScriptBinding_Reflector,NativeScriptType_Void,0),
@@ -894,6 +898,24 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     [NativeScriptBinding_HitboxClearVictims]={.name="clear_victims",.parent=NativeScriptBinding_Hitbox,.flags=KINETIC_CALL|NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Void,.argument_count=1,.arguments={{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true}}},
     K0(NativeScriptBinding_HitboxClearAll,"clear_all",NativeScriptBinding_Hitbox,NativeScriptType_Void,NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource),
     [NativeScriptBinding_HitboxCreate]={.name="create",.parent=NativeScriptBinding_Hitbox,.flags=KINETIC_CALL|NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_Bool,.argument_count=2,.arguments={{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true},ARG(NativeScriptType_HitboxDefinition)}},
+    [NativeScriptBinding_HitboxLaunchTarget] = {
+        .name = "set_launch_target", .parent = NativeScriptBinding_Hitbox,
+        .flags = KINETIC_CALL | NativeScriptFlag_SourceOnly,
+        .kind = NativeScriptBinding_Intrinsic, .contexts = F,
+        .result_type = NativeScriptType_Void, .argument_count = 4,
+        .arguments = {{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true},
+                      ARG(NativeScriptType_F32), ARG(NativeScriptType_F32),
+                      ARG(NativeScriptType_F32)},
+    },
+    [NativeScriptBinding_HitboxLaunchFollow] = {
+        .name = "set_launch_follow", .parent = NativeScriptBinding_Hitbox,
+        .flags = KINETIC_CALL | NativeScriptFlag_SourceOnly,
+        .kind = NativeScriptBinding_Intrinsic, .contexts = F,
+        .result_type = NativeScriptType_Void, .argument_count = 5,
+        .arguments = {{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true},
+                      ARG(NativeScriptType_F32), ARG(NativeScriptType_F32),
+                      ARG(NativeScriptType_F32), ARG(NativeScriptType_F32)},
+    },
     [NativeScriptBinding_Hitlag]={.name="hitlag",.kind=NativeScriptBinding_Namespace,.contexts=F,.result_type=NativeScriptType_Namespace},
     PROP(NativeScriptBinding_HitlagActive,"active",NativeScriptBinding_Hitlag,F,NativeScriptType_Bool,R|NativeScriptFlag_Pure),
     PROP(NativeScriptBinding_HitlagLinkedId,"linked_id",NativeScriptBinding_Hitlag,F,NativeScriptType_I32,R|NativeScriptFlag_Pure|NativeScriptFlag_SourceOnly),
@@ -1157,6 +1179,21 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     [NativeScriptBinding_TargetsReadLockableItemAhead]={.name="read_lockable_item_ahead",.parent=NativeScriptBinding_Targets,.flags=KINETIC_CALL|NativeScriptFlag_SourceOnly,.kind=NativeScriptBinding_Intrinsic,.contexts=A,.result_type=NativeScriptType_Bool,.argument_count=3,.arguments={{.type=NativeScriptType_F32,.mode=NativeScriptArgument_Output},{.type=NativeScriptType_F32,.mode=NativeScriptArgument_Output},{.type=NativeScriptType_F32,.mode=NativeScriptArgument_Output}},.publication=NativeScriptOutputs_SuccessOnly},
     [NativeScriptBinding_TargetsOverlapsHitbox]={.name="overlaps_hitbox",.parent=NativeScriptBinding_Targets,.flags=KINETIC_CALL|NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=A,.result_type=NativeScriptType_Bool,.argument_count=2,.arguments={{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true},{.type=NativeScriptType_Invalid,.mode=NativeScriptArgument_Input,.numeric_any=true}}},
     [NativeScriptBinding_TargetsNearestAvailableFighter]={.name="nearest_available_fighter",.parent=NativeScriptBinding_Targets,.flags=KINETIC_CALL|NativeScriptFlag_SourceOnly|NativeScriptFlag_MayInvalidateSource,.kind=NativeScriptBinding_Intrinsic,.contexts=F,.result_type=NativeScriptType_I32,.argument_count=0},
+    [NativeScriptBinding_TargetsAttackOverlapsCapsule]={
+        .name="attack_overlaps_capsule",.parent=NativeScriptBinding_Targets,
+        .flags=KINETIC_CALL|NativeScriptFlag_SourceOnly,.kind=NativeScriptBinding_Intrinsic,
+        .contexts=F,.result_type=NativeScriptType_Bool,.argument_count=7,
+        .arguments={ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),
+                    ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),
+                    ARG(NativeScriptType_F32)}},
+    [NativeScriptBinding_TargetsArticleAttackOverlapsCapsule]={
+        .name="article_attack_overlaps_capsule",.parent=NativeScriptBinding_Targets,
+        .flags=KINETIC_CALL|NativeScriptFlag_SourceOnly,.kind=NativeScriptBinding_Intrinsic,
+        .contexts=F,.result_type=NativeScriptType_Bool,.argument_count=8,
+        .arguments={ARG(NativeScriptType_I32),
+                    ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),
+                    ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),ARG(NativeScriptType_F32),
+                    ARG(NativeScriptType_F32)}},
     NS(NativeScriptBinding_ItemSlideVelocity,"slide_velocity",NATIVE_SCRIPT_ITEM_NAMESPACE,A),
     PROP(NativeScriptBinding_ItemSlideVelocityX,"x",NativeScriptBinding_ItemSlideVelocity,A,NativeScriptType_F32,W),
     PROP(NativeScriptBinding_ItemSlideVelocityY,"y",NativeScriptBinding_ItemSlideVelocity,A,NativeScriptType_F32,W),
@@ -1247,6 +1284,8 @@ bool nativeScriptBindings_ResolveCall(void* context,const NativeScriptIRArena* a
     if(semantic==NativeScriptBinding_ItemRespondToStage && node->argument_count==1)semantic=NativeScriptBinding_ItemRespondToStageWithImpactResponse;
     if(semantic==NativeScriptBinding_ItemReleaseAttachment && node->argument_count==4)semantic=NativeScriptBinding_ItemReleaseAttachmentPreserveHeld;
     if(semantic==NativeScriptBinding_StageReadLineIslandBounds && node->argument_count==7)semantic=NativeScriptBinding_StageReadLineIslandBounds3D;
+    if(semantic==NativeScriptBinding_CollisionAirAerialLandingCallback && node->argument_count==2)semantic=NativeScriptBinding_CollisionAirAerialLandingWithLedges;
+    if(semantic==NativeScriptBinding_PhysicsAirDrift && node->argument_count==1)semantic=NativeScriptBinding_PhysicsAirDriftScaled;
     const NativeScriptBindingDescriptor* descriptor=nativeScriptBindings_Descriptor(semantic);
     if (!descriptor || descriptor->kind!=NativeScriptBinding_Intrinsic || !(descriptor->contexts&binding->context_mask))
         return error(diagnostic,node->source,"Unsupported native call or execution context.");
@@ -1296,7 +1335,8 @@ bool nativeScriptBindings_ResolveCall(void* context,const NativeScriptIRArena* a
         return error(diagnostic,node->source,"Child damage-owner/collision/backlink requires an integral value");
     if((semantic>=NativeScriptBinding_HitboxEnabled&&semantic<=NativeScriptBinding_HitboxSetRadius)||semantic==NativeScriptBinding_ItemDisableHitbox||semantic==NativeScriptBinding_HitboxState||semantic==NativeScriptBinding_HitboxDamage||
        semantic==NativeScriptBinding_HitboxGroup||semantic==NativeScriptBinding_HitboxSetGroup||semantic==NativeScriptBinding_HitboxCurrent||semantic==NativeScriptBinding_HitboxPrevious||semantic==NativeScriptBinding_HitboxSetWorldPosition||
-       semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxCreate)
+       semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxCreate||
+       semantic==NativeScriptBinding_HitboxLaunchTarget||semantic==NativeScriptBinding_HitboxLaunchFollow)
         if(!nativeScriptExpression_IsIntegral(arena->nodes[arena->arguments[node->argument_first]].type))
             return error(diagnostic,node->source,"Hitbox index requires an integral value");
     if(semantic==NativeScriptBinding_HitboxSetGroup&&!nativeScriptExpression_IsIntegral(arena->nodes[arena->arguments[node->argument_first+1]].type))
@@ -1673,7 +1713,8 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
             return error(diagnostic,(NativeScriptSourceSpan){0},"Linked child slots require integral values");
         if(descriptor==&catalog[NativeScriptBinding_ItemCreateChild]&&(i==5||i==6||i==8)&&!nativeScriptExpression_IsIntegral(arguments[i].type))
             return error(diagnostic,(NativeScriptSourceSpan){0},"Child damage-owner/collision/backlink requires an integral value");
-        if(i==0&&((semantic>=NativeScriptBinding_HitboxEnabled&&semantic<=NativeScriptBinding_HitboxSetRadius)||semantic==NativeScriptBinding_ItemDisableHitbox||semantic==NativeScriptBinding_HitboxState||semantic==NativeScriptBinding_HitboxDamage||semantic==NativeScriptBinding_HitboxGroup||semantic==NativeScriptBinding_HitboxSetGroup||semantic==NativeScriptBinding_HitboxSetWorldPosition||semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxCreate)&&!nativeScriptExpression_IsIntegral(arguments[i].type))
+        if(i==0&&((semantic>=NativeScriptBinding_HitboxEnabled&&semantic<=NativeScriptBinding_HitboxSetRadius)||semantic==NativeScriptBinding_ItemDisableHitbox||semantic==NativeScriptBinding_HitboxState||semantic==NativeScriptBinding_HitboxDamage||semantic==NativeScriptBinding_HitboxGroup||semantic==NativeScriptBinding_HitboxSetGroup||semantic==NativeScriptBinding_HitboxSetWorldPosition||semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxCreate||
+       semantic==NativeScriptBinding_HitboxLaunchTarget||semantic==NativeScriptBinding_HitboxLaunchFollow)&&!nativeScriptExpression_IsIntegral(arguments[i].type))
             return error(diagnostic,(NativeScriptSourceSpan){0},"Hitbox index requires an integral value");
         if(i==1&&semantic==NativeScriptBinding_HitboxSetGroup&&!nativeScriptExpression_IsIntegral(arguments[i].type))
             return error(diagnostic,(NativeScriptSourceSpan){0},"Hitbox group requires an integral value");
@@ -1825,7 +1866,9 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
             if(!nativeScriptBindingItemObservations_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic==NativeScriptBinding_HitboxCreate) {
             if(!nativeScriptBindingHitboxCreate_Invoke(context,inputs,count,&value,diagnostic))return false;
-        } else if(semantic==NativeScriptBinding_HitboxState||semantic==NativeScriptBinding_HitboxDamage||semantic==NativeScriptBinding_HitboxGroup||semantic==NativeScriptBinding_HitboxSetGroup||semantic==NativeScriptBinding_HitboxSetWorldPosition||semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxClearAll||(semantic==NativeScriptBinding_HitboxSetDamage&&context->source_class==NativeCallbackSource_Fighter)) {
+        } else if(semantic==NativeScriptBinding_HitboxState||semantic==NativeScriptBinding_HitboxDamage||semantic==NativeScriptBinding_HitboxGroup||semantic==NativeScriptBinding_HitboxSetGroup||semantic==NativeScriptBinding_HitboxSetWorldPosition||semantic==NativeScriptBinding_HitboxSetEnabled||semantic==NativeScriptBinding_HitboxClearVictims||semantic==NativeScriptBinding_HitboxClearAll||
+                  semantic==NativeScriptBinding_HitboxLaunchTarget||semantic==NativeScriptBinding_HitboxLaunchFollow||
+                  (semantic==NativeScriptBinding_HitboxSetDamage&&context->source_class==NativeCallbackSource_Fighter)) {
             if(!nativeScriptBindingFighterHitboxes_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic>=NativeScriptBinding_AccessoryCreate&&semantic<=NativeScriptBinding_AccessoryClear) {
             if(!nativeScriptBindingPresentation_AccessoryInvoke(context,semantic,inputs,count,&value,diagnostic))return false;
@@ -1836,6 +1879,7 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
         } else if(semantic==NativeScriptBinding_ItemCreateAtPosition||semantic==NativeScriptBinding_ItemCreateChild||semantic==NativeScriptBinding_ItemCreateLinked) {
             return error(diagnostic,(NativeScriptSourceSpan){0},"Child factory owner was not resolved at load");
         } else if(semantic==NativeScriptBinding_TargetsNearestAvailableFighter || semantic==NativeScriptBinding_TargetsOverlapsHitbox || semantic==NativeScriptBinding_TargetsReadOpponentAhead || semantic==NativeScriptBinding_TargetsReadLockableItemAhead ||
+                  semantic==NativeScriptBinding_TargetsAttackOverlapsCapsule || semantic==NativeScriptBinding_TargetsArticleAttackOverlapsCapsule ||
                   target_export||(semantic>=NativeScriptBinding_TargetsReadPosition&&semantic<=NativeScriptBinding_TargetsIsFighter) ||semantic==NativeScriptBinding_TargetsSmashChargeActive ||
                   semantic==NativeScriptBinding_TargetsControllerColorPresent || semantic==NativeScriptBinding_TargetsControllerColor || semantic==NativeScriptBinding_TargetsReadBonePosition || semantic==NativeScriptBinding_TargetsMotion || semantic==NativeScriptBinding_TargetsReadPositionDelta ||
                   (semantic>=NativeScriptBinding_TargetsDamage&&semantic<=NativeScriptBinding_TargetsFloorLine)||
@@ -1858,7 +1902,7 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
             if(!nativeScriptBindingGuard_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic>=NativeScriptBinding_ControlsAerialAttackMotion&&semantic<=NativeScriptBinding_ControlsTryAirSpecial) {
             if(!nativeScriptBindingAirInputs_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
-        } else if(semantic==NativeScriptBinding_PhysicsAnimationVerticalVelocity||semantic==NativeScriptBinding_PhysicsAnimationVerticalVelocityAdjusted||semantic==NativeScriptBinding_CollisionAirLandingCallback||semantic==NativeScriptBinding_PhysicsAirDriftWithLimits) {
+        } else if(semantic==NativeScriptBinding_PhysicsAnimationVerticalVelocity||semantic==NativeScriptBinding_PhysicsAnimationVerticalVelocityAdjusted||semantic==NativeScriptBinding_CollisionAirLandingCallback||semantic==NativeScriptBinding_PhysicsAirDriftWithLimits||semantic==NativeScriptBinding_PhysicsAirDriftScaled) {
             if(!nativeScriptBindingAirPhysics_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic==NativeScriptBinding_StatsCountAsThrownItem ||
                   semantic==NativeScriptBinding_StatsRefreshAttack || semantic==NativeScriptBinding_StatsRecordAttack ||
@@ -1886,7 +1930,7 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
             if(!nativeScriptBindingFeedback_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic==NativeScriptBinding_ItemSpawnRootEffect || semantic==NativeScriptBinding_ItemSpawnRootEffectWithOffset||semantic==NativeScriptBinding_ItemDestroyEffects||semantic==NativeScriptBinding_ItemSpawnEffectAtPosition||semantic==NativeScriptBinding_ItemSpawnWithScalarAtPosition||semantic==NativeScriptBinding_ItemSpawnAsyncJointEffect||semantic==NativeScriptBinding_ItemSpawnAsyncJointEffectWithScalar) {
             if(!nativeScriptBindingArticleFeedback_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
-        } else if(semantic>=NativeScriptBinding_AttackEnterJab&&semantic<=NativeScriptBinding_CollisionAirAerialLandingCallback) {
+        } else if((semantic>=NativeScriptBinding_AttackEnterJab&&semantic<=NativeScriptBinding_CollisionAirAerialLandingCallback)||semantic==NativeScriptBinding_CollisionAirAerialLandingWithLedges) {
             if(!nativeScriptBindingNormalAttacks_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic==NativeScriptBinding_CallbackMatches||semantic==NativeScriptBinding_CallbackAccessoryBefore||semantic==NativeScriptBinding_CallbackAccessoryHitlag) {
             if(!nativeScriptBindingSetup_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;

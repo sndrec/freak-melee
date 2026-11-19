@@ -3,6 +3,7 @@
 #include "audio_rollback.h"
 #include "audio_aux.h"
 #include "sfxcommands.h"
+#include "sfxbank.h"
 
 #include <math.h>
 #include <stdatomic.h>
@@ -138,6 +139,17 @@ void HSD_AudioSFXKeyOffTrack(int track)
     }
 }
 
+void AXDriverRetirePackageSounds(u32 first_id, u32 count)
+{
+    for (HSD_SM* voice = AXDriver_804D7794; voice; voice = voice->next) {
+        if ((voice->flags & SMSTATE_MASK) &&
+            (u32)voice->sound_id - first_id < count)
+        {
+            tmp(voice);
+        }
+    }
+}
+
 #ifdef MUST_MATCH
 /// MSL sqrtf expansion (src/MSL/math_ppc.h) writing its result through a
 /// caller-provided slot, as in sqrtf_store in lbcollision.c and mplib.c.
@@ -188,7 +200,7 @@ void AXDriver_8038BF6C(HSD_SM* v)
                 float pitch2 = lbPowf(2.0F, v->fadetime / 1200.0F);
 
                 v->vID = HSD_SynthSFXPlayWithGroup(
-                    v->fid, v->x1A, v->volume,
+                    v->sample_id, v->x1A, v->volume,
                     (v->flags & 0x20000) ? v->pan : v->x1C, v->pri, v->itdflag,
                     v->track, pitch1, pitch2, left_inv_sqrt * tmp2, left_sqrt,
                     right_sqrt * left_inv_sqrt);
@@ -327,7 +339,9 @@ void AXDriver_8038C6C0(HSD_SM* v)
             break;
         case 1:
             v->flags |= 1;
-            v->fid = *v->cmd_stream;
+            v->sample_id = HSD_SfxIsPackageSound(v->sound_id)
+                               ? v->sound_id
+                               : (u16)*v->cmd_stream;
             break;
         case 4:
             v->flags |= 2;
@@ -524,27 +538,26 @@ static int AXDriverStartSound(int sound_id, u8 volume, u8 pan, int track,
                               int channel)
 {
     HSD_SM* v;
-    int sample_idx;
-    int bank_idx;
-    int bank_mem;
-
-    bank_idx = sound_id / 10000;
-    bank_mem = sound_id % 10000;
-
-    if (sfx_commands.bank_count <= bank_idx) {
-        return -1;
-    }
-
-    sample_idx = bank_mem + sfx_commands.banks[bank_idx];
-
-    if (sfx_commands.stream_count <= sample_idx) {
-        return -1;
-    }
-
-    if (bank_idx < sfx_commands.bank_count - 1 &&
-        sfx_commands.banks[bank_idx + 1] <= sample_idx)
-    {
-        return -1;
+    u32* commands = NULL;
+    bool package_sound = HSD_SfxIsPackageSound(sound_id);
+    if (package_sound) {
+        if (!HSD_SynthHasPackageSound(sound_id)) {
+            return -1;
+        }
+    } else {
+        int bank_idx = sound_id / 10000;
+        int bank_mem = sound_id % 10000;
+        if (sound_id < 0 || bank_idx >= sfx_commands.bank_count) {
+            return -1;
+        }
+        int sample_idx = bank_mem + sfx_commands.banks[bank_idx];
+        if (sample_idx >= sfx_commands.stream_count ||
+            (bank_idx < sfx_commands.bank_count - 1 &&
+             sample_idx >= sfx_commands.banks[bank_idx + 1]))
+        {
+            return -1;
+        }
+        commands = sfx_commands.words + sfx_commands.streams[sample_idx] / 4;
     }
 
     if (track < 0 || track > 0xFF) {
@@ -565,8 +578,14 @@ static int AXDriverStartSound(int sound_id, u8 volume, u8 pan, int track,
         return -1;
     }
 
-    v->x16 = sound_id;
-    v->cmd_stream = sfx_commands.words + sfx_commands.streams[sample_idx] / 4;
+    v->sound_id = sound_id;
+    if (package_sound) {
+        // Start the sample, then retain the driver handle until the voice ends.
+        v->package_commands[0] = 0x01000000 | sound_id;
+        v->package_commands[1] = 0x0E000000;
+        commands = v->package_commands;
+    }
+    v->cmd_stream = commands;
     v->x1A = 0xFF;
     v->volume = volume;
     v->x1C = 0x80;

@@ -3,6 +3,7 @@
 #include "mnmain.h"
 #include "mnmainrule.h"
 #include "mnruleplus.h"
+#include "mnitemsw.h"
 #include "native_menu_paint.h"
 #include "types.h"
 #include <melee/gm/types.h>
@@ -30,11 +31,13 @@ extern StaticModelDesc MenMainConRl_Top, MenMainCursorRl_Top, MenMainNmRl_Top;
 extern StaticModelDesc MenMainCursorRl01_Top,MenMainCursorRl02_Top,MenMainCursorRl03_Top,MenMainCursorRl04_Top,MenMainCursorRl05_Top;
 extern HSD_GObj* mn_804D6BD0;
 extern HSD_GObj* mn_804D6BE0;
+extern StaticModelDesc MenMainConIs_Top, MenMainCursorIs_Top;
 extern StaticModelDesc MenMainCursorTr01_Top,MenMainCursorTr02_Top,MenMainCursorTr03_Top,MenMainCursorTr04_Top;
 static HSD_GObj* object;
 static NativeMenuRulesPage current_page;
 static Uint64 animated_tick;
 static GameRules* edited_rules;
+static struct GamePrefs* edited_prefs;
 static MnMenuAssets* archive;
 
 static HSD_JObj* joint_at(HSD_JObj* root,unsigned* index)
@@ -52,31 +55,41 @@ static void forget(void* data)
 void nativeMenuRules_Unload(void)
 {
     if (object) HSD_GObjFree(object);
-    archive=NULL; edited_rules=NULL; animated_tick=0;
+    archive=NULL; edited_rules=NULL; edited_prefs=NULL; animated_tick=0;
 }
 static void create(NativeMenuRulesPage page)
 {
     if (object) HSD_GObjFree(object);
     MenuFlow saved=mn_804A04F0; HSD_GObj* saved_object=mn_804D6BD0;
     HSD_GObj* saved_extra=mn_804D6BE0;
+    HSD_GObj* saved_items = mnItemSw_804D6BE8;
     bool extra=page==NativeMenuRules_Additional;
     mn_804A04F0.cur_menu=extra?MENU_KIND_RULES_EXTRA:MENU_KIND_RULES; mn_804A04F0.hovered_selection=0;
     mn_804A04F0.confirmed_selection=edited_rules->mode;
-    object=extra?mn_80233218(0,edited_rules,false,true):mn_80230E38(0,edited_rules,false,true);
+    if (page == NativeMenuRules_Items) {
+        mn_804A04F0.cur_menu = 0x10;
+        object = mnItemSw_802351A0(0, edited_prefs);
+        mnItemSw_80234104(object);
+    } else {
+        object=extra?mn_80233218(0,edited_rules,false,true):mn_80230E38(0,edited_rules,false,true);
+    }
     HSD_GObjProc_RemoveAllProcs(object); HSD_GObjGXLink_8039084C(object);
     object->user_data_remove_func=forget;
     mn_804A04F0=saved; mn_804D6BD0=saved_object; mn_804D6BE0=saved_extra;
+    mnItemSw_804D6BE8 = saved_items;
     current_page=page; animated_tick=0;
 }
-void nativeMenuRules_Load(MnMenuAssets* assets,GameRules* rules)
+void nativeMenuRules_Load(MnMenuAssets* assets,GameRules* rules,struct GamePrefs* prefs)
 {
     if (object && archive==assets && edited_rules==rules) return;
-    nativeMenuRules_Unload(); archive=assets; edited_rules=rules;
+    nativeMenuRules_Unload(); archive=assets; edited_rules=rules; edited_prefs=prefs;
     StaticModelDesc* models[]={&MenMainConRl_Top,&MenMainCursorRl_Top,&MenMainNmRl_Top,
-        &MenMainCursorRl01_Top,&MenMainCursorRl02_Top,&MenMainCursorRl03_Top,&MenMainCursorRl04_Top,&MenMainCursorRl05_Top,&MenMainCursorTr01_Top,&MenMainCursorTr02_Top,&MenMainCursorTr03_Top,&MenMainCursorTr04_Top};
+        &MenMainCursorRl01_Top,&MenMainCursorRl02_Top,&MenMainCursorRl03_Top,&MenMainCursorRl04_Top,&MenMainCursorRl05_Top,&MenMainCursorTr01_Top,&MenMainCursorTr02_Top,&MenMainCursorTr03_Top,&MenMainCursorTr04_Top,
+        &MenMainConIs_Top,&MenMainCursorIs_Top};
     const char* names[]={"MenMainConRl_Top","MenMainCursorRl_Top","MenMainNmRl_Top",
-        "MenMainCursorRl01_Top","MenMainCursorRl02_Top","MenMainCursorRl03_Top","MenMainCursorRl04_Top","MenMainCursorRl05_Top","MenMainCursorTr01_Top","MenMainCursorTr02_Top","MenMainCursorTr03_Top","MenMainCursorTr04_Top"};
-    for (unsigned i=0;i<12;++i) {
+        "MenMainCursorRl01_Top","MenMainCursorRl02_Top","MenMainCursorRl03_Top","MenMainCursorRl04_Top","MenMainCursorRl05_Top","MenMainCursorTr01_Top","MenMainCursorTr02_Top","MenMainCursorTr03_Top","MenMainCursorTr04_Top",
+        "MenMainConIs_Top","MenMainCursorIs_Top"};
+    for (unsigned i=0;i<sizeof(models)/sizeof(models[0]);++i) {
         char symbol[96];
         snprintf(symbol,sizeof(symbol),"%s_joint",names[i]); models[i]->joint=mnAssets_Get(assets,symbol);
         snprintf(symbol,sizeof(symbol),"%s_animjoint",names[i]); models[i]->animjoint=mnAssets_Get(assets,symbol);
@@ -96,7 +109,9 @@ void nativeMenuRules_Draw(NativeMenuRulesPage page,unsigned selected,unsigned va
         value=fields[selected<7?selected:0];
     }
     Uint64 tick=SDL_GetTicksNS()/16666667;
-    if (tick!=animated_tick) {
+    if (page == NativeMenuRules_Items) {
+        mnItemSw_UpdateVisuals(object, selected, edited_prefs);
+    } else if (tick!=animated_tick) {
         MenuFlow saved=mn_804A04F0; HSD_GObj* saved_object=mn_804D6BD0;
         HSD_GObj* saved_extra=mn_804D6BE0;
         mn_804A04F0.cur_menu=extra?MENU_KIND_RULES_EXTRA:MENU_KIND_RULES; mn_804A04F0.hovered_selection=selected<(extra?6:7)?selected:0;
@@ -110,6 +125,10 @@ void nativeMenuRules_Draw(NativeMenuRulesPage page,unsigned selected,unsigned va
     if (extra) {
         MenuRulesPlusData* data=object->user_data;
         unsigned label=7; HSD_JObjSetFlags(joint_at(data->cursors[5],&label),JOBJ_HIDDEN);
+    }
+    if (page == NativeMenuRules_Match) {
+        struct mn_802307F8_t* data = object->user_data;
+        HSD_JObjSetFlagsAll(data->cursors[6], JOBJ_HIDDEN);
     }
     if (page==NativeMenuRules_Lobby) {
         struct mn_802307F8_t* data=object->user_data;
@@ -153,6 +172,14 @@ static HSD_JObj* cursor(unsigned row)
 }
 bool nativeMenuRules_Bounds(unsigned row,NativeMenuRuleBounds* bounds)
 {
+    if (object && current_page == NativeMenuRules_Items && bounds && row < 32) {
+        // The stock item's icon, label and toggle are distinct objects. Use
+        // the complete row in the menu's neutral canvas for interaction.
+        *bounds = row == 31 ? (NativeMenuRuleBounds){ 83, 114, 474, 26 }
+                           : (NativeMenuRuleBounds){ 55 + 272 * (row / 16),
+                                 153 + 17 * (row % 16), 252, 17 };
+        return true;
+    }
     unsigned index=3; HSD_JObj* root=cursor(row);
     return root && bounds && mesh_bounds(joint_at(root,&index),bounds);
 }
@@ -161,7 +188,8 @@ void nativeMenuRules_Label(unsigned row,const char* text,bool selected)
     unsigned index=7; HSD_JObj* root=cursor(row);
     NativeMenuRuleBounds b;
     if (!root || !mesh_bounds(joint_at(root,&index),&b)) return;
-    nativeMenuPaint_Text(text,b.x,b.y,b.w,b.h,selected?0x101010FF:0x99949DFF,NativeMenuFont_MenuOption,false,false);
+    nativeMenuPaint_Text(text,b.x,b.y+b.h*.12f,b.w,b.h*.75f,
+                         selected?0x130E11FF:0xA7A0ABFF,NativeMenuFont_MenuOption,false,false);
 }
 
 void nativeMenuRules_Value(unsigned row,const char* text)

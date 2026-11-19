@@ -71,6 +71,10 @@ enum { NativeScriptFighter_Load,NativeScriptFighter_Tick,
     NativeScriptFighter_AuxiliaryItemAttach,
     NativeScriptFighter_AuxiliaryItemVisibilityReset,
     NativeScriptFighter_JabStart,
+    NativeScriptFighter_CatchDashMotion,
+    NativeScriptFighter_SideTaunt,NativeScriptFighter_DownTaunt,
+    NativeScriptFighter_MatchEntrance,
+    NativeScriptFighter_VictoryFanfare,
     NativeScriptFighter_HookCount };
 typedef struct NativeScriptFighterHookContract {
     const char* name;

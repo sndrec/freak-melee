@@ -64,15 +64,19 @@ u32 ftActionData_SourceCommandWidth(u32 source_word)
     if (opcode < 10) {
         return (opcode == 5 || opcode == 7) ? 2 : 1;
     }
+    if (nativeHitbox_IsExtended(opcode))
+        return nativeHitbox_ExtendedWidth((source_word >> 23) & 7);
     if (opcode == NATIVE_HITBOX_TIMED_OPCODE) return 6;
     if (opcode == NATIVE_HITBOX_EXPLICIT_OPCODE) return 5;
+    if (opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE)
+        return FT_ACTION_THROW_FRACTIONAL_WORDS;
     return opcode <= 58 ? action_widths[opcode - 10] : 0;
 }
 
 u32 ftActionData_SourceFieldMaximum(unsigned opcode, unsigned field, unsigned width)
 {
     // The encoded index is wider than the engine's actual throw-record array.
-    if (opcode == 34 && field == 0) return 1;
+    if (ftAction_IsThrowHitbox(opcode) && field == 0) return 1;
     if ((nativeHitbox_IsCreate(opcode) || opcode == 12 || opcode == 13) && field == 0) return 3;
     if (opcode == 15 && field == 0) return 3;
     return width == 32 ? UINT32_MAX : (1u << width) - 1;
@@ -87,11 +91,14 @@ static bool fail(HSD_DatImport* import, HSD_DatResult result, u32 offset)
 
 static const FieldLayout* word_layout(u32 opcode, u32 word)
 {
-    if (opcode == NATIVE_HITBOX_TIMED_OPCODE) {
-        if (word == 5) return NULL;
+    if (opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE) {
+        if (word >= FT_ACTION_THROW_WORDS) return NULL;
+        opcode = FT_ACTION_THROW_OPCODE;
+    }
+    if (nativeHitbox_OwnsFlags(opcode)) {
+        if (word >= 5) return NULL;
         opcode = 11;
     }
-    if (opcode == NATIVE_HITBOX_EXPLICIT_OPCODE) opcode = 11;
     if (word != 0) {
         switch (opcode) {
         case 10: return &halves;
@@ -118,6 +125,7 @@ static const FieldLayout* word_layout(u32 opcode, u32 word)
     case 13:
     case 34: return &hitbox_damage;
     case 14: return &hitbox_flags;
+    case 17: return &event;
     case 19: return &command_var;
     case 28: return &hurt_state;
     case 31: return &dobj_flags;
@@ -243,24 +251,78 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
                 goto cleanup;
             }
             u32 opcode = raw >> 26;
-            if (nativeHitbox_OwnsFlags(opcode) && ((raw >> 23) & 7) >= 4) {
+            const unsigned hitbox_slot = (raw >> 23) & 7;
+            const bool capsule = nativeHitbox_HasCapsule(opcode, hitbox_slot);
+            if (nativeHitbox_OwnsFlags(opcode) &&
+                nativeHitbox_Slot(opcode, hitbox_slot) >= 4) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
             }
-            if (opcode == NATIVE_HITBOX_TIMED_OPCODE) {
-                u32 life;
-                if (((raw >> 23) & 7) >= 4 ||
-                    !HSD_DatReadU32(import->dat, at + 20, &life) ||
-                    !(life & NATIVE_HITBOX_DURATION_MASK) ||
-                    (life & NATIVE_HITBOX_DURATION_MASK) > 256000) {
-                    fail(import, HSD_DAT_DESCRIPTOR, at);
-                    goto cleanup;
-                }
-            }
-            u32 width = ftActionData_SourceCommandWidth(raw);
+            const u32 width = ftActionData_SourceCommandWidth(raw);
             if (width == 0 || width > (wait_source - at) / 4) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
+            }
+            const bool timed = nativeHitbox_IsTimed(opcode);
+            const bool extended = nativeHitbox_IsExtended(opcode);
+            u32 life = 0;
+            if (timed || extended) {
+                if (!HSD_DatReadU32(import->dat, at + 20, &life) ||
+                    ((life & NATIVE_HITBOX_EXCLUDE_GRABBED) && (raw & (1u << 19)))) {
+                    fail(import, HSD_DAT_DESCRIPTOR, at);
+                    goto cleanup;
+                }
+                const u32 duration = life & NATIVE_HITBOX_DURATION_MASK;
+                if (timed ? duration == 0 || duration > 256000
+                          : (life & ~NATIVE_HITBOX_EXCLUDE_GRABBED) != 0) {
+                    fail(import, HSD_DAT_DESCRIPTOR, at + 20);
+                    goto cleanup;
+                }
+            }
+            if (extended) {
+                u32 operands[5];
+                u32 base = at + NATIVE_HITBOX_EXTENSION_WORD * 4;
+                for (unsigned i = 0; i < 5; ++i)
+                    HSD_DatReadU32(import->dat, base + i * 4, &operands[i]);
+                const NativeHitboxLaunch launch = nativeHitboxLaunch_FromWords(operands);
+                const float fraction = nativeHitbox_DamageFraction(operands[0]);
+                if (fraction >= 1.0f || (raw & 0x3ffu) + fraction > 1023.0f ||
+                    (launch.mode == NativeHitboxLaunch_Default && fraction == 0.0f &&
+                     !capsule && (timed || !(life & NATIVE_HITBOX_EXCLUDE_GRABBED))) ||
+                    !nativeHitboxLaunch_IsValid(&launch)) {
+                    fail(import, HSD_DAT_DESCRIPTOR, base);
+                    goto cleanup;
+                }
+            }
+            if (capsule) {
+                u32 last;
+                const u32 end_z_at = at + (NATIVE_HITBOX_CAPSULE_WORDS - 1) * 4;
+                if (!HSD_DatReadU32(import->dat, end_z_at, &last) ||
+                    (last >> 16) != 0) {
+                    fail(import, HSD_DAT_DESCRIPTOR, end_z_at);
+                    goto cleanup;
+                }
+            }
+            if (ftAction_IsThrowHitbox(opcode) && ((raw >> 23) & 7) >= 2) {
+                fail(import, HSD_DAT_DESCRIPTOR, at);
+                goto cleanup;
+            }
+            if (opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE) {
+                u32 bits;
+                float damage;
+                const u32 damage_at = at + FT_ACTION_THROW_WORDS * 4;
+                if (!HSD_DatReadU32(import->dat, damage_at, &bits)) {
+                    fail(import, HSD_DAT_DESCRIPTOR, damage_at);
+                    goto cleanup;
+                }
+                memcpy(&damage, &bits, sizeof(damage));
+                const u32 whole = raw & FT_ACTION_THROW_DAMAGE_MAX;
+                if (!(damage > (float) whole &&
+                      damage <= FT_ACTION_THROW_DAMAGE_MAX &&
+                      (u32) damage == whole)) {
+                    fail(import, HSD_DAT_DESCRIPTOR, damage_at);
+                    goto cleanup;
+                }
             }
             state[index] = 1;
             for (u32 word = 1; word < width; ++word) {

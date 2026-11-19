@@ -109,6 +109,13 @@ action Hover:
         collision.air_landing_callback(LandHover)
 ```
 
+## `collision.air_aerial_landing_callback(Function, grab_either_ledge = false)`
+
+Run the normal aerial attack's stage collision and call the fighter-level
+helper on landing. Pass `true` to grab a ledge on either side of the fighter
+while descending. Melee applies its normal ledge occupancy, regrab cooldown,
+and downward-stick checks. A move can enable this on a particular frame.
+
 ## `collision.contact_rebound_allowed()`
 
 Return whether the fighter currently touching this fighter allows a rebound.

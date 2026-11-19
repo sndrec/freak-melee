@@ -28,6 +28,7 @@ typedef struct NativeSignalingClientConfig {
     const char* name;
     const char* build;
     const char* admission;
+    const char* room_password;
     const char* guest_key;
     uint8_t local_players;
     bool directory;
@@ -86,6 +87,7 @@ typedef struct NativeSignalingClient {
     char name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
     char build[NATIVE_SIGNALING_MAX_BUILD_BYTES + 1];
     char admission[33];
+    char room_password[65];
     char guest_key[65];
     uint8_t local_players;
     bool directory;
@@ -103,7 +105,8 @@ bool nativeSignalingClient_QueueSignal(NativeSignalingClient* client,
                                        uint16_t payload_size);
 bool nativeSignalingClient_RequestPresence(NativeSignalingClient* client);
 bool nativeSignalingClient_RequestLobbies(NativeSignalingClient* client, uint16_t offset);
-bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed);
+bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed,
+                                     uint8_t fighter_limit, const char* password);
 bool nativeSignalingClient_SetMatch(NativeSignalingClient* client,
                                     const uint8_t* payload,
                                     uint16_t payload_size);

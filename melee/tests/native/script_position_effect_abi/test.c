@@ -32,8 +32,8 @@ HSD_Generator* hsd_8039F05C(s32 link,s32 bank,s32 id)
 HSD_psAppSRT* psAddGeneratorAppSRT_begin(HSD_Generator* g,s32 kind)
 {CHECK(g==&generator&&kind==1);g->appsrt=&appsrt;return &appsrt;}
 void hsd_8039D4DC(HSD_Generator* g){CHECK(g==&generator);}
-EF_Effect* efLib_Create(int id,HSD_GObj* parent)
-{captured_id=id;captured_parent=parent;return fail?NULL:&effect;}
+EF_Effect* efLib_Create(int id,HSD_GObj* parent,const EF_EffectDesc* owned)
+{CHECK(owned==NULL);captured_id=id;captured_parent=parent;return fail?NULL:&effect;}
 void HSD_JObjSetMtxDirtySub(HSD_JObj* j){CHECK(j==&joint);j->flags|=JOBJ_MTX_DIRTY;}
 void(HSD_JObjSetMtxDirty)(HSD_JObj* j){CHECK(j==&joint);j->flags|=JOBJ_MTX_DIRTY;}
 ATTRIBUTE_NORETURN void __assert(char* file,u32 line,char* text)

@@ -59,7 +59,9 @@ namespace {
             std::snprintf(s.id,sizeof(s.id),"player-%08x%08x",random[0],random[1]);
         }
         if (!nativeProfileStore_Save(&s.draft,s.id)) { message("Could not save this profile. Your edits are still here."); return; }
-        if (!nativeProfileInput_Assign(s.port,&s.draft)) { message("Saved, but this port could not use the profile."); return; }
+        if (!nativeProfileStore_WriteSelection(s.port,s.id) || !nativeProfileInput_Assign(s.port,&s.draft)) {
+            message("Profile saved. Could not set it as this port's active profile."); return;
+        }
         refresh(); message("Saved and assigned to this controller port.");
     }
 }
@@ -106,7 +108,12 @@ void nativeHubProfiles_Open()
 {
     auto& s = nativeProfileEditor;
     if (!nativeHome_IsSelection()) { nativeHub_Notice("Return to character select to edit controller profiles."); return; }
-    if (!s.initialized) { nativeProfile_Default(&s.draft,""); s.initialized = true; nativeHubProfiles_FormatZones(); }
+    if (!s.initialized) {
+        if (!nativeProfileStore_ReadSelection(s.port,s.id) || !*s.id || !nativeProfileStore_Load(&s.draft,s.id)) {
+            s.id[0] = 0; nativeProfile_Default(&s.draft,"");
+        }
+        s.initialized = true; nativeHubProfiles_FormatZones();
+    }
     refresh(); s.controller = PADGetInstanceForPort(s.port);
     nativeHub_ChangePage(NativeHubPage_PlayerProfiles);
 }
@@ -239,7 +246,11 @@ bool nativeHubProfiles_Activate(HubAction action,int value)
         return true;
     case HubAction::ProfileTab: nativeHub_Focus(nullptr,0); if (unsigned(value)<4) s.tab = unsigned(value); return true;
     case HubAction::ProfileSave: save(); return true;
-    case HubAction::ProfileDefault: nativeProfileInput_Clear(s.port); message("This port now uses default controls."); return true;
+    case HubAction::ProfileDefault:
+        if (nativeProfileStore_WriteSelection(s.port,"")) {
+            nativeProfileInput_Clear(s.port); message("This port now uses default controls.");
+        } else message("Could not save this port's control selection.");
+        return true;
     case HubAction::ProfileChooseController:
         return nativeHubProfileDevices_Activate(action,value);
     case HubAction::ProfileDelete: s.deleting = *s.id != 0; return true;

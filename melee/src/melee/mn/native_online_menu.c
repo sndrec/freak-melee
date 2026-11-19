@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <windows.h>
 
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
@@ -17,6 +18,7 @@ static struct NativeOnlineMenu {
     NativeOnlineMenuAction pending;
     char name[NATIVE_SIGNALING_MAX_NAME_BYTES + 1];
     char room_code[NATIVE_SIGNALING_ROOM_ID_BYTES + 1];
+    char password[65];
     uint8_t local_players;
 } menu;
 
@@ -31,7 +33,7 @@ bool nativeOnlineMenu_HasPendingAction(void)
 }
 
 bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
-                              const char* code, uint8_t local_players)
+                              const char* code, uint8_t local_players, const char* password)
 {
     if (!nativeOnlineMenu_IsAvailable() ||
         menu.pending != NativeOnlineMenuAction_None)
@@ -44,6 +46,7 @@ bool nativeOnlineMenu_Request(NativeOnlineMenuAction action, const char* name,
              name != NULL ? name : "Player");
     snprintf(menu.room_code, sizeof(menu.room_code), "%s",
              code != NULL ? code : "");
+    snprintf(menu.password, sizeof(menu.password), "%s", password ? password : "");
     return true;
 }
 
@@ -74,7 +77,7 @@ void nativeOnlineMenu_Pump(void)
                     ? nativeOnlineSession_CreateRoom(menu.name,
                                                      menu.local_players)
                     : nativeOnlineSession_JoinRoom(menu.room_code, menu.name,
-                                                   menu.local_players);
+                                                   menu.local_players, menu.password);
             if (!started) {
                 nativeHub_Notice("Could not open the room.");
             } else {
@@ -84,6 +87,7 @@ void nativeOnlineMenu_Pump(void)
                 sfxForward();
             }
         }
+        SecureZeroMemory(menu.password, sizeof(menu.password));
     } else if (action == NativeOnlineMenuAction_Leave) {
         const NativeQuickAssignment* quick = nativeOnlineSession_Quick();
         if (quick && (quick->state == NativeQuickState_Assigned ||

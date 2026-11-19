@@ -108,7 +108,9 @@ static bool command_pop(NativeSignalingCommandQueue* queue,
     if (read == write) {
         return false;
     }
-    *output = queue->slots[read % NATIVE_SIGNALING_COMMAND_CAPACITY];
+    NativeSignalingCommandSlot* slot = &queue->slots[read % NATIVE_SIGNALING_COMMAND_CAPACITY];
+    *output = *slot;
+    SecureZeroMemory(slot->bytes, slot->size);
     atomic_store_explicit(&queue->read, read + 1, memory_order_release);
     return true;
 }
@@ -146,7 +148,7 @@ static void push_lifecycle(NativeSignalingClient* client,
     NativeSignalingClientEvent event = {
         .type = type,
         .error_code = error_code,
-        .terminal = error_code == ERROR_ACCESS_DENIED,
+        .terminal = error_code == ERROR_ACCESS_DENIED || error_code == ERROR_INVALID_PASSWORD,
     };
     if (detail != NULL) {
         snprintf(event.detail, sizeof(event.detail), "%s", detail);
@@ -350,6 +352,15 @@ static DWORD open_connection(NativeSignalingClient* client, SignalingConnection*
         !WinHttpSetOption(c->request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, NULL, 0)) return GetLastError();
     if (!client->directory) nativeAccountTransport_Headers(url, c->headers, 192);
     if (*client->guest_key) swprintf_s(c->headers, 192, L"X-Freak-Guest: %hs\r\n", client->guest_key);
+    if (*client->room_password) {
+        bool local = !wcscmp(host, L"localhost") || !wcscmp(host, L"127.0.0.1") || !wcscmp(host, L"[::1]");
+        if (parts.nScheme != INTERNET_SCHEME_HTTPS && !local) return ERROR_ACCESS_DENIED;
+        wchar_t password_header[100];
+        swprintf_s(password_header, 100, L"X-Freak-Lobby-Password: %hs\r\n", client->room_password);
+        bool added = WinHttpAddRequestHeaders(c->request, password_header, (DWORD) -1, WINHTTP_ADDREQ_FLAG_ADD);
+        SecureZeroMemory(password_header, sizeof(password_header));
+        if (!added) return GetLastError();
+    }
     bool sent = WinHttpSendRequest(c->request, c->headers, (DWORD) -1, WINHTTP_NO_REQUEST_DATA, 0, 0, (DWORD_PTR) &c->http);
     if (!sent) return GetLastError();
     DWORD result = wait_write(client, &c->http, false);
@@ -361,6 +372,7 @@ static DWORD open_connection(NativeSignalingClient* client, SignalingConnection*
     DWORD status = 0, size = sizeof(status);
     if (!WinHttpQueryHeaders(c->request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
         WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX)) return GetLastError();
+    if (status == 423) return ERROR_INVALID_PASSWORD;
     if (status != 101) return status >= 400 && status < 500 ? ERROR_ACCESS_DENIED : ERROR_BAD_NET_RESP;
     c->socket = WinHttpWebSocketCompleteUpgrade(c->request, (DWORD_PTR) &c->ws);
     if (!c->socket) return GetLastError();
@@ -440,6 +452,7 @@ static DWORD run_connection(NativeSignalingClient* client, SignalingConnection* 
             if (!result) { c->send_pending = true; result = wait_write(client, &c->ws, false); }
             if (result) return result;
             c->send_pending = false;
+            SecureZeroMemory(c->send.bytes, c->send.size);
         }
         uint64_t now = GetTickCount64();
         if (now - last_heartbeat >= HEARTBEAT_TIMEOUT_MS) return ERROR_TIMEOUT;
@@ -479,13 +492,15 @@ static DWORD WINAPI signaling_thread(void* context)
         }
         close_connection(&connection);
         if (atomic_load_explicit(&client->stop_requested, memory_order_acquire)) { result = ERROR_SUCCESS; break; }
-        if (!had_connection || client->directory || result == ERROR_ACCESS_DENIED || result == ERROR_INVALID_DATA) break;
+        if (!had_connection || client->directory || result == ERROR_ACCESS_DENIED ||
+            result == ERROR_INVALID_PASSWORD || result == ERROR_INVALID_DATA) break;
         if (!recovery_deadline) recovery_deadline = GetTickCount64() + 120000;
         if (GetTickCount64() >= recovery_deadline) break;
         if (WaitForSingleObject((HANDLE) client->wake_event, 1000) == WAIT_FAILED) break;
     }
     push_lifecycle(client, NativeSignalingClientEvent_Disconnected, result,
         result == ERROR_SUCCESS ? "Room signaling stopped" :
+        result == ERROR_INVALID_PASSWORD ? "Enter the lobby password and try again" :
         result == ERROR_ACCESS_DENIED ? "This lobby connection was closed or replaced" : "Room signaling disconnected");
     atomic_store_explicit(&client->running, false, memory_order_release);
     return result;
@@ -507,6 +522,14 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
         return false;
     }
     client->admission[0] = 0;
+    client->room_password[0] = 0;
+    if (config->room_password) {
+        size_t length = strnlen(config->room_password, sizeof(client->room_password));
+        if (length == sizeof(client->room_password)) return false;
+        for (size_t i = 0; i < length; ++i)
+            if (config->room_password[i] < '!' || config->room_password[i] > '~') return false;
+        memcpy(client->room_password, config->room_password, length + 1);
+    }
     client->guest_key[0] = 0;
     if (config->guest_key) {
         if (strnlen(config->guest_key, 65) != 64) return false;
@@ -561,6 +584,8 @@ void nativeSignalingClient_Stop(NativeSignalingClient* client)
     CloseHandle((HANDLE) client->wake_event);
     client->thread_handle = 0;
     client->wake_event = 0;
+    SecureZeroMemory(client->room_password, sizeof(client->room_password));
+    SecureZeroMemory(&client->commands, sizeof(client->commands));
 }
 
 bool nativeSignalingClient_QueueUpdate(NativeSignalingClient* client,
@@ -599,11 +624,13 @@ bool nativeSignalingClient_RequestLobbies(NativeSignalingClient* client, uint16_
     if (queued) SetEvent((HANDLE) client->wake_event);
     return queued;
 }
-bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed)
+bool nativeSignalingClient_SetListing(NativeSignalingClient* client, const char* title, bool listed,
+                                     uint8_t fighter_limit, const char* password)
 {
-    uint8_t bytes[80];
-    size_t size = nativeSignalingWire_EncodeListing(title, listed, bytes, sizeof(bytes));
+    uint8_t bytes[144];
+    size_t size = nativeSignalingWire_EncodeListing(title, listed, fighter_limit, password, bytes, sizeof(bytes));
     bool queued = client && size && nativeSignalingClient_IsRunning(client) && command_push(&client->commands, bytes, size);
+    SecureZeroMemory(bytes, sizeof(bytes));
     if (queued) SetEvent((HANDLE) client->wake_event);
     return queued;
 }

@@ -36,19 +36,13 @@ struct MnItemSwTable {
     /* 0xF8 */ u8 item_order[32];
 };
 
-static f32 mnItemSw_803ED340[4][3] = {
-    { 0.0f, 9.0f, -0.1f },
-    { 0.0f, 0.0f, -0.1f },
-    { 0.0f, 0.0f, -0.1f },
-    { 0.0f, 0.0f, -0.1f },
-};
-
-struct MnItemSwAnimTable {
-    /* 0x00 */ f32 x30[18];
-    /* 0x48 */ f32 items[32];
-};
-
-static struct MnItemSwAnimTable mnItemSw_AnimTable = {
+static struct MnItemSwTable item_table = {
+    {
+        { 0.0f, 9.0f, -0.1f },
+        { 0.0f, 0.0f, -0.1f },
+        { 0.0f, 0.0f, -0.1f },
+        { 0.0f, 0.0f, -0.1f },
+    },
     {
         0.0f,
         10.0f,
@@ -75,20 +69,18 @@ static struct MnItemSwAnimTable mnItemSw_AnimTable = {
         16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f,
         25.0f, 24.0f, 26.0f, 27.0f, 29.0f, 28.0f, 30.0f, 31.0f,
     },
-};
-
-u8 mnItemSw_803ED438[32] = {
-    0x05, 0x12, 0x0A, 0x1E, 0x0D, 0x18, 0x03, 0x0E, 0x17, 0x1B, 0x01,
-    0x09, 0x08, 0x07, 0x15, 0x04, 0x06, 0x02, 0x0F, 0x00, 0x11, 0x0B,
-    0x1F, 0x1A, 0x14, 0x19, 0x10, 0x16, 0x13, 0x1D, 0x0C, 0x00,
+    {
+        0x05, 0x12, 0x0A, 0x1E, 0x0D, 0x18, 0x03, 0x0E, 0x17, 0x1B, 0x01,
+        0x09, 0x08, 0x07, 0x15, 0x04, 0x06, 0x02, 0x0F, 0x00, 0x11, 0x0B,
+        0x1F, 0x1A, 0x14, 0x19, 0x10, 0x16, 0x13, 0x1D, 0x0C, 0x00,
+    },
 };
 
 static f32 mnItemSw_804D4BA0[2] = { 0.0f, 1.0f };
 
-// Some routines address the adjacent data blocks as one table.
-static inline struct MnItemSwTable* mnItemSw_GetTable(void)
+u8 mnItemSw_ItemKind(unsigned row)
 {
-    return (struct MnItemSwTable*) mnItemSw_803ED340;
+    return item_table.item_order[row];
 }
 
 #ifdef MUST_MATCH
@@ -100,17 +92,17 @@ s32 mnItemSw_80233A98(s32 arg0)
     switch (arg0) {
     case 19:
         if (lbLang_IsSettingJP()) {
-            return (s32) mnItemSw_AnimTable.items[arg0];
+            return (s32) item_table.items[arg0];
         }
         return 0x27;
     case 17:
         if (lbLang_IsSettingJP()) {
-            return (s32) mnItemSw_AnimTable.items[arg0];
+            return (s32) item_table.items[arg0];
         }
         return 0x28;
     case 18:
     default:
-        return (s32) mnItemSw_AnimTable.items[arg0];
+        return (s32) item_table.items[arg0];
     }
 }
 #ifdef MUST_MATCH
@@ -244,7 +236,7 @@ void fn_80233E10(HSD_GObj* gobj)
         sfxBack();
         mn_804A04F0.entering_menu = 0;
         data = (MnItemSwData*) mnItemSw_804D6BE8->user_data;
-        mnItemSw_CommitItems(data, i, mnItemSw_GetTable()->item_order);
+        mnItemSw_CommitItems(data, i, item_table.item_order);
 #ifndef MELEE_NATIVE
         lbCardGame_UpdatePowerTime();
 #endif
@@ -265,7 +257,7 @@ void fn_80233E10(HSD_GObj* gobj)
                 mn_804A04F0.confirmed_selection > 0U ? (u8) i : 1;
             {
                 s32 j = 0;
-                u8* order2 = mnItemSw_GetTable()->item_order;
+                u8* order2 = item_table.item_order;
                 MnItemSwData* data2 =
                     (MnItemSwData*) mnItemSw_804D6BE8->user_data;
                 for (; j < 0x1F; j++, order2++) {
@@ -280,7 +272,7 @@ void fn_80233E10(HSD_GObj* gobj)
         switch (gm_GetCurrentGameMode()) {
         case GM_MENU: {
             MnItemSwData* data2 = (MnItemSwData*) mnItemSw_804D6BE8->user_data;
-            mnItemSw_CommitItems(data2, i, mnItemSw_GetTable()->item_order);
+            mnItemSw_CommitItems(data2, i, item_table.item_order);
         }
 #ifndef MELEE_NATIVE
             lbCardGame_UpdatePowerTime();
@@ -289,7 +281,7 @@ void fn_80233E10(HSD_GObj* gobj)
             return;
         default: {
             MnItemSwData* data2 = (MnItemSwData*) mnItemSw_804D6BE8->user_data;
-            mnItemSw_CommitItems(data2, i, mnItemSw_GetTable()->item_order);
+            mnItemSw_CommitItems(data2, i, item_table.item_order);
         }
 #ifndef MELEE_NATIVE
             lbCardGame_UpdatePowerTime();
@@ -336,7 +328,7 @@ HSD_JObj* mnItemSw_8023405C(MnItemSwData* data, u8 idx)
 
 static inline s32 mnItemSw_GetItemAnim(s32 i)
 {
-    return mnItemSw_80233A98((s32) mnItemSw_803ED438[i]);
+    return mnItemSw_80233A98((s32) item_table.item_order[i]);
 }
 
 static inline void mnItemSw_SetCursorPosition(MnItemSwData* data)
@@ -407,7 +399,7 @@ void mnItemSw_80234104(HSD_GObj* gobj)
         item_anim = mnItemSw_GetItemAnim(i);
         HSD_JObjReqAnimAll(item_jobj, (f32) item_anim);
         HSD_JObjAnimAll(item_jobj);
-        HSD_JObjReqAnimAll(item_jobj, mnItemSw_AnimTable.x30[0]);
+        HSD_JObjReqAnimAll(item_jobj, item_table.x30[0]);
         mn_8022F3D8(item_jobj, 1, TOBJ_MASK);
         HSD_JObjAnimAll(item_jobj);
     }
@@ -469,14 +461,14 @@ void mnItemSw_8023453C(HSD_GObj* gobj, u8 arg1, u8 arg2)
     HSD_JObj* cjobj;
     MnItemSwData* data = gobj->user_data;
     u8 cursor;
-    struct MnItemSwTable* tbl = mnItemSw_GetTable();
+    struct MnItemSwTable* tbl = &item_table;
     u8 arg1_ = arg1;
     f32 x;
     u8 arg2_ = arg2;
 
     if (arg1_ != 0) {
         f32 y_spacing;
-        f32 anim_val;
+        f32 anim_val = 0.0f;
         u8 old_cursor = data->cursor;
 
         if (old_cursor == 0x1F || old_cursor == 0x20) {
@@ -569,7 +561,7 @@ void mnItemSw_8023453C(HSD_GObj* gobj, u8 arg1, u8 arg2)
 
 static inline void mnItemSw_SaveSettings(HSD_GObj* gobj)
 {
-    u8* order = mnItemSw_GetTable()->item_order;
+    u8* order = item_table.item_order;
     s32 i = 0;
     MnItemSwData* data = gobj->user_data;
 
@@ -612,16 +604,16 @@ void fn_80234C24(HSD_GObj* gobj)
 
             switch ((s32) state) {
             case 1:
-                anims = mnItemSw_803ED340[0];
+                anims = item_table.x00[0];
                 break;
             case 2:
-                anims = mnItemSw_803ED340[2];
+                anims = item_table.x00[2];
                 break;
             case 3:
-                anims = mnItemSw_803ED340[1];
+                anims = item_table.x00[1];
                 break;
             case 4:
-                anims = mnItemSw_803ED340[3];
+                anims = item_table.x00[3];
                 break;
             }
 
@@ -644,16 +636,16 @@ void fn_80234C24(HSD_GObj* gobj)
 
             switch ((s32) state) {
             case 1:
-                anims = mnItemSw_803ED340[0];
+                anims = item_table.x00[0];
                 break;
             case 2:
-                anims = mnItemSw_803ED340[2];
+                anims = item_table.x00[2];
                 break;
             case 3:
-                anims = mnItemSw_803ED340[1];
+                anims = item_table.x00[1];
                 break;
             case 4:
-                anims = mnItemSw_803ED340[3];
+                anims = item_table.x00[3];
                 break;
             }
 
@@ -744,7 +736,7 @@ HSD_JObj* mnItemSw_80235020(u8 arg0, MnItemSwData* arg1)
     u8 item_val;
     HSD_JObj* jobj;
     u8 hovered;
-    struct MnItemSwTable* tbl = mnItemSw_GetTable();
+    struct MnItemSwTable* tbl = &item_table;
 
     hovered = (u8) mn_804A04F0.hovered_selection;
     jobj = HSD_JObjLoadJoint(MenMainCursorIs_Top.joint);
@@ -817,7 +809,7 @@ static inline void setInitialCursorPosition(MnItemSwData* user_data,
 }
 
 static inline void initUserData(MnItemSwData* user_data, s32 arg0,
-                                struct MnItemSwTable* tbl)
+                                const struct GamePrefs* prefs)
 {
     u8* order;
     s32 i;
@@ -825,22 +817,22 @@ static inline void initUserData(MnItemSwData* user_data, s32 arg0,
     user_data->menu_kind = mn_804A04F0.cur_menu;
     user_data->cursor = (u8) mn_804A04F0.hovered_selection;
 
-    order = tbl->item_order;
+    order = item_table.item_order;
     for (i = 0; (u8) i < 0x1F; order++, i++) {
-        user_data->items[(u8) i] = gm_8016403C(*order);
+        user_data->items[(u8) i] = (prefs->item_mask >> *order) & 1;
     }
 
-    user_data->x21 = gmMainLib_GetGamePrefs()->item_freq + 1;
+    user_data->x21 = prefs->item_freq + 1;
     user_data->x23 = (u8) arg0;
 }
 
-HSD_GObj* mnItemSw_802351A0(s32 arg0)
+HSD_GObj* mnItemSw_802351A0(s32 arg0, const struct GamePrefs* prefs)
 {
     HSD_JObj* jobj;
     HSD_JObj* item_jobj;
     MnItemSwData* user_data;
     struct StaticModelDesc* mdl = &MenMainConIs_Top;
-    struct MnItemSwTable* tbl = mnItemSw_GetTable();
+    struct MnItemSwTable* tbl = &item_table;
     f32 y_spacing;
     s32 i;
     HSD_GObj* gobj = GObj_Create(6, 7, 0x80);
@@ -862,7 +854,7 @@ HSD_GObj* mnItemSw_802351A0(s32 arg0)
 
     GObj_InitUserData(gobj, 0, HSD_Free, user_data);
 
-    initUserData(user_data, arg0, tbl);
+    initUserData(user_data, arg0, prefs);
 
     for (i = 0; i < 7; i++) {
         lb_80011E24(jobj, &user_data->jobjs[i], i, -1);
@@ -910,6 +902,31 @@ HSD_GObj* mnItemSw_802351A0(s32 arg0)
     return gobj;
 }
 
+void mnItemSw_UpdateVisuals(HSD_GObj* object, unsigned selected, const struct GamePrefs* prefs)
+{
+    MnItemSwData* data = object->user_data;
+    for (unsigned row = 0; row < 31; ++row) {
+        const u8 enabled = (prefs->item_mask >> item_table.item_order[row]) & 1;
+        if (enabled == data->items[row]) continue;
+        HSD_JObj* toggle;
+        lb_80011E24(mnItemSw_8023405C(data, row), &toggle, 2, -1);
+        HSD_JObjReqAnimAll(toggle, mnItemSw_804D4BA0[enabled]);
+        HSD_JObjAnimAll(toggle);
+        data->items[row] = enabled;
+    }
+    const u8 frequency = prefs->item_freq + 1;
+    const bool changes_row = data->cursor != selected;
+    MenuFlow saved = mn_804A04F0;
+    mn_804A04F0.hovered_selection = selected;
+    mn_804A04F0.confirmed_selection = selected >= 31 ? frequency : data->items[selected];
+    if (selected < 31 && frequency != data->x21)
+        mnItemSw_ReqFreqAnim(data->jobjs[3], &item_table, frequency, 0);
+    mnItemSw_8023453C(object, changes_row, selected >= 31 && frequency != data->x21);
+    data->cursor = selected;
+    data->x21 = frequency;
+    mn_804A04F0 = saved;
+}
+
 void mnItemSw_802358C0(void)
 {
     HSD_GObjProc* proc;
@@ -918,7 +935,7 @@ void mnItemSw_802358C0(void)
     mn_804A04F0.cur_menu = 0x10;
     mn_804A04F0.hovered_selection = 0;
     mnItemSw_804D6BEC = 1;
-    mnItemSw_802351A0(1);
+    mnItemSw_802351A0(1, gmMainLib_GetGamePrefs());
 
     proc = HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80), fn_80233E10, 0);
     proc->flags_3 = HSD_GObj_804D783C;

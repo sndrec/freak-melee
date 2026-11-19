@@ -2,6 +2,8 @@
 #include "native_hub_account.h"
 #include "native_hub_lobbies.h"
 #include "native_social_presence.h"
+#include <melee/ft/native_fighter_runtime.h>
+#include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/mn/native_online_menu.h>
 #include <SDL3/SDL.h>
@@ -15,6 +17,9 @@ namespace {
     bool wanted;
     char owner[44], opened[44], nonce[44], invitation_nonce[44], invitation_room[13], invitation_to[25], pending_join[44];
     unsigned join_revision;
+    unsigned fighter_request_revision;
+    char fighter_nonce[44], sent_fighter[65], sent_friend[25], download_id[44], accepted_gift[44];
+    bool sending_fighter;
     constexpr uint32_t gold = 0xD9B754FF, muted = 0xB9ADBDFF;
 
     const char* presence_label(const char* account_id)
@@ -105,6 +110,12 @@ void nativeHubSocial_Tick()
         hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
         std::snprintf(owner, sizeof(owner), "%s", account.signed_in ? account.id : "");
         wanted = true; folder = offset = friends_offset = read_scroll = 0;
+        fighter_nonce[0] = sent_fighter[0] = sent_friend[0] = download_id[0] = accepted_gift[0] = 0;
+        sending_fighter = false;
+    }
+    if (*accepted_gift && !account.busy) {
+        if (submit(NativeAccountOperation::DeleteLetter, nullptr, accepted_gift)) accepted_gift[0] = 0;
+        return;
     }
     if (!account.busy && *nonce && !std::strcmp(nonce, account.social.last_sent_nonce)) {
         clear_draft(); folder = 1; offset = 0; wanted = true;
@@ -113,6 +124,14 @@ void nativeHubSocial_Tick()
     if (!account.busy && *invitation_nonce && !std::strcmp(invitation_nonce, account.social.last_sent_nonce)) {
         invitation_nonce[0] = 0;
         nativeHub_Notice("Lobby invitation sent.");
+    }
+    if (!account.busy && sending_fighter && account.revision != fighter_request_revision) {
+        sending_fighter = false;
+        nativeHub_Notice(account.status);
+        if (!std::strcmp(fighter_nonce, account.social.last_sent_nonce)) {
+            fighter_nonce[0] = 0;
+            if (hub.page == NativeHubPage_Send) nativeHub_ChangePage(NativeHubPage_Workshop);
+        }
     }
     if (hub.lobby_invite_queued) {
         const auto state = nativeOnlineSession_State();
@@ -131,7 +150,7 @@ void nativeHubSocial_Tick()
         const bool checked = !std::strcmp(pending_join, account.social.join_id) && *account.social.join_room;
         pending_join[0] = 0;
         if (checked && nativeOnlineMenu_IsAvailable()) {
-            if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Join, hub.public_name, account.social.join_room, uint8_t(hub.local_players))) {
+            if (nativeOnlineMenu_Request(NativeOnlineMenuAction_Join, hub.public_name, account.social.join_room, uint8_t(hub.local_players), nullptr)) {
                 nativeOnlineSession_Stop(); hub.pending_listing = false;
                 std::snprintf(hub.code, sizeof(hub.code), "%s", account.social.join_room);
                 nativeHub_ChangePage(NativeHubPage_Lobbies);
@@ -149,11 +168,61 @@ void nativeHubSocial_Tick()
             wanted = true;
         }
     }
-    if (account.signed_in && !account.busy && hub.visible && nativeHubSocial_Page(hub.page) &&
+    const bool picking_friend = hub.page == NativeHubPage_Send && hub.send_to_friends;
+    if (account.signed_in && !account.busy && hub.visible &&
+        (nativeHubSocial_Page(hub.page) || picking_friend) &&
         hub.page != NativeHubPage_ComposeLetter && hub.page != NativeHubPage_SocialProfile && (wanted || SDL_GetTicks() - refreshed >= 10000)) {
         wanted = !submit(NativeAccountOperation::RefreshSocial);
         refreshed = SDL_GetTicks();
     }
+}
+
+void nativeHubSocial_FighterRecipients()
+{
+    const auto& account = nativeHubAccount_View();
+    const auto& social = account.social;
+    const bool ready = account.signed_in && !account.busy && social.loaded &&
+                       social.friends_offset == friends_offset;
+    unsigned rows = 0;
+    for (unsigned i = 0; ready && i < social.friend_count; ++i) {
+        const auto& entry = social.friends[i];
+        if (std::strcmp(entry.state, "friend")) continue;
+        char id[32], label[86];
+        std::snprintf(id,sizeof(id),"gift-friend-%u",i);
+        std::snprintf(label,sizeof(label),"%s (@%s)",entry.name,entry.handle);
+        nativeHub_Button(id,label,191,178 + rows++*22,394,20,HubAction::FriendGiftRecipient,
+                         0,!std::strcmp(entry.handle,hub.fighter_gift_friend),true,
+                         nullptr,entry.name,entry.handle);
+    }
+    if (!rows) nativeMenuPaint_Text(account.busy || !social.loaded ? "Loading friends…" :
+                                    "Add someone in Friends to send them a fighter.",191,194,394,11,muted);
+    nativeHub_Button("gift-friends-prev","<",538,151,22,20,HubAction::FriendGiftPage,-8,false,
+                     ready && friends_offset > 0);
+    nativeHub_Button("gift-friends-next",">",567,151,22,20,HubAction::FriendGiftPage,8,false,
+                     ready && friends_offset + 8 < social.friends_total);
+    nativeHub_Button("confirm-gift",account.busy && sending_fighter ? "Sending fighter…" : "Send fighter",
+                     382,376,223,29,HubAction::ConfirmSend,0,true,ready && *hub.fighter_gift_friend);
+}
+
+bool nativeHubSocial_TakeFighter(NativeContentId* id)
+{
+    if (!*download_id || !nativeHome_IsSelection()) return false;
+    const auto& account = nativeHubAccount_View();
+    if (account.busy || account.revision == fighter_request_revision) return false;
+    const bool downloaded = account.signed_in && !std::strcmp(download_id,account.social.fighter_download_id);
+    char root[512];
+    if (downloaded && nativeContentStore_DefaultRoot(root,sizeof(root)) &&
+        nativeContentStore_IdFromHex(account.social.fighter_download_hash,id) &&
+        nativeFighterRuntime_ValidateCached(id,root) && nativeContentStore_Install(root,id)) {
+        std::memcpy(accepted_gift, download_id, sizeof(accepted_gift));
+        if (hub.page == NativeHubPage_Letter && !std::strcmp(opened, download_id))
+            nativeHub_ChangePage(NativeHubPage_Inbox);
+        download_id[0] = 0;
+        return true;
+    }
+    download_id[0] = 0;
+    nativeHub_Notice(downloaded ? "This fighter could not be validated or installed." : account.status);
+    return false;
 }
 void nativeHubSocial_Render(NativeHubPage page)
 {
@@ -204,11 +273,18 @@ void nativeHubSocial_Render(NativeHubPage page)
         nativeHub_Panel(175, 116, 430, 284);
         const auto& message = social.opened;
         if (!*opened || std::strcmp(opened, message.id)) {
-            nativeMenuPaint_Text(account.busy ? "Opening letter..." : "This letter could not be opened.", 194, 148, 370, 11, muted); return;
+            nativeMenuPaint_Text(account.busy ? "Opening…" : "This message could not be opened.", 194, 148, 370, 11, muted); return;
         }
         nativeMenuPaint_Text(message.title, 194, 131, 390, 17, gold, NativeMenuFont_MenuOption);
         char from[128]; std::snprintf(from, sizeof(from), "%s %s (@%s)", message.folder ? "To" : "From", message.name, message.handle);
         nativeMenuPaint_Text(from, 194, 156, 390, 9, muted);
+        if (!std::strcmp(message.kind,"fighter_gift")) {
+            nativeMenuPaint_Text("Fighter delivery",194,191,390,13,muted);
+            nativeHub_Button("install-friend-fighter",account.busy ? "Receiving fighter…" : "Install fighter",
+                             194,359,170,28,HubAction::InstallFriendGift,0,true,enabled && nativeHome_IsSelection());
+            nativeHub_Button("delete-friend-fighter","Remove delivery",415,359,169,28,HubAction::DeleteLetter,0,false,enabled);
+            return;
+        }
         read_lines = nativeHub_TextBlock(social.body, 194, 189, 390, 126, 11, 0xF2ECEDFF, read_scroll);
         nativeHub_Button("letter-up", "Up", 506, 320, 35, 22, HubAction::MailPage, -1, false, read_scroll > 0);
         nativeHub_Button("letter-down", "Down", 549, 320, 35, 22, HubAction::MailPage, 1, false, read_scroll + 9 < read_lines);
@@ -249,7 +325,8 @@ void nativeHubSocial_Render(NativeHubPage page)
             } else {
                 const auto& entry = social.messages[i];
                 std::snprintf(title, sizeof(title), "%s%s", entry.unread ? "* " : "", entry.title);
-                std::snprintf(detail, sizeof(detail), "%s %s | %s", folder ? "To" : "From", entry.name, entry.status);
+                std::snprintf(detail, sizeof(detail), "%s %s | %s", folder ? "To" : "From", entry.name,
+                              !std::strcmp(entry.kind,"fighter_gift") ? "Fighter delivery" : entry.status);
             }
             bool hover = nativeHub_Hover(185, y - 2, 409, 25) && enabled;
             if (hover) nativeMenuPaint_Rect(185, y - 2, 409, 25, 0x72573055);
@@ -272,6 +349,41 @@ bool nativeHubSocial_Activate(HubAction action, int value)
 {
     const auto& account = nativeHubAccount_View(); const auto& social = account.social;
     switch (action) {
+    case HubAction::GiftRecipientMode:
+        hub.send_to_friends = value != 0;
+        if (hub.send_to_friends) { friends_offset = 0; wanted = true; }
+        return true;
+    case HubAction::FriendGiftRecipient:
+        std::snprintf(hub.fighter_gift_friend,sizeof(hub.fighter_gift_friend),"%s",hub.pending_account);
+        return true;
+    case HubAction::FriendGiftPage:
+        friends_offset = unsigned(std::max(0,int(friends_offset) + value)); wanted = true; return true;
+    case HubAction::ConfirmSend: {
+        if (!hub.send_to_friends || hub.send_from_css) return false;
+        if (!account.signed_in || account.busy || !*hub.fighter_gift_friend) return true;
+        NativeAccountRequest request{};
+        request.operation = NativeAccountOperation::SendFighterGift;
+        nativeContentStore_IdHex(&hub.gift_id,request.fighter_hash);
+        if (std::strcmp(sent_fighter,request.fighter_hash) || std::strcmp(sent_friend,hub.fighter_gift_friend)) {
+            fighter_nonce[0] = 0;
+            std::memcpy(sent_fighter,request.fighter_hash,sizeof(sent_fighter));
+            std::memcpy(sent_friend,hub.fighter_gift_friend,sizeof(sent_friend));
+        }
+        if (!*fighter_nonce && !nativeAccount_NewNonce(fighter_nonce)) {
+            nativeHub_Notice("Could not prepare this fighter delivery."); return true;
+        }
+        std::memcpy(request.handle,hub.fighter_gift_friend,sizeof(request.handle));
+        std::memcpy(request.nonce,fighter_nonce,sizeof(request.nonce));
+        if (nativeAccount_Submit(request)) {
+            sending_fighter = true; fighter_request_revision = account.revision;
+        } else nativeHub_Notice("Wait for the account request to finish.");
+        return true;
+    }
+    case HubAction::InstallFriendGift:
+        if (nativeHome_IsSelection() && submit(NativeAccountOperation::DownloadFighterGift,nullptr,opened)) {
+            std::memcpy(download_id,opened,sizeof(download_id)); fighter_request_revision = account.revision;
+        }
+        return true;
     case HubAction::OpenAccount:
         if (*hub.pending_account) {
             std::snprintf(hub.social_handle, sizeof(hub.social_handle), "%s", hub.pending_account);
@@ -361,6 +473,7 @@ void nativeHubSocial_Shutdown()
     clear_draft(); SDL_memset(owner, 0, sizeof(owner)); SDL_memset(opened, 0, sizeof(opened));
     SDL_memset(invitation_nonce, 0, sizeof(invitation_nonce)); pending_join[0] = 0;
     invitation_room[0] = invitation_to[0] = 0;
+    download_id[0] = accepted_gift[0] = 0;
     hub.lobby_invite_to[0] = 0; hub.lobby_invite_queued = false;
     wanted = false; refreshed = folder = offset = friends_offset = read_scroll = read_lines = 0;
 }

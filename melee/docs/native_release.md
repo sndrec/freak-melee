@@ -229,6 +229,15 @@ the live updater manifest: it must still match the captured previous manifest,
 or already match this exact release on a resumed run. If another release went
 live in the meantime, stop before replacing it.
 
+If the client changes the online protocol, stage the matching signaling Worker
+with `npx wrangler versions upload --keep-vars` from `services/signaling`.
+Record the candidate and the currently deployed version in the release receipt.
+For friend gifts, verify the private bucket and its seven-day `fighters/`
+expiration rule. Deploy the matching Worker immediately before activating the
+updater. Confirm the new Worker version and its `/health` response. If updater
+activation fails and the previous build is still live, restore the previous
+Worker version before retrying the cutover.
+
 ```powershell
 gh release edit $releaseId --repo sndrec/freak-melee --draft=false --latest
 gh release view $releaseId --repo sndrec/freak-melee --json url,tagName,targetCommitish,isDraft,assets,body

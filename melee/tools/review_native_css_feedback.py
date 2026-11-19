@@ -84,6 +84,8 @@ def main():
         shot(a, 'chat-narrow')
         a.resize(1440, 900)
         a.click('play-rules')
+        a.click('rules-next-page')
+        a.click('rules-lobby')
         a.element('change-listing')
         a.element('rotation-policy')
         a.element('match-rules')
@@ -92,6 +94,7 @@ def main():
         assert 'rules=1' in a.inspect('lobby-listing'), 'START escaped the CSS rules view'
         a.element('change-listing')
         # Host overrides and the player's subsequent choices use this view too.
+        a.click('lobby-manage-seats')
         a.click('lobby-seat-1-0')
         for _ in range(100):
             if len(re.findall(r'canonical=[0-3] ', a.inspect('css-cards'))) == 1:
@@ -100,6 +103,9 @@ def main():
         else:
             raise AssertionError('Host seat override did not update the CSS cards')
         b.click('play-rules')
+        b.click('rules-next-page')
+        b.click('rules-lobby')
+        b.click('lobby-manage-seats')
         b.click('lobby-seat-1-0')  # Waiting -> Spectating
         time.sleep(.3)
         b.click('lobby-seat-1-0')  # Spectating -> Fighting
@@ -109,15 +115,16 @@ def main():
             time.sleep(.1)
         else:
             raise AssertionError('Player could not change their role after a host override')
-        b.tap('b')
+        for _ in range(4): b.click('rules-close')
         b.element('play-ready')
+        a.click('rules-close')
         initial = a.inspect('lobby-listing')
         expected = 0 if 'listed=1' in initial else 1
         a.command('ui-move', *a.element('change-listing'))
         a.tap('a', frames=40)
         wait(a, 'lobby-listing', f'listed={expected}')
         assert 'absent' in a.inspect('play-workshop')
-        a.click('play-lobby')
+        for _ in range(3): a.click('rules-close')
         a.element('play-ready')
         # Move the player's cookie off the source tile before picking up the
         # tile itself; cookies intentionally take priority over tile sharing.

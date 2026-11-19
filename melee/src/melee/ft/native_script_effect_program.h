@@ -17,6 +17,9 @@ typedef struct NativeScriptEffectProgram {
     int32_t gfx_id;
     EF_ModelConstructorFamily family;
     uint32_t member_count;
+    NativeScriptSourceSpan model_path;
+    uint16_t lifetime;
+    EF_EffectDesc model;
     NativeScriptEffectSelector selectors[NATIVE_SCRIPT_EFFECT_SELECTORS];
     uint32_t selector_count;
 } NativeScriptEffectProgram;

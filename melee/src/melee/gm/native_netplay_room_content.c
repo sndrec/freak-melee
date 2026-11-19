@@ -293,12 +293,15 @@ bool nativeNetplayRoom_ContentProgress(
         const NativeContentTransferReceive* receive =
             &room->content_receive;
         *progress = (NativeNetplayContentProgress){
+            .id = receive->id,
             .bytes_done = (uint32_t) receive->received,
             .bytes_total = (uint32_t) receive->size,
             .package_index = room->needed_index + 1,
             .package_count = room->needed_count,
             .direction = NativeNetplayContent_Receiving,
         };
+        nativeContentStore_ReadPreview(receive->bytes, receive->received,
+                                       &progress->preview);
         return true;
     }
     for (unsigned i = 0; i < room->peer_count; ++i) {

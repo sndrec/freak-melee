@@ -199,6 +199,7 @@ bool nativeScriptBindingItemObservations_Invoke(NativeScriptRuntimeContext* c,
 bool nativeScriptBindingItemObservations_Read(NativeScriptRuntimeContext* c,
     uint32_t semantic,NativeScriptValue* out,NativeScriptDiagnostic* d)
 {
+    bool floor_line = semantic == NativeScriptBinding_FloorLine;
     bool normal=semantic>=NativeScriptBinding_FloorNormalX && semantic<=NativeScriptBinding_FloorNormalZ;
     bool collision_position=semantic>=NativeScriptBinding_CollisionPositionX && semantic<=NativeScriptBinding_CollisionPositionZ;
     bool ceiling=(semantic>=NativeScriptBinding_CeilingNormalX&&semantic<=NativeScriptBinding_CeilingNormalY)||semantic==NativeScriptBinding_CeilingNormalZ;
@@ -207,8 +208,11 @@ bool nativeScriptBindingItemObservations_Read(NativeScriptRuntimeContext* c,
     bool launch=semantic>=NativeScriptBinding_ItemLaunchAngle&&semantic<=NativeScriptBinding_ItemLaunchOriginZ;
     bool reflected=semantic==NativeScriptBinding_ItemReflectionFacing;
     bool surface=semantic>=NativeScriptBinding_ItemSurfaceNormalX&&semantic<=NativeScriptBinding_ItemSurfaceNormalZ;
-    if(!out||(!normal&&!collision_position&&!ceiling&&!left&&!right&&!launch&&!reflected&&!surface&&semantic!=NativeScriptBinding_ItemAnimationFinished&&semantic!=NativeScriptBinding_FloorFriction))
-        return error(d,"Unsupported Item observation property");
+    if (!out || (!floor_line && !normal && !collision_position && !ceiling &&
+                 !left && !right && !launch && !reflected && !surface &&
+                 semantic != NativeScriptBinding_ItemAnimationFinished &&
+                 semantic != NativeScriptBinding_FloorFriction))
+        return error(d, "Unsupported Item observation property");
     NativeItemLifetime s;if(!source(c,&s,d))return false;
     if(surface&&s.program->recipe)return error(d,"Surface normal observation requires ordinary Article storage");
     if(launch||reflected||surface) {
@@ -242,16 +246,22 @@ bool nativeScriptBindingItemObservations_Read(NativeScriptRuntimeContext* c,
             return error(d,"Item floor material source retired before publication");
         *out=value;return true;
     }
-    if(normal||collision_position||ceiling||left||right) {
+    if(floor_line||normal||collision_position||ceiling||left||right) {
         const CollData* collision=&s.data->x378_itemColl;
-        const Vec3* vector=normal?&collision->floor.normal:ceiling?&collision->ceiling.normal:
-            left?&collision->left_facing_wall.normal:right?&collision->right_facing_wall.normal:&collision->cur_pos;
-        unsigned first=normal?NativeScriptBinding_FloorNormalX:ceiling?NativeScriptBinding_CeilingNormalX:
-            left?NativeScriptBinding_WallLeftNormalX:right?NativeScriptBinding_WallRightNormalX:NativeScriptBinding_CollisionPositionX;
-        unsigned axis=(semantic==NativeScriptBinding_CeilingNormalZ||semantic==NativeScriptBinding_WallLeftNormalZ||semantic==NativeScriptBinding_WallRightNormalZ)?2u:semantic-first;
-        const float* component=axis==0?&vector->x:axis==1?&vector->y:&vector->z;
-        NativeScriptValue value={.type=NativeScriptType_F32};
-        memcpy(&value.as.f32,component,sizeof(value.as.f32));
+        NativeScriptValue value;
+        if (floor_line) {
+            value = (NativeScriptValue){.type = NativeScriptType_I32,
+                                        .as.i64 = collision->floor.index};
+        } else {
+            const Vec3* vector=normal?&collision->floor.normal:ceiling?&collision->ceiling.normal:
+                left?&collision->left_facing_wall.normal:right?&collision->right_facing_wall.normal:&collision->cur_pos;
+            unsigned first=normal?NativeScriptBinding_FloorNormalX:ceiling?NativeScriptBinding_CeilingNormalX:
+                left?NativeScriptBinding_WallLeftNormalX:right?NativeScriptBinding_WallRightNormalX:NativeScriptBinding_CollisionPositionX;
+            unsigned axis=(semantic==NativeScriptBinding_CeilingNormalZ||semantic==NativeScriptBinding_WallLeftNormalZ||semantic==NativeScriptBinding_WallRightNormalZ)?2u:semantic-first;
+            const float* component=axis==0?&vector->x:axis==1?&vector->y:&vector->z;
+            value = (NativeScriptValue){.type = NativeScriptType_F32};
+            memcpy(&value.as.f32,component,sizeof(value.as.f32));
+        }
         if(!nativeItemLifetime_Current(&s)||c->source!=s.object||
            c->source_class!=NativeCallbackSource_Item||c->generation!=s.generation||
            c->scene_epoch!=s.reference.lifetime)

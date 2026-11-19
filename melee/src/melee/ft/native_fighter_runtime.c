@@ -60,6 +60,8 @@
 #include <melee/it/native_article_resource.h>
 #include <melee/it/kinds/types.h>
 #include <sysdolphin/baselib/dat.h>
+#include <sysdolphin/baselib/axdriver.h>
+#include <sysdolphin/baselib/synth.h>
 #include <melee/lb/lbanim.h>
 
 enum {
@@ -515,6 +517,22 @@ Article* nativeFighterRuntime_ArticleAssets(FighterKind author,ItemKind kind)
     return result;
 }
 
+int nativeFighterRuntime_SoundClip(FighterKind kind, unsigned clip, unsigned channel)
+{
+    const NativeSourcePackage* package = nativeFighterRuntime_SourcePackage(kind);
+    const HSD_SfxBank* bank = package ? package->sounds : NULL;
+    if (!bank || clip >= bank->count || channel > 6) {
+        return -1;
+    }
+    const HSD_SfxEntry* entry = &bank->entries[clip];
+    if (!channel && (entry->voices[0].address.loopFlag ||
+        (entry->voice_count == 2 && entry->voices[1].address.loopFlag)))
+    {
+        return -1;
+    }
+    return entry->id;
+}
+
 bool nativeFighterRuntime_CanClear(void)
 {
     if(!runtime_quiescent() || nativeRollbackPages_IsInitialized())return false;
@@ -548,6 +566,11 @@ bool nativeFighterRuntime_Clear(void)
         NativeFighterSlot* slot = &slots[i];
         if (slot->active) {
             FighterKind kind = slot->fighter_kind;
+            HSD_SfxBank* sounds = slot->source->sounds;
+            if (sounds) {
+                AXDriverRetirePackageSounds(sounds->first_id, sounds->count);
+                HSD_SynthRetirePackageSfxBank(sounds);
+            }
             nativeScriptFighter_PublishProgram(kind,&empty_program);
             bool unpinned=nativeSourcePackage_Unpin(slot->source);
             HSD_ASSERTREPORT(0,unpinned,"Preflighted source lease retirement failed");
@@ -751,6 +774,9 @@ static void bind_member(NativeFighterSlot* slot)
             Fighter_804D64FC->xC,Fighter_804D64FC->x10,Fighter_804D64FC->x14,Fighter_804D64FC->x18,Fighter_804D64FC->x1C};
         for(unsigned family=0;family<FT_CPU_ATTACK_FAMILIES;++family)lists[family][kind]=slot->cpu.attacks[family];
         Fighter_804D64FC->x20[kind]=slot->cpu.distance_threshold;
+    }
+    if (slot->source->sounds) {
+        HSD_SynthPublishPackageSfxBank(slot->source->sounds);
     }
     nativeScriptFighter_PublishProgram(kind,&slot->source->program);
     slot->active=true;

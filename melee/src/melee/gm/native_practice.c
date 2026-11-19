@@ -47,13 +47,13 @@ static void reset_escaped_sandbag(void)
     OSReport("[practice] Sandbag reset at center floor.\n");
 }
 
-void nativePractice_Configure(StartMeleeData* start, int editor_port)
+void nativePractice_Configure(StartMeleeData* start, int editor_port, unsigned stage)
 {
     const bool editing = editor_port >= 0 && editor_port < 4;
     grPractice_SetEditorPreview(editing);
     // Practice has no winner or time limit. Normal time-match rebirth keeps
     // local fighters available after a KO without consuming their stocks.
-    start->rules.stkind = St_Kind_Practice;
+    start->rules.stkind = stage;
     start->rules.match_kind = MatchKind_Time;
     start->rules.is_stock = false;
     start->rules.timer_enabled = false;

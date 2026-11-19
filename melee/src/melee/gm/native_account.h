@@ -7,12 +7,14 @@ enum class NativeAccountOperation {
     Refresh, Register, Login, Recover, Approve, AddKey, SaveProfile,
     Logout, RevokeSession, RevokeAll, RemoveKey, RotateRecovery,
     RefreshSocial, LookupProfile, SendLetter, ReadLetter,
-    DeleteLetter, ChangeFriend, BlockPlayer, SendInvitation, JoinInvitation, ImportKey, ExportKey, ExportRecovery, AttachLobby, Count
+    DeleteLetter, ChangeFriend, BlockPlayer, SendInvitation, JoinInvitation, SendFighterGift, DownloadFighterGift,
+    ImportKey, ExportKey, ExportRecovery, AttachLobby, Count
 };
 struct NativeAccountRequest {
     NativeAccountOperation operation;
     char handle[25], name[33], bio[257], recovery[44], target[44];
     char subject[65], text[2049], nonce[44], action[16], room[13];
+    char fighter_hash[65];
     char path[3073];
     unsigned folder, offset, friends_offset;
     bool blocked;

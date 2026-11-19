@@ -92,7 +92,7 @@ void inline eflib_create_generator_add_appsrt(HSD_Generator** generator,
 static inline EF_Effect*
 eflib_create_effect_and_attach(int gfx_id, HSD_GObj* gobj, HSD_JObj* jobj)
 {
-    EF_Effect* effect = efLib_Create(gfx_id, gobj);
+    EF_Effect* effect = efLib_Create(gfx_id, gobj, NULL);
     if (effect != NULL) {
         HSD_JObj* effect_jobj;
         if ((effect_jobj = GET_JOBJ(effect->gobj)) == NULL) {
@@ -494,24 +494,27 @@ void efLib_Update(HSD_GObj* gobj)
     }
 }
 
-EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
+EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
+                        const EF_EffectDesc* owned)
 {
     EF_Effect* effect;
-    EF_EffectDesc* desc;
+    const EF_EffectDesc* desc = owned;
     u8 p_link;
 
+    if (desc == NULL) {
 #if defined(MELEE_NATIVE)
-    if (gfx_id < 0 || gfx_id / 1000 >= ARRAY_SIZE(efAsync_DatEntries) ||
-        (u32) (gfx_id % 1000) >=
-            efAsync_DatEntries[gfx_id / 1000].effect_count)
-    {
-        return NULL;
-    }
+        if (gfx_id < 0 || gfx_id / 1000 >= ARRAY_SIZE(efAsync_DatEntries) ||
+            (u32) (gfx_id % 1000) >=
+                efAsync_DatEntries[gfx_id / 1000].effect_count) {
+            return NULL;
+        }
 #endif
-    desc = &((EF_EffectDesc*) efAsync_DatEntries[gfx_id / 1000]
-                 .data)[gfx_id % 1000];
+        desc = &((EF_EffectDesc*) efAsync_DatEntries[gfx_id / 1000]
+                    .data)[gfx_id % 1000];
+    }
 
-    if (efLib_LoadKind == EF_LOADKIND_ASYNC) {
+    const u8 load_kind = owned ? EF_LOADKIND_SYNC : efLib_LoadKind;
+    if (load_kind == EF_LOADKIND_ASYNC) {
         if (efLib_EffectCount >= 64) {
             efLib_RemoveLast();
         }
@@ -532,7 +535,7 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
             new_effect->state_flags = EF_STATE_ACTIVE;
             new_effect->expire_flags = EF_DOES_NOT_EXPIRE;
             new_effect->scale_flags = EF_SCALE_NO_INHERIT;
-            new_effect->is_async = efLib_LoadKind;
+            new_effect->is_async = load_kind;
 #if defined(MELEE_NATIVE)
             if (++efLib_AllocationSerial == 0) {
                 ++efLib_AllocationSerial;
@@ -552,6 +555,7 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
     }
 
     if (effect == NULL) {
+        if (load_kind == EF_LOADKIND_ASYNC) --efLib_EffectCount;
         return NULL;
     }
     if (parent_gobj == NULL && effect->is_async) {
@@ -568,14 +572,8 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
         HSD_GObj* gobj = GObj_Create(HSD_GOBJ_CLASS_EFFECT, p_link, 0);
         effect->gobj = gobj;
         if (gobj == NULL) {
-            if (effect->gobj != NULL) {
-                if (effect->is_async == 0) {
-                    efLib_EffectCount -= 1;
-                }
-                HSD_ObjFree(&efLib_AllocData, effect);
-            } else {
-                HSD_ASSERTREPORT(53, 0, "Duplicate Free %08X\n", effect);
-            }
+            if (load_kind == EF_LOADKIND_ASYNC) --efLib_EffectCount;
+            HSD_ObjFree(&efLib_AllocData, effect);
             return NULL;
         }
     }
@@ -607,7 +605,9 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
                                    desc->model_desc.matanim_joint,
                                    desc->model_desc.shapeanim_joint);
                 HSD_JObjReqAnimAll(jobj, 0.0F);
-                {
+                if (owned != NULL) {
+                    HSD_JObjAnimAll(jobj);
+                } else {
                     s32 temp_r5_2 = efLib_AnimCount;
                     efLib_AnimCount++;
 #ifdef MELEE_NATIVE
@@ -628,7 +628,7 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj)
 
 EF_Effect* efLib_Create_Attach(u32 gfx_id, HSD_GObj* gobj, HSD_JObj* jobj)
 {
-    EF_Effect* effect = efLib_Create(gfx_id, gobj);
+    EF_Effect* effect = efLib_Create(gfx_id, gobj, NULL);
     if (effect != NULL) {
         HSD_JObj* effect_jobj;
         if ((effect_jobj = GET_JOBJ(effect->gobj)) == NULL) {
@@ -723,7 +723,7 @@ EF_Effect* efLib_Create_Attach_Pos(u32 gfx_id, HSD_GObj* gobj, Vec3* position)
     HSD_JObj* jobj;
     EF_Effect* effect;
 
-    effect = efLib_Create(gfx_id, gobj);
+    effect = efLib_Create(gfx_id, gobj, NULL);
     if (effect != NULL) {
         jobj = GET_JOBJ(effect->gobj);
         (void) jobj;
@@ -1607,7 +1607,7 @@ EF_Effect* efLib_CreateGenerator_AppSRT_SetPos(int gfx_id, HSD_GObj* gobj,
                                                HSD_JObj* jobj, Vec3* vec)
 {
     HSD_Generator* generator;
-    EF_Effect* effect = efLib_Create(0, gobj);
+    EF_Effect* effect = efLib_Create(0, gobj, NULL);
 
     if (effect != NULL) {
         effect->update = efLib_Cb_AccumOffset_FromParams;

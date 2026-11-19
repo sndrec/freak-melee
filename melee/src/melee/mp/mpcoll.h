@@ -59,6 +59,7 @@
 /* 0471F8 */ bool mpColl_800471F8(CollData*);
 /* 04730C */ bool mpColl_8004730C(CollData*, ftCollisionBox*);
 /* 0473CC */ bool mpColl_800473CC(CollData*);
+bool mpColl_CheckAirWithEitherLedge(CollData*);
 /* 0474E0 */ bool mpColl_800474E0(CollData*);
 /* 0475F4 */ bool mpColl_800475F4(CollData*, ftCollisionBox*);
 /* 0476B4 */ bool mpColl_800476B4(CollData*, bool (*)(Fighter_GObj*, enum_t),

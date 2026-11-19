@@ -1855,6 +1855,8 @@ struct Fighter {
     u8 ucf_shield_drop_frames;
     NativeActionBuffer action_buffer;
     NativeHitboxLifetime native_hitbox_lifetimes[4];
+    Vec2 native_contact_launch;
+    bool native_contact_launch_active;
     u8 native_module_state[256];
     struct {
         float timer_damage_multiplier;

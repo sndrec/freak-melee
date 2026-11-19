@@ -44,7 +44,10 @@ def main():
         reference=subprocess.run(['git','show',REFERENCE+':'+relative],cwd=ROOT,capture_output=True,text=True,check=True,creationflags=subprocess.CREATE_NO_WINDOW).stdout
         for name in names:
             actual=body(text,name)
-            if actual!=body(reference,name): raise RuntimeError('Native reference changed: '+name)
+            expected=body(reference,name)
+            if name=='efLib_Create_Attach':
+                expected=expected.replace('efLib_Create(gfx_id, gobj)', 'efLib_Create(gfx_id, gobj, NULL)')
+            if actual!=expected: raise RuntimeError('Native reference changed: '+name)
             if name=='spawn_effect_between_parts': actual=actual.replace(name,'reference_spawn_between')
             native.append(actual)
     (out/'native_contract.inc').write_text('\n'.join(native))

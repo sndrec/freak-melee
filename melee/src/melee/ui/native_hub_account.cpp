@@ -164,7 +164,8 @@ void nativeHubAccount_Render()
         nativeHubStartup.active ? NativeMenuFont_MenuCaption : NativeMenuFont_MenuOption);
     char handle[64]; std::snprintf(handle, sizeof(handle), "@%s", account.handle);
     if (!nativeHubStartup.active || account.signed_in)
-        nativeMenuPaint_Text(account.signed_in ? handle : "Your account key signs you in automatically on this PC.", x + 194, 155, 370, 9, muted);
+        nativeMenuPaint_Text(account.signed_in ? handle : "Your account key signs you in automatically on this PC.",
+                             x + 194, !nativeHubStartup.active && account.signed_in ? 170 : 155, 370, 9, muted);
     if (nativeHubStartup.active && account.signed_in && !account.recovery_pending && !account.busy) {
         nativeMenuPaint_Text("Signed in", 344, 285, 200, 20, gold, NativeMenuFont_MenuCaption);
         return;

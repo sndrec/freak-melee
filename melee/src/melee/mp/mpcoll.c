@@ -56,6 +56,7 @@ static void sdata2_order(void)
 #define CollisionFlagAir_StayAirborne 0x1
 #define CollisionFlagAir_PlatformPassCallback 0x2
 #define CollisionFlagAir_CanGrabLedge 0x4
+#define CollisionFlagAir_GrabLedgeEitherSide 0x8
 
 /// 80041C78 https://decomp.me/scratch/V6eYQ
 void mpColl_80041C78(void)
@@ -2504,7 +2505,8 @@ bool mpColl_80046904(CollData* coll, u32 flags)
                        c->env_flags & Collide_RightEdge;
 
         if (!on_edge && c->cur_pos.y < c->prev_pos.y) {
-            if (c->facing_dir == 1 || c->facing_dir == 0) {
+            bool either_side = c->facing_dir == 0 || (fl & CollisionFlagAir_GrabLedgeEitherSide);
+            if (c->facing_dir == 1 || either_side) {
                 if (mpColl_80044164(
                         c, &c->ledge_id_left)) { // Physics_CheckForLeftLedge
                     on_edge = true;
@@ -2516,7 +2518,7 @@ bool mpColl_80046904(CollData* coll, u32 flags)
                     c->env_flags |= Collide_LeftLedgeGrab;
                 }
             }
-            if (c->facing_dir == -1 || c->facing_dir == 0) {
+            if (c->facing_dir == -1 || either_side) {
                 if (mpColl_800443C4(
                         c, &c->ledge_id_right)) { // Physics_CheckForRightLedge
                     on_edge = true;
@@ -2740,6 +2742,14 @@ bool mpColl_800473CC(CollData* coll)
     mpCollPrev(coll);
     mpColl_LoadECB_inline(coll, 6);
     return inline0(coll, 4, true);
+}
+
+bool mpColl_CheckAirWithEitherLedge(CollData* coll)
+{
+    mpCollPrev(coll);
+    mpColl_LoadECB_inline(coll, 6);
+    return inline0(coll, CollisionFlagAir_CanGrabLedge |
+                             CollisionFlagAir_GrabLedgeEitherSide, true);
 }
 
 bool mpColl_800474E0(CollData* coll)

@@ -87,6 +87,7 @@ article's selected native hit capsule against the fighter's hurt capsules,
 using their current swept endpoints, joint matrices, radius scaling and depth.
 It preserves native endpoint-cache and contact-position/distance writes and
 stops at the first overlap. No target or an out-of-range slot returns false.
+
 Malformed capsule counts or bones outside the retained rig fail the call.
 
 This does not apply damage, invoke a move, or filter combat immunity, hurtbox
@@ -103,6 +104,23 @@ if attachment_owner.exists:
 
 `react_to_contact` is an [exported helper](functions.md), defined by that
 fighter. The engine query knows nothing about the helper or fighter behavior.
+
+## Search for attacks in a capsule
+
+`targets.attack_overlaps_capsule(ax, ay, az, bx, by, bz, radius) -> bool`
+
+`targets.article_attack_overlaps_capsule(article, ax, ay, az, bx, by, bz, radius) -> bool`
+
+Call these from a fighter script. Give the capsule both endpoints in world
+coordinates and a nonnegative radius. The first call checks for an active
+fighter or item attack. The second checks attacks from the named article in
+your fighter's script. It includes articles spawned by another instance of the
+same fighter and articles whose damage owner changed through reflection.
+
+The search uses each attack's swept hitbox and checks whether the attack can
+hit your grounded or airborne state. Team and item owner settings apply.
+Both calls return true on the first match. Use the result to time an
+animation, open a reflector, or trigger another scripted response.
 
 ## Example
 

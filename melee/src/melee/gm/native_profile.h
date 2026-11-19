@@ -105,6 +105,10 @@ bool nativeProfileStore_Save(const NativeProfile* profile,
                              const char* profile_id);
 bool nativeProfileStore_Load(NativeProfile* profile, const char* profile_id);
 bool nativeProfileStore_Delete(const char* profile_id);
+// An empty selection means the player explicitly chose default controls.
+bool nativeProfileStore_ReadSelection(unsigned port,
+                                     char id[NATIVE_PROFILE_ID_BYTES + 1]);
+bool nativeProfileStore_WriteSelection(unsigned port, const char* id);
 // Enumerate valid saved profiles. More than capacity entries is an explicit
 // failure, rather than a silently incomplete picker. Missing storage is empty.
 bool nativeProfileStore_List(NativeProfileEntry* entries, size_t capacity,

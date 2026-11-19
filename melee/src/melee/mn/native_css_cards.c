@@ -446,6 +446,24 @@ const NativeCssParticipant* nativeCssCards_Hit(float x, float y)
     }
     return NULL;
 }
+bool nativeCssCards_CycleSeat(float x, float y)
+{
+    const NativeSignalingPresence* presence = nativeOnlineSession_Presence();
+    if (!cards.people.online || nativeOnlineSession_Quick() || !presence ||
+        presence->match_size || y < -6.5f || y > -2.8f) return false;
+    for (unsigned i = 0; i < cards.people.count; ++i) {
+        const NativeCssParticipant* card = &cards.people.cards[i];
+        const float left = card_left(i) - .5f;
+        if (x < left || x >= left + 5.7f || card->kind != Gm_PKind_Human ||
+            (!card->local && !nativeOnlineSession_IsOwner())) continue;
+        if (nativeOnlineSession_ChooseSeat(card->peer, card->seat, NativeRoomSeatState_Spectating))
+            nativeHome_CancelStartMatch();
+        else
+            nativeHub_Notice("Could not change this player's seat.");
+        return true;
+    }
+    return false;
+}
 void nativeCssCards_Carry(unsigned port, const NativeContentId* package,
                           float x, float y)
 {

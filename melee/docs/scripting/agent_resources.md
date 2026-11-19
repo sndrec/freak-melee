@@ -64,6 +64,17 @@ saved files unchanged. Stock-icon and emblem import use this operation too.
 Use Save to keep those changes. Offline edits save through the draft transaction
 and refuse a draft currently owned by a live Workshop.
 
+## Import fighter sounds
+
+Import a DSP-ADPCM SSM file as a `blob` named `sounds.ssm`. Each fighter
+family member can carry its own bank. The bank starts at sample ID 0 and
+holds up to 256 mono or stereo clips at sample rates from 8 to 48 kHz.
+The maximum bank size is 4 MiB. Build the fighter to validate the bank.
+
+Use [`sound.clip`](sound_channels.md#soundclipchannel-index-volume-pan) in
+a fighter script to play a clip by its index in the bank. The fighter
+package carries the audio when installed or shared.
+
 ## Create an item blueprint
 
 A blueprint supplies an item's model, attributes and animation commands.

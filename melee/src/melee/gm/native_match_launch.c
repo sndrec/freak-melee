@@ -1349,10 +1349,15 @@ bool nativeMatchLaunch_ApplyProfiles(void)
 {
     nativeProfileInput_ClearAll();
     for (uint32_t port = 0; port < 4; ++port) {
+        NativeProfile profile;
         if (!launch.profile_explicit[port]) {
+            char id[NATIVE_PROFILE_ID_BYTES + 1];
+            if (nativeProfileStore_ReadSelection(port, id) && *id &&
+                nativeProfileStore_Load(&profile, id)) {
+                nativeProfileInput_Assign(port, &profile);
+            }
             continue;
         }
-        NativeProfile profile;
         if (!nativeProfileStore_Load(&profile, launch.profile_ids[port])) {
             fprintf(stderr, "Could not load P%u profile: %s\n", port + 1,
                     launch.profile_ids[port]);

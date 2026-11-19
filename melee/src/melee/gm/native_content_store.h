@@ -113,6 +113,16 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
 bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
                                     NativeFighterPackage* fighter,
                                     NativeFighterPackageData* data);
+typedef struct NativeContentPreview {
+    char title[NATIVE_CONTENT_TITLE_BYTES];
+    const uint8_t* portrait_png;
+    size_t portrait_size;
+} NativeContentPreview;
+
+// Read presentation data from the contiguous prefix of a transfer. A fighter's
+// portrait sits before its other assets and becomes available independently.
+bool nativeContentStore_ReadPreview(const void* prefix, size_t received,
+                                    NativeContentPreview* preview);
 
 // The cache is non-selectable. Installed membership is a separate, explicit
 // per-installation marker referring to a verified cached package.

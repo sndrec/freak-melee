@@ -33,13 +33,15 @@ typedef struct Field {const char* name;uint16_t offset;uint8_t type;int32_t min,
 #define FLOAT_FIELD(name) {#name,offsetof(NativeScriptHitboxDefinition,name),NativeScriptType_F32,0,0}
 #define BOOL_FIELD(name) {#name,offsetof(NativeScriptHitboxDefinition,name),NativeScriptType_Bool,0,0}
 static const Field fields[]={
-    INT_FIELD(bone,0,INT32_MAX),INT_FIELD(damage,0,INT32_MAX),INT_FIELD(angle,0,INT32_MAX),
+    INT_FIELD(bone,0,INT32_MAX),FLOAT_FIELD(damage),INT_FIELD(angle,0,INT32_MAX),
     INT_FIELD(growth,0,INT32_MAX),INT_FIELD(weight_knockback,0,INT32_MAX),INT_FIELD(base_knockback,0,INT32_MAX),
     INT_FIELD(group,0,INT32_MAX),INT_FIELD(element,0,31),INT_FIELD(shield_damage,INT32_MIN,INT32_MAX),
     INT_FIELD(sound_severity,0,7),INT_FIELD(sound_kind,0,31),FLOAT_FIELD(radius),
     FLOAT_FIELD(offset_x),FLOAT_FIELD(offset_y),FLOAT_FIELD(offset_z),BOOL_FIELD(item_interaction),
     BOOL_FIELD(ignore_fighter_scale),BOOL_FIELD(clank),BOOL_FIELD(rebound),BOOL_FIELD(grounded),
     BOOL_FIELD(aerial),BOOL_FIELD(victim_only),BOOL_FIELD(require_throw_owner),
+    BOOL_FIELD(exclude_grabbed),
+    FLOAT_FIELD(end_x), FLOAT_FIELD(end_y), FLOAT_FIELD(end_z),
 };
 #undef INT_FIELD
 #undef FLOAT_FIELD
@@ -80,7 +82,7 @@ bool nativeScriptHitboxMetadata_Prepare(NativeScriptCompileBank* bank,NativeScri
                     return error(d,field->source,"Hitbox integer field must be exact and inside its engine range");
                 *(int32_t*)output=(int32_t)scalar.as.f64;
             }else if(spec->type==NativeScriptType_F32){
-                if(!isfinite(scalar.as.f32))return error(d,field->source,"Hitbox geometry must be finite");
+                if(!isfinite(scalar.as.f32))return error(d,field->source,"Hitbox floating-point fields must be finite");
                 *(float*)output=scalar.as.f32;
             }else *(bool*)output=scalar.as.u64!=0;
             seen|=1u<<id;
@@ -88,6 +90,14 @@ bool nativeScriptHitboxMetadata_Prepare(NativeScriptCompileBank* bank,NativeScri
         const uint32_t required=(1u<<0)|(1u<<1)|(1u<<11);
         if((seen&required)!=required||value.radius<0)
             return error(d,n->source,"Hitbox definition requires bone, damage and nonnegative radius");
+        if (value.damage < 0 || (double) value.damage > INT32_MAX)
+            return error(d,n->source,"Hitbox damage must be nonnegative and within its engine range");
+        if (value.victim_only && value.exclude_grabbed)
+            return error(d,n->source,"Choose either victim_only or exclude_grabbed for this hitbox");
+        const uint32_t end_fields = 7u << (sizeof(fields) / sizeof(*fields) - 3);
+        value.capsule = (seen & end_fields) != 0;
+        if (value.capsule && (seen & end_fields) != end_fields)
+            return error(d,n->source,"A capsule needs end_x, end_y and end_z");
         bank->hitbox_definitions[bank->hitbox_definition_count++]=value;
     }
     return true;

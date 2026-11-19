@@ -29,6 +29,7 @@
 #include <sysdolphin/baselib/gobjproc.h>
 #include <sysdolphin/baselib/gobjuserdata.h>
 #include <sysdolphin/baselib/random.h>
+#include <sysdolphin/baselib/sfxbank.h>
 #include <sysdolphin/baselib/synth.h>
 
 #define GET_SOUND(x) ((lbAudioAx_UserData*) HSD_GObjGetUserData(x))
@@ -247,7 +248,7 @@ static int fn_80023750(int id, int vol, int pan, int track, int channel)
 
 int lbAudioAx_800237A8(int id, int vol, int pan)
 {
-    if (id >= 0x83D61) {
+    if (id >= 0x83D61 && !HSD_SfxIsPackageSound(id)) {
         return fn_80023750(0x83D60, 0, PAN_MID, 0, 7);
     } else {
         return fn_80023750(id, vol, pan, 0, 7);

@@ -4,6 +4,7 @@
 #include "native_source_package.h"
 #endif
 #include "ft_081B.h"
+#include "ft_084E.h"
 #include <melee/mp/mpcoll.h>
 #include <sysdolphin/baselib/gobj.h>
 #include "fighter.h"
@@ -305,12 +306,7 @@ void ftCommon_CalcSelfAccel_AccelToVelClampedFrom(Fighter* fp, float vel,
     fp->x74_self_accel.x = accel;
 }
 
-void ftCommon_CalcSelfAccel_Drift(Fighter* fp)
-{
-    ftCommon_CalcSelfAccel_DriftFrom(fp, fp->self_vel.x);
-}
-
-void ftCommon_CalcSelfAccel_DriftFrom(Fighter* fp, float vel)
+static inline void calc_air_drift(Fighter* fp, float vel, float acceleration_scale)
 {
     float accel_scaling;
     float accel_flat;
@@ -324,8 +320,29 @@ void ftCommon_CalcSelfAccel_DriftFrom(Fighter* fp, float vel)
         accel_flat = -attrs->aerial_drift_base;
     }
     ftCommon_CalcSelfAccel_AccelToVelClampedFrom(
-        fp, vel, accel_scaling + accel_flat, lsx * attrs->air_drift_max,
+        fp, vel, (accel_scaling + accel_flat) * acceleration_scale, lsx * attrs->air_drift_max,
         attrs->aerial_friction);
+}
+
+void ftCommon_CalcSelfAccel_Drift(Fighter* fp)
+{
+    calc_air_drift(fp, fp->self_vel.x, 1.0F);
+}
+
+void ftCommon_CalcSelfAccel_DriftFrom(Fighter* fp, float vel)
+{
+    calc_air_drift(fp, vel, 1.0F);
+}
+
+void ftCommon_ApplyScaledAirDrift(Fighter* fp, float acceleration_scale)
+{
+    ftCommon_CheckFallFast(fp);
+    if (fp->fall_fast) {
+        ftCommon_FallFast(fp);
+    } else {
+        ftCommon_Fall(fp, fp->co_attrs.gravity, fp->co_attrs.terminal_velocity);
+    }
+    calc_air_drift(fp, fp->self_vel.x, acceleration_scale);
 }
 
 void ftCommon_CalcSelfAccel_AccelToVel(Fighter* fp, float accel,

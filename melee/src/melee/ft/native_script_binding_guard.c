@@ -44,6 +44,7 @@ bool nativeScriptBindingGuard_Read(NativeScriptRuntimeContext* c,uint32_t semant
     case NativeScriptBinding_ReflectorActive:value.as.u64=f->reflecting;break;
     case NativeScriptBinding_ReflectorKeepOwner:value.as.u64=f->x2218_b4;break;
     case NativeScriptBinding_ReflectorHitDirection:value.type=NativeScriptType_F32;value.as.f32=f->ReflectAttr.x1A2C_reflectHitDirection;break;
+    case NativeScriptBinding_ReflectorMaxDamage:value.type=NativeScriptType_I32;value.as.i64=f->ReflectAttr.x1A30_maxDamage;break;
     case NativeScriptBinding_GuardActive:value.as.u64=f->x221B_b0;break;
     case NativeScriptBinding_GuardReactive:value.as.u64=f->x221B_b1;break;
     case NativeScriptBinding_GuardSkipContactDetails:value.as.u64=f->x221B_b2;break;
@@ -88,7 +89,8 @@ bool nativeScriptBindingGuard_Write(NativeScriptRuntimeContext* c,uint32_t seman
         semantic==NativeScriptBinding_GuardElapsed||semantic==NativeScriptBinding_GuardMinimumHoldFrames||
         semantic==NativeScriptBinding_GuardReflectFrames||semantic==NativeScriptBinding_GuardPowershieldFrames||
         semantic==NativeScriptBinding_ShieldHealth;
-    bool integer=semantic==NativeScriptBinding_GuardInputLockFrames||semantic==NativeScriptBinding_GuardInterruptMode||semantic==NativeScriptBinding_GuardDelayedActionFrames;
+    bool integer=semantic==NativeScriptBinding_ReflectorMaxDamage||
+        semantic==NativeScriptBinding_GuardInputLockFrames||semantic==NativeScriptBinding_GuardInterruptMode||semantic==NativeScriptBinding_GuardDelayedActionFrames;
     bool boolean=semantic==NativeScriptBinding_ReflectorKeepOwner||semantic==NativeScriptBinding_GuardActive||semantic==NativeScriptBinding_GuardReactive||
         semantic==NativeScriptBinding_GuardSkipContactDetails||semantic==NativeScriptBinding_GuardFrontOnly||
         semantic==NativeScriptBinding_GuardFilteredAttacksOnly||
@@ -104,6 +106,10 @@ bool nativeScriptBindingGuard_Write(NativeScriptRuntimeContext* c,uint32_t seman
     Fighter* f=saved.data;
     switch(semantic) {
     case NativeScriptBinding_ReflectorKeepOwner:f->x2218_b4=value->as.u64!=0;break;
+    case NativeScriptBinding_ReflectorMaxDamage:
+        if(value->as.i64<0)return error(d,"Reflector damage limit must be nonnegative");
+        f->ReflectAttr.x1A30_maxDamage=(int32_t)value->as.i64;
+        break;
     case NativeScriptBinding_GuardActive:f->x221B_b0=value->as.u64!=0;break;
     case NativeScriptBinding_GuardReactive:f->x221B_b1=value->as.u64!=0;break;
     case NativeScriptBinding_GuardSkipContactDetails:f->x221B_b2=value->as.u64!=0;break;

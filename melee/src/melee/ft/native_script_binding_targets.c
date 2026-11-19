@@ -14,6 +14,7 @@
 #include <melee/it/types.h>
 #include <melee/it/it_26B1.h>
 #include <melee/gm/gmvs.h>
+#include <melee/lb/lb_00B0.h>
 #include <melee/lb/lbcollision.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/gobjplink.h>
@@ -22,6 +23,7 @@
 #include <sysdolphin/baselib/robj.h>
 #include <stdio.h>
 #include <float.h>
+#include <math.h>
 #include <string.h>
 
 typedef struct Caller {
@@ -701,9 +703,107 @@ static bool overlap_invoke(NativeScriptRuntimeContext* c,NativeScriptValue* args
     *out=(NativeScriptValue){.type=NativeScriptType_Bool,.as.u64=found};return true;
 }
 
+static bool attack_overlaps(const HitCapsule* hit, const Fighter* source,
+                            float scale, bool from_item, Vec3* a, Vec3* b,
+                            float radius)
+{
+    if (hit->state == HitCapsule_Disabled || hit->x43_b2 ||
+        hit->element == HitElement_Inert || hit->element == HitElement_Catch ||
+        !(source->ground_or_air == GA_Air ? hit->x40_b2 : hit->x40_b3))
+        return false;
+
+    Vec3 current = hit->x4C;
+    Vec3 previous = hit->x58;
+    if (hit->state == HitCapsule_Enabled) {
+        if (!hit->jobj || scale <= 0)
+            return false;
+        Vec3 offset = hit->b_offset;
+        if (!from_item && hit->x43_b1) {
+            offset.x /= scale;
+            offset.y /= scale;
+            offset.z /= scale;
+        }
+        lb_8000B1CC(hit->jobj, &offset, &current);
+        previous = current;
+    }
+    Vec3 hit_contact, query_contact;
+    float hit_radius = hit->x43_b1 ? hit->scale : hit->scale * scale;
+    return lbColl_80006094(&previous, &current, a, b, &hit_contact,
+                          &query_contact, hit_radius, radius);
+}
+
+static bool attack_search(NativeScriptRuntimeContext* c, uint32_t semantic,
+                          const NativeScriptValue* args, uint32_t count,
+                          NativeScriptValue* out, NativeScriptDiagnostic* d)
+{
+    bool article_only = semantic == NativeScriptBinding_TargetsArticleAttackOverlapsCapsule;
+    if (!c || c->source_class != NativeCallbackSource_Fighter ||
+        !out || !args || count != (article_only ? 8 : 7))
+        return error(d, "Attack search requires a fighter and two capsule endpoints");
+
+    int64_t article = article_only ? args[0].as.i64 : 0;
+    if (article_only)
+        ++args;
+    for (unsigned i = 0; i < 7; ++i) {
+        if (!isfinite(args[i].as.f32))
+            return error(d, "Attack search capsule must be finite");
+    }
+    float radius = args[6].as.f32;
+    if (radius < 0 || (article_only && article <= 0))
+        return error(d, "Attack search requires a nonnegative radius and a declared article");
+
+    Caller caller = {0};
+    if (!caller_capture(c, &caller, d))
+        return false;
+    const Fighter* source = caller.data;
+    Vec3 a = {args[0].as.f32, args[1].as.f32, args[2].as.f32};
+    Vec3 b = {args[3].as.f32, args[4].as.f32, args[5].as.f32};
+    bool found = false;
+    bool teams = gm_8016B168() && !gm_8016B0D4();
+    if (HSD_GObjPLinkHead && !article_only) {
+        for (HSD_GObj* object = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER];
+             object && !found; object = object->next) {
+            const Fighter* fighter = object->user_data;
+            if (object == c->source || !fighter ||
+                (teams && fighter->team == source->team))
+                continue;
+            for (unsigned i = 0; i < ARRAY_SIZE(fighter->x914) && !found; ++i)
+                found = attack_overlaps(&fighter->x914[i], source, fighter->x34_scale.y,
+                                        false, &a, &b, radius);
+        }
+    }
+    if (HSD_GObjPLinkHead) {
+        for (HSD_GObj* object = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_ITEM];
+             object && !found; object = object->next) {
+            const Item* item = object->user_data;
+            if (!item || item->native_removal_in_progress || item->kind == It_Kind_Unk4 ||
+                (item->owner == c->source && !item->xDCD_flag.b5) ||
+                (teams && item->x20_team_id == source->team && !item->xDCD_flag.b6))
+                continue;
+            if (article_only) {
+                const NativeScriptItemProgram* program = nativeScriptItem_Spec(object);
+                if (!program || program->bank != caller.bank || program->owner != article)
+                    continue;
+            }
+            for (unsigned i = 0; i < ARRAY_SIZE(item->x5D4_hitboxes) && !found; ++i) {
+                const HitCapsule* hit = &item->x5D4_hitboxes[i].hit;
+                if (hit->x42_b5)
+                    found = attack_overlaps(hit, source, item->scl, true, &a, &b, radius);
+            }
+        }
+    }
+    if (!caller_live(&caller))
+        return error(d, "Attack search source changed during the query");
+    *out = (NativeScriptValue){.type=NativeScriptType_Bool, .as.u64=found};
+    return true;
+}
+
 bool nativeScriptBindingTargets_Invoke(NativeScriptRuntimeContext* c,uint32_t semantic,
     NativeScriptValue* args,uint32_t count,NativeScriptValue* out,NativeScriptDiagnostic* d)
 {
+    if (semantic == NativeScriptBinding_TargetsAttackOverlapsCapsule ||
+        semantic == NativeScriptBinding_TargetsArticleAttackOverlapsCapsule)
+        return attack_search(c, semantic, args, count, out, d);
     if(semantic==NativeScriptBinding_TargetsNearestAvailableFighter) {
         if(!out || count)return error(d,"Nearest available Fighter search takes no arguments");
         if(!c || c->source_class!=NativeCallbackSource_Fighter)

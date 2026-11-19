@@ -7,6 +7,7 @@
 
 static unsigned stopped;
 static u8 last_pan, last_volume;
+bool HSD_SynthHasPackageSound(int id) { return id == HSD_PACKAGE_SOUND_BASE; }
 void HSD_SynthSFXKeyOff(int instance) { (void)instance; ++stopped; }
 void HSD_SynthSFXSetUserVol(int instance, u8 pan) { (void)instance; last_pan = pan; }
 void HSD_SynthSFXSetVolumeFade(int instance, u8 volume, int frames)
@@ -115,6 +116,23 @@ int main(void)
     require(HSD_AudioRollbackBeginFrame(101, false), "ordinary forward frame");
     require(AXDriverKeyOff(handle) && stopped == 1, "Forward-play stops remain immediate");
     require(HSD_AudioRollbackEndFrame(), "finish forward frame");
+
+    start_voice();
+    require(HSD_AudioRollbackBeginFrame(101, false), "record package audio");
+    int package = AXDriver_8038CFF4(HSD_PACKAGE_SOUND_BASE, 127, 64, 0, 7);
+    require(package >= 0, "start package sample");
+    HSD_SM* sample = &AXDriver_804C45A0[package & 127];
+    require(sample->cmd_stream[0] == (0x01000000 | HSD_PACKAGE_SOUND_BASE) &&
+            sample->cmd_stream[1] == 0x0E000000,
+            "play the exact package sample and wait for completion");
+    require(HSD_AudioRollbackEndFrame(), "end package audio frame");
+    require(HSD_AudioRollbackBeginFrame(101, true), "replay package audio");
+    require(AXDriver_8038CFF4(HSD_PACKAGE_SOUND_BASE, 127, 64, 0, 7) == package,
+            "rollback reuses a package sample handle");
+    require(HSD_AudioRollbackEndFrame(), "end replayed package audio frame");
+    AXDriverRetirePackageSounds(HSD_PACKAGE_SOUND_BASE, 1);
+    require(!(sample->flags & SMSTATE_MASK) && stopped == 0,
+            "discard pending package sample without stopping stock voices");
     puts("Production driver preserves replayed voices and honors corrected stops");
     return 0;
 }

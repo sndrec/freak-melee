@@ -7,6 +7,7 @@
 #include <yyjson.h>
 #include <stddef.h>
 #include <cwchar>
+#include <vector>
 
 constexpr size_t NativeAccountJsonLimit = 65536;
 struct NativeAccountEndpoint {
@@ -60,8 +61,14 @@ struct NativeAccountWorker {
     NativeAccountJson json;
     char send[NativeAccountJsonLimit + 1], receive[NativeAccountJsonLimit + 1];
 };
+struct NativeAccountBinary {
+    const uint8_t* upload = nullptr;
+    size_t upload_size = 0;
+    std::vector<uint8_t>* download = nullptr;
+};
 yyjson_val* nativeAccount_Http(NativeAccountWorker& worker, const char* handle, const char* route,
-    bool post, bool authorized, NativeAccountView& view, unsigned* status_out = nullptr);
+    bool post, bool authorized, NativeAccountView& view, unsigned* status_out = nullptr,
+    NativeAccountBinary binary = {});
 bool nativeAccount_ReadProfile(yyjson_val* root, NativeSocialProfile& profile);
 bool nativeAccount_RunSocial(NativeAccountWorker& worker, const NativeAccountRequest& request, NativeAccountView& view);
 

@@ -159,7 +159,9 @@
         <div id="workshop-sound-fields">
           <div class="workshop-divider"></div><div class="eyebrow">SOUND EFFECT</div>
           <div id="workshop-sound-behavior" class="workshop-muted"></div>
-          <div class="workshop-inspector-row"><label for="workshop-sound-id" class="field-label">Sound ID</label><input id="workshop-sound-id" class="room-input" type="text" /></div>
+          <label><input id="workshop-sound-package" type="checkbox" /> Use fighter sound bank</label>
+          <div class="workshop-inspector-row"><label id="workshop-sound-id-label" for="workshop-sound-id" class="field-label">Sound ID</label><input id="workshop-sound-id" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><label for="workshop-sound-channel" class="field-label">Channel</label><input id="workshop-sound-channel" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-volume" class="field-label">Volume</label><input id="workshop-sound-volume" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-pan" class="field-label">Panning</label><input id="workshop-sound-pan" class="room-input" type="text" /></div>
         </div>
@@ -184,7 +186,27 @@
             <select id="workshop-hitbox-element" class="room-input"></select>
           </div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-damage" class="field-label">Damage</label><input id="workshop-hitbox-damage" class="room-input" type="text" /></div>
-          <div class="workshop-inspector-row"><label for="workshop-hitbox-angle" class="field-label">Angle</label><input id="workshop-hitbox-angle" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row">
+            <label for="workshop-hitbox-launch-mode" class="field-label">Launch</label>
+            <select id="workshop-hitbox-launch-mode" class="room-input"><option value="0">Angle</option><option value="1">Toward point</option><option value="2">Follow hitbox</option></select>
+          </div>
+          <div id="workshop-hitbox-angle-row" class="workshop-inspector-row"><label for="workshop-hitbox-angle" class="field-label">Angle</label><input id="workshop-hitbox-angle" class="room-input" type="text" /></div>
+          <div id="workshop-hitbox-launch-target">
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-forward" class="field-label" title="World units forward from the fighter">Target forward</label><input id="workshop-hitbox-launch-forward" class="room-input" type="text" /></div>
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-up" class="field-label" title="World units above the fighter">Target height</label><input id="workshop-hitbox-launch-up" class="room-input" type="text" /></div>
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-frames" class="field-label" title="Distance to the target divided by these frames sets the initial speed">Travel frames</label><input id="workshop-hitbox-launch-frames" class="room-input" type="text" /></div>
+          </div>
+          <div id="workshop-hitbox-launch-follow">
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-momentum" class="field-label" title="How much attacker velocity the airborne opponent inherits">Momentum</label><input id="workshop-hitbox-launch-momentum" class="room-input" type="text" /></div>
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-attraction" class="field-label" title="Pull toward the hitbox center per unit of separation">Attraction</label><input id="workshop-hitbox-launch-attraction" class="room-input" type="text" /></div>
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-min-up" class="field-label">Min. vertical speed</label><input id="workshop-hitbox-launch-min-up" class="room-input" type="text" /></div>
+            <div class="workshop-inspector-row"><label for="workshop-hitbox-launch-ground-angle" class="field-label">Ground angle</label><input id="workshop-hitbox-launch-ground-angle" class="room-input" type="text" /></div>
+            <label class="workshop-hitbox-check"><input id="workshop-hitbox-ground-kb" type="checkbox" /> Separate grounded knockback</label>
+            <div id="workshop-hitbox-ground-kb-values">
+              <div class="workshop-inspector-row"><label for="workshop-hitbox-ground-growth" class="field-label">Ground growth</label><input id="workshop-hitbox-ground-growth" class="room-input" type="text" /></div>
+              <div class="workshop-inspector-row"><label for="workshop-hitbox-ground-base" class="field-label">Ground base knockback</label><input id="workshop-hitbox-ground-base" class="room-input" type="text" /></div>
+            </div>
+          </div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-kbg" class="field-label">Knockback growth</label><input id="workshop-hitbox-kbg" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-bkb" class="field-label">Base knockback</label><input id="workshop-hitbox-bkb" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-hitbox-wkb" class="field-label">Weight-set knockback</label><input id="workshop-hitbox-wkb" class="room-input" type="text" /></div>
@@ -200,8 +222,17 @@
             <div><label for="workshop-hitbox-offset-z" class="field-label">Offset Z</label><input id="workshop-hitbox-offset-z" class="room-input" type="text" /></div>
           </div>
           <div class="workshop-unit-note">Offsets and radius are in world units.</div>
+          <label class="workshop-hitbox-check"><input id="workshop-hitbox-capsule" type="checkbox" /> Capsule</label>
+          <div id="workshop-hitbox-end-offsets" class="workshop-hitbox-offsets">
+            <div><label for="workshop-hitbox-end-x" class="field-label">End X</label><input id="workshop-hitbox-end-x" class="room-input" type="text" /></div>
+            <div><label for="workshop-hitbox-end-y" class="field-label">End Y</label><input id="workshop-hitbox-end-y" class="room-input" type="text" /></div>
+            <div><label for="workshop-hitbox-end-z" class="field-label">End Z</label><input id="workshop-hitbox-end-z" class="room-input" type="text" /></div>
+          </div>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-common-bone" type="checkbox" /> Use common bone ID</label>
-          <label class="workshop-hitbox-check"><input id="workshop-hitbox-grabbed" type="checkbox" /> Only hit grabbed fighter</label>
+          <div class="workshop-inspector-row">
+            <label for="workshop-hitbox-grab-target" class="field-label">Grab target</label>
+            <select id="workshop-hitbox-grab-target" class="room-input"><option value="all">Hit anyone</option><option value="only">Only held fighter</option><option value="skip">Skip held fighter</option></select>
+          </div>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-items" type="checkbox" /> Item interaction</label>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-ignore-thrown" type="checkbox" /> Ignore thrown fighters</label>
           <label class="workshop-hitbox-check"><input id="workshop-hitbox-ignore-scale" type="checkbox" /> Ignore fighter scale</label>

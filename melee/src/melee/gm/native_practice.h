@@ -5,6 +5,6 @@
 
 enum { NATIVE_PRACTICE_SANDBAG_SLOT = 4 };
 
-void nativePractice_Configure(StartMeleeData* start, int editor_port);
+void nativePractice_Configure(StartMeleeData* start, int editor_port, unsigned stage);
 
 #endif

@@ -93,11 +93,24 @@ void ftParts_80074A8C(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     int i;
+#ifdef MELEE_NATIVE
+    bool visibility_changed = false;
+#endif
 
     for (i = 0; i < fp->x5AC.model_num; i++) {
+#ifdef MELEE_NATIVE
+        visibility_changed |= fp->x5F4_arr[i].idx != fp->x5F4_arr[i].prev;
+#endif
         fp->x5F4_arr[i].idx = fp->x5F4_arr[i].prev;
     }
     fp->x221D_b2 = false;
+#ifdef MELEE_NATIVE
+    if (visibility_changed) {
+        // Reapply saved selections on the next draw. The draw flags can
+        // still reflect the previous action's temporary selections.
+        ftParts_80074D7C(&fp->x5AC, 0, &fp->dobj_list);
+    }
+#endif
 }
 
 void ftParts_80074ACC(Fighter_GObj* gobj)

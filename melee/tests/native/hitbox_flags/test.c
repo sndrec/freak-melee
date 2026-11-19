@@ -23,12 +23,14 @@ void ftCommon_80080484(Fighter*);
 // source-derived command handler and victim/group history run unchanged.
 void ftColl_8007ABD0(HitCapsule* hit,u32 damage,Fighter_GObj* object)
 {CHECK(object&&object->user_data);hit->damage=(float)damage;hit->unk_count=damage;}
+void ftColl_SetHitboxDamage(HitCapsule* hit,float damage,Fighter_GObj* object)
+{CHECK(object&&object->user_data);hit->damage=damage;hit->unk_count=(u32)damage;}
 void ftColl_8007AC9C(HitCapsule* hit,int angle,Fighter_GObj* object)
 {CHECK(object&&object->user_data);hit->kb_angle=angle;}
 Fighter_Part ftParts_GetBoneIndex(Fighter* fighter,Fighter_Part part)
 {CHECK(fighter&&fighter->parts);return (Fighter_Part)(((unsigned)part+3)%MAX_FT_PARTS);}
-void ftColl_8007AD18(Fighter* fighter,HitCapsule* hit)
-{(void)fighter;(void)hit;CHECK(false);}
+void ftColl_8007AD18(Fighter* fighter,unsigned slot)
+{(void)fighter;(void)slot;CHECK(false);}
 #include "bodies.inc"
 static Fighter initial,actual,expected;
 static FighterBone parts[MAX_FT_PARTS];
@@ -59,7 +61,8 @@ int main(void)
    memset(initial.x914[n].victims_1,0x35+n,sizeof(initial.x914[n].victims_1));
    memset(initial.x914[n].victims_2,0x74+n,sizeof(initial.x914[n].victims_2));
    initial.x914[n].x44=(u8)(n+1);initial.x914[n].x45=(u8)(n+2);
-   initial.native_hitbox_lifetimes[n]=(NativeHitboxLifetime){17.25f,1,1};
+   initial.native_hitbox_lifetimes[n]=(NativeHitboxLifetime){
+       .remaining=17.25f,.armed=1,.expire_all=1};
   }
   memcpy(owned,old,sizeof(old));owned[0].create_hitbox_0.opcode=NATIVE_HITBOX_EXPLICIT_OPCODE;
   owned[0].create_hitbox_0.only_hit_grabbed=ftActionData_NextHitboxFlag(old+5);

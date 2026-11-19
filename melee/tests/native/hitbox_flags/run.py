@@ -41,7 +41,9 @@ def main():
               body(history, 'lbColl_80008440'), body(history, 'lbColl_CopyHitCapsule'),
               body(collision, 'ftColl_800768A0'), body(common, 'ftCommon_80080484'),
               body(lifetime, 'nativeHitboxLifetime_Clear'), body(action, 'ftAction_800715EC'),
-              body(old, 'ftAction_8007121C').replace('void ftAction_8007121C(', 'static void original_hitbox(', 1),
+              body(old, 'ftAction_8007121C')
+              .replace('void ftAction_8007121C(', 'static void original_hitbox(', 1)
+              .replace('ftColl_8007AD18(fp, hitbox)', 'ftColl_8007AD18(fp, cmd->u->create_hitbox_0.id)'),
               body(action, 'ftAction_8007121C')]
     generated = out/'bodies.inc'
     generated.write_text('\n\n'.join(pieces), encoding='utf-8')

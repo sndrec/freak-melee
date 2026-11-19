@@ -884,6 +884,10 @@ Then read `collision.floor_contact`, `collision.ceiling_contact`,
 `collision.left_wall` and `collision.right_wall`. These report contact masks;
 they do not decide how to bounce, slide or expire.
 
+`floor.line` gives the article's floor line ID as an integer. While the article
+is grounded, pass it to [`stage.follow_floor`](stage.md#terrain-queries) to check
+how far the connected floor extends.
+
 `floor.normal.x/y`, `ceiling.normal.x/y`, `wall.left.normal.x/y` and
 `wall.right.normal.x/y` read the corresponding contact normals. Only use a
 surface's normal when its contact flag is set. `ecb.up`, `ecb.down`, `ecb.front`

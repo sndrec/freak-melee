@@ -144,6 +144,7 @@ typedef enum NativeScriptBindingID {
     NativeScriptBinding_StateSwitchToAir,NativeScriptBinding_StateSwitchToGround,
     NativeScriptBinding_Sound,NativeScriptBinding_Bones,NativeScriptBinding_BonesRoot,
     NativeScriptBinding_SoundPlay,NativeScriptBinding_SoundLoop,NativeScriptBinding_SoundChannel,
+    NativeScriptBinding_SoundClip,
     NativeScriptBinding_BonesCount,NativeScriptBinding_BonesIndex,NativeScriptBinding_BonesRootRotationX,
     NativeScriptBinding_BonesRootScaleX,NativeScriptBinding_BonesRootScaleY,NativeScriptBinding_BonesRootScaleZ,
     NativeScriptBinding_BonesRootSetScale,
@@ -736,6 +737,13 @@ typedef enum NativeScriptBindingID {
     NativeScriptBinding_AccessoryClear,
     NativeScriptBinding_ItemSpawnRootEffectWithOffset,
     NativeScriptBinding_Double,
+    NativeScriptBinding_TargetsAttackOverlapsCapsule,
+    NativeScriptBinding_TargetsArticleAttackOverlapsCapsule,
+    NativeScriptBinding_ReflectorMaxDamage,
+    NativeScriptBinding_CollisionAirAerialLandingWithLedges,
+    NativeScriptBinding_PhysicsAirDriftScaled,
+    NativeScriptBinding_HitboxLaunchTarget,
+    NativeScriptBinding_HitboxLaunchFollow,
     NativeScriptBinding_Count,
 } NativeScriptBindingID;
 

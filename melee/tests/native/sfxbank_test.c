@@ -14,8 +14,34 @@ static u32 be32(const u8* p)
 }
 static u32 joined(u16 hi, u16 lo) { return ((u32) hi << 16) | lo; }
 
+static void check_package_bank(void)
+{
+    u8 bytes[128] = {
+        [3] = 72, [7] = 32, [11] = 1,
+        [19] = 1, [22] = 0x7D, // One channel at 32000 Hz.
+        [35] = 15, [39] = 2,
+    };
+    HSD_SfxBank* bank = HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34);
+    check(bank && bank->count == 1, "read standalone sound bank");
+    const HSD_SfxEntry* sample = &bank->entries[0];
+    check(sample->id == HSD_PACKAGE_SOUND_BASE + 34 * HSD_PACKAGE_SOUND_CLIPS &&
+          bank->sample_data == bytes + 96 && bank->sample_bytes == 32,
+          "assign owner sound ID and borrow exact sample data");
+    free(bank);
+    check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes) - 1, 34),
+          "reject truncated sound bank samples");
+    bytes[35] = 66;
+    check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34),
+          "reject out-of-range DSP sample end");
+    bytes[35] = 15;
+    bytes[39] = 1;
+    check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34),
+          "reject a start within the DSP predictor header");
+}
+
 int main(int argc, char** argv)
 {
+    check_package_bank();
     check(argc == 2, "expected extracted bank headers");
     FILE* input = fopen(argv[1], "rb");
     check(input != NULL, "open fixtures");

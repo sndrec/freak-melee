@@ -11,6 +11,7 @@
 #include "forward.h"
 #include "ft_081B.h"
 #include "ft_0877.h"
+#include "ft_0C31.h"
 #include "ft_0D4D.h"
 #include "ftanim.h"
 #include "ftchangeparam.h"
@@ -416,15 +417,21 @@ void ftLib_8008688C(HSD_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     fp->x221D_b4 = false;
+#ifdef MELEE_NATIVE
+    if (fp->motion_id == ftCo_MS_EntryStart && fp->mv.co.entry.authored) {
+        ftCo_FinishEntrance(gobj);
+    }
+#endif
 }
 
 void ftLib_800868A4(void)
 {
     HSD_GObj* cur;
-    for (cur = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]; cur != NULL;
-         cur = cur->next)
-    {
+    cur = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER];
+    while (cur != NULL) {
+        HSD_GObj* next = cur->next;
         ftLib_8008688C(cur);
+        cur = next;
     }
 }
 

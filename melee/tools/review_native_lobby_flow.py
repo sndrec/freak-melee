@@ -43,7 +43,7 @@ def main():
    for index in range(count):
     c=Client(a.exe.resolve(),a.iso.resolve(),base,folder/str(index),'Flow player '+str(index),window_size=(1440,900));clients.append(c)
     if a.shared_couch and index==1:
-     c.click('nav-6');c.click('settings-category-4');c.click('local-players-2');c.click('controls-back');c.click('settings-back')
+     c.click('nav-6');c.click('settings-category-4');c.click('local-players-2');c.click('settings-back');c.click('settings-back')
     c.click('nav-1');c.enter('lobby-code',code);c.click('join-lobby')
     inspect(c,'room-state',r'owner=\w+ revision=')
     wait(lambda:room(c)['count']==index+1,'joined lobby',25)
@@ -53,7 +53,7 @@ def main():
    rules_menu(host)
    for _ in range((policy-4)%5):host.click('rules-row-4-right')
    host.click('rules-row-3-right') # 110% damage; guest must display this shared value.
-   host.click('rules-row-6');host.click('rules-row-4-right') # SD penalty 2.
+   host.click('rules-next-page');host.click('rules-row-4-right') # SD penalty 2.
    host.click('rules-lobby')
    if a.spectator_host:role(host,peers[0],0,'spectating')
    if a.shared_couch:role(host,peers[1],0,'waiting')

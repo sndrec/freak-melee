@@ -51,7 +51,32 @@ bool ftCo_800DE9D8(Fighter_GObj* gobj)
         ftCo_800DEA28(gobj);
         return true;
     }
+#ifdef MELEE_NATIVE
+    Fighter* fp = GET_FIGHTER(gobj);
+    const u32 buttons = fp->input.pressed_buttons;
+    unsigned hook;
+    if ((buttons & HSD_PAD_DPADDOWN) &&
+        nativeScriptFighter_HasHook(gobj, NativeScriptFighter_DownTaunt))
+    {
+        hook = NativeScriptFighter_DownTaunt;
+    } else if ((buttons & (HSD_PAD_DPADLEFT | HSD_PAD_DPADRIGHT)) &&
+               nativeScriptFighter_HasHook(gobj, NativeScriptFighter_SideTaunt))
+    {
+        hook = NativeScriptFighter_SideTaunt;
+    } else {
+        return false;
+    }
+    NativeFighterLifetime life;
+    if (nativeFighterLifetime_Capture(fp, &life) &&
+        nativeScriptFighter_Run(gobj, hook, NULL, 0, NULL, NULL) == NativeScriptVM_Ok &&
+        nativeFighterLifetime_Current(&life))
+    {
+        pl_80040120(fp->player_id, fp->x221F_b4);
+    }
+    return true;
+#else
     return false;
+#endif
 }
 
 void ftCo_800DEA28(Fighter_GObj* gobj)

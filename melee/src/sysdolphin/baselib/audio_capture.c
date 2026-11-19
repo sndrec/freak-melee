@@ -47,3 +47,11 @@ void HSD_AudioCaptureWrite(const s16* samples,unsigned frames)
     }
     recorded_bytes+=bytes;
 }
+
+void HSD_AudioCapturePackageCue(unsigned owner, unsigned clip)
+{
+    if (recording) {
+        OSReport("[audio-capture] Fighter %u clip %u at sample %u\n",
+                 owner, clip, recorded_bytes / 4);
+    }
+}

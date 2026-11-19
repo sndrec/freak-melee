@@ -99,7 +99,7 @@ bool nativeWorkshopAuthoring_Command(int count, char** args, int* result)
                 h.damage = a; h.knockback_growth = b; h.base_knockback = c;
                 h.weight_set_knockback = 0;
                 ok = nativeFighterAction_SetHitbox(&p, actions[i].index,
-                                                   commands[j].source_offset, &h);
+                                                   commands[j].source_offset, &h, NULL);
                 if (!ok) snprintf(error, sizeof(error), "action %u hitbox at 0x%X",
                                    actions[i].index, commands[j].source_offset);
                 ++changed;

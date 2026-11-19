@@ -9,10 +9,12 @@
 #define NATIVE_SCRIPT_EFFECT_SPAWN UINT32_C(0x03100000)
 #define NATIVE_SCRIPT_EFFECT_SPAWN_ON_PART UINT32_C(0x03500000)
 #define NATIVE_SCRIPT_EFFECT_SPAWN_DEFERRED_POSITION UINT32_C(0x03600000)
+#define NATIVE_SCRIPT_EFFECT_SPAWN_ITEM_POSITION UINT32_C(0x03700000)
 #define NATIVE_SCRIPT_EFFECT_CANCEL UINT32_C(0x03200000)
 enum {NativeScriptEffectNamespace=0x03000001,NativeScriptEffectJointCall,
     NativeScriptEffectJointNamespace,NativeScriptEffectRotationNamespace,
-    NativeScriptEffectSpawnCall,NativeScriptEffectCancelCall};
+    NativeScriptEffectSpawnCall,NativeScriptEffectCancelCall,
+    NativeScriptEffectTranslationNamespace,NativeScriptEffectScaleNamespace};
 // Uses the same substantive indexed-program/scope context as source factories.
 int nativeScriptBindingEffect_TryResolve(void*,const NativeScriptIRArena*,const NativeScriptIRNode*,NativeScriptIRResolution*,NativeScriptDiagnostic*);
 bool nativeScriptBindingEffect_DescribeCall(void*,uint32_t,NativeScriptCallLayout*,NativeScriptDiagnostic*);

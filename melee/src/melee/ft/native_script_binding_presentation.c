@@ -241,12 +241,21 @@ bool nativeScriptBindingPresentation_Invoke(NativeScriptRuntimeContext* context,
         *result=(NativeScriptValue){.type=NativeScriptType_Void};return true;
     }
     Fighter* fighter=((HSD_GObj*)context->source)->user_data;
-    if(semantic==NativeScriptBinding_SoundPlay||semantic==NativeScriptBinding_SoundLoop||semantic==NativeScriptBinding_SoundChannel) {
-        unsigned first=semantic==NativeScriptBinding_SoundChannel?1:0;
+    bool clip = semantic == NativeScriptBinding_SoundClip;
+    if(clip||semantic==NativeScriptBinding_SoundPlay||semantic==NativeScriptBinding_SoundLoop||semantic==NativeScriptBinding_SoundChannel) {
+        unsigned first=clip||semantic==NativeScriptBinding_SoundChannel?1:0;
         if(count!=first+3)return error(diagnostic,"Sound call argument count is invalid.");
         int32_t sound=(int32_t)values[first].as.i64;
         u8 volume=(u8)values[first+1].as.i64,pan=(u8)values[first+2].as.i64;
         int64_t channel=semantic==NativeScriptBinding_SoundPlay?0:semantic==NativeScriptBinding_SoundLoop?3:values[0].as.i64;
+        if (clip) {
+            sound = nativeFighterRuntime_SoundClip(fighter->kind, sound, channel);
+            if (sound < 0) {
+                return error(diagnostic, "Choose a clip from this fighter's sounds.ssm and a channel from 0 to 6. Loops require channels 1 to 6.");
+            }
+        } else if (HSD_SfxIsPackageSound(sound)) {
+            return error(diagnostic, "Play an owned sound bank clip with sound.clip.");
+        }
         switch(channel) {
         case 0:ft_PlaySFX(fighter,sound,volume,pan);break;
         case 1:ft_80088478(fighter,sound,volume,pan);break;

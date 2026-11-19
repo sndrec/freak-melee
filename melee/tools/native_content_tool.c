@@ -1049,12 +1049,12 @@ static int project_hitbox(const char* path, const char* action_text,
     bool ok = nativeFighterAction_GetHitbox(&project, action, offset, &h);
     if (ok && field != NULL) {
         ok = hitbox_field(&h, field, value) &&
-             nativeFighterAction_SetHitbox(&project, action, offset, &h) &&
+             nativeFighterAction_SetHitbox(&project, action, offset, &h, NULL) &&
              nativeFighterProject_Save(path, &project);
     }
     if (ok) {
         printf("id=%u group=%u bone=%u common_bone=%u only_grabbed=%u "
-               "damage=%u radius_raw=%u offset_raw=(%d,%d,%d)\n"
+               "damage=%g radius_raw=%u offset_raw=(%d,%d,%d)\n"
                "angle=%u kbg=%u weight_set_kb=%u base_kb=%u "
                "element=%u shield_damage=%d ground=%u air=%u\n"
                "item=%u ignore_thrown=%u ignore_scale=%u clank=%u "

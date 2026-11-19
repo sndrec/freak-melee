@@ -9,19 +9,23 @@
 #include "native_css_chat.h"
 #include "native_hub_rules.h"
 #include <aurora/rmlui.hpp>
+#include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
 #include <melee/gm/native_spectator_match.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_menu_paint.h>
+#include <melee/mn/native_menu_portrait.h>
 #include <melee/mn/native_menu_skin.h>
 #include <RmlUi/Core.h>
 #include <SDL3/SDL_clipboard.h>
+#include <SDL3/SDL_timer.h>
 extern "C" {
 #include <melee/lb/lbaudio_ax.h>
 #include <sysdolphin/baselib/controller.h>
 #include <melee/gm/gm_1A45.h>
+#include <melee/gm/gm_1884.h>
 #include <melee/gm/gmvs.h>
 #include <melee/gm/types.h>
 }
@@ -36,7 +40,7 @@ namespace {
         Decline,
         Queue,
         Stage,
-        Settings, ChatInput, ChatSend, ChatHistory, CopyCode
+        Settings, ChatInput, ChatSend, ChatHistory, CopyCode, Seat, Rotation
     };
     struct Button {
         char id[40], label[96], peer[65];
@@ -53,6 +57,79 @@ namespace {
         float pointer_x = -100, pointer_y = -100;
         bool selection, practice, fonts, ready_requested, show_status;
     } menu;
+    struct PackageDownload {
+        NativeContentId id;
+        NativeMenuPortrait portrait;
+        uint64_t started;
+        uint32_t bytes_done, bytes_total;
+        unsigned index, count;
+        bool tried_portrait;
+    } download;
+
+    void clear_download()
+    {
+        nativeMenuPortrait_Free(&download.portrait);
+        download = {};
+    }
+
+    void update_download(const NativeNetplayContentProgress& progress)
+    {
+        if (!download.started || std::memcmp(&download.id, &progress.id, sizeof(download.id))) {
+            clear_download();
+            download.id = progress.id;
+            download.started = SDL_GetTicks();
+        }
+        download.bytes_done = progress.bytes_done;
+        download.bytes_total = progress.bytes_total;
+        download.index = progress.package_index;
+        download.count = progress.package_count;
+        if (*progress.preview.title) {
+            std::memcpy(download.portrait.title, progress.preview.title,
+                        sizeof(progress.preview.title));
+        }
+        if (progress.preview.portrait_png && !download.tried_portrait) {
+            auto& art = download.portrait;
+            download.tried_portrait = true;
+            art.pixels = nativeGxImage_Decode(progress.preview.portrait_png,
+                unsigned(progress.preview.portrait_size), &art.width, &art.height);
+        }
+    }
+
+    void draw_download()
+    {
+        if (!download.started) return;
+        const float t = std::min(1.f, float(SDL_GetTicks() - download.started) / 220.f);
+        const float x = 458.f + 182.f * (1.f - t) * (1.f - t);
+        const float y = menu.practice ? 48.f : 115.f;
+        const auto& art = download.portrait;
+        nativeMenuSkin_Panel(x, y, 170, 120, 0xD8B967FF, 0x09080EF9);
+        if (art.pixels) nativeMenuPaint_Image(art.pixels, art.width, art.height,
+            x + 59, y + 10, 52, 48, NativeMenuImage_Cover);
+        char detail[64];
+        if (download.count > 1) {
+            std::snprintf(detail, sizeof(detail), "Receiving package %u / %u",
+                          download.index, download.count);
+        } else std::snprintf(detail, sizeof(detail), "Receiving package");
+        nativeMenuPaint_Text(detail, x + 10, y + (art.pixels ? 63 : 22), 150, 8,
+                             0xEBDDAEFF, NativeMenuFont_Notice, true);
+        nativeMenuPaint_Text(*art.title ? art.title : "Custom package", x + 10,
+                             y + (art.pixels ? 76 : 49), 150, 12,
+                             0xFFF4E9FF, NativeMenuFont_MenuOption, true);
+        if (!download.bytes_total) {
+            nativeMenuPaint_Text("Waiting for transfer...", x + 10, y + 101, 150, 8,
+                                 0xEBDDAEFF, NativeMenuFont_Notice, true);
+            return;
+        }
+        const float ratio = std::min(1.f, float(download.bytes_done) / download.bytes_total);
+        constexpr float mib = 1024.f * 1024.f;
+        std::snprintf(detail, sizeof(detail), "%.2f / %.2f MiB  (%u%%)",
+                      download.bytes_done / mib, download.bytes_total / mib,
+                      unsigned(ratio * 100));
+        nativeMenuPaint_Rect(x + 11, y + 92, 148, 4, 0x3C3448FF);
+        nativeMenuPaint_Rect(x + 11, y + 92, 148 * ratio, 4, 0xE5C361FF);
+        nativeMenuPaint_Text(detail, x + 10, y + 101, 150, 8,
+                             0xEBDDAEFF, NativeMenuFont_Notice, true);
+    }
 
     bool hit(const Button& b, float x, float y)
     {
@@ -88,6 +165,15 @@ namespace {
             SDL_SetClipboardText(nativeOnlineSession_RoomCode());
             break;
         case Action::Settings: nativeHubRules_Open(); break;
+        case Action::Seat:
+            if (nativeOnlineSession_ChooseSeat(b.peer, uint8_t(b.value), NativeRoomSeatState_Fighting))
+                nativeHome_CancelStartMatch();
+            else nativeHub_Notice("No fighting slot is available.");
+            break;
+        case Action::Rotation:
+            if (!nativeOnlineSession_SetRotation(NativeRoomRotationPolicy(b.value)))
+                nativeHub_Notice("Could not change the rotation.");
+            break;
         case Action::Stage:
             nativeHub_Open(NativeHubPage_QuickStage);
             break;
@@ -143,6 +229,7 @@ namespace {
             nativeMenuPaint_Text(menu.status, 451, 263, 177, 8, 0xEBDDAEFF);
         }
         if (menu.selection) nativeCssChat_Draw();
+        draw_download();
         if (*menu.delivery) {
             float y = menu.practice ? 44 : 99;
             nativeMenuSkin_Panel(364, y, 262, 78, 0xD8B967FF, 0x09080EF5);
@@ -181,6 +268,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     nativeCssChat_SetVisible(selection && nativeOnlineSession_Presence());
     nativeCssChat_Tick(practice);
     if (!(selection || practice)) {
+        if (download.started) clear_download();
         return;
     }
     const auto* quick = nativeOnlineSession_Quick();
@@ -208,6 +296,29 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         else if (presence)
             add("css-chat-code", "Copy connect code", 451, 451, 177, 24, Action::CopyCode);
         if (presence) {
+            if (!quick && !presence->match_size) {
+                const char* local = nativeOnlineSession_LocalPeerId();
+                for (unsigned i = 0; i < presence->participant_count; ++i) {
+                    const auto& player = presence->participants[i];
+                    if (std::strcmp(local, player.peer_id)) continue;
+                    for (unsigned seat = 0; seat < player.local_players; ++seat) {
+                        if (player.active_mask & (1u << seat)) continue;
+                        char id[40], label[40];
+                        std::snprintf(id, sizeof(id), "css-fight-seat-%u", seat);
+                        std::snprintf(label, sizeof(label), "P%u: %s", seat + 1,
+                                      player.waiting_mask & (1u << seat) ? "Waiting" : "Spectating");
+                        add(id, label, 23 + 104 * seat, 267, 101, 20,
+                            Action::Seat, true, false, false, int(seat), player.peer_id);
+                    }
+                    break;
+                }
+                const char* rotation[] = {"Manual", "Winner stays", "Winner out"};
+                char label[40];
+                const unsigned policy = presence->rotation_policy % 3;
+                std::snprintf(label, sizeof(label), "Rotation: %s", rotation[policy]);
+                add("css-rotation", label, 451, 246, 177, 20, Action::Rotation,
+                    nativeOnlineSession_IsOwner(), false, false, int((policy + 1) % 3));
+            }
             add("css-chat-history", "Lobby chat", 455, 278, 98, 17, Action::ChatHistory, true, false, true);
             add("css-chat-input", "Message", 455, 385, 129, 22, Action::ChatInput, true, false, true);
             const auto* chat = nativeOnlineSession_Chat();
@@ -228,7 +339,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
     const char* status = selection ? "Choose a fighter. START to ready."
-                                   : "Practice | Pause, then Z for lobby";
+                                   : "Practice | START for Training menu";
     if (state == NativeLobbySessionState_Connecting) {
         status = "Connecting to lobby...";
     } else if (state == NativeLobbySessionState_Failed) {
@@ -279,40 +390,48 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         std::snprintf(menu.status, sizeof(menu.status), "%s",
                       nativeHub_NoticeText());
     }
-    NativeNetplayContentProgress progress;
-    if (nativeOnlineSession_ContentProgress(&progress)) {
+    NativeNetplayContentProgress progress{};
+    const bool transferring = nativeOnlineSession_ContentProgress(&progress);
+    bool receiving = transferring && progress.direction == NativeNetplayContent_Receiving;
+    if (transferring && progress.direction == NativeNetplayContent_Sending) {
         menu.show_status = true;
-        std::snprintf(menu.status, sizeof(menu.status), "%s package %u / %u",
-                      progress.direction == NativeNetplayContent_Receiving
-                          ? "Receiving"
-                          : "Sending",
+        std::snprintf(menu.status, sizeof(menu.status), "Sending package %u / %u",
                       progress.package_index, progress.package_count);
     }
-    if (selection && nativeOnlineSession_GiftStatus(true, &menu.gift) &&
-        (menu.gift.state == NativeNetplayGift_Offered ||
-         menu.gift.state == NativeNetplayGift_Receiving))
+    if (nativeOnlineSession_GiftStatus(true, &menu.gift))
     {
         float y = practice ? 44 : 99;
         const NativeContentId empty{};
         bool includes_fighter = std::memcmp(&menu.gift.dependency_id, &empty, sizeof(empty)) != 0;
-        std::snprintf(menu.delivery, sizeof(menu.delivery), "%s",
-                      menu.gift.state == NativeNetplayGift_Offered
-                          ? (menu.gift.kind == NativeNetplayGift_Costume
-                             ? (includes_fighter ? "Outfit + fighter delivery" : "Outfit delivery")
-                             : "Fighter delivery")
-                          : "Receiving delivery...");
         if (menu.gift.state == NativeNetplayGift_Offered) {
+            std::snprintf(menu.delivery, sizeof(menu.delivery), "%s",
+                menu.gift.kind == NativeNetplayGift_Costume
+                    ? (includes_fighter ? "Outfit + fighter delivery" : "Outfit delivery")
+                    : "Fighter delivery");
             add("play-accept", menu.gift.kind == NativeNetplayGift_Costume ? "Accept outfit" : "Accept fighter", 375, y + 49, 139, 21,
                 Action::Accept, true, true);
             add("play-decline", "No thanks", 522, y + 49, 94, 21,
                 Action::Decline);
-        } else if (menu.gift.bytes_total) {
-            std::snprintf(menu.delivery, sizeof(menu.delivery),
-                          "Receiving delivery... %u%%",
-                          unsigned(uint64_t(menu.gift.bytes_done) * 100 /
-                                   menu.gift.bytes_total));
+        } else if (menu.gift.state == NativeNetplayGift_Receiving) {
+            const bool parent = includes_fighter &&
+                !std::memcmp(&menu.gift.downloading, &menu.gift.dependency_id, sizeof(empty));
+            progress = {
+                .id = menu.gift.downloading,
+                .preview = menu.gift.preview,
+                .bytes_done = menu.gift.bytes_done,
+                .bytes_total = menu.gift.bytes_total,
+                .package_index = uint8_t(parent || !includes_fighter ? 1 : 2),
+                .package_count = uint8_t(includes_fighter ? 2 : 1),
+                .direction = NativeNetplayContent_Receiving,
+            };
+            if (!*progress.preview.title && !parent) {
+                std::memcpy(progress.preview.title, menu.gift.title, sizeof(progress.preview.title));
+            }
+            receiving = true;
         }
     }
+    if (receiving) update_download(progress);
+    else if (download.started) clear_download();
 }
 extern "C" void nativePlayMenu_DrawCss(Mtx view)
 {
@@ -344,7 +463,7 @@ extern "C" void nativePlayMenu_DrawCountdown(void)
 
 extern "C" void nativePlayMenu_DrawPractice(void)
 {
-    if (!menu.practice) {
+    if (!menu.practice || gmTraining_LocalMenuOpen()) {
         return;
     }
     nativeMenuPaint_Begin(nullptr);
@@ -368,7 +487,7 @@ extern "C" bool nativePlayMenu_Hand(float x, float y, uint32_t trigger)
 extern "C" bool nativePlayMenu_Pointer(float u, float v,
                                        NativeCssPointerEvent event)
 {
-    if (!menu.practice) {
+    if (!menu.practice || gmTraining_LocalMenuOpen()) {
         return false;
     }
     menu.pointer_x = u * 640;

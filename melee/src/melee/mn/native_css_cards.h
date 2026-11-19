@@ -14,6 +14,7 @@ void nativeCssCards_Update(void);
 bool nativeCssCards_Active(void);
 unsigned nativeCssCards_DisplayPort(unsigned physical_port);
 const NativeCssParticipant* nativeCssCards_Hit(float x, float y);
+bool nativeCssCards_CycleSeat(float x, float y);
 void nativeCssCards_Carry(unsigned port, const NativeContentId* package,
                           float x, float y);
 void nativeCssCards_InvalidateArt(void);

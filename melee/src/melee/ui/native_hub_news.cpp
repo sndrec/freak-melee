@@ -163,9 +163,15 @@ void nativeHubNews_Input()
         const auto& pad = HSD_PadCopyStatus[port];
         if (pad.err) continue;
         int direction = (pad.trigger & PAD_BUTTON_DOWN) ? 1 : (pad.trigger & PAD_BUTTON_UP) ? -1 : 0;
-        if (!direction && now >= next_scroll)
-            direction = pad.subStickY > 32 ? -1 : pad.subStickY < -32 ? 1 : 0;
-        if (direction) { nativeHubNews_Scroll(direction * 3); next_scroll = now + 160; }
+        if (!direction && now >= next_scroll) {
+            if ((pad.button & PAD_BUTTON_DOWN) || pad.nml_subStickY < -.35f) direction = 1;
+            else if ((pad.button & PAD_BUTTON_UP) || pad.nml_subStickY > .35f) direction = -1;
+        }
+        if (direction) {
+            nativeHubNews_Scroll(direction * 3);
+            next_scroll = now + 160;
+            break;
+        }
         break;
     }
 }

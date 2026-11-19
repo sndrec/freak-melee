@@ -1,5 +1,6 @@
 #include "native_account_internal.h"
 #include "native_account_transport.h"
+#include "native_content_store.h"
 #include <cstring>
 #include <cstdio>
 #include <new>
@@ -25,27 +26,56 @@ bool nativeAccount_Cancelled(NativeAccountWorker& w)
 }
 
 yyjson_val* nativeAccount_Http(NativeAccountWorker& w, const char* handle, const char* route,
-    bool post, bool authorized, NativeAccountView& view, unsigned* status_out)
+    bool post, bool authorized, NativeAccountView& view, unsigned* status_out, NativeAccountBinary binary)
 {
     if (status_out) *status_out = 0;
     if (nativeAccount_Cancelled(w)) return nullptr;
-    char path[160]; wchar_t object[160], headers[256];
-    std::snprintf(path, sizeof(path), "/v1/accounts/%s/%s", handle, route);
-    MultiByteToWideChar(CP_UTF8, 0, path, -1, object, 160);
+    char path[512]; wchar_t object[512], headers[256];
+    int path_length = std::snprintf(path, sizeof(path), "/v1/accounts/%s/%s", handle, route);
+    if (path_length < 0 || unsigned(path_length) >= sizeof(path) ||
+        !MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, object, 512))
+        return nullptr;
     const char* token = authorized ? w.secrets.token : "";
-    swprintf_s(headers, L"Content-Type: application/json\r\nAccept: application/json\r\n%s%hs%s",
+    swprintf_s(headers, L"Content-Type: %ls\r\nAccept: %ls\r\n%s%hs%s",
+        binary.upload ? L"application/octet-stream" : L"application/json",
+        binary.download ? L"application/octet-stream" : L"application/json",
         *token ? L"Authorization: Bearer " : L"", token, *token ? L"\r\n" : L"");
     HINTERNET request = w.connection ? WinHttpOpenRequest(w.connection, post ? L"POST" : L"GET", object,
         nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, w.endpoint.secure ? WINHTTP_FLAG_SECURE : 0) : nullptr;
     DWORD redirect = WINHTTP_OPTION_REDIRECT_POLICY_NEVER, disabled = WINHTTP_DISABLE_COOKIES | WINHTTP_DISABLE_AUTHENTICATION;
     bool ok = request && WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY, &redirect, sizeof(redirect)) &&
         WinHttpSetOption(request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled));
-    DWORD length = post ? DWORD(std::strlen(w.send)) : 0;
-    ok = ok && WinHttpSendRequest(request, headers, DWORD(-1), post ? w.send : nullptr, length, length, 0) &&
+    DWORD length = binary.upload ? DWORD(binary.upload_size) : post ? DWORD(std::strlen(w.send)) : 0;
+    void* body = binary.upload ? static_cast<void*>(const_cast<uint8_t*>(binary.upload))
+                               : post ? static_cast<void*>(w.send) : nullptr;
+    ok = ok && WinHttpSendRequest(request, headers, DWORD(-1), body, length, length, 0) &&
         WinHttpReceiveResponse(request, nullptr);
     DWORD status = 0, size = sizeof(status);
     ok = ok && WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
         WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX);
+    if (binary.download && status == 200) {
+        DWORD expected = 0; size = sizeof(expected);
+        ok = ok && WinHttpQueryHeaders(request, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
+            WINHTTP_HEADER_NAME_BY_INDEX, &expected, &size, WINHTTP_NO_HEADER_INDEX) &&
+            expected > 0 && expected <= NATIVE_CONTENT_MAX_PACKAGE_BYTES;
+        auto& data = *binary.download;
+        if (ok) {
+            data.resize(expected);
+            DWORD received = 0;
+            while (received < expected && ok) {
+                DWORD count = 0;
+                ok = !nativeAccount_Cancelled(w) &&
+                     WinHttpReadData(request, data.data()+received, expected-received, &count) && count > 0;
+                received += count;
+            }
+        }
+        if (!ok) data.clear();
+        if (request) WinHttpCloseHandle(request);
+        SecureZeroMemory(headers, sizeof(headers));
+        if (status_out) *status_out = ok ? status : 0;
+        if (!ok) std::snprintf(view.status,sizeof(view.status),"Could not download this fighter. Try again shortly.");
+        return nullptr;
+    }
     size_t received = 0;
     while (ok) {
         DWORD available = 0, count = 0;

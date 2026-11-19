@@ -3346,6 +3346,9 @@ void Fighter_ProcessHit_8006D1EC(Fighter_GObj* gobj)
         fp->dmg.x183C_applied = 0;
         fp->x1828 = 0;
         fp->dmg.kb_applied = 0.0f;
+#ifdef MELEE_NATIVE
+        fp->native_contact_launch_active = false;
+#endif
         fp->dmg.x18a0 = 0.0f;
         fp->dmg.x1840 = 0;
         fp->dmg.x1914 = 0;

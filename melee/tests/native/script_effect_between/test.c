@@ -36,6 +36,8 @@ NativeScriptVMStatus nativeScriptEffect_Status(HSD_GObj* actor)
 {(void)actor;return NativeScriptVM_SourceRetired;}
 const NativeScriptEffectProgram* nativeScriptEffect_Spec(HSD_GObj* actor)
 {(void)actor;return NULL;}
+const NativeScriptEffectProgram* nativeScriptEffect_Program(FighterKind kind, uint32_t owner)
+{(void)kind; (void)owner; abort();}
 HSD_JObj* nativeScriptEffect_Joint(HSD_GObj* actor,uint32_t generation,unsigned member)
 {(void)actor;(void)generation;(void)member;return NULL;}
 float nativeModelJoint_Read(HSD_JObj* joint,unsigned channel)
@@ -64,8 +66,9 @@ void HSD_RObjSetConstraintObj(HSD_RObj* r,void* value)
 {r->u.jobj=value;if(value)++HSD_OBJ((HSD_JObj*)value)->ref_count;}
 void HSD_JObjPrependRObj(HSD_JObj* joint,HSD_RObj* r){r->next=joint->robj;joint->robj=r;}
 void efLib_Cb_SetRotY_FromFighterDir(EF_Effect* value){(void)value;abort();}
-EF_Effect* efLib_Create(int id,HSD_GObj* parent)
+EF_Effect* efLib_Create(int id,HSD_GObj* parent,const EF_EffectDesc* owned)
 {
+    CHECK(owned==NULL);
     ++attempts;if(attempts==failure_at)return NULL;CHECK(created<16);
     unsigned i=created++;constructor_ids[i]=(uint32_t)id;
     native_effects[i].gobj=&effect_objects[i];native_effects[i].parent_gobj=parent;

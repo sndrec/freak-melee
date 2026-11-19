@@ -26,8 +26,23 @@ typedef struct HSD_SfxBank {
     u32 count;
     u32 aram_base;
     u32 aram_size;
+    const u8* sample_data;
+    size_t sample_bytes;
     HSD_SfxEntry entries[];
 } HSD_SfxBank;
+
+enum {
+    HSD_PACKAGE_SOUND_BASE = 0x800000,
+    HSD_PACKAGE_SOUND_OWNERS = 128,
+    HSD_PACKAGE_SOUND_CLIPS = 256,
+};
+
+static inline bool HSD_SfxIsPackageSound(int id)
+{
+    return id >= HSD_PACKAGE_SOUND_BASE &&
+           id < HSD_PACKAGE_SOUND_BASE +
+                    HSD_PACKAGE_SOUND_OWNERS * HSD_PACKAGE_SOUND_CLIPS;
+}
 
 // Decode the header payload beginning at file offset 0x10 into caller storage.
 // Bank count/first_id are initialized by the caller from the file header.
@@ -35,4 +50,7 @@ bool HSD_SfxBankDecode(HSD_SfxBank* bank, const u8* data, size_t size,
                        u32 aram_base, u32 silence_address);
 void HSD_SfxBankRelocate(HSD_SfxBank* bank, u32 aram_base,
                          u32 silence_address);
+// Decode a bounded standalone DSP-ADPCM SSM whose first sample number is 0.
+// The caller frees the returned table and owns the immutable sample bytes.
+HSD_SfxBank* HSD_SfxBankReadPackage(const void* bytes, size_t size, u32 owner);
 #endif

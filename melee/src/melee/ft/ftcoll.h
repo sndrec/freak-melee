@@ -64,9 +64,10 @@
 /* 07AB80 */ void ftColl_8007AB80(Fighter_GObj*);
 /* 07ABD0 */ void ftColl_8007ABD0(HitCapsule*, u32 damageAmount,
                                   Fighter_GObj*);
+void ftColl_SetHitboxDamage(HitCapsule*, float damage, Fighter_GObj*);
 /* 07AC68 */ bool ftColl_8007AC68(u32 kb_angle);
 /* 07AC9C */ void ftColl_8007AC9C(HitCapsule*, int, Fighter_GObj*);
-/* 07AD18 */ void ftColl_8007AD18(Fighter* fp, HitCapsule*);
+/* 07AD18 */ void ftColl_8007AD18(Fighter* fp, unsigned slot);
 /* 07AE80 */ void ftColl_8007AE80(Fighter_GObj*);
 /* 07AEE0 */ void ftColl_8007AEE0(Fighter_GObj*);
 /* 07AEF8 */ void ftColl_8007AEF8(Fighter_GObj*);

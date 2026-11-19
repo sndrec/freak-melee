@@ -17,11 +17,11 @@
 
 static bool error(NativeScriptDiagnostic* d,const char* message)
 {if(d)snprintf(d->message,sizeof(d->message),"%s",message);return false;}
-static bool damage_valid(Fighter* f,uint32_t damage,NativeScriptDiagnostic* d)
+static bool damage_valid(Fighter* f,float damage,NativeScriptDiagnostic* d)
 {
     // Preserve common scale/smash/staleness rules, but reject undefined casts
     // before modifying a capsule's activation or victim history.
-    float scaled=(float)damage;
+    float scaled=damage;
     if(f->x34_scale.y!=1.0f){
         if(!Fighter_804D6524||f->x34_scale.y==0.0f)return error(d,"Hitbox damage scale has no defined helper input");
         scaled=ftCo_CalcYScaledKnockback(scaled,f->x34_scale.y,Fighter_804D6524->x4);
@@ -77,14 +77,18 @@ bool nativeScriptBindingHitboxCreate_Invoke(NativeScriptRuntimeContext* c,
     else if(!nativeArticleResource_ResolveBoundPart(source.object,(unsigned)bone,&joint)){*out=result;return true;}
     if(!joint||(spec->require_throw_owner&&!f->x1064_thrownHitbox.owner)){*out=result;return true;}
     if(!p_ftCommonData)return error(d,"Hitbox angle helper has no common engine parameters");
-    if(!damage_valid(f,(uint32_t)spec->damage,d))return false;
+    if(!damage_valid(f,spec->damage,d))return false;
     if(!nativeFighterLifetime_Current(&source))return error(d,"Hitbox source retired before creation");
     nativeHitboxLifetime_Clear(f, (unsigned)slot);
+    NativeHitboxLifetime* lifetime = &f->native_hitbox_lifetimes[slot];
+    lifetime->exclude_grabbed = spec->exclude_grabbed;
+    lifetime->capsule = spec->capsule;
+    lifetime->end_offset = (Vec3){spec->end_x, spec->end_y, spec->end_z};
     HitCapsule* hit=&f->x914[slot];
     if(hit->state==HitCapsule_Disabled||hit->x4!=(uint32_t)spec->group){
         hit->x4=(uint32_t)spec->group;hit->state=HitCapsule_Enabled;f->x2219_b3=true;ftColl_800768A0(f,hit);
     }
-    hit->jobj=joint;ftColl_8007ABD0(hit,(uint32_t)spec->damage,source.object);
+    hit->jobj=joint;ftColl_SetHitboxDamage(hit,spec->damage,source.object);
     if(!nativeFighterLifetime_Current(&source))return error(d,"Hitbox source retired during damage initialization");
     hit->scale=spec->radius;hit->b_offset=(Vec3){spec->offset_x,spec->offset_y,spec->offset_z};
     ftColl_8007AC9C(hit,spec->angle,source.object);

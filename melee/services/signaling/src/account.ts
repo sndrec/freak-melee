@@ -4,6 +4,7 @@ import { AccountError, accountJson, accountHandle, secret, secretHash, secretVal
   text, readAccountBody, CHALLENGE_MS, SESSION_MS, RECENT_AUTH_MS,
   MAX_ACCOUNT_KEYS, MAX_SESSIONS, type Ceremony, type JsonObject } from "./account-protocol";
 import type { SocialProfile } from "./social-protocol";
+import { fighterGiftRequest } from "./fighter-gifts";
 import type { ConnectionAccount } from "./connection-account";
 import { isRoomId } from "./protocol";
 
@@ -240,6 +241,10 @@ export class Account extends DurableObject<CloudflareBindings> {
           (origin.protocol !== "https:" && !local))
         throw new AccountError(503, "Account sign-in is not configured for this service.");
       this.clean();
+      if (path.startsWith("fighter-gift/")) {
+        await this.authorize(request.headers.get("Authorization") ?? "");
+        return await fighterGiftRequest(request, this.env, this.profile(), path);
+      }
       if (request.method === "GET") {
         if (path === "profile") return accountJson({ profile: this.profile() });
         if (path === "me") return await this.manage(request, path, {});

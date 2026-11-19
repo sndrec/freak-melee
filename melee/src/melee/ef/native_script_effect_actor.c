@@ -191,15 +191,41 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
         a=&nativeScriptEffectActors[nativeScriptEffectInitializedCount++];memset(a,0,sizeof(*a));
     }
     if(!a){if(d)snprintf(d->message,sizeof(d->message),"Interpreted effect capacity exhausted");return NativeScriptVM_Error;}
-    const EF_ModelRecipe* recipe=efSync_ModelRecipe(p->gfx_id);
-    if(!recipe||recipe->family!=p->family||recipe->model_count!=p->member_count)return NativeScriptVM_Error;
+    if (!p->model_path.length) {
+        const EF_ModelRecipe* recipe = efSync_ModelRecipe(p->gfx_id);
+        if (!recipe || recipe->family != p->family || recipe->model_count != p->member_count)
+            return NativeScriptVM_Error;
+    } else if (!p->model.model_desc.joint) {
+        return NativeScriptVM_Error;
+    }
     Vec3 position=fp->cur_pos;
-    if(p->family==EF_MODEL_POSITION&&on_part) {
+    const bool owned_follow = p->model_path.length && p->family == EF_MODEL_JOINT;
+    if ((p->family == EF_MODEL_POSITION && on_part) || owned_follow) {
         lb_8000B1CC(origin,NULL,&position);
         if(!current_caller(context,creator,view)||!origin_current(&selected,origin,object))
             return NativeScriptVM_SourceRetired;
     }
-    EF_SpawnResult spawned=p->family==EF_MODEL_POSITION?efSync_Spawn(p->gfx_id,object,&position):efSync_Spawn(p->gfx_id,object,origin);
+    EF_SpawnResult spawned = {0};
+    if (p->model_path.length) {
+        EF_Effect* effect = efLib_Create(p->gfx_id, object, &p->model);
+        if (effect) {
+            HSD_JObj* root = effect->gobj->hsd_obj;
+            HSD_JObjSetTranslate(root, &position);
+            if (owned_follow) {
+                lb_8000C1C0(root, origin);
+                effect->attach_jobj = origin;
+            }
+            spawned.kind = EF_SPAWN_MODEL;
+            spawned.member_count = 1;
+            spawned.members[0] = (EF_ModelMember){effect->gobj, effect->native_generation};
+            spawned.model_generation = effect->native_generation;
+            spawned.object.model = effect;
+        }
+    } else {
+        spawned = p->family == EF_MODEL_POSITION
+            ? efSync_Spawn(p->gfx_id, object, &position)
+            : efSync_Spawn(p->gfx_id, object, origin);
+    }
     bool caller=current_caller(context,creator,view)&&origin_current(&selected,origin,object);
     if(spawned.kind!=EF_SPAWN_MODEL||spawned.member_count!=p->member_count) {
         // A partial native model group is not a viable source instance. Retire

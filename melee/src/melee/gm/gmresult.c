@@ -2,6 +2,7 @@
 #ifdef MELEE_NATIVE
 #include "gmresult_assets.h"
 #include <melee/ft/native_fighter_runtime.h>
+#include <melee/ft/native_script_fighter.h>
 #include <melee/mn/native_menu_visuals.h>
 #include <sysdolphin/baselib/dobj.h>
 static NativeMenuVisuals* custom_results_visuals;
@@ -1892,6 +1893,15 @@ void gm_Scene_Results_OnEnter(void* arg0_)
         me_iter = (MatchEnd*) ((MatchPlayerData*) me_iter + 1);
         data_iter = (ResultsData*) ((struct ResultsPlayerData*) data_iter + 1);
     }
+#ifdef MELEE_NATIVE
+    if (!gm_WasMatchCanceled(match_end->outcome)) {
+        Fighter_GObj* winner = data->player_data[data->x6].fighter_gobj;
+        if (winner && nativeScriptFighter_HasHook(winner, NativeScriptFighter_VictoryFanfare)) {
+            nativeScriptFighter_Run(winner, NativeScriptFighter_VictoryFanfare,
+                                    NULL, 0, NULL, NULL);
+        }
+    }
+#endif
 }
 
 void gm_Scene_Results_OnExit(void* unused)

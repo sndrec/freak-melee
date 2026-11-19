@@ -43,6 +43,7 @@ enum class HubAction {
     Recipient,
     RecipientScroll,
     ConfirmSend,
+    GiftRecipientMode, FriendGiftRecipient, FriendGiftPage, InstallFriendGift,
     Cancel,
     AcceptGift,
     DeclineGift,
@@ -87,7 +88,9 @@ enum class HubAction {
     ProfileDefault, ProfileReset, ProfileOption, ProfileField, ProfileBind, ProfileAdd, ProfileClear, ProfileAxis, ProfileAxisDefault,
     ProfileCancelBinding, ProfileCalibrate, ProfileTest, ProfileCalibrationNext, ProfileCalibrationCancel, ProfileCalibrationRange,
     ProfileChooseController, ProfileControllerSelect, ProfileControllerNone, ProfileControllerPage,
-    RuleAdjust, RuleItems, RuleRate, RuleItem, RuleAll, RuleAdditional, RuleLobby, RuleListing, RuleRotation, RuleSeat, RulePeoplePage,
+    RuleAdjust, RuleItems, RuleRate, RuleItem, RuleAdditional, RuleLobby, RuleListing, RuleRotation, RuleSeat, RulePeoplePage,
+    RuleLobbyName, RuleLobbyNameSave, RuleLobbyTeams, RuleLobbyCapacity, RuleLobbyPassword,
+    RuleLobbyPasswordSave, RuleManageSeats, FieldLobbyPassword,
     CostumePort, CostumePage, CostumeDefault, CostumeChoose, CostumeImport,
     PackageTab, PackagePage, PackageRefresh, PackageEdit, PackageSend, PackageRecipient, PackageRecipientPage, PackageConfirm,
     News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink
@@ -110,6 +113,7 @@ struct HubState {
                       bio[257], code[13], chat[513], room_chat[513], title[64];
     char viewed_name[33], viewed_peer[65], recipient[65], recipient_name[33];
     char lobby_title[65];
+    char lobby_password[65];
     char account_handle[25], account_recovery[44];
     char social_handle[25], letter_to[25], letter_subject[65], letter_body[2049];
     char lobby_invite_to[25];
@@ -117,6 +121,8 @@ struct HubState {
     bool lobby_listed = true, pending_listing;
     NativeContentId gift_id;
     char gift_title[64];
+    char fighter_gift_friend[25];
+    bool send_to_friends;
     char* field;
     unsigned field_capacity, caret;
     int selected = -1, first_fighter = 0, template_kind = 0, local_players = 1,
@@ -152,7 +158,8 @@ void nativeHub_Field(const char* id, const char* value, float x, float y,
                      float w, float h, HubAction action, bool secret = false,
                      const char* placeholder = nullptr, int action_value = 0);
 unsigned nativeHub_TextBlock(const char* value, float x, float y, float w, float h,
-    float size, uint32_t color, unsigned first_line = 0);
+    float size, uint32_t color, unsigned first_line = 0,
+    unsigned accent_length = 0, uint32_t accent_color = 0);
 unsigned nativeHub_TextCaret(const char* value, unsigned caret, int direction, float width);
 void nativeHub_Panel(float x, float y, float w, float h);
 void nativeHub_ChangePage(NativeHubPage page, bool backwards = false);

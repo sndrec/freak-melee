@@ -9,6 +9,8 @@ typedef struct HSD_AudioVoice {
     void (*dropped)(void*);
     bool allocated, running, streaming, music;
     HSD_SfxVoice sample;
+    const u8* sample_data;
+    size_t sample_bytes;
     AXPBSRC source;
     AXPBMIX mix;
     u16 mix_mask;

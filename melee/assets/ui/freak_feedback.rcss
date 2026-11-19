@@ -4,10 +4,10 @@ button { font-family: "Segoe UI"; font-size: 16px; font-weight: bold; color: #f8
 button:hover, button:focus { background: #dabb43; color: #16151a; }
 #feedback-image { position: absolute; }
 #feedback-pins { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-#feedback-header { position: absolute; left: 0; top: 0; right: 0; height: 66px; background: #14131ce8; border-bottom: 1px #897a51; }
+#feedback-header { position: absolute; left: 0; top: 0; right: 0; height: 66px; background: #14131ca8; border-bottom: 1px #897a51; pointer-events: none; }
 #feedback-title { position: absolute; left: 22px; top: 9px; font-size: 21px; font-weight: bold; color: #f0d276; }
 #feedback-instructions { position: absolute; left: 22px; top: 38px; right: 125px; font-size: 14px; }
-#feedback-exit { position: absolute; right: 18px; top: 13px; }
+#feedback-exit { position: absolute; right: 18px; top: 13px; pointer-events: auto; }
 .feedback-pin { position: absolute; width: 30px; height: 30px; padding: 0; margin-left: -15px; margin-top: -32px; border: 2px #fff3d7; border-radius: 15px; background: #bd3d36; text-align: center; line-height: 27px; color: white; transform-origin: 50% 100%; }
 .feedback-pin:hover, .feedback-pin:focus { background: #e8bb43; color: #17141b; }
 .feedback-pin .needle { position: absolute; left: 12px; top: 29px; height: 9px; width: 2px; background: #fff3d7; }
@@ -26,7 +26,9 @@ button:hover, button:focus { background: #dabb43; color: #16151a; }
 #feedback-bubble.committing { animation: 0.16s ease-in bubble-close; }
 @keyframes bubble-close { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.05); } }
 #feedback-hover { position: absolute; display: none; max-width: 300px; padding: 10px 14px; background: #25222ff5; border: 1px #ecd08c; border-radius: 8px; font-size: 14px; pointer-events: none; }
-#feedback-status { position: absolute; bottom: 16px; left: 22px; width: 650px; max-width: 85%; padding: 10px 16px; background: #14131ce8; border-radius: 6px; color: #eed184; }
+#feedback-status { position: absolute; bottom: 16px; left: 22px; width: 650px; max-width: 85%; padding: 10px 16px; background: #14131ce8; border-radius: 6px; color: #eed184; pointer-events: none; }
+#feedback-header, #feedback-status { opacity: 1; transition: opacity 0.12s ease-out; }
+#feedback-header.faded, #feedback-status.faded { opacity: 0; }
 #feedback-modal { display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #090810a8; }
 #feedback-dialog { position: absolute; left: 50%; top: 38%; width: 430px; margin-left: -240px; padding: 24px; background: #24212cf8; border: 2px #d1b772; border-radius: 10px; }
 #feedback-dialog-title { font-size: 26px; font-weight: bold; color: #f0d276; margin-bottom: 12px; }

@@ -2,10 +2,13 @@
 #include "native_script_bindings.h"
 #include "native_fighter_lifetime.h"
 #include "native_script_moves.h"
+#include "ft_0819.h"
 #include "ft_081B.h"
+#include "ftcliffcommon.h"
 #include "kinds/ftCommon/ftCo_Attack1.h"
 #include "kinds/ftCommon/ftCo_Attack100.h"
 #include "kinds/ftCommon/ftpickupitem.h"
+#include <melee/mp/mpcoll.h>
 #include <stdio.h>
 
 static bool error(NativeScriptDiagnostic* diagnostic,const char* message)
@@ -44,6 +47,7 @@ bool nativeScriptBindingNormalAttacks_Invoke(NativeScriptRuntimeContext* context
     switch(semantic) {
     case NativeScriptBinding_AttackEnterJab:case NativeScriptBinding_AttackEnterRapidJab:
     case NativeScriptBinding_AttackUpdateRapidJab:case NativeScriptBinding_CollisionAirAerialLandingCallback:expected=1;break;
+    case NativeScriptBinding_CollisionAirAerialLandingWithLedges:expected=2;break;
     case NativeScriptBinding_ItemsTryGroundPickup:expected=0;break;
     default:return error(diagnostic,"Unknown normal attack operation");
     }
@@ -69,8 +73,27 @@ bool nativeScriptBindingNormalAttacks_Invoke(NativeScriptRuntimeContext* context
         result.type=NativeScriptType_Bool;result.as.u64=ftpickupitem_80094790(source.object);
     } else {
         uint32_t function;if(!helper(&source,&arguments[0],&function,diagnostic))return false;
-        bool complete=semantic==NativeScriptBinding_AttackUpdateRapidJab
-            ?ftCo_RapidJab_ShouldFinish(source.object):ft_80081D0C(source.object)==GA_Air;
+        if (expected == 2 && arguments[1].type != NativeScriptType_Bool)
+            return error(diagnostic, "Aerial landing ledge option requires a Bool");
+        bool complete;
+        if (semantic == NativeScriptBinding_AttackUpdateRapidJab) {
+            complete = ftCo_RapidJab_ShouldFinish(source.object);
+        } else if (expected == 2 && arguments[1].as.u64 &&
+                   !fighter->x2064_ledgeCooldown && !fighter->x2224_b2 && !fighter->allow_sdi) {
+            CollData* collision = &fighter->coll_data;
+            collision->last_pos = collision->cur_pos;
+            collision->cur_pos = fighter->cur_pos;
+            complete = mpColl_CheckAirWithEitherLedge(collision);
+            if (!current(context, &source, diagnostic)) return false;
+            fighter->cur_pos = collision->cur_pos;
+            bool interrupted = ft_80081A00(source.object);
+            if (!current(context, &source, diagnostic)) return false;
+            if (!complete && !interrupted)
+                ftCliffCommon_80081298(source.object);
+            complete = complete && !interrupted;
+        } else {
+            complete = ft_80081D0C(source.object) == GA_Air;
+        }
         if(!current(context,&source,diagnostic))return false;
         if(complete) {
             NativeScriptValue value;

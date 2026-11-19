@@ -72,6 +72,8 @@ void HSD_AudioVoiceRelease(HSD_AudioVoice* voice)
     retain_release_tail(voice);
     voice->allocated = false;
     voice->running = false;
+    voice->sample_data = NULL;
+    voice->sample_bytes = 0;
     voice->decoder.active = false;
     voice->priority = 0;
     free_indices[free_count++] = voice->index;
@@ -97,6 +99,10 @@ size_t HSD_AudioVoiceRead(HSD_AudioVoice* voice, const u8* storage,
     voice->decoder.loop_predictor = voice->sample.loop.loop_pred_scale & 127;
     voice->decoder.loop_history[0] = (s16) voice->sample.loop.loop_yn1;
     voice->decoder.loop_history[1] = (s16) voice->sample.loop.loop_yn2;
+    if (voice->sample_data) {
+        storage = voice->sample_data;
+        size = voice->sample_bytes;
+    }
     size_t produced = HSD_AudioSampleRead(&voice->decoder, storage, size, output, count);
     a->currentAddressHi = voice->decoder.cursor >> 16;
     a->currentAddressLo = (u16) voice->decoder.cursor;

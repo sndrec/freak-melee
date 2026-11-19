@@ -17,10 +17,11 @@ bool nativeOnlineSession_CreateRoom(const char* local_name,
                                     uint8_t local_players);
 const char* nativeOnlineSession_Build(void);
 const NativeLobbyListing* nativeOnlineSession_Listing(void);
-bool nativeOnlineSession_SetListing(const char* title, bool listed);
+bool nativeOnlineSession_SetListing(const char* title, bool listed, uint8_t fighter_limit,
+                                    const char* password);
 bool nativeOnlineSession_JoinRoom(const char* room_code,
                                   const char* local_name,
-                                  uint8_t local_players);
+                                  uint8_t local_players, const char* room_password);
 bool nativeOnlineSession_EnterQuick(uint8_t mode, const char* local_name,
                                     uint8_t local_players);
 bool nativeOnlineSession_SearchQuick(bool searching);

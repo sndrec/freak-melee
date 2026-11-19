@@ -1,4 +1,5 @@
 #include "native_fighter_action_labels.h"
+#include "ftaction_codec.h"
 
 namespace NativeFighterActionLabels {
     const char* event(unsigned kind)
@@ -21,10 +22,13 @@ namespace NativeFighterActionLabels {
 
     std::string command(unsigned opcode)
     {
-        if (opcode == 59) {
+        if (opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE) {
+            opcode = FT_ACTION_THROW_OPCODE;
+        }
+        if (opcode == 59 || opcode == 61) {
             return "Timed hitbox";
         }
-        if (opcode == 60) {
+        if (opcode == 60 || opcode == 62) {
             return "Create hitbox";
         }
         static const char* control[] = { "End script",
@@ -126,9 +130,11 @@ namespace NativeFighterActionLabels {
             return "Spawns a visual effect attached to a bone.";
         case 11:
         case 60:
+        case 62:
             return "Creates an attack hitbox with damage, knockback, size and "
                    "attachment settings.";
         case 59:
+        case 61:
             return "Creates a hitbox for the specified number of animation "
                    "frames.";
         case 12:
@@ -178,7 +184,8 @@ namespace NativeFighterActionLabels {
                    "groups.";
         case 33:
             return "Hides all visibility-group mesh variants.";
-        case 34:
+        case FT_ACTION_THROW_OPCODE:
+        case FT_ACTION_THROW_FRACTIONAL_OPCODE:
             return "Defines a throw record's damage, knockback and sound. "
                    "Release throw applies the throw later.";
         case 35:
@@ -255,9 +262,19 @@ namespace NativeFighterActionLabels {
                                         "Damage growth (1/256)",
                                         "Color animation", "Reserved" };
         static const char* flash[] = { "Flash effect", "Priority" };
+        static const char* throw_hitbox[] = {
+            "Throw record", "Damage", "Angle", "Knockback growth",
+            "Weight-set knockback", "Base knockback", "Element",
+            "Hit sound level", "Hit sound ID"
+        };
         const char* const* names = nullptr;
         unsigned count = 0;
         switch (opcode) {
+        case FT_ACTION_THROW_OPCODE:
+        case FT_ACTION_THROW_FRACTIONAL_OPCODE:
+            names = throw_hitbox;
+            count = sizeof(throw_hitbox) / sizeof(throw_hitbox[0]);
+            break;
         case 18:
         case 21:
         case 22:

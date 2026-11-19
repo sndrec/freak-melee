@@ -22,7 +22,7 @@ namespace NativeActionProperties {
                  yyjson_mut_val* output);
     void defaults(const NativeFighterProject&, const Type&,
                   NativeAuthoring::Reply&, yyjson_mut_val* output);
-    bool update(NativeFighterProject&, unsigned action, uint32_t source,
+    bool update(NativeFighterProject&, unsigned action, uint32_t& source,
                 yyjson_val* properties, std::string& error);
     bool create(NativeFighterProject&, unsigned action, unsigned frame,
                 const Type&, yyjson_val* properties, uint32_t& source,

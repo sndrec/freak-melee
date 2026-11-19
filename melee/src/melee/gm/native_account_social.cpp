@@ -1,6 +1,8 @@
 #include "native_account_internal.h"
+#include "native_content_store.h"
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 
 namespace {
     bool room_code(const char* value)
@@ -51,13 +53,15 @@ namespace {
             nativeAccount_String(yyjson_obj_get(item, "name"), result.name, sizeof(result.name)) &&
             nativeAccount_String(yyjson_obj_get(item, "title"), result.title, sizeof(result.title)) &&
             nativeAccount_String(yyjson_obj_get(item, "kind"), result.kind, sizeof(result.kind)) &&
-            (!std::strcmp(result.kind, "letter") || !std::strcmp(result.kind, "friend_request") || !std::strcmp(result.kind, "room_invite")) &&
+            (!std::strcmp(result.kind, "letter") || !std::strcmp(result.kind, "friend_request") ||
+             !std::strcmp(result.kind, "room_invite") || !std::strcmp(result.kind, "fighter_gift")) &&
             nativeAccount_String(yyjson_obj_get(item, "status"), result.status, sizeof(result.status)) &&
             number(item, "folder", result.folder, 1) && number(item, "unread", unread, 1) &&
             yyjson_is_uint(created) && yyjson_get_uint(created) <= 9007199254740991ULL &&
             yyjson_is_uint(expires) && yyjson_get_uint(expires) <= 9007199254740991ULL &&
             nativeAccount_String(yyjson_obj_get(item, "room"), result.room, sizeof(result.room)) &&
-            (!std::strcmp(result.kind, "room_invite") ? room_code(result.room) && yyjson_get_uint(expires) > 0 : !*result.room && !yyjson_get_uint(expires));
+            (!std::strcmp(result.kind, "room_invite") ? room_code(result.room) && yyjson_get_uint(expires) > 0 :
+                !*result.room && bool(yyjson_get_uint(expires)) == !std::strcmp(result.kind, "fighter_gift"));
         if (ok) { result.created = yyjson_get_uint(created); result.expires = yyjson_get_uint(expires); result.unread = unread != 0; }
         return ok;
     }
@@ -93,6 +97,69 @@ namespace {
         next.loaded = true; ++next.revision; view.social = next;
         return true;
     }
+    void send_fighter(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
+    {
+        char root[512], recipient[25];
+        NativeContentId id{};
+        NativeFighterPackage fighter{};
+        NativeFighterPackageData data{};
+        uint8_t* package = nullptr;
+        size_t size = 0;
+        if (!nativeAccount_Handle(request.handle, recipient) || !nativeAccount_Secret(request.nonce) ||
+            !nativeContentStore_DefaultRoot(root, sizeof(root)) ||
+            !nativeContentStore_IdFromHex(request.fighter_hash, &id) ||
+            !nativeContentStore_IsInstalled(root, &id) ||
+            !nativeContentStore_Read(root, &id, &package, &size) ||
+            !nativeContentStore_ParseFighter(package, size, &fighter, &data)) {
+            std::free(package);
+            std::snprintf(view.status,sizeof(view.status),"This installed fighter could not be opened.");
+            return;
+        }
+        const char hex[] = "0123456789ABCDEF";
+        char title[3*NATIVE_CONTENT_TITLE_BYTES]{};
+        size_t offset = 0;
+        for (const unsigned char* c = reinterpret_cast<const unsigned char*>(fighter.title); *c; ++c) {
+            title[offset++] = '%';
+            title[offset++] = hex[*c >> 4];
+            title[offset++] = hex[*c & 15];
+        }
+        char route[384];
+        std::snprintf(route,sizeof(route),"fighter-gift/%s/%s/%s?title=%s", recipient, request.nonce, request.fighter_hash, title);
+        auto* result = nativeAccount_Http(w, w.secrets.handle, route, true, true, view, nullptr,
+                                               { package, size, nullptr });
+        std::free(package);
+        const char* id_text = yyjson_get_str(yyjson_obj_get(result, "id"));
+        if (id_text && nativeAccount_Secret(id_text)) {
+            std::memcpy(view.social.last_sent_nonce, request.nonce, sizeof(request.nonce));
+            std::snprintf(view.status,sizeof(view.status),"Fighter sent to @%s.", recipient);
+        }
+    }
+    void download_fighter(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
+    {
+        view.social.fighter_download_id[0] = view.social.fighter_download_hash[0] = 0;
+        NativeContentId expected{};
+        if (!nativeAccount_Secret(request.target) || std::strcmp(view.social.opened.id, request.target) ||
+            std::strcmp(view.social.opened.kind, "fighter_gift") ||
+            !nativeContentStore_IdFromHex(view.social.body, &expected)) {
+            std::snprintf(view.status,sizeof(view.status),"This fighter delivery could not be read.");
+            return;
+        }
+        char route[80];
+        std::snprintf(route,sizeof(route),"fighter-gift/%s", request.target);
+        std::vector<uint8_t> package;
+        unsigned status = 0;
+        nativeAccount_Http(w, w.secrets.handle, route, false, true, view, &status, {nullptr,0,&package});
+        if (status != 200) return;
+        char root[512];
+        NativeContentId received{};
+        if (!nativeContentStore_DefaultRoot(root,sizeof(root)) ||
+            !nativeContentStore_Cache(root, package.data(), package.size(), &expected, &received)) {
+            std::snprintf(view.status,sizeof(view.status),"The received fighter could not be verified.");
+            return;
+        }
+        std::memcpy(view.social.fighter_download_id,request.target,sizeof(request.target));
+        nativeContentStore_IdHex(&received,view.social.fighter_download_hash);
+    }
 }
 bool nativeAccount_RunSocial(NativeAccountWorker& w, const NativeAccountRequest& request, NativeAccountView& view)
 {
@@ -103,6 +170,8 @@ bool nativeAccount_RunSocial(NativeAccountWorker& w, const NativeAccountRequest&
         return true;
     }
     if (!view.signed_in) { std::snprintf(view.status, sizeof(view.status), "Sign in to use friends and your inbox."); return true; }
+    if (operation == NativeAccountOperation::SendFighterGift) { send_fighter(w,request,view); return true; }
+    if (operation == NativeAccountOperation::DownloadFighterGift) { download_fighter(w,request,view); return true; }
     if (operation == NativeAccountOperation::RefreshSocial) {
         if (refresh(w, request, view)) std::snprintf(view.status, sizeof(view.status), "Friends and letters updated.");
         return true;

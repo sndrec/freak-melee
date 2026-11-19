@@ -429,15 +429,23 @@ size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,
         writer_u8(&writer, stage) ? writer_finish(&writer) : 0;
 }
 
-size_t nativeSignalingWire_EncodeListing(const char* title, bool listed,
+size_t nativeSignalingWire_EncodeListing(const char* title, bool listed, uint8_t fighter_limit,
+                                         const char* password,
                                          uint8_t* output, size_t capacity)
 {
     WireWriter writer;
     size_t length = title ? strnlen(title, 65) : 0;
-    return length && length <= 64 &&
+    if (password) {
+        if (strnlen(password, 65) > 64) return 0;
+        for (size_t i = 0; password[i]; ++i)
+            if (password[i] < '!' || password[i] > '~') return 0;
+    }
+    return length && length <= 64 && fighter_limit >= 2 && fighter_limit <= 4 &&
         nativeUtf8_IsVisibleText((const uint8_t*) title, length) &&
         writer_begin(&writer, output, capacity, CLIENT_SET_LISTING) &&
-        writer_string8(&writer, title, 64) && writer_u8(&writer, listed) ? writer_finish(&writer) : 0;
+        writer_string8(&writer, title, 64) && writer_u8(&writer, listed) &&
+        writer_u8(&writer, fighter_limit) && writer_u8(&writer, password != NULL) &&
+        (!password || writer_string8(&writer, password, 64)) ? writer_finish(&writer) : 0;
 }
 size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output, size_t capacity)
 {
@@ -655,10 +663,15 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
         state->has_rules=size!=0;
         return !size || nativeRoomRules_Decode(&state->rules,bytes,size);
     }
-    case SERVER_LISTING:
+    case SERVER_LISTING: {
+        NativeLobbyListing* listing = &output->data.listing;
         output->type = NativeSignalingServerMessage_Listing;
-        return reader_string8(&reader, output->data.listing.title, sizeof(output->data.listing.title)) &&
-            reader_u8(&reader, &output->data.listing.listed) && output->data.listing.listed <= 1 && reader_finished(&reader);
+        return reader_string8(&reader, listing->title, sizeof(listing->title)) &&
+            reader_u8(&reader, &listing->listed) && listing->listed <= 1 &&
+            reader_u8(&reader, &listing->capacity) && listing->capacity >= 2 &&
+            listing->capacity <= 4 && reader_u8(&reader, &listing->locked) &&
+            listing->locked <= 1 && reader_finished(&reader);
+    }
     case SERVER_LOBBIES: {
         output->type = NativeSignalingServerMessage_Lobbies;
         NativeLobbyDirectory* page = &output->data.directory;
@@ -674,7 +687,10 @@ bool nativeSignalingWire_DecodeServer(const uint8_t* message,
                 !reader_u8(&reader, &entry->waiting) ||
                 !reader_u8(&reader, &entry->spectating) ||
                 !reader_u8(&reader, &entry->participants) || entry->participants > 32 ||
-                !reader_u8(&reader, &entry->playing) || entry->playing > 1) return false;
+                !reader_u8(&reader, &entry->playing) || entry->playing > 1 ||
+                !reader_u8(&reader, &entry->capacity) || entry->capacity < 2 ||
+                entry->capacity > 4 || entry->capacity < entry->fighting ||
+                !reader_u8(&reader, &entry->locked) || entry->locked > 1) return false;
         }
         return reader_finished(&reader);
     }

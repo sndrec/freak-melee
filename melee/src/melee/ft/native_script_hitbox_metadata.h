@@ -9,11 +9,16 @@ struct NativeScriptCompileBank;
 typedef struct NativeScriptHitboxDefinition {
     NativeScriptSourceSpan name,source;
     uint32_t node;
-    int32_t bone,damage,angle,growth,weight_knockback,base_knockback,group;
+    int32_t bone;
+    float damage;
+    int32_t angle,growth,weight_knockback,base_knockback,group;
     int32_t element,shield_damage,sound_severity,sound_kind;
     float radius,offset_x,offset_y,offset_z;
     bool item_interaction,ignore_fighter_scale,clank,rebound;
     bool grounded,aerial,victim_only,require_throw_owner;
+    bool exclude_grabbed;
+    bool capsule;
+    float end_x, end_y, end_z;
 } NativeScriptHitboxDefinition;
 
 bool nativeScriptHitboxMetadata_Owns(const NativeScriptSourceTree*,uint32_t);

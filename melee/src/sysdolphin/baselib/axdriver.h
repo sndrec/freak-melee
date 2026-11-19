@@ -17,8 +17,8 @@ struct HSD_SM {
     /* 08 */ u32 flags;
     /* 0C */ int unk;
     /* 10 */ int vID;
-    /* 14 */ u16 fid;
-    /* 16 */ u16 x16;
+    int sample_id;
+    int sound_id;
     /* 18 */ u8 track;
     /* 19 */ u8 pri;
     /* 1A */ u8 x1A;
@@ -36,12 +36,14 @@ struct HSD_SM {
     /* 2A */ u16 x2A;
     /* 2C */ u32* cmd_stream;
     /* 30 */ int x30;
+    u32 package_commands[2];
 };
 
 /* 38BB9C */ void AXDriverUnlink(HSD_SM* v, HSD_SM** head);
 /* 38BC20 */ bool AXDriverKeyOff(int vid);
 /* 38BD6C */ void HSD_AudioSFXKeyOffAll(void);
 /* 38BE64 */ void HSD_AudioSFXKeyOffTrack(int track);
+void AXDriverRetirePackageSounds(u32 first_id, u32 count);
 /* 38BF6C */ void AXDriver_8038BF6C(HSD_SM* v);
 /* 38C678 */ u32 AXDriver_8038C678(u32 param_type, u32 param_value);
 /* 38C6C0 */ void AXDriver_8038C6C0(HSD_SM* v);

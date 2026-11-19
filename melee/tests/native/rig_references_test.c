@@ -157,7 +157,7 @@ int main(int argc,char** argv)
    CHECK(nativeFighterAction_GetHitbox(&owned,action,rows[n].source_offset,&after));
    CHECK(before.only_hit_grabbed==after.only_hit_grabbed&&before.damage==after.damage&&before.bone==after.bone&&before.timed==after.timed);
    after.damage=(uint16_t)((after.damage+1)%1024);
-   CHECK(nativeFighterAction_SetHitbox(&owned,action,rows[n].source_offset,&after));
+   CHECK(nativeFighterAction_SetHitbox(&owned,action,rows[n].source_offset,&after,NULL));
    NativeFighterHitbox changed;CHECK(nativeFighterAction_GetHitbox(&owned,action,rows[n].source_offset,&changed));
    CHECK(changed.damage==after.damage&&changed.only_hit_grabbed==before.only_hit_grabbed);edited=true;
   }

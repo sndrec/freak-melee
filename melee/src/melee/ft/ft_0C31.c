@@ -5,12 +5,17 @@
 #include "fighter.h"
 #include "forward.h"
 #include "ft_081B.h"
+#include "ftanim.h"
 #include "ftcolanim.h"
 #include "ftcoll.h"
 #include "ftcommon.h"
 #include "kinds/ftCommon/forward.h"
 #include "kinds/ftCommon/types.h"
 #include "types.h"
+#ifdef MELEE_NATIVE
+#include "native_fighter_lifetime.h"
+#include "native_script_fighter.h"
+#endif
 #include <dolphin/mtx.h>
 #include <melee/ef/efasync.h>
 #include <melee/lb/lbaudio_ax.h>
@@ -30,6 +35,9 @@ void ftCo_800C61B0(Fighter_GObj* gobj)
     jobj = GET_JOBJ(gobj);
 
     fp->mv.co.entry.timer = Player_GetUnk4C(fp->player_id);
+#ifdef MELEE_NATIVE
+    fp->mv.co.entry.authored = false;
+#endif
 
     HSD_JObjGetScale(jobj, &fp->mv.co.entry.x8);
     fp->mv.co.entry.x14.x = fp->mv.co.entry.x8.x;
@@ -51,6 +59,36 @@ void ftCo_Entry_Anim(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     if (fp->mv.co.entry.timer == 0) {
+#ifdef MELEE_NATIVE
+        if (fp->x221D_b4 &&
+            nativeScriptFighter_HasHook(gobj, NativeScriptFighter_MatchEntrance) &&
+            nativeScriptFighter_Status(gobj) == NativeScriptVM_Ok &&
+            fp->x24 && fp->x24[ftCo_SM_EntryStart].x8 > 0)
+        {
+            NativeFighterLifetime lifetime;
+            if (!nativeFighterLifetime_Capture(fp, &lifetime)) return;
+            NativeScriptValue result;
+            const NativeScriptVMStatus status = nativeScriptFighter_Run(
+                gobj, NativeScriptFighter_MatchEntrance, NULL, 0, NULL, &result);
+            if (!nativeFighterLifetime_Current(&lifetime) ||
+                fp->motion_id != ftCo_MS_Entry)
+            {
+                return;
+            }
+            if (status == NativeScriptVM_Ok && result.as.u64) {
+                fp->mv.co.entry.authored = true;
+                HSD_JObjSetScale(GET_JOBJ(gobj), &fp->mv.co.entry.x8);
+                Fighter_ChangeMotionState(gobj, ftCo_MS_EntryStart, 0, 0.0F,
+                                          1.0F, 0.0F, NULL);
+                if (nativeFighterLifetime_Current(&lifetime) &&
+                    fp->motion_id == ftCo_MS_EntryStart)
+                {
+                    fp->x2219_b1 = true;
+                }
+                return;
+            }
+        }
+#endif
         ftCo_800C6408(gobj);
     }
     --fp->mv.co.entry.timer;
@@ -137,6 +175,14 @@ void ftCo_800C6408(Fighter_GObj* gobj)
 void ftCo_EntryStart_Anim(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
+#ifdef MELEE_NATIVE
+    if (fp->mv.co.entry.authored) {
+        if (!ftAnim_IsFramesRemaining(gobj)) {
+            ftCo_FinishEntrance(gobj);
+        }
+        return;
+    }
+#endif
     --fp->mv.co.entry.timer;
     if (fp->mv.co.entry.timer == 0) {
         ftCo_800C6B6C(gobj);
@@ -159,6 +205,12 @@ void ftCo_EntryStart_Phys(Fighter_GObj* gobj)
     u32 temp_r4;
 
     temp_r31 = GET_FIGHTER(gobj);
+#ifdef MELEE_NATIVE
+    if (temp_r31->mv.co.entry.authored) {
+        if (temp_r31->ground_or_air == GA_Air) ft_80084DB0(gobj);
+        return;
+    }
+#endif
     temp_r6 = p_ftCommonData->x6BC;
     temp_f4 = p_ftCommonData->x6C4;
     temp_f31 = (f32) (temp_r6 - temp_r31->mv.co.entry.timer) / temp_r6;
@@ -186,6 +238,13 @@ void ftCo_EntryStart_Coll(Fighter_GObj* gobj)
 {
     Fighter* fp = GET_FIGHTER(gobj);
     PAD_STACK(8);
+#ifdef MELEE_NATIVE
+    if (fp->mv.co.entry.authored) {
+        // Resolve the stage at the fighter origin throughout the entrance.
+        // Jumps in the authored pose do not lift the collision box.
+        fp->mv.co.entry.x2C.bottom = 0;
+    } else
+#endif
     if (!fp->x221F_b4) {
         fp->mv.co.entry.x2C.bottom = -fp->mv.co.entry.x28;
     } else {
@@ -261,11 +320,17 @@ void ftCo_EntryEnd_Anim(Fighter_GObj* gobj)
     Fighter* fp = GET_FIGHTER(gobj);
     --fp->mv.co.entry.timer;
     if (fp->mv.co.entry.timer == 0) {
-        if (Player_GetFlagsBit4(fp->player_id)) {
-            ftColl_8007B760(gobj, p_ftCommonData->x6C8);
-        }
-        ftCommon_8007D92C(gobj);
+        ftCo_FinishEntrance(gobj);
     }
+}
+
+void ftCo_FinishEntrance(Fighter_GObj* gobj)
+{
+    Fighter* fp = GET_FIGHTER(gobj);
+    if (Player_GetFlagsBit4(fp->player_id)) {
+        ftColl_8007B760(gobj, p_ftCommonData->x6C8);
+    }
+    ftCommon_8007D92C(gobj);
 }
 
 void ftCo_EntryEnd_IASA(Fighter_GObj* gobj) {}

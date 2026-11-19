@@ -246,7 +246,7 @@ static void require_hitbox_matches_source(const FtCharacterAssets* assets,
             "fighter hitbox command matches retail fields\n");
 }
 
-static u32 validate_action_hitboxes(const FtCharacterAssets* assets,
+static u32 validate_action_commands(const FtCharacterAssets* assets,
                                     u32 action_count)
 {
     const u32 word_count = assets->action_stats.word_count;
@@ -276,6 +276,19 @@ static u32 validate_action_hitboxes(const FtCharacterAssets* assets,
             if (opcode == 11) {
                 require_hitbox_matches_source(assets, word);
                 ++hitbox_count;
+            }
+            if (opcode == 17) {
+                u32 source = assets->action_stats.source_begin + word * 4;
+                u32 head, id, tail;
+                require(HSD_DatReadU32(&assets->dat, source, &head) &&
+                        HSD_DatReadU32(&assets->dat, source + 4, &id) &&
+                        HSD_DatReadU32(&assets->dat, source + 8, &tail),
+                        "read fighter sound source words\n");
+                require(command[0].sound_effect_0.behavior == ((head >> 18) & 0xFF) &&
+                        command[1].sound_effect_1.sfx_id == id &&
+                        command[2].sound_effect_2.volume == ((tail >> 8) & 0xFF) &&
+                        command[2].sound_effect_2.panning == (tail & 0xFF),
+                        "fighter sound channel and settings match retail fields\n");
             }
             if (opcode == 5 || opcode == 7) {
                 s32 relative;
@@ -579,7 +592,7 @@ int main(int argc, char** argv)
         require(live_entries == assets.action_stats.entry_count &&
                     assets.action_stats.instruction_count > 0,
                 "fighter action graph coverage\n");
-        action_hitbox_count += validate_action_hitboxes(
+        action_hitbox_count += validate_action_commands(
             &assets, (u32) ftData_Table_Unk0[kind].count);
         u32 article_mask = 0;
         u32 article_table = 0;

@@ -3,8 +3,16 @@
 
 #ifdef MELEE_NATIVE
 #include "native_online_sss.h"
+#include "native_menu_paint.h"
 #include <melee/gm/gmvsmelee.h>
+#include <melee/gm/native_home.h>
 #include <melee/gm/native_online_session.h>
+#include <melee/gr/forward.h>
+#include <sysdolphin/baselib/cobj.h>
+#include <sysdolphin/baselib/dobj.h>
+#include <sysdolphin/baselib/mobj.h>
+#include <sysdolphin/baselib/tobj.h>
+#include <math.h>
 #include <stdio.h>
 #endif
 
@@ -45,13 +53,92 @@ static void order_sdata2(void)
 #endif
 
 #ifdef MELEE_NATIVE
+static bool practice_tile_hover, practice_tile_enabled, practice_tile_selected;
+static Vec3 practice_tile_center;
+static float practice_tile_highlight_x, practice_tile_highlight_y;
+static HSD_JObj* practice_tile_anchor;
+enum { PRACTICE_THUMBNAIL_MAX = 64 };
+static _Alignas(32) u8 practice_thumb_pixels[PRACTICE_THUMBNAIL_MAX * PRACTICE_THUMBNAIL_MAX * 4];
+static HSD_ImageDesc practice_thumb_image = {
+    .image_ptr = practice_thumb_pixels,
+    .format = GX_TF_RGBA8,
+};
+
+static void make_practice_thumbnail(unsigned width, unsigned height)
+{
+    // Match the room's steel-gray walls, perspective floor and red axes.
+    // Keep the dimensions of the stock thumbnail's texture animation frame.
+    HSD_ASSERT(0, width && width <= PRACTICE_THUMBNAIL_MAX && width % 4 == 0 &&
+                  height && height <= PRACTICE_THUMBNAIL_MAX && height % 4 == 0);
+    practice_thumb_image.width = width;
+    practice_thumb_image.height = height;
+    const float u_scale = 48.0f / width, v_scale = 48.0f / height;
+    for (unsigned y = 0; y < height; ++y) {
+        for (unsigned x = 0; x < width; ++x) {
+            unsigned r = 0, g = 0, b = 0;
+            for (unsigned sample = 0; sample < 4; ++sample) {
+                const float u = (x + .25f + .5f * (sample & 1)) * u_scale;
+                const float v = (y + .25f + .5f * (sample >> 1)) * v_scale;
+                const float z = fmaxf(0, v - 20);
+                const float plane_u = z > 0 ? (u - 27) / (1 + z * .12f) : u - 27;
+                const float plane_v = z > 0 ? 28 * z / (10 + z) : v - 20;
+                const bool seam = fabsf(v - 20) < .5f;
+                const bool axis = fabsf(plane_u - 4) < .28f ||
+                                  (z > 0 && fabsf(v - 31) < .55f);
+                const bool major = fabsf(remainderf(plane_u, 16)) < .4f ||
+                                   fabsf(remainderf(plane_v, 16)) < .4f;
+                const bool fine = fabsf(remainderf(plane_u, 4)) < .29f ||
+                                  fabsf(remainderf(plane_v, 4)) < .29f;
+                const unsigned tone = (z > 0 ? 150 : 118) -
+                                      (seam ? 49 : major ? 39 : fine ? 22 : 0);
+                r += axis ? 217 : tone;
+                g += axis ? 45 : tone + 3;
+                b += axis ? 47 : tone + 8;
+            }
+            size_t tile = ((y / 4) * (width / 4) + x / 4) * 64;
+            size_t pixel = ((y % 4) * 4 + x % 4) * 2;
+            practice_thumb_pixels[tile + pixel] = 255;
+            practice_thumb_pixels[tile + pixel + 1] = r / 4;
+            practice_thumb_pixels[tile + pixel + 32] = g / 4;
+            practice_thumb_pixels[tile + pixel + 33] = b / 4;
+        }
+    }
+}
+
+static void draw_practice_title(HSD_GObj* object, int pass)
+{
+    (void)object;
+    (void)pass;
+    if (!HSD_CObjGetCurrent() || !practice_tile_hover || mnStageSel_804D6CAF) return;
+    Mtx view, model = {{ .1f, 0, 0, 0 }, { 0, .1f, 0, 0 },
+                       { 0, 0, 1, 5 }}, canvas;
+    HSD_CObjGetViewingMtx(HSD_CObjGetCurrent(), view);
+    C_MTXConcat(view, model, canvas);
+    nativeMenuPaint_Begin(canvas);
+    nativeMenuPaint_Text("Training Room", -226, 123, 175, 19, 0xFFF4E9FF,
+                         NativeMenuFont_Heading, true, true);
+    nativeMenuPaint_End();
+}
+
+static void update_practice_tile(HSD_GObj* tile)
+{
+    lb_8000B1CC(practice_tile_anchor, NULL, &practice_tile_center);
+    practice_tile_center.x -= 5.3f;
+    HSD_JObjSetTranslate(GET_JOBJ(tile), &practice_tile_center);
+}
+
 void mnStageSel_Inspect(void)
 {
-    if (!nativeOnlineSss_IsActive()) {
+    if (!nativeOnlineSss_IsActive() && !nativeHome_PracticeStageSelect()) {
         fprintf(stderr, "[sss-state] inactive\n");
         return;
     }
     fprintf(stderr, "[sss-state] selected=%u\n", mnStageSel_804D6CAE);
+    if (practice_tile_enabled) {
+        Vec3 tile = practice_tile_center;
+        fprintf(stderr, "[sss-tile] index=30 stage=%u x=%.6f y=%.6f\n",
+                St_Kind_Practice, tile.x, tile.y);
+    }
     for (HSD_GObj* object = HSD_GObjPLinkHead[5]; object; object = object->next)
         for (HSD_GObjProc* proc = object->proc; proc; proc = proc->child)
             if (proc->on_invoke == fn_8025A310) {
@@ -139,6 +226,15 @@ void mnStageSel_80259C28(void)
     if (mnStageSel_804D6CA4 != 0) {
         return;
     }
+#ifdef MELEE_NATIVE
+    if (practice_tile_hover && practice_tile_enabled) {
+        if (mnStageSel_804D6CA0 & (HSD_PAD_A | HSD_PAD_START)) {
+            practice_tile_selected = true;
+            goto skip_randomize;
+        }
+        return;
+    }
+#endif
     switch (mnStageSel_804D6CAE) {
     case 30:
         if (!(mnStageSel_804D6CA0 & 0x1000)) {
@@ -269,7 +365,7 @@ void fn_8025A090(HSD_GObj* gobj)
     jobj = GET_JOBJ(gobj);
     temp_r30 = HSD_GObjGetUserData(gobj);
     var_r3 = mnStageSel_804D6CAE;
-    if (mnStageSel_803F06D0[mnStageSel_804D6CAE].x8 < 2) {
+    if (var_r3 >= 30 || mnStageSel_803F06D0[var_r3].x8 < 2) {
         var_r3 = 0x1E;
     }
     if (temp_r30->x0 != var_r3) {
@@ -287,7 +383,7 @@ void fn_8025A090(HSD_GObj* gobj)
     }
     if (temp_r30->x4 < 0x5A) {
         temp_r30->x4++;
-        if (temp_r30->x4 == 0x14) {
+        if (temp_r30->x4 == 0x14 && temp_r30->x0 < 30) {
             HSD_JObjReqAnimAll(jobj,
                                50.0F * mnStageSel_803F06D0[temp_r30->x0].x9);
         }
@@ -342,6 +438,19 @@ void fn_8025A310(HSD_GObj* gobj)
     Vec3 local_cursor = sp1C;
 #endif
     lb_8000B1CC(jobj, NULL, &sp1C);
+#ifdef MELEE_NATIVE
+    if (practice_tile_enabled) {
+        const Vec3 tile = practice_tile_center;
+        const bool hovered = sp1C.x >= tile.x - 2.65f && sp1C.x < tile.x + 2.65f &&
+                             sp1C.y >= tile.y - 2.1f && sp1C.y < tile.y + 2.1f;
+        if (hovered && !practice_tile_hover) sfxMove();
+        practice_tile_hover = hovered;
+        if (hovered) {
+            mnStageSel_804D6CAE = 30;
+            return;
+        }
+    }
+#endif
     for (i = 0; i < 0x1E; i++) {
         if (mnStageSel_803F06D0[i].x8 != 0) {
             lb_8000B1CC(mnStageSel_803F06D0[i].x0, NULL, &sp10);
@@ -372,6 +481,14 @@ void fn_8025A560(HSD_GObj* gobj)
     HSD_JObj* jobj = GET_JOBJ(gobj);
     temp_r30 = HSD_GObjGetUserData(gobj);
 
+#ifdef MELEE_NATIVE
+    if (practice_tile_enabled && practice_tile_hover) {
+        HSD_JObjSetTranslateX(jobj, practice_tile_center.x);
+        HSD_JObjSetTranslateY(jobj, practice_tile_center.y);
+        HSD_JObjSetScaleX(jobj, practice_tile_highlight_x);
+        HSD_JObjSetScaleY(jobj, practice_tile_highlight_y);
+    } else
+#endif
     if (mnStageSel_804D6CAE < 0x16 && (mnStageSel_804D6CAE & 1) &&
         mnStageSel_803F06D0[mnStageSel_804D6CAE].x8 == 0)
     {
@@ -815,6 +932,41 @@ void mnStageSel_Scene_OnEnter(void* arg0)
 
         lbAudioAx_80023F28(gmMainLib_8015ECB0());
 #ifdef MELEE_NATIVE
+        if (nativeHome_PracticeStageSelect()) {
+            // The bonus-stage tile has separate frame and thumbnail textures.
+            // Keep the frame, mesh, material and highlight from the scene.
+            const StaticModelDesc* model = &mnStageSel_804D6C98->x20;
+            HSD_JObj* icon = HSD_JObjLoadJoint(model->joint);
+            HSD_JObjAddAnimAll(icon, model->animjoint, model->matanim_joint, model->shapeanim_joint);
+            do_anim(icon, 3);
+            HSD_TObj* thumbnail = NULL;
+            for (HSD_DObj* part = HSD_JObjGetDObj(HSD_JObjGetChild(icon));
+                 part && !thumbnail; part = part->next)
+            {
+                HSD_TObj* texture = HSD_MObjGetTObj(part->mobj);
+                if (texture && texture->imagedesc &&
+                    texture->imagedesc->format == GX_TF_C8) thumbnail = texture;
+            }
+            HSD_ASSERT(0, thumbnail);
+            make_practice_thumbnail(thumbnail->imagedesc->width,thumbnail->imagedesc->height);
+            HSD_TObjRemoveAnim(thumbnail);
+            thumbnail->imagedesc = &practice_thumb_image;
+            // Follow Battlefield's authored marker through the entrance
+            // animation so the extra tile slides in with the stock row.
+            enum { battlefield_marker = 0xB, battlefield_tile = battlefield_marker + 13 };
+            practice_tile_anchor = spDC[battlefield_marker];
+            practice_tile_highlight_x = mnStageSel_803F06D0[battlefield_tile].x14;
+            practice_tile_highlight_y = mnStageSel_803F06D0[battlefield_tile].x18;
+            HSD_GObj* tile = GObj_Create(4, 5, 0x80);
+            HSD_GObjObject_80390A70(tile, HSD_GObj_JObjKind, icon);
+            update_practice_tile(tile);
+            HSD_GObj_SetupProc(tile, update_practice_tile, 5);
+            GObj_SetupGXLink(tile, HSD_GObj_JObjCallback, 4, 0x83);
+            HSD_GObj* title = GObj_Create(0, 5, 0x80);
+            GObj_SetupGXLink(title, draw_practice_title, 4, 0x88);
+            nativeMenuFont_Acquire();
+            practice_tile_enabled = true;
+        }
         if (nativeOnlineSss_IsActive()) {
             HSD_GObj* label = GObj_Create(0, 5, 0x80);
             GObj_SetupGXLink(label, nativeOnlineSss_DrawChooser, 4, 0x88);
@@ -950,6 +1102,9 @@ void mnStageSel_Scene_OnFrame(void)
     }
     if (mnStageSel_804D6CAF == 2) {
         sss_data->vs.start.rules.stkind =
+#ifdef MELEE_NATIVE
+            practice_tile_selected ? St_Kind_Practice :
+#endif
             mnStageSel_803F06D0[mnStageSel_804D6CAE].stkind;
         gm_801A4B60();
     }
@@ -957,6 +1112,11 @@ void mnStageSel_Scene_OnFrame(void)
 
 void mnStageSel_Scene_OnExit(UNUSED void* exit_data)
 {
+#ifdef MELEE_NATIVE
+    if (practice_tile_enabled) nativeMenuFont_Release();
+    practice_tile_enabled = practice_tile_hover = practice_tile_selected = false;
+    practice_tile_anchor = NULL;
+#endif
     if (mnStageSel_804D6C94 != NULL) {
         lbArchive_80016EFC(mnStageSel_804D6C94);
         mnStageSel_804D6C94 = NULL;

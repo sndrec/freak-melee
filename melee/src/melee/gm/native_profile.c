@@ -387,6 +387,55 @@ bool nativeProfileStore_Delete(const char* profile_id)
            DeleteFileA(path);
 }
 
+static bool selection_path(char path[MAX_PATH], unsigned port)
+{
+    if (port >= 4 || !nativeProfileStore_BuildPath(path, MAX_PATH, "p1")) {
+        return false;
+    }
+    char* name = strrchr(path, '\\') + 1;
+    name[1] = (char) ('1' + port);
+    strcpy(name + 2, ".use");
+    return true;
+}
+
+bool nativeProfileStore_ReadSelection(unsigned port,
+                                     char id[NATIVE_PROFILE_ID_BYTES + 1])
+{
+    char path[MAX_PATH];
+    if (!id || !selection_path(path, port)) return false;
+    id[0] = '\0';
+    FILE* input = fopen(path, "rb");
+    if (!input) return false;
+    char line[NATIVE_PROFILE_ID_BYTES + 2];
+    size_t count = fread(line, 1, sizeof(line), input);
+    bool ok = !ferror(input) && count > 0 && count < sizeof(line) &&
+              line[count - 1] == '\n' && !memchr(line, '\0', count);
+    fclose(input);
+    if (!ok) return false;
+    line[count - 1] = '\0';
+    if (count != 1 && !nativeProfileStore_IsValidId(line)) return false;
+    memcpy(id, line, count);
+    return true;
+}
+
+bool nativeProfileStore_WriteSelection(unsigned port, const char* id)
+{
+    char path[MAX_PATH], temporary[MAX_PATH];
+    if (!id || (*id && !nativeProfileStore_IsValidId(id)) ||
+        !selection_path(path, port) || !ensure_store_directories()) return false;
+    int n = snprintf(temporary, sizeof(temporary), "%s.%lu.tmp", path,
+                     GetCurrentProcessId());
+    if (n <= 0 || n >= sizeof(temporary)) return false;
+    FILE* output = fopen(temporary, "wb");
+    if (!output) return false;
+    bool ok = fprintf(output, "%s\n", id) > 0;
+    ok = fclose(output) == 0 && ok;
+    if (ok) ok = MoveFileExA(temporary, path,
+                            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+    if (!ok) DeleteFileA(temporary);
+    return ok;
+}
+
 bool nativeProfileStore_List(NativeProfileEntry* entries, size_t capacity,
                              size_t* count)
 {

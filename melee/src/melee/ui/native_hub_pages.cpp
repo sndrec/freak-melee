@@ -25,52 +25,6 @@
 
 namespace {
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xA6A1AFFF;
-    struct MessageLines {
-        char lines[32][128];
-        unsigned count;
-    };
-    MessageLines wrap_message(const char* text)
-    {
-        MessageLines result{};
-        while (*text && result.count < 32) {
-            while (*text == ' ') {
-                ++text;
-            }
-            if (!*text) {
-                break;
-            }
-            unsigned n = 0, last_space = 0;
-            char* line = result.lines[result.count];
-            while (text[n] && text[n] != '\n' && n < 126) {
-                line[n] = text[n];
-                line[n + 1] = 0;
-                if (nativeMenuFont_Width(NativeMenuFont_Notice, line, 8) >
-                        270 &&
-                    n)
-                {
-                    if (last_space) {
-                        n = last_space;
-                    }
-                    break;
-                }
-                if (text[n] == ' ') {
-                    last_space = n;
-                }
-                ++n;
-            }
-            if (!n && *text != '\n') {
-                n = 1;
-            }
-            std::memcpy(line, text, n);
-            line[n] = 0;
-            text += n;
-            if (*text == '\n') {
-                ++text;
-            }
-            ++result.count;
-        }
-        return result;
-    }
     void fighter_tile(unsigned index, float x, float y)
     {
         const NativeHubFighter& f = nativeHubFighters[index];
@@ -107,10 +61,8 @@ namespace {
             const NativeHubFighter& f = nativeHubFighters[hub.selected];
             nativeMenuPaint_Text(f.title, 194, 290, 260, 17, 0xF5EFEAFF,
                                 NativeMenuFont_MenuOption);
-            nativeMenuPaint_Text(f.installed
-                                    ? "Moves - Scripts - Animation - Model"
-                                    : "Editable draft",
-                                194, 313, 240, 8, muted);
+            if (!f.installed)
+                nativeMenuPaint_Text("Draft", 194, 313, 240, 8, muted);
             nativeHub_Button("edit-fighter", "Edit fighter", 465, 285, 122, 36,
                              HubAction::Edit, 0, true, nativeHome_IsSelection());
             nativeHub_Button("copy-fighter", "Duplicate", 194, 332, 62, 21,
@@ -233,32 +185,47 @@ namespace {
         nativeHub_Panel(175, 116, 296, 234);
         nativeHub_Panel(479, 116, 126, 234);
         nativeMenuPaint_Text("Players", 489, 127, 103, 12, gold, NativeMenuFont_MenuOption);
+        constexpr float font_size = 7.5f;
+        constexpr float line_height = font_size + 3;
+        constexpr float width = 270;
+        constexpr float bottom = 335;
+        constexpr unsigned visible_lines = 1 + unsigned((bottom - 151) / line_height);
+        char message[640];
+        auto format_message = [&](unsigned i) {
+            const char* name = room ? lobby->messages[i].name : global->messages[i].name;
+            const char* content = room ? lobby->messages[i].text : global->messages[i].text;
+            std::snprintf(message, sizeof(message), "%s: %s", name, content);
+            return unsigned(std::strlen(name)) + 1;
+        };
         int& scroll = room ? hub.room_chat_scroll : hub.chat_scroll;
         unsigned total_lines = 0;
-        for (unsigned i = 0; i < count; ++i)
-            total_lines += wrap_message(room ? lobby->messages[i].text : global->messages[i].text).count + 2;
-        scroll = std::clamp(scroll, 0, std::max(0, int(total_lines) - 17));
+        for (unsigned i = 0; i < count; ++i) {
+            format_message(i);
+            total_lines += nativeHub_TextBlock(message, 0, 0, width, 0, font_size, 0xFFFFFFFF);
+        }
+        scroll = std::clamp(scroll, 0, std::max(0, int(total_lines) - int(visible_lines)));
         nativeMenuPaint_Text("Messages", 186, 127, 172, 12, gold, NativeMenuFont_MenuOption);
         nativeHub_Button("chat-older", "Older", 371, 122, 43, 18,
-            HubAction::ChatScroll, 16, false, scroll + 17 < int(total_lines));
+            HubAction::ChatScroll, visible_lines - 1, false,
+            unsigned(scroll) + visible_lines < total_lines);
         nativeHub_Button("chat-newer", "Newer", 420, 122, 43, 18,
-            HubAction::ChatScroll, -16, false, scroll > 0);
+            HubAction::ChatScroll, 1 - int(visible_lines), false, scroll > 0);
         unsigned skip = unsigned(scroll);
-        float y = 335;
-        for (unsigned i = count; i > 0 && y >= 151; --i) {
-            const char* text = room ? lobby->messages[i - 1].text : global->messages[i - 1].text;
-            const char* name = room ? lobby->messages[i - 1].name : global->messages[i - 1].name;
-            char account_name[32];
-            if (!room && *global->messages[i - 1].account_handle) {
-                std::snprintf(account_name, sizeof(account_name), "@%s", global->messages[i - 1].account_handle); name = account_name;
+        unsigned remaining = visible_lines;
+        for (unsigned i = count; i > 0 && remaining; --i) {
+            const unsigned name_length = format_message(i - 1);
+            const unsigned lines = nativeHub_TextBlock(message, 0, 0, width, 0, font_size, 0xFFFFFFFF);
+            if (skip >= lines) {
+                skip -= lines;
+                continue;
             }
-            MessageLines lines = wrap_message(text);
-            for (int row = int(lines.count) + 1; row >= 0 && y >= 151; --row) {
-                if (skip) { --skip; continue; }
-                if (!row) nativeMenuPaint_Text(name, 186, y, 270, 9, gold);
-                else if (unsigned(row) <= lines.count) nativeMenuPaint_Text(lines.lines[row - 1], 186, y, 270, 8);
-                y -= 11;
-            }
+            const unsigned end = lines - skip;
+            const unsigned rows = std::min(remaining, end);
+            const float y = bottom - (visible_lines - remaining + rows - 1) * line_height;
+            nativeHub_TextBlock(message, 186, y, width, rows * line_height - 3,
+                                font_size, 0xFFFFFFFF, end - rows, name_length, gold);
+            remaining -= rows;
+            skip = 0;
         }
         if (!count) nativeMenuPaint_Text(ready ? "Be the first to say hello." : room ? "Connecting to lobby chat..." : "Connecting to global chat...", 186, 155, 272, 10, muted);
         int& people_scroll = room ? hub.room_people_scroll : hub.people_scroll;
@@ -268,11 +235,10 @@ namespace {
             const char* name = room ? presence->participants[i].name : global->players[i].name;
             const char* peer = room ? presence->participants[i].peer_id : global->players[i].peer;
             const char* account = room ? presence->participants[i].account_handle : global->players[i].account_handle;
-            char label[64]; std::snprintf(label, sizeof(label), *account ? "@%s" : "%s", *account ? account : name);
             const float row_y = 149 + (i - people_scroll) * 14;
             const bool hover = nativeHub_Hover(487, row_y, 108, 14);
-            nativeMenuPaint_Text(label, 487, row_y, 108, 10,
-                                 hover ? gold : 0xF2ECEDFF,
+            nativeMenuPaint_Text(name, 487, row_y, 108, 10,
+                                 hover ? 0xFFE36BFF : gold,
                                  NativeMenuFont_Notice, false, false);
             nativeHub_Region("chat-player", 487, row_y, 108, 14,
                 *account ? HubAction::OpenAccount : HubAction::ShowProfile, 0, true, peer, name, account);
@@ -295,26 +261,41 @@ namespace {
     }
     void profile()
     {
+        if (hub.profile_self) {
+            nativeMenuPaint_Text("Display name", 65, 127, 518, 16, gold,
+                                NativeMenuFont_MenuOption);
+            nativeHub_Field("profile-display-name", hub.name, 65, 153, 518, 30,
+                            HubAction::FieldName, false, "Player");
+            nativeMenuPaint_Text("About", 65, 205, 518, 16, gold,
+                                NativeMenuFont_MenuOption);
+            nativeHub_Field("profile-bio", hub.bio, 65, 231, 518, 103,
+                            HubAction::FieldBio);
+            nativeHub_Button("save-bio", "Save profile", 398, 353, 185, 30,
+                             HubAction::SaveProfile, 0, true);
+            nativeHub_Button("profile-back", "< Back", 40, 402, 110, 28,
+                             HubAction::Back);
+            return;
+        }
         nativeHub_Panel(175, 118, 430, 240);
         nativeMenuPaint_Text("About", 194, 138, 370, 15, gold,
                             NativeMenuFont_MenuOption);
-        if (hub.profile_self) {
-            nativeHub_Field("profile-bio", hub.bio, 194, 171, 390, 68,
-                            HubAction::FieldBio);
-            nativeHub_Button("save-bio", "Save profile", 194, 263, 165, 30,
-                             HubAction::SaveProfile, 0, true);
-        } else {
-            nativeMenuPaint_Text("This guest has no linked online account.", 194, 175,
-                                380, 10, muted);
-            nativeHub_Button("guest-find-account", "Find an account", 193, 251, 394,
-                             30, HubAction::Friends);
-        }
+        nativeMenuPaint_Text("This guest has no linked online account.", 194, 175,
+                            380, 10, muted);
+        nativeHub_Button("guest-find-account", "Find an account", 193, 251, 394,
+                         30, HubAction::Friends);
     }
     void send()
     {
         nativeHub_Panel(175, 117, 430, 252);
         nativeMenuPaint_Text(hub.gift_title, 191, 136, 335, 18, gold,
                             NativeMenuFont_MenuOption);
+        if (!hub.send_from_css && nativeHubAccount_View().signed_in) {
+            nativeHub_Button("gift-lobby-tab", "Lobby", 191, 153, 77, 20,
+                             HubAction::GiftRecipientMode, 0, !hub.send_to_friends);
+            nativeHub_Button("gift-friends-tab", "Friends", 276, 153, 77, 20,
+                             HubAction::GiftRecipientMode, 1, hub.send_to_friends);
+        }
+        if (hub.send_to_friends) { nativeHubSocial_FighterRecipients(); return; }
         const auto* p = nativeOnlineSession_Presence();
         unsigned rows = 0, total = 0;
         unsigned available = 0;
@@ -338,7 +319,7 @@ namespace {
                 }
                 if (total >= unsigned(hub.recipient_scroll) && rows < 7) {
                     nativeHub_Button(
-                        "gift-recipient", person.name, 191, 172 + rows * 24,
+                        "gift-recipient", person.name, 191, 178 + rows * 24,
                         394, 21, HubAction::Recipient, int(i),
                         !std::strcmp(hub.recipient, person.peer_id), true,
                         person.peer_id, person.name);

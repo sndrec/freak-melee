@@ -77,6 +77,13 @@ export default {
       if (!isRoomId(roomId)) {
         return jsonError("Invalid room ID", 400);
       }
+      if (request.headers.has("X-Freak-Lobby-Password")) {
+        if (url.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+          return jsonError("Lobby passwords require HTTPS.", 403);
+        const network = request.headers.get("CF-Connecting-IP") ?? "local";
+        const limit = await env.ACCOUNT_LIMIT.limit({ key: `lobby:${roomId}:${network}` });
+        if (!limit.success) return jsonError("Please wait before trying the lobby password again.", 429);
+      }
 
       const authenticated = await authenticatedConnection(request, env);
       if (authenticated instanceof Response) return authenticated;

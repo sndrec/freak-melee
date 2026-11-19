@@ -52,11 +52,11 @@ typedef struct NativeStageCursor {
 
 typedef struct NativeLobbyListing {
     char title[65];
-    uint8_t listed;
+    uint8_t listed, capacity, locked;
 } NativeLobbyListing;
 typedef struct NativeLobbyEntry {
     char code[13], title[65], host[33];
-    uint8_t fighting, waiting, spectating, participants, playing;
+    uint8_t fighting, waiting, spectating, participants, playing, capacity, locked;
 } NativeLobbyEntry;
 typedef struct NativeLobbyDirectory {
     NativeLobbyEntry entries[8];
@@ -167,7 +167,8 @@ typedef struct NativeSignalingServerMessage {
     } data;
 } NativeSignalingServerMessage;
 
-size_t nativeSignalingWire_EncodeListing(const char* title, bool listed,
+size_t nativeSignalingWire_EncodeListing(const char* title, bool listed, uint8_t fighter_limit,
+                                         const char* password,
                                          uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodeLobbies(uint16_t offset, uint8_t* output,
                                         size_t capacity);
